@@ -253,11 +253,14 @@ If a command fails or crashes:
 | | File Operations | 100% reliable |                                                                                                                                                        
 | | Context Window | 200K tokens |                                                                                                                                                           
                                                                                                                                                                                              
-### Optimization Guidelines                                                                                                                                                                  
-                                                                                                                                                                                             
-1. **Context Management**:                                                                                                                                                                   
-   - Driver maintains global context                                                                                                                                                         
-   - Worker receives focused, specific tasks                                                                                                                                                 
+### 3. Optimization Guidelines
+
+1.  **Decision Threshold (Standard vs Complex)**:
+    *   **Standard Tasks** (Git, File CRUD, Linting): **Driver Acts Directly**. Do not invoke Opus for trivialities.
+    *   **Complex Tasks** (Architecture, Debugging unknown errors): **Invoke Opus** for reasoning.
+
+2.  **Context Management**:
+    *   Driver maintains global context   - Worker receives focused, specific tasks                                                                                                                                                 
    - Never overload Worker with unnecessary context                                                                                                                                          
                                                                                                                                                                                              
 2. **Task Distribution**:                                                                                                                                                                    
