@@ -1,34 +1,36 @@
 <#
 .SYNOPSIS
-    NEXUS V5.0 - Orchestrateur Cognitif Symbiotique (PowerShell Wrapper)
+    NEXUS V5.0 - Orchestrateur Cognitif Symbiotique
 
 .DESCRIPTION
-    Wrapper PowerShell pour lancer NEXUS V5.0 avec une interface CLI conviviale.
+    Claude Code-like experience for NEXUS orchestration.
 
 .PARAMETER Objective
-    Objectif à accomplir par NEXUS (obligatoire si pas --panic)
+    Task to accomplish (required unless --help or --panic)
 
 .PARAMETER Mode
-    Mode opératoire: Normal, InProjectImprovement, CoreEvolution (défaut: Normal)
+    Operation mode: Normal, InProjectImprovement, CoreEvolution (default: Normal)
 
 .PARAMETER Panic
-    Déclencher un arrêt d'urgence avec ce message
+    Trigger emergency stop with message
 
 .PARAMETER Help
-    Afficher l'aide
+    Show help
+
+.PARAMETER Verbose
+    Show pre-flight checks and detailed output
 
 .EXAMPLE
-    nexus "Create a test file with hello world"
+    nexus "Create a test file"
 
 .EXAMPLE
-    nexus "Analyze the codebase" --mode InProjectImprovement
+    nexus "Analyze code" --mode InProjectImprovement
 
 .EXAMPLE
-    nexus --panic "Emergency stop - infinite loop detected"
+    nexus --panic "Emergency stop"
 
 .NOTES
     Version: 5.0
-    Date: 2025-11-20
     License: YANEXUS V5.0 Proprietary License
 #>
 
@@ -44,206 +46,139 @@ param(
     [string]$Panic,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Help
+    [switch]$Help,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Verbose
 )
 
-# Configuration UTF-8 pour Windows
+# UTF-8 configuration for Windows
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONIOENCODING = "utf-8"
 
-# Couleurs pour output
-function Write-NexusHeader {
-    Write-Host ""
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host "  NEXUS V5.0 - Orchestrateur Cognitif  " -ForegroundColor Cyan
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host ""
-}
+# Determine script directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$nexusScript = Join-Path $scriptDir "nexus.py"
 
-function Write-NexusInfo {
-    param([string]$Message)
-    Write-Host "[NEXUS INFO] $Message" -ForegroundColor Green
-}
-
-function Write-NexusWarning {
-    param([string]$Message)
-    Write-Host "[NEXUS WARN] $Message" -ForegroundColor Yellow
-}
-
-function Write-NexusError {
-    param([string]$Message)
-    Write-Host "[NEXUS ERROR] $Message" -ForegroundColor Red
-}
-
-# Afficher aide
+# Show help
 if ($Help) {
-    Write-NexusHeader
-    Write-Host "USAGE:"
-    Write-Host "  nexus <objective> [--mode <mode>]" -ForegroundColor White
-    Write-Host "  nexus --panic <message>" -ForegroundColor White
+    Write-Host "NEXUS V5.0 - Orchestrateur Cognitif Symbiotique" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "USAGE:" -ForegroundColor Yellow
+    Write-Host "  nexus <objective> [--mode <mode>] [--verbose]"
+    Write-Host "  nexus --panic <message>"
+    Write-Host "  nexus --help"
     Write-Host ""
     Write-Host "ARGUMENTS:" -ForegroundColor Yellow
-    Write-Host "  <objective>          Objectif à accomplir (obligatoire)" -ForegroundColor White
+    Write-Host "  <objective>          Task to accomplish (required)"
     Write-Host ""
     Write-Host "OPTIONS:" -ForegroundColor Yellow
-    Write-Host "  --mode <mode>        Mode opératoire (défaut: Normal)" -ForegroundColor White
-    Write-Host "                       Valeurs: Normal, InProjectImprovement, CoreEvolution" -ForegroundColor Gray
-    Write-Host "  --panic <message>    Arrêt d'urgence avec message" -ForegroundColor White
-    Write-Host "  --help               Afficher cette aide" -ForegroundColor White
-    Write-Host ""
-    Write-Host "MODES:" -ForegroundColor Yellow
-    Write-Host "  Normal               Mode standard de résolution de tâches" -ForegroundColor White
-    Write-Host "  InProjectImprovement Auto-amélioration (analyse logs, propose capabilities)" -ForegroundColor White
-    Write-Host "  CoreEvolution        Evolution du code NEXUS lui-même (sandbox)" -ForegroundColor White
+    Write-Host "  --mode <mode>        Normal | InProjectImprovement | CoreEvolution (default: Normal)"
+    Write-Host "  --panic <message>    Emergency stop"
+    Write-Host "  --verbose            Show pre-flight checks"
+    Write-Host "  --help               Show this help"
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Yellow
-    Write-Host "  nexus `"Create a test file with hello world`"" -ForegroundColor Gray
-    Write-Host "  nexus `"Analyze the codebase structure`" --mode InProjectImprovement" -ForegroundColor Gray
-    Write-Host "  nexus --panic `"Emergency stop - infinite loop detected`"" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "FILES:" -ForegroundColor Yellow
-    Write-Host "  workspace/           Dossier de travail NEXUS" -ForegroundColor White
-    Write-Host "  workspace/.nexus/    État et mémoire persistante" -ForegroundColor White
-    Write-Host "  workspace/_IO_BUFFER/  Communication agents" -ForegroundColor White
-    Write-Host "  workspace/logs/      Logs d'exécution" -ForegroundColor White
-    Write-Host ""
-    Write-Host "PANIC SYSTEM:" -ForegroundColor Yellow
-    Write-Host "  En cas d'urgence, créez manuellement:" -ForegroundColor White
-    Write-Host "  workspace/STOP_NOW   Fichier déclencheur panic" -ForegroundColor Gray
+    Write-Host "  nexus `"Create a test file with hello world`""
+    Write-Host "  nexus `"Analyze codebase`" --mode InProjectImprovement"
+    Write-Host "  nexus --panic `"Emergency stop - infinite loop detected`""
     Write-Host ""
     exit 0
 }
 
-# Validation panic
+# Panic mode
 if ($Panic) {
-    Write-NexusHeader
-    Write-NexusWarning "PANIC MODE ACTIVATED"
-    Write-Host ""
-    Write-Host "Message: $Panic" -ForegroundColor Red
-    Write-Host ""
-
-    # Vérifier Python
-    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $pythonCmd) {
-        Write-NexusError "Python not found in PATH"
-        exit 1
-    }
-
-    # Lancer nexus.py avec --panic
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    & python "$scriptDir\nexus.py" "PANIC_PLACEHOLDER" --panic $Panic
-
+    & python -u "$nexusScript" "dummy" --panic "$Panic"
     exit $LASTEXITCODE
 }
 
-# Validation objective
+# Validate objective
 if (-not $Objective) {
-    Write-NexusError "Objective required (use --help for usage)"
+    Write-Host "Error: Missing objective. Use --help for usage." -ForegroundColor Red
     exit 1
 }
 
-# Header
-Write-NexusHeader
+# Pre-flight checks (silent unless --verbose)
+if ($Verbose) {
+    Write-Host ""
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "  NEXUS V5.0 - Pre-flight Checks" -ForegroundColor Cyan
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host ""
+}
 
-# Vérifications pré-vol
-Write-NexusInfo "Pre-flight checks..."
-Write-Host ""
-
-# 1. Vérifier Python
-Write-Host "[1/5] Checking Python..." -NoNewline
+# Check Python
 $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
 if (-not $pythonCmd) {
-    Write-Host " FAILED" -ForegroundColor Red
-    Write-NexusError "Python not found in PATH"
-    Write-Host "       Install Python 3.10+ and add to PATH"
+    Write-Host "ERROR: Python not found in PATH" -ForegroundColor Red
     exit 1
 }
-$pythonVersion = & python --version 2>&1
-Write-Host " OK ($pythonVersion)" -ForegroundColor Green
 
-# 2. Vérifier nexus.py
-Write-Host "[2/5] Checking nexus.py..." -NoNewline
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$nexusScript = Join-Path $scriptDir "nexus.py"
+if ($Verbose) {
+    $pythonVersion = & python --version 2>&1
+    Write-Host "[1/5] Python: OK ($pythonVersion)" -ForegroundColor Green
+}
+
+# Check nexus.py
 if (-not (Test-Path $nexusScript)) {
-    Write-Host " FAILED" -ForegroundColor Red
-    Write-NexusError "nexus.py not found at: $nexusScript"
+    Write-Host "ERROR: nexus.py not found at $nexusScript" -ForegroundColor Red
     exit 1
 }
-Write-Host " OK" -ForegroundColor Green
 
-# 3. Vérifier Gemini CLI
-Write-Host "[3/5] Checking Gemini CLI..." -NoNewline
+if ($Verbose) {
+    Write-Host "[2/5] nexus.py: OK" -ForegroundColor Green
+}
+
+# Check Gemini CLI
 $geminiCmd = Get-Command gemini -ErrorAction SilentlyContinue
 if (-not $geminiCmd) {
-    Write-Host " WARNING" -ForegroundColor Yellow
-    Write-NexusWarning "Gemini CLI not found in PATH"
-    Write-Host "       Install: npm install -g @google/generative-ai-cli"
-} else {
-    $geminiVersion = & gemini --version 2>&1
-    Write-Host " OK ($geminiVersion)" -ForegroundColor Green
+    Write-Host "ERROR: Gemini CLI not found. Install from: https://github.com/google-gemini/generative-ai-python" -ForegroundColor Red
+    exit 1
 }
 
-# 4. Vérifier Claude Code CLI
-Write-Host "[4/5] Checking Claude Code CLI..." -NoNewline
+if ($Verbose) {
+    $geminiVersion = & gemini --version 2>&1 | Select-Object -First 1
+    Write-Host "[3/5] Gemini CLI: OK ($geminiVersion)" -ForegroundColor Green
+}
+
+# Check Claude Code CLI
 $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
 if (-not $claudeCmd) {
-    Write-Host " WARNING" -ForegroundColor Yellow
-    Write-NexusWarning "Claude Code CLI not found in PATH"
-    Write-Host "       Install from: https://claude.ai/claude-code"
-} else {
-    $claudeVersion = & claude --version 2>&1
-    Write-Host " OK ($claudeVersion)" -ForegroundColor Green
+    Write-Host "ERROR: Claude Code CLI not found. Install from: https://docs.claude.ai/claude-code" -ForegroundColor Red
+    exit 1
 }
 
-# 5. Vérifier .env
-Write-Host "[5/5] Checking .env configuration..." -NoNewline
+if ($Verbose) {
+    $claudeVersion = & claude --version 2>&1 | Select-Object -First 1
+    Write-Host "[4/5] Claude Code CLI: OK ($claudeVersion)" -ForegroundColor Green
+}
+
+# Check .env (warning only)
 $envFile = Join-Path $scriptDir ".env"
-if (-not (Test-Path $envFile)) {
-    Write-Host " WARNING" -ForegroundColor Yellow
-    Write-NexusWarning ".env file not found"
-    Write-Host "       NEXUS will use default configuration"
-} else {
-    Write-Host " OK" -ForegroundColor Green
+if ($Verbose) {
+    if (-not (Test-Path $envFile)) {
+        Write-Host "[5/5] .env: WARNING (using defaults)" -ForegroundColor Yellow
+    } else {
+        Write-Host "[5/5] .env: OK" -ForegroundColor Green
+    }
+    Write-Host ""
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host ""
 }
 
-Write-Host ""
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "  LAUNCHING NEXUS" -ForegroundColor Cyan
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Objective: $Objective" -ForegroundColor White
-Write-Host "Mode:      $Mode" -ForegroundColor White
-Write-Host ""
-Write-Host "Press Ctrl+C to interrupt..." -ForegroundColor Gray
-Write-Host ""
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host ""
-
-# Lancer NEXUS
+# Launch NEXUS (clean output like Claude Code)
 try {
     & python -u "$nexusScript" $Objective --mode $Mode
     $exitCode = $LASTEXITCODE
 
-    Write-Host ""
-    Write-Host "=========================================" -ForegroundColor Cyan
-
-    if ($exitCode -eq 0) {
-        Write-NexusInfo "NEXUS completed successfully"
-    } else {
-        Write-NexusError "NEXUS exited with code $exitCode"
+    if ($exitCode -ne 0 -and $Verbose) {
+        Write-Host ""
+        Write-Host "NEXUS exited with code $exitCode" -ForegroundColor Yellow
     }
-
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host ""
 
     exit $exitCode
 
 } catch {
-    Write-Host ""
-    Write-Host "=========================================" -ForegroundColor Red
-    Write-NexusError "Execution failed: $_"
-    Write-Host "=========================================" -ForegroundColor Red
-    Write-Host ""
+    Write-Host "ERROR: Execution failed: $_" -ForegroundColor Red
     exit 1
 }
