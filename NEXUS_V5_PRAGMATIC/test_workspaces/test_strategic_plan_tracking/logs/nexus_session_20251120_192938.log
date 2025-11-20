@@ -1,0 +1,65 @@
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | === NEXUS V5.0 SESSION START ===
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | Session ID: 20251120_192938
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | Mode: Normal
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | Objective: Create a comprehensive plan to: 1) Create 3 text files (alpha.txt, beta.txt, gamma.txt) with different content, 2) Read all 3 files, 3) Create a summary report. Track progress in strategic_plan with status updates (PENDING → IN_PROGRESS → COMPLETED).
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing ResourceMonitor
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing PanicHandler
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing MemoryManager
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing StateManager
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing ToolExecutor
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing ClaudeDriver
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Initializing GeminiDriver
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | [EVENT:INITIALIZATION_COMPLETE] {"workspace": "test_workspaces\\test_strategic_plan_tracking", "mode": "Normal", "objective": "Create a comprehensive plan to: 1) Create 3 text files (alpha.txt, beta.txt, gamma.txt) with different content, 2) Read all 3 files, 3) Create a summary report. Track progress in strategic_plan with status updates (PENDING → IN_PROGRESS → COMPLETED)."}
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | Starting main orchestration loop
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | ========== TURN 1 START ==========
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | [EVENT:TURN_START] {"iteration": 1, "active_agent": "Gemini", "pending_tool_validation": false}
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Turn 1: Checking panic
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Turn 1: Checking resources
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | [EVENT:RESOURCE_CHECK] {"turn": 1, "cpu_percent": 0, "ram_percent": 0, "overloaded": false}
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Turn 1: Checking compression
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | [EVENT:COMPRESSION_CHECK] {"turn": 1, "history_size_bytes": 2, "threshold": 100000}
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | Turn 1: Building context
+2025-11-20 20:29:38 | DEBUG    | NEXUS_20251120_192938 | [EVENT:IO_OPERATION] {"turn": 1, "operation": "WRITE_CONTEXT", "file_path": "context_in.md", "size_bytes": 11158}
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | Turn 1: Invoking Gemini
+2025-11-20 20:29:38 | INFO     | NEXUS_20251120_192938 | [EVENT:AGENT_INVOCATION] {"turn": 1, "agent": "Gemini", "context_size_bytes": 11158, "timeout_seconds": 120}
+2025-11-20 20:30:05 | ERROR    | NEXUS_20251120_192938 | [EVENT:ERROR] {"turn": 1, "error_type": "AGENT_INVOCATION_ERROR", "error_message": "Expecting value: line 1 column 1 (char 0)", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 301, in _invoke_agent\n    response = driver.invoke(context)\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\drivers\\gemini_driver.py\", line 66, in invoke\n    return self.read_response()\n           ~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\drivers\\base_driver.py\", line 62, in read_response\n    return json.loads(response_file.read_text(encoding=\"utf-8\"))\n           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Python313\\Lib\\json\\__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\n  File \"C:\\Python313\\Lib\\json\\decoder.py\", line 345, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Python313\\Lib\\json\\decoder.py\", line 363, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"}
+2025-11-20 20:30:05 | ERROR    | NEXUS_20251120_192938 | Turn 1 - AGENT_INVOCATION_ERROR: Expecting value: line 1 column 1 (char 0)
+2025-11-20 20:30:05 | ERROR    | NEXUS_20251120_192938 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 301, in _invoke_agent
+    response = driver.invoke(context)
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\drivers\gemini_driver.py", line 66, in invoke
+    return self.read_response()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\drivers\base_driver.py", line 62, in read_response
+    return json.loads(response_file.read_text(encoding="utf-8"))
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Python313\Lib\json\decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\json\decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+2025-11-20 20:30:05 | ERROR    | NEXUS_20251120_192938 | Turn 1: Agent invocation failed
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | === FINALIZING SESSION ===
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | Total events logged: 7
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | Log files:
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   main: test_workspaces\test_strategic_plan_tracking\logs\nexus_session_20251120_192938.log
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   events: test_workspaces\test_strategic_plan_tracking\logs\events_20251120_192938.jsonl
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   cfl: test_workspaces\test_strategic_plan_tracking\logs\cfl_20251120_192938.jsonl
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   errors: test_workspaces\test_strategic_plan_tracking\logs\errors_20251120_192938.log
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   trace: test_workspaces\test_strategic_plan_tracking\logs\trace_20251120_192938.log
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | Event counts:
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   INITIALIZATION_COMPLETE: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   TURN_START: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   RESOURCE_CHECK: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   COMPRESSION_CHECK: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   IO_OPERATION: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   AGENT_INVOCATION: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 |   ERROR: 1
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | Summary saved to: test_workspaces\test_strategic_plan_tracking\logs\summary_20251120_192938.json
+2025-11-20 20:30:05 | INFO     | NEXUS_20251120_192938 | === SESSION COMPLETE ===

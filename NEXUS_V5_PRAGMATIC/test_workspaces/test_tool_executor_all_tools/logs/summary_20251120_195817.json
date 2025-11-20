@@ -1,0 +1,23 @@
+{
+  "session_id": "20251120_195817",
+  "total_events": 11,
+  "log_files": {
+    "main": "test_workspaces\\test_tool_executor_all_tools\\logs\\nexus_session_20251120_195817.log",
+    "events": "test_workspaces\\test_tool_executor_all_tools\\logs\\events_20251120_195817.jsonl",
+    "cfl": "test_workspaces\\test_tool_executor_all_tools\\logs\\cfl_20251120_195817.jsonl",
+    "errors": "test_workspaces\\test_tool_executor_all_tools\\logs\\errors_20251120_195817.log",
+    "trace": "test_workspaces\\test_tool_executor_all_tools\\logs\\trace_20251120_195817.log"
+  },
+  "event_counts": {
+    "INITIALIZATION_COMPLETE": 1,
+    "TURN_START": 1,
+    "RESOURCE_CHECK": 1,
+    "COMPRESSION_CHECK": 1,
+    "IO_OPERATION": 2,
+    "AGENT_INVOCATION": 1,
+    "AGENT_RESPONSE": 1,
+    "CFL_VALIDATION_START": 1,
+    "ERROR": 1,
+    "VALIDATION": 1
+  }
+}

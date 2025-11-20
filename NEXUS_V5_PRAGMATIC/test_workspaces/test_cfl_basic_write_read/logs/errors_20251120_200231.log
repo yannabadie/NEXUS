@@ -1,0 +1,13 @@
+2025-11-20 21:02:55 | ERROR    | NEXUS_20251120_200231 | FATAL ERROR in orchestration loop: name 'old_counter' is not defined
+2025-11-20 21:02:55 | ERROR    | NEXUS_20251120_200231 | [EVENT:ERROR] {"turn": 1, "error_type": "ORCHESTRATION_FATAL", "error_message": "name 'old_counter' is not defined", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 131, in run\n    self._update_state(message)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 501, in _update_state\n    elif self.state.stalemate_counter < old_counter:\n                                        ^^^^^^^^^^^\nNameError: name 'old_counter' is not defined\n"}
+2025-11-20 21:02:55 | ERROR    | NEXUS_20251120_200231 | Turn 1 - ORCHESTRATION_FATAL: name 'old_counter' is not defined
+2025-11-20 21:02:55 | ERROR    | NEXUS_20251120_200231 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 131, in run
+    self._update_state(message)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 501, in _update_state
+    elif self.state.stalemate_counter < old_counter:
+                                        ^^^^^^^^^^^
+NameError: name 'old_counter' is not defined
+

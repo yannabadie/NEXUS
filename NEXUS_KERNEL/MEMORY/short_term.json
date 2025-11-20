@@ -1,0 +1,12 @@
+{
+  "session_id": null,
+  "start_time": null,
+  "current_objective": null,
+  "active_context": [],
+  "pending_validations": [],
+  "recent_decisions": [],
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": null
+  }
+}

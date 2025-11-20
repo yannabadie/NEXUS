@@ -1,0 +1,13 @@
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | FATAL ERROR in orchestration loop: 'StateManager' object has no attribute 'detect_stalemate'
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | [EVENT:ERROR] {"turn": 1, "error_type": "ORCHESTRATION_FATAL", "error_message": "'StateManager' object has no attribute 'detect_stalemate'", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 131, in run\n    self._update_state(message)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 493, in _update_state\n    self.state.detect_stalemate(message.action_type, message.status)\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'StateManager' object has no attribute 'detect_stalemate'\n"}
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | Turn 1 - ORCHESTRATION_FATAL: 'StateManager' object has no attribute 'detect_stalemate'
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 131, in run
+    self._update_state(message)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 493, in _update_state
+    self.state.detect_stalemate(message.action_type, message.status)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'StateManager' object has no attribute 'detect_stalemate'
+

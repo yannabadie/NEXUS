@@ -1,0 +1,68 @@
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | === NEXUS V5.0 SESSION START ===
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | Session ID: 20251120_195949
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | Mode: Normal
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | Objective: Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use.
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing ResourceMonitor
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing PanicHandler
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing MemoryManager
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing StateManager
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing ToolExecutor
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing ClaudeDriver
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Initializing GeminiDriver
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | [EVENT:INITIALIZATION_COMPLETE] {"workspace": "test_workspaces\\test_cfl_basic_write_read", "mode": "Normal", "objective": "Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use."}
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | Starting main orchestration loop
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | ========== TURN 1 START ==========
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | [EVENT:TURN_START] {"iteration": 1, "active_agent": "Gemini", "pending_tool_validation": false}
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Checking panic
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Checking resources
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | [EVENT:RESOURCE_CHECK] {"turn": 1, "cpu_percent": 0, "ram_percent": 0, "overloaded": false}
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Checking compression
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | [EVENT:COMPRESSION_CHECK] {"turn": 1, "history_size_bytes": 2, "threshold": 100000}
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Building context
+2025-11-20 20:59:49 | DEBUG    | NEXUS_20251120_195949 | [EVENT:IO_OPERATION] {"turn": 1, "operation": "WRITE_CONTEXT", "file_path": "context_in.md", "size_bytes": 11106}
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | Turn 1: Invoking Gemini
+2025-11-20 20:59:49 | INFO     | NEXUS_20251120_195949 | [EVENT:AGENT_INVOCATION] {"turn": 1, "agent": "Gemini", "context_size_bytes": 11106, "timeout_seconds": 120}
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | [EVENT:AGENT_RESPONSE] {"turn": 1, "agent": "Gemini", "response_size_bytes": 1607, "duration_seconds": 30.39751124382019, "action_type": "TALK", "status": "CONTINUE"}
+2025-11-20 21:00:20 | DEBUG    | NEXUS_20251120_195949 | [EVENT:IO_OPERATION] {"turn": 1, "operation": "READ_RESPONSE", "file_path": "action_out.json", "size_bytes": 1607}
+2025-11-20 21:00:20 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Validating message
+2025-11-20 21:00:20 | DEBUG    | NEXUS_20251120_195949 | [EVENT:CFL_VALIDATION_START] {"turn": 1, "pending_tool_validation": false, "action_type": "TALK"}
+2025-11-20 21:00:20 | DEBUG    | NEXUS_20251120_195949 | Expecting LightMessage
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | [EVENT:VALIDATION] {"turn": 1, "validation_type": "DUAL_SCHEMA", "result": "SUCCESS", "details": {"schema": "LightMessage"}}
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | Turn 1: Processing action TALK
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | [EVENT:ACTION_PROCESS] {"turn": 1, "action_type": "TALK", "sender": "Gemini"}
+2025-11-20 21:00:20 | DEBUG    | NEXUS_20251120_195949 | Turn 1: Updating state
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | FATAL ERROR in orchestration loop: 'StateManager' object has no attribute 'detect_stalemate'
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | [EVENT:ERROR] {"turn": 1, "error_type": "ORCHESTRATION_FATAL", "error_message": "'StateManager' object has no attribute 'detect_stalemate'", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 131, in run\n    self._update_state(message)\n    ~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 493, in _update_state\n    self.state.detect_stalemate(message.action_type, message.status)\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'StateManager' object has no attribute 'detect_stalemate'\n"}
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | Turn 1 - ORCHESTRATION_FATAL: 'StateManager' object has no attribute 'detect_stalemate'
+2025-11-20 21:00:20 | ERROR    | NEXUS_20251120_195949 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 131, in run
+    self._update_state(message)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 493, in _update_state
+    self.state.detect_stalemate(message.action_type, message.status)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'StateManager' object has no attribute 'detect_stalemate'
+
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | === FINALIZING SESSION ===
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | Total events logged: 12
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | Log files:
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   main: test_workspaces\test_cfl_basic_write_read\logs\nexus_session_20251120_195949.log
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   events: test_workspaces\test_cfl_basic_write_read\logs\events_20251120_195949.jsonl
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   cfl: test_workspaces\test_cfl_basic_write_read\logs\cfl_20251120_195949.jsonl
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   errors: test_workspaces\test_cfl_basic_write_read\logs\errors_20251120_195949.log
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   trace: test_workspaces\test_cfl_basic_write_read\logs\trace_20251120_195949.log
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | Event counts:
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   INITIALIZATION_COMPLETE: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   TURN_START: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   RESOURCE_CHECK: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   COMPRESSION_CHECK: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   IO_OPERATION: 2
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   AGENT_INVOCATION: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   AGENT_RESPONSE: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   CFL_VALIDATION_START: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   VALIDATION: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   ACTION_PROCESS: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 |   ERROR: 1
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | Summary saved to: test_workspaces\test_cfl_basic_write_read\logs\summary_20251120_195949.json
+2025-11-20 21:00:20 | INFO     | NEXUS_20251120_195949 | === SESSION COMPLETE ===

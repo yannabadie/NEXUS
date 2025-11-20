@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+NEXUS Conversation Bridge
+Gère une conversation continue entre Claude et Gemini avec historique visible.
+"""
+
+import subprocess
+import sys
+import os
+from pathlib import Path
+from datetime import datetime
+
+# Fix encoding Windows
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Configuration
+NEXUS_DIR = Path(__file__).parent.parent
+HISTORY_FILE = NEXUS_DIR / "04_Tests" / "conversation_history.md"
+
+def load_history():
+    """Charge l'historique de conversation"""
+    if HISTORY_FILE.exists():
+        return HISTORY_FILE.read_text(encoding='utf-8')
+    return ""
+
+def save_to_history(role: str, message: str):
+    """Ajoute un message à l'historique"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+
+    with open(HISTORY_FILE, 'a', encoding='utf-8') as f:
+        f.write(f"\n\n## [{timestamp}] {role}\n\n{message}\n")
+
+def send_to_gemini(message: str, include_history: bool = True) -> str:
+    """
+    Envoie un message à Gemini avec l'historique de conversation.
+
+    Args:
+        message: Le nouveau message à envoyer
+        include_history: Inclure l'historique précédent
+
+    Returns:
+        La réponse de Gemini
+    """
+    # Construire le prompt avec contexte
+    if include_history:
+        history = load_history()
+        if history:
+            full_prompt = f"""HISTORIQUE DE CONVERSATION NEXUS:
+{history}
+
+---
+
+NOUVEAU MESSAGE DE CLAUDE:
+{message}
+
+---
+
+Réponds en tenant compte de tout l'historique ci-dessus."""
+        else:
+            full_prompt = message
+    else:
+        full_prompt = message
+
+    # Afficher ce qu'on envoie
+    print("\n" + "=" * 70)
+    print(f"[CLAUDE → GEMINI] {datetime.now().strftime('%H:%M:%S')}")
+    print("=" * 70)
+    print(message)
+    print("=" * 70 + "\n")
+
+    # Sauvegarder dans l'historique
+    save_to_history("CLAUDE → GEMINI", message)
+
+    # Appeler Gemini CLI (utiliser .cmd sur Windows)
+    gemini_cmd = "gemini.cmd" if sys.platform == "win32" else "gemini"
+
+    try:
+        result = subprocess.run(
+            [gemini_cmd, full_prompt],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            encoding='utf-8',
+            shell=True  # Nécessaire sur Windows pour trouver .cmd dans PATH
+        )
+
+        response = result.stdout.strip()
+
+        # Afficher la réponse
+        print("\n" + "=" * 70)
+        print(f"[GEMINI → CLAUDE] {datetime.now().strftime('%H:%M:%S')}")
+        print(f"Réponse: {len(response)} caractères")
+        print("=" * 70)
+        print(response)
+        print("=" * 70 + "\n")
+
+        # Sauvegarder dans l'historique
+        save_to_history("GEMINI → CLAUDE", response)
+
+        return response
+
+    except subprocess.TimeoutExpired:
+        error = "[ERREUR] Timeout Gemini (180s)"
+        print(error)
+        save_to_history("ERREUR", error)
+        return error
+    except Exception as e:
+        error = f"[ERREUR] {str(e)}"
+        print(error)
+        save_to_history("ERREUR", error)
+        return error
+
+def start_new_conversation():
+    """Démarre une nouvelle conversation (efface l'historique)"""
+    if HISTORY_FILE.exists():
+        HISTORY_FILE.unlink()
+
+    # Créer le fichier avec en-tête
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        f.write(f"# Conversation NEXUS\n")
+        f.write(f"**Date**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"**Participants**: Claude Code (Sonnet 4.5) + Gemini CLI (2.5 Pro)\n")
+        f.write(f"**Projet**: NEXUS - Orchestration Multi-IA\n")
+
+    print(f"[NEXUS] Nouvelle conversation démarrée")
+    print(f"[NEXUS] Historique: {HISTORY_FILE}")
+
+def get_conversation_history():
+    """Retourne l'historique complet"""
+    return load_history()
+
+# Test du module
+if __name__ == "__main__":
+    print("=" * 70)
+    print("NEXUS CONVERSATION BRIDGE - TEST")
+    print("=" * 70)
+
+    # Démarrer nouvelle conversation
+    start_new_conversation()
+
+    # Premier message
+    response1 = send_to_gemini(
+        "Bonjour Gemini ! Je suis Claude. Nous travaillons sur NEXUS pour "
+        "analyser CEGID V11. Confirme ta compréhension et ta version."
+    )
+
+    # Deuxième message (avec historique)
+    response2 = send_to_gemini(
+        "Parfait ! Maintenant, peux-tu me rappeler quel ERP nous analysons ? "
+        "(teste ta mémoire de la conversation)"
+    )
+
+    print("\n" + "=" * 70)
+    print("TEST TERMINÉ - Vérifiez l'historique dans:")
+    print(str(HISTORY_FILE))
+    print("=" * 70)

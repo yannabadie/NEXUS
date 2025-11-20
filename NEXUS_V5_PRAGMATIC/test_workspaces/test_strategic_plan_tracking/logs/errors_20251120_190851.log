@@ -1,0 +1,13 @@
+2025-11-20 20:08:51 | ERROR    | NEXUS_20251120_190851 | [EVENT:ERROR] {"turn": 1, "error_type": "AGENT_INVOCATION_ERROR", "error_message": "Gemini CLI error: Le chemin d'acc�s sp�cifi� est introuvable.\n", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 301, in _invoke_agent\n    response = driver.invoke(context)\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\drivers\\gemini_driver.py\", line 56, in invoke\n    raise Exception(f\"Gemini CLI error: {result.stderr}\")\nException: Gemini CLI error: Le chemin d'acc�s sp�cifi� est introuvable.\n\n"}
+2025-11-20 20:08:51 | ERROR    | NEXUS_20251120_190851 | Turn 1 - AGENT_INVOCATION_ERROR: Gemini CLI error: Le chemin d'acc�s sp�cifi� est introuvable.
+
+2025-11-20 20:08:51 | ERROR    | NEXUS_20251120_190851 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 301, in _invoke_agent
+    response = driver.invoke(context)
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\drivers\gemini_driver.py", line 56, in invoke
+    raise Exception(f"Gemini CLI error: {result.stderr}")
+Exception: Gemini CLI error: Le chemin d'acc�s sp�cifi� est introuvable.
+
+
+2025-11-20 20:08:51 | ERROR    | NEXUS_20251120_190851 | Turn 1: Agent invocation failed

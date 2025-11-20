@@ -1,0 +1,70 @@
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | === NEXUS V5.0 SESSION START ===
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Session ID: 20251120_190726
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Mode: Normal
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Objective: Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use.
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing ResourceMonitor
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing PanicHandler
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing MemoryManager
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing StateManager
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing ToolExecutor
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing ClaudeDriver
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Initializing GeminiDriver
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | [EVENT:INITIALIZATION_COMPLETE] {"workspace": "test_workspaces\\test_cfl_basic_write_read", "mode": "Normal", "objective": "Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use."}
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Starting main orchestration loop
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | ========== TURN 1 START ==========
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | [EVENT:TURN_START] {"iteration": 1, "active_agent": "Gemini", "pending_tool_validation": false}
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Turn 1: Checking panic
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Turn 1: Checking resources
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | [EVENT:RESOURCE_CHECK] {"turn": 1, "cpu_percent": 0, "ram_percent": 0, "overloaded": false}
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Turn 1: Checking compression
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | [EVENT:COMPRESSION_CHECK] {"turn": 1, "history_size_bytes": 2, "threshold": 100000}
+2025-11-20 20:07:26 | DEBUG    | NEXUS_20251120_190726 | Turn 1: Building context
+2025-11-20 20:07:26 | ERROR    | NEXUS_20251120_190726 | FATAL ERROR in orchestration loop: module 'logging' has no attribute 'TRACE'
+2025-11-20 20:07:26 | ERROR    | NEXUS_20251120_190726 | [EVENT:ERROR] {"turn": 1, "error_type": "ORCHESTRATION_FATAL", "error_message": "module 'logging' has no attribute 'TRACE'", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 108, in run\n    context = self._build_context()\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 268, in _build_context\n    self.logger.log_io_operation(\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        self.iteration,\n        ^^^^^^^^^^^^^^^\n    ...<2 lines>...\n        len(context.encode('utf-8'))\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\logging_system.py\", line 225, in log_io_operation\n    self.log_event(\"IO_OPERATION\", {\n    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^\n        \"turn\": turn,\n        ^^^^^^^^^^^^^\n    ...<2 lines>...\n        \"size_bytes\": size_bytes\n        ^^^^^^^^^^^^^^^^^^^^^^^^\n    }, level=\"TRACE\")\n    ^^^^^^^^^^^^^^^^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\logging_system.py\", line 101, in log_event\n    getattr(logging, level),\n    ~~~~~~~^^^^^^^^^^^^^^^^\nAttributeError: module 'logging' has no attribute 'TRACE'\n"}
+2025-11-20 20:07:26 | ERROR    | NEXUS_20251120_190726 | Turn 1 - ORCHESTRATION_FATAL: module 'logging' has no attribute 'TRACE'
+2025-11-20 20:07:26 | ERROR    | NEXUS_20251120_190726 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 108, in run
+    context = self._build_context()
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 268, in _build_context
+    self.logger.log_io_operation(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.iteration,
+        ^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        len(context.encode('utf-8'))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\logging_system.py", line 225, in log_io_operation
+    self.log_event("IO_OPERATION", {
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+        "turn": turn,
+        ^^^^^^^^^^^^^
+    ...<2 lines>...
+        "size_bytes": size_bytes
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    }, level="TRACE")
+    ^^^^^^^^^^^^^^^^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\logging_system.py", line 101, in log_event
+    getattr(logging, level),
+    ~~~~~~~^^^^^^^^^^^^^^^^
+AttributeError: module 'logging' has no attribute 'TRACE'
+
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | === FINALIZING SESSION ===
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Total events logged: 6
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Log files:
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   main: test_workspaces\test_cfl_basic_write_read\logs\nexus_session_20251120_190726.log
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   events: test_workspaces\test_cfl_basic_write_read\logs\events_20251120_190726.jsonl
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   cfl: test_workspaces\test_cfl_basic_write_read\logs\cfl_20251120_190726.jsonl
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   errors: test_workspaces\test_cfl_basic_write_read\logs\errors_20251120_190726.log
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   trace: test_workspaces\test_cfl_basic_write_read\logs\trace_20251120_190726.log
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Event counts:
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   INITIALIZATION_COMPLETE: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   TURN_START: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   RESOURCE_CHECK: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   COMPRESSION_CHECK: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   IO_OPERATION: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 |   ERROR: 1
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | Summary saved to: test_workspaces\test_cfl_basic_write_read\logs\summary_20251120_190726.json
+2025-11-20 20:07:26 | INFO     | NEXUS_20251120_190726 | === SESSION COMPLETE ===

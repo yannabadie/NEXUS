@@ -1,0 +1,23 @@
+2025-11-20 20:29:33 | ERROR    | NEXUS_20251120_192905 | [EVENT:ERROR] {"turn": 1, "error_type": "AGENT_INVOCATION_ERROR", "error_message": "Expecting value: line 1 column 1 (char 0)", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 301, in _invoke_agent\n    response = driver.invoke(context)\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\drivers\\gemini_driver.py\", line 66, in invoke\n    return self.read_response()\n           ~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\drivers\\base_driver.py\", line 62, in read_response\n    return json.loads(response_file.read_text(encoding=\"utf-8\"))\n           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Python313\\Lib\\json\\__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^\n  File \"C:\\Python313\\Lib\\json\\decoder.py\", line 345, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Python313\\Lib\\json\\decoder.py\", line 363, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"}
+2025-11-20 20:29:33 | ERROR    | NEXUS_20251120_192905 | Turn 1 - AGENT_INVOCATION_ERROR: Expecting value: line 1 column 1 (char 0)
+2025-11-20 20:29:33 | ERROR    | NEXUS_20251120_192905 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 301, in _invoke_agent
+    response = driver.invoke(context)
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\drivers\gemini_driver.py", line 66, in invoke
+    return self.read_response()
+           ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\drivers\base_driver.py", line 62, in read_response
+    return json.loads(response_file.read_text(encoding="utf-8"))
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Python313\Lib\json\decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\json\decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+2025-11-20 20:29:33 | ERROR    | NEXUS_20251120_192905 | Turn 1: Agent invocation failed

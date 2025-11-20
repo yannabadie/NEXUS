@@ -1,0 +1,41 @@
+{
+  "Gemini": [
+    {
+      "name": "Strategic Planning",
+      "description": "Élaboration de plans stratégiques multi-étapes",
+      "invocation_method": "Utilise strategic_plan_update dans ton message"
+    }
+  ],
+  "Claude": [
+    {
+      "name": "bash",
+      "description": "Exécuter commandes shell via Nexus Tool Executor",
+      "invocation_method": "tool_use avec tool_name='bash' et expected_outcome obligatoire"
+    },
+    {
+      "name": "edit",
+      "description": "Éditer fichiers (remplacement de texte)",
+      "invocation_method": "tool_use avec tool_name='edit'"
+    },
+    {
+      "name": "git",
+      "description": "Opérations git (add, commit, status, diff, log)",
+      "invocation_method": "tool_use avec tool_name='git'"
+    },
+    {
+      "name": "read",
+      "description": "Lire fichiers",
+      "invocation_method": "tool_use avec tool_name='read'"
+    },
+    {
+      "name": "write",
+      "description": "Créer/écraser fichiers",
+      "invocation_method": "tool_use avec tool_name='write'"
+    },
+    {
+      "name": "list_dir",
+      "description": "Lister répertoire",
+      "invocation_method": "tool_use avec tool_name='list_dir'"
+    }
+  ]
+}

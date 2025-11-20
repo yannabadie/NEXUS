@@ -1,0 +1,69 @@
+2025-11-20 20:57:42 | ERROR    | NEXUS_20251120_195706 | [EVENT:ERROR] {"turn": 1, "error_type": "VALIDATION_ERROR", "error_message": "8 validation errors for LightMessage\nsender\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nthought_process\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nreflection\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\naction_type\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\naction_summary\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nnext_agent\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\ninstructions_for_next\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nstatus\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 353, in _validate_message\n    message = LightMessage.parse_obj(response_data)\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\.venv\\Lib\\site-packages\\pydantic\\main.py\", line 1370, in parse_obj\n    return cls.model_validate(obj)\n           ~~~~~~~~~~~~~~~~~~^^^^^\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\.venv\\Lib\\site-packages\\pydantic\\main.py\", line 716, in model_validate\n    return cls.__pydantic_validator__.validate_python(\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n        obj,\n        ^^^^\n    ...<5 lines>...\n        by_name=by_name,\n        ^^^^^^^^^^^^^^^^\n    )\n    ^\npydantic_core._pydantic_core.ValidationError: 8 validation errors for LightMessage\nsender\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nthought_process\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nreflection\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\naction_type\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\naction_summary\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nnext_agent\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\ninstructions_for_next\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nstatus\n  Field required [type=missing, input_value={'response': '```json\\n{\\...totalLinesRemoved': 0}}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\n"}
+2025-11-20 20:57:42 | ERROR    | NEXUS_20251120_195706 | Turn 1 - VALIDATION_ERROR: 8 validation errors for LightMessage
+sender
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+thought_process
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+reflection
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+action_type
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+action_summary
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+next_agent
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+instructions_for_next
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+status
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+2025-11-20 20:57:42 | ERROR    | NEXUS_20251120_195706 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 353, in _validate_message
+    message = LightMessage.parse_obj(response_data)
+  File "C:\Code\NEXUS\20_NEXUS\.venv\Lib\site-packages\pydantic\main.py", line 1370, in parse_obj
+    return cls.model_validate(obj)
+           ~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Code\NEXUS\20_NEXUS\.venv\Lib\site-packages\pydantic\main.py", line 716, in model_validate
+    return cls.__pydantic_validator__.validate_python(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        obj,
+        ^^^^
+    ...<5 lines>...
+        by_name=by_name,
+        ^^^^^^^^^^^^^^^^
+    )
+    ^
+pydantic_core._pydantic_core.ValidationError: 8 validation errors for LightMessage
+sender
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+thought_process
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+reflection
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+action_type
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+action_summary
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+next_agent
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+instructions_for_next
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+status
+  Field required [type=missing, input_value={'response': '```json\n{\...totalLinesRemoved': 0}}}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+

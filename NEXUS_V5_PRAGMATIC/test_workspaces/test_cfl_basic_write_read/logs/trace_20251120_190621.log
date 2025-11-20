@@ -1,0 +1,36 @@
+2025-11-20 20:06:21.646 | INFO | info:234 | === NEXUS V5.0 SESSION START ===
+2025-11-20 20:06:21.646 | INFO | info:234 | Session ID: 20251120_190621
+2025-11-20 20:06:21.647 | INFO | info:234 | Mode: Normal
+2025-11-20 20:06:21.647 | INFO | info:234 | Objective: Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use.
+2025-11-20 20:06:21.647 | DEBUG | debug:238 | Initializing ResourceMonitor
+2025-11-20 20:06:21.648 | DEBUG | debug:238 | Initializing PanicHandler
+2025-11-20 20:06:21.649 | DEBUG | debug:238 | Initializing MemoryManager
+2025-11-20 20:06:21.649 | DEBUG | debug:238 | Initializing StateManager
+2025-11-20 20:06:21.649 | DEBUG | debug:238 | Initializing ToolExecutor
+2025-11-20 20:06:21.649 | DEBUG | debug:238 | Initializing ClaudeDriver
+2025-11-20 20:06:21.649 | DEBUG | debug:238 | Initializing GeminiDriver
+2025-11-20 20:06:21.651 | INFO | log_event:100 | [EVENT:INITIALIZATION_COMPLETE] {"workspace": "test_workspaces\\test_cfl_basic_write_read", "mode": "Normal", "objective": "Create a file named test_cfl.txt with content 'NEXUS V5.0 CFL Test'. Then read the file and confirm the content is exactly 'NEXUS V5.0 CFL Test'. Provide detailed post_action_review after each tool use."}
+2025-11-20 20:06:21.651 | INFO | info:234 | Starting main orchestration loop
+2025-11-20 20:06:21.652 | ERROR | error:246 | FATAL ERROR in orchestration loop: 'Config' object has no attribute 'max_turns'
+2025-11-20 20:06:21.656 | ERROR | log_event:100 | [EVENT:ERROR] {"turn": 0, "error_type": "ORCHESTRATION_FATAL", "error_message": "'Config' object has no attribute 'max_turns'", "stacktrace": "Traceback (most recent call last):\n  File \"C:\\Code\\NEXUS\\20_NEXUS\\NEXUS_V5_PRAGMATIC\\core\\orchestration_logged.py\", line 86, in run\n    while self.iteration < self.config.max_turns:\n                           ^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Config' object has no attribute 'max_turns'\n"}
+2025-11-20 20:06:21.657 | ERROR | log_error:178 | Turn 0 - ORCHESTRATION_FATAL: 'Config' object has no attribute 'max_turns'
+2025-11-20 20:06:21.658 | ERROR | log_error:180 | Stacktrace:
+Traceback (most recent call last):
+  File "C:\Code\NEXUS\20_NEXUS\NEXUS_V5_PRAGMATIC\core\orchestration_logged.py", line 86, in run
+    while self.iteration < self.config.max_turns:
+                           ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Config' object has no attribute 'max_turns'
+
+2025-11-20 20:06:21.658 | INFO | info:234 | === FINALIZING SESSION ===
+2025-11-20 20:06:21.659 | INFO | info:234 | Total events logged: 2
+2025-11-20 20:06:21.659 | INFO | info:234 | Log files:
+2025-11-20 20:06:21.659 | INFO | info:234 |   main: test_workspaces\test_cfl_basic_write_read\logs\nexus_session_20251120_190621.log
+2025-11-20 20:06:21.659 | INFO | info:234 |   events: test_workspaces\test_cfl_basic_write_read\logs\events_20251120_190621.jsonl
+2025-11-20 20:06:21.659 | INFO | info:234 |   cfl: test_workspaces\test_cfl_basic_write_read\logs\cfl_20251120_190621.jsonl
+2025-11-20 20:06:21.660 | INFO | info:234 |   errors: test_workspaces\test_cfl_basic_write_read\logs\errors_20251120_190621.log
+2025-11-20 20:06:21.660 | INFO | info:234 |   trace: test_workspaces\test_cfl_basic_write_read\logs\trace_20251120_190621.log
+2025-11-20 20:06:21.660 | INFO | info:234 | Event counts:
+2025-11-20 20:06:21.660 | INFO | info:234 |   INITIALIZATION_COMPLETE: 1
+2025-11-20 20:06:21.660 | INFO | info:234 |   ERROR: 1
+2025-11-20 20:06:21.661 | INFO | info:234 | Summary saved to: test_workspaces\test_cfl_basic_write_read\logs\summary_20251120_190621.json
+2025-11-20 20:06:21.661 | INFO | info:234 | === SESSION COMPLETE ===
