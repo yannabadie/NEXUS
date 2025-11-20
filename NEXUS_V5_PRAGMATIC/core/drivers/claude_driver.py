@@ -26,8 +26,10 @@ class ClaudeDriver(BaseDriver):
             context: Contexte markdown
 
         Returns:
-            Réponse parsée
+            Réponse parsée (protocole Synapse V5.0)
         """
+        import json
+
         # Écrire le contexte
         self.write_context(context)
 
@@ -85,8 +87,72 @@ class ClaudeDriver(BaseDriver):
             # Attendre que le fichier soit écrit (Windows I/O lag)
             time.sleep(0.5)
 
-            # Lire la réponse JSON
-            return self.read_response()
+            # Lire et parser le wrapper Claude Code
+            return self._parse_claude_wrapper(output_file)
 
         except subprocess.TimeoutExpired:
             raise Exception(f"Claude CLI timeout après {self.timeout}s")
+
+    def _parse_claude_wrapper(self, output_file: Path) -> Dict[str, Any]:
+        """
+        Parse le wrapper JSON retourné par Claude Code CLI.
+
+        Claude Code avec --output-format json retourne:
+        {
+          "type": "result",
+          "result": "contenu réel ici (peut être JSON string)",
+          "cost_usd": 0.042,
+          "duration_ms": 5558,
+          ...
+        }
+
+        Args:
+            output_file: Fichier action_out.json
+
+        Returns:
+            Protocole Synapse V5.0 parsé
+        """
+        import json
+
+        with self.lock:
+            wrapper = json.loads(output_file.read_text(encoding="utf-8"))
+
+            # Vérifier le wrapper Claude Code
+            if wrapper.get('type') != 'result':
+                raise Exception(f"Format inattendu: type={wrapper.get('type')}")
+
+            # Vérifier erreurs
+            if wrapper.get('is_error', False):
+                raise Exception(f"Claude Code error: {wrapper.get('result', 'Unknown error')}")
+
+            # Extraire le contenu réel
+            result_content = wrapper.get('result', '')
+
+            # Le result peut être:
+            # 1. Une string JSON (protocole Synapse) -> parser
+            # 2. Du texte simple -> erreur de protocole
+
+            # Tentative de parsing JSON
+            try:
+                synapse_message = json.loads(result_content)
+
+                # Valider que c'est bien le protocole Synapse
+                if not isinstance(synapse_message, dict):
+                    raise ValueError("Result n'est pas un objet JSON")
+
+                # Vérifier présence champs obligatoires
+                required_fields = ['sender', 'action_type', 'status']
+                missing = [f for f in required_fields if f not in synapse_message]
+
+                if missing:
+                    raise ValueError(f"Champs Synapse manquants: {missing}")
+
+                return synapse_message
+
+            except (json.JSONDecodeError, ValueError) as e:
+                # Le result n'est pas du JSON valide ou n'est pas du protocole Synapse
+                raise Exception(
+                    f"Claude n'a pas répondu en protocole Synapse V5.0. "
+                    f"Erreur: {e}. "
+                    f"Contenu reçu (premiers 500 chars): {result_content[:500]}"
+                )

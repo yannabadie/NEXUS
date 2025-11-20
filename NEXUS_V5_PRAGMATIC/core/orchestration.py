@@ -128,8 +128,11 @@ class Orchestrator:
 
             # Afficher plan si mis à jour
             if message.strategic_plan_update:
-                self.memory.update_strategic_plan(message.strategic_plan_update)
-                console.display_strategic_plan(message.strategic_plan_update)
+                # Convertir objets Pydantic en dictionnaires
+                plan_dicts = [step.model_dump() if hasattr(step, 'model_dump') else step
+                              for step in message.strategic_plan_update]
+                self.memory.update_strategic_plan(plan_dicts)
+                console.display_strategic_plan(plan_dicts)
 
             # 8. CFL Validation
             if self.pending_tool_validation:

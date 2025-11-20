@@ -4,6 +4,8 @@ Orchestrateur Cognitif Symbiotique avec Auto-Correction
 """
 import argparse
 import sys
+import os
+import io
 from pathlib import Path
 from core.config import Config
 from core.orchestration import Orchestrator
@@ -12,6 +14,18 @@ from core.panic_handler import PanicHandler
 
 def main():
     """Point d'entrée principal."""
+    # Force UTF-8 encoding on Windows to handle Unicode characters (arrows, emojis, etc.)
+    if sys.platform == 'win32':
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        # Reconfigure stdout/stderr only if not already UTF-8
+        try:
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            if hasattr(sys.stderr, 'reconfigure'):
+                sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass  # Ignore if reconfigure fails (already configured or unsupported)
+
     parser = argparse.ArgumentParser(description="NEXUS V5.0 - Orchestrateur Cognitif Symbiotique")
 
     parser.add_argument("objective", help="Objectif à accomplir")

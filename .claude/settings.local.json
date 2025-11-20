@@ -42,7 +42,13 @@
       "Bash(gemini:*)",
       "Bash(if exist test_workspacestest_model_verification rmdir /s /q test_workspacestest_model_verification)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File nexus.ps1 --help)",
+      "Bash(powershell -ExecutionPolicy Bypass -File nexus.ps1 \"Create a file named test_nexus_cli.txt with the content ''''NEXUS V5.0 CLI works!''''\")",
+      "Bash(powershell -Command \"if (Test-Path workspace) { Remove-Item -Recurse -Force workspace }; & ''.\\nexus.ps1'' ''Create test_cli.txt with NEXUS V5.0 works!'' 2>&1 | Select-Object -First 200\")",
+      "Bash(powershell -Command \"if (Test-Path workspace) { Remove-Item -Recurse -Force workspace }\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"nexus.ps1\" \"Create a file named final_test.txt with content ''NEXUS V5.0 - Full coordination test completed successfully''\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

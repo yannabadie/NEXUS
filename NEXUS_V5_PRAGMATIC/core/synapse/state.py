@@ -142,3 +142,35 @@ class StateManager:
         self.last_action_signature = signature
 
         return is_repeat
+
+    def detect_stalemate(self, action_type: str, status: str):
+        """
+        Détecte la stagnation basée sur action_type et status.
+        Incrémente le compteur si actions répétitives ou status ERROR_REVIEW_NEEDED.
+        Réinitialise si progression détectée.
+
+        Args:
+            action_type: Type d'action (TALK, TOOL_USE, DELEGATE, etc.)
+            status: Statut du message (CONTINUE, FINISHED, ERROR_REVIEW_NEEDED)
+        """
+        # Cas 1: Status ERROR indique problème
+        if status == "ERROR_REVIEW_NEEDED":
+            self.increment_stalemate_counter()
+            return
+
+        # Cas 2: Actions TALK ou DELEGATE répétitives sans outils = stagnation possible
+        if action_type in ["TALK", "DELEGATE"] and status == "CONTINUE":
+            # Vérifier si même pattern répété
+            if self.last_action_signature and self.last_action_signature.startswith(action_type):
+                self.increment_stalemate_counter()
+            return
+
+        # Cas 3: TOOL_USE ou FINISH = progression réelle
+        if action_type in ["TOOL_USE", "FINISH"] or status == "FINISHED":
+            self.reset_stalemate_counter()
+            return
+
+        # Cas 4: CONTINUE sans changement substantiel
+        if status == "CONTINUE" and action_type != "TOOL_USE":
+            # Tolérer quelques tours de discussion
+            pass

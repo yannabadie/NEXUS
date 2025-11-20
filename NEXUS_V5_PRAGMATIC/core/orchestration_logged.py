@@ -488,17 +488,17 @@ class LoggedOrchestrator:
                 f"{len(message.strategic_plan)} steps"
             )
 
-        # Stalemate detection (commented for testing - StateManager missing this method)
-        # old_counter = self.state.stalemate_counter
-        # self.state.detect_stalemate(message.action_type, message.status)
+        # Stalemate detection [V5.0 - ACTIVATED]
+        old_counter = self.state.stalemate_counter
+        self.state.detect_stalemate(message.action_type, message.status)
 
-        if False:  # self.state.stalemate_counter > old_counter:
+        if self.state.stalemate_counter > old_counter:
             self.logger.log_stalemate(
                 self.iteration,
                 self.state.stalemate_counter,
                 "INCREMENT"
             )
-        elif False:  # self.state.stalemate_counter < old_counter:
+        elif self.state.stalemate_counter < old_counter:
             self.logger.log_stalemate(
                 self.iteration,
                 self.state.stalemate_counter,
