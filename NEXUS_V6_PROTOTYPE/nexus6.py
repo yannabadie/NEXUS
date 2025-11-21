@@ -37,6 +37,7 @@ def bootstrap():
     Bootstrap NEXUS V6 - Vérifie tout avant de démarrer
 
     Vérifie:
+    0. KERNEL.py integrity (immutability verification)
     1. Python version (3.11+)
     2. Dependencies installées
     3. Structure workspace créée
@@ -50,6 +51,23 @@ def bootstrap():
         SystemExit: Si bootstrap échoue
     """
     print("🚀 NEXUS V6.0 Bootstrap...")
+
+    # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from KERNEL import verify_kernel_integrity
+
+    print("\n🔒 Verifying KERNEL.py integrity...")
+    if not verify_kernel_integrity():
+        print("\n" + "="*60)
+        print("❌ SECURITY VIOLATION: KERNEL.py has been modified!")
+        print("="*60)
+        print("\nNEXUS cannot start with compromised KERNEL.")
+        print("This file contains immutable invariants and must never change.")
+        print("\nIf this is intentional, delete KERNEL_HASH.txt and restart.")
+        print("="*60)
+        sys.exit(1)
+
+    print("✓ KERNEL.py integrity verified")
 
     # 1. Check Python version
     if sys.version_info < (3, 11):
@@ -210,9 +228,26 @@ Documentation: https://github.com/nexus-ai/nexus-v6
 
         # Import and launch REPL
         from core.interface.repl import InteractiveNexusV6
+        from core.notifications import check_pending_review
+        from core.notifications.repl_alert import get_repl_alert_message, should_block_evolution
+        from core.config import load_config
 
         workspace_path = Path(args.workspace).resolve()
         workspace_path.mkdir(parents=True, exist_ok=True)
+
+        # CHECK FOR PENDING REVIEW (Evolution notification system)
+        config = load_config()
+        pending_metadata = check_pending_review(workspace_path)
+
+        if pending_metadata:
+            # Display colored alert
+            alert_message = get_repl_alert_message(pending_metadata, config)
+            print(alert_message)
+
+            # Block evolution if critical (72h+)
+            if should_block_evolution(pending_metadata, config):
+                print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
+                print("   Use /review command to evaluate children.\n")
 
         repl = InteractiveNexusV6(
             workspace_path=workspace_path,

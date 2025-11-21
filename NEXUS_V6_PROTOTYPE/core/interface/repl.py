@@ -137,6 +137,9 @@ class InteractiveNexusV6:
             else:
                 self.console.print_error("Usage: /mode <mode_name>")
 
+        elif cmd == "/review":
+            self.run_review()
+
         elif cmd == "/help":
             self.console.print_help(get_help_message())
 
@@ -172,3 +175,94 @@ class InteractiveNexusV6:
         }
 
         self.console.print_doctor_results(results)
+
+    def run_review(self):
+        """Run interactive review of pending children (/review command)"""
+        from core.notifications import check_pending_review
+        from core.notifications.file_notifier import delete_pending_review
+
+        # Check if there's a pending review
+        pending_metadata = check_pending_review(self.workspace_path)
+
+        if not pending_metadata:
+            self.console.print("ℹ️  No pending reviews found.")
+            self.console.print("   Pending reviews are created after evolution completes.")
+            return
+
+        generation = pending_metadata['generation']
+        children = pending_metadata['children']
+        hours_elapsed = pending_metadata['hours_elapsed']
+
+        # Display review header
+        self.console.print("\n" + "="*60)
+        self.console.print(f"📋 REVIEW - Generation {generation}")
+        self.console.print("="*60)
+        self.console.print(f"Children: {len(children)}")
+        self.console.print(f"Elapsed: {hours_elapsed:.1f}h")
+        self.console.print("="*60 + "\n")
+
+        # Interactive review loop
+        for i, child in enumerate(children, 1):
+            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"Child {i}/{len(children)}: {child['id']}")
+            self.console.print(f"{'─'*60}")
+            self.console.print(f"ASI Proximity Score: {child['score']:.3f} ({child['improvement']:+.1%} vs parent)")
+
+            # Show improvements if available
+            if 'improvements_summary' in child:
+                self.console.print(f"\nImprovements:\n{child['improvements_summary']}")
+
+            self.console.print(f"\nBirth Certificate: {child.get('birth_cert_path', 'Not found')}")
+            self.console.print(f"Evaluation Results: {child.get('eval_results_path', 'Not found')}")
+
+            # Get user decision
+            while True:
+                self.console.print("\n[A]pprove | [R]eject | [T]est | [S]kip | [Q]uit review")
+                try:
+                    decision = self.session.prompt("nexus6/review> ").strip().lower()
+                except KeyboardInterrupt:
+                    self.console.print("\nReview interrupted.")
+                    return
+
+                if decision in ['a', 'approve']:
+                    self.console.print(f"✓ Approved: {child['id']} will become new parent")
+                    # TODO: Implement promotion logic (update LINEAGE.json, move files)
+                    self.console.print("⚠️  Manual promotion required (auto-promotion not yet implemented)")
+                    break
+                elif decision in ['r', 'reject']:
+                    self.console.print(f"✗ Rejected: {child['id']} will be archived")
+                    # TODO: Implement archival logic
+                    break
+                elif decision in ['t', 'test']:
+                    self.console.print(f"🧪 Opening test mode for {child['id']}")
+                    self.console.print("⚠️  Manual testing required (auto-testing not yet implemented)")
+                    break
+                elif decision in ['s', 'skip']:
+                    self.console.print(f"⏭️  Skipped: {child['id']}")
+                    break
+                elif decision in ['q', 'quit']:
+                    self.console.print("\nExiting review (progress not saved)")
+                    return
+                else:
+                    self.console.print_error("Invalid choice. Use A/R/T/S/Q")
+
+        # Review completed
+        self.console.print("\n" + "="*60)
+        self.console.print("✅ Review completed for all children")
+        self.console.print("="*60)
+
+        # Ask to delete PENDING_REVIEW files
+        self.console.print("\nDelete PENDING_REVIEW files? [y/N]")
+        try:
+            confirm = self.session.prompt("nexus6/review> ").strip().lower()
+        except KeyboardInterrupt:
+            self.console.print("\nKeeping PENDING_REVIEW files.")
+            return
+
+        if confirm == 'y':
+            if delete_pending_review(self.workspace_path):
+                self.console.print("✓ PENDING_REVIEW files deleted")
+            else:
+                self.console.print("⚠️  No files to delete")
+        else:
+            self.console.print("PENDING_REVIEW files kept (use /review again to continue)")
