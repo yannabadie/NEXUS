@@ -266,14 +266,20 @@ Keyboard Shortcuts:
 
         # Simple questions about NEXUS itself
         self_questions = [
-            'what are you', 'who are you', 'what can you do',
-            'qu\'es-tu', 'qui es-tu', 'que peux-tu faire'
+            'what are you', 'who are you', 'what can you do', 'what is your',
+            'qu\'es-tu', 'qui es-tu', 'que peux-tu faire', 'quelles sont tes',
+            'quel sont tes', 'c\'est quoi', 'explique moi', 'parle moi'
         ]
 
         # Check exact matches first
         for phrase in greetings + self_questions:
             if text_lower == phrase:
                 return True
+
+        # Check if starts with self-question (any length)
+        for question in self_questions:
+            if text_lower.startswith(question):
+                return True  # Questions about NEXUS itself
 
         # Check if starts with greeting BUT contains task keywords
         for greeting in greetings:
@@ -317,15 +323,16 @@ Keyboard Shortcuts:
             print("• I coordinate them in a symbiotic workflow")
             print("\nDescribe a technical task and I'll orchestrate the best approach!\n")
 
-        # What can you do
-        elif any(q in text_lower for q in ['what can you do', 'que peux-tu faire']):
-            print("\n[NEXUS] I can help with:")
+        # What can you do / Capabilities
+        elif any(q in text_lower for q in ['what can you do', 'que peux-tu faire', 'quel sont tes', 'quelles sont tes', 'compétence', 'capacité']):
+            print("\n[NEXUS] My capabilities:")
             print("• Code analysis and debugging")
-            print("• File creation and editing")
+            print("• File creation and editing (text, code, SVG, etc.)")
             print("• Running tests and builds")
             print("• Git operations")
             print("• Complex multi-step technical tasks")
-            print("\nJust describe what you need in natural language!\n")
+            print("\nI coordinate Gemini (strategy) + Claude (execution) for optimal results!")
+            print("Just describe what you need in natural language!\n")
 
         # Default
         else:

@@ -45,7 +45,17 @@ class MemoryManager:
 
             # Créer état vide par défaut
             print("[NEXUS] Aucun backup valide. Initialisation état vide.")
-            return self._create_empty_state()
+            empty_state = self._create_empty_state()
+
+            # Sauvegarder immédiatement l'état vide sur disque
+            self.blackboard_path.parent.mkdir(parents=True, exist_ok=True)
+            self.blackboard_path.write_text(
+                json.dumps(empty_state, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+            print(f"[NEXUS] État initial sauvegardé: {self.blackboard_path}")
+
+            return empty_state
 
     def _create_empty_state(self) -> Dict:
         """Crée un état vide initial."""
