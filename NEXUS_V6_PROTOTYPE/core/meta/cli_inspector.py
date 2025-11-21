@@ -78,25 +78,28 @@ class CLIInspector:
             # Try to detect model from gemini models list
             # Default to gemini-3-pro-preview (latest flagship model, Nov 2025)
             model = "gemini-3-pro-preview"
-            context_window = 200000
+            context_window = 1000000  # Gemini 3 Pro: 1M token context window
 
             try:
                 models_result = self._run_cli_command(["gemini", "models", "list"], timeout=10)
 
                 output_lower = models_result.stdout.lower()
 
-                # Parse output for active model (Gemini 3 first, then 2.x, then 1.5)
+                # Parse output for active model (Gemini 3 → 2.5 → 2.0 → 1.5)
                 if "3-pro" in output_lower or "gemini 3" in output_lower:
                     model = "gemini-3-pro-preview"
-                    context_window = 200000  # Gemini 3 Pro context window
+                    context_window = 1000000  # Gemini 3 Pro: 1M token context window
+                elif "2.5-pro" in output_lower or "gemini 2.5" in output_lower or "2.5 pro" in output_lower:
+                    model = "gemini-2.5-pro"
+                    context_window = 1000000  # Gemini 2.5 Pro: 1M token context window (March 2025)
                 elif "ultra" in output_lower or "2.0-ultra" in output_lower:
                     model = "gemini-2.0-ultra"
                     context_window = 1000000
                 elif "2.0-pro" in output_lower:
                     model = "gemini-2.0-pro"
                     context_window = 128000
-                elif "flash" in output_lower or "2.0-flash" in output_lower:
-                    model = "gemini-2.0-flash"
+                elif "flash" in output_lower or "2.0-flash" in output_lower or "2.5-flash" in output_lower:
+                    model = "gemini-2.5-flash" if "2.5" in output_lower else "gemini-2.0-flash"
                     context_window = 32000
                 elif "1.5-pro" in output_lower:
                     model = "gemini-1.5-pro"
@@ -168,13 +171,19 @@ class CLIInspector:
             version_output = result.stdout.strip()
 
             # Parse model from version string
-            model = "claude-sonnet-3.5"
+            # Default to claude-sonnet-4.5 (current as of Sept 2025)
+            model = "claude-sonnet-4.5"
             context_window = 200000
 
             output_lower = version_output.lower()
 
+            # Claude Code uses Sonnet 4.5 by default
+            if "claude code" in output_lower:
+                model = "claude-sonnet-4.5"
+                context_window = 200000
+
             # Detect model from version string
-            if "opus" in output_lower:
+            elif "opus" in output_lower:
                 if "4" in version_output:
                     model = "claude-opus-4"
                 else:
