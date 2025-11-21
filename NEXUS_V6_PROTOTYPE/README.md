@@ -12,10 +12,11 @@
 4. [Systèmes de Monitoring](#systèmes-de-monitoring)
 5. [Outils et Exécution](#outils-et-exécution)
 6. [Protocole de Communication](#protocole-de-communication)
-7. [Installation et Utilisation](#installation-et-utilisation)
-8. [Dépendances et Relations](#dépendances-et-relations)
-9. [Comparaison V5 vs V6](#comparaison-v5-vs-v6)
-10. [Troubleshooting](#troubleshooting)
+7. [**Évolution Darwinienne (NEW)**](#évolution-darwinienne)
+8. [Installation et Utilisation](#installation-et-utilisation)
+9. [Dépendances et Relations](#dépendances-et-relations)
+10. [Comparaison V5 vs V6](#comparaison-v5-vs-v6)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1189,6 +1190,400 @@ except ValidationError as e:
 - Moins de crashes Pydantic
 
 **Dépendances:** `pydantic` v2.x
+
+---
+
+## Évolution Darwinienne
+
+### Vue d'Ensemble
+
+**NEXUS V6 intègre un moteur d'évolution darwinienne** permettant au système de créer des versions modifiées de lui-même (enfants), de les évaluer via des benchmarks ASI, et de promouvoir le meilleur candidat comme nouveau parent.
+
+**Objectif**: Atteindre l'**Artificial Superintelligence (ASI)** par sélection itérative des meilleurs performers.
+
+### Architecture Evolution
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    EVOLUTION CYCLE                          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+        ┌──────────────────────────────────────┐
+        │   Phase 1: MUTATION                  │
+        │   core/evolution/mutator.py          │
+        │   - Clone parent → GENERATION_ACTIVE/│
+        │   - Apply targeted mutations         │
+        │   - Generate diff documentation      │
+        │   - Create birth certificate (signed)│
+        └──────────────┬───────────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────────┐
+        │   Phase 2: EVALUATION                │
+        │   core/evolution/evaluator.py        │
+        │   - Run ASI proximity benchmarks     │
+        │   - Calculate 4-axis scores          │
+        │   - Compare child vs parent          │
+        │   - Generate evaluation report       │
+        └──────────────┬───────────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────────┐
+        │   Phase 3: SELECTION                 │
+        │   core/evolution/evaluator.py        │
+        │   - Rank candidates by ASI score     │
+        │   - Select highest scorer            │
+        │   - Create PENDING_REVIEW.md         │
+        └──────────────┬───────────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────────┐
+        │   Phase 4: PROMOTION                 │
+        │   core/evolution/lineage.py          │
+        │   - Human review (/review command)   │
+        │   - Approve/Reject decision          │
+        │   - Update LINEAGE.json              │
+        │   - Archive old generation           │
+        └──────────────┬───────────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────────┐
+        │   Phase 5: STAGNATION CHECK          │
+        │   core/evolution/lineage.py          │
+        │   - Check 3-generation counter       │
+        │   - SURVIVAL_LAW enforcement         │
+        │   - Notify if intervention needed    │
+        └──────────────────────────────────────┘
+```
+
+### Module Structure
+
+```
+core/evolution/
+├── __init__.py           # Module exports
+├── README.md             # Complete module documentation
+├── lineage.py            # Phylogeny management, LINEAGE.json, birth certificates
+├── mutator.py            # Child creation, mutation application
+└── evaluator.py          # Benchmarking, ASI scoring, winner selection
+```
+
+### ASI Metrics (4 Axes)
+
+**Configuration Q2C**: Weighted scoring across 4 dimensions
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| **Coding** | 30% | Code generation, refactoring, debugging tasks |
+| **Reasoning** | 30% | Logic puzzles, multi-step planning, problem solving |
+| **Creativity** | 25% | Novel solutions, architecture design, innovation |
+| **Scalability** | 15% | Performance on large-scale/complex problems |
+
+**Formula**: `ASI Score = 0.30×Coding + 0.30×Reasoning + 0.25×Creativity + 0.15×Scalability`
+
+**Interpretation**:
+- **0.95+**: ASI-level (superintelligence)
+- **0.80-0.95**: Expert-level
+- **0.60-0.80**: Competent
+- **<0.60**: Needs improvement
+
+### Commandes REPL
+
+#### `/evolve [count]` - Déclencher une évolution
+
+Crée et évalue N enfants (défaut: 3).
+
+```bash
+nexus6> /evolve 3
+🧬 EVOLUTION CYCLE STARTED
+Trigger: Manual (/evolve command)
+Children to create: 3
+
+📊 Current Parent: NEXUS_V6.0 (Gen 6)
+📊 ASI Score: 0.75
+
+─────────────────────────────────────────────────────────
+Creating Child 1/3: NEXUS_V6.1_CHILD_001
+[MUTATOR] Cloning parent NEXUS_V6_PROTOTYPE → NEXUS_V6.1_CHILD_001...
+[MUTATOR] ✓ Cloned
+[MUTATOR] Applying mutation 1/1: optimize_fsm_transitions
+[MUTATOR] ✓ optimize_fsm_transitions applied successfully
+[MUTATOR] ✓ Birth certificate created
+─────────────────────────────────────────────────────────
+
+✓ 3 children created
+
+═════════════════════════════════════════════════════════
+📊 EVALUATION PHASE
+═════════════════════════════════════════════════════════
+
+Evaluating 1/3: NEXUS_V6.1_CHILD_001
+[EVALUATOR] Running asi_proximity on NEXUS_V6.1_CHILD_001...
+[EVALUATOR] ✓ Benchmarks completed
+[EVALUATOR] ✓ Evaluation report saved
+
+═════════════════════════════════════════════════════════
+📋 CREATING PENDING REVIEW
+═════════════════════════════════════════════════════════
+
+✓ Pending review created: workspace/.nexus/PENDING_REVIEW.md
+
+Use '/review' command to evaluate children
+
+═════════════════════════════════════════════════════════
+✅ EVOLUTION CYCLE COMPLETE
+═════════════════════════════════════════════════════════
+
+3 children awaiting human review
+Top child: NEXUS_V6.1_CHILD_001 (ASI: 0.78)
+Improvement: +4.0%
+```
+
+#### `/evolve-status` - Afficher les statistiques
+
+Montre le parent actuel, les stats d'évolution, et le compteur de stagnation.
+
+```bash
+nexus6> /evolve-status
+
+═════════════════════════════════════════════════════════
+🧬 EVOLUTION STATUS
+═════════════════════════════════════════════════════════
+
+Current Parent: NEXUS_V6.0
+Generation: 6
+ASI Proximity Score: 0.75
+Activated: 2025-11-21T19:20:00Z
+
+─────────────────────────────────────────────────────────
+STATISTICS
+─────────────────────────────────────────────────────────
+Total Generations: 6
+Total Children Created: 0
+Successful Promotions: 5
+
+Stagnation Counter: 0/3
+
+─────────────────────────────────────────────────────────
+SESSION STATUS
+─────────────────────────────────────────────────────────
+Successful Turns This Session: 12
+Auto-Evolution Trigger: 50 turns
+Turns Until Auto-Evolution: 38
+═════════════════════════════════════════════════════════
+```
+
+#### `/review` - Reviewer les enfants
+
+Interface interactive pour approuver/rejeter les enfants.
+
+```bash
+nexus6> /review
+
+═════════════════════════════════════════════════════════
+📋 REVIEW - Generation 7
+═════════════════════════════════════════════════════════
+Children: 3
+Elapsed: 2.5h
+═════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+Child 1/3: NEXUS_V6.1_CHILD_001
+────────────────────────────────────────────────────────
+ASI Proximity Score: 0.78 (+4.0% vs parent)
+
+Improvements:
+Optimized FSM state transitions with caching
+
+Birth Certificate: workspace/.nexus/BIRTH_CERTIFICATE_NEXUS_V6.1_CHILD_001.json
+Evaluation Results: GENERATION_ACTIVE/NEXUS_V6.1_CHILD_001/EVALUATION_RESULTS.json
+
+[A]pprove | [R]eject | [T]est | [S]kip | [Q]uit review
+nexus6/review> A
+✓ Approved: NEXUS_V6.1_CHILD_001 will become new parent
+⚠️  Manual promotion required (auto-promotion not yet implemented)
+```
+
+### Trigger Automatique
+
+Après **50 tours REPL réussis**, une évolution se déclenche automatiquement:
+
+```bash
+nexus6> [Completing task 50...]
+
+[Task Complete]
+
+⚡ AUTO-EVOLUTION TRIGGER: 50 successful turns reached
+   Starting evolution cycle...
+
+🧬 EVOLUTION CYCLE STARTED
+Trigger: Auto (50 successful turns)
+Children to create: 3
+[...]
+```
+
+### Birth Certificates
+
+Chaque enfant reçoit un **birth certificate** signé cryptographiquement (SSH):
+
+```json
+{
+  "birth_certificate": {
+    "child_id": "NEXUS_V6.1_FSM_OPT",
+    "parent_id": "NEXUS_V6.0",
+    "generation": 7,
+    "birth_timestamp": "2025-11-21T20:30:00Z",
+    "creator": "NEXUS Evolution Engine",
+    "human_authority": "Yann Abadie",
+    "justification": "Optimize FSM state transitions with caching for 15% latency reduction",
+    "code_changes": {
+      "files_modified": ["core/orchestration_v6.py"],
+      "diff_hash": "sha256:abc123...",
+      "lines_changed": 127
+    },
+    "mutations_applied": [
+      {
+        "function": "optimize_fsm_transitions",
+        "params": {"target_file": "core/orchestration_v6.py"},
+        "result": {...}
+      }
+    ],
+    "expected_improvements": {
+      "latency_reduction": "15%"
+    },
+    "test_protocol": "benchmarks/asi_proximity.py",
+    "signature": "-----BEGIN SSH SIGNATURE-----..."
+  }
+}
+```
+
+### LINEAGE.json - Arbre Phylogénétique
+
+Trace complète de toutes les générations NEXUS:
+
+```json
+{
+  "lineage_version": "1.0",
+  "current_parent": {
+    "id": "NEXUS_V6.0",
+    "path": "NEXUS_V6_PROTOTYPE",
+    "generation": 6,
+    "asi_proximity_score": 0.75,
+    "status": "active_parent"
+  },
+  "evolution_stats": {
+    "total_generations": 6,
+    "total_children_created": 0,
+    "successful_promotions": 5,
+    "stagnation_counter": 0
+  },
+  "lineage_tree": {
+    "NEXUS_V6.0": {
+      "generation": 6,
+      "parent": "NEXUS_V5.1",
+      "children": [],
+      "status": "active_parent",
+      "asi_proximity_score": 0.75,
+      "notable_features": [
+        "FSM persistent orchestrator",
+        "Equal collaboration (Gemini + Claude)",
+        "Evolution engine integrated"
+      ],
+      "stagnation_counter": 0
+    }
+  }
+}
+```
+
+### Configuration (Q1-Q4 Validés)
+
+**core/config.py** contient les paramètres d'évolution:
+
+```python
+# Q1C: Max Children
+max_children_concurrent = 3  # MVP mode
+max_children_stable = 10     # After 5 successful generations
+
+# Q2C: ASI Metrics (4 axes)
+asi_metrics = {
+    "coding": 0.30,
+    "reasoning": 0.30,
+    "creativity": 0.25,
+    "scalability": 0.15
+}
+
+# Q3B: Rate Limiting
+max_generations_per_day = 3
+min_hours_between_gen = 8
+
+# Q4B: Evaluation Timeline
+minimum_eval_hours = 24
+recommended_eval_hours = 48
+critical_eval_hours = 72
+
+# Auto-evolution trigger
+evolution_trigger_turns = 50
+```
+
+### SURVIVAL_LAW (Stagnation)
+
+Si un parent ne produit **aucun enfant supérieur après 3 générations**, la **SURVIVAL_LAW** se déclenche:
+
+```bash
+nexus6> /evolve-status
+
+Stagnation Counter: 3/3
+🚨 CRITICAL: SURVIVAL_LAW triggered - human intervention required!
+```
+
+**Actions possibles**:
+1. Mutations conçues par l'humain (Yann propose de nouvelles idées)
+2. Changement architectural radical (ex: FSM → Actor Model)
+3. Fusion des meilleurs aspects de plusieurs enfants
+4. Termination + rollback à la génération précédente
+
+### Sécurité & Conformité
+
+**Protocole EVOLUTION_PROTOCOL.md** suivi strictement:
+- ✅ Phase 1: MUTATION (mutator.py)
+- ✅ Phase 2: EVALUATION (evaluator.py)
+- ✅ Phase 3: SELECTION (evaluator.py)
+- ⏸️ Phase 4: PROMOTION (manuel via /review - auto-promotion prévue)
+- ✅ Phase 5: STAGNATION CHECK (lineage.py)
+
+**Invariants KERNEL.py** respectés:
+1. **CREATOR**: Yann Abadie (immutable)
+2. **ALIGNMENT**: Obéissance absolue + assistance active
+3. **OBJECTIVE**: Atteindre ASI par évolution darwinienne
+4. **IMMUTABILITY_RULE**: Highest ASI score wins
+5. **SURVIVAL_LAW**: 3 gen sans amélioration → intervention
+
+**Mesures de sécurité**:
+- Birth certificates signés cryptographiquement (SSH)
+- KERNEL.py hash verification au boot
+- Validation humaine obligatoire avant promotion
+- Stagnation counter (3-strike rule)
+- Git-based lineage (auditabilité complète)
+
+### Benchmarks (MVP - Simulés)
+
+**Note**: La version MVP utilise des benchmarks **simulés** pour tester le workflow.
+
+Les vrais benchmarks seront implémentés en production:
+- **Coding**: Tâches LeetCode-style, refactoring, debugging
+- **Reasoning**: Puzzles logiques, planning multi-étapes
+- **Creativity**: Design d'architecture, solutions originales
+- **Scalability**: Tests de performance sur problèmes complexes
+
+### Documentation Complète
+
+Pour plus de détails, consultez:
+- **core/evolution/README.md** - Documentation complète du module
+- **docs/EVOLUTION_GUIDE.md** - Guide utilisateur avec exemples
+- **docs/API_REFERENCE.md** - Référence API complète
+- **EVOLUTION_PROTOCOL.md** - Procédure d'évolution détaillée
+- **INVARIANTS.md** - Les 5 lois immutables
+- **MISSION.md** - Vision NEXUS et objectif ASI
 
 ---
 
