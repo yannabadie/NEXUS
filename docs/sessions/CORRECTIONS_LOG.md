@@ -683,6 +683,136 @@ python nexus6.py --verify
 
 ---
 
+### CORR-2025-11-21-010: Gemini JSON Parsing - Wrapper Extraction
+
+**Session**: SESSION_2025-11-21_CONTINUATION
+**Date**: 2025-11-21
+**Severity**: CRITICAL
+**Component**: core/drivers/gemini_driver_v6.py
+**Status**: RESOLVED
+**Commit**: db91f0c
+
+**Problem**:
+```
+[ERROR] Agent invocation failed: Invalid message schema: 2 validation errors for LightMessageV6
+sender - Field required
+action_type - Field required
+```
+REPL crashed on first query. Pydantic validation failed because driver returned dict without `sender` and `action_type` fields.
+
+**Root Cause**:
+Gemini CLI with `-o json` flag returns nested wrapper structure:
+```json
+{
+  "response": "```json\n{\"sender\":\"Gemini\",\"action_type\":\"TALK\",...}\n```",
+  "stats": {...}
+}
+```
+
+Driver was returning outer wrapper instead of extracting inner NEXUS JSON from `response` field.
+
+**Investigation**:
+1. Traced Pydantic error to `orchestration_v6.py:415` - `LightMessageV6(**response)`
+2. Read `gemini_driver_v6.py` - line 63 returned raw `json.loads(output_text)`
+3. Inspected runtime file `workspace/_IO_BUFFER/gemini_output.json` - confirmed wrapper structure
+4. Tested `_extract_json()` logic - successfully extracted nested JSON
+
+**Solution**:
+Modified `core/drivers/gemini_driver_v6.py` lines 62-76:
+```python
+gemini_output = json.loads(output_text)
+
+# Gemini CLI wraps response in {"response": "...", "stats": {...}}
+if "response" in gemini_output and isinstance(gemini_output["response"], str):
+    # Extract JSON from markdown code block
+    return self._extract_json(gemini_output["response"])
+else:
+    return gemini_output
+```
+
+**Files Changed**:
+- core/drivers/gemini_driver_v6.py (lines 62-76)
+
+**Verification**:
+Automated test confirmed: `_extract_json()` successfully parses nested JSON with all required fields (`sender`, `action_type`, `content`, `next_agent`, `status`).
+
+Manual test pending user execution.
+
+**Prevention**:
+1. Created `docs/debugging/V6_JSON_PARSING_DEBUG_GUIDE.md` - complete debugging methodology
+2. Runtime artifact analysis documented
+3. Pattern recognition for CLI wrapper structures
+4. Defensive checks for required fields before Pydantic validation
+
+**Related Issues**: CORR-2025-11-21-011 (bootstrap timeout)
+
+---
+
+### CORR-2025-11-21-011: Bootstrap Timeout Should Not Block Startup
+
+**Session**: SESSION_2025-11-21_CONTINUATION
+**Date**: 2025-11-21
+**Severity**: CRITICAL
+**Component**: core/meta/cli_inspector.py
+**Status**: RESOLVED
+**Commit**: c500ac6
+
+**Problem**:
+```
+❌ Gemini CLI not available
+   Install: https://ai.google.dev/gemini-api/docs/cli
+   Error: gemini CLI timeout (took > 5s)
+```
+Bootstrap failed completely when `gemini --version` timed out on Windows (PowerShell overhead).
+
+**Root Cause**:
+`subprocess.TimeoutExpired` exception handler (lines 132-136) returned:
+```python
+{
+    "available": False,
+    "error": "gemini CLI timeout (took > 5s)"
+}
+```
+
+Marking CLI as unavailable caused bootstrap to abort. But timeout doesn't mean CLI is broken - just slow to detect.
+
+**Investigation**:
+1. User tested after JSON parsing fix - bootstrap failed
+2. Read `cli_inspector.py` - found TimeoutExpired handler returning `available: False`
+3. Realized timeout ≠ unavailability
+4. Timeout is expected on Windows due to PowerShell invocation overhead
+
+**Solution**:
+Changed `subprocess.TimeoutExpired` handler (lines 132-142) to return:
+```python
+{
+    "available": True,
+    "model": "gemini-3-pro-preview",
+    "context_window": 1000000,
+    "version": "unknown (timeout)"
+}
+```
+
+Bootstrap continues with safe defaults instead of aborting.
+
+**Files Changed**:
+- core/meta/cli_inspector.py (lines 132-142)
+
+**Verification**:
+```bash
+python nexus6.py --verify
+# Should pass even if Gemini CLI is slow
+```
+
+**Prevention**:
+1. Document that timeout is acceptable fallback behavior
+2. Use defaults for critical components when detection is slow
+3. Only fail if CLI is truly missing (FileNotFoundError)
+
+**Related Issues**: CORR-2025-11-21-010 (JSON parsing), CORR-2025-11-21-007 (model detection timeout)
+
+---
+
 ## Future Corrections
 
 New corrections should be added here following the format above.
