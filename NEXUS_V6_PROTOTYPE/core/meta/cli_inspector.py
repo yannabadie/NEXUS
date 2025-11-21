@@ -22,7 +22,7 @@ class CLIInspector:
         """
         Run CLI command with platform-specific handling.
 
-        On Windows, some CLIs (like gemini) need to be invoked via PowerShell.
+        On Windows, some CLIs (like gemini, claude) need to be invoked via PowerShell.
 
         Args:
             command: Command as list (e.g., ["gemini", "--version"])
@@ -33,8 +33,8 @@ class CLIInspector:
         """
         is_windows = platform.system() == "Windows"
 
-        if is_windows and command[0] in ["gemini"]:
-            # On Windows, gemini needs PowerShell
+        if is_windows and command[0] in ["gemini", "claude"]:
+            # On Windows, gemini and claude need PowerShell
             cmd_str = " ".join(command)
             command = ["powershell", "-Command", cmd_str]
 
@@ -76,19 +76,23 @@ class CLIInspector:
             version = result.stdout.strip()
 
             # Try to detect model from gemini models list
-            model = "gemini-pro"
-            context_window = 32000
+            # Default to gemini-3-pro-preview (latest flagship model, Nov 2025)
+            model = "gemini-3-pro-preview"
+            context_window = 200000
 
             try:
                 models_result = self._run_cli_command(["gemini", "models", "list"], timeout=10)
 
                 output_lower = models_result.stdout.lower()
 
-                # Parse output for active model
-                if "ultra" in output_lower or "2.0-ultra" in output_lower:
+                # Parse output for active model (Gemini 3 first, then 2.x, then 1.5)
+                if "3-pro" in output_lower or "gemini 3" in output_lower:
+                    model = "gemini-3-pro-preview"
+                    context_window = 200000  # Gemini 3 Pro context window
+                elif "ultra" in output_lower or "2.0-ultra" in output_lower:
                     model = "gemini-2.0-ultra"
                     context_window = 1000000
-                elif "pro" in output_lower or "2.0-pro" in output_lower:
+                elif "2.0-pro" in output_lower:
                     model = "gemini-2.0-pro"
                     context_window = 128000
                 elif "flash" in output_lower or "2.0-flash" in output_lower:
@@ -98,8 +102,14 @@ class CLIInspector:
                     model = "gemini-1.5-pro"
                     context_window = 2000000
 
+            except subprocess.TimeoutExpired:
+                # Model detection timed out (PowerShell overhead on Windows)
+                # Just use default - not critical for bootstrap
+                print(f"   Info: Gemini model detection skipped (timeout)")
+                print(f"   Using default: {model}")
+
             except Exception as e:
-                # Fallback to default
+                # Other errors (network, CLI error, etc.)
                 print(f"   Warning: Could not detect Gemini model: {e}")
                 print(f"   Using default: {model}")
 
@@ -146,13 +156,8 @@ class CLIInspector:
             }
         """
         try:
-            # Try claude --version
-            result = subprocess.run(
-                ["claude", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            # Try claude --version (using platform-aware helper)
+            result = self._run_cli_command(["claude", "--version"], timeout=5)
 
             if result.returncode != 0:
                 return {

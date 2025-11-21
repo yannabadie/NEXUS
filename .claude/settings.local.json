@@ -12,7 +12,10 @@
       "Bash(git add:*)",
       "Bash(git restore:*)",
       "Bash(powershell -Command \"gemini --version\")",
-      "Bash(powershell -Command \"gemini models list\")"
+      "Bash(powershell -Command \"gemini models list\")",
+      "Bash(timeout 20 python:*)",
+      "Bash(echo:*)",
+      "Bash(claude --version:*)"
     ],
     "deny": [],
     "ask": []
