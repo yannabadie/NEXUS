@@ -11,11 +11,39 @@ Utilisé par bootstrap() pour vérifier l'environnement au démarrage.
 """
 import subprocess
 import re
-from typing import Dict
+import platform
+from typing import Dict, List
 
 
 class CLIInspector:
     """Inspect installed CLI tools and detect models dynamically"""
+
+    def _run_cli_command(self, command: List[str], timeout: int = 10) -> subprocess.CompletedProcess:
+        """
+        Run CLI command with platform-specific handling.
+
+        On Windows, some CLIs (like gemini) need to be invoked via PowerShell.
+
+        Args:
+            command: Command as list (e.g., ["gemini", "--version"])
+            timeout: Timeout in seconds
+
+        Returns:
+            CompletedProcess result
+        """
+        is_windows = platform.system() == "Windows"
+
+        if is_windows and command[0] in ["gemini"]:
+            # On Windows, gemini needs PowerShell
+            cmd_str = " ".join(command)
+            command = ["powershell", "-Command", cmd_str]
+
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout
+        )
 
     def inspect_gemini(self) -> Dict:
         """
@@ -36,13 +64,8 @@ class CLIInspector:
             }
         """
         try:
-            # Try gemini --version
-            result = subprocess.run(
-                ["gemini", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            # Try gemini --version (using platform-aware helper)
+            result = self._run_cli_command(["gemini", "--version"], timeout=10)
 
             if result.returncode != 0:
                 return {
@@ -57,12 +80,7 @@ class CLIInspector:
             context_window = 32000
 
             try:
-                models_result = subprocess.run(
-                    ["gemini", "models", "list"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
+                models_result = self._run_cli_command(["gemini", "models", "list"], timeout=10)
 
                 output_lower = models_result.stdout.lower()
 
