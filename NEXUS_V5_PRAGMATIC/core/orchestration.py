@@ -40,6 +40,7 @@ class Orchestrator:
         self.active_agent = "Gemini"  # Démarrage par le stratège
         self.pending_tool_validation = False
         self.last_tool_result = None
+        self.forced_agent_switch = False  # Flag pour forcer le switch (stalemate)
 
         # Initialiser l'objectif dans le blackboard
         blackboard = self.memory.get_blackboard()
@@ -215,13 +216,19 @@ class Orchestrator:
                     self._handle_stalemate()
 
             # 14. Transition agent
-            next_agent = message.next_agent
-            if next_agent in ["Gemini", "Claude"]:
-                if next_agent != self.active_agent:
-                    self.state.reset_stalemate_counter()
-                self.active_agent = next_agent
+            # Skip si switch forcé par stalemate (évite override)
+            if not self.forced_agent_switch:
+                next_agent = message.next_agent
+                if next_agent in ["Gemini", "Claude"]:
+                    if next_agent != self.active_agent:
+                        self.state.reset_stalemate_counter()
+                    self.active_agent = next_agent
+                else:
+                    console.log(f"[NEXUS WARN] next_agent invalide: {next_agent}", "yellow")
             else:
-                console.log(f"[NEXUS WARN] next_agent invalide: {next_agent}", "yellow")
+                # Reset le flag après utilisation
+                console.log(f"[NEXUS CORE] Switch forcé actif → {self.active_agent}", "cyan")
+                self.forced_agent_switch = False
 
             # 15. Sauvegarde avec rollback
             self.memory.save_state_with_backup()
@@ -310,17 +317,20 @@ Tu répètes la même action échouée. Change d'approche ou demande de l'aide a
     def _handle_stalemate(self):
         """Gère la stagnation détectée."""
         count = self.state.get_stalemate_counter()
+        max_count = self.config.max_stalemate_count
 
-        if count >= 7:
-            # Niveau 3 : Arrêt
-            console.log(f"[NEXUS CORE] STAGNATION CRITIQUE ({count} échecs). Arrêt.", "bold red")
+        if count >= max_count:
+            # Niveau 3 : Arrêt (atteint max configuré)
+            console.log(f"[NEXUS CORE] STAGNATION CRITIQUE ({count}/{max_count} échecs). Arrêt.", "bold red")
             self.panic_handler.trigger_panic(f"Stagnation critique: {count} échecs consécutifs")
 
-        elif count >= 5:
-            # Niveau 2 : Basculer vers partenaire
-            console.log(f"[NEXUS CORE] Stagnation détectée ({count} échecs). Transfert au partenaire.", "yellow")
+        elif count >= max(3, max_count - 2):
+            # Niveau 2 : Basculer vers partenaire (2 avant max)
+            console.log(f"[NEXUS CORE] Stagnation détectée ({count}/{max_count} échecs). Transfert au partenaire.", "yellow")
             self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+            self.forced_agent_switch = True  # Empêcher override par next_agent
+            self.state.reset_stalemate_counter()  # Reset pour le nouvel agent
 
         else:
             # Niveau 1 : Avertissement (déjà dans le contexte)
-            console.log(f"[NEXUS CORE] ⚠ Stagnation détectée ({count} échecs)", "yellow")
+            console.log(f"[NEXUS CORE] ⚠ Stagnation détectée ({count}/{max_count} échecs)", "yellow")

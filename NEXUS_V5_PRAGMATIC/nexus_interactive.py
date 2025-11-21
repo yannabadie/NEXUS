@@ -244,6 +244,74 @@ Keyboard Shortcuts:
 
         print("="*60 + "\n")
 
+    def is_simple_conversation(self, text: str) -> bool:
+        """Detect if text is a simple conversation/greeting (not a task)."""
+        text_lower = text.lower().strip()
+
+        # Common greetings
+        greetings = [
+            'hello', 'hi', 'hey', 'bonjour', 'salut', 'coucou',
+            'good morning', 'good afternoon', 'good evening',
+            'bonsoir', 'bonne journée', 'comment ça va', 'comment vas-tu',
+            'how are you', 'what\'s up', 'sup', 'yo'
+        ]
+
+        # Simple questions about NEXUS itself
+        self_questions = [
+            'what are you', 'who are you', 'what can you do',
+            'qu\'es-tu', 'qui es-tu', 'que peux-tu faire'
+        ]
+
+        # Check exact matches or starts with greeting
+        for greeting in greetings + self_questions:
+            if text_lower == greeting or text_lower.startswith(greeting + ' '):
+                return True
+
+        # Very short inputs without clear task indicators
+        task_keywords = ['create', 'make', 'build', 'write', 'read', 'analyze',
+                         'fix', 'update', 'delete', 'list', 'show', 'crée', 'fais',
+                         'écris', 'lis', 'analyse', 'corrige', 'supprime', 'affiche']
+
+        if len(text.split()) <= 3:  # 3 words or less
+            has_task_keyword = any(kw in text_lower for kw in task_keywords)
+            if not has_task_keyword:
+                return True
+
+        return False
+
+    def respond_to_conversation(self, text: str):
+        """Respond to simple conversations without orchestration."""
+        text_lower = text.lower().strip()
+
+        # Greetings
+        if any(greet in text_lower for greet in ['hello', 'hi', 'hey', 'bonjour', 'salut']):
+            print("\n[NEXUS] Hello! I'm NEXUS V5.1, an AI orchestrator.")
+            print("I coordinate Gemini (strategy) and Claude (execution) to help you with tasks.")
+            print("Type /help to see available commands, or describe a task to begin.\n")
+
+        # About NEXUS
+        elif any(q in text_lower for q in ['what are you', 'who are you', 'qu\'es-tu', 'qui es-tu']):
+            print("\n[NEXUS] I'm NEXUS V5.1 - Interactive Cognitive Orchestrator")
+            print("• Gemini 3 Pro handles strategic planning")
+            print("• Claude Sonnet 4.5 handles precise execution")
+            print("• I coordinate them in a symbiotic workflow")
+            print("\nDescribe a technical task and I'll orchestrate the best approach!\n")
+
+        # What can you do
+        elif any(q in text_lower for q in ['what can you do', 'que peux-tu faire']):
+            print("\n[NEXUS] I can help with:")
+            print("• Code analysis and debugging")
+            print("• File creation and editing")
+            print("• Running tests and builds")
+            print("• Git operations")
+            print("• Complex multi-step technical tasks")
+            print("\nJust describe what you need in natural language!\n")
+
+        # Default
+        else:
+            print("\n[NEXUS] I'm here to help with technical tasks.")
+            print("Describe what you'd like to accomplish, and I'll coordinate the work.\n")
+
     def handle_command(self, cmd: str) -> bool:
         """Handle slash commands. Returns False if should exit."""
         cmd = cmd.strip().lower()
@@ -292,6 +360,12 @@ Keyboard Shortcuts:
         if not task.strip():
             return
 
+        # Check if it's simple conversation (not a technical task)
+        if self.is_simple_conversation(task):
+            self.respond_to_conversation(task)
+            self.session_manager.save_turn(task, "Conversation")
+            return
+
         print(f"\n[NEXUS] Processing: {task}\n")
 
         try:
@@ -306,18 +380,32 @@ Keyboard Shortcuts:
             # Run orchestration
             self.orchestrator.run()
 
-            # Save turn to history
-            self.session_manager.save_turn(task, "Completed")
-
-            print(f"\n[NEXUS] Task completed\n")
+            # Check if ended due to panic (stagnation, etc.)
+            panic_reason = self.orchestrator.panic_handler.check_panic()
+            if panic_reason:
+                print(f"\n[NEXUS] Task stopped: {panic_reason}")
+                print("This often happens when the task isn't clear or is too conversational.")
+                print("Try describing a specific technical task (e.g., 'create a file test.txt').\n")
+                self.orchestrator.panic_handler.clear_panic()
+                self.session_manager.save_turn(task, f"Stopped: {panic_reason}")
+            else:
+                # Normal completion
+                self.session_manager.save_turn(task, "Completed")
+                print(f"\n[NEXUS] Task completed\n")
 
         except KeyboardInterrupt:
             print("\n[NEXUS] Task interrupted by user\n")
             self.session_manager.save_turn(task, "Interrupted")
+            # Clean up panic files if any
+            if self.orchestrator:
+                self.orchestrator.panic_handler.clear_panic()
 
         except Exception as e:
             print(f"\n[NEXUS ERROR] {e}\n")
             self.session_manager.save_turn(task, f"Error: {e}")
+            # Clean up panic files if any
+            if self.orchestrator:
+                self.orchestrator.panic_handler.clear_panic()
 
     def run(self):
         """Main REPL loop."""
@@ -376,10 +464,30 @@ Keyboard Shortcuts:
         print("\n[NEXUS] Session saved. Goodbye!\n")
 
 
+def detect_workspace_path() -> Path:
+    """Auto-detect workspace path (dev vs installed mode)."""
+    script_dir = Path(__file__).parent
+
+    # Check if we're in dev mode (core/ and prompts/ exist)
+    core_dir = script_dir / "core"
+    prompts_dir = script_dir / "prompts"
+
+    if core_dir.exists() and prompts_dir.exists():
+        # Dev mode: use local workspace
+        workspace = script_dir / "workspace"
+        print(f"[NEXUS] Mode: Development (workspace: {workspace})")
+        return workspace
+    else:
+        # Installed mode: workspace should be in same dir as script
+        workspace = script_dir / "workspace"
+        print(f"[NEXUS] Mode: Installed (workspace: {workspace})")
+        return workspace
+
+
 def main():
     """Entry point for interactive mode."""
-    # Paths
-    workspace_path = Path(__file__).parent / "workspace"
+    # Auto-detect workspace path
+    workspace_path = detect_workspace_path()
     workspace_path.mkdir(exist_ok=True)
 
     # Configuration
