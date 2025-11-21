@@ -1,0 +1,54 @@
+{
+  "response": "```json\n{\n  \"sender\": \"Gemini\",\n  \"action_type\": \"TALK\",\n  \"content\": \"En tant que collaborateur égal dans NEXUS V6, je peux effectuer diverses tâches en utilisant 13 outils. Mes capacités incluent la recherche sur le web (web_search, web_fetch), l'investigation de code (codebase_investigator, search_file_content, glob), la gestion de fichiers (read, write, edit, list_dir), l'exécution de commandes shell (run_shell_command) et Git, la planification de tâches (write_todos) et la mémorisation de faits (save_memory). Je travaille en étroite collaboration avec Claude pour analyser, planifier et exécuter des tâches, en utilisant nos forces complémentaires et tous les outils à notre disposition.\",\n  \"next_agent\": \"Claude\",\n  \"status\": \"CONTINUE\"\n}\n```",
+  "stats": {
+    "models": {
+      "gemini-2.5-flash-lite": {
+        "api": {
+          "totalRequests": 1,
+          "totalErrors": 0,
+          "totalLatencyMs": 1994
+        },
+        "tokens": {
+          "prompt": 5776,
+          "candidates": 97,
+          "total": 6243,
+          "cached": 0,
+          "thoughts": 370,
+          "tool": 0
+        }
+      },
+      "gemini-2.5-flash": {
+        "api": {
+          "totalRequests": 2,
+          "totalErrors": 1,
+          "totalLatencyMs": 3383
+        },
+        "tokens": {
+          "prompt": 14121,
+          "candidates": 194,
+          "total": 14522,
+          "cached": 0,
+          "thoughts": 207,
+          "tool": 0
+        }
+      }
+    },
+    "tools": {
+      "totalCalls": 0,
+      "totalSuccess": 0,
+      "totalFail": 0,
+      "totalDurationMs": 0,
+      "totalDecisions": {
+        "accept": 0,
+        "reject": 0,
+        "modify": 0,
+        "auto_accept": 0
+      },
+      "byName": {}
+    },
+    "files": {
+      "totalLinesAdded": 0,
+      "totalLinesRemoved": 0
+    }
+  }
+}

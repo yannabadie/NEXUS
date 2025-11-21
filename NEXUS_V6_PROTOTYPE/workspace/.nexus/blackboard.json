@@ -1,0 +1,18 @@
+{
+  "objective": "quel sont tes capacités?",
+  "mode": "Normal",
+  "strategic_plan": [],
+  "recent_history": [],
+  "compressed_history_summary": "",
+  "current_state": {
+    "iteration": 1,
+    "active_agent": "Gemini",
+    "stalemate_counter": 0,
+    "last_action_signature": "",
+    "pending_tool_validation": false
+  },
+  "metadata": {
+    "created": "2025-11-21T23:51:12.937784",
+    "version": "6.0.0"
+  }
+}
