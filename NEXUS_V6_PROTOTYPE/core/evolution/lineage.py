@@ -76,7 +76,7 @@ def save_lineage(lineage: Dict, workspace_path: Path = None) -> None:
         with open(lineage_path, 'w', encoding='utf-8') as f:
             json.dump(lineage, f, indent=2, ensure_ascii=False)
 
-        print(f"[LINEAGE]  Saved to {lineage_path}")
+        print(f"[LINEAGE]  Saved to {lineage_path}")
     except Exception as e:
         raise LineageError(f"Failed to save LINEAGE.json: {e}")
 
@@ -162,10 +162,10 @@ def promote_child_to_parent(
     Promote a child to become the new active parent.
 
     Updates:
-    - current_parent ’ new child
-    - lineage_tree ’ add new parent node
-    - evolution_stats ’ increment counters
-    - old parent ’ archived
+    - current_parent -> new child
+    - lineage_tree -> add new parent node
+    - evolution_stats -> increment counters
+    - old parent -> archived
 
     Args:
         lineage: Lineage dict
@@ -215,7 +215,7 @@ def promote_child_to_parent(
     lineage["evolution_stats"]["successful_promotions"] += 1
     lineage["evolution_stats"]["stagnation_counter"] = 0  # Reset stagnation
 
-    print(f"[LINEAGE]  Promoted {child_id} to active parent (Gen {generation})")
+    print(f"[LINEAGE]  Promoted {child_id} to active parent (Gen {generation})")
 
     return lineage
 
@@ -247,7 +247,7 @@ def archive_generation(
         "reason": reason
     }
 
-    print(f"[LINEAGE]  Archived {nexus_id} to {archive_path}")
+    print(f"[LINEAGE]  Archived {nexus_id} to {archive_path}")
 
     return lineage
 
@@ -266,11 +266,11 @@ def update_stagnation_counter(lineage: Dict, increment: bool = True) -> Tuple[Di
     if increment:
         lineage["evolution_stats"]["stagnation_counter"] += 1
         counter = lineage["evolution_stats"]["stagnation_counter"]
-        print(f"[LINEAGE]    Stagnation counter: {counter}/3 (SURVIVAL_LAW)")
+        print(f"[LINEAGE] -  Stagnation counter: {counter}/3 (SURVIVAL_LAW)")
     else:
         lineage["evolution_stats"]["stagnation_counter"] = 0
         counter = 0
-        print(f"[LINEAGE]  Stagnation counter reset")
+        print(f"[LINEAGE]  Stagnation counter reset")
 
     return lineage, counter
 
@@ -306,8 +306,8 @@ def sign_birth_certificate(birth_cert_path: Path, ssh_key_path: Path = None) -> 
         ssh_key_path = Path.home() / ".ssh" / "id_rsa"
 
     if not ssh_key_path.exists():
-        print(f"[LINEAGE]    SSH key not found: {ssh_key_path}")
-        print(f"[LINEAGE]    Birth certificate will be unsigned")
+        print(f"[LINEAGE] -  SSH key not found: {ssh_key_path}")
+        print(f"[LINEAGE] -  Birth certificate will be unsigned")
         return False
 
     try:
@@ -321,14 +321,14 @@ def sign_birth_certificate(birth_cert_path: Path, ssh_key_path: Path = None) -> 
             str(birth_cert_path)
         ], check=True, capture_output=True)
 
-        print(f"[LINEAGE]  Birth certificate signed: {sig_path}")
+        print(f"[LINEAGE]  Birth certificate signed: {sig_path}")
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"[LINEAGE]  Failed to sign birth certificate: {e}")
+        print(f"[LINEAGE]  Failed to sign birth certificate: {e}")
         return False
     except FileNotFoundError:
-        print(f"[LINEAGE]  ssh-keygen not found (install OpenSSH)")
+        print(f"[LINEAGE]  ssh-keygen not found (install OpenSSH)")
         return False
 
 
@@ -380,7 +380,7 @@ def create_birth_certificate(
     with open(cert_path, 'w', encoding='utf-8') as f:
         json.dump(certificate, f, indent=2)
 
-    print(f"[LINEAGE]  Birth certificate created: {cert_path}")
+    print(f"[LINEAGE]  Birth certificate created: {cert_path}")
 
     # Sign certificate
     sign_birth_certificate(cert_path)
@@ -436,6 +436,6 @@ def add_child(lineage: Dict, parent_id: str, child_id: str) -> Dict:
     if child_id not in lineage["lineage_tree"][parent_id]["children"]:
         lineage["lineage_tree"][parent_id]["children"].append(child_id)
         lineage["evolution_stats"]["total_children_created"] += 1
-        print(f"[LINEAGE]  Added {child_id} as child of {parent_id}")
+        print(f"[LINEAGE]  Added {child_id} as child of {parent_id}")
 
     return lineage

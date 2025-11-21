@@ -59,7 +59,7 @@ def clone_parent(
 
     try:
         # Clone parent directory (exclude workspace, __pycache__, .git)
-        print(f"[MUTATOR] Cloning parent {parent_path.name} ’ {child_id}...")
+        print(f"[MUTATOR] Cloning parent {parent_path.name} - {child_id}...")
 
         shutil.copytree(
             parent_path,
@@ -75,7 +75,7 @@ def clone_parent(
             )
         )
 
-        print(f"[MUTATOR]  Cloned to {child_path}")
+        print(f"[MUTATOR]  Cloned to {child_path}")
         return child_path
 
     except Exception as e:
@@ -120,10 +120,10 @@ def apply_mutations(
                 "timestamp": datetime.now().isoformat()
             })
 
-            print(f"[MUTATOR]  {func.__name__} applied successfully")
+            print(f"[MUTATOR]  {func.__name__} applied successfully")
 
         except Exception as e:
-            print(f"[MUTATOR]  {func.__name__} failed: {e}")
+            print(f"[MUTATOR]  {func.__name__} failed: {e}")
             raise MutationError(f"Mutation failed: {func.__name__}: {e}")
 
     return applied_mutations
@@ -156,7 +156,7 @@ def generate_diff(
 
         # Git diff exits with 1 if differences found (not an error)
         if result.returncode not in [0, 1]:
-            print(f"[MUTATOR]    git diff failed, generating manual diff")
+            print(f"[MUTATOR]    git diff failed, generating manual diff")
             diff_content = "# DIFF FROM PARENT\n\nManual diff not implemented (git diff failed)"
         else:
             diff_content = f"""# DIFF FROM PARENT
@@ -175,11 +175,11 @@ Child: {child_path.name}
         with open(diff_path, 'w', encoding='utf-8') as f:
             f.write(diff_content)
 
-        print(f"[MUTATOR]  Diff generated: {diff_path}")
+        print(f"[MUTATOR]  Diff generated: {diff_path}")
         return diff_path
 
     except Exception as e:
-        print(f"[MUTATOR]  Failed to generate diff: {e}")
+        print(f"[MUTATOR]  Failed to generate diff: {e}")
         raise MutationError(f"Diff generation failed: {e}")
 
 
@@ -262,7 +262,7 @@ def save_birth_certificate(
     with open(cert_path, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"[MUTATOR]  Birth certificate saved: {cert_path}")
+    print(f"[MUTATOR]  Birth certificate saved: {cert_path}")
     return cert_path
 
 
@@ -428,7 +428,7 @@ def create_child(
     cert_path = save_birth_certificate(child_path, metadata)
 
     print(f"\n{'='*60}")
-    print(f" CHILD CREATED: {child_id}")
+    print(f" CHILD CREATED: {child_id}")
     print(f"{'='*60}")
     print(f"Location: {child_path}")
     print(f"Birth Certificate: {cert_path}")

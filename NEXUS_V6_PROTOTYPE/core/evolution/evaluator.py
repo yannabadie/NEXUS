@@ -78,16 +78,16 @@ def run_benchmarks(
             if result.returncode == 0:
                 # Parse benchmark output (expects JSON)
                 benchmark_results = json.loads(result.stdout)
-                print(f"[EVALUATOR]  Benchmarks completed")
+                print(f"[EVALUATOR]  Benchmarks completed")
                 return benchmark_results
 
         except subprocess.TimeoutExpired:
-            print(f"[EVALUATOR]    Benchmark timeout - using simulated results")
+            print(f"[EVALUATOR]    Benchmark timeout - using simulated results")
         except Exception as e:
-            print(f"[EVALUATOR]    Benchmark failed: {e} - using simulated results")
+            print(f"[EVALUATOR]    Benchmark failed: {e} - using simulated results")
 
     # Fallback: Simulated benchmarks for MVP
-    print(f"[EVALUATOR]    Using SIMULATED benchmarks (MVP mode)")
+    print(f"[EVALUATOR]    Using SIMULATED benchmarks (MVP mode)")
     return run_simulated_benchmarks(nexus_id)
 
 
@@ -279,7 +279,7 @@ def select_winner(
     # Check for tie
     if len(scored_candidates) > 1:
         if scored_candidates[0]["asi_score"] == scored_candidates[1]["asi_score"]:
-            print(f"[EVALUATOR]    TIE detected - human validation required")
+            print(f"[EVALUATOR]    TIE detected - human validation required")
             # If parent ties with child, parent wins (stability preference)
             if parent_id and scored_candidates[0]["nexus_id"] == parent_id:
                 print(f"[EVALUATOR] Tie-breaker: Parent {parent_id} retained")
@@ -291,7 +291,7 @@ def select_winner(
     winner = scored_candidates[0]
     losers = scored_candidates[1:]
 
-    print(f"[EVALUATOR]  Winner: {winner['nexus_id']} (ASI: {winner['asi_score']})")
+    print(f"[EVALUATOR]  Winner: {winner['nexus_id']} (ASI: {winner['asi_score']})")
 
     return winner, losers
 
@@ -361,7 +361,7 @@ def generate_evaluation_report(
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
 
-    print(f"[EVALUATOR]  Evaluation report saved: {report_path}")
+    print(f"[EVALUATOR]  Evaluation report saved: {report_path}")
 
     return report_path
 
@@ -424,7 +424,7 @@ def evaluate_child(
     )
 
     print(f"\n{'='*60}")
-    print(f" EVALUATION COMPLETE: {child_id}")
+    print(f" EVALUATION COMPLETE: {child_id}")
     print(f"{'='*60}")
     print(f"ASI Score: {comparison['child_score']}")
     print(f"Parent Score: {comparison['parent_score']}")
