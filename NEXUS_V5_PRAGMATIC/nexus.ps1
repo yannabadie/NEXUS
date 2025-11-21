@@ -19,7 +19,7 @@
 .PARAMETER Help
     Show help
 
-.PARAMETER Verbose
+.PARAMETER ShowDetails
     Show pre-flight checks and detailed output
 
 .EXAMPLE
@@ -58,7 +58,7 @@ param(
     [switch]$Help,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Verbose
+    [switch]$ShowDetails
 )
 
 # UTF-8 configuration for Windows
@@ -96,7 +96,7 @@ if ($Help) {
     Write-Host "OPTIONS:" -ForegroundColor Yellow
     Write-Host "  --mode <mode>        Normal | InProjectImprovement | CoreEvolution (default: Normal)"
     Write-Host "  --panic <message>    Emergency stop"
-    Write-Host "  --verbose            Show pre-flight checks"
+    Write-Host "  --show-details       Show pre-flight checks"
     Write-Host "  --help               Show this help"
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Yellow
@@ -124,7 +124,7 @@ if ($Panic) {
 # Determine mode: Interactive vs One-Shot
 if (-not $Objective) {
     # No objective = Interactive Mode (REPL)
-    if ($Verbose) {
+    if ($ShowDetails) {
         Write-Host "[NEXUS] Launching interactive mode (REPL)" -ForegroundColor Cyan
     }
 
@@ -144,8 +144,8 @@ if (-not $Objective) {
     }
 }
 
-# Pre-flight checks (silent unless --verbose)
-if ($Verbose) {
+# Pre-flight checks (silent unless --show-details)
+if ($ShowDetails) {
     Write-Host ""
     Write-Host "==========================================" -ForegroundColor Cyan
     Write-Host "  NEXUS V5.0 - Pre-flight Checks" -ForegroundColor Cyan
@@ -160,7 +160,7 @@ if (-not $pythonCmd) {
     exit 1
 }
 
-if ($Verbose) {
+if ($ShowDetails) {
     $pythonVersion = & python --version 2>&1
     Write-Host "[1/5] Python: OK ($pythonVersion)" -ForegroundColor Green
 }
@@ -171,7 +171,7 @@ if (-not (Test-Path $nexusScript)) {
     exit 1
 }
 
-if ($Verbose) {
+if ($ShowDetails) {
     Write-Host "[2/5] nexus.py: OK" -ForegroundColor Green
 }
 
@@ -182,7 +182,7 @@ if (-not $geminiCmd) {
     exit 1
 }
 
-if ($Verbose) {
+if ($ShowDetails) {
     $geminiVersion = & gemini --version 2>&1 | Select-Object -First 1
     Write-Host "[3/5] Gemini CLI: OK ($geminiVersion)" -ForegroundColor Green
 }
@@ -194,14 +194,14 @@ if (-not $claudeCmd) {
     exit 1
 }
 
-if ($Verbose) {
+if ($ShowDetails) {
     $claudeVersion = & claude --version 2>&1 | Select-Object -First 1
     Write-Host "[4/5] Claude Code CLI: OK ($claudeVersion)" -ForegroundColor Green
 }
 
 # Check .env (warning only)
 $envFile = Join-Path $scriptDir ".env"
-if ($Verbose) {
+if ($ShowDetails) {
     if (-not (Test-Path $envFile)) {
         Write-Host "[5/5] .env: WARNING (using defaults)" -ForegroundColor Yellow
     } else {
@@ -217,7 +217,7 @@ try {
     & python -u "$nexusScript" $Objective --mode $Mode
     $exitCode = $LASTEXITCODE
 
-    if ($exitCode -ne 0 -and $Verbose) {
+    if ($exitCode -ne 0 -and $ShowDetails) {
         Write-Host ""
         Write-Host "NEXUS exited with code $exitCode" -ForegroundColor Yellow
     }
