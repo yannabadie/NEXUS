@@ -71,15 +71,17 @@ class Orchestrator:
                 self.memory.save_state_with_backup()
                 break
 
-            # 1. Resource Monitor
-            if self.resource_monitor.is_overloaded():
-                stats = self.resource_monitor.get_stats()
-                console.log(
-                    f"[NEXUS CORE] Ressources surchargées (CPU: {stats['cpu_percent']:.1f}%, RAM: {stats['ram_percent']:.1f}%). Pause 30s...",
-                    "yellow"
-                )
-                time.sleep(30)
-                continue
+            # 1. Resource Monitor (DISABLED for local/interactive use)
+            # Note: Resource monitoring disabled to prevent blocking on high-RAM systems
+            # Re-enable by uncommenting if needed for production/server use
+            # if self.resource_monitor.is_overloaded():
+            #     stats = self.resource_monitor.get_stats()
+            #     console.log(
+            #         f"[NEXUS CORE] Ressources surchargées (CPU: {stats['cpu_percent']:.1f}%, RAM: {stats['ram_percent']:.1f}%). Pause 30s...",
+            #         "yellow"
+            #     )
+            #     time.sleep(30)
+            #     continue
 
             # 2. Compression mémorielle
             if self.memory.should_compress():
