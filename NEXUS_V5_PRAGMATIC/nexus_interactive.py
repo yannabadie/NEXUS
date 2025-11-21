@@ -106,8 +106,8 @@ class InteractiveNexus:
         ]
         self.command_completer = WordCompleter(commands, ignore_case=True)
 
-        # Setup prompt session
-        if PROMPT_TOOLKIT_AVAILABLE:
+        # Setup prompt session (only in interactive mode)
+        if PROMPT_TOOLKIT_AVAILABLE and sys.stdin.isatty():
             history_file = workspace_path / ".nexus" / "command_history"
             history_file.parent.mkdir(parents=True, exist_ok=True)
             self.session = PromptSession(
