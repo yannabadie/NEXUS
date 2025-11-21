@@ -37,35 +37,31 @@ class ClaudeDriver(BaseDriver):
         context_file = self.workspace_path / "_IO_BUFFER" / "context_in.md"
         output_file = self.workspace_path / "_IO_BUFFER" / "action_out.json"
 
-        # SYNTAXE OPTIMALE CLAUDE CODE CLI (Nov 2025) :
-        # - Flag -p pour print mode (non-interactif)
-        # - @syntax pour lire fichier automatiquement
-        # - --output-format json pour sortie JSON structurée
-        # - --max-turns 1 pour limiter à un tour (non-interactif)
-        # - --append-system-prompt pour renforcer CFL sans casser outils
-        # - --resume <session-id> pour continuité (optionnel)
+        # SYNTAXE RÉELLE CLAUDE CODE CLI (Nov 2025) :
+        # VERIFIED: Claude CLI only supports basic flags
+        # - -p for print mode (non-interactive)
+        # - @file to read file
+        # - --resume <session-id> for session continuity (optional)
+        # NO FLAGS FOR: --output-format, --max-turns, --append-system-prompt (these don't exist!)
+        #
+        # The prompt system file MUST enforce JSON output format.
 
         command_parts = [
-            f'"{self.cli_path}"'
+            f'"{self.cli_path}"',
+            '-p'  # Print mode (non-interactive)
         ]
 
-        # Reprendre session si disponible
+        # Resume session if available
         if self.session_id:
             command_parts.append(f'--resume "{self.session_id}"')
 
-        # Lire contexte via @syntax + prompt + flags
-        command_parts.extend([
-            f'@"{context_file.absolute()}"',
-            '-p "Réponds STRICTEMENT en JSON (Protocole Synapse V5.0)."',
-            '--output-format json',
-            '--max-turns 1',
-            '--append-system-prompt "CRITICAL: After TOOL_USE, always provide post_action_review. Use last_tool_result.json as truth."'
-        ])
+        # Read context file using @syntax
+        command_parts.append(f'@"{context_file.absolute()}"')
 
-        # Redirection vers fichier de sortie
+        # Redirect to output file
         command_parts.append(f'> "{output_file.absolute()}"')
 
-        # Joindre la commande complète
+        # Join command
         command = ' '.join(command_parts)
 
         # Exécuter
@@ -95,16 +91,10 @@ class ClaudeDriver(BaseDriver):
 
     def _parse_claude_wrapper(self, output_file: Path) -> Dict[str, Any]:
         """
-        Parse le wrapper JSON retourné par Claude Code CLI.
+        Parse la réponse de Claude CLI.
 
-        Claude Code avec --output-format json retourne:
-        {
-          "type": "result",
-          "result": "contenu réel ici (peut être JSON string)",
-          "cost_usd": 0.042,
-          "duration_ms": 5558,
-          ...
-        }
+        Avec -p mode, Claude CLI retourne le texte brut (pas de wrapper JSON).
+        Le texte doit être du JSON Synapse V5.0 directement.
 
         Args:
             output_file: Fichier action_out.json
@@ -113,28 +103,23 @@ class ClaudeDriver(BaseDriver):
             Protocole Synapse V5.0 parsé
         """
         import json
+        import re
 
         with self.lock:
-            wrapper = json.loads(output_file.read_text(encoding="utf-8"))
+            raw_content = output_file.read_text(encoding="utf-8").strip()
 
-            # Vérifier le wrapper Claude Code
-            if wrapper.get('type') != 'result':
-                raise Exception(f"Format inattendu: type={wrapper.get('type')}")
-
-            # Vérifier erreurs
-            if wrapper.get('is_error', False):
-                raise Exception(f"Claude Code error: {wrapper.get('result', 'Unknown error')}")
-
-            # Extraire le contenu réel
-            result_content = wrapper.get('result', '')
-
-            # Le result peut être:
-            # 1. Une string JSON (protocole Synapse) -> parser
-            # 2. Du texte simple -> erreur de protocole
+            # Claude peut enrober le JSON dans des markdown code blocks
+            # Extraire le JSON s'il est dans ```json ... ```
+            json_match = re.search(r'```json\s*\n(.*?)\n```', raw_content, re.DOTALL)
+            if json_match:
+                json_content = json_match.group(1)
+            else:
+                # Pas de code block, assume JSON direct
+                json_content = raw_content
 
             # Tentative de parsing JSON
             try:
-                synapse_message = json.loads(result_content)
+                synapse_message = json.loads(json_content)
 
                 # Valider que c'est bien le protocole Synapse
                 if not isinstance(synapse_message, dict):
@@ -154,5 +139,5 @@ class ClaudeDriver(BaseDriver):
                 raise Exception(
                     f"Claude n'a pas répondu en protocole Synapse V5.0. "
                     f"Erreur: {e}. "
-                    f"Contenu reçu (premiers 500 chars): {result_content[:500]}"
+                    f"Contenu reçu (premiers 500 chars): {raw_content[:500]}"
                 )

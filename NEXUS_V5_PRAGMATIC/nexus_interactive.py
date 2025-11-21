@@ -248,6 +248,14 @@ Keyboard Shortcuts:
         """Detect if text is a simple conversation/greeting (not a task)."""
         text_lower = text.lower().strip()
 
+        # Task keywords that indicate technical work
+        task_keywords = [
+            'create', 'make', 'build', 'write', 'read', 'analyze',
+            'fix', 'update', 'delete', 'list', 'show', 'install', 'run',
+            'crée', 'créé', 'fais', 'écris', 'lis', 'analyse', 'corrige',
+            'supprime', 'affiche', 'installe', 'lance', 'génère', 'modifie'
+        ]
+
         # Common greetings
         greetings = [
             'hello', 'hi', 'hey', 'bonjour', 'salut', 'coucou',
@@ -262,16 +270,28 @@ Keyboard Shortcuts:
             'qu\'es-tu', 'qui es-tu', 'que peux-tu faire'
         ]
 
-        # Check exact matches or starts with greeting
-        for greeting in greetings + self_questions:
-            if text_lower == greeting or text_lower.startswith(greeting + ' '):
+        # Check exact matches first
+        for phrase in greetings + self_questions:
+            if text_lower == phrase:
                 return True
 
-        # Very short inputs without clear task indicators
-        task_keywords = ['create', 'make', 'build', 'write', 'read', 'analyze',
-                         'fix', 'update', 'delete', 'list', 'show', 'crée', 'fais',
-                         'écris', 'lis', 'analyse', 'corrige', 'supprime', 'affiche']
+        # Check if starts with greeting BUT contains task keywords
+        for greeting in greetings:
+            if text_lower.startswith(greeting + ' ') or text_lower.startswith(greeting + ','):
+                # Extract text after greeting
+                # Handle both space and comma separators
+                if ',' in text_lower:
+                    rest = text_lower.split(',', 1)[1].strip()
+                else:
+                    rest = text_lower[len(greeting):].strip()
 
+                # If rest contains task keywords, it's a task, not conversation
+                if any(kw in rest for kw in task_keywords):
+                    return False  # It's a task!
+                else:
+                    return True  # Just a greeting with filler
+
+        # Very short inputs without clear task indicators
         if len(text.split()) <= 3:  # 3 words or less
             has_task_keyword = any(kw in text_lower for kw in task_keywords)
             if not has_task_keyword:
@@ -465,23 +485,23 @@ Keyboard Shortcuts:
 
 
 def detect_workspace_path() -> Path:
-    """Auto-detect workspace path (dev vs installed mode)."""
+    """Auto-detect workspace path based on script location."""
     script_dir = Path(__file__).parent
 
-    # Check if we're in dev mode (core/ and prompts/ exist)
-    core_dir = script_dir / "core"
-    prompts_dir = script_dir / "prompts"
+    # Workspace is always in same directory as script
+    workspace = script_dir / "workspace"
 
-    if core_dir.exists() and prompts_dir.exists():
-        # Dev mode: use local workspace
-        workspace = script_dir / "workspace"
-        print(f"[NEXUS] Mode: Development (workspace: {workspace})")
-        return workspace
+    # Detect mode based on path (more reliable than checking for core/ directory)
+    if "AppData" in str(script_dir) or "Program Files" in str(script_dir):
+        mode = "Installed"
     else:
-        # Installed mode: workspace should be in same dir as script
-        workspace = script_dir / "workspace"
-        print(f"[NEXUS] Mode: Installed (workspace: {workspace})")
-        return workspace
+        mode = "Development"
+
+    print(f"[NEXUS] Mode: {mode}")
+    print(f"[NEXUS] Script: {script_dir}")
+    print(f"[NEXUS] Workspace: {workspace}")
+
+    return workspace
 
 
 def main():
