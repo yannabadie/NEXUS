@@ -130,9 +130,15 @@ class CLIInspector:
             }
 
         except subprocess.TimeoutExpired:
+            # gemini --version timed out (PowerShell overhead on Windows)
+            # Still consider it available, just with unknown version
+            print(f"   Info: Gemini version detection timed out")
+            print(f"   Using defaults: gemini-3-pro-preview")
             return {
-                "available": False,
-                "error": "gemini CLI timeout (took > 5s)"
+                "available": True,
+                "model": "gemini-3-pro-preview",
+                "context_window": 1000000,
+                "version": "unknown (timeout)"
             }
 
         except Exception as e:
