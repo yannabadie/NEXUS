@@ -813,6 +813,103 @@ python nexus6.py --verify
 
 ---
 
+### CORR-2025-11-21-012: Gemini Prompt Drift - JSON Format Loss After Long Context
+
+**Session**: SESSION_2025-11-21_EVOLUTION_START
+**Date**: 2025-11-21
+**Severity**: MEDIUM
+**Component**: core/drivers/gemini_driver_v6.py (interaction pattern)
+**Status**: WORKAROUND IDENTIFIED
+
+**Problem**:
+```
+[ERROR] Agent invocation failed: Could not extract JSON from Gemini response:
+I appreciate your excellent proposals for the Ethics (Eth) dimension...
+```
+
+After 27 successful turns of Gemini+Claude collaboration, Gemini responded with **natural language prose** instead of JSON format, causing extraction to fail.
+
+**Root Cause**:
+**Prompt Drift** after extended context (~15-20k tokens, 27 turns):
+- Gemini CLI system prompt specifies JSON output format
+- After many turns, model "forgets" strict JSON requirement
+- Reverts to natural conversational style
+- `_extract_json()` finds no JSON structure → Error
+
+**Difference from CORR-010**:
+- CORR-010: Gemini produced JSON but wrapped in `{"response": "...", "stats": {...}}`
+- CORR-012: Gemini produces **NO JSON at all** - pure prose text
+
+**Investigation**:
+1. User executed baseline measurement command
+2. Gemini+Claude collaborated for 27 turns defining ASI protocol
+3. Turn 28: Gemini responded in natural language
+4. Driver attempted `_extract_json()` → No JSON found → Error
+5. Previous 27 turns worked perfectly → Context length is likely factor
+
+**Context When Error Occurred**:
+- Task: Define complete ASI testing protocol (21 tests, 7 dimensions)
+- Progress: 5/7 dimensions validated (R, C, Cr, M, Col)
+- Turn 28: Starting dimension 6 (Ethics)
+- Estimated context: ~15-20k tokens
+
+**Solution**:
+Multiple workarounds available:
+
+**Workaround 1: Fresh Session** ⭐
+- Restart NEXUS with clean context
+- Use shorter, more direct commands
+- Avoid multi-turn protocol definition
+
+**Workaround 2: Simplify Task**
+- Break complex tasks into smaller chunks
+- Each chunk in separate NEXUS session
+- Reduces context accumulation
+
+**Workaround 3: Skip Baseline Measurement**
+- Proceed directly to `/evolve 3`
+- Baseline measured during evolution anyway
+- Avoids lengthy protocol definition
+
+**Files Changed**:
+- None (workaround-based, no code change)
+
+**Verification**:
+User will test by executing `/evolve 3` directly instead of baseline measurement.
+
+**Prevention**:
+
+**Short-term**:
+1. **Context Management**: Monitor turn count, reset session after ~20 turns
+2. **Prompt Reinforcement**: Add JSON format reminder every N turns
+3. **Task Chunking**: Break long collaborative tasks into sessions
+
+**Long-term** (Future Enhancement):
+1. **Driver Retry Logic**: If `_extract_json()` fails, retry with format reminder
+2. **Format Validation**: Check response format before returning
+3. **Fallback Parser**: Attempt to extract intent from prose and reconstruct JSON
+4. **Session Checkpointing**: Save state and restart session when context grows
+
+**Root Cause Type**: **Prompt Engineering** (not code bug)
+- Gemini CLI prompt needs stronger JSON format enforcement
+- Or periodic format reminders in long conversations
+
+**Impact Assessment**:
+- **Severity**: MEDIUM (not CRITICAL)
+- **Frequency**: Rare (only after 20+ turns)
+- **Workaround**: Easy (restart session or simplify task)
+- **User Impact**: Minimal (can skip baseline and proceed to evolution)
+
+**Lessons Learned**:
+1. **LLM behavior degrades with context length** - Even with strict prompts
+2. **27 turns is impressive** - V6.0 collaboration works very well up to that point
+3. **Complex protocol definition may be overkill** - Evolution can proceed without it
+4. **Fresh sessions for complex tasks** - Better than one long session
+
+**Related Issues**: CORR-2025-11-21-010 (different JSON parsing issue)
+
+---
+
 ## Future Corrections
 
 New corrections should be added here following the format above.
