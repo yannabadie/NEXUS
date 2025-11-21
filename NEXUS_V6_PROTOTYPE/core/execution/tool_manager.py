@@ -1,16 +1,27 @@
 """
 Tool Manager - Exécution centralisée des outils
 
-Outils disponibles:
+Outils disponibles (TOUS accessibles par Gemini ET Claude):
 - bash: Execute shell commands
 - read: Read file contents
 - write: Create/overwrite file
 - edit: Search and replace in file
 - list_dir: List directory contents
+- git: Git operations (add, commit, status, diff, log, push, pull)
+- web_search: Search the web (via Gemini CLI)
+- web_fetch: Fetch URL content
+- glob: File pattern matching (find files by pattern)
+- grep: Search code for keywords/patterns
+- todo_write: Task/plan management
 """
 import subprocess
+import urllib.request
+import urllib.parse
+import json
+import re
+import fnmatch
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class ToolResult:
@@ -65,7 +76,13 @@ class ToolManager:
             "read": self._execute_read,
             "write": self._execute_write,
             "edit": self._execute_edit,
-            "list_dir": self._execute_list_dir
+            "list_dir": self._execute_list_dir,
+            "git": self._execute_git,
+            "web_search": self._execute_web_search,
+            "web_fetch": self._execute_web_fetch,
+            "glob": self._execute_glob,
+            "grep": self._execute_grep,
+            "todo_write": self._execute_todo_write
         }
 
         if tool_name not in handlers:
@@ -243,4 +260,567 @@ class ToolManager:
                 status="FAILURE",
                 output="",
                 error=f"Directory not found: {dir_path}"
+            )
+
+    def _execute_git(self, args: Dict) -> ToolResult:
+        """
+        Execute git operations (ported from V5)
+
+        Args:
+            args: {
+                "operation": "add|commit|status|diff|log|push|pull",
+                "args": "additional arguments (optional)"
+            }
+
+        Returns:
+            ToolResult with git output
+
+        Examples:
+            {"operation": "status"}
+            {"operation": "add", "args": "src/auth.py"}
+            {"operation": "commit", "args": "-m 'Fix auth bug'"}
+            {"operation": "diff", "args": "HEAD~1"}
+        """
+        operation = args.get("operation", "")
+        additional_args = args.get("args", "")
+
+        # Whitelist allowed operations
+        allowed_ops = ["add", "commit", "status", "diff", "log", "push", "pull"]
+        if operation not in allowed_ops:
+            return ToolResult(
+                tool_name="git",
+                status="ERROR",
+                output="",
+                error=f"Invalid git operation: {operation}. Allowed: {', '.join(allowed_ops)}"
+            )
+
+        try:
+            # Build git command
+            command = ["git", operation]
+            if additional_args:
+                # Split args respecting quotes
+                import shlex
+                command.extend(shlex.split(additional_args))
+
+            # Execute git command
+            result = subprocess.run(
+                command,
+                cwd=str(self.workspace_path),
+                capture_output=True,
+                text=True,
+                timeout=60,
+                encoding="utf-8",
+                errors="replace"
+            )
+
+            if result.returncode == 0:
+                return ToolResult(
+                    tool_name="git",
+                    status="SUCCESS",
+                    output=result.stdout or "(no output)",
+                    error=result.stderr
+                )
+            else:
+                return ToolResult(
+                    tool_name="git",
+                    status="FAILURE",
+                    output=result.stdout,
+                    error=result.stderr or f"Git command failed with return code {result.returncode}"
+                )
+
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                tool_name="git",
+                status="ERROR",
+                output="",
+                error=f"Git command timed out after 60s: git {operation} {additional_args}"
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name="git",
+                status="ERROR",
+                output="",
+                error=f"Git execution error: {str(e)}"
+            )
+
+    def _execute_web_search(self, args: Dict) -> ToolResult:
+        """
+        Execute web search via Gemini CLI (google_web_search)
+
+        This delegates to Gemini CLI's built-in google_web_search tool
+        which provides grounding with Google Search.
+
+        Args:
+            args: {
+                "query": "search query string",
+                "num_results": 5 (optional, default: 5)
+            }
+
+        Returns:
+            ToolResult with search results
+
+        Examples:
+            {"query": "Claude CLI documentation"}
+            {"query": "Python asyncio best practices 2025", "num_results": 10}
+        """
+        query = args.get("query", "")
+        num_results = args.get("num_results", 5)
+
+        if not query:
+            return ToolResult(
+                tool_name="web_search",
+                status="ERROR",
+                output="",
+                error="Query parameter is required"
+            )
+
+        try:
+            # Use Gemini CLI for web search
+            # Command: gemini -p "google_web_search: <query>"
+            command = [
+                "gemini",
+                "-p",
+                f"Use google_web_search to find information about: {query}. Return the top {num_results} results with titles, URLs, and brief summaries."
+            ]
+
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                encoding="utf-8",
+                errors="replace"
+            )
+
+            if result.returncode == 0:
+                return ToolResult(
+                    tool_name="web_search",
+                    status="SUCCESS",
+                    output=result.stdout or "(no results)",
+                    error=result.stderr
+                )
+            else:
+                return ToolResult(
+                    tool_name="web_search",
+                    status="FAILURE",
+                    output=result.stdout,
+                    error=result.stderr or f"Search failed with return code {result.returncode}"
+                )
+
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                tool_name="web_search",
+                status="ERROR",
+                output="",
+                error="Web search timed out after 30s"
+            )
+        except FileNotFoundError:
+            return ToolResult(
+                tool_name="web_search",
+                status="ERROR",
+                output="",
+                error="Gemini CLI not found. Web search requires Gemini CLI."
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name="web_search",
+                status="ERROR",
+                output="",
+                error=f"Web search error: {str(e)}"
+            )
+
+    def _execute_web_fetch(self, args: Dict) -> ToolResult:
+        """
+        Fetch content from a URL
+
+        Args:
+            args: {
+                "url": "https://example.com",
+                "max_length": 10000 (optional, default: 10000 chars)
+            }
+
+        Returns:
+            ToolResult with URL content
+
+        Examples:
+            {"url": "https://docs.python.org/3/library/asyncio.html"}
+            {"url": "https://api.github.com/repos/python/cpython", "max_length": 5000}
+        """
+        url = args.get("url", "")
+        max_length = args.get("max_length", 10000)
+
+        if not url:
+            return ToolResult(
+                tool_name="web_fetch",
+                status="ERROR",
+                output="",
+                error="URL parameter is required"
+            )
+
+        # Basic URL validation
+        if not url.startswith(("http://", "https://")):
+            return ToolResult(
+                tool_name="web_fetch",
+                status="ERROR",
+                output="",
+                error="URL must start with http:// or https://"
+            )
+
+        try:
+            # Create request with user agent
+            req = urllib.request.Request(
+                url,
+                headers={'User-Agent': 'NEXUS-V6/1.0'}
+            )
+
+            # Fetch URL
+            with urllib.request.urlopen(req, timeout=15) as response:
+                content_type = response.headers.get('Content-Type', '')
+
+                # Read content
+                content_bytes = response.read()
+
+                # Decode based on content type
+                if 'charset=' in content_type:
+                    encoding = content_type.split('charset=')[1].split(';')[0].strip()
+                else:
+                    encoding = 'utf-8'
+
+                try:
+                    content = content_bytes.decode(encoding, errors='replace')
+                except:
+                    content = content_bytes.decode('utf-8', errors='replace')
+
+                # Truncate if too long
+                if len(content) > max_length:
+                    content = content[:max_length] + f"\n\n[Content truncated at {max_length} characters]"
+
+                return ToolResult(
+                    tool_name="web_fetch",
+                    status="SUCCESS",
+                    output=f"URL: {url}\nContent-Type: {content_type}\n\n{content}"
+                )
+
+        except urllib.error.HTTPError as e:
+            return ToolResult(
+                tool_name="web_fetch",
+                status="FAILURE",
+                output="",
+                error=f"HTTP Error {e.code}: {e.reason}"
+            )
+        except urllib.error.URLError as e:
+            return ToolResult(
+                tool_name="web_fetch",
+                status="ERROR",
+                output="",
+                error=f"URL Error: {e.reason}"
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name="web_fetch",
+                status="ERROR",
+                output="",
+                error=f"Web fetch error: {str(e)}"
+            )
+
+    def _execute_glob(self, args: Dict) -> ToolResult:
+        """
+        Find files matching a pattern (like Claude Code's Glob tool)
+
+        Args:
+            args: {
+                "pattern": "**/*.py" (glob pattern),
+                "path": "./src" (optional, default: workspace root),
+                "max_results": 100 (optional, default: 100)
+            }
+
+        Returns:
+            ToolResult with matching file paths
+
+        Examples:
+            {"pattern": "**/*.py"}
+            {"pattern": "src/**/*.tsx", "max_results": 50}
+            {"pattern": "*.json", "path": "./config"}
+
+        Patterns:
+            * - matches any characters except /
+            ** - matches any characters including /
+            ? - matches single character
+            [abc] - matches one of a, b, c
+        """
+        pattern = args.get("pattern", "")
+        search_path = args.get("path", ".")
+        max_results = args.get("max_results", 100)
+
+        if not pattern:
+            return ToolResult(
+                tool_name="glob",
+                status="ERROR",
+                output="",
+                error="Pattern parameter is required"
+            )
+
+        try:
+            # Resolve search path relative to workspace
+            if not Path(search_path).is_absolute():
+                search_path = self.workspace_path / search_path
+
+            search_path = Path(search_path)
+
+            if not search_path.exists():
+                return ToolResult(
+                    tool_name="glob",
+                    status="FAILURE",
+                    output="",
+                    error=f"Search path does not exist: {search_path}"
+                )
+
+            # Find matching files
+            matches = []
+            for file_path in search_path.rglob("*"):
+                if file_path.is_file():
+                    # Get relative path from search_path
+                    rel_path = file_path.relative_to(search_path)
+
+                    # Check if matches pattern
+                    if file_path.match(pattern):
+                        matches.append(str(rel_path))
+
+                    if len(matches) >= max_results:
+                        break
+
+            # Sort matches
+            matches.sort()
+
+            if matches:
+                output = f"Found {len(matches)} files matching '{pattern}':\n\n"
+                output += "\n".join(matches)
+
+                if len(matches) >= max_results:
+                    output += f"\n\n[Limited to {max_results} results]"
+
+                return ToolResult(
+                    tool_name="glob",
+                    status="SUCCESS",
+                    output=output
+                )
+            else:
+                return ToolResult(
+                    tool_name="glob",
+                    status="SUCCESS",
+                    output=f"No files found matching '{pattern}'"
+                )
+
+        except Exception as e:
+            return ToolResult(
+                tool_name="glob",
+                status="ERROR",
+                output="",
+                error=f"Glob error: {str(e)}"
+            )
+
+    def _execute_grep(self, args: Dict) -> ToolResult:
+        """
+        Search code for keywords/patterns (like Claude Code's Grep tool)
+
+        Args:
+            args: {
+                "pattern": "def.*async" (regex pattern),
+                "path": "./src" (optional, default: workspace root),
+                "file_pattern": "*.py" (optional, filter files),
+                "case_sensitive": true (optional, default: true),
+                "max_results": 100 (optional, default: 100)
+            }
+
+        Returns:
+            ToolResult with matching lines
+
+        Examples:
+            {"pattern": "async def", "file_pattern": "*.py"}
+            {"pattern": "TODO", "case_sensitive": false}
+            {"pattern": "import.*asyncio", "path": "./src"}
+        """
+        pattern = args.get("pattern", "")
+        search_path = args.get("path", ".")
+        file_pattern = args.get("file_pattern", "*")
+        case_sensitive = args.get("case_sensitive", True)
+        max_results = args.get("max_results", 100)
+
+        if not pattern:
+            return ToolResult(
+                tool_name="grep",
+                status="ERROR",
+                output="",
+                error="Pattern parameter is required"
+            )
+
+        try:
+            # Resolve search path
+            if not Path(search_path).is_absolute():
+                search_path = self.workspace_path / search_path
+
+            search_path = Path(search_path)
+
+            if not search_path.exists():
+                return ToolResult(
+                    tool_name="grep",
+                    status="FAILURE",
+                    output="",
+                    error=f"Search path does not exist: {search_path}"
+                )
+
+            # Compile regex pattern
+            flags = 0 if case_sensitive else re.IGNORECASE
+            try:
+                regex = re.compile(pattern, flags)
+            except re.error as e:
+                return ToolResult(
+                    tool_name="grep",
+                    status="ERROR",
+                    output="",
+                    error=f"Invalid regex pattern: {e}"
+                )
+
+            # Search files
+            matches = []
+            files_searched = 0
+
+            for file_path in search_path.rglob(file_pattern):
+                if not file_path.is_file():
+                    continue
+
+                files_searched += 1
+
+                try:
+                    content = file_path.read_text(encoding='utf-8', errors='replace')
+                    lines = content.split('\n')
+
+                    for line_num, line in enumerate(lines, start=1):
+                        if regex.search(line):
+                            rel_path = file_path.relative_to(self.workspace_path)
+                            matches.append(f"{rel_path}:{line_num}: {line.strip()}")
+
+                            if len(matches) >= max_results:
+                                break
+
+                except (UnicodeDecodeError, PermissionError):
+                    # Skip files we can't read
+                    continue
+
+                if len(matches) >= max_results:
+                    break
+
+            # Format output
+            if matches:
+                output = f"Found {len(matches)} matches for '{pattern}' in {files_searched} files:\n\n"
+                output += "\n".join(matches)
+
+                if len(matches) >= max_results:
+                    output += f"\n\n[Limited to {max_results} results]"
+
+                return ToolResult(
+                    tool_name="grep",
+                    status="SUCCESS",
+                    output=output
+                )
+            else:
+                return ToolResult(
+                    tool_name="grep",
+                    status="SUCCESS",
+                    output=f"No matches found for '{pattern}' in {files_searched} files"
+                )
+
+        except Exception as e:
+            return ToolResult(
+                tool_name="grep",
+                status="ERROR",
+                output="",
+                error=f"Grep error: {str(e)}"
+            )
+
+    def _execute_todo_write(self, args: Dict) -> ToolResult:
+        """
+        Task/plan management (like Claude Code's TodoWrite)
+
+        Args:
+            args: {
+                "todos": [
+                    {
+                        "id": 1,
+                        "description": "Implement authentication",
+                        "status": "pending|in_progress|completed",
+                        "assigned_agent": "Claude|Gemini"
+                    }
+                ]
+            }
+
+        Returns:
+            ToolResult with updated plan
+
+        Examples:
+            {
+                "todos": [
+                    {"id": 1, "description": "Read auth.py", "status": "completed", "assigned_agent": "Claude"},
+                    {"id": 2, "description": "Fix bug", "status": "in_progress", "assigned_agent": "Claude"}
+                ]
+            }
+        """
+        todos = args.get("todos", [])
+
+        if not isinstance(todos, list):
+            return ToolResult(
+                tool_name="todo_write",
+                status="ERROR",
+                output="",
+                error="'todos' must be a list"
+            )
+
+        try:
+            # Save to workspace
+            todo_file = self.workspace_path / ".nexus" / "plan.json"
+            todo_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Format todos
+            formatted_todos = []
+            for todo in todos:
+                if not isinstance(todo, dict):
+                    continue
+
+                formatted_todos.append({
+                    "id": todo.get("id", len(formatted_todos) + 1),
+                    "description": todo.get("description", ""),
+                    "status": todo.get("status", "pending"),
+                    "assigned_agent": todo.get("assigned_agent", "Claude")
+                })
+
+            # Save to file
+            todo_file.write_text(json.dumps(formatted_todos, indent=2), encoding='utf-8')
+
+            # Format output
+            output = f"Plan updated ({len(formatted_todos)} tasks):\n\n"
+
+            for todo in formatted_todos:
+                status_icon = {
+                    "pending": "⏳",
+                    "in_progress": "🔄",
+                    "completed": "✅",
+                    "failed": "❌"
+                }.get(todo["status"], "❓")
+
+                output += f"{status_icon} #{todo['id']}: {todo['description']} [{todo['assigned_agent']}] ({todo['status']})\n"
+
+            output += f"\nPlan saved to: {todo_file}"
+
+            return ToolResult(
+                tool_name="todo_write",
+                status="SUCCESS",
+                output=output
+            )
+
+        except Exception as e:
+            return ToolResult(
+                tool_name="todo_write",
+                status="ERROR",
+                output="",
+                error=f"TodoWrite error: {str(e)}"
             )

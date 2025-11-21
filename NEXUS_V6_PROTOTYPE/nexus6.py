@@ -11,6 +11,7 @@ Architecture:
 - Bootstrap verification at startup
 """
 import sys
+import argparse
 from pathlib import Path
 import importlib.util
 
@@ -148,15 +149,67 @@ def bootstrap():
 
 def main():
     """Entry point NEXUS V6.0"""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="NEXUS V6.0 - The Omniscient REPL",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  nexus6                    Launch interactive REPL
+  nexus6 --verify           Verify installation (bootstrap only)
+  nexus6 --version          Show version
+  nexus6 --workspace ./myproject  Use custom workspace
+
+Documentation: https://github.com/nexus-ai/nexus-v6
+        """
+    )
+
+    parser.add_argument(
+        '--verify',
+        action='store_true',
+        help='Run bootstrap verification only (no REPL)'
+    )
+
+    parser.add_argument(
+        '--version',
+        action='store_true',
+        help='Show NEXUS version'
+    )
+
+    parser.add_argument(
+        '--workspace',
+        type=str,
+        default='./workspace',
+        help='Workspace directory path (default: ./workspace)'
+    )
+
+    args = parser.parse_args()
+
+    # Handle --version
+    if args.version:
+        print("NEXUS V6.0 - The Omniscient REPL")
+        print("Persistent FSM Orchestrator with Hybrid Drivers")
+        print("https://github.com/nexus-ai/nexus-v6")
+        sys.exit(0)
+
     try:
         # Bootstrap system
         gemini_info, claude_info = bootstrap()
 
+        # Handle --verify (exit after bootstrap)
+        if args.verify:
+            print("\n✅ Bootstrap verification successful!")
+            print("   NEXUS V6.0 is ready to use.")
+            sys.exit(0)
+
         # Import and launch REPL
         from core.interface.repl import InteractiveNexusV6
 
+        workspace_path = Path(args.workspace).resolve()
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
         repl = InteractiveNexusV6(
-            workspace_path=Path("workspace"),
+            workspace_path=workspace_path,
             gemini_info=gemini_info,
             claude_info=claude_info
         )

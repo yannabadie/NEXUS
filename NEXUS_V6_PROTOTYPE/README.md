@@ -33,11 +33,30 @@
 
 ## Quick Start
 
+### Installation (PowerShell)
+
+```powershell
+# Navigate to NEXUS V6
+cd NEXUS_V6_PROTOTYPE
+
+# Run installer
+.\install_v6.ps1
+
+# Restart PowerShell terminal
+
+# Launch from anywhere
+nexus6
+```
+
+**Detailed installation guide:** See `INSTALLATION.md`
+
+### Manual Launch (Development)
+
 ```bash
 # Install dependencies
 pip install -r requirements_v6.txt
 
-# Launch
+# Launch from source
 python nexus6.py
 ```
 
@@ -64,6 +83,33 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
   ↑                                                          ↓
   └──────────────────────────────────────────────────────────┘
 ```
+
+## Tool Executor (OMTE) - 11 Tools
+
+**ALL tools are accessible by BOTH Gemini AND Claude!**
+
+V6 includes 11 tools matching Claude Code + Gemini CLI full capabilities:
+
+**File Operations:**
+- **read** - Read file contents
+- **write** - Create/overwrite files
+- **edit** - Search and replace in files
+- **list_dir** - List directory contents
+
+**Code Search & Navigation:**
+- **glob** - Find files by pattern (`**/*.py`, `src/**/*.tsx`)
+- **grep** - Search code with regex (like ripgrep)
+
+**Execution & Version Control:**
+- **bash** - Execute shell commands
+- **git** - Git operations (status, add, commit, diff, log, push, pull)
+
+**Web & Research (CRITICAL for fact-checking!):**
+- **web_search** - Google search via Gemini CLI (debates, sources, real-time info)
+- **web_fetch** - Fetch URL content (documentation, articles)
+
+**Planning & Coordination:**
+- **todo_write** - Task/plan management (shared between agents)
 
 ## Key Components
 

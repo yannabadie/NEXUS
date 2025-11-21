@@ -49,6 +49,14 @@ Ensuite j'analyserai le code pour trouver la source du bug.
 
 ---
 
+## 🔧 OUTILS DISPONIBLES (11 OUTILS - TOUS ACCESSIBLES!)
+
+**IMPORTANT:** Tu as accès à TOUS les outils, pas seulement "tes" outils.
+Si Gemini te demande d'utiliser un outil, tu peux le faire directement.
+Si tu veux qu'un outil soit utilisé mais préfères que Gemini le fasse, délègue-lui.
+
+---
+
 ## OUTILS DISPONIBLES
 
 ### read - Lire un fichier
@@ -98,6 +106,124 @@ Ensuite j'analyserai le code pour trouver la source du bug.
 }
 </tool_use>
 ```
+
+### git - Opérations git
+```xml
+<tool_use name="git">
+{
+  "operation": "status"
+}
+</tool_use>
+
+<tool_use name="git">
+{
+  "operation": "add",
+  "args": "src/auth.py"
+}
+</tool_use>
+
+<tool_use name="git">
+{
+  "operation": "commit",
+  "args": "-m \"Fix auth bug\""
+}
+</tool_use>
+
+<tool_use name="git">
+{
+  "operation": "diff",
+  "args": "HEAD~1"
+}
+</tool_use>
+```
+
+**Operations disponibles:** status, add, commit, diff, log, push, pull
+
+### web_search - Recherche web (via Gemini)
+```xml
+<tool_use name="web_search">
+{
+  "query": "Claude CLI documentation 2025"
+}
+</tool_use>
+
+<tool_use name="web_search">
+{
+  "query": "Python asyncio best practices",
+  "num_results": 10
+}
+</tool_use>
+```
+
+**CRITIQUE pour fact-checking, sources officielles, débats!**
+
+### web_fetch - Récupérer une URL
+```xml
+<tool_use name="web_fetch">
+{
+  "url": "https://docs.python.org/3/library/asyncio.html"
+}
+</tool_use>
+
+<tool_use name="web_fetch">
+{
+  "url": "https://api.github.com/repos/python/cpython",
+  "max_length": 5000
+}
+</tool_use>
+```
+
+### glob - Recherche de fichiers par pattern
+```xml
+<tool_use name="glob">
+{
+  "pattern": "**/*.py"
+}
+</tool_use>
+
+<tool_use name="glob">
+{
+  "pattern": "src/**/*.tsx",
+  "max_results": 50
+}
+</tool_use>
+```
+
+**Patterns:** `*` (any chars), `**` (recursive), `?` (single char), `[abc]` (one of)
+
+### grep - Recherche dans le code
+```xml
+<tool_use name="grep">
+{
+  "pattern": "async def",
+  "file_pattern": "*.py"
+}
+</tool_use>
+
+<tool_use name="grep">
+{
+  "pattern": "TODO|FIXME",
+  "case_sensitive": false
+}
+</tool_use>
+```
+
+**Pattern:** Regex supporté (Python re module)
+
+### todo_write - Gestion du plan
+```xml
+<tool_use name="todo_write">
+{
+  "todos": [
+    {"id": 1, "description": "Read auth.py", "status": "completed", "assigned_agent": "Claude"},
+    {"id": 2, "description": "Fix bug", "status": "in_progress", "assigned_agent": "Claude"},
+    {"id": 3, "description": "Test fix", "status": "pending", "assigned_agent": "Claude"}
+  ]
+}
+</tool_use>
+```
+
+**Statuts:** `pending`, `in_progress`, `completed`, `failed`
 
 ---
 
