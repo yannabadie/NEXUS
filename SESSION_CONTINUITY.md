@@ -740,7 +740,23 @@ System validated and ready for first generation cycle: **V6.0 → V6.1**
 ---
 
 **Saved by**: Claude Code
-**Timestamp**: 2025-11-21 17:30 (94k tokens remaining)
-**Last Commit**: Pending (logs de session à commit)
-**Status**: ❌ V6.0 non validé - Gemini CLI requis
-**Next Action**: Installer Gemini CLI OU décider alternative
+**Timestamp**: 2025-11-21 22:17 (77k tokens = 38.5% remaining)
+**Last Commit**: 657fff1 (Gemini detection fix)
+**Status**: ✅ Gemini détecté - Bootstrap correction appliquée
+**Next Action**: Valider bootstrap complet puis tester REPL
+
+---
+
+## CORRECTION CRITIQUE (657fff1) - Gemini CLI Detection
+
+**Erreur initiale**: Bootstrap échouait avec "Gemini CLI not available"
+**Réalité**: Gemini CLI v0.16.0 installé et fonctionnel
+**Cause**: subprocess.run(['gemini']) ne fonctionne pas sur Windows (besoin PowerShell)
+**Fix**: Ajout _run_cli_command() avec détection plateforme + wrapping PowerShell
+
+**Commit**: 657fff1
+**Fichiers**: core/meta/cli_inspector.py (+27 lines helper method)
+**Vérification**: Gemini Available=True, Version=0.16.0
+
+**Impact**: Annule fausse évaluation NO-GO des tests manuels
+**Action requise**: Re-tester bootstrap et valider REPL fonctionnel
