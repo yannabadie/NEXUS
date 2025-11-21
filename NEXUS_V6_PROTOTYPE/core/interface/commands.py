@@ -19,6 +19,8 @@ SLASH_COMMANDS = {
     "/reset": "Reset orchestrator to IDLE state",
     "/mode <name>": "Change mode (Normal, InProjectImprovement, etc.)",
     "/chat": "Enter chat-only mode (no tool execution)",
+    "/evolve [count]": "Create and evaluate child generations (default: 3)",
+    "/evolve-status": "Show evolution stats and stagnation counter",
     "/review": "Review and evaluate pending children from evolution",
     "/help": "Show this help message",
     "exit": "Exit NEXUS V6.0"
