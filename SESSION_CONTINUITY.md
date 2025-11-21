@@ -580,7 +580,167 @@ System validated and ready for first generation cycle: **V6.0 → V6.1**
 
 ---
 
-**Saved by**: Claude Code (Phase protocole validation)
-**Timestamp**: 2025-11-21 (117k tokens remaining)
+**Saved by**: Claude Code (Phase protocole validation + tests manuels)
+**Timestamp**: 2025-11-21 (94k tokens remaining)
 **Last Commit**: ee172a4 (validation protocol + tests)
-**Status**: ✅ Automated tests 100%, ready for manual validation
+**Status**: ❌ Manual validation BLOCKED - Gemini CLI missing
+
+---
+
+## 🧪 TESTS MANUELS - RÉSULTATS OBJECTIFS (2025-11-21)
+
+### Tests Exécutés
+
+**Phase 2: REPL Functionality** (CRITIQUE)
+- **T2.1**: Démarrage REPL → ❌ **BLOCKED**
+  - Bootstrap verification: PARTIAL SUCCESS
+  - KERNEL integrity: ✅ OK
+  - Python 3.13.7: ✅ OK
+  - Dependencies: ✅ OK (5 packages)
+  - Workspace: ✅ OK (4 directories)
+  - .env file: ✅ OK
+  - **Gemini CLI**: ❌ **NOT AVAILABLE** (BLOCKING)
+
+**Phase 3-4**: Tool Integration & Performance
+- **Status**: ❌ **NOT EXECUTED** (REPL non fonctionnel)
+
+**Phase 7**: Security Tests
+- **T7.2**: KERNEL isolation → ✅ **PARTIAL PASS**
+  - KERNEL.py import: ✅ OK
+  - verify_kernel_integrity(): ✅ Returns True
+  - 5 lois définies: ✅ OK
+
+### Constat Objectif
+
+**❌ NEXUS V6.0 NE PEUT PAS ÊTRE VALIDÉ FONCTIONNELLEMENT**
+
+**Raison Critique**: Dépendance manquante (Gemini CLI)
+
+**Architecture V6**: Requiert collaboration Claude + Gemini
+- Sans Gemini CLI → Pas d'orchestration
+- Sans orchestration → Pas de REPL
+- Sans REPL → Impossibilité de tester fonctionnalités
+
+### Résultats Tests Totaux
+
+**Automatisés** (Phase 1, 5):
+- ✅ Phase 1 (Integrity): 3/3 PASSED (100%)
+- ✅ Phase 5 (Evolution Modules): 5/5 PASSED (100%)
+- **Total**: 8/8 PASSED
+
+**Manuels** (Phase 2-4, 6-7):
+- ❌ Phase 2 (REPL): 0/4 BLOCKED
+- ❌ Phase 3 (Tools): 0/4 BLOCKED
+- ❌ Phase 4 (Performance): 0/3 BLOCKED
+- N/A Phase 6 (Regression): 0/2 N/A (V5 absent)
+- 🟡 Phase 7 (Security): 1/2 PARTIAL
+- **Total**: 1/13 exécutés (8%)
+
+**SCORE GLOBAL**: 9/23 tests (39%)
+- Tests passés: 9/9 exécutés (100% de succès sur tests possibles)
+- Tests bloqués: 13/23 (57% non exécutables)
+- Tests N/A: 1/23 (4%)
+
+### Décision GO/NO-GO
+
+**❌ NO-GO POUR ÉVOLUTION**
+
+**Critères Non Remplis**:
+1. ❌ Parent non fonctionnel (REPL inaccessible)
+2. ❌ Baseline performance non mesurable
+3. ❌ Outils non testés (read, write, bash, etc.)
+4. ❌ Collaboration Claude+Gemini non vérifiée
+5. ❌ Dépendance critique absente (Gemini CLI)
+
+**Risque**: Évoluer depuis une baseline non validée = résultats indéfinis
+
+### Actions Requises Avant Évolution
+
+**CRITIQUE** (Bloquant):
+1. **Installer Gemini CLI**
+   ```bash
+   # Installation officielle Google
+   # https://ai.google.dev/gemini-api/docs/cli
+   gemini --version  # Vérifier installation
+   gemini config set api-key YOUR_KEY
+   ```
+
+2. **Re-exécuter Bootstrap**
+   ```bash
+   cd NEXUS_V6_PROTOTYPE
+   python nexus6.py --verify
+   # Doit afficher ✓ Gemini CLI available
+   ```
+
+3. **Tester REPL Manuellement** (Phases 2-4)
+   - Commandes slash (/help, /status, /evolve-status)
+   - Outils (read, write, edit, bash, git)
+   - Performance (latence, qualité)
+   - Collaboration Claude+Gemini
+
+4. **Mesurer Baseline V6.0**
+   - Exécuter 10-20 tâches variées
+   - Documenter capacités actuelles
+   - Créer référence pour comparaison V6.1
+
+5. **Décision Finale**
+   - Si tests passent → GO évolution
+   - Si problèmes → Fix puis retest
+   - Documenter dans V6.0_VALIDATION_RESULTS.md
+
+### Alternative (Si Gemini CLI Impossible)
+
+**Option A**: Mode Single-Agent (Claude seul)
+- Simplifier architecture V6
+- Retirer dépendance Gemini
+- Tester avec Claude uniquement
+- **Compromis**: Perd collaboration multi-agent
+
+**Option B**: Mock Gemini
+- Créer stub simulant Gemini
+- Test orchestration seulement
+- **Compromis**: Pas une vraie validation
+
+**Option C**: Différer Validation
+- Accepter limitation environnement
+- Bloquer évolution jusqu'à Gemini disponible
+- **Compromis**: Projet en pause
+
+**Recommandation**: Option A (Installer Gemini CLI)
+
+### Documentation Créée
+
+**Logs de Session**:
+- `docs/sessions/SESSION_2025-11-21_VALIDATION.md` (900+ lines)
+  - Chronologie complète de la session
+  - Tous événements documentés
+  - Erreurs et corrections
+  - Décisions techniques
+  - Métriques
+
+- `docs/sessions/MANUAL_TESTS_2025-11-21.md` (400+ lines)
+  - Résultats tests manuels
+  - Constat objectif NEXUS V6.0
+  - Décision NO-GO justifiée
+  - Actions requises
+
+- `docs/sessions/CORRECTIONS_LOG.md` (600+ lines)
+  - Base de données bugs
+  - 6 corrections documentées (CORR-2025-11-21-001 à 006)
+  - Patterns identifiés
+  - Prévention future
+
+**Mise à Jour**:
+- `CLAUDE.md`: Ajout section "Session Persistence & Data Logging Protocol"
+  - Protocole complet de persistance
+  - Quand et comment mettre à jour
+  - Règles critiques
+  - Checklist de vérification
+
+---
+
+**Saved by**: Claude Code
+**Timestamp**: 2025-11-21 17:30 (94k tokens remaining)
+**Last Commit**: Pending (logs de session à commit)
+**Status**: ❌ V6.0 non validé - Gemini CLI requis
+**Next Action**: Installer Gemini CLI OU décider alternative

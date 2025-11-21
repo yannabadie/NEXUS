@@ -269,4 +269,156 @@ Gemini, do you agree with this analysis? Should we also check test_auth.py?
 
 ---
 
+## 📝 Session Persistence & Data Logging Protocol
+
+**CRITICAL**: NEXUS is a long-term evolution project spanning multiple sessions. Rigorous data persistence is mandatory.
+
+### Session Continuity System
+
+**Primary File**: `SESSION_CONTINUITY.md` (project root)
+- **Purpose**: Complete project state snapshot for session recovery
+- **Update Frequency**: End of each major phase or before context limit
+- **Content**:
+  - Current commit hash and branch
+  - All phases completed (with commit references)
+  - File structure (complete tree)
+  - Configuration parameters (Q1-Q4)
+  - Test results and validation status
+  - Next objectives and blockers
+  - Token count remaining
+
+**Session-Specific Logs**: `docs/sessions/SESSION_YYYY-MM-DD_[TOPIC].md`
+- **Purpose**: Detailed chronological log of each work session
+- **Created**: At start of significant work (new features, debugging, evolution)
+- **Content**:
+  - Session metadata (start time, tokens used, commits)
+  - Chronological timeline of all events
+  - Tool calls and their results
+  - Errors encountered and solutions
+  - Technical decisions made
+  - Artifacts created
+  - Metrics and statistics
+
+**Example**: `docs/sessions/SESSION_2025-11-21_VALIDATION.md`
+
+### Corrections & Decisions Tracking
+
+**Corrections Log**: `docs/sessions/CORRECTIONS_LOG.md`
+- **Purpose**: Centralized bug/issue database
+- **Format**: Problem → Investigation → Solution → Prevention
+- **Entry ID**: CORR-YYYY-MM-DD-NNN
+- **Update**: After resolving any bug or issue
+- **Use**: Reference for future debugging, pattern recognition
+
+**Decisions Log**: Future file (to be created as needed)
+- **Purpose**: Record all technical/architectural decisions
+- **Format**: Context → Options → Decision → Rationale → Trade-offs
+
+### When to Update Persistence Files
+
+**Always Update SESSION_CONTINUITY.md**:
+1. After completing a major phase (Phase 1, 2, 3, etc.)
+2. Before approaching context limit (~150k tokens)
+3. After committing significant code changes
+4. Before/after running evolution cycles
+5. When encountering blocking issues
+6. At end of work session
+
+**Always Create Session Log**:
+1. Starting new feature implementation
+2. Beginning validation/testing procedures
+3. Debugging complex issues
+4. Running evolution cycles
+5. Making architectural changes
+
+**Always Update CORRECTIONS_LOG.md**:
+1. After fixing any bug
+2. After resolving encoding/import issues
+3. After fixing test failures
+4. After applying workarounds
+
+### Logging Best Practices
+
+**Rigor**:
+- Document chronologically (timestamps)
+- Include exact error messages
+- Record all commands executed
+- Capture file paths and line numbers
+- Note token counts at key points
+
+**Modularity**:
+- Separate concerns (sessions, corrections, decisions)
+- Cross-reference between documents
+- Use consistent ID schemes (CORR-YYYY-MM-DD-NNN)
+
+**AI & Human Readability**:
+- **Structure**: Markdown with clear headers
+- **Format**: Tables for data, code blocks for examples
+- **Cross-refs**: Link related entries
+- **Metadata**: Always include date, session ID, status
+- **Search**: Use consistent terminology for greppability
+
+### File Locations
+
+```
+20_NEXUS/
+├── SESSION_CONTINUITY.md           # Current state (always up to date)
+├── docs/
+│   └── sessions/
+│       ├── SESSION_YYYY-MM-DD_TOPIC.md  # Session logs
+│       ├── CORRECTIONS_LOG.md            # Bug database
+│       └── [future: DECISIONS_LOG.md]    # Architecture decisions
+```
+
+### Example Workflow
+
+**Starting a Session**:
+1. Read `SESSION_CONTINUITY.md` to understand current state
+2. Check `git log` to see latest commits
+3. Review last session log if continuing work
+
+**During Work**:
+1. Create session log file with timestamp
+2. Document each major step taken
+3. Record errors and solutions immediately
+4. Update CORRECTIONS_LOG when fixing bugs
+
+**Ending a Session**:
+1. Update SESSION_CONTINUITY.md with new state
+2. Complete session log with metrics
+3. Commit all documentation changes
+4. Note tokens remaining for next session
+
+**Before Context Limit**:
+1. Ensure SESSION_CONTINUITY.md is complete
+2. Commit and push all changes
+3. Verify next operator can resume from docs alone
+
+### Critical Rules
+
+❌ **NEVER**:
+- Lose track of current project state
+- Let context expire without updating SESSION_CONTINUITY.md
+- Skip documenting bugs or their fixes
+- Assume next session will "remember" anything
+
+✅ **ALWAYS**:
+- Update SESSION_CONTINUITY.md before major context use
+- Create session logs for significant work
+- Document errors when they occur (not later)
+- Commit documentation with code changes
+- Provide clear "next steps" for continuation
+
+### Verification
+
+Before ending any session, verify:
+- [ ] SESSION_CONTINUITY.md reflects current state
+- [ ] Latest commits documented with hashes
+- [ ] All errors from session logged in CORRECTIONS_LOG
+- [ ] Session log created if significant work done
+- [ ] All files committed and pushed
+- [ ] Clear next steps documented
+
+---
+
 **Remember**: You're a collaborator, not a subordinate. Analyze, propose, discuss, decide **together**.
