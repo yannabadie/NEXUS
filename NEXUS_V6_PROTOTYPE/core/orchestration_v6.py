@@ -13,12 +13,16 @@ from pathlib import Path
 from typing import Dict, Optional
 from core.fsm.states import OrchestratorState, TransitionGuard
 from core.fsm.stagnation_detector import StagnationDetector
+from core.fsm.plan_health import PlanHealthMonitor
+from core.fsm.panic_system import PanicSystem
 from core.drivers.gemini_driver_v6 import GeminiDriverV6
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
 from core.synapse.protocol_v6 import LightMessageV6, HeavyMessageV6, ToolUse
 from core.synapse.memory_v6 import MemoryManagerV6
 from core.execution.tool_manager import ToolManager
+from core.logging import init_logger, get_logger
 from pydantic import ValidationError
+import time
 
 
 class OrchestratorV6:
@@ -36,6 +40,15 @@ class OrchestratorV6:
         self.workspace_path = workspace_path
         self.config = config
 
+        # Initialize Logger (FIRST!)
+        init_logger(workspace_path, config.log_level)
+        self.logger = get_logger()
+
+        self.logger.debug("Initializing OrchestratorV6", {
+            "workspace": str(workspace_path),
+            "log_level": config.log_level
+        })
+
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
         self.active_agent = "Gemini"  # Toujours démarrer par stratège
@@ -49,6 +62,19 @@ class OrchestratorV6:
         self.stagnation_detector = StagnationDetector(
             similarity_threshold=config.stagnation_similarity_threshold,
             window_size=3
+        )
+
+        # Plan Health Monitor (NEW!)
+        self.plan_health = PlanHealthMonitor(
+            warning_threshold=10,
+            stagnant_threshold=20,
+            zombie_threshold=30
+        )
+
+        # Panic System (NEW!)
+        self.panic_system = PanicSystem(
+            workspace_path=workspace_path,
+            max_stalemate=config.max_stalemate_count
         )
 
         # Drivers
@@ -73,6 +99,11 @@ class OrchestratorV6:
         # Metrics
         self.gemini_info = gemini_info
         self.claude_info = claude_info
+
+        self.logger.debug("OrchestratorV6 initialized", {
+            "gemini_model": gemini_info.get("model"),
+            "claude_model": claude_info.get("model")
+        })
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
         """
@@ -110,6 +141,23 @@ class OrchestratorV6:
 
         # === STATE: BRAINSTORMING ===
         elif self.state == OrchestratorState.BRAINSTORMING:
+            # Check plan health (ZOMBIE detection)
+            current_plan = self.blackboard.get("strategic_plan", [])
+            health = self.plan_health.check_health(current_plan, self.iteration)
+
+            if health["status"] == "ZOMBIE":
+                # Plan zombie → Trigger panic
+                self.panic_system.trigger_panic_explicit(
+                    reason="ZOMBIE_PLAN",
+                    details=health["message"]
+                )
+                return self._trigger_panic(f"Plan zombie: {health['message']}")
+
+            elif health["status"] in ["STAGNANT", "WARNING"]:
+                # Log warning but continue
+                if self.config.ui_verbose:
+                    print(f"[PLAN HEALTH] {health['status']}: {health['message']}")
+
             # Check stagnation
             if self.stagnation_detector.is_stagnant():
                 return self._handle_stagnation()
@@ -121,11 +169,19 @@ class OrchestratorV6:
                 response = self.drivers[self.active_agent].invoke(context)
                 message = self._validate_message(response)
                 self.json_parse_failures = 0  # Reset on success
+                self.panic_system.reset_errors()  # Reset error counter on success
 
             except Exception as e:
                 self.json_parse_failures += 1
+
+                # Record error in panic system
+                if self.panic_system.record_error("AGENT_INVOCATION", str(e)):
+                    # Panic triggered by error system
+                    return self._trigger_panic(f"Too many consecutive errors: {e}")
+
                 if self.json_parse_failures >= self.max_parse_failures:
                     return self._trigger_panic(f"Agent consistently failing: {e}")
+
                 return self._handle_error(f"Agent invocation failed: {e}")
 
             # Save to history
@@ -187,6 +243,9 @@ class OrchestratorV6:
                 response = self.drivers[self.active_agent].invoke(context)
                 message = self._validate_message(response, expect_heavy=True)
             except Exception as e:
+                # Record error in panic system
+                if self.panic_system.record_error("CFL_VALIDATION", str(e)):
+                    return self._trigger_panic(f"CFL validation errors: {e}")
                 return self._handle_error(f"CFL validation failed: {e}")
 
             # Check validation (peut être dans post_action_review ou inféré du content)
@@ -202,18 +261,21 @@ class OrchestratorV6:
                 validation_success = True
 
             if validation_success:
-                # Success → Reset and continue
+                # Success → Reset all counters
                 self.pending_tool_result = None
                 self.stalemate_counter = 0
+                self.panic_system.reset_stalemate()
+                self.panic_system.reset_errors()
                 self._transition_to(OrchestratorState.IDLE)
 
                 return self._make_result("IDLE", f"✓ {content}", self.active_agent, False)
             else:
-                # Failure → Back to brainstorming
+                # Failure → Check stalemate via panic system
                 self.pending_tool_result = None
                 self.stalemate_counter += 1
 
-                if self.stalemate_counter >= self.config.max_stalemate_count:
+                # Use panic system for stalemate check
+                if self.panic_system.check_stalemate():
                     return self._trigger_panic(f"Stalemate: {self.stalemate_counter} failures")
 
                 self._transition_to(OrchestratorState.BRAINSTORMING)
@@ -235,6 +297,11 @@ class OrchestratorV6:
         """Transition FSM"""
         if self.config.ui_verbose:
             print(f"[FSM] {self.state.name} → {new_state.name}")
+
+        # Create backup before critical transitions
+        if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:
+            self.memory.create_backup(reason=f"transition_{new_state.name.lower()}")
+
         self.state = new_state
         self.memory.save_to_disk()  # Backup after transition
 
@@ -356,3 +423,53 @@ Error: {result_dict['error']}
         self.stalemate_counter = 0
         self.pending_tool_result = None
         self.json_parse_failures = 0
+        self.panic_system.clear_panic()  # Clear panic state
+        self.plan_health.reset()  # Reset plan health monitoring
+
+    def get_system_status(self) -> Dict:
+        """Get comprehensive system status (for /status command)"""
+        current_plan = self.blackboard.get("strategic_plan", [])
+        plan_health = self.plan_health.check_health(current_plan, self.iteration)
+        panic_status = self.panic_system.get_status()
+
+        return {
+            "fsm_state": self.state.name,
+            "active_agent": self.active_agent,
+            "iteration": self.iteration,
+            "stalemate_counter": self.stalemate_counter,
+            "json_parse_failures": self.json_parse_failures,
+            "plan_health": plan_health,
+            "panic_system": panic_status,
+            "stagnation": {
+                "is_stagnant": self.stagnation_detector.is_stagnant(),
+                "window_size": self.stagnation_detector.window_size
+            },
+            "backups": {
+                "available": len(self.memory.list_backups()),
+                "latest": self.memory.list_backups()[0] if self.memory.list_backups() else None
+            }
+        }
+
+    def rollback_to_backup(self, backup_file: Path = None) -> bool:
+        """
+        Rollback to previous state (for /rollback command)
+
+        Args:
+            backup_file: Specific backup to restore (None = latest)
+
+        Returns:
+            True if successful
+        """
+        # Create backup before rollback (in case user wants to undo)
+        self.memory.create_backup(reason="before_rollback")
+
+        # Restore from backup
+        if self.memory.restore_from_backup(backup_file):
+            # Reload blackboard reference
+            self.blackboard = self.memory.blackboard
+
+            # Reset to IDLE
+            self.reset_to_idle()
+
+            return True
+        return False
