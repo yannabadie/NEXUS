@@ -1,98 +1,55 @@
-# NEXUS V5.0 - Tests
+# NEXUS V5.1 - Tests
 
-**Version:** 5.0 Pragmatic Edition
-**Date:** 20 Novembre 2025
+## Tests Automatisés
 
----
+### Test Suite Complète (Unit Tests)
+```bash
+python tests/test_protocol_complete.py
+```
+- 82 tests unitaires
+- Vérifie architecture, imports, protocoles
+- Pas besoin de CLIs Gemini/Claude
+- **Pass rate: 96.3%**
 
-## 🧪 Test Suite
+### Tests End-to-End (E2E) ⭐ NOUVEAU
+```bash
+# Depuis la racine du projet:
+run_e2e_tests.bat
 
-### Files
-
-- **test_suite.py** - Comprehensive automated test suite (11 scenarios)
-- **log_analyzer.py** - Log analysis tool for post-test inspection
-- **run_tests.bat** - Windows batch script to run tests easily
-
----
-
-## 🚀 Quick Start
-
-### Run Tests
-
-```powershell
-# Critical tests only (recommended)
-.\run_tests.bat critical
-
-# Advanced tests
-.\run_tests.bat advanced
-
-# Stress tests
-.\run_tests.bat stress
-
-# All tests
-.\run_tests.bat all
+# Ou directement:
+python tests/test_automated_e2e.py
 ```
 
-### Or directly with Python
+**Pré-requis:**
+- Gemini CLI installé et configuré
+- Claude Code CLI installé et configuré
 
-```powershell
-python test_suite.py --suite critical --workspace test_workspaces
-```
+**Tests E2E:**
+1. ✅ Conversation simple (greeting)
+2. ✅ Question sur capacités NEXUS
+3. ✅ Greeting + tâche technique
+4. ✅ Tâche technique complète (création fichier)
 
----
+**Critères de succès:**
+- ✅ Conversations → réponse directe, pas d'orchestration
+- ✅ Tâches → orchestration déclenchée
+- ✅ Pas d'erreur "Expecting value: line 1 column 1"
+- ✅ Pas d'erreur "État corrompu"
+- ✅ Pas d'erreur Pydantic enum
+- ✅ Fichier créé avec bon contenu
 
-## 📊 Analyze Results
+## Autres Tests
 
-After running tests:
+### Vérification Modèle
+- `test_model_verification.py` - Vérifie quel modèle Gemini est utilisé
 
-```powershell
-# Analyze specific test logs
-python log_analyzer.py ..\test_workspaces\test_cfl_basic_write_read\logs
+### Test Suite Legacy
+- `test_suite.py` - Ancienne suite de tests
 
-# View reports
-notepad ..\test_workspaces\TEST_REPORT_CRITICAL_*.md
-```
+### Analyseur de Logs
+- `log_analyzer.py` - Analyse les logs de session NEXUS
 
----
+## Rapports de Tests
 
-## 📂 Test Workspaces
-
-Tests create dedicated workspaces in `test_workspaces/`:
-
-```
-test_workspaces/
-├── test_cfl_basic_write_read/
-│   ├── logs/
-│   │   ├── nexus_session_*.log
-│   │   ├── events_*.jsonl
-│   │   ├── cfl_*.jsonl
-│   │   ├── errors_*.log
-│   │   └── trace_*.log
-│   └── workspace/
-└── TEST_REPORT_CRITICAL_*.md
-```
-
----
-
-## 🎯 Test Scenarios
-
-### Critical (4 tests)
-1. CFL_BASIC_WRITE_READ - CFL cycle validation
-2. DUAL_SCHEMA_ENFORCEMENT - Dual Schema compliance
-3. TOOL_EXECUTOR_ALL_TOOLS - All 6 tools validation
-4. STRATEGIC_PLAN_TRACKING - Strategic planning
-
-### Advanced (4 tests)
-5. ERROR_RECOVERY - Error handling
-6. MULTI_STEP_ANALYSIS - Complex analysis
-7. AGENT_COLLABORATION - Gemini ↔ Claude
-8. GIT_OPERATIONS - Git integration
-
-### Stress (3 tests)
-9. STRESS_RAPID_TOOL_SWITCHING - Rapid tool changes
-10. STRESS_LARGE_FILE_OPERATIONS - Large files
-11. STRESS_PLAN_COMPLEXITY - Complex plans (20+ steps)
-
----
-
-For detailed information, see [Testing Guide](../docs/testing/TESTING_GUIDE.md).
+Les rapports JSON sont sauvegardés dans:
+- `TEST_REPORT_YYYYMMDD_HHMMSS.json` - Résultats détaillés
