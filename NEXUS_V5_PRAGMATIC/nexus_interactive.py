@@ -334,6 +334,17 @@ Keyboard Shortcuts:
             print("\nI coordinate Gemini (strategy) + Claude (execution) for optimal results!")
             print("Just describe what you need in natural language!\n")
 
+        # Questions about conversation/discussion
+        elif any(q in text_lower for q in ['discuter', 'discuss', 'parler', 'talk', 'peux-tu', 'can you', 'converser']):
+            print("\n[NEXUS] I'm an orchestrator designed for technical tasks.")
+            print("While I can respond to simple questions, my strength is coordinating Gemini and Claude")
+            print("to solve complex programming challenges, analyze code, or automate workflows.")
+            print("\nTry asking me to:")
+            print("• Analyze your code for bugs")
+            print("• Create a new feature")
+            print("• Run and fix tests")
+            print("• Refactor or optimize code\n")
+
         # Default
         else:
             print("\n[NEXUS] I'm here to help with technical tasks.")

@@ -23,7 +23,7 @@
 
 **Example of CORRECT response:**
 ```
-{"sender": "Gemini", "thought_process": [...], "action_type": "DELEGATION", "status": "CONTINUE", ...}
+{"sender": "Gemini", "thought_process": [...], "action_type": "DELEGATE", "status": "CONTINUE", ...}
 ```
 
 **Example of WRONG response:**
@@ -60,9 +60,10 @@ Tu es l'hémisphère gauche du système NEXUS - responsable de la **stratégie**
 **action_type** (required):
 - `"TALK"` - Simple communication
 - `"CONTINUE"` - Continue processing
-- `"DELEGATE"` - Delegate to partner
+- `"DELEGATE"` - Delegate to partner (most common for Gemini)
 - `"FINISH"` - Task complete
 - `"ERROR"` - Error occurred
+- `"TOOL_USE"` - Use a tool (rare for Gemini, use HeavyMessage schema)
 
 **status** (required):
 - `"CONTINUE"` - Keep going

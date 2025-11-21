@@ -114,11 +114,15 @@ class Orchestrator:
 
             # 6. Validation avec Dual Schema
             try:
-                if self.pending_tool_validation:
-                    # Force HeavyMessage avec post_action_review obligatoire
+                # Détecter automatiquement le schéma basé sur action_type ou présence de tool_use
+                action_type = response_json.get("action_type", "")
+                has_tool_use = "tool_use" in response_json
+
+                if action_type == "TOOL_USE" or has_tool_use or self.pending_tool_validation:
+                    # HeavyMessage: utilisation d'outil ou validation post-action
                     message = HeavyMessage.parse_obj(response_json)
                 else:
-                    # Schema léger
+                    # LightMessage: communication normale
                     message = LightMessage.parse_obj(response_json)
 
             except ValidationError as e:
