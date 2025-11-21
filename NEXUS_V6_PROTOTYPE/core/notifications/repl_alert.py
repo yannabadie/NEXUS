@@ -27,7 +27,7 @@ def get_repl_alert_message(pending_metadata: Dict, config) -> str:
         alert_level = "🚨 CRITICAL"
         color_code = "\033[91m"  # Red
     elif hours_elapsed >= config.recommended_eval_hours:
-        alert_level = "⚠️  OVERDUE"
+        alert_level = "[WARN]️  OVERDUE"
         color_code = "\033[93m"  # Yellow
     else:
         alert_level = "ℹ️  PENDING"

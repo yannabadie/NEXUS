@@ -81,9 +81,9 @@ Automated notification - Do not reply
 """
         },
         "review_reminder": {
-            "subject": f"[NEXUS] ⚠️ Review Overdue - Generation {generation}",
+            "subject": f"[NEXUS] [WARN]️ Review Overdue - Generation {generation}",
             "body": f"""
-⚠️ REMINDER: Review is overdue
+[WARN]️ REMINDER: Review is overdue
 
 Generation {generation} has been awaiting review for {hours_elapsed}h.
 Recommended deadline: {config.recommended_eval_hours}h
@@ -138,7 +138,7 @@ NEXUS Evolution Engine
             server.login(config.email_from, config.email_password)
             server.send_message(msg)
 
-        print(f"[EMAIL] ✓ Sent {template_type} to {config.email_to}")
+        print(f"[EMAIL] [OK] Sent {template_type} to {config.email_to}")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
@@ -172,9 +172,9 @@ def test_email_config(config) -> bool:
             server.login(config.email_from, config.email_password)
             server.send_message(msg)
 
-        print(f"[EMAIL TEST] ✓ Test email sent to {config.email_to}")
+        print(f"[EMAIL TEST] [OK] Test email sent to {config.email_to}")
         return True
 
     except Exception as e:
-        print(f"[EMAIL TEST] ✗ Failed: {e}")
+        print(f"[EMAIL TEST] [X] Failed: {e}")
         return False

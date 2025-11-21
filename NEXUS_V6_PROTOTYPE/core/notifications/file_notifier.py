@@ -58,7 +58,7 @@ def create_pending_review(
 
     content = f"""# PENDING REVIEW - Generation {generation}
 
-**Status**: ⚠️ **AWAITING HUMAN REVIEW**
+**Status**: [WARN]️ **AWAITING HUMAN REVIEW**
 
 **Created**: {created_at.strftime('%Y-%m-%d %H:%M:%S')}
 **Children Awaiting Review**: {len(children)}
@@ -130,7 +130,7 @@ nexus (gen:{generation}) > /review
     with open(metadata_file, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"[FILE] ✓ Created PENDING_REVIEW.md with {len(children)} children")
+    print(f"[FILE] [OK] Created PENDING_REVIEW.md with {len(children)} children")
 
     return pending_file
 
@@ -163,7 +163,7 @@ def check_pending_review(workspace_path: Path) -> Optional[Dict]:
         return metadata
 
     except Exception as e:
-        print(f"[FILE] ✗ Error reading PENDING_REVIEW.json: {e}")
+        print(f"[FILE] [X] Error reading PENDING_REVIEW.json: {e}")
         return None
 
 
@@ -192,6 +192,6 @@ def delete_pending_review(workspace_path: Path) -> bool:
         deleted = True
 
     if deleted:
-        print("[FILE] ✓ Deleted PENDING_REVIEW files (review completed)")
+        print("[FILE] [OK] Deleted PENDING_REVIEW files (review completed)")
 
     return deleted
