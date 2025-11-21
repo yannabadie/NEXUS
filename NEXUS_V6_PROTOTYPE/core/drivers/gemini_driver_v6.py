@@ -60,7 +60,17 @@ class GeminiDriverV6:
             output_text = output_file.read_text(encoding="utf-8")
 
             try:
-                return json.loads(output_text)
+                gemini_output = json.loads(output_text)
+
+                # Gemini CLI wraps response in {"response": "...", "stats": {...}}
+                # The actual NEXUS JSON is inside response["response"] as markdown string
+                if "response" in gemini_output and isinstance(gemini_output["response"], str):
+                    # Extract JSON from markdown code block
+                    return self._extract_json(gemini_output["response"])
+                else:
+                    # Direct JSON (shouldn't happen with gemini CLI -o json)
+                    return gemini_output
+
             except json.JSONDecodeError as e:
                 # Try to extract JSON from text
                 return self._extract_json(output_text)
