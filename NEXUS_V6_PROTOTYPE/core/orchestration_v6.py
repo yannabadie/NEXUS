@@ -51,7 +51,7 @@ class OrchestratorV6:
 
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
-        self.active_agent = "Gemini"  # Toujours démarrer par stratège
+        self.active_agent = "Gemini"  # Premier agent par convention (rotation égale ensuite)
         self.iteration = 0
 
         # Memory Manager (charge blackboard UNE FOIS)
@@ -131,7 +131,7 @@ class OrchestratorV6:
             # Nouvelle tâche → Init brainstorming
             self.blackboard["objective"] = user_input
             self.blackboard["current_state"]["iteration"] = self.iteration
-            self.active_agent = "Gemini"  # Start with strategist
+            self.active_agent = "Gemini"  # First agent by convention (equal rotation after)
             self.stagnation_detector.reset()
             self.stalemate_counter = 0
 

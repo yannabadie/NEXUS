@@ -23,7 +23,7 @@
 
 ### Qu'est-ce que NEXUS V6?
 
-NEXUS V6 est un orchestrateur multi-agents persistent basé sur une **Finite State Machine (FSM)** qui coordonne **Gemini** (stratège) et **Claude** (exécuteur) pour accomplir des tâches techniques complexes.
+NEXUS V6 est un orchestrateur multi-agents persistent basé sur une **Finite State Machine (FSM)** qui coordonne **Gemini** et **Claude**, deux agents collaborateurs égaux, pour accomplir des tâches techniques complexes. Chaque agent analyse, propose et décide ensemble du meilleur plan d'action, échangeant outils et compétences selon les besoins.
 
 **Caractéristiques principales:**
 
@@ -622,7 +622,7 @@ class StagnationDetector:
 - `reset()`: Après switch agent OU succès validation
 
 **Action si stagnation:**
-- Force switch à Gemini (stratège)
+- Force switch à Gemini (premier agent par convention)
 - Reset detector
 - Continue orchestration (pas panic)
 
