@@ -1,0 +1,416 @@
+"""
+NEXUS V5.1 - Interactive Mode (REPL)
+Claude Code-like conversational interface with session persistence.
+"""
+import os
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+
+try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.history import FileHistory
+    from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+    from prompt_toolkit.completion import WordCompleter
+    PROMPT_TOOLKIT_AVAILABLE = True
+except ImportError:
+    PROMPT_TOOLKIT_AVAILABLE = False
+
+from core.config import Config
+from core.orchestration import Orchestrator
+from core.synapse import MemoryManager
+
+
+class SessionManager:
+    """Manages interactive session persistence."""
+
+    def __init__(self, workspace_path: Path):
+        self.sessions_dir = workspace_path / ".nexus" / "sessions"
+        self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        self.current_session_id: Optional[str] = None
+        self.conversation_history: List[Dict[str, Any]] = []
+
+    def create_session(self) -> str:
+        """Create a new session and return its ID."""
+        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_dir = self.sessions_dir / session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        metadata = {
+            "session_id": session_id,
+            "created_at": datetime.now().isoformat(),
+            "turn_count": 0
+        }
+
+        with open(session_dir / "metadata.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+
+        self.current_session_id = session_id
+        return session_id
+
+    def save_turn(self, user_input: str, result: str):
+        """Save a conversation turn."""
+        if not self.current_session_id:
+            self.create_session()
+
+        turn = {
+            "timestamp": datetime.now().isoformat(),
+            "user": user_input,
+            "result": result
+        }
+
+        self.conversation_history.append(turn)
+
+        # Append to history file (JSONL format)
+        session_dir = self.sessions_dir / self.current_session_id
+        with open(session_dir / "history.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(turn, ensure_ascii=False) + "\n")
+
+        # Update metadata
+        metadata_file = session_dir / "metadata.json"
+        if metadata_file.exists():
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+            metadata["turn_count"] = len(self.conversation_history)
+            metadata["last_activity"] = datetime.now().isoformat()
+            with open(metadata_file, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, indent=2)
+
+    def get_history(self) -> List[Dict[str, Any]]:
+        """Get current conversation history."""
+        return self.conversation_history
+
+    def list_sessions(self) -> List[str]:
+        """List all available sessions."""
+        if not self.sessions_dir.exists():
+            return []
+        return [d.name for d in self.sessions_dir.iterdir() if d.is_dir()]
+
+
+class InteractiveNexus:
+    """Interactive REPL for NEXUS V5.1"""
+
+    def __init__(self, workspace_path: Path, config: Config, mode: str = "Normal"):
+        self.workspace_path = workspace_path
+        self.config = config
+        self.mode = mode
+        self.session_manager = SessionManager(workspace_path)
+        self.orchestrator: Optional[Orchestrator] = None
+
+        # Command completer
+        commands = [
+            '/help', '/exit', '/quit', '/status', '/history', '/plan',
+            '/clear', '/mode', '/save', '/load', '/reset', '/sessions'
+        ]
+        self.command_completer = WordCompleter(commands, ignore_case=True)
+
+        # Setup prompt session
+        if PROMPT_TOOLKIT_AVAILABLE:
+            history_file = workspace_path / ".nexus" / "command_history"
+            history_file.parent.mkdir(parents=True, exist_ok=True)
+            self.session = PromptSession(
+                history=FileHistory(str(history_file)),
+                auto_suggest=AutoSuggestFromHistory(),
+                completer=self.command_completer
+            )
+        else:
+            self.session = None
+
+    def print_welcome(self):
+        """Display welcome message."""
+        print("\n" + "="*60)
+        print("  NEXUS V5.1 - Interactive Orchestrator")
+        print("  Gemini 3 Pro + Claude Sonnet 4.5")
+        print("="*60)
+        print("\nType /help for commands, or enter a task to begin.")
+        print("Use Ctrl+C to interrupt, Ctrl+D or 'exit' to quit.\n")
+
+    def print_help(self):
+        """Display help information."""
+        help_text = """
+NEXUS Interactive Commands:
+
+  /help              Show this help message
+  /exit, /quit       Exit interactive mode
+  /status            Show current orchestration state
+  /history           Show conversation history
+  /plan              Display current strategic plan
+  /clear             Clear screen (preserves history)
+  /mode <mode>       Switch mode (Normal/InProjectImprovement/CoreEvolution)
+  /sessions          List all saved sessions
+  /reset             Reset orchestration state
+
+Task Execution:
+  Just type your task naturally (no command prefix needed)
+  Example: Create a test file named hello.txt
+
+Keyboard Shortcuts:
+  Ctrl+C             Interrupt current operation
+  Ctrl+D             Exit (same as /exit)
+  Up/Down Arrow      Browse command history
+  Tab                Command completion
+"""
+        print(help_text)
+
+    def show_status(self):
+        """Show current orchestration status."""
+        if not self.orchestrator:
+            print("\n[Status] No active orchestration")
+            return
+
+        memory = MemoryManager(self.workspace_path, self.config.compression_threshold_tokens)
+        blackboard = memory.get_blackboard()
+
+        print("\n" + "="*60)
+        print("  NEXUS Status")
+        print("="*60)
+        print(f"Mode:            {self.mode}")
+        print(f"Session:         {self.session_manager.current_session_id or 'N/A'}")
+        print(f"Turns:           {len(self.session_manager.get_history())}")
+        print(f"Active Agent:    {getattr(self.orchestrator, 'active_agent', 'N/A')}")
+        print(f"Objective:       {blackboard.get('objective', 'N/A')}")
+
+        current_state = blackboard.get("current_state", {})
+        print(f"Iteration:       {current_state.get('iteration', 0)}")
+        print(f"Status:          {current_state.get('status', 'IDLE')}")
+        print("="*60 + "\n")
+
+    def show_history(self):
+        """Show conversation history."""
+        history = self.session_manager.get_history()
+
+        if not history:
+            print("\n[History] No conversation history yet\n")
+            return
+
+        print("\n" + "="*60)
+        print(f"  Conversation History ({len(history)} turns)")
+        print("="*60)
+
+        for i, turn in enumerate(history, 1):
+            print(f"\n[Turn {i}] {turn.get('timestamp', 'N/A')}")
+            print(f"User:   {turn['user'][:100]}{'...' if len(turn['user']) > 100 else ''}")
+            print(f"Result: {turn['result'][:100]}{'...' if len(turn['result']) > 100 else ''}")
+
+        print("\n" + "="*60 + "\n")
+
+    def show_plan(self):
+        """Display current strategic plan."""
+        memory = MemoryManager(self.workspace_path, self.config.compression_threshold_tokens)
+        blackboard = memory.get_blackboard()
+
+        strategic_plan = blackboard.get("strategic_plan", {})
+
+        if not strategic_plan or not strategic_plan.get("steps"):
+            print("\n[Plan] No strategic plan available yet\n")
+            return
+
+        print("\n" + "="*60)
+        print("  Strategic Plan")
+        print("="*60)
+
+        for step in strategic_plan.get("steps", []):
+            status_symbol = "✓" if step.get("status") == "completed" else "○"
+            print(f"{status_symbol} {step.get('description', 'N/A')}")
+
+        print("="*60 + "\n")
+
+    def list_sessions(self):
+        """List all available sessions."""
+        sessions = self.session_manager.list_sessions()
+
+        if not sessions:
+            print("\n[Sessions] No saved sessions found\n")
+            return
+
+        print("\n" + "="*60)
+        print(f"  Saved Sessions ({len(sessions)})")
+        print("="*60)
+
+        for session_id in sorted(sessions, reverse=True):
+            session_dir = self.session_manager.sessions_dir / session_id
+            metadata_file = session_dir / "metadata.json"
+
+            if metadata_file.exists():
+                with open(metadata_file, "r", encoding="utf-8") as f:
+                    metadata = json.load(f)
+                turns = metadata.get("turn_count", 0)
+                created = metadata.get("created_at", "N/A")
+                print(f"  {session_id} - {turns} turns - Created: {created}")
+            else:
+                print(f"  {session_id}")
+
+        print("="*60 + "\n")
+
+    def handle_command(self, cmd: str) -> bool:
+        """Handle slash commands. Returns False if should exit."""
+        cmd = cmd.strip().lower()
+
+        if cmd in ['/exit', '/quit']:
+            return False
+
+        elif cmd == '/help':
+            self.print_help()
+
+        elif cmd == '/status':
+            self.show_status()
+
+        elif cmd == '/history':
+            self.show_history()
+
+        elif cmd == '/plan':
+            self.show_plan()
+
+        elif cmd == '/clear':
+            os.system('cls' if os.name == 'nt' else 'clear')
+
+        elif cmd == '/sessions':
+            self.list_sessions()
+
+        elif cmd == '/reset':
+            print("[Reset] Orchestration state reset")
+            self.orchestrator = None
+
+        elif cmd.startswith('/mode '):
+            new_mode = cmd.split(' ', 1)[1].strip()
+            if new_mode in ["Normal", "InProjectImprovement", "CoreEvolution"]:
+                self.mode = new_mode
+                print(f"[Mode] Switched to {new_mode}")
+            else:
+                print(f"[Error] Invalid mode. Use: Normal, InProjectImprovement, or CoreEvolution")
+
+        else:
+            print(f"[Error] Unknown command: {cmd}")
+            print("Type /help for available commands")
+
+        return True
+
+    def handle_task(self, task: str):
+        """Execute a task via orchestrator."""
+        if not task.strip():
+            return
+
+        print(f"\n[NEXUS] Processing: {task}\n")
+
+        try:
+            # Create orchestrator for this task
+            self.orchestrator = Orchestrator(
+                workspace_path=self.workspace_path,
+                config=self.config,
+                objective=task,
+                mode=self.mode
+            )
+
+            # Run orchestration
+            self.orchestrator.run()
+
+            # Save turn to history
+            self.session_manager.save_turn(task, "Completed")
+
+            print(f"\n[NEXUS] Task completed\n")
+
+        except KeyboardInterrupt:
+            print("\n[NEXUS] Task interrupted by user\n")
+            self.session_manager.save_turn(task, "Interrupted")
+
+        except Exception as e:
+            print(f"\n[NEXUS ERROR] {e}\n")
+            self.session_manager.save_turn(task, f"Error: {e}")
+
+    def run(self):
+        """Main REPL loop."""
+        # Force UTF-8 on Windows
+        if sys.platform == 'win32':
+            os.environ['PYTHONIOENCODING'] = 'utf-8'
+            try:
+                if hasattr(sys.stdout, 'reconfigure'):
+                    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+                if hasattr(sys.stderr, 'reconfigure'):
+                    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+            except Exception:
+                pass
+
+        # Create session
+        self.session_manager.create_session()
+
+        # Welcome message
+        self.print_welcome()
+
+        # Main loop
+        while True:
+            try:
+                # Get user input
+                if self.session and PROMPT_TOOLKIT_AVAILABLE:
+                    user_input = self.session.prompt("nexus> ")
+                else:
+                    user_input = input("nexus> ")
+
+                # Skip empty input
+                if not user_input.strip():
+                    continue
+
+                # Handle commands
+                if user_input.startswith('/'):
+                    should_continue = self.handle_command(user_input)
+                    if not should_continue:
+                        break
+
+                # Handle exit words
+                elif user_input.lower() in ['exit', 'quit']:
+                    break
+
+                # Execute task
+                else:
+                    self.handle_task(user_input)
+
+            except KeyboardInterrupt:
+                print("\n(Use /exit or Ctrl+D to quit)")
+                continue
+
+            except EOFError:
+                break
+
+        # Goodbye message
+        print("\n[NEXUS] Session saved. Goodbye!\n")
+
+
+def main():
+    """Entry point for interactive mode."""
+    # Paths
+    workspace_path = Path(__file__).parent / "workspace"
+    workspace_path.mkdir(exist_ok=True)
+
+    # Configuration
+    env_path = Path(__file__).parent / ".env"
+    config = Config(env_path if env_path.exists() else None)
+
+    if not config.validate():
+        print("[NEXUS ERROR] Configuration invalide. Vérifiez .env")
+        sys.exit(1)
+
+    # Check prompt_toolkit
+    if not PROMPT_TOOLKIT_AVAILABLE:
+        print("[Warning] prompt_toolkit not installed. Using basic input()")
+        print("Install with: pip install prompt_toolkit>=3.0.43")
+        print()
+
+    # Create necessary directories
+    (workspace_path / ".nexus").mkdir(exist_ok=True)
+    (workspace_path / "_IO_BUFFER").mkdir(exist_ok=True)
+
+    # Launch interactive mode
+    try:
+        interactive = InteractiveNexus(workspace_path, config)
+        interactive.run()
+
+    except Exception as e:
+        print(f"[NEXUS ERROR] {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
