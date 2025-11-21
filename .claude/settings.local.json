@@ -1,16 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)",
-      "Bash(python -c:*)",
-      "Bash(pip install:*)",
-      "Bash(=3.0.43)",
-      "Bash(where:*)",
-      "Bash(python -m pip install:*)",
-      "Bash(python -m pip:*)",
-      "Bash(C:Python313python.exe -c \"import prompt_toolkit; print(''prompt_toolkit'', prompt_toolkit.__version__, ''OK'')\")",
-      "Bash(PATH=\"/c/Python313:/c/Python313/Scripts:$PATH\" python:*)",
-      "Bash(git add:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git mv:*)",
+      "WebSearch",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
