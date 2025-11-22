@@ -288,6 +288,129 @@ class InteractiveNexusV6:
         else:
             self.console.print("PENDING_REVIEW files kept (use /review again to continue)")
 
+    def brainstorm_children_with_ais(self, parent_id: str, parent_path: Path, child_count: int) -> list:
+        """
+        Collaborative brainstorming: Gemini+Claude propose children mutations.
+
+        This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2:
+        "Design Mutation - Brainstorm with collaborator (Gemini ↔ Claude)"
+
+        Args:
+            parent_id: Current parent NEXUS ID
+            parent_path: Path to parent NEXUS
+            child_count: Number of children to propose
+
+        Returns:
+            list: List of child proposals with mutations, params, justifications
+        """
+        import json
+        import re
+
+        self.console.print("\n" + "="*60)
+        self.console.print("🧠 COLLABORATIVE BRAINSTORMING PHASE")
+        self.console.print("="*60)
+        self.console.print(f"Gemini + Claude will now debate and propose {child_count} children\n")
+
+        # Craft the brainstorming task
+        brainstorm_task = f"""TÂCHE ÉVOLUTIONNAIRE: Proposer {child_count} enfants NEXUS
+
+Vous êtes {parent_id}, un système IA multi-agent collaboratif.
+Votre mission: Analyser votre propre architecture et proposer {child_count} ENFANTS (versions modifiées) qui pourraient vous surpasser.
+
+CONTEXTE:
+- Parent: {parent_id}
+- Génération: 6
+- Architecture: FSM dual-agent (Gemini + Claude)
+- Fichiers modifiables: prompts/, core/
+
+MUTATIONS DISPONIBLES:
+1. optimize_fsm_transitions - Modifier prompts/system_gemini_v6.md
+2. improve_memory_management - Modifier prompts/system_claude_v6.md
+3. enhance_gemini_prompt - Modifier core/config.py (paramètres)
+
+VOTRE DÉBAT DOIT:
+1. Analyser les faiblesses actuelles du parent
+2. Proposer des améliorations mesurables
+3. Débattre des meilleures mutations à appliquer
+4. Justifier chaque enfant proposé
+
+À LA FIN, produisez un JSON STRICT (et UNIQUEMENT le JSON, pas de texte avant/après):
+
+{{
+  "children_proposals": [
+    {{
+      "child_id": "NEXUS_V6.1_<NOM_DESCRIPTIF>",
+      "mutations": ["<nom_fonction_mutation>"],
+      "params": [{{"target_file": "<chemin_fichier>"}}],
+      "justification": "<description détaillée>",
+      "expected_improvements": {{"<metric>": "<pourcentage>"}}
+    }}
+  ]
+}}
+
+RÈGLES CRITIQUES:
+- Proposez EXACTEMENT {child_count} enfants
+- Chaque enfant doit avoir un nom unique et descriptif
+- Utilisez SEULEMENT les 3 mutations disponibles
+- Les fichiers target doivent EXISTER (prompts/system_*_v6.md, core/config.py)
+- Justifications en français, détaillées et concrètes
+- Le JSON final DOIT être parsable (pas de commentaires, syntaxe stricte)
+
+COMMENCEZ LE DÉBAT MAINTENANT."""
+
+        # Run brainstorming session through FSM orchestrator
+        self.console.print("[ORCHESTRATOR] Launching brainstorming dialogue...\n")
+
+        # Start brainstorming with the task
+        result = self.orchestrator.process_turn(brainstorm_task)
+        self.console.display_result(result)
+
+        # Continue processing until FINISHED, IDLE, ERROR, or PANIC
+        max_iterations = 50  # Safety limit (same as main loop)
+        iterations = 0
+
+        while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+            result = self.orchestrator.process_turn()
+            self.console.display_result(result)
+            iterations += 1
+
+            # Check if task is finished
+            if result.get("finished"):
+                break
+
+        if iterations >= max_iterations:
+            raise ValueError("Brainstorming exceeded max iterations (50 turns)")
+
+        if result["state"] in ["ERROR", "PANIC"]:
+            raise ValueError(f"Brainstorming failed with state: {result['state']}")
+
+        # Get final message content from the last output
+        final_content = result.get('output', '')
+
+        # Extract JSON from final message
+        # Pattern: {...} JSON block
+        json_match = re.search(r'\{[\s\S]*"children_proposals"[\s\S]*\}', final_content)
+
+        if not json_match:
+            self.console.print("[ERROR] AIs did not produce valid children proposals JSON!")
+            self.console.print(f"Final output: {final_content[:500]}...")
+            raise ValueError("Brainstorming failed: No JSON proposals found")
+
+        try:
+            proposals_data = json.loads(json_match.group(0))
+            proposals = proposals_data['children_proposals']
+
+            self.console.print(f"\n✓ AIs proposed {len(proposals)} children:")
+            for p in proposals:
+                self.console.print(f"  - {p['child_id']}: {p['justification'][:60]}...")
+
+            return proposals
+
+        except (json.JSONDecodeError, KeyError) as e:
+            self.console.print(f"[ERROR] Failed to parse AI proposals: {e}")
+            self.console.print(f"Raw JSON: {json_match.group(0)[:500]}...")
+            raise ValueError(f"Brainstorming failed: Invalid JSON - {e}")
+
     def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
         """
         Run evolution cycle: create and evaluate children.
@@ -297,7 +420,7 @@ class InteractiveNexusV6:
             auto_triggered: True if triggered by 50-turn threshold
         """
         from core.evolution.lineage import load_lineage, get_current_parent, save_lineage
-        from core.evolution.mutator import create_child, optimize_fsm_transitions, improve_memory_management
+        from core.evolution.mutator import create_child, optimize_fsm_transitions, improve_memory_management, enhance_gemini_prompt
         from core.evolution.evaluator import evaluate_child, select_winner
         from core.notifications import create_pending_review
 
@@ -334,34 +457,42 @@ class InteractiveNexusV6:
             children_created = []
             parent_path = Path(__file__).parent.parent.parent  # NEXUS_V6_PROTOTYPE
 
-            for i in range(child_count):
-                child_id = f"NEXUS_V{parent['generation']}.{i+1}_CHILD_{i+1:03d}"
+            # COLLABORATIVE BRAINSTORMING: Gemini+Claude propose children
+            # This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2
+            children_proposals = self.brainstorm_children_with_ais(
+                parent_id=parent_id,
+                parent_path=parent_path,
+                child_count=child_count
+            )
+
+            # Mutation function mapping
+            mutation_map = {
+                'optimize_fsm_transitions': optimize_fsm_transitions,
+                'improve_memory_management': improve_memory_management,
+                'enhance_gemini_prompt': enhance_gemini_prompt
+            }
+
+            # Create children based on AI proposals
+            for i, proposal in enumerate(children_proposals):
+                child_id = proposal['child_id']
 
                 self.console.print(f"\n{'─'*60}")
                 self.console.print(f"Creating Child {i+1}/{child_count}: {child_id}")
                 self.console.print(f"{'─'*60}")
 
-                # Example mutations (in production, these would be AI-designed)
-                if i == 0:
-                    mutations = [optimize_fsm_transitions]
-                    params = [{"target_file": "core/orchestration_v6.py"}]
-                    justification = "Optimized FSM state transitions with caching"
-                    expected = {"latency_reduction": "15%"}
-                elif i == 1:
-                    mutations = [improve_memory_management]
-                    params = [{"target_file": "core/synapse/memory.py"}]
-                    justification = "Improved memory pooling for blackboard"
-                    expected = {"memory_efficiency": "10%"}
-                else:
-                    mutations = [optimize_fsm_transitions, improve_memory_management]
-                    params = [
-                        {"target_file": "core/orchestration_v6.py"},
-                        {"target_file": "core/synapse/memory.py"}
-                    ]
-                    justification = "Combined FSM + memory optimization"
-                    expected = {"latency_reduction": "15%", "memory_efficiency": "10%"}
+                # Map mutation names to actual functions
+                try:
+                    mutations = [mutation_map[m] for m in proposal['mutations']]
+                except KeyError as e:
+                    self.console.print(f"[ERROR] Unknown mutation function: {e}")
+                    self.console.print(f"Available: {list(mutation_map.keys())}")
+                    continue
 
-                # Create child
+                params = proposal['params']
+                justification = proposal['justification']
+                expected = proposal['expected_improvements']
+
+                # Create child (with AI-designed mutations)
                 result = create_child(
                     parent_path=parent_path,
                     child_id=child_id,
