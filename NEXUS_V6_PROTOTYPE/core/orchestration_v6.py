@@ -201,13 +201,16 @@ class OrchestratorV6:
                 # Continue brainstorming
                 self.stagnation_detector.add_message(content)
 
+                # Capture sender BEFORE updating active_agent
+                sender = message.get("sender", self.active_agent)
+
                 # Check agent switch
                 next_agent = message.get("next_agent", self.active_agent)
                 if next_agent != self.active_agent:
                     self.active_agent = next_agent
                     self.stagnation_detector.reset()  # Reset on switch
 
-                return self._make_result("BRAINSTORMING", content, self.active_agent, False)
+                return self._make_result("BRAINSTORMING", content, sender, False)
 
             elif message.get("status") == "FINISHED":
                 # Task complete

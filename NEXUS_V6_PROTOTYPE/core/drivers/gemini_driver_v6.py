@@ -50,7 +50,9 @@ class GeminiDriverV6:
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=self.timeout
+                timeout=self.timeout,
+                encoding='utf-8',
+                errors='replace'
             )
 
             if result.returncode != 0:

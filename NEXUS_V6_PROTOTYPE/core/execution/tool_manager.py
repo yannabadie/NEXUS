@@ -114,7 +114,9 @@ class ToolManager:
                 cwd=str(self.workspace_path),
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
+                encoding='utf-8',
+                errors='replace'
             )
 
             if result.returncode == 0:

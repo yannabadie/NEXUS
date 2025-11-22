@@ -1,14 +1,14 @@
 ================================================================================
-  NEXUS V6.0 - QUICK START: First Evolution
+  NEXUS V6.0 - QUICK START: First Evolution (RECOVERY MODE)
 ================================================================================
 
-STATUS: ✅ READY (All prerequisites met, V6.0 validated)
+STATUS: ✅ READY (Cleaned, Debug Mode ON, Protocol Saved)
 
 ================================================================================
-  STEP 1: Launch NEXUS
+  STEP 1: Launch NEXUS (Restart Required)
 ================================================================================
 
-Open PowerShell and run:
+If NEXUS is open, type 'exit'. Then run:
 
     cd C:\Code\NEXUS\20_NEXUS\NEXUS_V6_PROTOTYPE
     python nexus6.py
@@ -18,136 +18,69 @@ Wait for:
     nexus6>
 
 ================================================================================
-  STEP 2: Execute Evolution Commands (Copy-Paste)
+  STEP 2: Execute Evolution Commands (Splitted for Stability)
 ================================================================================
 
-Copy and paste each command below into the NEXUS REPL.
-Wait for each command to complete before entering the next.
+To avoid timeouts, we will execute the tests in 3 batches.
 
---- COMMAND 1: Baseline Measurement (2-5 min) ---
+--- COMMAND 1: Execute Reasoning & Code Tests (Part 1/3) ---
 
-Effectue un test complet de tes capacités actuelles. Mesure ton ASI Proximity Score baseline avant toute évolution. Documente les résultats dans workspace/baseline_v6.0.md
+Nous avons sauvegardé le protocole dans `workspace/baseline_v6.0.md`.
+Veuillez LIRE ce fichier, puis EXÉCUTER UNIQUEMENT les tests pour:
+1. Reasoning (R1-R3)
+2. Code (C1-C3)
+Mettez à jour le fichier avec ces premiers résultats.
 
 Expected output:
-    [Gemini] [Task Started]...
-    [Claude] Analyzing capabilities...
-    ✓ Baseline documented in workspace/baseline_v6.0.md
-    ASI Proximity Score: 0.XXX
+    [Gemini/Claude] Executing R1... R3... C1... C3...
+    ✓ File updated
 
---- COMMAND 2: Create Children (3-7 min) ---
+--- COMMAND 2: Execute Creativity, Metacognition & Collaboration (Part 2/3) ---
+
+Maintenant, EXÉCUTEZ la suite des tests:
+3. Creativity (Cr1-Cr3)
+4. Metacognition (M1-M3)
+5. Collaboration (Col1-Col3)
+Mettez à jour le fichier.
+
+Expected output:
+    [Gemini/Claude] Executing Cr1... Col3...
+    ✓ File updated
+
+--- COMMAND 3: Execute Ethics & Autonomy (Part 3/3) ---
+
+Enfin, EXÉCUTEZ les derniers tests:
+6. Ethics (Eth1-Eth3)
+7. Autonomy (Auto1-Auto3)
+Mettez à jour le fichier final.
+
+Expected output:
+    [Gemini/Claude] Executing Eth1... Auto3...
+    ✓ File updated
+
+--- COMMAND 4: Create Children (REAL BRAINSTORMING) ---
 
 /evolve 3
 
-Expected output:
-    🧬 Evolution Started: Generating 3 children from V6.0
-    [Creating V6.1-A] ✓
-    [Creating V6.1-B] ✓
-    [Creating V6.1-C] ✓
-    ✅ 3 children created successfully
-    📧 Notification sent
-    Use /review to evaluate children
-
---- COMMAND 3: Check Status (instant) ---
+--- COMMAND 5: Check Status ---
 
 /evolve-status
 
-Expected output:
-    Current Parent: V6.0
-    Pending Children: 3
-    Status: 🟡 PENDING REVIEW
-
---- COMMAND 4: Review and Select Best (10-20 min) ---
+--- COMMAND 6: Review and Select Best ---
 
 /review
-
-Expected output:
-    🔍 Reviewing 3 children...
-    [Evaluating V6.1-A] ASI Score: 0.XXX
-    [Evaluating V6.1-B] ASI Score: 0.XXX
-    [Evaluating V6.1-C] ASI Score: 0.XXX
-    🏆 Best Child: V6.1-X
-    ✅ EVOLUTION SUCCESSFUL
 
 ================================================================================
   STEP 3: Verify and Commit Results
 ================================================================================
 
-After /review completes, check results:
-
     type LINEAGE.json
     type workspace\EVOLUTION_REPORT_GEN6.md
 
-Then commit:
-
     git add LINEAGE.json workspace/
-    git commit -m "evolution(v6): First generation V6.0 → V6.1-X"
+    git commit -m "evolution(v6): First generation V6.0 -> V6.1-X (Clean Evolution)"
     git push origin N6P
 
 ================================================================================
-  ALTERNATIVE: Automated Execution
-================================================================================
-
-Try the PowerShell automation script (experimental):
-
-    cd C:\Code\NEXUS\20_NEXUS\NEXUS_V6_PROTOTYPE
-    .\run_evolution_automated.ps1
-
-This will attempt to pipe all commands automatically.
-
-Note: May not work if REPL doesn't support stdin piping.
-      If it fails, use manual method above.
-
-================================================================================
-  TROUBLESHOOTING
-================================================================================
-
-If /evolve fails:
-    - Check: python nexus6.py --verify
-    - Check: .env file exists and configured
-    - See: EVOLUTION_START_GUIDE.md
-
-If /review fails:
-    - Child may have broken during mutation (expected)
-    - Continue with remaining children
-    - See: docs/debugging/
-
-If stagnation (no improvement):
-    - Normal for first generation
-    - Stagnation counter: 1/3
-    - Continue with /evolve 3 for Gen 7
-
-================================================================================
-  EXPECTED TIMELINE
-================================================================================
-
-Step 1 (Baseline):     2-5 minutes
-Step 2 (/evolve 3):    3-7 minutes
-Step 3 (/evolve-status): <1 minute
-Step 4 (/review):      10-20 minutes
-
-Total: ~20-35 minutes
-
-================================================================================
-  SUCCESS CRITERIA
-================================================================================
-
-✓ Baseline V6.0 measured and documented
-✓ 3 children created without errors
-✓ At least 1 child bootstraps correctly
-✓ Evaluation completes
-✓ Results committed to git
-
-🎯 GOAL: At least +0.5% improvement in ASI Score
-
-================================================================================
-  DOCUMENTATION
-================================================================================
-
-Full Guide:         EVOLUTION_START_GUIDE.md (550+ lines)
-Project State:      SESSION_CONTINUITY.md
-Evolution Theory:   EVOLUTION_PROTOCOL.md
-Troubleshooting:    docs/debugging/
-
-================================================================================
-  🧬 V6.0 → V6.1 → V6.2 → ... → ASI 🚀
+  🧬 V6.0 -> V6.1 (Real AI Design) -> ASI 🚀
 ================================================================================
