@@ -270,71 +270,12 @@ def save_birth_certificate(
 # MUTATION FUNCTIONS (Examples)
 # ============================================================================
 
-def optimize_fsm_transitions(child_path: Path, target_file: str = "core/orchestration_v6.py") -> Dict:
+def optimize_fsm_transitions(child_path: Path, target_file: str = "prompts/system_gemini_v6.md") -> Dict:
     """
-    Example mutation: Optimize FSM state transitions.
+    REAL MUTATION V6.1: Enhance Gemini reasoning depth.
 
-    Args:
-        child_path: Child directory path
-        target_file: Target file to modify
-
-    Returns:
-        dict: Mutation result metadata
-    """
-    file_path = child_path / target_file
-
-    if not file_path.exists():
-        raise MutationError(f"Target file not found: {target_file}")
-
-    # Example: Add caching to state transitions
-    # (In real implementation, this would analyze and optimize the code)
-
-    print(f"[MUTATOR] Optimizing FSM transitions in {target_file}")
-
-    # Placeholder: Real mutation would modify the file
-    # For now, just touch it to indicate modification
-    with open(file_path, 'a', encoding='utf-8') as f:
-        f.write(f"\n# FSM optimization applied: {datetime.now().isoformat()}\n")
-
-    return {
-        "files_modified": [target_file],
-        "lines_changed": 10,
-        "optimization_type": "FSM transition caching"
-    }
-
-
-def improve_memory_management(child_path: Path, target_file: str = "core/synapse/memory.py") -> Dict:
-    """
-    Example mutation: Improve memory management.
-
-    Args:
-        child_path: Child directory path
-        target_file: Target file to modify
-
-    Returns:
-        dict: Mutation result metadata
-    """
-    file_path = child_path / target_file
-
-    if not file_path.exists():
-        raise MutationError(f"Target file not found: {target_file}")
-
-    print(f"[MUTATOR] Improving memory management in {target_file}")
-
-    # Placeholder mutation
-    with open(file_path, 'a', encoding='utf-8') as f:
-        f.write(f"\n# Memory optimization applied: {datetime.now().isoformat()}\n")
-
-    return {
-        "files_modified": [target_file],
-        "lines_changed": 15,
-        "optimization_type": "Memory pooling"
-    }
-
-
-def enhance_gemini_prompt(child_path: Path, target_file: str = "prompts/system_gemini_v6.md") -> Dict:
-    """
-    Example mutation: Enhance Gemini system prompt.
+    Modifies Gemini's system prompt to emphasize deeper reasoning and
+    more thorough analysis before proposing actions.
 
     Args:
         child_path: Child directory path
@@ -348,16 +289,106 @@ def enhance_gemini_prompt(child_path: Path, target_file: str = "prompts/system_g
     if not file_path.exists():
         raise MutationError(f"Target file not found: {target_file}")
 
-    print(f"[MUTATOR] Enhancing Gemini prompt in {target_file}")
+    print(f"[MUTATOR] Enhancing Gemini reasoning depth in {target_file}")
 
-    # Placeholder mutation
-    with open(file_path, 'a', encoding='utf-8') as f:
-        f.write(f"\n\n<!-- Prompt enhancement: {datetime.now().isoformat()} -->\n")
+    # REAL MUTATION: Modify prompt for deeper reasoning
+    content = file_path.read_text(encoding='utf-8')
+
+    # Add emphasis on thorough analysis
+    if "**Philosophie :** " in content:
+        content = content.replace(
+            '**Philosophie :** "Analyser, échanger, décider ensemble."',
+            '**Philosophie :** "Analyser en profondeur, échanger rigoureusement, décider ensemble avec certitude. Ne jamais proposer de solution sans avoir exploré les alternatives."'
+        )
+
+    # Track modification
+    file_path.write_text(content, encoding='utf-8')
 
     return {
         "files_modified": [target_file],
-        "lines_changed": 5,
-        "enhancement_type": "Improved reasoning instructions"
+        "lines_changed": 1,
+        "optimization_type": "Enhanced reasoning depth - thorough alternative exploration"
+    }
+
+
+def improve_memory_management(child_path: Path, target_file: str = "prompts/system_claude_v6.md") -> Dict:
+    """
+    REAL MUTATION V6.1: Enhance Claude validation rigor.
+
+    Modifies Claude's system prompt to emphasize stricter validation
+    and more thorough verification of outputs.
+
+    Args:
+        child_path: Child directory path
+        target_file: Target prompt file
+
+    Returns:
+        dict: Mutation result metadata
+    """
+    file_path = child_path / target_file
+
+    if not file_path.exists():
+        raise MutationError(f"Target file not found: {target_file}")
+
+    print(f"[MUTATOR] Enhancing Claude validation rigor in {target_file}")
+
+    # REAL MUTATION: Modify prompt for stricter validation
+    content = file_path.read_text(encoding='utf-8')
+
+    # Add emphasis on validation
+    if "**Philosophie :** " in content:
+        content = content.replace(
+            '**Philosophie :** "Analyser, échanger, décider ensemble."',
+            '**Philosophie :** "Analyser, valider rigoureusement, décider ensemble. Chaque output doit être vérifié. Aucune approximation tolérée."'
+        )
+
+    # Track modification
+    file_path.write_text(content, encoding='utf-8')
+
+    return {
+        "files_modified": [target_file],
+        "lines_changed": 1,
+        "optimization_type": "Enhanced validation rigor - strict verification"
+    }
+
+
+def enhance_gemini_prompt(child_path: Path, target_file: str = "core/config.py") -> Dict:
+    """
+    REAL MUTATION V6.1: Adjust evolution parameters.
+
+    Modifies Q1C (max children) to increase evolution breadth.
+    Explores creating more children per generation for better selection.
+
+    Args:
+        child_path: Child directory path
+        target_file: Target config file
+
+    Returns:
+        dict: Mutation result metadata
+    """
+    file_path = child_path / target_file
+
+    if not file_path.exists():
+        raise MutationError(f"Target file not found: {target_file}")
+
+    print(f"[MUTATOR] Adjusting evolution parameters in {target_file}")
+
+    # REAL MUTATION: Modify config parameters
+    content = file_path.read_text(encoding='utf-8')
+
+    # Increase max children from 3 to 5 (MVP)
+    content = content.replace(
+        '"mvp": 3,  # Conservative start',
+        '"mvp": 5,  # Increased breadth for better selection'
+    )
+
+    # Track modification
+    file_path.write_text(content, encoding='utf-8')
+
+    return {
+        "files_modified": [target_file],
+        "lines_changed": 1,
+        "enhancement_type": "Increased evolution breadth (Q1C: 3 → 5 children)"
     }
 
 
