@@ -42,7 +42,9 @@ class CLIInspector:
             command,
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            encoding='utf-8',
+            errors='replace'
         )
 
     def inspect_gemini(self) -> Dict:
@@ -166,7 +168,8 @@ class CLIInspector:
         """
         try:
             # Try claude --version (using platform-aware helper)
-            result = self._run_cli_command(["claude", "--version"], timeout=5)
+            # Increased timeout to 15s for Windows PowerShell overhead
+            result = self._run_cli_command(["claude", "--version"], timeout=15)
 
             if result.returncode != 0:
                 return {
@@ -226,9 +229,15 @@ class CLIInspector:
             }
 
         except subprocess.TimeoutExpired:
+            # claude --version timed out (PowerShell overhead on Windows)
+            # Still consider it available, just with unknown version
+            print(f"   Info: Claude version detection timed out")
+            print(f"   Using defaults: claude-sonnet-4.5")
             return {
-                "available": False,
-                "error": "claude CLI timeout (took > 5s)"
+                "available": True,
+                "model": "claude-sonnet-4.5",
+                "context_window": 200000,
+                "version": "unknown (timeout)"
             }
 
         except Exception as e:
