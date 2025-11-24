@@ -5,11 +5,14 @@ V6 Changes:
 - Blackboard loaded ONCE at init (not reloaded from disk between turns)
 - State persists in RAM throughout session
 - Backup to disk only for crash recovery
+- Auto-compression via Haiku CLI when >120k tokens
 """
 import json
+import subprocess
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+import tiktoken
 
 
 class MemoryManagerV6:
@@ -94,6 +97,9 @@ class MemoryManagerV6:
         if len(self.blackboard["recent_history"]) > 50:
             self.blackboard["recent_history"] = self.blackboard["recent_history"][-50:]
 
+        # Auto-compress if >120k tokens estimated
+        self.compress_history()
+
     def save_to_disk(self):
         """
         Save blackboard to disk (for crash recovery)
@@ -118,9 +124,71 @@ class MemoryManagerV6:
         self.save_to_disk()
 
     def compress_history(self):
-        """Compress old history (if needed)"""
-        # Placeholder - implement if memory becomes issue
-        pass
+        """
+        Compress old history if >120k tokens
+
+        Uses Haiku CLI to summarize history, preserving key context
+        """
+        try:
+            # Estimate tokens in recent_history
+            history = self.blackboard.get("recent_history", [])
+            if not history:
+                return
+
+            # Serialize history to estimate size
+            history_text = json.dumps(history, ensure_ascii=False)
+
+            # Estimate tokens (rough approximation: 1 token ≈ 4 chars)
+            estimated_tokens = len(history_text) // 4
+
+            # Compress if >120k tokens
+            if estimated_tokens > 120000:
+                print(f"[Memory] Compressing history ({estimated_tokens} tokens estimated)...")
+
+                # Create summarization prompt
+                prompt = f"""Résume cet historique de conversation NEXUS en préservant :
+1. Objectif principal
+2. Décisions clés prises
+3. Outils utilisés avec succès
+4. Blocages rencontrés et solutions
+
+Historique ({len(history)} messages) :
+{history_text[:50000]}  # Truncate if too large for prompt
+
+Résumé concis (max 2000 tokens) :"""
+
+                # Call Haiku CLI via subprocess
+                try:
+                    result = subprocess.run(
+                        ["claude", "--model", "claude-3-haiku-20240307"],
+                        input=prompt,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
+
+                    if result.returncode == 0:
+                        summary = result.stdout.strip()
+
+                        # Store compressed summary
+                        self.blackboard["compressed_history_summary"] = summary
+
+                        # Keep only last 10 messages + summary
+                        self.blackboard["recent_history"] = history[-10:]
+
+                        print(f"[Memory] ✓ Compressed to {len(history[-10:])} messages + summary")
+                    else:
+                        print(f"[Memory] Warning: Compression failed (Haiku CLI error)")
+
+                except subprocess.TimeoutExpired:
+                    print(f"[Memory] Warning: Compression timeout")
+                except FileNotFoundError:
+                    print(f"[Memory] Warning: Claude CLI not found (compression skipped)")
+
+        except Exception as e:
+            print(f"[Memory] Warning: Compression error: {e}")
 
     def create_backup(self, reason: str = "manual") -> Path:
         """
