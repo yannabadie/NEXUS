@@ -23,6 +23,7 @@ from core.execution.tool_manager import ToolManager
 from core.logging import init_logger, get_logger
 from pydantic import ValidationError
 import time
+import json
 
 
 class OrchestratorV6:
@@ -299,7 +300,7 @@ class OrchestratorV6:
     def _transition_to(self, new_state: OrchestratorState):
         """Transition FSM"""
         if self.config.ui_verbose:
-            print(f"[FSM] {self.state.name} → {new_state.name}")
+            print(f"[FSM] {self.state.name} -> {new_state.name}")
 
         # Create backup before critical transitions
         if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:
@@ -360,6 +361,12 @@ class OrchestratorV6:
         except:
             system_prompt = f"You are {self.active_agent}."
 
+        # Get tools list
+        tools_list = list(self.tool_manager.tools.keys()) if hasattr(self.tool_manager, 'tools') else []
+        if not tools_list:
+             # Fallback if tools attribute not accessible directly (should be based on code)
+             tools_list = ["bash", "read", "write", "edit", "list_dir", "git", "web_search", "web_fetch", "glob", "grep", "todo_write"]
+
         context = f"""# NEXUS V6.0 - Tour {self.iteration}
 
 {system_prompt}
@@ -371,10 +378,25 @@ class OrchestratorV6:
 
 ---
 
+## MODE
+{self.blackboard.get('mode', 'Normal')}
+
+---
+
+## PLAN STRATÉGIQUE
+{json.dumps(self.blackboard.get('strategic_plan', []), indent=2, ensure_ascii=False)}
+
+---
+
+## CAPABILITIES (TOOLS)
+{json.dumps(tools_list, indent=2, ensure_ascii=False)}
+
+---
+
 ## HISTORIQUE RÉCENT
 """
-        # Add last 5 messages
-        for msg in self.blackboard.get("recent_history", [])[-5:]:
+        # Add last 30 messages (Increased from 5 to avoid context loss)
+        for msg in self.blackboard.get("recent_history", [])[-30:]:
             sender = msg.get("sender", "Unknown")
             content = msg.get("content", "")
             context += f"\n**{sender}:** {content}\n"

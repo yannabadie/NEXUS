@@ -2176,12 +2176,25 @@ NEXUS_V6_PROTOTYPE/
 # Test bootstrap uniquement
 python nexus6.py --verify
 
+# Test de stabilité et contexte (nouveau V6.0.2)
+python tests/verify_stability.py
+
 # Test outils
 python test_tools_quick.py
 
 # Test complet (smoke)
 python tests/test_simple.py
 ```
+
+**Test de Stabilité (verify_stability.py)**
+
+Ce test vérifie automatiquement :
+- ✓ Transitions FSM correctes (IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE)
+- ✓ Injection du contexte (MODE, PLAN STRATÉGIQUE, CAPABILITIES)
+- ✓ Collaboration entre agents avec délégation
+- ✓ Exécution d'outil et validation (Closed Feedback Loop)
+
+Utilise des MockDrivers pour tester la logique FSM de manière isolée (sans dépendance aux CLIs externes).
 
 ---
 
