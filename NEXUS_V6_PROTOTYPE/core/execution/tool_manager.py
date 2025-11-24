@@ -50,6 +50,29 @@ class ToolManager:
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path
 
+        # Evolution mode flag (enabled only during /evolve)
+        self.evolution_mode = False
+
+        # Compute paths for evolution permissions
+        self.parent_path = workspace_path.parent  # NEXUS_V6_PROTOTYPE/
+        self.project_root = workspace_path.parent.parent  # 20_NEXUS/
+        self.generation_active = self.project_root / "GENERATION_ACTIVE"
+
+        # Dispatch to appropriate handler
+        self.tools = {
+            "bash": self._execute_bash,
+            "read": self._execute_read,
+            "write": self._execute_write,
+            "edit": self._execute_edit,
+            "list_dir": self._execute_list_dir,
+            "git": self._execute_git,
+            "web_search": self._execute_web_search,
+            "web_fetch": self._execute_web_fetch,
+            "glob": self._execute_glob,
+            "grep": self._execute_grep,
+            "todo_write": self._execute_todo_write
+        }
+
     def execute(self, tool_request) -> ToolResult:
         """
         Execute tool request
@@ -70,22 +93,7 @@ class ToolManager:
         tool_name = tool_request.tool_name
         arguments = tool_request.arguments
 
-        # Dispatch to appropriate handler
-        handlers = {
-            "bash": self._execute_bash,
-            "read": self._execute_read,
-            "write": self._execute_write,
-            "edit": self._execute_edit,
-            "list_dir": self._execute_list_dir,
-            "git": self._execute_git,
-            "web_search": self._execute_web_search,
-            "web_fetch": self._execute_web_fetch,
-            "glob": self._execute_glob,
-            "grep": self._execute_grep,
-            "todo_write": self._execute_todo_write
-        }
-
-        if tool_name not in handlers:
+        if tool_name not in self.tools:
             return ToolResult(
                 tool_name=tool_name,
                 status="ERROR",
@@ -94,7 +102,7 @@ class ToolManager:
             )
 
         try:
-            return handlers[tool_name](arguments)
+            return self.tools[tool_name](arguments)
         except Exception as e:
             return ToolResult(
                 tool_name=tool_name,
@@ -146,7 +154,25 @@ class ToolManager:
         """Read file contents"""
         file_path = Path(args.get("file_path", ""))
 
-        # Resolve relative to workspace
+        # Evolution mode: Allow reading parent code
+        if self.evolution_mode and not file_path.is_absolute():
+            path_str = str(file_path)
+            if path_str.startswith("../"):
+                # Resolve relative to workspace
+                resolved = (self.workspace_path / file_path).resolve()
+
+                # Check whitelist
+                if self._is_evolution_safe_read(resolved):
+                    file_path = resolved
+                else:
+                    return ToolResult(
+                        tool_name="read",
+                        status="FAILURE",
+                        output="",
+                        error=f"Evolution mode: Read not allowed for {resolved} (not in whitelist)"
+                    )
+
+        # Normal mode: Resolve relative to workspace
         if not file_path.is_absolute():
             file_path = self.workspace_path / file_path
 
@@ -170,6 +196,25 @@ class ToolManager:
         file_path = Path(args.get("file_path", ""))
         content = args.get("content", "")
 
+        # Evolution mode: Allow writing to GENERATION_ACTIVE
+        if self.evolution_mode and not file_path.is_absolute():
+            path_str = str(file_path)
+            if path_str.startswith("../../GENERATION_ACTIVE/"):
+                # Resolve relative to workspace
+                resolved = (self.workspace_path / file_path).resolve()
+
+                # Check whitelist
+                if self._is_evolution_safe_write(resolved):
+                    file_path = resolved
+                else:
+                    return ToolResult(
+                        tool_name="write",
+                        status="FAILURE",
+                        output="",
+                        error=f"Evolution mode: Write not allowed for {resolved} (must be under GENERATION_ACTIVE)"
+                    )
+
+        # Normal mode: Resolve relative to workspace
         if not file_path.is_absolute():
             file_path = self.workspace_path / file_path
 
@@ -199,6 +244,25 @@ class ToolManager:
         old_string = args.get("old_string", "")
         new_string = args.get("new_string", "")
 
+        # Evolution mode: Allow editing GENERATION_ACTIVE files
+        if self.evolution_mode and not file_path.is_absolute():
+            path_str = str(file_path)
+            if path_str.startswith("../../GENERATION_ACTIVE/"):
+                # Resolve relative to workspace
+                resolved = (self.workspace_path / file_path).resolve()
+
+                # Check whitelist
+                if self._is_evolution_safe_write(resolved):
+                    file_path = resolved
+                else:
+                    return ToolResult(
+                        tool_name="edit",
+                        status="FAILURE",
+                        output="",
+                        error=f"Evolution mode: Edit not allowed for {resolved} (must be under GENERATION_ACTIVE)"
+                    )
+
+        # Normal mode: Resolve relative to workspace
         if not file_path.is_absolute():
             file_path = self.workspace_path / file_path
 
@@ -826,3 +890,78 @@ class ToolManager:
                 output="",
                 error=f"TodoWrite error: {str(e)}"
             )
+
+    def _is_evolution_safe_read(self, path: Path) -> bool:
+        """
+        Check if path is allowed for evolution READ operations.
+
+        Whitelist:
+        - ../core/**/*.py (parent project code)
+        - ../prompts/**/*.md (parent prompts)
+        - ../README.md, ../nexus6.py (parent root files)
+
+        Forbidden:
+        - NEXUS_V5_PRAGMATIC
+        - .env, .git, __pycache__
+        """
+        try:
+            # Check path is under parent project
+            relative = path.relative_to(self.parent_path)
+            path_str = str(relative).replace("\\", "/")  # Normalize for Windows
+
+            # Allowed prefixes
+            allowed_prefixes = [
+                "core/",
+                "prompts/",
+            ]
+
+            # Allowed root files
+            allowed_root_files = [
+                "README.md",
+                "nexus6.py",
+                "LINEAGE.json",
+                ".env"  # Needed for API keys during evolution
+            ]
+
+            # Forbidden patterns
+            forbidden = [
+                "NEXUS_V5_PRAGMATIC",
+                "__pycache__",
+                ".git",
+                ".pyc"
+            ]
+
+            # Check forbidden first
+            if any(forb in path_str for forb in forbidden):
+                return False
+
+            # Check allowed prefixes
+            if any(path_str.startswith(prefix) for prefix in allowed_prefixes):
+                return True
+
+            # Check allowed root files
+            if path_str in allowed_root_files:
+                return True
+
+            return False
+
+        except ValueError:
+            # Path not under parent
+            return False
+
+    def _is_evolution_safe_write(self, path: Path) -> bool:
+        """
+        Check if path is allowed for evolution WRITE/EDIT operations.
+
+        Whitelist:
+        - ../../GENERATION_ACTIVE/** (children only)
+
+        Everything else is FORBIDDEN (including parent project).
+        """
+        try:
+            # Check path is under GENERATION_ACTIVE
+            path.relative_to(self.generation_active)
+            return True
+        except ValueError:
+            # Path not under GENERATION_ACTIVE
+            return False

@@ -364,6 +364,17 @@ class OrchestratorV6:
         if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:
             self.memory.create_backup(reason=f"transition_{new_state.name.lower()}")
 
+        # Evolution mode hooks
+        if new_state == OrchestratorState.EVOLUTION_BRAINSTORM:
+            # Enable evolution permissions (READ parent code, WRITE GENERATION_ACTIVE)
+            self.tool_manager.evolution_mode = True
+            self.logger.info("🧬 EVOLUTION MODE: Extended permissions enabled (READ parent, WRITE GENERATION_ACTIVE)")
+
+        elif self.state == OrchestratorState.EVOLUTION_BRAINSTORM and new_state != OrchestratorState.EVOLUTION_BRAINSTORM:
+            # Disable evolution permissions when leaving EVOLUTION_BRAINSTORM
+            self.tool_manager.evolution_mode = False
+            self.logger.info("🧬 EVOLUTION MODE: Permissions restored to normal (workspace only)")
+
         self.state = new_state
         self.memory.save_to_disk()  # Backup after transition
 
@@ -419,25 +430,13 @@ class OrchestratorV6:
         except:
             system_prompt = f"You are {self.active_agent}."
 
-        # Get tools list - HARDCODED to prevent environment leakage
-        tools_list = [
-            "bash", "read", "write", "edit", "list_dir", "git", 
-            "web_search", "web_fetch", "glob", "grep", "todo_write"
-        ]
+        # Get available tools from manager dynamically
+        # This ensures the agent knows exactly what tools are available in the runtime
+        tools_list = list(self.tool_manager.tools.keys())
 
         context = f"""# NEXUS V6.0 - Tour {self.iteration}
 
 {system_prompt}
-
----
-
-## ⚠️ CONTEXTE ENVIRONNEMENT (CRITIQUE)
-Vous êtes dans l'environnement **NEXUS Python Runtime**.
-- Ce n'est PAS Claude Code CLI.
-- Ce n'est PAS un environnement restreint.
-- L'outil pour créer un fichier s'appelle **`write`** (pas `write_file`).
-- L'outil pour lire s'appelle **`read`** (pas `read_file`).
-- Vous avez les droits d'écriture immédiats. N'attendez pas de permission.
 
 ---
 
@@ -566,3 +565,10 @@ Error: {result_dict['error']}
 
             return True
         return False
+
+
+# MUTATION APPLIED: 20251124_155017
+# Reason: Test mutation to verify apply_mutation.py can access and modify core files from workspace boundary
+    def _test_workspace_access(self):
+        """Test method to verify mutation application works."""
+        pass

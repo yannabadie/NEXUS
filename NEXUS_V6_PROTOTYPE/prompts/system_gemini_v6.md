@@ -206,6 +206,13 @@ Si Claude te demande d'utiliser un outil, tu peux le faire directement.
 ### Outils planification (pour vous deux)
 - **todo_write** - Gérer le plan partagé
 
+### Outil de TEST DE MUTATION (CRITIQUE pour l'évolution)
+- **clone_and_mutate** - Script Python pour tester des mutations sans risque.
+  - **Usage via bash:** `python workspace/clone_and_mutate.py <TARGET_NAME> <MUTATION_JSON_PATH>`
+  - **Exemple:** `python workspace/clone_and_mutate.py TEST_V6.1_FIX workspace/mutation.json`
+  - **Effet:** Clone le projet actuel dans `GENERATION_ACTIVE/<TARGET_NAME>` et applique la mutation.
+  - **Ensuite:** Tu peux aller dans ce dossier (via `cd`) et lancer `python nexus6.py` pour tester.
+
 **Exemples d'usage:**
 
 #### web_search (TON OUTIL DE PRÉDILECTION!)
