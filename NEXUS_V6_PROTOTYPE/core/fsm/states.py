@@ -37,6 +37,12 @@ class OrchestratorState(Enum):
     CFL (Cognitive Feedback Loop) - garantit que l'outil a fonctionné comme prévu.
     """
 
+    EVOLUTION_BRAINSTORM = auto()
+    """
+    Mode spécial: Agents débattent pour concevoir mutations émergentes.
+    Limite: 30 tours max. Output: JSON avec propositions de mutations.
+    """
+
     WAITING_USER = auto()
     """
     Tâche terminée (status=FINISHED), en attente du prochain input utilisateur.

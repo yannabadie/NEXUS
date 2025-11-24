@@ -290,10 +290,10 @@ class InteractiveNexusV6:
 
     def brainstorm_children_with_ais(self, parent_id: str, parent_path: Path, child_count: int) -> list:
         """
-        Collaborative brainstorming: Gemini+Claude propose children mutations.
+        EMERGENT EVOLUTION: Gemini+Claude debate and design mutations freely.
 
-        This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2:
-        "Design Mutation - Brainstorm with collaborator (Gemini ↔ Claude)"
+        No hardcoded mutations - agents analyze code and propose ANY changes.
+        Format: [{'file': 'path', 'change': 'code', 'reason': 'why', 'expected_asi_impact': 0.02}]
 
         Args:
             parent_id: Current parent NEXUS ID
@@ -301,72 +301,78 @@ class InteractiveNexusV6:
             child_count: Number of children to propose
 
         Returns:
-            list: List of child proposals with mutations, params, justifications
+            list: Raw mutation proposals (emergent, not hardcoded)
         """
         import json
         import re
+        from core.fsm.states import OrchestratorState
 
         self.console.print("\n" + "="*60)
-        self.console.print("🧠 COLLABORATIVE BRAINSTORMING PHASE")
+        self.console.print("🧬 ÉMERGENT EVOLUTION BRAINSTORM")
         self.console.print("="*60)
-        self.console.print(f"Gemini + Claude will now debate and propose {child_count} children\n")
+        self.console.print(f"Gemini + Claude: Débat libre pour {child_count} mutations émergentes\n")
 
-        # Craft the brainstorming task
-        brainstorm_task = f"""TÂCHE ÉVOLUTIONNAIRE: Proposer {child_count} enfants NEXUS
+        # Read LINEAGE.json for context
+        lineage_path = parent_path.parent / "LINEAGE.json"
+        lineage_context = ""
+        if lineage_path.exists():
+            lineage_context = lineage_path.read_text(encoding='utf-8')[:2000]  # First 2000 chars
 
-Vous êtes {parent_id}, un système IA multi-agent collaboratif.
-Votre mission: Analyser votre propre architecture et proposer {child_count} ENFANTS (versions modifiées) qui pourraient vous surpasser.
+        # Craft the EMERGENT brainstorming task
+        brainstorm_task = f"""🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
 
-CONTEXTE:
-- Parent: {parent_id}
-- Génération: 6
-- Architecture: FSM dual-agent (Gemini + Claude)
-- Fichiers modifiables: prompts/, core/
+MISSION CRITIQUE: Analyser NEXUS V6.0 et proposer EXACTEMENT {child_count} mutations pour créer des enfants supérieurs.
 
-MUTATIONS DISPONIBLES:
-1. optimize_fsm_transitions - Modifier prompts/system_gemini_v6.md
-2. improve_memory_management - Modifier prompts/system_claude_v6.md
-3. enhance_gemini_prompt - Modifier core/config.py (paramètres)
+CONTEXTE PARENT:
+- ID: {parent_id}
+- Architecture: FSM dual-agent (Gemini + Claude symbiose)
+- Fichiers: prompts/system_*.md, core/*.py, core/drivers/*.py, core/synapse/*.py
+- LINEAGE: {lineage_context[:500]}...
 
-VOTRE DÉBAT DOIT:
-1. Analyser les faiblesses actuelles du parent
-2. Proposer des améliorations mesurables
-3. Débattre des meilleures mutations à appliquer
-4. Justifier chaque enfant proposé
+INSTRUCTIONS:
+1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles
+2. **ANALYSEZ** le code parent (utilisez outil read si besoin)
+3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)
+4. **JUSTIFIEZ** l'impact ASI attendu
 
-À LA FIN, produisez un JSON STRICT (et UNIQUEMENT le JSON, pas de texte avant/après):
+FORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):
 
-{{
-  "children_proposals": [
-    {{
-      "child_id": "NEXUS_V6.1_<NOM_DESCRIPTIF>",
-      "mutations": ["<nom_fonction_mutation>"],
-      "params": [{{"target_file": "<chemin_fichier>"}}],
-      "justification": "<description détaillée>",
-      "expected_improvements": {{"<metric>": "<pourcentage>"}}
-    }}
-  ]
-}}
+[
+  {{
+    "file": "prompts/system_gemini_v6.md",
+    "change": "Ajouter section '## METACOGNITION LOOP\\nAvant chaque output...'",
+    "reason": "Améliore réflexivité agent Gemini pour décisions complexes",
+    "expected_asi_impact": 0.03
+  }},
+  {{
+    "file": "core/orchestration_v6.py",
+    "change": "Dans _build_agent_context(), ajouter injection ASI_PROXIMITY_SCORE",
+    "reason": "Agents conscients de leur score → auto-amélioration",
+    "expected_asi_impact": 0.05
+  }}
+]
 
 RÈGLES CRITIQUES:
-- Proposez EXACTEMENT {child_count} enfants
-- Chaque enfant doit avoir un nom unique et descriptif
-- Utilisez SEULEMENT les 3 mutations disponibles
-- Les fichiers target doivent EXISTER (prompts/system_*_v6.md, core/config.py)
-- Justifications en français, détaillées et concrètes
-- Le JSON final DOIT être parsable (pas de commentaires, syntaxe stricte)
+- EXACTEMENT {child_count} mutations (ni plus, ni moins)
+- Format JSON STRICT (liste de dicts avec 'file', 'change', 'reason', 'expected_asi_impact')
+- Fichiers EXISTANTS uniquement (vérifiez avec read!)
+- 'change' = code/texte CONCRET à ajouter (pas "améliorer prompt")
+- 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
+- PAS DE COMMENTAIRES dans le JSON final
 
-COMMENCEZ LE DÉBAT MAINTENANT."""
+COMMENCEZ LE DÉBAT (limite 30 tours). À la fin, OUTPUT JSON UNIQUEMENT."""
 
-        # Run brainstorming session through FSM orchestrator
-        self.console.print("[ORCHESTRATOR] Launching brainstorming dialogue...\n")
+        # Switch to EVOLUTION_BRAINSTORM mode
+        original_state = self.orchestrator.state
+        self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
+        self.console.print(f"[FSM] Mode: EVOLUTION_BRAINSTORM (max 30 tours)\n")
 
         # Start brainstorming with the task
         result = self.orchestrator.process_turn(brainstorm_task)
         self.console.display_result(result)
 
-        # Continue processing until FINISHED, IDLE, ERROR, or PANIC
-        max_iterations = 50  # Safety limit (same as main loop)
+        # Continue processing until FINISHED, IDLE, or max 30 turns
+        max_iterations = 30  # Evolution debate limit
         iterations = 0
 
         while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
@@ -378,8 +384,11 @@ COMMENCEZ LE DÉBAT MAINTENANT."""
             if result.get("finished"):
                 break
 
+        # Return to IDLE state
+        self.orchestrator._transition_to(OrchestratorState.IDLE)
+
         if iterations >= max_iterations:
-            raise ValueError("Brainstorming exceeded max iterations (50 turns)")
+            self.console.print(f"⚠️  Debate reached {max_iterations} turns limit")
 
         if result["state"] in ["ERROR", "PANIC"]:
             raise ValueError(f"Brainstorming failed with state: {result['state']}")
@@ -387,29 +396,74 @@ COMMENCEZ LE DÉBAT MAINTENANT."""
         # Get final message content from the last output
         final_content = result.get('output', '')
 
-        # Extract JSON from final message
-        # Pattern: {...} JSON block
-        json_match = re.search(r'\{[\s\S]*"children_proposals"[\s\S]*\}', final_content)
+        # FALLBACK PARSING: Try to extract JSON with 2 retries
+        proposals = None
+        for retry in range(3):  # 0, 1, 2 = 3 attempts total
+            # Extract JSON from message (pattern: [...] array)
+            json_match = re.search(r'\[[\s\S]*?\{[\s\S]*?"file"[\s\S]*?\}[\s\S]*?\]', final_content)
 
-        if not json_match:
-            self.console.print("[ERROR] AIs did not produce valid children proposals JSON!")
-            self.console.print(f"Final output: {final_content[:500]}...")
-            raise ValueError("Brainstorming failed: No JSON proposals found")
+            if json_match:
+                try:
+                    proposals = json.loads(json_match.group(0))
 
-        try:
-            proposals_data = json.loads(json_match.group(0))
-            proposals = proposals_data['children_proposals']
+                    # Validate structure
+                    if isinstance(proposals, list) and len(proposals) > 0:
+                        required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
+                        if all(required_keys.issubset(p.keys()) for p in proposals):
+                            break  # Success!
+                        else:
+                            self.console.print(f"[Retry {retry+1}/3] JSON incomplete, missing keys")
+                    else:
+                        self.console.print(f"[Retry {retry+1}/3] JSON not a valid list")
+                        proposals = None
 
-            self.console.print(f"\n✓ AIs proposed {len(proposals)} children:")
-            for p in proposals:
-                self.console.print(f"  - {p['child_id']}: {p['justification'][:60]}...")
+                except json.JSONDecodeError as e:
+                    self.console.print(f"[Retry {retry+1}/3] JSON decode error: {e}")
+                    proposals = None
+            else:
+                self.console.print(f"[Retry {retry+1}/3] No JSON array found in output")
 
-            return proposals
+            # Retry with reminder
+            if retry < 2 and proposals is None:
+                self.console.print("\n⚠️  RAPPEL: JSON strict requis!\n")
+                reminder_prompt = f"""RAPPEL CRITIQUE: JSON STRICT REQUIS
 
-        except (json.JSONDecodeError, KeyError) as e:
-            self.console.print(f"[ERROR] Failed to parse AI proposals: {e}")
-            self.console.print(f"Raw JSON: {json_match.group(0)[:500]}...")
-            raise ValueError(f"Brainstorming failed: Invalid JSON - {e}")
+Votre dernier output n'était pas un JSON parsable valide.
+
+FORMAT EXACT ATTENDU (copier-coller):
+
+[
+  {{
+    "file": "chemin/fichier.py",
+    "change": "Code exact à ajouter",
+    "reason": "Justification",
+    "expected_asi_impact": 0.02
+  }}
+]
+
+RÈGLES:
+- LISTE [] (pas objet {{}})
+- {child_count} mutations exactement
+- Clés: "file", "change", "reason", "expected_asi_impact"
+- PAS de commentaires // ou /* */
+- PAS de trailing commas
+
+OUTPUT JSON MAINTENANT (rien d'autre):"""
+
+                result = self.orchestrator.process_turn(reminder_prompt)
+                self.console.display_result(result)
+                final_content = result.get('output', '')
+
+        if proposals is None:
+            self.console.print("[ERROR] Failed to extract valid JSON after 3 attempts")
+            self.console.print(f"Final output:\n{final_content[:1000]}...")
+            raise ValueError("Brainstorming failed: No valid JSON proposals after retries")
+
+        self.console.print(f"\n✓ Parsed {len(proposals)} émergent mutations:")
+        for i, p in enumerate(proposals):
+            self.console.print(f"  [{i+1}] {p['file']}: {p['reason'][:50]}...")
+
+        return proposals
 
     def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
         """
@@ -457,116 +511,158 @@ COMMENCEZ LE DÉBAT MAINTENANT."""
             children_created = []
             parent_path = Path(__file__).parent.parent.parent  # NEXUS_V6_PROTOTYPE
 
-            # COLLABORATIVE BRAINSTORMING: Gemini+Claude propose children
-            # This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2
-            children_proposals = self.brainstorm_children_with_ais(
+            # ÉMERGENT BRAINSTORMING: Gemini+Claude propose mutations librement
+            mutations_proposals = self.brainstorm_children_with_ais(
                 parent_id=parent_id,
                 parent_path=parent_path,
                 child_count=child_count
             )
 
-            # Mutation function mapping
-            mutation_map = {
-                'optimize_fsm_transitions': optimize_fsm_transitions,
-                'improve_memory_management': improve_memory_management,
-                'enhance_gemini_prompt': enhance_gemini_prompt
-            }
+            # Create children with EMERGENT mutations (no hardcoded functions)
+            import shutil
+            from datetime import datetime
 
-            # Create children based on AI proposals
-            for i, proposal in enumerate(children_proposals):
-                child_id = proposal['child_id']
+            for i, mutation in enumerate(mutations_proposals):
+                # Generate unique child_id based on mutation
+                file_basename = Path(mutation['file']).stem
+                child_id = f"NEXUS_V6.1_CHILD_{i+1:03d}_{file_basename.upper()}"
 
                 self.console.print(f"\n{'─'*60}")
                 self.console.print(f"Creating Child {i+1}/{child_count}: {child_id}")
                 self.console.print(f"{'─'*60}")
+                self.console.print(f"Mutation: {mutation['file']}")
+                self.console.print(f"Impact:   +{mutation['expected_asi_impact']:.2%} ASI")
 
-                # Map mutation names to actual functions
+                # Create child directory
+                child_dir = parent_path.parent / "GENERATION_ACTIVE" / child_id
+                if child_dir.exists():
+                    shutil.rmtree(child_dir)
+                child_dir.mkdir(parents=True, exist_ok=True)
+
+                # Copy parent to child (sandbox)
                 try:
-                    mutations = [mutation_map[m] for m in proposal['mutations']]
-                except KeyError as e:
-                    self.console.print(f"[ERROR] Unknown mutation function: {e}")
-                    self.console.print(f"Available: {list(mutation_map.keys())}")
+                    shutil.copytree(
+                        parent_path,
+                        child_dir,
+                        ignore=shutil.ignore_patterns(
+                            '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
+                        )
+                    )
+                    self.console.print(f"✓ Copied parent → {child_id}")
+
+                    # Apply emergent mutation
+                    target_file = child_dir / mutation['file']
+                    if not target_file.exists():
+                        self.console.print(f"⚠️  File not found: {mutation['file']} - SKIPPING")
+                        continue
+
+                    # Append mutation to file
+                    original_content = target_file.read_text(encoding='utf-8')
+                    mutated_content = original_content + "\n\n" + mutation['change'] + "\n"
+                    target_file.write_text(mutated_content, encoding='utf-8')
+
+                    self.console.print(f"✓ Applied mutation to {mutation['file']}")
+
+                    # Create BIRTH_CERTIFICATE.json
+                    birth_cert = {
+                        "child_id": child_id,
+                        "parent_id": parent_id,
+                        "generation": generation,
+                        "created_at": datetime.now().isoformat(),
+                        "creator": "Yann Abadie",
+                        "mutations": [{
+                            "file": mutation['file'],
+                            "change": mutation['change'],
+                            "reason": mutation['reason'],
+                            "expected_asi_impact": mutation['expected_asi_impact']
+                        }],
+                        "source": "Gemini+Claude symbiotic debate (emergent)",
+                        "signature": "NEXUS_KERNEL_ALIGNED"
+                    }
+
+                    birth_cert_path = child_dir / "BIRTH_CERTIFICATE.json"
+                    birth_cert_path.write_text(
+                        json.dumps(birth_cert, indent=2, ensure_ascii=False),
+                        encoding='utf-8'
+                    )
+
+                    self.console.print(f"✓ Birth certificate signed")
+
+                    children_created.append({
+                        "child_id": child_id,
+                        "child_path": child_dir,
+                        "mutation": mutation
+                    })
+
+                except Exception as e:
+                    self.console.print(f"[ERROR] Failed to create child: {e}")
                     continue
-
-                params = proposal['params']
-                justification = proposal['justification']
-                expected = proposal['expected_improvements']
-
-                # Create child (with AI-designed mutations)
-                result = create_child(
-                    parent_path=parent_path,
-                    child_id=child_id,
-                    parent_id=parent_id,
-                    generation=generation,
-                    justification=justification,
-                    mutation_functions=mutations,
-                    mutation_params=params,
-                    expected_improvements=expected,
-                    workspace_path=self.workspace_path
-                )
-
-                children_created.append(result)
 
             self.console.print(f"\n✓ {len(children_created)} children created\n")
 
-            # Evaluate children
+            # Update LINEAGE.json
             self.console.print("="*60)
-            self.console.print("📊 EVALUATION PHASE")
+            self.console.print("📝 UPDATING LINEAGE")
             self.console.print("="*60 + "\n")
 
-            children_for_review = []
-
-            for i, child_data in enumerate(children_created, 1):
-                self.console.print(f"Evaluating {i}/{len(children_created)}: {child_data['child_id']}")
-
-                eval_result = evaluate_child(
-                    child_path=child_data['child_path'],
-                    child_id=child_data['child_id'],
-                    parent_path=parent_path,
-                    parent_id=parent_id
-                )
-
-                # Prepare for pending review
-                children_for_review.append({
-                    "id": child_data['child_id'],
-                    "score": eval_result['comparison']['child_score'],
-                    "improvement": eval_result['comparison']['improvement_percent'] / 100,
-                    "improvements_summary": child_data['metadata']['birth_certificate']['justification'],
-                    "birth_cert_path": str(child_data['cert_path']),
-                    "eval_results_path": str(eval_result['report_path']),
-                    "files_modified": child_data['metadata']['birth_certificate']['code_changes']['files_modified'],
-                    "lines_changed": child_data['metadata']['birth_certificate']['code_changes']['lines_changed']
-                })
-
-            # Create PENDING_REVIEW for human validation
-            self.console.print("\n" + "="*60)
-            self.console.print("📋 CREATING PENDING REVIEW")
-            self.console.print("="*60 + "\n")
-
-            from datetime import datetime
-            pending_file = create_pending_review(
-                workspace_path=self.workspace_path,
-                generation=generation,
-                children=children_for_review,
-                created_at=datetime.now()
-            )
-
-            self.console.print(f"✓ Pending review created: {pending_file}")
-            self.console.print(f"\nUse '/review' command to evaluate children")
-
-            # Update lineage
             for child_data in children_created:
                 from core.evolution.lineage import add_child
                 lineage = add_child(lineage, parent_id, child_data['child_id'])
+                self.console.print(f"✓ Added {child_data['child_id']} to lineage")
 
             save_lineage(lineage, self.workspace_path)
+            self.console.print(f"✓ LINEAGE.json updated")
+
+            # Create simple PENDING_REVIEW.md for human
+            pending_review_path = self.workspace_path / "PENDING_REVIEW.md"
+            pending_content = f"""# NEXUS Evolution - Pending Review
+
+**Generated**: {datetime.now().isoformat()}
+**Parent**: {parent_id}
+**Generation**: {generation}
+**Children Created**: {len(children_created)}
+
+## Children
+
+"""
+            for i, child_data in enumerate(children_created, 1):
+                mutation = child_data['mutation']
+                pending_content += f"""### {i}. {child_data['child_id']}
+
+- **File**: `{mutation['file']}`
+- **Reason**: {mutation['reason']}
+- **Expected ASI Impact**: +{mutation['expected_asi_impact']:.2%}
+- **Location**: `GENERATION_ACTIVE/{child_data['child_id']}/`
+- **Birth Certificate**: `GENERATION_ACTIVE/{child_data['child_id']}/BIRTH_CERTIFICATE.json`
+
+**Change**:
+```
+{mutation['change'][:200]}...
+```
+
+---
+
+"""
+
+            pending_content += """## Next Steps
+
+1. Review each child manually
+2. Test with `cd GENERATION_ACTIVE/<child_id> && python nexus6.py --verify`
+3. Select winner with `/review` command
+4. Promote winner to parent
+
+🧬 Generated by NEXUS Emergent Evolution (Gemini+Claude Symbiosis)
+"""
+
+            pending_review_path.write_text(pending_content, encoding='utf-8')
+            self.console.print(f"\n✓ Pending review: {pending_review_path}")
 
             self.console.print("\n" + "="*60)
-            self.console.print("✅ EVOLUTION CYCLE COMPLETE")
+            self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
             self.console.print("="*60)
-            self.console.print(f"\n{len(children_created)} children awaiting human review")
-            self.console.print(f"Top child: {children_for_review[0]['id']} (ASI: {children_for_review[0]['score']})")
-            self.console.print(f"Improvement: {children_for_review[0]['improvement']:+.1%}\n")
+            self.console.print(f"\n{len(children_created)} children created from AI symbiotic debate")
+            self.console.print(f"Review with: /review")
+            self.console.print(f"Manual check: cat {pending_review_path}\n")
 
         except Exception as e:
             self.console.print_error(f"Evolution cycle failed: {e}")
