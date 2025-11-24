@@ -82,7 +82,7 @@ class GeminiDriverV6:
 
     def _extract_json(self, text: str) -> Dict:
         """
-        Extract JSON from text (fallback if direct parse fails)
+        Extract JSON from text (robust fallback)
 
         Args:
             text: Raw text that might contain JSON
@@ -95,27 +95,57 @@ class GeminiDriverV6:
         """
         import re
 
-        # Try to find JSON in code blocks
+        # 1. Try to find JSON in markdown code blocks first (most reliable)
         json_block_pattern = r'```json\s*(.*?)\s*```'
         matches = re.findall(json_block_pattern, text, re.DOTALL)
 
         if matches:
-            try:
-                return json.loads(matches[0])
-            except json.JSONDecodeError:
-                pass
-
-        # Try to find JSON object directly
-        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-        matches = re.findall(json_pattern, text, re.DOTALL)
-
-        if matches:
-            # Try each match
-            for match in matches:
+            # Try the last block first (often the final answer)
+            for match in reversed(matches):
                 try:
                     return json.loads(match)
                 except json.JSONDecodeError:
                     continue
 
+        # 2. Try to find a raw JSON object structure
+        # Look for { at start of line or after newline, followed by "sender" key
+        # This helps filter out example JSONs in the prompt
+        
+        # Robust pattern to find the outermost JSON object
+        # We look for the largest block starting with { and ending with }
+        try:
+            # Find start of potential JSON (heuristic: looks for {"sender":)
+            start_indices = [m.start() for m in re.finditer(r'\{\s*"sender"', text)]
+            
+            for start in reversed(start_indices): # Try last occurrence first
+                # Simple bracket counting to find the end
+                brackets = 0
+                for i, char in enumerate(text[start:], start):
+                    if char == '{':
+                        brackets += 1
+                    elif char == '}':
+                        brackets -= 1
+                        if brackets == 0:
+                            candidate = text[start:i+1]
+                            try:
+                                return json.loads(candidate)
+                            except json.JSONDecodeError:
+                                break # Try next start index
+        except Exception:
+            pass
+
+        # 3. Last resort: regex for generic JSON object
+        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        matches = re.findall(json_pattern, text, re.DOTALL)
+
+        if matches:
+            for match in reversed(matches):
+                try:
+                    data = json.loads(match)
+                    if "sender" in data: # Validation check
+                        return data
+                except json.JSONDecodeError:
+                    continue
+
         # No JSON found
-        raise ValueError(f"Could not extract JSON from Gemini response: {text[:200]}")
+        raise ValueError(f"Could not extract JSON from Gemini response: {text[:500]}...")

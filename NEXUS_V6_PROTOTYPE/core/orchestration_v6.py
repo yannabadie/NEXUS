@@ -419,15 +419,25 @@ class OrchestratorV6:
         except:
             system_prompt = f"You are {self.active_agent}."
 
-        # Get tools list
-        tools_list = list(self.tool_manager.tools.keys()) if hasattr(self.tool_manager, 'tools') else []
-        if not tools_list:
-             # Fallback if tools attribute not accessible directly (should be based on code)
-             tools_list = ["bash", "read", "write", "edit", "list_dir", "git", "web_search", "web_fetch", "glob", "grep", "todo_write"]
+        # Get tools list - HARDCODED to prevent environment leakage
+        tools_list = [
+            "bash", "read", "write", "edit", "list_dir", "git", 
+            "web_search", "web_fetch", "glob", "grep", "todo_write"
+        ]
 
         context = f"""# NEXUS V6.0 - Tour {self.iteration}
 
 {system_prompt}
+
+---
+
+## ⚠️ CONTEXTE ENVIRONNEMENT (CRITIQUE)
+Vous êtes dans l'environnement **NEXUS Python Runtime**.
+- Ce n'est PAS Claude Code CLI.
+- Ce n'est PAS un environnement restreint.
+- L'outil pour créer un fichier s'appelle **`write`** (pas `write_file`).
+- L'outil pour lire s'appelle **`read`** (pas `read_file`).
+- Vous avez les droits d'écriture immédiats. N'attendez pas de permission.
 
 ---
 

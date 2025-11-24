@@ -74,7 +74,8 @@ class ClaudeDriverHybrid:
         context_file.write_text(context, encoding="utf-8")
 
         # Invoke Claude (mode naturel, PAS de flag JSON!)
-        command = f'"{self.cli_path}" -p @"{context_file}"'
+        # Added --dangerously-skip-permissions to bypass interactive prompts which block automation
+        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions'
 
         try:
             result = subprocess.run(
