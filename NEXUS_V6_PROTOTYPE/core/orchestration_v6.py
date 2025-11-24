@@ -8,6 +8,7 @@ Architecture FSM (Finite State Machine):
 - Pas de while loop infini
 
 États: IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+États spéciaux: EVOLUTION_BRAINSTORM (débat émergent 30 tours max)
 """
 from pathlib import Path
 from typing import Dict, Optional
@@ -285,6 +286,63 @@ class OrchestratorV6:
                 self._transition_to(OrchestratorState.BRAINSTORMING)
 
                 return self._make_result("BRAINSTORMING", f"✗ {content}", self.active_agent, False)
+
+        # === STATE: EVOLUTION_BRAINSTORM ===
+        elif self.state == OrchestratorState.EVOLUTION_BRAINSTORM:
+            # Special debate mode for emergent evolution (30 turns max)
+            # No plan health check, no tool execution - pure debate for JSON output
+
+            # Check stagnation (to detect if agents not progressing)
+            if self.stagnation_detector.is_stagnant():
+                # Return to IDLE on stagnation during evolution
+                self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("IDLE", "Evolution debate stagnant, returning to IDLE", self.active_agent, False)
+
+            # Invoke active agent for debate
+            context = self._build_context()
+
+            try:
+                response = self.drivers[self.active_agent].invoke(context)
+                message = self._validate_message(response)
+                self.json_parse_failures = 0  # Reset on success
+                self.panic_system.reset_errors()
+
+            except Exception as e:
+                # Handle errors gracefully - return to IDLE
+                self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("IDLE", f"Evolution debate error: {e}", self.active_agent, False)
+
+            # Save to history
+            self.memory.add_to_history(message)
+
+            # Analyze action_type
+            action_type = message.get("action_type")
+            content = message.get("content", "")
+
+            if action_type in ["TALK", "DELEGATE"]:
+                # Continue evolution debate
+                self.stagnation_detector.add_message(content)
+
+                # Capture sender BEFORE updating active_agent
+                sender = message.get("sender", self.active_agent)
+
+                # Check agent switch
+                next_agent = message.get("next_agent", self.active_agent)
+                if next_agent != self.active_agent:
+                    self.active_agent = next_agent
+                    self.stagnation_detector.reset()  # Reset on switch
+
+                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
+
+            elif message.get("status") == "FINISHED":
+                # Evolution debate complete - return to IDLE
+                self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("FINISHED", content, self.active_agent, True)
+
+            else:
+                # Unexpected action during evolution - return to IDLE
+                self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("IDLE", f"Unexpected action in evolution: {action_type}", self.active_agent, False)
 
         # === STATE: ERROR ===
         elif self.state == OrchestratorState.ERROR:
