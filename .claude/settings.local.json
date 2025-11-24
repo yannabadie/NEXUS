@@ -27,7 +27,8 @@
       "Bash(powershell -Command \"Get-ChildItem NEXUS_V6_PROTOTYPE/workspace/_IO_BUFFER/*.md | Select-Object Name, @{Name=''Size(KB)'';Expression={[math]::Round($_Length/1KB,2)}}\")",
       "Bash(del nul 2)",
       "Bash(NUL)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
