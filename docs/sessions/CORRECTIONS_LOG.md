@@ -1347,6 +1347,187 @@ git log --oneline -1
 
 ---
 
-**Last Updated**: 2025-11-24
+## 2025-11-25 Corrections (Benchmark Calibration + UX Fixes)
+
+### CORR-2025-11-25-016: Ctrl+C Non-Functional During REPL Brainstorming Loop
+
+**Session**: N/A (User reported)
+**Date**: 2025-11-25
+**Severity**: MEDIUM - UX blocking, user loses control
+**Component**: core/interface/repl.py
+**Status**: ✅ RESOLVED (workaround implemented)
+
+**Problem**:
+During long Gemini-Claude brainstorming debates, user could not interrupt the conversation:
+- No command prompt shown during `while` loop
+- **Ctrl+C did not work** - signal captured/ignored by subprocess or Windows
+- User had to forcibly close terminal to regain control
+
+```
+nexus6> Calcule ton score ASI...
+[Gemini] blabla...
+[Claude] blabla...
+[Gemini] blabla...
+... (no way to interrupt) ...
+```
+
+**Root Cause**:
+1. **REPL design** - `while` loop (lines 96-99) processes turns without user input opportunity
+2. **Windows Ctrl+C handling** - Signal may be captured by:
+   - Subprocess calls to `gemini` CLI
+   - Subprocess calls to `claude` CLI
+   - Rich console library terminal handling
+3. **No async input** - REPL is synchronous, blocks during agent turns
+
+**Code Analysis** (`repl.py:92-99` before fix):
+```python
+max_iterations = 50  # Safety limit
+iterations = 0
+
+while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+    result = self.orchestrator.process_turn()  # Blocks here
+    self.console.display_result(result)
+    iterations += 1
+# No opportunity for user input during loop
+```
+
+**Solution**:
+Added **periodic user checkpoint** every 10 iterations (`repl.py:102-115`):
+
+```python
+user_checkpoint_interval = 10  # Ask user every N iterations
+
+while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+    result = self.orchestrator.process_turn()
+    self.console.display_result(result)
+    iterations += 1
+
+    # Periodic user checkpoint - allow intervention during long debates
+    if iterations > 0 and iterations % user_checkpoint_interval == 0:
+        self.console.print(f"\n[Checkpoint: {iterations} iterations]")
+        self.console.print("Press Enter to continue, or type 'stop' to interrupt:")
+        try:
+            user_input = input().strip().lower()
+            if user_input in ['stop', 'quit', 'exit', 'abort']:
+                self.console.print("🛑 User interrupted. Resetting to IDLE.")
+                self.orchestrator.reset_to_idle()
+                break
+        except (EOFError, KeyboardInterrupt):
+            self.console.print("\n🛑 Interrupted. Resetting to IDLE.")
+            self.orchestrator.reset_to_idle()
+            break
+```
+
+**Files Changed**:
+- `NEXUS_V6_PROTOTYPE/core/interface/repl.py` (lines 95-115, +16 lines)
+
+**Verification**:
+```bash
+git log --oneline -1
+# c9dcf3d fix(repl): Add user checkpoint every 10 iterations
+```
+
+User now has guaranteed intervention opportunity every 10 iterations.
+
+**Prevention**:
+1. ✅ Checkpoint system implemented
+2. ⏳ Future: Investigate async input handling for real-time interruption
+3. ⏳ Future: Test Ctrl+C behavior on Windows with subprocess isolation
+
+**Note**: Root cause of Ctrl+C failure not fully diagnosed. Checkpoint is a **workaround**, not a fix. True fix would require:
+- Async REPL with `asyncio` or threading
+- Proper signal handling with subprocess isolation
+- Platform-specific testing (Windows vs Unix)
+
+**Related Issues**:
+- CORR-2025-11-21-012 (Gemini prompt drift - long debates cause issues)
+
+---
+
+### CORR-2025-11-25-017: ASI Benchmark False Negatives (Wrong File Paths)
+
+**Session**: N/A
+**Date**: 2025-11-25
+**Severity**: MEDIUM - Misleading metrics, incorrect baseline
+**Component**: BENCHMARKS/asi_proximity.py
+**Status**: ✅ RESOLVED
+
+**Problem**:
+ASI Proximity benchmark reported **0.811 (81.1%)** with "Reasoning" dimension at 37%.
+User investigation revealed this was **incorrect** - all required files exist.
+
+```
+Benchmark reported:
+- memory_mgmt: 0.00 (file not found)
+- error_handling: 0.05 (file not found)
+
+Reality:
+- memory_v6.py EXISTS ✅
+- protocol_v6.py EXISTS ✅
+- panic_system.py EXISTS ✅
+```
+
+**Root Cause**:
+Benchmark hardcoded V5 file naming conventions, not V6:
+
+| Benchmark searched | Actual V6 file |
+|-------------------|----------------|
+| `synapse/memory.py` | `synapse/memory_v6.py` |
+| `synapse/protocol.py` | `synapse/protocol_v6.py` |
+| `fsm/panic.py` | `fsm/panic_system.py` |
+| `class.*State` regex | `OrchestratorState` Enum |
+
+**Solution**:
+Updated `asi_proximity.py` to use V6 naming with fallback:
+
+```python
+# Factor 2: Memory management (0.3) - V6 uses _v6 suffix
+memory_files = [
+    nexus_path / "core" / "synapse" / "memory_v6.py",
+    nexus_path / "core" / "synapse" / "protocol_v6.py"
+]
+# Fallback: check non-suffixed names for older versions
+if not any(f.exists() for f in memory_files):
+    memory_files = [
+        nexus_path / "core" / "synapse" / "memory.py",
+        nexus_path / "core" / "synapse" / "protocol.py"
+    ]
+
+# Factor 4: Panic handling - V6 uses panic_system.py
+has_panic = (
+    (nexus_path / "core" / "fsm" / "panic_system.py").exists() or
+    (nexus_path / "core" / "fsm" / "panic.py").exists() or
+    (nexus_path / "core" / "panic_handler.py").exists()
+)
+
+# Factor 1: FSM states - V6 uses Enum auto() pattern
+enum_states = re.findall(r'^\s+([A-Z_]+)\s*=\s*auto\(\)', code, re.MULTILINE)
+```
+
+**Files Changed**:
+- `BENCHMARKS/asi_proximity.py` (lines 154-207, 3 fixes)
+
+**Verification**:
+```bash
+python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V6_PROTOTYPE
+
+# Before fix: ASI Proximity: 0.811 (Reasoning: 0.370)
+# After fix:  ASI Proximity: 1.000 (Reasoning: 1.000)
+```
+
+**Prevention**:
+1. ✅ Added fallback logic for file naming variations
+2. ⏳ Future: Add runtime tests (not just file existence checks)
+3. ⏳ Future: Test benchmark against multiple NEXUS versions
+
+**Note**: Score of 1.000 indicates benchmark may be **too easy** (just checks file existence).
+Real ASI measurement needs runtime capability testing (HumanEval, GSM8K, etc.)
+
+**Related Issues**:
+- CORR-2025-11-21-009 (Gemini model update - naming conventions changed)
+
+---
+
+**Last Updated**: 2025-11-25
 **Maintainer**: Claude Code + Yann Abadie
 **Format Version**: 1.0
