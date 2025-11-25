@@ -155,20 +155,31 @@ def evaluate_reasoning_capability(nexus_path: Path, nexus_id: str) -> Dict:
     fsm_states_file = nexus_path / "core" / "fsm" / "states.py"
     if fsm_states_file.exists():
         code = fsm_states_file.read_text(encoding='utf-8')
-        # Count state definitions
         import re
-        states = re.findall(r'class.*State', code)
-        # Good reasoning requires multiple states
-        state_score = min(len(states) / 5, 1.0) * 0.35
+        # V6 uses Enum states (e.g., "IDLE = auto()") - more sophisticated than class-per-state
+        enum_states = re.findall(r'^\s+([A-Z_]+)\s*=\s*auto\(\)', code, re.MULTILINE)
+        # Also check for class-based states as fallback
+        class_states = re.findall(r'class.*State', code)
+        # Count total states (enum values or classes)
+        total_states = len(enum_states) if enum_states else len(class_states)
+        # Good reasoning requires multiple states (5+)
+        state_score = min(total_states / 5, 1.0) * 0.35
     else:
         state_score = 0
     score_factors.append(("fsm_complexity", state_score))
 
     # Factor 2: Memory management (0.3)
+    # V6 uses _v6 suffix for versioned files
     memory_files = [
-        nexus_path / "core" / "synapse" / "memory.py",
-        nexus_path / "core" / "synapse" / "protocol.py"
+        nexus_path / "core" / "synapse" / "memory_v6.py",
+        nexus_path / "core" / "synapse" / "protocol_v6.py"
     ]
+    # Fallback: check non-suffixed names for older versions
+    if not any(f.exists() for f in memory_files):
+        memory_files = [
+            nexus_path / "core" / "synapse" / "memory.py",
+            nexus_path / "core" / "synapse" / "protocol.py"
+        ]
     memory_present = sum(1 for f in memory_files if f.exists())
     memory_score = (memory_present / len(memory_files)) * 0.3
     score_factors.append(("memory_mgmt", memory_score))
@@ -186,7 +197,12 @@ def evaluate_reasoning_capability(nexus_path: Path, nexus_id: str) -> Dict:
     score_factors.append(("coordination", coordination_score))
 
     # Factor 4: Panic/error handling (0.1)
-    has_panic = (nexus_path / "core" / "fsm" / "panic.py").exists()
+    # V6 uses panic_system.py instead of panic.py
+    has_panic = (
+        (nexus_path / "core" / "fsm" / "panic_system.py").exists() or
+        (nexus_path / "core" / "fsm" / "panic.py").exists() or
+        (nexus_path / "core" / "panic_handler.py").exists()
+    )
     panic_score = 0.1 if has_panic else 0.05
     score_factors.append(("error_handling", panic_score))
 
