@@ -64,8 +64,10 @@ class Config:
         }
 
         # Q3B: Rate Limiting (3 gen/day)
-        self.max_generations_per_day: int = int(os.getenv("MAX_GEN_PER_DAY", "3"))
-        self.min_hours_between_gen: int = int(os.getenv("MIN_HOURS_BETWEEN_GEN", "8"))
+        # Note: 8h limit was too restrictive for development - reduced to 0.1h (6 min)
+        # For production, set MIN_HOURS_BETWEEN_GEN=8 in .env
+        self.max_generations_per_day: int = int(os.getenv("MAX_GEN_PER_DAY", "10"))
+        self.min_hours_between_gen: float = float(os.getenv("MIN_HOURS_BETWEEN_GEN", "0.1"))
 
         # Aliases for rate_limiter.py compatibility
         self.min_hours_between_generations = self.min_hours_between_gen
