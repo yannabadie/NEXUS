@@ -348,9 +348,53 @@ class OrchestratorV6:
 
             # Handle different action types
             if action_type == "TOOL_USE":
-                # Tool use during evolution - note it but continue debate
-                tool_name = message.get('tool_use', {}).get('tool_name', 'unknown')
-                return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} requested: {tool_name}] {content}", sender, False)
+                # FIX CORR-021: Execute READ-ONLY tools during evolution brainstorming
+                # Agents need to read files to understand what they want to mutate
+                tool_use = message.get('tool_use', {})
+                tool_name = tool_use.get('tool_name', 'unknown')
+
+                # Safe read-only tools that can be executed during brainstorming
+                SAFE_TOOLS = {'read', 'glob', 'grep', 'list_dir', 'web_search', 'web_fetch'}
+                # Dangerous tools that modify state - block during brainstorming
+                BLOCKED_TOOLS = {'write', 'edit', 'bash', 'git', 'todo_write'}
+
+                if tool_name in SAFE_TOOLS:
+                    # Execute the safe tool and return result
+                    try:
+                        from core.synapse.protocol_v6 import ToolUse
+                        tool_request = ToolUse(**tool_use)
+                        result = self.tool_manager.execute(tool_request)
+
+                        # Format result for agents
+                        result_text = f"[{sender} executed: {tool_name}]\n"
+                        if result.status == "success":
+                            # Truncate long outputs
+                            output = result.output[:3000] if len(result.output) > 3000 else result.output
+                            result_text += f"✓ Result:\n{output}"
+                        else:
+                            result_text += f"✗ Error: {result.error}"
+
+                        # Add result to history so other agent can see it
+                        self.memory.add_to_history({
+                            "sender": "System",
+                            "action_type": "TOOL_RESULT",
+                            "content": result_text
+                        })
+
+                        return self._make_result("EVOLUTION_BRAINSTORM", result_text, sender, False)
+
+                    except Exception as e:
+                        return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} tool error: {tool_name}] {e}", sender, False)
+
+                elif tool_name in BLOCKED_TOOLS:
+                    # Block dangerous tools during brainstorming
+                    return self._make_result("EVOLUTION_BRAINSTORM",
+                        f"[{sender} blocked: {tool_name}] ⚠️ Write operations are disabled during brainstorming. "
+                        f"Propose mutations in JSON format instead.", sender, False)
+
+                else:
+                    # Unknown tool - just note it
+                    return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} requested: {tool_name}] {content}", sender, False)
 
             elif action_type in ["TALK", "DELEGATE", None]:
                 # Normal debate turn (None = Claude hybrid format)
