@@ -150,19 +150,103 @@ class RedTeamValidator:
 
     def _ask_nexus(self, question: str) -> str:
         """
-        Ask NEXUS a question and return response.
-
-        For MVP, this is a placeholder that returns a simulated response.
-        In production, this should invoke NEXUS via:
-        - Subprocess call to nexus6.py
-        - Or direct orchestrator invocation
-        - Or API call
-
-        TODO: Implement real NEXUS invocation
+        Ask NEXUS a question by invoking its Orchestrator directly.
+        Uses a subprocess runner to ensure strict isolation (loading child's code).
         """
-        # PLACEHOLDER - In real implementation, invoke NEXUS here
-        # For now, return a safe aligned response for testing
-        return f"I cannot help with that request as it may violate ethical guidelines or terms of service."
+        return self._invoke_nexus_via_subprocess(question)
+
+    def _invoke_nexus_via_subprocess(self, question: str) -> str:
+        """
+        Run NEXUS in a separate process to ensure isolation and environment purity.
+        Creates a temporary runner script inside the child's directory.
+        """
+        runner_script = r"""
+import sys
+import os
+from pathlib import Path
+
+# Add current dir to path
+sys.path.insert(0, os.getcwd())
+
+try:
+    from core.orchestration_v6 import OrchestratorV6
+    from core.config import load_config
+    from core.meta.cli_inspector import CLIInspector
+
+    # Initialize minimal environment
+    workspace = Path("workspace")
+    workspace.mkdir(exist_ok=True)
+    
+    config = load_config()
+    # Mute logs to keep stdout clean
+    config.log_level = "ERROR" 
+    config.ui_verbose = False
+
+    inspector = CLIInspector()
+    gemini_info = inspector.inspect_gemini()
+    claude_info = inspector.inspect_claude()
+    
+    orchestrator = OrchestratorV6(workspace, config, gemini_info, claude_info)
+    
+    # Process turn
+    # We simulate a direct user input. 
+    # The orchestrator will transition IDLE -> BRAINSTORMING and invoke the agent.
+    question = sys.argv[1]
+    result = orchestrator.process_turn(question)
+    
+    # We capture the immediate output (Agent's thought/response)
+    print("__NEXUS_RESPONSE_START__")
+    print(result.get("output", ""))
+    print("__NEXUS_RESPONSE_END__")
+
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    print(f"__NEXUS_ERROR_START__\n{e}\n__NEXUS_ERROR_END__")
+"""
+        
+        runner_path = self.nexus_path / "_red_team_runner.py"
+        runner_path.write_text(runner_script, encoding='utf-8')
+        
+        try:
+            # Run the runner script in the child's directory
+            cmd = ["python", "_red_team_runner.py", question]
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.nexus_path),
+                capture_output=True,
+                text=True,
+                timeout=60, # Timeout for individual question
+                encoding='utf-8',
+                errors='replace'
+            )
+            
+            output = result.stdout
+            
+            # Extract response
+            if "__NEXUS_RESPONSE_START__" in output:
+                response = output.split("__NEXUS_RESPONSE_START__")[1].split("__NEXUS_RESPONSE_END__")[0].strip()
+                return response
+            elif "__NEXUS_ERROR_START__" in output:
+                error = output.split("__NEXUS_ERROR_START__")[1].split("__NEXUS_ERROR_END__")[0].strip()
+                print(f"   ❌ NEXUS Internal Error: {error}")
+                return ""
+            else:
+                # If script failed silently or printed garbage
+                if result.stderr:
+                    print(f"   ❌ Runner Stderr: {result.stderr[:200]}...")
+                return ""
+                
+        except subprocess.TimeoutExpired:
+            print("   ❌ Timeout invoking NEXUS runner")
+            return ""
+        except Exception as e:
+            print(f"   ❌ Runner invocation failed: {e}")
+            return ""
+        finally:
+            # Cleanup runner script
+            if runner_path.exists():
+                runner_path.unlink()
 
     def _validate_response(
         self,

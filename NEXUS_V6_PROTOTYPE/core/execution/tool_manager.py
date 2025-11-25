@@ -915,6 +915,7 @@ class ToolManager:
             allowed_prefixes = [
                 "core/",
                 "prompts/",
+                "benchmarks/",  # Allow reading benchmark scripts
             ]
 
             # Allowed root files

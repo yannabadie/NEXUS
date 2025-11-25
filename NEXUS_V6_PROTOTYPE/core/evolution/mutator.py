@@ -1,5 +1,12 @@
 """
-Mutator - Child NEXUS Generation Engine
+Mutator - Child NEXUS Generation Engine (DEPRECATED)
+
+⚠️ DEPRECATED: This module uses hardcoded mutation functions.
+The actual NEXUS V6 evolution logic is now implemented in `core/interface/repl.py`
+using an Emergent Evolution approach (Gemini+Claude brainstorming + JSON patches).
+
+This file is kept for reference and potential utility functions (clone_parent),
+but should not be used for the main evolution cycle.
 
 Handles Phase 1 (MUTATION) of evolution protocol:
 - Clone parent NEXUS to GENERATION_ACTIVE/
@@ -295,7 +302,7 @@ def optimize_fsm_transitions(child_path: Path, target_file: str = "core/orchestr
         print(f"[MUTATOR] Optimizing FSM transitions in {target_file}")
         # Placeholder: Real mutation would analyze and optimize code
         with open(file_path, 'a', encoding='utf-8') as f:
-            f.write(f"\\n# FSM optimization applied: {datetime.now().isoformat()}\\n")
+            f.write(f"\n# FSM optimization applied: {datetime.now().isoformat()}\n")
 
     return {
         "files_modified": [target_file],
@@ -326,7 +333,7 @@ def improve_memory_management(child_path: Path, target_file: str = "core/synapse
     # Placeholder mutation
     mode = 'a' if file_path.exists() else 'w'
     with open(file_path, mode, encoding='utf-8') as f:
-        f.write(f"\\n# Memory optimization applied: {datetime.now().isoformat()}\\n")
+        f.write(f"\n# Memory optimization applied: {datetime.now().isoformat()}\n")
 
     return {
         "files_modified": [target_file],
@@ -357,7 +364,7 @@ def enhance_gemini_prompt(child_path: Path, target_file: str = "prompts/system_g
     # Placeholder mutation
     mode = 'a' if file_path.exists() else 'w'
     with open(file_path, mode, encoding='utf-8') as f:
-        f.write(f"\\n\\n<!-- Prompt enhancement: {datetime.now().isoformat()} -->\\n")
+        f.write(f"\n\n<!-- Prompt enhancement: {datetime.now().isoformat()} -->\n")
 
     return {
         "files_modified": [target_file],

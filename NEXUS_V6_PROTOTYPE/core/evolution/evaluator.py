@@ -39,7 +39,7 @@ class EvaluationError(Exception):
 def run_benchmarks(
     nexus_path: Path,
     nexus_id: str,
-    benchmark_suite: str = "asi_proximity"
+    benchmark_suite: str = "asi_benchmark"
 ) -> Dict:
     """
     Run benchmark suite on NEXUS instance.
@@ -51,23 +51,54 @@ def run_benchmarks(
 
     Returns:
         dict: Benchmark results with scores per dimension
-
-    Note:
-        MVP version uses SIMULATED benchmarks.
-        Production version should run actual benchmarks:
-        - coding: Code generation, refactoring, debugging tasks
-        - reasoning: Logic puzzles, multi-step planning
-        - creativity: Novel solutions, architecture design
-        - scalability: Performance on large-scale problems
     """
     print(f"[EVALUATOR] Running {benchmark_suite} on {nexus_id}...")
 
-    # Check if benchmark script exists
-    benchmark_script = nexus_path.parent.parent / "BENCHMARKS" / f"{benchmark_suite}.py"
+    # 1. Try REAL Benchmarks from ROOT (BENCHMARKS/ at project root)
+    # Benchmarks are at root to prevent children from "cheating" by modifying their own tests
+    try:
+        # BENCHMARKS is at project root (20_NEXUS/BENCHMARKS), not inside V6
+        project_root = nexus_path.parent  # 20_NEXUS/
+        benchmarks_dir = project_root / "BENCHMARKS"
 
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+
+        # Try to import the real benchmark orchestrator
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("asi_benchmark", str(benchmarks_dir / "asi_benchmark.py"))
+        
+        if spec and spec.loader:
+            print(f"[EVALUATOR] Found REAL benchmark engine at {benchmarks_dir}")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["asi_benchmark"] = module
+            spec.loader.exec_module(module)
+            
+            # Run benchmark
+            benchmark = module.ASIBenchmark(nexus_path)
+            asi_score, results = benchmark.run_full_benchmark()
+            
+            # Format for Evaluator consumption
+            formatted_results = {
+                "nexus_id": nexus_id,
+                "benchmark_suite": "asi_proximity_real",
+                "timestamp": datetime.now().isoformat(),
+                "scores": {dim: res.score for dim, res in results.items()},
+                "raw_results": {dim: res.details for dim, res in results.items()},
+                "simulated": False
+            }
+            print(f"[EVALUATOR] Real benchmarks completed. Score: {asi_score}")
+            return formatted_results
+            
+    except Exception as e:
+        print(f"[EVALUATOR] Real benchmark execution failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+    # 2. Fallback to subprocess if import failed (for isolation)
+    benchmark_script = nexus_path.parent / "BENCHMARKS" / "asi_benchmark.py"
     if benchmark_script.exists():
-        # Run actual benchmark
-        print(f"[EVALUATOR] Executing benchmark script: {benchmark_script}")
+        print(f"[EVALUATOR] Executing benchmark script via subprocess: {benchmark_script}")
         try:
             result = subprocess.run([
                 "python",
@@ -77,18 +108,33 @@ def run_benchmarks(
             ], capture_output=True, text=True, timeout=300)
 
             if result.returncode == 0:
-                # Parse benchmark output (expects JSON)
-                benchmark_results = json.loads(result.stdout)
-                print(f"[EVALUATOR]  Benchmarks completed")
-                return benchmark_results
+                # Extract JSON from stdout (last line)
+                lines = result.stdout.strip().split('\n')
+                # Find the JSON block (usually at the end)
+                json_str = ""
+                for line in reversed(lines):
+                    if line.strip().startswith("}"):
+                        # Walk backwards to find start
+                        pass # Simplified JSON extraction for now
+                
+                # Try parsing the whole stdout if it's pure JSON, or look for JSON block
+                try:
+                    benchmark_results = json.loads(result.stdout.strip().split('\n')[-1])
+                    if "scores" in benchmark_results:
+                        print(f"[EVALUATOR] Subprocess benchmarks completed")
+                        return benchmark_results
+                except:
+                    # Try finding the JSON block more robustly
+                    import re
+                    match = re.search(r'\{.*\}', result.stdout, re.DOTALL)
+                    if match:
+                        return json.loads(match.group(0))
 
-        except subprocess.TimeoutExpired:
-            print(f"[EVALUATOR]    Benchmark timeout - using simulated results")
         except Exception as e:
-            print(f"[EVALUATOR]    Benchmark failed: {e} - using simulated results")
+            print(f"[EVALUATOR] Subprocess benchmark failed: {e}")
 
-    # Fallback: Simulated benchmarks for MVP
-    print(f"[EVALUATOR]    Using SIMULATED benchmarks (MVP mode)")
+    # 3. Final Fallback: Simulated benchmarks for MVP
+    print(f"[EVALUATOR] ⚠️  Using SIMULATED benchmarks (Real benchmarks failed or missing)")
     return run_simulated_benchmarks(nexus_id)
 
 

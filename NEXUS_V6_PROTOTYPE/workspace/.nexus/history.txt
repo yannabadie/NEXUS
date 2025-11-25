@@ -66,3 +66,6 @@
 
 # 2025-11-25 11:45:49.190870
 +exit
+
+# 2025-11-25 14:37:48.928535
++Calcule ton score ASI actuel en utilisant le benchmark asi_proximity. C'est pour établir la baseline V6.5
