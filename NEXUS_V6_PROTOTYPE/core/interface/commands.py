@@ -21,6 +21,7 @@ SLASH_COMMANDS = {
     "/chat": "Enter chat-only mode (no tool execution)",
     "/evolve [count]": "Create and evaluate child generations (default: 3)",
     "/evolve-status": "Show evolution stats and stagnation counter",
+    "/specialize <mission>": "Create a specialized NEXUS spinoff for a specific mission",
     "/review": "Review and evaluate pending children from evolution",
     "/help": "Show this help message",
     "exit": "Exit NEXUS V6.0"

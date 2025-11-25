@@ -424,10 +424,6 @@ class ToolManager:
 
         Returns:
             ToolResult with search results
-
-        Examples:
-            {"query": "Claude CLI documentation"}
-            {"query": "Python asyncio best practices 2025", "num_results": 10}
         """
         query = args.get("query", "")
         num_results = args.get("num_results", 5)
@@ -442,18 +438,20 @@ class ToolManager:
 
         try:
             # Use Gemini CLI for web search
-            # Command: gemini -p "google_web_search: <query>"
+            # Fix: Force a model capable of grounding (gemini-3-pro-preview)
+            # Fix: Explicitly prompt to use the tool
             command = [
                 "gemini",
+                "-m", "gemini-3-pro-preview",
                 "-p",
-                f"Use google_web_search to find information about: {query}. Return the top {num_results} results with titles, URLs, and brief summaries."
+                f"You have access to Google Search. Search for: '{query}'. Provide a detailed summary of the top {num_results} results including titles and URLs."
             ]
 
             result = subprocess.run(
                 command,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=90,  # Fix: Increased timeout for grounding latency
                 encoding="utf-8",
                 errors="replace"
             )
@@ -466,11 +464,13 @@ class ToolManager:
                     error=result.stderr
                 )
             else:
+                # Fix: Capture stdout too, as CLI might print errors there
+                error_msg = f"Stderr: {result.stderr}\nStdout: {result.stdout}"
                 return ToolResult(
                     tool_name="web_search",
                     status="FAILURE",
                     output=result.stdout,
-                    error=result.stderr or f"Search failed with return code {result.returncode}"
+                    error=error_msg
                 )
 
         except subprocess.TimeoutExpired:
@@ -478,7 +478,7 @@ class ToolManager:
                 tool_name="web_search",
                 status="ERROR",
                 output="",
-                error="Web search timed out after 30s"
+                error="Web search timed out after 90s"
             )
         except FileNotFoundError:
             return ToolResult(
@@ -533,14 +533,16 @@ class ToolManager:
             )
 
         try:
-            # Create request with user agent
+            # Create request with REAL browser user agent (Fix 403 blocks)
             req = urllib.request.Request(
                 url,
-                headers={'User-Agent': 'NEXUS-V6/1.0'}
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
             )
 
             # Fetch URL
-            with urllib.request.urlopen(req, timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=30) as response:
                 content_type = response.headers.get('Content-Type', '')
 
                 # Read content

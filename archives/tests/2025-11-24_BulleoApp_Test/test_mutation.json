@@ -1,0 +1,8 @@
+[
+  {
+    "file": "core/orchestration_v6.py",
+    "change": "    def _test_workspace_access(self):\n        \"\"\"Test method to verify mutation application works.\"\"\"\n        pass",
+    "reason": "Test mutation to verify apply_mutation.py can access and modify core files from workspace boundary",
+    "expected_asi_impact": 0.01
+  }
+]

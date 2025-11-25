@@ -41,7 +41,8 @@ class GeminiDriverV6:
         output_file = self.io_buffer / "gemini_output.json"
 
         # Invoke Gemini with JSON output
-        command = f'"{self.cli_path}" -p @"{context_file}" -o json > "{output_file}"'
+        # Fix: Force gemini-3-pro-preview model
+        command = f'"{self.cli_path}" -m gemini-3-pro-preview -p @"{context_file}" -o json > "{output_file}"'
 
         try:
             result = subprocess.run(
@@ -68,14 +69,26 @@ class GeminiDriverV6:
                 # The actual NEXUS JSON is inside response["response"] as markdown string
                 if "response" in gemini_output and isinstance(gemini_output["response"], str):
                     # Extract JSON from markdown code block
-                    return self._extract_json(gemini_output["response"])
+                    extracted_data = self._extract_json(gemini_output["response"])
                 else:
                     # Direct JSON (shouldn't happen with gemini CLI -o json)
-                    return gemini_output
+                    extracted_data = gemini_output
 
             except json.JSONDecodeError as e:
                 # Try to extract JSON from text
-                return self._extract_json(output_text)
+                extracted_data = self._extract_json(output_text)
+
+            # CRITICAL FIX: Handle list response (Evolution Mutations)
+            if isinstance(extracted_data, list):
+                # Wrap list in a standard message structure to satisfy Orchestrator
+                return {
+                    "sender": "Gemini",
+                    "action_type": "TALK",
+                    "content": json.dumps(extracted_data), # Pass the list as a string content
+                    "status": "FINISHED"
+                }
+            
+            return extracted_data
 
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Gemini CLI timed out after {self.timeout}s")
