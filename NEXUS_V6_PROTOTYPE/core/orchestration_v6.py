@@ -327,45 +327,37 @@ class OrchestratorV6:
             action_type = message.get("action_type")
             content = message.get("content", "")
 
-            # FIX CORR-019: Handle Claude's hybrid format (may not have action_type)
-            # Claude uses natural language + XML, so action_type may be None or missing
-            # In evolution mode, we accept any response and continue debate
-            if action_type in ["TALK", "DELEGATE", None]:
-                # Continue evolution debate (None = Claude hybrid format)
-                self.stagnation_detector.add_message(content)
+            # FIX CORR-019 + CORR-020: Handle all action types and FORCE alternation
+            # In EVOLUTION_BRAINSTORM mode, we want equal participation from both agents
+            # So we ALWAYS alternate after each turn, regardless of next_agent
 
-                # Capture sender BEFORE updating active_agent
-                sender = message.get("sender", self.active_agent)
+            # Capture sender BEFORE alternation
+            sender = message.get("sender", self.active_agent)
+            self.stagnation_detector.add_message(content)
 
-                # Check agent switch (default: alternate between agents)
-                next_agent = message.get("next_agent")
-                if next_agent and next_agent != self.active_agent:
-                    self.active_agent = next_agent
-                    self.stagnation_detector.reset()  # Reset on switch
-                elif not next_agent:
-                    # No explicit next_agent - alternate to other agent
-                    self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
-                    self.stagnation_detector.reset()
+            # Check if finished
+            if message.get("status") == "FINISHED":
+                self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("FINISHED", content, sender, True)
 
+            # FORCE ALTERNATION in evolution mode - equal participation
+            # Don't let one agent monopolize the debate
+            previous_agent = self.active_agent
+            self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+            self.stagnation_detector.reset()
+
+            # Handle different action types
+            if action_type == "TOOL_USE":
+                # Tool use during evolution - note it but continue debate
+                tool_name = message.get('tool_use', {}).get('tool_name', 'unknown')
+                return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} requested: {tool_name}] {content}", sender, False)
+
+            elif action_type in ["TALK", "DELEGATE", None]:
+                # Normal debate turn (None = Claude hybrid format)
                 return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
 
-            elif message.get("status") == "FINISHED":
-                # Evolution debate complete - return to IDLE
-                self._transition_to(OrchestratorState.IDLE)
-                return self._make_result("FINISHED", content, self.active_agent, True)
-
-            elif action_type == "TOOL_USE":
-                # Tool use during evolution - allowed for reading files
-                # Don't transition state, just note it
-                return self._make_result("EVOLUTION_BRAINSTORM", f"[Tool requested: {message.get('tool_use', {}).get('tool_name', 'unknown')}] {content}", self.active_agent, False)
-
             else:
-                # Unknown action but don't break - continue debate
-                # FIX: Don't transition to IDLE, stay in EVOLUTION_BRAINSTORM
-                self.stagnation_detector.add_message(content)
-                sender = message.get("sender", self.active_agent)
-                # Alternate agent
-                self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+                # Unknown action type - continue anyway
                 return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
 
         # === STATE: ERROR ===

@@ -355,9 +355,7 @@ class InteractiveNexusV6:
             lineage_context = lineage_path.read_text(encoding='utf-8')[:2000]  # First 2000 chars
 
         # Craft the EMERGENT brainstorming task
-        brainstorm_task = f"""**SYSTEM_OVERRIDE: IMMEDIATE ACTION REQUIRED**
-
-🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
+        brainstorm_task = f"""🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
 
 CONTEXTE CRITIQUE:
 Vous entrez dans une phase de RECHERCHE PURE.
@@ -421,14 +419,34 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
         max_iterations = 30  # Evolution debate limit
         iterations = 0
 
+        # Track all outputs to find JSON
+        all_outputs = [result.get('output', '')]
+
         while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
             result = self.orchestrator.process_turn()
             self.console.display_result(result)
             iterations += 1
 
+            # Collect output
+            output = result.get('output', '')
+            all_outputs.append(output)
+
             # Check if task is finished
             if result.get("finished"):
                 break
+
+            # EARLY EXIT: Check if valid JSON mutation array is in recent output
+            # This avoids unnecessary turns after consensus is reached
+            if iterations >= 4:  # Give at least 4 turns for real debate
+                json_match = re.search(r'\[\s*\{[^}]*"file"[^}]*"change"[^}]*"reason"[^}]*"expected_asi_impact"[^}]*\}\s*\]', output)
+                if json_match:
+                    try:
+                        test_json = json.loads(json_match.group(0))
+                        if isinstance(test_json, list) and len(test_json) == child_count:
+                            self.console.print(f"\n✓ Valid JSON detected at iteration {iterations}, ending debate early")
+                            break
+                    except json.JSONDecodeError:
+                        pass  # Not valid JSON, continue debate
 
         # Return to IDLE state
         self.orchestrator._transition_to(OrchestratorState.IDLE)
@@ -439,14 +457,14 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
         if result["state"] in ["ERROR", "PANIC"]:
             raise ValueError(f"Brainstorming failed with state: {result['state']}")
 
-        # Get final message content from the last output
-        final_content = result.get('output', '')
+        # Get all outputs combined for JSON extraction
+        final_content = '\n'.join(all_outputs)
 
         # FALLBACK PARSING: Try to extract JSON with 2 retries
         proposals = None
         for retry in range(3):  # 0, 1, 2 = 3 attempts total
-            # Extract JSON from message (pattern: [...] array)
-            json_match = re.search(r'\[[\s\S]*?\{[\s\S]*?"file"[\s\S]*?\}[\s\S]*?\]', final_content)
+            # Extract JSON from message (pattern: [...] array with required keys)
+            json_match = re.search(r'\[\s*\{[^}]*"file"[^}]*"change"[^}]*"reason"[^}]*"expected_asi_impact"[^}]*\}\s*\]', final_content)
 
             if json_match:
                 try:
