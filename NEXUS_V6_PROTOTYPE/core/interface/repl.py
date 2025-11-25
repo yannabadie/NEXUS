@@ -257,8 +257,13 @@ class InteractiveNexusV6:
 
                 if decision in ['a', 'approve']:
                     self.console.print(f"✓ Approved: {child['id']} will become new parent")
-                    # TODO: Implement promotion logic (update LINEAGE.json, move files)
-                    self.console.print("⚠️  Manual promotion required (auto-promotion not yet implemented)")
+                    # Execute promotion logic
+                    try:
+                        self._promote_child(child, generation)
+                        self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                    except Exception as e:
+                        self.console.print_error(f"Promotion failed: {e}")
+                        self.console.print("⚠️  Manual promotion required")
                     break
                 elif decision in ['r', 'reject']:
                     self.console.print(f"✗ Rejected: {child['id']} will be archived")
@@ -953,3 +958,149 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
         except Exception as e:
             self.console.print_error(f"Failed to load evolution status: {e}")
+
+    def _promote_child(self, child: dict, generation: int):
+        """
+        Promote approved child to become the new active parent.
+
+        Steps:
+        1. Archive current parent to ARCHIVE/GEN_XXX/
+        2. Move child from GENERATION_ACTIVE/ to NEXUS_V6_PROTOTYPE/
+        3. Update LINEAGE.json via promote_child_to_parent()
+        4. Git commit the promotion
+
+        Args:
+            child: Child metadata dict from pending review
+            generation: Generation number
+        """
+        import shutil
+        import subprocess
+        from datetime import datetime
+        from core.evolution.lineage import (
+            load_lineage, save_lineage,
+            promote_child_to_parent, archive_generation
+        )
+
+        child_id = child['id']
+        asi_score = child['score']
+
+        # Paths
+        project_root = Path(__file__).parent.parent.parent.parent  # 20_NEXUS/
+        parent_path = Path(__file__).parent.parent.parent  # NEXUS_V6_PROTOTYPE/
+        child_path = project_root / "GENERATION_ACTIVE" / child_id
+        archive_dir = project_root / "ARCHIVE" / f"GEN_{generation-1:03d}"
+
+        # Validate child exists
+        if not child_path.exists():
+            raise FileNotFoundError(f"Child not found: {child_path}")
+
+        self.console.print(f"\n{'─'*60}")
+        self.console.print("🔄 PROMOTION IN PROGRESS")
+        self.console.print(f"{'─'*60}")
+
+        # 1. Load lineage
+        lineage = load_lineage(self.workspace_path)
+        old_parent = lineage["current_parent"]
+        old_parent_id = old_parent["id"]
+
+        self.console.print(f"Old Parent: {old_parent_id}")
+        self.console.print(f"New Parent: {child_id}")
+
+        # 2. Archive old parent
+        self.console.print(f"\n📦 Archiving {old_parent_id}...")
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy parent to archive (keep original for safety during transition)
+        archive_parent_path = archive_dir / old_parent_id
+        if not archive_parent_path.exists():
+            shutil.copytree(
+                parent_path,
+                archive_parent_path,
+                ignore=shutil.ignore_patterns('__pycache__', '*.pyc', 'workspace')
+            )
+            self.console.print(f"✓ Parent archived to {archive_dir}")
+        else:
+            self.console.print(f"⚠️  Archive already exists, skipping")
+
+        # Update lineage with archive info
+        lineage = archive_generation(
+            lineage,
+            old_parent_id,
+            archive_parent_path,
+            reason=f"Superseded by {child_id}"
+        )
+
+        # 3. Promote child - copy child files over parent
+        self.console.print(f"\n🚀 Promoting {child_id}...")
+
+        # Remove old parent files (except workspace and .git)
+        for item in parent_path.iterdir():
+            if item.name in ['workspace', '.git', '__pycache__']:
+                continue
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+
+        # Copy child files to parent location
+        for item in child_path.iterdir():
+            if item.name in ['__pycache__', 'workspace']:
+                continue
+            dest = parent_path / item.name
+            if item.is_dir():
+                shutil.copytree(item, dest)
+            else:
+                shutil.copy2(item, dest)
+
+        self.console.print(f"✓ Child files promoted to NEXUS_V6_PROTOTYPE/")
+
+        # 4. Update LINEAGE.json
+        birth_cert_path = child.get('birth_cert_path', f"GENERATION_ACTIVE/{child_id}/BIRTH_CERTIFICATE.json")
+        notable_features = [child.get('improvements_summary', 'Emergent mutation')]
+
+        lineage = promote_child_to_parent(
+            lineage=lineage,
+            child_id=child_id,
+            child_path=parent_path,  # New location
+            asi_score=asi_score,
+            birth_cert_path=birth_cert_path,
+            notable_features=notable_features
+        )
+
+        save_lineage(lineage, self.workspace_path)
+        self.console.print(f"✓ LINEAGE.json updated")
+
+        # 5. Clean up GENERATION_ACTIVE
+        self.console.print(f"\n🧹 Cleaning up...")
+        shutil.rmtree(child_path)
+        self.console.print(f"✓ Removed {child_path}")
+
+        # 6. Git commit
+        self.console.print(f"\n📝 Git commit...")
+        try:
+            subprocess.run(
+                ["git", "add", "-A"],
+                cwd=project_root,
+                check=True,
+                capture_output=True
+            )
+            commit_msg = f"evolution(promote): {child_id} → active parent (Gen {generation})\n\n" \
+                        f"ASI Score: {asi_score:.3f}\n" \
+                        f"Archived: {old_parent_id}\n\n" \
+                        f"🤖 Generated with NEXUS Evolution Engine"
+            subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                cwd=project_root,
+                check=True,
+                capture_output=True
+            )
+            self.console.print(f"✓ Committed promotion to git")
+        except subprocess.CalledProcessError as e:
+            self.console.print(f"⚠️  Git commit failed (manual commit recommended)")
+
+        self.console.print(f"\n{'─'*60}")
+        self.console.print(f"✅ PROMOTION COMPLETE")
+        self.console.print(f"{'─'*60}")
+        self.console.print(f"New active parent: {child_id}")
+        self.console.print(f"Generation: {generation}")
+        self.console.print(f"ASI Score: {asi_score:.3f}")
