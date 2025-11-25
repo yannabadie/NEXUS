@@ -811,6 +811,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
             # Create children with EMERGENT mutations (no hardcoded functions)
             import shutil
+            import json
             from datetime import datetime
 
             for i, mutation in enumerate(mutations_proposals):
