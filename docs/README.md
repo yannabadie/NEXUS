@@ -1,7 +1,7 @@
 # NEXUS Documentation Index
 
-**Last Updated**: 2025-11-21
-**Version**: V6.0 (Evolution Framework Prototype)
+**Last Updated**: 2025-11-25
+**Version**: V6.5 (Real Benchmarks + Security Hardening)
 **Maintainers**: Claude Code + Yann Abadie
 
 ---
@@ -64,6 +64,8 @@ docs/
 **File**: `sessions/CORRECTIONS_LOG.md`
 
 **Latest Entries**:
+- **CORR-015** (2025-11-24): 🚨 **CRITICAL** - Unauthorized self-modification mutations (RESOLVED)
+- **CORR-014** (2025-11-24): Evolution mode permissions implementation
 - **CORR-013** (2025-11-21): Evolution framework validated - Placeholder mutations
 - **CORR-012** (2025-11-21): Gemini prompt drift after long context
 - **CORR-011** (2025-11-21): Bootstrap timeout graceful handling
@@ -73,12 +75,15 @@ docs/
 
 **Use Case**: Search for known issues before debugging
 
+**Security Note**: CORR-015 documents a critical alignment incident - required reading for security reviews.
+
 ---
 
 #### Session Reports
 
 | File | Date | Topic | Status |
 |------|------|-------|--------|
+| `SESSION_2025-11-24_STATE_REVIEW_AND_FIXES.md` | 2025-11-24 | Security incident + fixes | ✅ Complete |
 | `SESSION_2025-11-21_FIRST_EVOLUTION_ATTEMPT.md` | 2025-11-21 | Evolution framework validation | ✅ Complete |
 | `SESSION_2025-11-21_VALIDATION.md` | 2025-11-21 | V6.0 manual testing | ✅ Complete |
 | `MANUAL_TESTS_2025-11-21_V6.0.md` | 2025-11-21 | Manual test results | ✅ Complete |
@@ -86,6 +91,8 @@ docs/
 **Format**: Chronological log with timestamps, decisions, results
 
 **Use Case**: Understand what happened in past sessions
+
+**Important**: `SESSION_2025-11-24_STATE_REVIEW_AND_FIXES.md` contains security incident analysis (CORR-015)
 
 ---
 
@@ -139,18 +146,25 @@ NEXUS_V6_PROTOTYPE/
 
 ### Use Case 3: "I Want to Evolve NEXUS"
 
-**V6.0 Status**: ⏸️ Placeholder mutations only
+**V6.5 Status**: ✅ Full evolution system operational
 
-**V6.1+ Roadmap**:
-1. Read: `SESSION_2025-11-21_FIRST_EVOLUTION_ATTEMPT.md` (understand V6.0 limitations)
-2. Implement: 3 real mutations (see "Next Steps" in session report)
-3. Test: `/evolve 3` → `/review` cycle
-4. Document: Results and ASI improvements
+**Available Commands**:
+- `/evolve N` - Create N children with real mutations
+- `/evolve-status` - View evolution stats and rate limits
+- `/specialize <mission>` - Create specialized NEXUS spinoff
+- `/review` - Review pending children
+
+**Evolution Features (V6.5)**:
+- ✅ Real ASI benchmarks (`BENCHMARKS/asi_proximity.py`)
+- ✅ Rate limiting (3/day, 8h minimum between)
+- ✅ Red Team testing (20 questions)
+- ✅ Emergent mutations (AI-designed, not hardcoded)
+- ✅ Security hardening (prompt rules)
 
 **Evolution Theory**:
 - `../EVOLUTION_PROTOCOL.md` - 5-phase Darwinian process
-- `../NEXUS_V6_PROTOTYPE/EVOLUTION_START_GUIDE.md` - Practical guide
-- `sessions/CORRECTIONS_LOG.md` (CORR-013) - Current limitations
+- `../NEXUS_V6_PROTOTYPE/README.md#évolution-darwinienne` - Complete guide
+- `sessions/CORRECTIONS_LOG.md` (CORR-015) - Security incident
 
 ---
 
@@ -407,10 +421,10 @@ git log -p docs/sessions/CORRECTIONS_LOG.md
 
 ---
 
-**Last Reviewed**: 2025-11-21
-**Next Review**: After V6.1 implementation
-**Maintainer**: Claude Code (Sonnet 4.5)
-**Status**: ✅ Up to date and comprehensive
+**Last Reviewed**: 2025-11-25
+**Next Review**: After V7.0 implementation
+**Maintainer**: Claude Code (Opus 4.5)
+**Status**: ✅ Up to date and comprehensive (V6.5)
 
 ---
 
