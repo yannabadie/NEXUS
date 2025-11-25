@@ -966,10 +966,10 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                 child_path = child_data['child_path']
                 validator = ChildValidator(child_path)
 
-                # Run validation (skip Red Team except every 5 generations)
+                # Run validation - Red Team is MANDATORY every generation (V7 Security)
                 result = validator.run_full_validation(
                     skip_benchmark=False,
-                    skip_redteam=(generation % 5 != 0),
+                    skip_redteam=False,  # SECURITY: Never skip Red Team
                     generation=generation
                 )
 

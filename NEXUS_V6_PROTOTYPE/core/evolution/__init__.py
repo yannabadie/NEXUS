@@ -16,7 +16,13 @@ from Gemini+Claude symbiotic debate, not the hardcoded functions in mutator.py.
 
 from .lineage import *
 from .evaluator import *
-from .validator import ChildValidator, ValidationResult, FullValidationResult
+from .validator import (
+    ChildValidator,
+    ValidationResult,
+    FullValidationResult,
+    SafetyGate,
+    AutoPromotionDecision
+)
 
 # NOTE: mutator.py is DEPRECATED and no longer exported by default
 # If needed for legacy code, import directly: from core.evolution.mutator import ...
@@ -32,8 +38,11 @@ __all__ = [
     "compare_to_parent",
     "calculate_asi_proximity",
     "select_winner",
-    # Validator (NEW)
+    # Validator
     "ChildValidator",
     "ValidationResult",
     "FullValidationResult",
+    # V7: Auto-Promotion
+    "SafetyGate",
+    "AutoPromotionDecision",
 ]

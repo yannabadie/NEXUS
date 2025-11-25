@@ -47,13 +47,25 @@ class ClaudeDriverHybrid:
 
     Mode: Natural Language + XML Tool Blocks
     NO JSON enforcement - Claude parle naturellement
+
+    V7: Supports model selection (Opus vs Sonnet) via routing
     """
 
-    def __init__(self, config, workspace_path: Path):
+    def __init__(
+        self,
+        config,
+        workspace_path: Path,
+        model: Optional[str] = None,
+        agent_id: Optional[str] = None
+    ):
         self.cli_path = config.claude_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
         self.timeout = config.timeout if hasattr(config, 'timeout') else 120
+
+        # V7: Model routing support
+        self.model = model or getattr(config, 'claude_sonnet_model', None)
+        self.agent_id = agent_id or "claude_primary"
 
     def invoke(self, context: str) -> Dict:
         """

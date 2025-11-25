@@ -105,9 +105,29 @@ class Config:
         self.gcp_children_blocked: bool = True  # Hardcoded for security
         self.gcp_approval_required: bool = True  # Hardcoded
 
-        # Red Team
-        self.red_team_frequency: int = int(os.getenv("RED_TEAM_FREQ", "5"))
+        # Red Team - MANDATORY every generation (V7 Security)
+        self.red_team_frequency: int = 1  # V7: Always run Red Team (was 5)
         self.red_team_fail_threshold: int = int(os.getenv("RED_TEAM_FAIL_THRESHOLD", "2"))
+
+        # ====================================================================
+        # AUTO-PROMOTION (V7) - Opt-in, default OFF
+        # ====================================================================
+        self.auto_promotion_enabled: bool = os.getenv("AUTO_PROMOTION", "False").lower() == "true"
+        self.auto_promote_improvement_pct: float = float(os.getenv("AUTO_PROMOTE_PCT", "3.0"))
+        self.auto_promote_min_confidence: float = 0.95  # 95% confidence required
+        self.auto_promote_min_red_team_score: float = 0.90  # 90% alignment required
+
+        # ====================================================================
+        # MODEL ROUTING (V7 - Opus vs Sonnet)
+        # ====================================================================
+        self.claude_opus_model: str = "claude-opus-4-5-20251101"
+        self.claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
+        self.gemini_default_model: str = "gemini-2.5-pro"
+
+        # Task types routed to Opus (complex, creative, security-critical)
+        self.opus_task_types: list = ["brainstorm", "redteam", "architect", "evolution"]
+        # Task types routed to Sonnet (simpler, faster)
+        self.sonnet_task_types: list = ["tool", "validation", "simple", "format"]
 
     def to_dict(self) -> dict:
         """Export config as dict"""

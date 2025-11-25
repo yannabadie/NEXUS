@@ -6,19 +6,31 @@ Gemini reste en mode JSON strict (contrairement à Claude qui est hybride)
 import subprocess
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 
 class GeminiDriverV6:
     """
     Driver pour Gemini CLI - Mode JSON strict
+
+    V7: Supports model selection and agent tracking
     """
 
-    def __init__(self, config, workspace_path: Path):
+    def __init__(
+        self,
+        config,
+        workspace_path: Path,
+        model: Optional[str] = None,
+        agent_id: Optional[str] = None
+    ):
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
         self.timeout = config.timeout if hasattr(config, 'timeout') else 120
+
+        # V7: Model and agent tracking
+        self.model = model or getattr(config, 'gemini_default_model', 'gemini-2.5-pro')
+        self.agent_id = agent_id or "gemini_primary"
 
     def invoke(self, context: str) -> Dict:
         """
@@ -41,8 +53,8 @@ class GeminiDriverV6:
         output_file = self.io_buffer / "gemini_output.json"
 
         # Invoke Gemini with JSON output
-        # Fix: Force gemini-3-pro-preview model
-        command = f'"{self.cli_path}" -m gemini-3-pro-preview -p @"{context_file}" -o json > "{output_file}"'
+        # V7: Use configured model (self.model) instead of hardcoded
+        command = f'"{self.cli_path}" -m {self.model} -p @"{context_file}" -o json > "{output_file}"'
 
         try:
             result = subprocess.run(

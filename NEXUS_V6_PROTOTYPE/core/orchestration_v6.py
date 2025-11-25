@@ -18,6 +18,7 @@ from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
 from core.drivers.gemini_driver_v6 import GeminiDriverV6
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+from core.routing.model_router import ModelRouter, TaskType
 from core.synapse.protocol_v6 import LightMessageV6, HeavyMessageV6, ToolUse
 from core.synapse.memory_v6 import MemoryManagerV6
 from core.execution.tool_manager import ToolManager
@@ -79,10 +80,14 @@ class OrchestratorV6:
             max_stalemate=config.max_stalemate_count
         )
 
-        # Drivers
+        # V7: Model Router for intelligent model selection
+        self.model_router = ModelRouter(config)
+
+        # Drivers - V7: Use Opus for Claude (main use case is brainstorming)
+        opus_model = self.model_router.select_claude_model(TaskType.BRAINSTORM)
         self.drivers = {
-            "Gemini": GeminiDriverV6(config, workspace_path),
-            "Claude": ClaudeDriverHybrid(config, workspace_path)
+            "Gemini": GeminiDriverV6(config, workspace_path, agent_id="gemini_primary"),
+            "Claude": ClaudeDriverHybrid(config, workspace_path, model=opus_model, agent_id="claude_opus")
         }
 
         # Tool manager
