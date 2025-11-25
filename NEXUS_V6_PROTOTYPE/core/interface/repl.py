@@ -435,18 +435,14 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
             if result.get("finished"):
                 break
 
-            # EARLY EXIT: Check if valid JSON mutation array is in recent output
-            # This avoids unnecessary turns after consensus is reached
+            # EARLY EXIT: Check if output looks like it contains a mutation JSON
+            # Simple heuristic: contains [{ and all required keys and ends with }]
             if iterations >= 4:  # Give at least 4 turns for real debate
-                json_match = re.search(r'\[\s*\{[^}]*"file"[^}]*"change"[^}]*"reason"[^}]*"expected_asi_impact"[^}]*\}\s*\]', output)
-                if json_match:
-                    try:
-                        test_json = json.loads(json_match.group(0))
-                        if isinstance(test_json, list) and len(test_json) == child_count:
-                            self.console.print(f"\n✓ Valid JSON detected at iteration {iterations}, ending debate early")
-                            break
-                    except json.JSONDecodeError:
-                        pass  # Not valid JSON, continue debate
+                if ('"file"' in output and '"change"' in output and
+                    '"reason"' in output and '"expected_asi_impact"' in output and
+                    '[{' in output.replace(' ', '').replace('\n', '')):
+                    self.console.print(f"\n✓ Potential JSON detected at iteration {iterations}, ending debate")
+                    break
 
         # Return to IDLE state
         self.orchestrator._transition_to(OrchestratorState.IDLE)
@@ -460,32 +456,65 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
         # Get all outputs combined for JSON extraction
         final_content = '\n'.join(all_outputs)
 
-        # FALLBACK PARSING: Try to extract JSON with 2 retries
+        # ROBUST JSON EXTRACTION: Find and parse mutation arrays
         proposals = None
-        for retry in range(3):  # 0, 1, 2 = 3 attempts total
-            # Extract JSON from message (pattern: [...] array with required keys)
-            json_match = re.search(r'\[\s*\{[^}]*"file"[^}]*"change"[^}]*"reason"[^}]*"expected_asi_impact"[^}]*\}\s*\]', final_content)
+        required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
 
-            if json_match:
+        def extract_json_array(text: str) -> list:
+            """
+            Robust JSON array extraction that handles nested braces in string values.
+            Finds all potential JSON arrays starting with [{ and tries to parse them.
+            """
+            candidates = []
+            # Find all positions where a JSON array might start
+            for match in re.finditer(r'\[\s*\{', text):
+                start = match.start()
+                # Try to find the matching closing bracket by parsing
+                depth = 0
+                in_string = False
+                escape_next = False
+                end = start
+
+                for i, char in enumerate(text[start:], start):
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    if char == '\\' and in_string:
+                        escape_next = True
+                        continue
+                    if char == '"' and not escape_next:
+                        in_string = not in_string
+                        continue
+                    if in_string:
+                        continue
+                    if char == '[':
+                        depth += 1
+                    elif char == ']':
+                        depth -= 1
+                        if depth == 0:
+                            end = i + 1
+                            candidates.append(text[start:end])
+                            break
+
+            # Try to parse each candidate
+            for candidate in candidates:
                 try:
-                    proposals = json.loads(json_match.group(0))
+                    parsed = json.loads(candidate)
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in parsed):
+                            return parsed
+                except json.JSONDecodeError:
+                    continue
+            return None
 
-                    # Validate structure
-                    if isinstance(proposals, list) and len(proposals) > 0:
-                        required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
-                        if all(required_keys.issubset(p.keys()) for p in proposals):
-                            break  # Success!
-                        else:
-                            self.console.print(f"[Retry {retry+1}/3] JSON incomplete, missing keys")
-                    else:
-                        self.console.print(f"[Retry {retry+1}/3] JSON not a valid list")
-                        proposals = None
+        for retry in range(3):  # 0, 1, 2 = 3 attempts total
+            proposals = extract_json_array(final_content)
 
-                except json.JSONDecodeError as e:
-                    self.console.print(f"[Retry {retry+1}/3] JSON decode error: {e}")
-                    proposals = None
+            if proposals:
+                self.console.print(f"✓ JSON extracted successfully with {len(proposals)} mutation(s)")
+                break
             else:
-                self.console.print(f"[Retry {retry+1}/3] No JSON array found in output")
+                self.console.print(f"[Retry {retry+1}/3] No valid JSON array found in output")
 
             # Retry: continue debate without overwriting objective
             if retry < 2 and proposals is None:
