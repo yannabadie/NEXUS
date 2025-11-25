@@ -828,16 +828,19 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                 child_dir = parent_path.parent / "GENERATION_ACTIVE" / child_id
                 if child_dir.exists():
                     shutil.rmtree(child_dir)
-                child_dir.mkdir(parents=True, exist_ok=True)
+                # Note: Don't mkdir here - copytree creates the destination
 
                 # Copy parent to child (sandbox)
                 try:
+                    # Ensure parent directory exists
+                    child_dir.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copytree(
                         parent_path,
                         child_dir,
                         ignore=shutil.ignore_patterns(
                             '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
-                        )
+                        ),
+                        dirs_exist_ok=True  # Handle race conditions on Windows
                     )
                     self.console.print(f"✓ Copied parent → {child_id}")
 
