@@ -1,0 +1,51 @@
+{
+  "child_id": "NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6",
+  "passed": true,
+  "stages": [
+    {
+      "stage": "SYNTAX",
+      "passed": true,
+      "message": "Checked 9/9 files",
+      "details": {
+        "errors": [],
+        "files_checked": 9
+      },
+      "duration_seconds": 0.032530784606933594
+    },
+    {
+      "stage": "IMPORT",
+      "passed": true,
+      "message": "All 6 modules imported successfully",
+      "details": {
+        "modules": [
+          "core.orchestration_v6",
+          "core.config",
+          "core.drivers.gemini_driver_v6",
+          "core.drivers.claude_driver_hybrid",
+          "core.execution.tool_manager",
+          "core.synapse.memory_v6"
+        ]
+      },
+      "duration_seconds": 0.49274134635925293
+    },
+    {
+      "stage": "SMOKE",
+      "passed": true,
+      "message": "System initializes correctly",
+      "details": {
+        "checks": [
+          "config",
+          "orchestrator",
+          "state_machine",
+          "tool_manager"
+        ]
+      },
+      "duration_seconds": 0.35002994537353516
+    }
+  ],
+  "asi_score": null,
+  "red_team_score": null,
+  "total_duration": 0.8754723072052002,
+  "timestamp": "2025-11-25T20:42:30.899464",
+  "recommendation": "PROMOTE: All critical checks passed"
+}

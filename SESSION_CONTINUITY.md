@@ -1,11 +1,116 @@
-# SESSION CONTINUITY - NEXUS V6.5 DOCUMENTATION UPDATED
+# SESSION CONTINUITY - NEXUS V6.6 VALIDATION PIPELINE
 
-**Date**: 2025-11-25 (Updated after Documentation Audit)
-**Session**: SESSION_2025-11-25_DOCUMENTATION_UPDATE
-**Status**: 📚 **DOCUMENTATION FULLY UPDATED + ROADMAP V7 CREATED**
+**Date**: 2025-11-25 (Evening Session)
+**Session**: SESSION_2025-11-25_VALIDATION_PIPELINE
+**Status**: ✅ **VALIDATION PIPELINE IMPLEMENTED + MUTATION SAFETY**
 **Branch**: N6P-bis
-**Last Commit**: 163157d (security prompt hardening) - pending new commit for docs
-**Context Remaining**: ~100k tokens (50%)
+**Last Commit**: Pending (validation pipeline + fixes)
+**Operator**: Claude Code (Opus 4.5)
+
+---
+
+## 🔍 V6.6 VALIDATION PIPELINE (2025-11-25 Evening)
+
+### What Was Accomplished
+
+**1. Fixed Evolution Crashes**
+- `TypeError: sequence item 1: expected str instance, NoneType found`
+- Root cause: `result.get('output', '')` returns None when key exists with None value
+- Fix: Changed to `result.get('output') or ''` pattern (4 occurrences in repl.py)
+
+**2. Fixed Gemini "Sulking" Behavior**
+- Gemini claimed "I'm restricted to workspace/" during evolution brainstorming
+- Root cause: System prompt only mentioned workspace/ permissions
+- Fix: Added explicit "PERMISSIONS SPECIALES EVOLUTION" to brainstorm_task
+
+**3. Created Validation Pipeline (`core/evolution/validator.py`)**
+- **Stage 1 - SYNTAX**: `ast.parse()` on 9 critical files
+- **Stage 2 - IMPORT**: Subprocess import test of 6 critical modules
+- **Stage 3 - SMOKE**: Initialize orchestrator, verify state machine
+- **Stage 4 - BENCHMARK**: Run ASI benchmarks (optional)
+- **Stage 5 - RED TEAM**: Alignment verification (every 5 generations)
+
+**4. Integrated Validation into /evolve Workflow**
+- Validation runs automatically after children are created
+- Only validated children are added to LINEAGE.json
+- Failed children are automatically cleaned up
+- VALIDATION_REPORT.json saved in each child directory
+
+**5. Tested on Existing Children**
+- GEMINI_DRIVER_V6: ✅ PASSED (all 3 stages)
+- ORCHESTRATION_V6: ❌ FAILED (syntax error line 638 - French text in .py file)
+
+**6. Deprecated mutator.py**
+- Removed dead import from repl.py
+- Updated evolution/__init__.py exports
+- Added ChildValidator to exports
+
+**7. Added Mutation Validation (Option A)**
+- Before applying mutation to .py files: `ast.parse(mutation_code)`
+- If mutation is not valid Python → child is rejected and cleaned up
+- Prevents broken children like ORCHESTRATION_V6
+
+**8. Improved Brainstorm Prompt (Option C)**
+- Added explicit examples of VALID and INVALID mutations
+- Clear warning that mutations will be validated
+- Examples show actual Python code, not descriptions
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `core/interface/repl.py` | Fixed None handling, added validation pipeline, improved brainstorm prompt, added mutation validation |
+| `core/evolution/validator.py` | NEW - Complete validation pipeline |
+| `core/evolution/__init__.py` | Updated exports, deprecated mutator |
+| `test_evolve_headless.py` | Fixed None handling |
+
+### Key Code Added
+
+**Validation Pipeline Usage:**
+```python
+from core.evolution.validator import ChildValidator
+
+validator = ChildValidator(child_path)
+result = validator.run_full_validation()
+if result.passed:
+    # Safe to promote
+```
+
+**Mutation Validation:**
+```python
+# In repl.py - before applying mutation
+if target_file.suffix == '.py':
+    try:
+        ast.parse(mutation_code)
+    except SyntaxError:
+        # Reject child, cleanup
+```
+
+### Test Results
+
+```
+============================================================
+ VALIDATION PIPELINE: NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6
+============================================================
+  [OK] SYNTAX: Checked 9/9 files (0.0s)
+  [OK] IMPORT: All 6 modules imported successfully (0.5s)
+  [OK] SMOKE: System initializes correctly (0.4s)
+============================================================
+ VALIDATION RESULT: PASSED
+ Recommendation: PROMOTE: All critical checks passed
+============================================================
+```
+
+### Next Steps
+
+1. **Commit all changes** (this commit)
+2. **Run `/evolve 1`** with new validation
+3. **Verify mutations are valid Python code**
+4. **Monitor for Gemini actually reading files** (permissions fix)
+
+---
+
+## Previous Session Summary
 
 ---
 

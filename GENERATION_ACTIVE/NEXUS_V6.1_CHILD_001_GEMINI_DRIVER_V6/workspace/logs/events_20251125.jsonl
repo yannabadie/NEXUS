@@ -1,0 +1,3 @@
+{"timestamp": "2025-11-25T19:42:31.725217Z", "session_id": "20251125_194231", "event_type": "session_start", "level": "INFO", "data": {"session_id": "20251125_194231", "workspace": "workspace", "log_level": "DEBUG"}}
+{"timestamp": "2025-11-25T19:42:31.726015Z", "session_id": "20251125_194231", "event_type": "fsm_state", "level": "DEBUG", "data": {"message": "Initializing OrchestratorV6", "context": {"workspace": "workspace", "log_level": "DEBUG"}}}
+{"timestamp": "2025-11-25T19:42:31.728117Z", "session_id": "20251125_194231", "event_type": "fsm_state", "level": "DEBUG", "data": {"message": "OrchestratorV6 initialized", "context": {"gemini_model": "test", "claude_model": "test"}}}

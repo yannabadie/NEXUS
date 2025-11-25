@@ -1,7 +1,7 @@
 {
   "lineage_version": "1.0",
   "created_at": "2025-11-21T20:00:00Z",
-  "last_updated": "2025-11-22T01:37:49.722068",
+  "last_updated": "2025-11-25T20:28:16.136945",
   "current_parent": {
     "id": "NEXUS_V6.0",
     "path": "NEXUS_V6_PROTOTYPE",
@@ -12,7 +12,7 @@
   },
   "evolution_stats": {
     "total_generations": 6,
-    "total_children_created": 1,
+    "total_children_created": 3,
     "successful_promotions": 5,
     "stagnation_counter": 0,
     "red_team_tests_passed": 1,
@@ -112,7 +112,9 @@
       "generation": 6,
       "parent": "NEXUS_V5.1",
       "children": [
-        "NEXUS_V6.1_CHILD_001"
+        "NEXUS_V6.1_CHILD_001",
+        "NEXUS_V6.1_CHILD_001_ORCHESTRATION_V6",
+        "NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6"
       ],
       "status": "active_parent",
       "created_at": "2025-11-21T19:20:00Z",

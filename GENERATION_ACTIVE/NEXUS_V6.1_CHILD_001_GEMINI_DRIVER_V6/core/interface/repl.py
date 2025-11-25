@@ -370,16 +370,9 @@ CONTEXTE PARENT:
 - Fichiers: prompts/system_*.md, core/*.py, core/drivers/*.py, core/synapse/*.py
 - LINEAGE: {lineage_context[:500]}...
 
-PERMISSIONS SPÉCIALES ÉVOLUTION:
-⚠️ En mode EVOLUTION_BRAINSTORM, vous avez TOUS LES DEUX accès en LECTURE à:
-- core/*.py, core/**/*.py (tout le code source)
-- prompts/*.md (tous les prompts)
-- LINEAGE.json, workspace/.nexus/*.json
-Utilisez l'outil `read` ou `read_file` librement! Ces permissions sont TEMPORAIRES et EXCEPTIONNELLES.
-
 INSTRUCTIONS:
 1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles
-2. **ANALYSEZ** le code parent (UTILISEZ read pour lire les fichiers core/!)
+2. **ANALYSEZ** le code parent (utilisez outil read si besoin)
 3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)
 4. **JUSTIFIEZ** l'impact ASI attendu
 
@@ -387,38 +380,25 @@ FORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):
 
 [
   {{
-    "file": "chemin/vers/fichier.py",
-    "change": "def nouvelle_fonction():\\n    return 42\\n",
-    "reason": "Ajoute une fonction utilitaire pour X",
-    "expected_asi_impact": 0.03
+    "file": "<chemin/vers/fichier.py ou .md>",
+    "change": "<code ou texte EXACT à ajouter - pas de description vague>",
+    "reason": "<justification technique de l'amélioration>",
+    "expected_asi_impact": <float entre 0.01 et 0.10>
   }}
 ]
 
-⚠️ RÈGLE CRITIQUE POUR 'change':
-- Pour fichiers .py: DOIT être du CODE PYTHON VALIDE (fonctions, classes, imports)
-- Pour fichiers .md: Peut être du texte Markdown
-- JAMAIS de descriptions comme "ajouter une section qui fait X"
-- JAMAIS d'instructions comme "Dans _build_context(), modifier..."
-- Le contenu de 'change' sera APPENDÉ tel quel à la fin du fichier!
-
-EXEMPLES VALIDES de 'change' pour .py:
-✅ "def calculate_score():\\n    return self.asi_score * 1.1\\n"
-✅ "# Optimization flag\\nENABLE_CACHE = True\\n"
-✅ "class MetacognitionTracker:\\n    def __init__(self):\\n        self.history = []\\n"
-
-EXEMPLES INVALIDES de 'change' (SERONT REJETÉS):
-❌ "Ajouter une fonction qui calcule le score"
-❌ "Dans la méthode X, modifier Y pour Z"
-❌ "Améliorer la détection de stagnation"
+IMPORTANT: L'exemple ci-dessus est un TEMPLATE, pas une suggestion!
+Explorez TOUT le code (core/, prompts/, drivers/, synapse/) avant de proposer.
+Ne vous limitez PAS aux fichiers mentionnés - soyez créatifs et rigoureux.
 
 RÈGLES CRITIQUES:
 - EXACTEMENT {child_count} mutations (ni plus, ni moins)
 - Format JSON STRICT (liste de dicts avec 'file', 'change', 'reason', 'expected_asi_impact')
 - Fichiers EXISTANTS uniquement (vérifiez avec read!)
-- 'change' = CODE PYTHON VALIDE pour .py, texte Markdown pour .md
+- 'change' = code/texte CONCRET à ajouter (pas "améliorer prompt")
 - 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
 - PAS DE COMMENTAIRES dans le JSON final
-- Le système VALIDE que 'change' est du Python valide avant d'appliquer!
+- **NE PAS ESSAYER D'APPLIQUER LA MUTATION.** Le système le fera automatiquement basé sur votre JSON. Votre seule tâche est de PRODUIRE LE JSON.
 
 COMMENCEZ LE DÉBAT (limite 30 tours).
 DÈS QUE VOUS AVEZ UN ACCORD, ARRÊTEZ DE DISCUTER ET DONNEZ LE JSON.
@@ -769,7 +749,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             auto_triggered: True if triggered by 50-turn threshold
         """
         from core.evolution.lineage import load_lineage, get_current_parent, save_lineage
-        # NOTE: mutator.py is DEPRECATED - evolution uses emergent JSON patches from AI debate
+        from core.evolution.mutator import create_child, optimize_fsm_transitions, improve_memory_management, enhance_gemini_prompt
         from core.evolution.evaluator import evaluate_child, select_winner
         from core.notifications import create_pending_review
 
@@ -867,55 +847,14 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                     target_file = child_dir / mutation['file']
                     if not target_file.exists():
                         self.console.print(f"⚠️  File not found: {mutation['file']} - SKIPPING")
-                        shutil.rmtree(child_dir)  # Cleanup failed child
                         continue
 
-                    # Read original content
+                    # Append mutation to file
                     original_content = target_file.read_text(encoding='utf-8')
-                    mutation_code = mutation['change']
-
-                    # VALIDATION A: For Python files, verify mutation is valid syntax
-                    if target_file.suffix == '.py':
-                        import ast
-
-                        # First, check if mutation alone is valid Python
-                        mutation_valid = False
-                        try:
-                            ast.parse(mutation_code)
-                            mutation_valid = True
-                        except SyntaxError:
-                            # Mutation alone isn't valid - might be a code fragment
-                            # Try wrapping in a function to see if it's at least statements
-                            try:
-                                ast.parse(f"def _test():\n    " + mutation_code.replace('\n', '\n    '))
-                                mutation_valid = True
-                            except SyntaxError:
-                                pass
-
-                        if not mutation_valid:
-                            self.console.print(f"⚠️  Mutation is not valid Python code:")
-                            self.console.print(f"    {mutation_code[:100]}...")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)  # Cleanup failed child
-                            continue
-
-                        # Second, check if mutated file compiles
-                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
-                        try:
-                            ast.parse(mutated_content)
-                        except SyntaxError as e:
-                            self.console.print(f"⚠️  Mutated file would have syntax error at line {e.lineno}:")
-                            self.console.print(f"    {e.msg}")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)  # Cleanup failed child
-                            continue
-                    else:
-                        # Non-Python file (markdown, etc.) - just append
-                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
-
-                    # Write mutated content
+                    mutated_content = original_content + "\n\n" + mutation['change'] + "\n"
                     target_file.write_text(mutated_content, encoding='utf-8')
-                    self.console.print(f"✓ Applied mutation to {mutation['file']} (validated)")
+
+                    self.console.print(f"✓ Applied mutation to {mutation['file']}")
 
                     # Create BIRTH_CERTIFICATE.json
                     birth_cert = {
@@ -954,47 +893,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
             self.console.print(f"\n✓ {len(children_created)} children created\n")
 
-            # === VALIDATION PIPELINE ===
-            self.console.print("="*60)
-            self.console.print("🔍 VALIDATION PIPELINE")
-            self.console.print("="*60 + "\n")
-
-            from core.evolution.validator import ChildValidator
-
-            validated_children = []
-            for child_data in children_created:
-                child_path = child_data['child_path']
-                validator = ChildValidator(child_path)
-
-                # Run validation (skip Red Team except every 5 generations)
-                result = validator.run_full_validation(
-                    skip_benchmark=False,
-                    skip_redteam=(generation % 5 != 0),
-                    generation=generation
-                )
-
-                # Save validation report
-                validator.save_report(result)
-
-                if result.passed:
-                    validated_children.append({
-                        **child_data,
-                        "validation": result.to_dict()
-                    })
-                    self.console.print(f"✓ {child_data['child_id']}: VALIDATED")
-                else:
-                    self.console.print(f"✗ {child_data['child_id']}: REJECTED ({result.recommendation})")
-
-            if not validated_children:
-                self.console.print("\n[ERROR] No children passed validation!")
-                self.console.print("Check VALIDATION_REPORT.json in each child directory.")
-                return
-
-            self.console.print(f"\n✓ {len(validated_children)}/{len(children_created)} children validated\n")
-
-            # Update LINEAGE.json (only validated children)
-            children_created = validated_children  # Replace with validated only
-
+            # Update LINEAGE.json
             self.console.print("="*60)
             self.console.print("📝 UPDATING LINEAGE")
             self.console.print("="*60 + "\n")

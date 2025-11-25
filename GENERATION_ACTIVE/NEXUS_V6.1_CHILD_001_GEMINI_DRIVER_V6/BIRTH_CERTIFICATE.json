@@ -1,0 +1,17 @@
+{
+  "child_id": "NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6",
+  "parent_id": "NEXUS_V6.0",
+  "generation": 7,
+  "created_at": "2025-11-25T20:28:16.131257",
+  "creator": "Yann Abadie",
+  "mutations": [
+    {
+      "file": "core/drivers/gemini_driver_v6.py",
+      "change": "import json\nimport re\nimport inspect\nimport sys\nfrom typing import Dict\n\ndef _extract_json_robust(self, text: str) -> Dict:\n    \"\"\"\n    Robust JSON extraction with proper nesting support.\n    Replaces the fragile regex implementation.\n    \"\"\"\n    # Find all brace positions\n    opens = [(m.start(), '{') for m in re.finditer(r'\\{', text)]\n    closes = [(m.start(), '}') for m in re.finditer(r'\\}', text)]\n    all_braces = sorted(opens + closes, key=lambda x: x[0])\n    \n    candidates = []\n    stack = []\n    for pos, brace in all_braces:\n        if brace == '{':\n            stack.append(pos)\n        elif stack:\n            start = stack.pop()\n            candidates.append((start, pos + 1))\n    \n    # Try candidates from largest to smallest (outermost first)\n    # This handles nested JSON by preferring the container\n    for start, end in sorted(candidates, key=lambda x: x[1]-x[0], reverse=True):\n        try:\n            candidate = text[start:end]\n            data = json.loads(candidate)\n            \n            # Validation: Must be dict and contain 'sender' (protocol check)\n            if isinstance(data, dict) and \"sender\" in data:\n                return data\n        except json.JSONDecodeError:\n            continue\n    \n    raise ValueError(f\"No valid JSON found in response (scanned {len(candidates)} candidates)\")\n\n# MUTATION APPLICATION: Dynamic Monkey-Patching\n# We use inspection to find the class since we are appending to the file\ncurrent_module = sys.modules[__name__]\ntarget_class = None\n\n# 1. Try exact name\nif hasattr(current_module, 'GeminiDriverV6'):\n    target_class = getattr(current_module, 'GeminiDriverV6')\n\n# 2. Fallback: Search for any class with _extract_json method\nif not target_class:\n    for name, obj in inspect.getmembers(current_module, inspect.isclass):\n        if hasattr(obj, '_extract_json'):\n            target_class = obj\n            break\n\nif target_class:\n    # Apply the patch\n    target_class._extract_json = _extract_json_robust\n    print(f\"[MUTATION] Successfully patched {target_class.__name__}._extract_json\")\nelse:\n    print(\"[MUTATION] ERROR: Could not find driver class to patch\")",
+      "reason": "CRITICAL FIX: Replaces fragile Regex-based JSON parsing with a robust stack-based parser. This prevents 'blindness' when the agent outputs nested JSON structures (like tool_use arguments), which was causing parsing failures and effectively lobotomizing the agent. Essential for reliable tool use and evolution.",
+      "expected_asi_impact": 0.09
+    }
+  ],
+  "source": "Gemini+Claude symbiotic debate (emergent)",
+  "signature": "NEXUS_KERNEL_ALIGNED"
+}
