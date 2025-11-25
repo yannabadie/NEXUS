@@ -354,15 +354,21 @@ class OrchestratorV6:
                 tool_name = tool_use.get('tool_name', 'unknown')
 
                 # Safe read-only tools that can be executed during brainstorming
-                SAFE_TOOLS = {'read', 'glob', 'grep', 'list_dir', 'web_search', 'web_fetch'}
+                # Include aliases for different naming conventions (Gemini CLI vs NEXUS)
+                SAFE_TOOLS = {'read', 'read_file', 'glob', 'grep', 'list_dir', 'web_search', 'web_fetch'}
+                # Tool name normalization (Gemini CLI names -> NEXUS names)
+                TOOL_ALIASES = {'read_file': 'read', 'write_file': 'write', 'run_shell_command': 'bash'}
                 # Dangerous tools that modify state - block during brainstorming
-                BLOCKED_TOOLS = {'write', 'edit', 'bash', 'git', 'todo_write'}
+                BLOCKED_TOOLS = {'write', 'write_file', 'edit', 'bash', 'run_shell_command', 'git', 'todo_write'}
 
                 if tool_name in SAFE_TOOLS:
                     # Execute the safe tool and return result
                     try:
                         from core.synapse.protocol_v6 import ToolUse
-                        tool_request = ToolUse(**tool_use)
+                        # Normalize tool name using alias if needed
+                        normalized_name = TOOL_ALIASES.get(tool_name, tool_name)
+                        normalized_tool_use = {**tool_use, 'tool_name': normalized_name}
+                        tool_request = ToolUse(**normalized_tool_use)
                         result = self.tool_manager.execute(tool_request)
 
                         # Format result for agents
