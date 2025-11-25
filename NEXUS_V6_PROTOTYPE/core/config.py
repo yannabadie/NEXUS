@@ -51,7 +51,7 @@ class Config:
         # ====================================================================
 
         # Q1C: Max Children
-        self.max_children_concurrent: int = int(os.getenv("MAX_CHILDREN_CONCURRENT", "3"))
+        self.max_children_concurrent: int = int(os.getenv("MAX_CHILDREN_CONCURRENT", "5"))
         self.max_children_stable: int = int(os.getenv("MAX_CHILDREN_STABLE", "10"))
         self.stable_mode_threshold: int = int(os.getenv("STABLE_MODE_THRESHOLD", "5"))
 
