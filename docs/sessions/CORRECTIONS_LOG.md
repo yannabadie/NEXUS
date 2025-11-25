@@ -1528,6 +1528,104 @@ Real ASI measurement needs runtime capability testing (HumanEval, GSM8K, etc.)
 
 ---
 
+### CORR-2025-11-25-019: Evolution Brainstorm - Agents Waiting For Non-Existent Objective
+
+**Session**: N/A
+**Date**: 2025-11-25
+**Severity**: CRITICAL - Evolution completely broken
+**Component**: core/orchestration_v6.py, core/interface/repl.py
+**Status**: ✅ RESOLVED
+
+**Problem**:
+When running `/evolve 1`, agents entered a "waiting for user objective" loop:
+```
+[Gemini] NEXUS V6 Environment initialized... Awaiting user objective.
+[Claude] En attente de l'objectif utilisateur. 🎯
+[FSM] EVOLUTION_BRAINSTORM -> IDLE  # Wrong transition!
+```
+
+Agents never received the brainstorm_task and FSM state corrupted.
+
+**Root Cause - THREE ISSUES**:
+
+1. **blackboard["objective"] not set**: In EVOLUTION_BRAINSTORM state, `user_input` (the brainstorm_task) was never stored in `blackboard["objective"]`. The `_build_context()` function uses `blackboard["objective"]` but it was empty/"Non défini".
+
+2. **State transition on any error**: When Claude responded with hybrid format (no `action_type`), the code fell into the `else` block (line 342) which transitioned to IDLE instead of continuing the debate.
+
+3. **Retry logic corrupted state**: The retry logic at repl.py:499 sent a `reminder_prompt` as new `user_input`, overwriting the original objective and triggering IDLE->BRAINSTORMING transitions.
+
+**Investigation**:
+1. Traced flow: repl.py calls `process_turn(brainstorm_task)` in EVOLUTION_BRAINSTORM state
+2. EVOLUTION_BRAINSTORM handler (line 291) never used `user_input` parameter
+3. `_build_context()` reads from `blackboard["objective"]` which was never set
+4. Agents saw empty objective → responded "waiting for user"
+5. Claude's hybrid response (no action_type) triggered `else` → IDLE transition
+6. Retry sent reminder as new objective → more state corruption
+
+**Solution**:
+
+**orchestration_v6.py changes**:
+```python
+# FIX 1: Store user_input as objective (like IDLE does)
+if user_input:
+    self.blackboard["objective"] = user_input
+    self.memory.save_to_disk()
+
+# FIX 2: Accept Claude's hybrid format (action_type may be None)
+if action_type in ["TALK", "DELEGATE", None]:
+    # Continue debate...
+
+# FIX 3: Don't transition to IDLE on errors - stay in EVOLUTION_BRAINSTORM
+except Exception as e:
+    return self._make_result("EVOLUTION_BRAINSTORM", f"Error: {e}", ..., error=str(e))
+
+# FIX 4: Handle unknown action_type by continuing (not IDLE)
+else:
+    # Continue debate instead of transitioning to IDLE
+    self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+    return self._make_result("EVOLUTION_BRAINSTORM", content, ...)
+```
+
+**repl.py changes**:
+```python
+# FIX 5: Don't overwrite objective with reminder
+# Add reminder to history instead:
+reminder_msg = {"sender": "System", "content": "...", ...}
+self.orchestrator.memory.add_to_history(reminder_msg)
+
+# FIX 6: Restore state if corrupted
+if self.orchestrator.state != OrchestratorState.EVOLUTION_BRAINSTORM:
+    self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
+
+# FIX 7: Continue without new user_input
+result = self.orchestrator.process_turn()  # No argument!
+```
+
+**Files Changed**:
+- `core/orchestration_v6.py` (lines 290-369, ~80 lines rewritten)
+- `core/interface/repl.py` (lines 472-499, ~30 lines rewritten)
+
+**Verification**:
+⏳ Awaiting user test with `/evolve 1`
+
+**Expected Behavior After Fix**:
+- Agents receive brainstorm_task as objective
+- FSM stays in EVOLUTION_BRAINSTORM throughout debate
+- Gemini↔Claude alternate correctly
+- JSON proposals extracted after debate
+
+**Prevention**:
+1. State handlers that accept user_input should always store it
+2. Evolution mode should be resilient to format variations
+3. Retry logic should not alter FSM objective
+4. Add integration tests for evolution flow
+
+**Related Issues**:
+- CORR-2025-11-25-018 (NexusLogger - also blocked /evolve)
+- CORR-2025-11-22-014 (Evolution mutations hardcoded)
+
+---
+
 ### CORR-2025-11-25-018: NexusLogger Missing Standard Log Methods (info, warning, error)
 
 **Session**: N/A

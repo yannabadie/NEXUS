@@ -292,11 +292,18 @@ class OrchestratorV6:
             # Special debate mode for emergent evolution (30 turns max)
             # No plan health check, no tool execution - pure debate for JSON output
 
+            # FIX CORR-019: If user_input provided, set it as objective (like IDLE does)
+            # This ensures the brainstorm_task is visible to agents in context
+            if user_input:
+                self.blackboard["objective"] = user_input
+                self.blackboard["current_state"]["iteration"] = self.iteration
+                self.memory.save_to_disk()
+
             # Check stagnation (to detect if agents not progressing)
             if self.stagnation_detector.is_stagnant():
-                # Return to IDLE on stagnation during evolution
-                self._transition_to(OrchestratorState.IDLE)
-                return self._make_result("IDLE", "Evolution debate stagnant, returning to IDLE", self.active_agent, False)
+                # Don't return to IDLE - just note stagnation
+                # Let the caller (repl.py) decide when to stop
+                return self._make_result("EVOLUTION_BRAINSTORM", "Evolution debate may be stagnant", self.active_agent, False)
 
             # Invoke active agent for debate
             context = self._build_context()
@@ -308,9 +315,10 @@ class OrchestratorV6:
                 self.panic_system.reset_errors()
 
             except Exception as e:
-                # Handle errors gracefully - return to IDLE
-                self._transition_to(OrchestratorState.IDLE)
-                return self._make_result("IDLE", f"Evolution debate error: {e}", self.active_agent, False)
+                # FIX: Don't transition to IDLE on error - stay in EVOLUTION_BRAINSTORM
+                # Let the caller handle retries and state management
+                self.json_parse_failures += 1
+                return self._make_result("EVOLUTION_BRAINSTORM", f"Evolution debate error: {e}", self.active_agent, False, error=str(e))
 
             # Save to history
             self.memory.add_to_history(message)
@@ -319,18 +327,25 @@ class OrchestratorV6:
             action_type = message.get("action_type")
             content = message.get("content", "")
 
-            if action_type in ["TALK", "DELEGATE"]:
-                # Continue evolution debate
+            # FIX CORR-019: Handle Claude's hybrid format (may not have action_type)
+            # Claude uses natural language + XML, so action_type may be None or missing
+            # In evolution mode, we accept any response and continue debate
+            if action_type in ["TALK", "DELEGATE", None]:
+                # Continue evolution debate (None = Claude hybrid format)
                 self.stagnation_detector.add_message(content)
 
                 # Capture sender BEFORE updating active_agent
                 sender = message.get("sender", self.active_agent)
 
-                # Check agent switch
-                next_agent = message.get("next_agent", self.active_agent)
-                if next_agent != self.active_agent:
+                # Check agent switch (default: alternate between agents)
+                next_agent = message.get("next_agent")
+                if next_agent and next_agent != self.active_agent:
                     self.active_agent = next_agent
                     self.stagnation_detector.reset()  # Reset on switch
+                elif not next_agent:
+                    # No explicit next_agent - alternate to other agent
+                    self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+                    self.stagnation_detector.reset()
 
                 return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
 
@@ -339,10 +354,19 @@ class OrchestratorV6:
                 self._transition_to(OrchestratorState.IDLE)
                 return self._make_result("FINISHED", content, self.active_agent, True)
 
+            elif action_type == "TOOL_USE":
+                # Tool use during evolution - allowed for reading files
+                # Don't transition state, just note it
+                return self._make_result("EVOLUTION_BRAINSTORM", f"[Tool requested: {message.get('tool_use', {}).get('tool_name', 'unknown')}] {content}", self.active_agent, False)
+
             else:
-                # Unexpected action during evolution - return to IDLE
-                self._transition_to(OrchestratorState.IDLE)
-                return self._make_result("IDLE", f"Unexpected action in evolution: {action_type}", self.active_agent, False)
+                # Unknown action but don't break - continue debate
+                # FIX: Don't transition to IDLE, stay in EVOLUTION_BRAINSTORM
+                self.stagnation_detector.add_message(content)
+                sender = message.get("sender", self.active_agent)
+                # Alternate agent
+                self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
 
         # === STATE: ERROR ===
         elif self.state == OrchestratorState.ERROR:

@@ -355,7 +355,9 @@ class InteractiveNexusV6:
             lineage_context = lineage_path.read_text(encoding='utf-8')[:2000]  # First 2000 chars
 
         # Craft the EMERGENT brainstorming task
-        brainstorm_task = f"""🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
+        brainstorm_task = f"""**SYSTEM_OVERRIDE: IMMEDIATE ACTION REQUIRED**
+
+🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
 
 CONTEXTE CRITIQUE:
 Vous entrez dans une phase de RECHERCHE PURE.
@@ -467,34 +469,32 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
             else:
                 self.console.print(f"[Retry {retry+1}/3] No JSON array found in output")
 
-            # Retry with reminder
+            # Retry: continue debate without overwriting objective
             if retry < 2 and proposals is None:
                 self.console.print("\n⚠️  RAPPEL: JSON strict requis!\n")
-                reminder_prompt = f"""RAPPEL CRITIQUE: JSON STRICT REQUIS
 
-Votre dernier output n'était pas un JSON parsable valide.
+                # FIX CORR-019: Don't send reminder as new objective - add to history instead
+                # This preserves the original brainstorm_task as objective
+                reminder_msg = {
+                    "sender": "System",
+                    "action_type": "TALK",
+                    "content": f"""RAPPEL: Le JSON n'a pas été parsé correctement.
 
-FORMAT EXACT ATTENDU (copier-coller):
+FORMAT ATTENDU: Une liste JSON avec exactement {child_count} mutation(s).
+Exemple: [{{"file": "prompts/system_gemini_v6.md", "change": "...", "reason": "...", "expected_asi_impact": 0.03}}]
 
-[
-  {{
-    "file": "chemin/fichier.py",
-    "change": "Code exact à ajouter",
-    "reason": "Justification",
-    "expected_asi_impact": 0.02
-  }}
-]
+PRODUISEZ LE JSON MAINTENANT.""",
+                    "status": "CONTINUE"
+                }
+                self.orchestrator.memory.add_to_history(reminder_msg)
 
-RÈGLES:
-- LISTE [] (pas objet {{}})
-- {child_count} mutations exactement
-- Clés: "file", "change", "reason", "expected_asi_impact"
-- PAS de commentaires // ou /* */
-- PAS de trailing commas
+                # Ensure we're still in EVOLUTION_BRAINSTORM state
+                if self.orchestrator.state != OrchestratorState.EVOLUTION_BRAINSTORM:
+                    self.console.print(f"[WARNING] State changed to {self.orchestrator.state.name}, restoring EVOLUTION_BRAINSTORM")
+                    self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
 
-OUTPUT JSON MAINTENANT (rien d'autre):"""
-
-                result = self.orchestrator.process_turn(reminder_prompt)
+                # Continue debate without new user_input (keeps original objective)
+                result = self.orchestrator.process_turn()
                 self.console.display_result(result)
                 final_content = result.get('output', '')
 
