@@ -83,8 +83,8 @@ class CLIInspector:
             context_window = 1000000  # Gemini 3 Pro: 1M token context window
 
             try:
-                # Increased timeout for Windows PowerShell overhead
-                models_result = self._run_cli_command(["gemini", "models", "list"], timeout=20)
+                # Reduced timeout to prevent bootstrap bottleneck (was 20s)
+                models_result = self._run_cli_command(["gemini", "models", "list"], timeout=10)
 
                 output_lower = models_result.stdout.lower()
 

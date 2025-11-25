@@ -1,35 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git mv:*)",
-      "WebSearch",
-      "Bash(git reset:*)",
-      "Bash(git checkout:*)",
-      "Bash(git rm:*)",
-      "Bash(python:*)",
+      "Bash(dir:*)",
       "Bash(git add:*)",
-      "Bash(git restore:*)",
-      "Bash(powershell -Command \"gemini --version\")",
-      "Bash(powershell -Command \"gemini models list\")",
-      "Bash(timeout 20 python:*)",
-      "Bash(echo:*)",
-      "Bash(claude --version:*)",
-      "Bash(findstr:*)",
-      "Bash(find:*)",
-      "Bash(cat:*)",
-      "Bash(nul)",
-      "Bash(where:*)",
-      "Bash(powershell -Command \"claude --version\")",
-      "Bash(powershell -Command \"claude --help\")",
-      "Bash(powershell -Command \"Get-ChildItem NEXUS_V6_PROTOTYPE/workspace/.nexus/*.json | Select-Object Name, @{Name=''Size(KB)'';Expression={[math]::Round($_Length/1KB,2)}}\")",
-      "Bash(powershell -Command \"Get-ChildItem NEXUS_V6_PROTOTYPE/workspace/_IO_BUFFER/*.md | Select-Object Name, @{Name=''Size(KB)'';Expression={[math]::Round($_Length/1KB,2)}}\")",
-      "Bash(del nul 2)",
-      "Bash(NUL)",
-      "Bash(rm:*)",
-      "Bash(git pull:*)",
-      "Bash(timeout 10 python:*)"
+      "Bash(git push:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

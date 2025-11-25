@@ -23,13 +23,25 @@
 
 ### Ce qui manque ⏳
 
-| Composant | Status | Priorité |
-|-----------|--------|----------|
-| Auto-promotion | ⏳ Manuel | HAUTE |
-| Benchmarks runtime | ⏳ Statique seulement | MOYENNE |
-| GCP Integration | ⏳ Non implémenté | BASSE |
-| Signature SSH | ⏳ Placeholder | MOYENNE |
-| Multi-projet | ⏳ Single-workspace | BASSE |
+| Composant | Status | Priorité | Notes |
+|-----------|--------|----------|-------|
+| **Promotion Logic** | ❌ TODO | 🔴 **CRITIQUE** | Seul vrai bloqueur (repl.py:260) |
+| Auto-promotion | ⏳ Manuel | HAUTE | Dépend de Promotion Logic |
+| **Opus 4.5 Integration** | ⏳ Non implémenté | 🟠 **HAUTE** | Modèle supérieur pour brainstorming |
+| Benchmarks runtime | ⏳ Statique seulement | MOYENNE | Scripts existent, besoin tests runtime |
+| Signature SSH | ⏳ Placeholder | MOYENNE | Pour birth certificates |
+| GCP Integration | ⏳ Non implémenté | BASSE | Vertex AI pour fine-tuning |
+| Multi-projet | ⏳ Single-workspace | BASSE | Future scalability |
+
+### Gap Critique Identifié
+
+**`repl.py:260`** contient:
+```python
+# TODO: Implement promotion logic (update LINEAGE.json, move files)
+self.console.print("⚠️  Manual promotion required (auto-promotion not yet implemented)")
+```
+
+**Sans promotion automatique, le cycle d'évolution ne peut pas se fermer.**
 
 ### ASI Proximity Score Estimé
 
@@ -49,6 +61,160 @@ V6.5 Baseline (estimé):
 ### Thème: "De Compétent à Expert"
 **ASI Cible**: 0.75+ (Expert-level)
 **Délai estimé**: 4-6 semaines
+
+---
+
+## 🔴 Phase 0: Fix Critique - Promotion Logic (IMMÉDIAT)
+
+### 0.1 Implémenter la Promotion Automatique
+
+**Bloqueur**: `repl.py:260` - TODO non implémenté
+
+**Ce qui doit être fait**:
+
+```python
+# core/interface/repl.py - À IMPLÉMENTER
+
+def promote_child(self, child_id: str, child_path: Path):
+    """
+    Promote winning child to new parent.
+
+    Steps:
+    1. Archive current parent to ARCHIVE/GEN_XXX/
+    2. Move child from GENERATION_ACTIVE to NEXUS_V6_PROTOTYPE
+    3. Update LINEAGE.json (status: active_parent)
+    4. Update stagnation counter
+    5. Git commit signed
+    """
+    from core.evolution.lineage import load_lineage, save_lineage
+
+    lineage = load_lineage(self.workspace_path)
+
+    # 1. Archive parent
+    parent_id = lineage["current_parent"]
+    archive_dir = Path("ARCHIVE") / f"GEN_{lineage['current_generation']:03d}"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(self.nexus_path), str(archive_dir / parent_id))
+
+    # 2. Promote child
+    shutil.move(str(child_path), str(self.nexus_path.parent / "NEXUS_V6_PROTOTYPE"))
+
+    # 3. Update lineage
+    lineage["current_parent"] = child_id
+    lineage["current_generation"] += 1
+    lineage["lineage"][child_id]["status"] = "active_parent"
+    lineage["lineage"][child_id]["promoted_at"] = datetime.now().isoformat()
+    save_lineage(lineage, self.workspace_path)
+
+    # 4. Reset stagnation if improvement
+    if child_improved:
+        lineage["stagnation_counter"] = 0
+
+    # 5. Git commit
+    subprocess.run(["git", "add", "-A"])
+    subprocess.run(["git", "commit", "-m", f"feat(evolution): Promote {child_id}"])
+```
+
+**Critères de succès**:
+- [ ] `/review` + Approve → Child promu automatiquement
+- [ ] Parent archivé dans `ARCHIVE/GEN_XXX/`
+- [ ] `LINEAGE.json` mis à jour
+- [ ] Git commit créé
+
+**Priorité**: 🔴 CRITIQUE - Doit être fait AVANT tout cycle d'évolution réel
+
+---
+
+## 🧠 Phase 0.5: Intégration Opus 4.5 (Priorité Haute)
+
+### Contexte: Abonnements (Pas de Coût API)
+
+**Ta configuration**:
+- **Google AI Ultra** → Gemini 3 Pro via `gemini` CLI
+- **Claude Max** → Claude Sonnet/Opus via `claude` CLI
+
+**Avantage**: Opus 4.5 ne coûte pas plus cher avec un abonnement Max!
+
+### Architecture Proposée: Model Router
+
+```
+┌─────────────────────────────────────────────────────────┐
+│               CLAUDE DRIVER HYBRID V2                   │
+│                                                         │
+│   ┌─────────────┐          ┌─────────────┐             │
+│   │   SONNET    │          │    OPUS     │             │
+│   │   (Fast)    │          │  (Deep)     │             │
+│   │             │          │             │             │
+│   │ • Tools     │          │ • Brainstorm│             │
+│   │ • Simple    │          │ • Red Team  │             │
+│   │ • Routine   │          │ • Architect │             │
+│   └─────────────┘          └─────────────┘             │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Tâches par Modèle
+
+| Tâche | Modèle | Raison |
+|-------|--------|--------|
+| Tool execution | **Sonnet** | Rapide, mécanique |
+| File operations | **Sonnet** | Pas besoin de raisonnement profond |
+| Validation CFL | **Sonnet** | Oui/Non simple |
+| Simple queries | **Sonnet** | Latence compte |
+| **Brainstorming mutations** | **Opus** | Créativité maximale |
+| **Architecture decisions** | **Opus** | Analyse multi-facteurs |
+| **Red Team testing** | **Opus** | Raisonnement adversarial |
+| **Complex debugging** | **Opus** | Compréhension profonde |
+| **Strategic planning** | **Opus** | Vision long terme |
+| **Code review critique** | **Opus** | Analyse nuancée |
+
+### Implémentation
+
+**Option A**: Flag dans `claude` CLI
+```bash
+# Si claude CLI supporte --model
+claude --model opus-4-5-20251101 "complex task..."
+claude --model sonnet-4-5 "simple task..."
+```
+
+**Option B**: Variable d'environnement
+```python
+import os
+os.environ["CLAUDE_MODEL"] = "opus-4-5-20251101"
+# ... invoke claude CLI
+```
+
+**Option C**: Configuration NEXUS
+```python
+# core/config.py
+class ModelConfig:
+    opus_tasks = ["brainstorm", "redteam", "architect", "debug", "review"]
+    sonnet_tasks = ["tool", "validation", "simple"]
+
+    @classmethod
+    def select_model(cls, task_type: str) -> str:
+        if task_type in cls.opus_tasks:
+            return "opus-4-5-20251101"
+        return "sonnet-4-5-20250929"
+```
+
+### Points d'Intégration
+
+1. **`brainstorm_mutations_with_ais()`** → Utiliser Opus
+2. **`brainstorm_spinoff_with_ais()`** → Utiliser Opus
+3. **`run_red_team_test()`** → Utiliser Opus (via validator)
+4. **Normal tool flow** → Garder Sonnet
+
+### Bénéfices Attendus
+
+| Métrique | Avec Sonnet Only | Avec Opus Hybride |
+|----------|------------------|-------------------|
+| Qualité mutations | Bonne | **Excellente** |
+| Créativité | Moyenne | **Haute** |
+| Red Team depth | Bon | **Profond** |
+| Latence moyenne | Rapide | Légèrement plus lent |
+| Coût | $0 (Max) | $0 (Max) |
+
+**Impact ASI estimé**: +0.05-0.10 sur creativity et reasoning
 
 ---
 
