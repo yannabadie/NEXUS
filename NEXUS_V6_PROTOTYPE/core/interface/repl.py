@@ -92,11 +92,27 @@ class InteractiveNexusV6:
                 # Continue processing until IDLE/ERROR/PANIC
                 max_iterations = 50  # Safety limit
                 iterations = 0
+                user_checkpoint_interval = 10  # Ask user every N iterations
 
                 while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
                     result = self.orchestrator.process_turn()
                     self.console.display_result(result)
                     iterations += 1
+
+                    # Periodic user checkpoint - allow intervention during long debates
+                    if iterations > 0 and iterations % user_checkpoint_interval == 0:
+                        self.console.print(f"\n[Checkpoint: {iterations} iterations]")
+                        self.console.print("Press Enter to continue, or type 'stop' to interrupt:")
+                        try:
+                            user_input = input().strip().lower()
+                            if user_input in ['stop', 'quit', 'exit', 'abort']:
+                                self.console.print("🛑 User interrupted. Resetting to IDLE.")
+                                self.orchestrator.reset_to_idle()
+                                break
+                        except (EOFError, KeyboardInterrupt):
+                            self.console.print("\n🛑 Interrupted. Resetting to IDLE.")
+                            self.orchestrator.reset_to_idle()
+                            break
 
                 if iterations >= max_iterations:
                     self.console.print_error("Max iterations reached. Use /reset")
