@@ -83,7 +83,8 @@ class CLIInspector:
             context_window = 1000000  # Gemini 3 Pro: 1M token context window
 
             try:
-                models_result = self._run_cli_command(["gemini", "models", "list"], timeout=10)
+                # Increased timeout for Windows PowerShell overhead
+                models_result = self._run_cli_command(["gemini", "models", "list"], timeout=20)
 
                 output_lower = models_result.stdout.lower()
 
@@ -109,9 +110,8 @@ class CLIInspector:
 
             except subprocess.TimeoutExpired:
                 # Model detection timed out (PowerShell overhead on Windows)
-                # Just use default - not critical for bootstrap
-                print(f"   Info: Gemini model detection skipped (timeout)")
-                print(f"   Using default: {model}")
+                # Graceful fallback to latest model - not critical for bootstrap
+                pass  # Silent fallback - model already set to default
 
             except Exception as e:
                 # Other errors (network, CLI error, etc.)

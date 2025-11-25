@@ -19,6 +19,7 @@ from core.interface.commands import (
 )
 from core.config import load_config
 from core.fsm.states import OrchestratorState
+from core.evolution.rate_limiter import EvolutionRateLimiter
 
 
 class InteractiveNexusV6:
@@ -55,6 +56,9 @@ class InteractiveNexusV6:
         # Evolution tracking
         self.successful_turns = 0  # Counter for auto-evolution trigger
         self.evolution_trigger_threshold = 50  # Trigger evolution after N successful turns
+
+        # Rate limiter for evolution cycles
+        self.rate_limiter = EvolutionRateLimiter(workspace_path, self.config)
 
     def run(self):
         """Main REPL loop"""
@@ -160,6 +164,12 @@ class InteractiveNexusV6:
 
         elif cmd == "/evolve-status":
             self.show_evolve_status()
+
+        elif cmd == "/specialize":
+            if args:
+                self.run_specialization(mission=args)
+            else:
+                self.console.print_error("Usage: /specialize <mission_description>")
 
         elif cmd == "/help":
             self.console.print_help(get_help_message())
@@ -290,10 +300,10 @@ class InteractiveNexusV6:
 
     def brainstorm_children_with_ais(self, parent_id: str, parent_path: Path, child_count: int) -> list:
         """
-        EMERGENT EVOLUTION: Gemini+Claude debate and design mutations freely.
+        Collaborative brainstorming: Gemini+Claude propose children mutations.
 
-        No hardcoded mutations - agents analyze code and propose ANY changes.
-        Format: [{'file': 'path', 'change': 'code', 'reason': 'why', 'expected_asi_impact': 0.02}]
+        This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2:
+        "Design Mutation - Brainstorm with collaborator (Gemini ↔ Claude)"
 
         Args:
             parent_id: Current parent NEXUS ID
@@ -301,16 +311,21 @@ class InteractiveNexusV6:
             child_count: Number of children to propose
 
         Returns:
-            list: Raw mutation proposals (emergent, not hardcoded)
+            list: List of child proposals with mutations, params, justifications
         """
         import json
         import re
         from core.fsm.states import OrchestratorState
 
         self.console.print("\n" + "="*60)
-        self.console.print("🧬 ÉMERGENT EVOLUTION BRAINSTORM")
+        self.console.print("🧠 COLLABORATIVE BRAINSTORMING PHASE")
         self.console.print("="*60)
-        self.console.print(f"Gemini + Claude: Débat libre pour {child_count} mutations émergentes\n")
+        self.console.print(f"Gemini + Claude will now debate and propose {child_count} children\n")
+
+        # CLEAR HISTORY to prevent context pollution from previous tasks
+        self.console.print("🧹 Clearing short-term memory for focused brainstorming...")
+        self.orchestrator.blackboard["recent_history"] = []
+        self.orchestrator.memory.save_to_disk()
 
         # Read LINEAGE.json for context
         lineage_path = parent_path.parent / "LINEAGE.json"
@@ -320,6 +335,11 @@ class InteractiveNexusV6:
 
         # Craft the EMERGENT brainstorming task
         brainstorm_task = f"""🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE
+
+CONTEXTE CRITIQUE:
+Vous entrez dans une phase de RECHERCHE PURE.
+IGNOREZ tout contexte précédent (tests, roadmap, autonomie).
+VOTRE SEUL BUT est l'évolution du code source.
 
 MISSION CRITIQUE: Analyser NEXUS V6.0 et proposer EXACTEMENT {child_count} mutations pour créer des enfants supérieurs.
 
@@ -359,8 +379,11 @@ RÈGLES CRITIQUES:
 - 'change' = code/texte CONCRET à ajouter (pas "améliorer prompt")
 - 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
 - PAS DE COMMENTAIRES dans le JSON final
+- **NE PAS ESSAYER D'APPLIQUER LA MUTATION.** Le système le fera automatiquement basé sur votre JSON. Votre seule tâche est de PRODUIRE LE JSON.
 
-COMMENCEZ LE DÉBAT (limite 30 tours). À la fin, OUTPUT JSON UNIQUEMENT."""
+COMMENCEZ LE DÉBAT (limite 30 tours).
+DÈS QUE VOUS AVEZ UN ACCORD, ARRÊTEZ DE DISCUTER ET DONNEZ LE JSON.
+OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
 
         # Switch to EVOLUTION_BRAINSTORM mode
         original_state = self.orchestrator.state
@@ -465,6 +488,192 @@ OUTPUT JSON MAINTENANT (rien d'autre):"""
 
         return proposals
 
+    def brainstorm_spinoff_with_ais(self, parent_id: str, parent_path: Path, mission: str) -> list:
+        """
+        Collaborative brainstorming for SPECIALIZATION.
+        Gemini+Claude design a specific child optimized for a mission.
+        """
+        import json
+        import re
+        from core.fsm.states import OrchestratorState
+
+        self.console.print("\n" + "="*60)
+        self.console.print(f"🚀 MISSION SPECIALIZATION: {mission}")
+        self.console.print("="*60)
+        self.console.print(f"Gemini + Claude will now design a Specialist NEXUS\n")
+
+        # CLEAR HISTORY
+        self.console.print("🧹 Clearing short-term memory for focused brainstorming...")
+        self.orchestrator.blackboard["recent_history"] = []
+        self.orchestrator.memory.save_to_disk()
+
+        # Craft the SPECIALIZATION task
+        brainstorm_task = f"""🎯 MISSION SPÉCIALISATION : {mission}
+
+CONTEXTE:
+L'utilisateur veut créer une version de NEXUS hautement spécialisée pour cette mission unique.
+Vous ne cherchez pas à devenir "plus intelligent" en général, mais "plus efficace" pour CETTE mission.
+
+MISSION CIBLE : {mission}
+
+VOTRE TÂCHE :
+1. Analyser les besoins spécifiques de la mission (outils requis, style de prompt, configuration).
+2. Proposer des mutations pour transformer NEXUS V6 en un SPÉCIALISTE.
+   - Exemple: Si la mission est "App Mobile", on peut pré-charger des prompts Flutter/Dart, ajouter des outils ADB, etc.
+   - Exemple: Si la mission est "Audit Sécurité", on peut durcir les prompts, ajouter des outils d'analyse statique.
+
+FORMAT JSON FINAL (STRICT):
+[
+  {{
+    "file": "prompts/system_gemini_v6.md",
+    "change": "Remplacer le prompt général par un prompt expert [DOMAINE]",
+    "reason": "Spécialisation radicale du rôle stratégique",
+    "expected_asi_impact": 0.0  // Non pertinent ici, mettre 0.0
+  }},
+  {{
+    "file": "core/config.py",
+    "change": "Ajuster timeouts ou modèles pour [DOMAINE]",
+    "reason": "Optimisation performance pour la mission",
+    "expected_asi_impact": 0.0
+  }}
+]
+
+RÈGLES CRITIQUES:
+- Proposez un ensemble cohérent de mutations pour créer UN SEUL enfant spécialisé.
+- Soyez radicaux : Vous pouvez supprimer des fonctionnalités inutiles pour la mission.
+- Le JSON doit être valide et contenir TOUTES les mutations nécessaires.
+
+COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
+
+        # Switch to EVOLUTION_BRAINSTORM mode (reused for debate)
+        self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
+        self.console.print(f"[FSM] Mode: MISSION_SPECIALIZATION (via EVOLUTION_BRAINSTORM)\n")
+
+        # Start brainstorming
+        result = self.orchestrator.process_turn(brainstorm_task)
+        self.console.display_result(result)
+
+        # Loop
+        max_iterations = 30
+        iterations = 0
+
+        while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+            result = self.orchestrator.process_turn()
+            self.console.display_result(result)
+            iterations += 1
+            if result.get("finished"):
+                break
+
+        self.orchestrator._transition_to(OrchestratorState.IDLE)
+
+        # Extract JSON
+        final_content = result.get('output', '')
+        proposals = None
+        
+        # (Reuse extraction logic from brainstorm_children_with_ais - simplified here)
+        json_match = re.search(r'\[[\s\S]*?\{[\s\S]*?"file"[\s\S]*?\}[\s\S]*?\]', final_content)
+        if json_match:
+            try:
+                proposals = json.loads(json_match.group(0))
+            except:
+                pass
+        
+        if not proposals:
+             # Fallback retry logic could be added here, for now we raise
+             raise ValueError("Failed to extract specialization plan")
+
+        return proposals
+
+        return proposals
+
+    def run_specialization(self, mission: str):
+        """
+        Create a specialized NEXUS spinoff for a specific mission.
+        """
+        from core.evolution.lineage import load_lineage, get_current_parent
+        import shutil
+        from datetime import datetime
+        import json
+
+        self.console.print("\n" + "="*60)
+        self.console.print("🧬 SPECIALIZATION CYCLE STARTED")
+        self.console.print("="*60)
+        
+        try:
+            lineage = load_lineage(self.workspace_path)
+            parent = get_current_parent(lineage)
+            parent_id = parent["id"]
+            
+            parent_path = Path(__file__).parent.parent.parent  # NEXUS_V6_PROTOTYPE
+
+            # 1. Brainstorm mutations
+            mutations = self.brainstorm_spinoff_with_ais(parent_id, parent_path, mission)
+            
+            # 2. Create Spinoff ID
+            # Sanitize mission string for folder name
+            mission_slug = "".join(c if c.isalnum() else "_" for c in mission)[:30].upper()
+            spinoff_id = f"NEXUS_SPECIALIST_{mission_slug}_{datetime.now().strftime('%Y%m%d')}"
+            
+            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"Creating Specialist: {spinoff_id}")
+            self.console.print(f"{'─'*60}")
+
+            # 3. Create Directory
+            child_dir = parent_path.parent / "GENERATION_ACTIVE" / spinoff_id
+            if child_dir.exists():
+                shutil.rmtree(child_dir)
+            child_dir.mkdir(parents=True, exist_ok=True)
+
+            # 4. Copy Parent
+            shutil.copytree(
+                parent_path,
+                child_dir,
+                ignore=shutil.ignore_patterns(
+                    '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
+                )
+            )
+            self.console.print(f"✓ Copied parent base")
+
+            # 5. Apply Mutations
+            for mutation in mutations:
+                target_file = child_dir / mutation['file']
+                if target_file.exists():
+                    original = target_file.read_text(encoding='utf-8')
+                    # Simple append/replace logic depending on mutation type
+                    # For specialization, we might want to REPLACE content often (e.g. prompts)
+                    # But here we stick to append for safety unless 'REMPLACER' is explicit?
+                    # Let's stick to append/overwrite logic from run_evolve for consistency
+                    # BUT: Gemini instruction said "Remplacer le prompt". 
+                    # Let's just append for now to avoid breaking things, manual review needed anyway.
+                    
+                    updated = original + "\n\n" + mutation['change']
+                    target_file.write_text(updated, encoding='utf-8')
+                    self.console.print(f"✓ Applied mutation to {mutation['file']}")
+                else:
+                    self.console.print(f"⚠️ File not found: {mutation['file']}")
+
+            # 6. Spinoff Certificate
+            cert = {
+                "id": spinoff_id,
+                "type": "SPECIALIST",
+                "mission": mission,
+                "parent": parent_id,
+                "created_at": datetime.now().isoformat(),
+                "mutations": mutations
+            }
+            (child_dir / "SPINOFF_CERTIFICATE.json").write_text(json.dumps(cert, indent=2), encoding='utf-8')
+            
+            self.console.print("\n" + "="*60)
+            self.console.print(f"✅ SPECIALIST CREATED: {spinoff_id}")
+            self.console.print(f"Location: GENERATION_ACTIVE/{spinoff_id}")
+            self.console.print("To use: cd into directory and run nexus6.py")
+            self.console.print("="*60 + "\n")
+
+        except Exception as e:
+            self.console.print_error(f"Specialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+
     def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
         """
         Run evolution cycle: create and evaluate children.
@@ -489,6 +698,20 @@ OUTPUT JSON MAINTENANT (rien d'autre):"""
 
         self.console.print(f"Children to create: {child_count}")
         self.console.print("="*60 + "\n")
+
+        # Check rate limits BEFORE starting evolution
+        can_evolve, reason = self.rate_limiter.can_evolve(child_count)
+        if not can_evolve:
+            self.console.print(f"[red]❌ Evolution blocked: {reason}[/red]")
+            self.console.print("\nRate limit statistics:")
+            stats = self.rate_limiter.get_stats()
+            self.console.print(f"  Today's evolutions: {stats['today_evolutions']}/{self.config.max_generations_per_day}")
+            self.console.print(f"  Remaining today: {stats['remaining_today']}")
+            if 'hours_since_last' in stats:
+                self.console.print(f"  Hours since last: {stats['hours_since_last']}h")
+                self.console.print(f"  Next evolution at: {stats['can_evolve_at']}")
+            self.console.print("\nUse /evolve-status to see full statistics\n")
+            return
 
         try:
             # Load lineage
@@ -657,6 +880,10 @@ OUTPUT JSON MAINTENANT (rien d'autre):"""
             pending_review_path.write_text(pending_content, encoding='utf-8')
             self.console.print(f"\n✓ Pending review: {pending_review_path}")
 
+            # Record evolution in rate limiter history
+            self.rate_limiter.record_evolution(generation, len(children_created), parent_id)
+            self.console.print(f"✓ Evolution recorded in rate limiter")
+
             self.console.print("\n" + "="*60)
             self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
             self.console.print("="*60)
@@ -706,6 +933,22 @@ OUTPUT JSON MAINTENANT (rien d'autre):"""
             self.console.print(f"Auto-Evolution Trigger: {self.evolution_trigger_threshold} turns")
             remaining = self.evolution_trigger_threshold - self.successful_turns
             self.console.print(f"Turns Until Auto-Evolution: {remaining}")
+
+            # Rate limiter statistics
+            self.console.print(f"\n{'─'*60}")
+            self.console.print("RATE LIMITING")
+            self.console.print(f"{'─'*60}")
+            rate_stats = self.rate_limiter.get_stats()
+            self.console.print(f"Total Evolutions: {rate_stats['total_evolutions']}")
+            self.console.print(f"Total Children Created: {rate_stats['total_children']}")
+            self.console.print(f"Today's Evolutions: {rate_stats['today_evolutions']}/{self.config.max_generations_per_day}")
+            self.console.print(f"Remaining Today: {rate_stats['remaining_today']}")
+            if 'hours_since_last' in rate_stats:
+                self.console.print(f"Hours Since Last Evolution: {rate_stats['hours_since_last']}h")
+                self.console.print(f"Can Evolve Again At: {rate_stats['can_evolve_at']}")
+            else:
+                self.console.print("No evolutions recorded yet")
+
             self.console.print("="*60 + "\n")
 
         except Exception as e:

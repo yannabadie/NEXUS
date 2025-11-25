@@ -67,6 +67,10 @@ class Config:
         self.max_generations_per_day: int = int(os.getenv("MAX_GEN_PER_DAY", "3"))
         self.min_hours_between_gen: int = int(os.getenv("MIN_HOURS_BETWEEN_GEN", "8"))
 
+        # Aliases for rate_limiter.py compatibility
+        self.min_hours_between_generations = self.min_hours_between_gen
+        self.max_children_per_generation = self.max_children_concurrent
+
         # Q4B: Evaluation Timeline
         self.min_eval_hours: int = int(os.getenv("MIN_EVAL_HOURS", "24"))
         self.recommended_eval_hours: int = int(os.getenv("RECOMMENDED_EVAL_HOURS", "48"))
