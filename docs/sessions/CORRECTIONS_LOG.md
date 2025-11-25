@@ -1528,6 +1528,73 @@ Real ASI measurement needs runtime capability testing (HumanEval, GSM8K, etc.)
 
 ---
 
+### CORR-2025-11-25-018: NexusLogger Missing Standard Log Methods (info, warning, error)
+
+**Session**: N/A
+**Date**: 2025-11-25
+**Severity**: HIGH - Blocks /evolve command
+**Component**: core/logging/logger_v6.py
+**Status**: ✅ RESOLVED
+
+**Problem**:
+When running `/evolve 1`, NEXUS crashed immediately after transitioning to EVOLUTION_BRAINSTORM state:
+```
+🧹 Clearing short-term memory for focused brainstorming...
+[FSM] IDLE -> EVOLUTION_BRAINSTORM
+❌ Evolution cycle failed: 'NexusLogger' object has no attribute 'info'
+```
+
+**Root Cause**:
+`NexusLogger` class only implemented `debug()` method, but `orchestration_v6.py` called:
+- `self.logger.info()` at line 371 (evolution mode enabled)
+- `self.logger.info()` at line 376 (evolution mode disabled)
+
+Standard Python logging interface (info, warning, error, critical) was missing.
+
+**Investigation**:
+1. Grep for `logger.info(` found 2 calls in orchestration_v6.py lines 371, 376
+2. Read logger_v6.py - confirmed only `debug()` existed (line 320)
+3. NexusLogger used custom `log_event()` pattern instead of standard interface
+
+**Solution**:
+Added missing standard log methods to `NexusLogger` class (lines 327-353):
+```python
+def info(self, message: str, context: Optional[Dict] = None):
+    """Log info message"""
+    self.log_event(EventType.FSM_STATE, {
+        "message": message,
+        "context": context or {}
+    }, LogLevel.INFO)
+
+def warning(self, message: str, context: Optional[Dict] = None):
+    """Log warning message"""
+    self.log_event(EventType.FSM_STATE, {...}, LogLevel.WARNING)
+
+def error(self, message: str, context: Optional[Dict] = None):
+    """Log error message"""
+    self.log_event(EventType.FSM_STATE, {...}, LogLevel.ERROR)
+
+def critical(self, message: str, context: Optional[Dict] = None):
+    """Log critical message"""
+    self.log_event(EventType.FSM_STATE, {...}, LogLevel.CRITICAL)
+```
+
+**Files Changed**:
+- `NEXUS_V6_PROTOTYPE/core/logging/logger_v6.py` (lines 327-353, +28 lines)
+
+**Verification**:
+⏳ Awaiting user test with `/evolve 1`
+
+**Prevention**:
+1. Follow standard Python logging interface (debug, info, warning, error, critical)
+2. Test all FSM transitions before release
+3. Add unit tests for logger methods
+
+**Related Issues**:
+- CORR-2025-11-22-014 (Evolution mutations implementation)
+
+---
+
 **Last Updated**: 2025-11-25
 **Maintainer**: Claude Code + Yann Abadie
 **Format Version**: 1.0

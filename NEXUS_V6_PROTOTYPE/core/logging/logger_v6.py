@@ -324,6 +324,34 @@ class NexusLogger:
             "context": context or {}
         }, LogLevel.DEBUG)
 
+    def info(self, message: str, context: Optional[Dict] = None):
+        """Log info message"""
+        self.log_event(EventType.FSM_STATE, {
+            "message": message,
+            "context": context or {}
+        }, LogLevel.INFO)
+
+    def warning(self, message: str, context: Optional[Dict] = None):
+        """Log warning message"""
+        self.log_event(EventType.FSM_STATE, {
+            "message": message,
+            "context": context or {}
+        }, LogLevel.WARNING)
+
+    def error(self, message: str, context: Optional[Dict] = None):
+        """Log error message"""
+        self.log_event(EventType.FSM_STATE, {
+            "message": message,
+            "context": context or {}
+        }, LogLevel.ERROR)
+
+    def critical(self, message: str, context: Optional[Dict] = None):
+        """Log critical message"""
+        self.log_event(EventType.FSM_STATE, {
+            "message": message,
+            "context": context or {}
+        }, LogLevel.CRITICAL)
+
     def trace(self, message: str):
         """
         Log trace (très verbose)
