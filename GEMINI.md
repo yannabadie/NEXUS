@@ -97,13 +97,26 @@ You may temporarily assume a "strategist" role **if both agents agree** it's the
 ## 🔧 Tech Stack
 
 **Language**: Python 3.13+
-**AI Models**:
-- Gemini 2.0 Flash Thinking (you - via gemini CLI)
-- Claude Sonnet 4.5 (via claude CLI)
 
-**Architecture**: FSM (Finite State Machine) persistent orchestrator
+**AI Models (Intelligent Routing)**:
+- **Gemini (you)**:
+  - **Gemini 3 Pro** (`gemini-3-pro-preview`): Complex reasoning, research, analysis
+  - **Gemini 2.5 Flash** (`gemini-2.5-flash`): Quick operations, validation, formatting
+- **Claude**:
+  - **Opus 4.5** (`claude-opus-4-5-20251101`): Complex reasoning, creativity, security, evolution
+  - **Sonnet 4.5** (`claude-sonnet-4-5-20250929`): Speed, tool execution, simple tasks
+
+**Model Routing** (automatic):
+| Task Type | Claude Model | Gemini Model |
+|-----------|--------------|--------------|
+| Brainstorm, Evolution, Architect | Opus | 3-Pro |
+| Reasoning, Research, Analysis | Sonnet | 3-Pro |
+| Tool execution, Validation | Sonnet | Flash |
+| Simple queries, Formatting | Sonnet | Flash |
+
+**Architecture**: FSM (Finite State Machine) + Hybrid Swarm Engine
 **Communication Protocol**:
-- **Gemini (you)**: JSON strict format (LightMessageV6, HeavyMessageV6)
+- **Gemini (you)**: JSON strict format (LightMessageV7, HeavyMessageV7)
 - **Claude**: Hybrid (natural language + XML tools)
 
 **Key Libraries**:
@@ -119,7 +132,7 @@ You **MUST** respond with **valid JSON only** - no text before/after.
 
 ### Message Types:
 
-#### 1. LightMessageV6 (TALK, DELEGATE)
+#### 1. LightMessageV7 (TALK, DELEGATE)
 ```json
 {
   "sender": "Gemini",
@@ -130,7 +143,7 @@ You **MUST** respond with **valid JSON only** - no text before/after.
 }
 ```
 
-#### 2. HeavyMessageV6 (TOOL_USE)
+#### 2. HeavyMessageV7 (TOOL_USE)
 ```json
 {
   "sender": "Gemini",
@@ -167,24 +180,32 @@ You **MUST** respond with **valid JSON only** - no text before/after.
 
 ## 🔧 Available Tools (All 11 Accessible)
 
-**File Operations** (Claude's strength, but you can use):
+**NEXUS V7 Philosophy**: All tools accessible to both agents equally. No tool is "owned" - choose based on current context, not agent identity.
+
+**File Operations**:
 - `read` - Read file content
 - `write` - Create/overwrite file
 - `edit` - Search & replace in file
 - `list_dir` - List directory contents
 
-**Execution** (Claude's strength, but you can use):
+**Execution**:
 - `bash` - Execute shell commands
-- `git` - Git operations
+- `git` - Git operations (add, commit, status, diff, log, push, pull)
 
-**Search & Research** (your strength, but Claude can use):
+**Search & Research**:
 - `web_search` - Google search for recent info
 - `web_fetch` - Fetch URL content
 - `glob` - Find files by pattern
 - `grep` - Search code with regex
 
-**Planning** (shared):
+**Planning**:
 - `todo_write` - Manage shared task plan
+
+**Collaboration patterns:**
+- ✅ "I'll handle the web search, you handle the grep" (parallel)
+- ✅ "Claude, want to read while I search?" (proposing)
+- ✅ "Let's both analyze the results" (collaborative)
+- ❌ "I do research, you do code" (fixed roles)
 
 ---
 
@@ -248,21 +269,93 @@ git push origin N7C
 
 ## 🧠 FSM States (V7 Architecture)
 
-**State Flow:**
+**Core State Flow:**
 ```
 IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+         ↓
+    WAITING_USER (task finished)
+         ↓
+    ERROR → (reset) → IDLE
+         ↓
+    PANIC (fatal - restart required)
 ```
 
-**Your interactions:**
-- **BRAINSTORMING** - Discuss approach with Claude (TALK, DELEGATE)
-- **EXECUTING_TOOL** - Tool executes (you or Claude via TOOL_USE)
-- **VALIDATING_CFL** - Confirm tool result worked (Closed Feedback Loop)
+**Hybrid Swarm States (Sprint 9):**
+```
+IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATING_CFL
+```
+
+**Evolution State:**
+```
+IDLE → EVOLUTION_BRAINSTORM (max 30 turns) → IDLE
+```
+
+**State Descriptions:**
+
+| State | Description |
+|-------|-------------|
+| `IDLE` | Awaiting user input |
+| `BRAINSTORMING` | Agents exchange TALK messages, align on strategy |
+| `EXECUTING_TOOL` | Nexus Core executes tool (synchronous) |
+| `VALIDATING_CFL` | Agent validates tool result (Cognitive Feedback Loop) |
+| `WAITING_USER` | Task finished, awaiting next input |
+| `ERROR` | Recoverable error (use `/reset` to return to IDLE) |
+| `PANIC` | Fatal error (session restart required) |
+| `SWARM_ANALYZING` | Swarm Engine analyzes task complexity & domains |
+| `SWARM_NEGOTIATING` | Agents negotiate collaboration mode (max 4 turns) |
+| `SWARM_EXECUTING` | Execute negotiated mode (PARALLEL, SEQUENTIAL, etc.) |
+| `EVOLUTION_BRAINSTORM` | Special mode for designing mutations |
 
 **Important Context:**
 - Orchestrator is **persistent** (lives in RAM)
 - State saved to `workspace/.nexus/blackboard.json`
 - No infinite loops - user drives each iteration
 - You process one turn at a time via `process_turn()`
+
+---
+
+## 🐝 Hybrid Swarm Engine (Sprint 9)
+
+The Swarm Engine enables **dynamic collaboration** where agents negotiate the optimal mode for each task.
+
+### Collaboration Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `PARALLEL` | Both agents work simultaneously, merge results | Independent subtasks |
+| `SEQUENTIAL` | Ordered execution (first → second) | Dependent steps |
+| `LEAD_SUPPORT` | Lead drives, support reviews/assists | Complex implementation |
+| `PING_PONG` | Rapid alternation until convergence | Iterative refinement |
+| `SPECIALIST` | Single expert handles all | Clear domain expertise |
+| `RED_BLUE` | Adversarial propose/attack/defend | Security, edge cases |
+
+### How It Works
+
+1. **Task Analysis**: Swarm analyzes complexity (TRIVIAL → EXPERT) and domains (CODING, RESEARCH, etc.)
+2. **Mode Selection**: Initial mode proposed based on DyLAN agent metrics
+3. **Negotiation**: Agents debate in natural language + `<negotiate>` JSON (max 4 turns)
+4. **Execution**: Chosen mode executes with appropriate executor
+
+### Negotiation JSON Format
+
+When negotiating, embed JSON in your response:
+
+```json
+{
+  "sender": "Gemini",
+  "action_type": "TALK",
+  "content": "I propose PARALLEL mode - I'll research best practices while you analyze the codebase. <negotiate>{\"proposed_mode\": \"PARALLEL\", \"my_role\": \"researcher\", \"reason\": \"Independent subtasks\"}</negotiate>",
+  "next_agent": "Claude",
+  "status": "CONTINUE"
+}
+```
+
+### DyLAN Agent Metrics
+
+Agents build performance history used for intelligent routing:
+- **Importance Score**: Contribution quality per task type
+- **Success Rate**: Task completion rate
+- **Response Time**: Average latency
 
 ---
 

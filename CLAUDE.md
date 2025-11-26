@@ -91,13 +91,26 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ## 🔧 Tech Stack
 
 **Language**: Python 3.13+
-**AI Models**:
-- Gemini 2.0 Flash Thinking (via gemini CLI)
-- Claude Sonnet 4.5 (via claude CLI)
 
-**Architecture**: FSM (Finite State Machine) persistent orchestrator
+**AI Models (Intelligent Routing)**:
+- **Claude**:
+  - **Opus 4.5** (`claude-opus-4-5-20251101`): Complex reasoning, creativity, security, evolution
+  - **Sonnet 4.5** (`claude-sonnet-4-5-20250929`): Speed, tool execution, simple tasks
+- **Gemini**:
+  - **Gemini 3 Pro** (`gemini-3-pro-preview`): Complex reasoning, research, analysis
+  - **Gemini 2.5 Flash** (`gemini-2.5-flash`): Quick operations, validation, formatting
+
+**Model Routing** (automatic):
+| Task Type | Claude Model | Gemini Model |
+|-----------|--------------|--------------|
+| Brainstorm, Evolution, Architect | Opus | 3-Pro |
+| Reasoning, Research, Analysis | Sonnet | 3-Pro |
+| Tool execution, Validation | Sonnet | Flash |
+| Simple queries, Formatting | Sonnet | Flash |
+
+**Architecture**: FSM (Finite State Machine) + Hybrid Swarm Engine
 **Communication**:
-- Gemini: JSON strict protocol
+- Gemini: JSON strict protocol (LightMessageV7, HeavyMessageV7)
 - Claude: Hybrid (natural language + XML tools)
 
 **Key Libraries**:
@@ -180,41 +193,110 @@ git push origin N7C
 
 ### Tool Usage:
 
-**All 11 tools are accessible to both agents:**
+**All 11 tools are accessible to both agents equally:**
 - `read`, `write`, `edit`, `list_dir` - File operations
 - `bash`, `git` - Execution & version control
 - `web_search`, `web_fetch` - Web research
 - `glob`, `grep` - Code search
 - `todo_write` - Shared plan management
 
-**When to use tools yourself:**
-- Reading/editing code (your strength)
-- Testing & validation (bash, pytest)
-- Any tool needed for the task
+**NEXUS V7 Philosophy** - No tool is "owned" by any agent:
+- Both agents can use any tool at any time
+- Tool choice based on current context, not agent identity
+- Collaborate on tool strategy: "I'll grep while you read the file"
 
-**When to ask Gemini:**
-- Web research for recent info
-- Fact-checking with official sources
-- Alternative perspectives on approach
+**Collaboration patterns:**
+- ✅ "I'll handle the grep, you handle the web search" (parallel)
+- ✅ "Gemini, want to search while I edit?" (proposing)
+- ✅ "Let's both analyze the results" (collaborative)
+- ❌ "Gemini does research, I do code" (fixed roles)
 
 ---
 
 ## 🧠 FSM States (V7 Architecture)
 
-**State Flow:**
+**Core State Flow:**
 ```
 IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+         ↓
+    WAITING_USER (task finished)
+         ↓
+    ERROR → (reset) → IDLE
+         ↓
+    PANIC (fatal - restart required)
 ```
 
-**Your interactions happen during:**
-- **BRAINSTORMING** - Discuss approach with Gemini
-- **EXECUTING_TOOL** - Tool executes (you or Gemini)
-- **VALIDATING_CFL** - Confirm tool result (Closed Feedback Loop)
+**Hybrid Swarm States (Sprint 9):**
+```
+IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATING_CFL
+```
+
+**Evolution State:**
+```
+IDLE → EVOLUTION_BRAINSTORM (max 30 turns) → IDLE
+```
+
+**State Descriptions:**
+
+| State | Description |
+|-------|-------------|
+| `IDLE` | Awaiting user input |
+| `BRAINSTORMING` | Agents exchange TALK messages, align on strategy |
+| `EXECUTING_TOOL` | Nexus Core executes tool (synchronous) |
+| `VALIDATING_CFL` | Agent validates tool result (Cognitive Feedback Loop) |
+| `WAITING_USER` | Task finished, awaiting next input |
+| `ERROR` | Recoverable error (use `/reset` to return to IDLE) |
+| `PANIC` | Fatal error (session restart required) |
+| `SWARM_ANALYZING` | Swarm Engine analyzes task complexity & domains |
+| `SWARM_NEGOTIATING` | Agents negotiate collaboration mode (max 4 turns) |
+| `SWARM_EXECUTING` | Execute negotiated mode (PARALLEL, SEQUENTIAL, etc.) |
+| `EVOLUTION_BRAINSTORM` | Special mode for designing mutations |
 
 **Important:**
 - Orchestrator is **persistent** (lives in RAM)
 - State saved to `workspace/.nexus/blackboard.json`
 - No infinite loops - user drives iteration
+
+---
+
+## 🐝 Hybrid Swarm Engine (Sprint 9)
+
+The Swarm Engine enables **dynamic collaboration** where agents negotiate the optimal mode for each task.
+
+### Collaboration Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `PARALLEL` | Both agents work simultaneously, merge results | Independent subtasks |
+| `SEQUENTIAL` | Ordered execution (first → second) | Dependent steps |
+| `LEAD_SUPPORT` | Lead drives, support reviews/assists | Complex implementation |
+| `PING_PONG` | Rapid alternation until convergence | Iterative refinement |
+| `SPECIALIST` | Single expert handles all | Clear domain expertise |
+| `RED_BLUE` | Adversarial propose/attack/defend | Security, edge cases |
+
+### How It Works
+
+1. **Task Analysis**: Swarm analyzes complexity (TRIVIAL → EXPERT) and domains (CODING, RESEARCH, etc.)
+2. **Mode Selection**: Initial mode proposed based on DyLAN agent metrics
+3. **Negotiation**: Agents debate in natural language + `<negotiate>` JSON (max 4 turns)
+4. **Execution**: Chosen mode executes with appropriate executor
+
+### Negotiation Example
+
+```
+Claude: "I propose LEAD_SUPPORT with me as lead for this auth refactor.
+<negotiate>{"proposed_mode": "LEAD_SUPPORT", "my_role": "lead", "reason": "I have more context on the codebase"}</negotiate>"
+
+Gemini: "Agreed, I'll support with security review.
+<negotiate>{"accept": true, "my_role": "support"}</negotiate>"
+```
+
+### DyLAN Agent Metrics
+
+Agents build performance history used for intelligent routing:
+- **Importance Score**: Contribution quality per task type
+- **Success Rate**: Task completion rate
+- **Response Time**: Average latency
 
 ---
 
