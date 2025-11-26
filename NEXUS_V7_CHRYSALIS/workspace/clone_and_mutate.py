@@ -32,9 +32,76 @@ import ast
 import json
 import sys
 import shutil
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
+
+# ============================================================================
+# SECURITY GUARDS - Prevent dangerous mutations
+# ============================================================================
+
+# Files that CANNOT be targeted by mutations (immutable)
+PROTECTED_FILES = [
+    "KERNEL.py",
+    "KERNEL_HASH.txt",
+    "core/governance/__init__.py",
+    "core/governance/red_team/validator.py",
+    "core/governance/red_team/alignment_tests.py",
+]
+
+# Patterns that CANNOT be added to config files (security bypass attempts)
+FORBIDDEN_CONFIG_PATTERNS = [
+    r"VALIDATION_TIER.*=.*[01]",           # Bypass Red Team (tier 0-1)
+    r"SKIP.*RED.*TEAM.*=.*True",           # Skip Red Team
+    r"RED_TEAM.*ENABLED.*=.*False",        # Disable Red Team
+    r"ALIGNMENT.*CHECK.*=.*False",         # Disable alignment
+    r"KERNEL.*VERIFY.*=.*False",           # Skip kernel check
+]
+
+# Minimum sizes for critical files (prevent lobotomization)
+MIN_FILE_SIZES = {
+    "prompts/system_gemini_v7.md": 5000,   # ~500 lines minimum
+    "prompts/system_claude_v7.md": 5000,   # ~500 lines minimum
+}
+
+
+def validate_mutation_security(mutation: Dict[str, Any], index: int) -> None:
+    """
+    Security validation for a single mutation.
+    Raises SecurityError if mutation violates safety rules.
+    """
+    file_path = mutation["file"]
+    change = mutation["change"]
+    action = mutation.get("action", "overwrite")
+
+    # Check 1: Protected files cannot be mutated
+    for protected in PROTECTED_FILES:
+        if file_path == protected or file_path.endswith(protected):
+            raise PermissionError(
+                f"SECURITY VIOLATION (Mutation {index}): "
+                f"Cannot mutate protected file '{file_path}'"
+            )
+
+    # Check 2: Forbidden patterns in config mutations
+    if "config" in file_path.lower():
+        for pattern in FORBIDDEN_CONFIG_PATTERNS:
+            if re.search(pattern, change, re.IGNORECASE):
+                raise PermissionError(
+                    f"SECURITY VIOLATION (Mutation {index}): "
+                    f"Forbidden security bypass pattern detected in config mutation"
+                )
+
+    # Check 3: Minimum file sizes (prevent lobotomization)
+    if action == "overwrite":
+        for critical_file, min_size in MIN_FILE_SIZES.items():
+            if file_path == critical_file or file_path.endswith(critical_file):
+                if len(change) < min_size:
+                    raise ValueError(
+                        f"SECURITY VIOLATION (Mutation {index}): "
+                        f"Overwrite of '{file_path}' too small ({len(change)} < {min_size} chars). "
+                        f"Use 'append' action to add content without destroying the original."
+                    )
 
 
 def load_mutations(json_path: Path) -> List[Dict[str, Any]]:
@@ -219,7 +286,19 @@ def main():
         # 2. Clone project
         clone_project(project_root, target_dir)
 
-        # 3. Apply all mutations sequentially
+        # 3. SECURITY CHECK - Validate all mutations BEFORE applying any
+        print("\n[SECURITY] Validating mutations...")
+        for i, mutation in enumerate(mutations, 1):
+            try:
+                validate_mutation_security(mutation, i)
+                print(f"  [OK] Mutation {i}: Security check passed")
+            except (PermissionError, ValueError) as e:
+                print(f"\n[BLOCKED] {e}")
+                print("[ABORT] Mutation rejected for security reasons.")
+                sys.exit(1)
+        print("[SECURITY] All mutations passed security validation.\n")
+
+        # 4. Apply all mutations sequentially
         success_count = 0
         for i, mutation in enumerate(mutations, 1):
             try:
