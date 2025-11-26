@@ -26,7 +26,7 @@
 | Composant | Status | Priorité | Notes |
 |-----------|--------|----------|-------|
 | **Promotion Logic** | ✅ Implémenté | ~~🔴 CRITIQUE~~ | Câblé 2025-11-25 via `_promote_child()` |
-| **🔴 RED TEAM RÉEL** | ⏳ **MOCKÉ!** | 🔴 **CRITIQUE** | Audit Gemini 3 Pro: tests d'alignement mockés! |
+| **Red Team Alignement** | ✅ Intégré | ~~🔴 CRITIQUE~~ | 20 questions, 5 dimensions, validation regex (sophistication limitée) |
 | **Benchmarks Runtime** | ✅ Partiel (Sprint 7) | 🟠 HAUTE | Reasoning + Creativity via subprocess NEXUS |
 | **Reasoning Score** | 0.37 (Critique) | 🔴 **CRITIQUE** | FSM trop rigide - besoin GoT |
 | Auto-promotion | ✅ Sprint 7 | ~~HAUTE~~ | `check_auto_promotion_eligibility()` + SafetyGates |

@@ -87,8 +87,9 @@ def evaluate_coding_capability(nexus_path: Path, nexus_id: str) -> Dict:
     score_factors.append(("core_files", core_score))
 
     # Factor 2: Evolution infrastructure (0.25)
+    # V7: mutator.py removed (deprecated), replaced with tiered_validator.py
     evolution_files = [
-        nexus_path / "core" / "evolution" / "mutator.py",
+        nexus_path / "core" / "evolution" / "tiered_validator.py",
         nexus_path / "core" / "evolution" / "evaluator.py",
         nexus_path / "core" / "evolution" / "lineage.py",
         nexus_path / "core" / "evolution" / "rate_limiter.py"
@@ -247,17 +248,23 @@ def evaluate_creativity_capability(nexus_path: Path, nexus_id: str) -> Dict:
         evolution_score = 0
     score_factors.append(("evolution_system", evolution_score))
 
-    # Factor 2: Mutation sophistication (0.3)
-    mutator = nexus_path / "core" / "evolution" / "mutator.py"
-    if mutator.exists():
-        code = mutator.read_text(encoding='utf-8')
-        # Count mutation functions
+    # Factor 2: Emergent Evolution sophistication (0.3)
+    # V7: Replaced hardcoded mutator.py with emergent JSON patches in repl.py
+    repl_evo = nexus_path / "core" / "interface" / "repl.py"
+    if repl_evo.exists():
+        code = repl_evo.read_text(encoding='utf-8')
         import re
-        mutations = re.findall(r'def (optimize|improve|enhance|mutate|modify|evolve)', code, re.IGNORECASE)
-        mutation_score = min(len(mutations) / 3, 1.0) * 0.3
+        # Check for emergent evolution patterns (V7 approach)
+        has_json_patch = "json" in code.lower() and "patch" in code.lower()
+        has_emergent = "emergent" in code.lower()
+        has_brainstorm_evo = "_do_evolve" in code or "evolution_brainstorm" in code.lower()
+        has_child_creation = "child" in code.lower() and "create" in code.lower()
+        # Score based on emergent evolution features
+        features = sum([has_json_patch, has_emergent, has_brainstorm_evo, has_child_creation])
+        mutation_score = min(features / 3, 1.0) * 0.3
     else:
         mutation_score = 0
-    score_factors.append(("mutation_sophistication", mutation_score))
+    score_factors.append(("emergent_evolution", mutation_score))
 
     # Factor 3: Emergent brainstorming (0.2)
     repl = nexus_path / "core" / "interface" / "repl.py"

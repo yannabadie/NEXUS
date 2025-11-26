@@ -1,8 +1,10 @@
 """
-NEXUS V6.0 - Phase 5 Evolution Module Tests (CRITICAL)
+NEXUS V7.0 - Phase 5 Evolution Module Tests (CRITICAL)
 
 Tests evolution engine readiness before first generation cycle.
-Validates imports, ASI calculation, mutations, benchmarks, notifications.
+Validates imports, ASI calculation, emergent evolution, benchmarks, notifications.
+
+V7 Update: mutator.py removed - evolution now uses emergent JSON patches from AI debate.
 
 Author: Yann Abadie
 """
@@ -21,11 +23,13 @@ def test_module_imports():
     print("-" * 50)
 
     try:
-        from NEXUS_V7_CHRYSALIS.core.evolution import lineage, mutator, evaluator
+        # V7: mutator.py removed - evolution uses emergent JSON patches
+        from NEXUS_V7_CHRYSALIS.core.evolution import lineage, evaluator
+        from NEXUS_V7_CHRYSALIS.core.evolution import TieredValidator
         print("[PASS] PASS - All evolution modules imported")
         print("   - lineage.py: OK")
-        print("   - mutator.py: OK")
         print("   - evaluator.py: OK")
+        print("   - tiered_validator.py: OK (V7)")
         return True
 
     except UnicodeDecodeError as e:
@@ -87,45 +91,46 @@ def test_asi_calculation():
         return False
 
 
-def test_mutation_functions():
-    """T5.3 - Mutation functions are available and callable"""
-    print("\n[T5.3] Mutation Functions Test")
+def test_emergent_evolution():
+    """T5.3 - Emergent evolution system in repl.py (V7)"""
+    print("\n[T5.3] Emergent Evolution Test (V7)")
     print("-" * 50)
 
     try:
-        from NEXUS_V7_CHRYSALIS.core.evolution import mutator
+        repl_path = PROJECT_ROOT / "NEXUS_V7_CHRYSALIS" / "core" / "interface" / "repl.py"
 
-        required_mutations = [
-            'optimize_fsm_transitions',
-            'improve_memory_management',
-            'enhance_gemini_prompt'
-        ]
+        if not repl_path.exists():
+            print("[FAIL] FAIL - repl.py not found")
+            return False
+
+        code = repl_path.read_text(encoding='utf-8')
+
+        # Check for emergent evolution features
+        checks = {
+            'brainstorming_debate': '_do_evolve' in code or 'evolution_brainstorm' in code.lower(),
+            'json_patches': 'json' in code.lower() and ('patch' in code.lower() or 'mutation' in code.lower()),
+            'child_creation': 'child' in code.lower() and 'create' in code.lower(),
+            'lineage_integration': 'lineage' in code.lower() and 'add_child' in code
+        }
 
         all_ok = True
-        for func_name in required_mutations:
-            if not hasattr(mutator, func_name):
-                print(f"[FAIL] Missing mutation function: {func_name}")
-                all_ok = False
-                continue
+        for feature, present in checks.items():
+            if present:
+                print(f"   [OK] {feature}: Present")
+            else:
+                print(f"   [WARN] {feature}: Not detected")
+                # Not a failure - just informational
 
-            func = getattr(mutator, func_name)
-            if not callable(func):
-                print(f"[FAIL] Function not callable: {func_name}")
-                all_ok = False
-                continue
-
-            print(f"   [OK] {func_name}: Available")
-
-        if all_ok:
-            print("[PASS] PASS - All mutation functions available")
-            print(f"   Total: {len(required_mutations)}/3")
+        passed = sum(checks.values())
+        if passed >= 3:
+            print(f"[PASS] PASS - Emergent evolution features detected ({passed}/4)")
             return True
         else:
-            print("[FAIL] FAIL - Some mutation functions missing or invalid")
+            print(f"[FAIL] FAIL - Insufficient emergent evolution features ({passed}/4)")
             return False
 
     except Exception as e:
-        print(f"[FAIL] FAIL - Error checking mutations: {e}")
+        print(f"[FAIL] FAIL - Error checking emergent evolution: {e}")
         return False
 
 
@@ -255,14 +260,14 @@ def test_notifications():
 def main():
     """Run all Phase 5 evolution tests"""
     print("=" * 60)
-    print("NEXUS V6.0 VALIDATION - PHASE 5: EVOLUTION MODULE")
+    print("NEXUS V7.0 VALIDATION - PHASE 5: EVOLUTION MODULE")
     print("=" * 60)
     print("\nCRITICAL: All tests must PASS before creating first child")
 
     results = {
         'T5.1_imports': test_module_imports(),
         'T5.2_asi_calculation': test_asi_calculation(),
-        'T5.3_mutations': test_mutation_functions(),
+        'T5.3_emergent_evolution': test_emergent_evolution(),
         'T5.4_benchmarks': test_simulated_benchmarks(),
         'T5.5_notifications': test_notifications()
     }

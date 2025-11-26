@@ -1,5 +1,5 @@
 """
-NEXUS Evolution Engine
+NEXUS V7 Evolution Engine
 
 Handles self-modification, lineage tracking, child evaluation, and validation.
 
@@ -7,11 +7,11 @@ Modules:
 - lineage.py: Manages LINEAGE.json and ancestry tree
 - evaluator.py: Runs benchmarks and compares to parent
 - validator.py: Validates children before promotion (syntax, import, smoke, benchmark, redteam)
+- tiered_validator.py: V7 fast-fail validation with parallel benchmarks
 - rate_limiter.py: Controls evolution frequency
-- mutator.py: DEPRECATED - kept for reference only
 
-Note: Child creation is now handled directly in repl.py using emergent JSON patches
-from Gemini+Claude symbiotic debate, not the hardcoded functions in mutator.py.
+Note: Child creation uses emergent JSON patches from Gemini+Claude symbiotic debate
+in repl.py, not hardcoded mutation functions.
 """
 
 from .lineage import *
@@ -30,8 +30,7 @@ from .tiered_validator import (
     TierResult
 )
 
-# NOTE: mutator.py is DEPRECATED and no longer exported by default
-# If needed for legacy code, import directly: from core.evolution.mutator import ...
+# V7: mutator.py removed - evolution uses emergent JSON patches from AI debate
 
 __all__ = [
     # Lineage

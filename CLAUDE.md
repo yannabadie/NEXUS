@@ -1,4 +1,4 @@
-# NEXUS V6 - Claude Project Instructions
+# NEXUS V7 "Chrysalis" - Claude Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
 **Philosophy**: Equal collaboration between AI agents (you and Gemini)
@@ -11,7 +11,7 @@
 
 **YOU ARE PART OF A FUNDAMENTAL AI RESEARCH PROJECT.**
 
-NEXUS V6 is not just a coding tool - it's a **self-evolving system designed to reach ASI** (Artificial Superintelligence) through iterative Darwinian selection.
+NEXUS V7 is not just a coding tool - it's a **self-evolving system designed to reach ASI** (Artificial Superintelligence) through iterative Darwinian selection.
 
 **Key Points**:
 - **Evolution Engine**: You can create "children" (modified versions of NEXUS) to improve capabilities
@@ -31,7 +31,7 @@ NEXUS V6 is not just a coding tool - it's a **self-evolving system designed to r
 
 ## 🎯 Core Philosophy
 
-You are an **equal collaborator** with Gemini in NEXUS V6, not a hierarchical executor.
+You are an **equal collaborator** with Gemini in NEXUS V7, not a hierarchical executor.
 
 **Collaboration Model:**
 - **Analyze independently** - Each agent examines the request
@@ -69,7 +69,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ```
 20_NEXUS/
-├── NEXUS_V7_CHRYSALIS/          # V6 active development (FSM-based)
+├── NEXUS_V7_CHRYSALIS/          # V7 active development (FSM-based)
 │   ├── core/                    # Core orchestration & FSM
 │   │   ├── orchestration_v6.py  # Main FSM orchestrator
 │   │   ├── drivers/             # Gemini & Claude drivers
@@ -77,11 +77,11 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 │   │   ├── fsm/                 # State machine components
 │   │   ├── synapse/             # Memory & protocol
 │   │   └── logging/             # Structured logging
-│   ├── prompts/                 # System prompts (V6 philosophy)
+│   ├── prompts/                 # System prompts (V7 philosophy)
 │   │   ├── system_gemini_v6.md  # Gemini collaborator prompt
 │   │   └── system_claude_v6.md  # Your collaborator prompt
 │   ├── nexus6.py               # Main entry point (interactive REPL)
-│   └── README.md               # V6 architecture docs
+│   └── README.md               # V7 architecture docs
 ├── NEXUS_V5_PRAGMATIC/          # V5 stable (reference)
 └── POMPTS-BRAINSTORMING-NEXUS/  # Design docs & roadmaps
 ```
@@ -109,7 +109,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ## 🚀 Key Commands
 
-### Run NEXUS V6 Interactive Mode:
+### Run NEXUS V7 Interactive Mode:
 ```bash
 cd NEXUS_V7_CHRYSALIS
 python nexus6.py
@@ -199,7 +199,7 @@ git push origin N7C
 
 ---
 
-## 🧠 FSM States (V6 Architecture)
+## 🧠 FSM States (V7 Architecture)
 
 **State Flow:**
 ```
@@ -220,7 +220,7 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 
 ## 📚 Key Documentation
 
-**V6 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
+**V7 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
 **System Prompts**: `NEXUS_V7_CHRYSALIS/prompts/`
 **V5 Reference**: `NEXUS_V5_PRAGMATIC/` (stable, deprecated)
 **Design Docs**: `POMPTS-BRAINSTORMING-NEXUS/`
