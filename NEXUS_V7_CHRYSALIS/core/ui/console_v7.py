@@ -43,7 +43,7 @@ class ConsoleV7:
 ╚═══════════════════════════════════════════════════════════╝
 
 🧠 Gemini: {gemini_model}
-🛠️  Claude: {claude_model}
+🛠️  Claude: {claude_model} (Dynamic: Opus for evolution/brainstorm)
 
 Mode: Hybrid Drivers (Natural Language + XML Tools)
 Type your task or use slash commands (/help for list)

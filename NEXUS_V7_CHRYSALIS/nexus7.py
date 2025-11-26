@@ -160,8 +160,10 @@ def bootstrap():
     print(f"   Context: {gemini_info['context_window']:,} tokens")
     print(f"   Version: {gemini_info.get('version', 'Unknown')}")
 
-    print(f"\n🧠 Claude")
-    print(f"   Model: {claude_info['model']}")
+    print(f"\n🧠 Claude (Dynamic Routing)")
+    print(f"   Default: {claude_info['model']}")
+    print(f"   Opus 4.5: brainstorm, evolution, redteam, architect")
+    print(f"   Sonnet 4.5: tool, validation, simple tasks")
     print(f"   Context: {claude_info['context_window']:,} tokens")
     print(f"   Version: {claude_info.get('version', 'Unknown')}")
 
