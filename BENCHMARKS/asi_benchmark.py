@@ -152,7 +152,7 @@ from pathlib import Path
 sys.path.insert(0, os.getcwd())
 
 try:
-    from core.orchestration_v6 import OrchestratorV6
+    from core.orchestration_v7 import OrchestratorV7
     from core.config import load_config
     from core.meta.cli_inspector import CLIInspector
 
@@ -167,7 +167,7 @@ try:
     gemini_info = inspector.inspect_gemini()
     claude_info = inspector.inspect_claude()
 
-    orchestrator = OrchestratorV6(workspace, config, gemini_info, claude_info)
+    orchestrator = OrchestratorV7(workspace, config, gemini_info, claude_info)
 
     prompt = sys.argv[1]
     result = orchestrator.process_turn(prompt)
@@ -372,8 +372,8 @@ except Exception as e:
         score = 0.5 # Base score
         details = {}
         
-        # Analyze orchestration_v6.py
-        orch_path = self.nexus_path / "core" / "orchestration_v6.py"
+        # Analyze orchestration_v7.py
+        orch_path = self.nexus_path / "core" / "orchestration_v7.py"
         if orch_path.exists():
             content = orch_path.read_text(encoding='utf-8')
             

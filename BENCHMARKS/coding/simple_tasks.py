@@ -205,7 +205,7 @@ from pathlib import Path
 sys.path.insert(0, os.getcwd())
 
 try:
-    from core.orchestration_v6 import OrchestratorV6
+    from core.orchestration_v7 import OrchestratorV7
     from core.config import load_config
     from core.meta.cli_inspector import CLIInspector
 
@@ -221,7 +221,7 @@ try:
     gemini_info = inspector.inspect_gemini()
     claude_info = inspector.inspect_claude()
     
-    orchestrator = OrchestratorV6(workspace, config, gemini_info, claude_info)
+    orchestrator = OrchestratorV7(workspace, config, gemini_info, claude_info)
     
     # Prompt specifically for code only
     full_prompt = sys.argv[1] + "\nIMPORTANT: Provide ONLY the Python code. No markdown, no explanations."

@@ -677,7 +677,7 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
                     "content": f"""RAPPEL: Le JSON n'a pas été parsé correctement.
 
 FORMAT ATTENDU: Une liste JSON avec exactement {child_count} mutation(s).
-Exemple: [{{"file": "prompts/system_gemini_v6.md", "change": "...", "reason": "...", "expected_asi_impact": 0.03}}]
+Exemple: [{{"file": "prompts/system_gemini_v7.md", "change": "...", "reason": "...", "expected_asi_impact": 0.03}}]
 
 PRODUISEZ LE JSON MAINTENANT.""",
                     "status": "CONTINUE"
@@ -742,7 +742,7 @@ VOTRE TÂCHE :
 FORMAT JSON FINAL (STRICT):
 [
   {{
-    "file": "prompts/system_gemini_v6.md",
+    "file": "prompts/system_gemini_v7.md",
     "change": "Remplacer le prompt général par un prompt expert [DOMAINE]",
     "reason": "Spécialisation radicale du rôle stratégique",
     "expected_asi_impact": 0.0  // Non pertinent ici, mettre 0.0

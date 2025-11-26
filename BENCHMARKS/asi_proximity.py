@@ -77,9 +77,9 @@ def evaluate_coding_capability(nexus_path: Path, nexus_id: str) -> Dict:
 
     # Factor 1: Core architecture files present (0.3)
     core_files = [
-        nexus_path / "core" / "orchestration_v6.py",
+        nexus_path / "core" / "orchestration_v7.py",
         nexus_path / "core" / "execution" / "tool_manager.py",
-        nexus_path / "core" / "drivers" / "gemini_driver_v6.py",
+        nexus_path / "core" / "drivers" / "gemini_driver_v7.py",
         nexus_path / "core" / "drivers" / "claude_driver_hybrid.py"
     ]
     core_present = sum(1 for f in core_files if f.exists())
@@ -186,7 +186,7 @@ def evaluate_reasoning_capability(nexus_path: Path, nexus_id: str) -> Dict:
     score_factors.append(("memory_mgmt", memory_score))
 
     # Factor 3: Multi-agent coordination (0.25)
-    orchestrator = nexus_path / "core" / "orchestration_v6.py"
+    orchestrator = nexus_path / "core" / "orchestration_v7.py"
     if orchestrator.exists():
         code = orchestrator.read_text(encoding='utf-8')
         # Check for coordination patterns
