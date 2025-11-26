@@ -31,7 +31,8 @@ class GeminiDriverV7:
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
-        self.timeout = config.timeout if hasattr(config, 'timeout') else 120
+        # V7: Increase default timeout to 300s for reasoning models
+        self.timeout = config.timeout if hasattr(config, 'timeout') else 300
 
         # V7: Model and agent tracking (default: Gemini 3 Pro Preview)
         self.model = model or getattr(config, 'gemini_default_model', 'gemini-3-pro-preview')
@@ -51,21 +52,34 @@ class GeminiDriverV7:
             RuntimeError: Si Gemini CLI échoue
             TimeoutError: Si timeout dépassé
         """
+        import sys
+
         # Write context to file
         context_file = self.io_buffer / "gemini_context_in.md"
         context_file.write_text(context, encoding="utf-8")
 
         output_file = self.io_buffer / "gemini_output.json"
 
+        # Clear previous output file
+        if output_file.exists():
+            output_file.unlink()
+
         # Invoke Gemini with JSON output
-        # V7: Use configured model (self.model) instead of hardcoded
-        command = f'"{self.cli_path}" -m {self.model} -p @"{context_file}" -o json > "{output_file}"'
+        # V7 FIX: Use list format for subprocess.run to avoid shell issues
+        # V7 FIX: Don't use shell redirection - capture output directly
+        args = [
+            str(self.cli_path),
+            "-m", self.model,
+            "-p", f"@{context_file}",
+            "-o", "json"
+        ]
 
         try:
+            print(f"[DEBUG] Invoking Gemini: {self.model} (timeout: {self.timeout}s)", file=sys.stderr)
+
             result = subprocess.run(
-                command,
+                args,
                 cwd=str(self.workspace_path),
-                shell=True,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
@@ -73,11 +87,18 @@ class GeminiDriverV7:
                 errors='replace'
             )
 
-            if result.returncode != 0:
-                raise RuntimeError(f"Gemini CLI failed: {result.stderr}")
+            print(f"[DEBUG] Gemini returned: code={result.returncode}, stdout_len={len(result.stdout)}", file=sys.stderr)
 
-            # Read and parse JSON output
-            output_text = output_file.read_text(encoding="utf-8")
+            if result.returncode != 0:
+                error_msg = result.stderr or result.stdout or "Unknown error"
+                print(f"[DEBUG] Gemini error: {error_msg[:500]}", file=sys.stderr)
+                raise RuntimeError(f"Gemini CLI failed (code {result.returncode}): {error_msg}")
+
+            # V7 FIX: Get output from stdout, not file
+            output_text = result.stdout
+
+            # Also save to file for debugging
+            output_file.write_text(output_text, encoding="utf-8")
 
             try:
                 gemini_output = json.loads(output_text)

@@ -90,18 +90,48 @@ class InteractiveNexusV7:
                 result = self.orchestrator.process_turn(user_input)
                 self.console.display_result(result)
 
-                # Continue processing until IDLE/ERROR/PANIC
+                # Continue processing until exit conditions
+                # V7 UX FIX: After each full exchange (2 turns), check if user wants to interject
+                # Ctrl+C always works for immediate interruption
                 max_iterations = 50  # Safety limit
                 iterations = 0
-                user_checkpoint_interval = 10  # Ask user every N iterations
+                tool_active = False  # Extends the limit when tools are being used
 
-                while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+                while result["state"] not in ["IDLE", "ERROR", "PANIC", "FINISHED"] and iterations < max_iterations:
                     result = self.orchestrator.process_turn()
                     self.console.display_result(result)
                     iterations += 1
 
-                    # Periodic user checkpoint - allow intervention during long debates
-                    if iterations > 0 and iterations % user_checkpoint_interval == 0:
+                    # Track if tools are being used (complex task)
+                    if result.get("state") == "EXECUTING_TOOL":
+                        tool_active = True
+
+                    # V7 UX: After each full exchange (2 turns = Gemini + Claude), prompt user
+                    # Unless tools are actively being used
+                    if not tool_active and iterations % 2 == 0:
+                        self.console.print("[dim]─── Press Enter to continue, or type to interject ───[/dim]")
+                        try:
+                            user_input = input().strip()
+                            if user_input:
+                                # User wants to interject - add their message to context
+                                self.console.print(f"[bold green]You:[/bold green] {user_input}")
+                                # Inject user message into the conversation
+                                self.orchestrator.memory.add_to_history({
+                                    "sender": "User",
+                                    "action_type": "TALK",
+                                    "content": user_input,
+                                    "status": "CONTINUE"
+                                })
+                                # Reset iteration counter and continue
+                                iterations = 0
+                        except (EOFError, KeyboardInterrupt):
+                            self.console.print("\n[Returning to prompt]")
+                            self.orchestrator.reset_to_idle()
+                            break
+
+                    # Extended checkpoint for tool-heavy tasks
+                    if tool_active and iterations > 0 and iterations % 10 == 0:
+                        tool_active = False  # Reset for next check
                         self.console.print(f"\n[Checkpoint: {iterations} iterations]")
                         self.console.print("Press Enter to continue, or type 'stop' to interrupt:")
                         try:
