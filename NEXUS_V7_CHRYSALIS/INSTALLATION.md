@@ -1,4 +1,4 @@
-# NEXUS V6.0 - Installation Guide
+# NEXUS V7.0 - Installation Guide
 
 Complete installation guide for Windows PowerShell.
 
@@ -27,95 +27,89 @@ Complete installation guide for Windows PowerShell.
 
 ## Quick Install (Recommended)
 
-### Step 1: Download/Clone NEXUS V6
+### Step 1: Navigate to NEXUS V7
 
 ```powershell
-cd C:\Code\NEXUS\20_NEXUS
+cd C:\Code\NEXUS\20_NEXUS\NEXUS_V7_CHRYSALIS
 ```
 
-### Step 2: Run Installation Script
+### Step 2: Install Dependencies
 
 ```powershell
-cd NEXUS_V7_CHRYSALIS
-.\install_v6.ps1
+pip install -r requirements_v7.txt
 ```
 
-The installer will:
-- ✅ Copy NEXUS to `$env:LOCALAPPDATA\NEXUS_V6`
-- ✅ Create `nexus6.bat` launcher
-- ✅ Add installation directory to User PATH
-- ✅ Install Python dependencies
-- ✅ Run bootstrap verification
-
-### Step 3: Restart PowerShell
-
-**CRITICAL:** You must restart your PowerShell terminal for PATH changes to take effect.
+### Step 3: Verify Installation
 
 ```powershell
-# Close current terminal
-# Open new PowerShell terminal
+python nexus7.py --verify
 ```
 
-### Step 4: Verify Installation
-
-```powershell
-nexus6 --version
-# Output: NEXUS V6.0 - The Omniscient REPL
+Should output:
+```
+✅ NEXUS V7.0 Bootstrap Complete
+📊 Gemini: gemini-3-pro-preview
+🧠 Claude: claude-sonnet-4-5
 ```
 
-### Step 5: Launch NEXUS
+### Step 4: Launch NEXUS
 
 ```powershell
-mkdir my-project
-cd my-project
-nexus6
+python nexus7.py
 ```
 
 You should see:
 ```
-🚀 NEXUS V6.0 Bootstrap...
+🚀 NEXUS V7.0 Bootstrap...
 ✓ Python 3.13.x
 ✓ Dependencies installed
 ✓ Workspace structure
 ...
-nexus6>
+nexus7>
 ```
 
 ---
 
-## Installation Options
+## Optional: Global Installation
 
-### Custom Installation Path
+### Run Installation Script
 
 ```powershell
-.\install_v6.ps1 -InstallPath "C:\Tools\NEXUS_V6"
+.\install_v7.ps1
 ```
 
-### Skip Dependency Installation
+The installer will:
+- ✅ Copy NEXUS to `$env:LOCALAPPDATA\NEXUS_V7`
+- ✅ Create `nexus7.bat` launcher
+- ✅ Add installation directory to User PATH
+- ✅ Install Python dependencies
+- ✅ Run bootstrap verification
+
+### Restart PowerShell
+
+**CRITICAL:** You must restart your PowerShell terminal for PATH changes to take effect.
+
+### Verify Global Installation
 
 ```powershell
-.\install_v6.ps1 -SkipDependencies
-```
-
-Then install manually:
-```powershell
-pip install -r requirements_v6.txt
+nexus7 --version
+# Output: NEXUS V7.0 - The Omniscient REPL
 ```
 
 ---
 
-## Manual Installation (Advanced)
+## Manual Installation
 
 If you prefer manual installation without the script:
 
 ### 1. Copy Files
 
 ```powershell
-$InstallPath = "$env:LOCALAPPDATA\NEXUS_V6"
+$InstallPath = "$env:LOCALAPPDATA\NEXUS_V7"
 New-Item -ItemType Directory -Force -Path $InstallPath
 
 # Copy all files
-Copy-Item nexus6.py, nexus6.bat, requirements_v6.txt $InstallPath
+Copy-Item nexus7.py, nexus7.bat, requirements_v7.txt $InstallPath
 Copy-Item core, prompts, docs -Recurse $InstallPath
 ```
 
@@ -123,7 +117,7 @@ Copy-Item core, prompts, docs -Recurse $InstallPath
 
 ```powershell
 cd $InstallPath
-pip install -r requirements_v6.txt
+pip install -r requirements_v7.txt
 ```
 
 ### 3. Update PATH
@@ -138,51 +132,51 @@ $NewPath = "$UserPath;$InstallPath"
 
 ```powershell
 # Restart terminal
-nexus6 --verify
+nexus7 --verify
 ```
 
 ---
 
-## Verification
+## Dependencies
 
-### Test Bootstrap
-
-```powershell
-nexus6 --verify
+```
+prompt-toolkit
+rich
+pydantic
+python-dotenv
+tiktoken
 ```
 
-Should output:
-```
-✅ NEXUS V6.0 Bootstrap Complete
-📊 Gemini: gemini-3-pro-preview
-🧠 Claude: claude-sonnet-4.5
-```
+---
 
-### Test Interactive Mode
+## Configuration (.env)
 
-```powershell
-cd my-project
-nexus6
-```
+Optional configuration file:
 
-Type at the prompt:
-```
-nexus6> /status
-```
+```bash
+# NEXUS V7.0 Configuration
 
-Should show orchestrator status.
+# CLI Paths (if not in PATH)
+GEMINI_CLI_PATH=gemini
+CLAUDE_CLI_PATH=claude
 
-### Test Workspace Creation
+# Orchestration
+MAX_STALEMATE_COUNT=5
+STAGNATION_SIMILARITY_THRESHOLD=0.8
 
-```powershell
-nexus6 --workspace ./custom-workspace
+# Workspace
+WORKSPACE_PATH=./workspace
+
+# UI
+LOG_LEVEL=INFO
+UI_VERBOSE=False  # True for debug FSM transitions
 ```
 
 ---
 
 ## Troubleshooting
 
-### "nexus6: command not found"
+### "nexus7: command not found"
 
 **Cause:** PATH not updated or PowerShell not restarted.
 
@@ -192,92 +186,33 @@ nexus6 --workspace ./custom-workspace
 
 2. Verify PATH contains install directory:
    ```powershell
-   $env:Path -split ';' | Select-String NEXUS_V6
+   $env:Path -split ';' | Select-String NEXUS_V7
    ```
 
-3. Check User PATH variable:
+3. Run directly (bypass PATH):
    ```powershell
-   [Environment]::GetEnvironmentVariable('Path', 'User')
-   ```
-
-4. If not in PATH, re-run installer:
-   ```powershell
-   .\install_v6.ps1
-   ```
-
-5. Run directly (bypass PATH):
-   ```powershell
-   python "$env:LOCALAPPDATA\NEXUS_V6\nexus6.py"
+   python "$env:LOCALAPPDATA\NEXUS_V7\nexus7.py"
    ```
 
 ### "Missing packages" Error
 
-**Cause:** Dependencies not installed.
-
 **Solution:**
-```powershell
-pip install -r "$env:LOCALAPPDATA\NEXUS_V6\requirements_v6.txt"
-```
-
-Or:
 ```powershell
 pip install prompt-toolkit rich pydantic python-dotenv tiktoken
 ```
 
 ### "Gemini CLI not available"
 
-**Cause:** Gemini CLI not installed or not authenticated.
-
-**Solutions:**
-
-1. Check installation:
-   ```powershell
-   gemini --version
-   ```
-
-2. If not installed, follow: https://ai.google.dev/gemini-api/docs/cli
-
-3. Authenticate:
-   ```powershell
-   gemini auth login
-   ```
+```powershell
+gemini --version        # Check installation
+gemini auth login       # Authenticate
+```
 
 ### "Claude CLI not available"
 
-**Cause:** Claude CLI not installed or not authenticated.
-
-**Solutions:**
-
-1. Check installation:
-   ```powershell
-   claude --version
-   ```
-
-2. If not installed, follow: https://docs.anthropic.com/en/docs/claude-cli
-
-3. Authenticate:
-   ```powershell
-   claude auth login
-   ```
-
-### Bootstrap Verification Failed
-
-Run with verbose output:
 ```powershell
-python "$env:LOCALAPPDATA\NEXUS_V6\nexus6.py" --verify
-```
-
-Check error messages for specific issues.
-
-### Permission Denied
-
-**Cause:** Administrator permissions required for PATH modification.
-
-**Solution:** Run PowerShell as Administrator:
-```powershell
-# Right-click PowerShell icon
-# Select "Run as Administrator"
-.\install_v6.ps1
+claude --version        # Check installation
+claude auth login       # Authenticate
 ```
 
 ---
@@ -287,7 +222,7 @@ Check error messages for specific issues.
 ### Remove Installation
 
 ```powershell
-$InstallPath = "$env:LOCALAPPDATA\NEXUS_V6"
+$InstallPath = "$env:LOCALAPPDATA\NEXUS_V7"
 Remove-Item -Recurse -Force $InstallPath
 ```
 
@@ -295,75 +230,8 @@ Remove-Item -Recurse -Force $InstallPath
 
 ```powershell
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-$NewPath = ($UserPath -split ';' | Where-Object { $_ -notlike "*NEXUS_V6*" }) -join ';'
+$NewPath = ($UserPath -split ';' | Where-Object { $_ -notlike "*NEXUS_V7*" }) -join ';'
 [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
-```
-
-### Restart PowerShell
-
----
-
-## Updating NEXUS V6
-
-### Update to New Version
-
-1. Download new version
-2. Run installer (will prompt to overwrite):
-   ```powershell
-   cd NEXUS_V7_CHRYSALIS
-   .\install_v6.ps1
-   ```
-3. Restart PowerShell
-
-### Keep Old Configuration
-
-Your `.env` file will be preserved if it exists.
-
----
-
-## Multiple Versions
-
-You can install multiple versions side-by-side:
-
-```powershell
-# Install V6
-.\install_v6.ps1 -InstallPath "C:\NEXUS\V6"
-
-# Install V5 (if you have it)
-.\install.ps1 -InstallPath "C:\NEXUS\V5"
-```
-
-Then use:
-- `nexus6` for V6
-- `nexus` for V5
-
----
-
-## System Information
-
-### Installation Locations
-
-**Default:**
-- Install dir: `C:\Users\<username>\AppData\Local\NEXUS_V6`
-- Launcher: `C:\Users\<username>\AppData\Local\NEXUS_V6\nexus6.bat`
-- Config: `C:\Users\<username>\AppData\Local\NEXUS_V6\.env`
-
-**Workspace (per project):**
-- `./workspace/` in current directory
-- Or custom via `--workspace`
-
-### Files Created
-
-```
-$env:LOCALAPPDATA\NEXUS_V6\
-├── nexus6.py           (Entry point)
-├── nexus6.bat          (Launcher)
-├── requirements_v6.txt (Dependencies)
-├── core/               (NEXUS core modules)
-├── prompts/            (System prompts)
-├── docs/               (Documentation)
-├── NEXUS.md            (Context system docs)
-└── README.md           (Main documentation)
 ```
 
 ---
@@ -372,53 +240,15 @@ $env:LOCALAPPDATA\NEXUS_V6\
 
 After successful installation:
 
-1. **Read Quick Start:**
-   ```powershell
-   Get-Content "$env:LOCALAPPDATA\NEXUS_V6\docs\QUICKSTART.md"
-   ```
+1. **Read Quick Start:** See `README.md`
 
-2. **Learn about NEXUS.md:**
-   ```powershell
-   Get-Content "$env:LOCALAPPDATA\NEXUS_V6\NEXUS.md"
-   ```
-
-3. **Create your first project:**
+2. **Create your first project:**
    ```powershell
    mkdir my-ai-project
    cd my-ai-project
-
-   # Create NEXUS.md for project context
-   @"
-   # My AI Project
-
-   ## Tech Stack
-   - Python 3.11
-   - FastAPI
-
-   ## Conventions
-   - 4-space indentation
-   - Black formatting
-   "@ | Out-File -Encoding UTF8 NEXUS.md
-
-   # Launch NEXUS
-   nexus6
+   python path\to\nexus7.py
    ```
 
 ---
 
-## Support
-
-**Documentation:**
-- Quick Start: `docs/QUICKSTART.md`
-- NEXUS.md System: `NEXUS.md`
-- Full README: `README.md`
-
-**Issues:**
-- Report bugs: https://github.com/nexus-ai/nexus-v6/issues
-
-**Community:**
-- Discussions: https://github.com/nexus-ai/nexus-v6/discussions
-
----
-
-**Happy coding with NEXUS V6! 🚀**
+**Happy coding with NEXUS V7!**

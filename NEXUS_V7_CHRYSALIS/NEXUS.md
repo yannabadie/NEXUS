@@ -1,8 +1,8 @@
-# NEXUS V6.0 - Project Context System
+# NEXUS V7.0 - Project Context System
 
 **The Best of Both Worlds: Claude Code + Gemini CLI Context Management**
 
-NEXUS V6.0 implements a hierarchical markdown file system for project context, inspired by both Claude CLI's `CLAUDE.md` and Gemini CLI's `GEMINI.md` systems. This gives you powerful, flexible project-aware AI assistance.
+NEXUS V7.0 implements a hierarchical markdown file system for project context, inspired by both Claude CLI's `CLAUDE.md` and Gemini CLI's `GEMINI.md` systems. This gives you powerful, flexible project-aware AI assistance.
 
 ---
 
@@ -188,10 +188,10 @@ export NEXUS_SYSTEM_MD=true
 
 ### During a Session
 
-**Coming in V6.1:** Press `#` during a NEXUS session to add instructions that will be automatically saved to the appropriate NEXUS.md file.
+**Coming Soon:** Press `#` during a NEXUS session to add instructions that will be automatically saved to the appropriate NEXUS.md file.
 
 ```
-nexus6> # Remember: Always run black formatter before commit
+nexus7> # Remember: Always run black formatter before commit
 [Saved to /project/NEXUS.local.md]
 ```
 
@@ -403,7 +403,7 @@ Treat NEXUS.md like documentation:
 
 ## Comparison: Claude vs Gemini vs NEXUS
 
-| Feature | Claude CLI | Gemini CLI | NEXUS V6 |
+| Feature | Claude CLI | Gemini CLI | NEXUS V7 |
 |---------|-----------|------------|----------|
 | Main file | CLAUDE.md | GEMINI.md | NEXUS.md |
 | Hierarchical loading | ✅ | ✅ | ✅ |
@@ -412,10 +412,10 @@ Treat NEXUS.md like documentation:
 | Custom system prompt | ❌ | system.md | .nexus/system.md |
 | Slash commands | .claude/commands/ | ❌ | .nexus/commands/ |
 | Gitignore support | ✅ | ✅ .geminiignore | ✅ .nexusignore |
-| Interactive memory | # command | ❌ | # command (V6.1) |
+| Interactive memory | # command | ❌ | # command |
 | Environment vars | ❌ | GEMINI_SYSTEM_MD | NEXUS_SYSTEM_MD |
 
-**NEXUS V6 combines the best features from both!**
+**NEXUS V7 combines the best features from both!**
 
 ---
 
@@ -448,7 +448,7 @@ pytest tests/ -v
 ### 2. Launch NEXUS
 
 ```bash
-nexus6
+python nexus7.py
 ```
 
 NEXUS automatically loads your NEXUS.md context!
@@ -456,7 +456,7 @@ NEXUS automatically loads your NEXUS.md context!
 ### 3. Verify Context Loaded
 
 ```
-nexus6> /status
+nexus7> /status
 ```
 
 Check that your NEXUS.md was loaded in the context.
