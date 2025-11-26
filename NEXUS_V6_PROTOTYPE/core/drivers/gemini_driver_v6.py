@@ -1,7 +1,12 @@
 """
-Gemini Driver V6 - JSON Strict Mode
+Gemini Driver V7 Chrysalis - JSON Strict Mode
 
-Gemini reste en mode JSON strict (contrairement à Claude qui est hybride)
+Gemini reste en mode JSON strict (contrairement à Claude qui est hybride).
+
+V7 Features:
+- Gemini 3 Pro Preview for complex tasks (reasoning, research, analysis)
+- Gemini Flash for simple tasks (tool, validation, format)
+- Model routing via ModelRouter.select_gemini_model()
 """
 import subprocess
 import json
@@ -28,8 +33,8 @@ class GeminiDriverV6:
         self.io_buffer = workspace_path / "_IO_BUFFER"
         self.timeout = config.timeout if hasattr(config, 'timeout') else 120
 
-        # V7: Model and agent tracking
-        self.model = model or getattr(config, 'gemini_default_model', 'gemini-2.5-pro')
+        # V7: Model and agent tracking (default: Gemini 3 Pro Preview)
+        self.model = model or getattr(config, 'gemini_default_model', 'gemini-3-pro-preview')
         self.agent_id = agent_id or "gemini_primary"
 
     def invoke(self, context: str) -> Dict:

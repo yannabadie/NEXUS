@@ -238,10 +238,10 @@ pytest tests/
 cat workspace/logs/events_YYYYMMDD.jsonl
 
 # Git workflow
-git checkout N6P
+git checkout N7C
 git add .
-git commit -m "feat(v6): description"
-git push origin N6P
+git commit -m "feat(v7): description"
+git push origin N7C
 ```
 
 ---

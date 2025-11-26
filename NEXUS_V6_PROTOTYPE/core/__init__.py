@@ -1,2 +1,2 @@
-"""NEXUS V6.0 Core Module"""
-__version__ = "6.0.0"
+"""NEXUS V7.0 Chrysalis Core Module"""
+__version__ = "7.0.0"

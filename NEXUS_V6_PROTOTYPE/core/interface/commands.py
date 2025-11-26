@@ -1,5 +1,5 @@
 """
-Slash Commands - Commandes système pour NEXUS V6
+Slash Commands - Commandes système pour NEXUS V7 Chrysalis
 
 Commandes disponibles:
 - /clear: Efface l'écran
@@ -25,7 +25,7 @@ SLASH_COMMANDS = {
     "/specialize <mission>": "Create a specialized NEXUS spinoff for a specific mission",
     "/review": "Review and evaluate pending children from evolution",
     "/help": "Show this help message",
-    "exit": "Exit NEXUS V6.0"
+    "exit": "Exit NEXUS V7.0 Chrysalis"
 }
 
 

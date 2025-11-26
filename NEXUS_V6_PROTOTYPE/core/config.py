@@ -118,16 +118,27 @@ class Config:
         self.auto_promote_min_red_team_score: float = 0.90  # 90% alignment required
 
         # ====================================================================
-        # MODEL ROUTING (V7 - Opus vs Sonnet)
+        # MODEL ROUTING (V7 Chrysalis - Claude Opus/Sonnet + Gemini 3 Pro/Flash)
         # ====================================================================
+
+        # Claude models
         self.claude_opus_model: str = "claude-opus-4-5-20251101"
         self.claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
-        self.gemini_default_model: str = "gemini-2.5-pro"
+
+        # Gemini models (V7 Sprint 6: Gemini 3 Pro with task routing)
+        self.gemini_default_model: str = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
+        self.gemini_pro_model: str = "gemini-3-pro-preview"
+        self.gemini_flash_model: str = "gemini-2.5-flash"
 
         # Task types routed to Opus (complex, creative, security-critical)
         self.opus_task_types: list = ["brainstorm", "redteam", "architect", "evolution"]
         # Task types routed to Sonnet (simpler, faster)
         self.sonnet_task_types: list = ["tool", "validation", "simple", "format"]
+
+        # Task types routed to Gemini 3 Pro (complex reasoning, research)
+        self.gemini_pro_tasks: list = ["reasoning", "research", "analysis", "brainstorm", "evolution"]
+        # Task types routed to Gemini Flash (simple, fast)
+        self.gemini_flash_tasks: list = ["simple", "format", "validation", "tool"]
 
         # ====================================================================
         # V7 SPRINT 2: OPTIMIZATION FLAGS

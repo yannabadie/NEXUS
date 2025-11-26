@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NEXUS V6.0 - The Omniscient REPL
+NEXUS V7.0 "Chrysalis" - The Omniscient REPL
 Persistent FSM Orchestrator with Hybrid Drivers
 
 Architecture:
@@ -22,7 +22,7 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Constantes
-ENV_TEMPLATE = """# NEXUS V6.0 Configuration
+ENV_TEMPLATE = """# NEXUS V7.0 Chrysalis Configuration
 GEMINI_CLI_PATH=gemini
 CLAUDE_CLI_PATH=claude
 MAX_STALEMATE_COUNT=5
@@ -50,7 +50,7 @@ def bootstrap():
     Raises:
         SystemExit: Si bootstrap échoue
     """
-    print("🚀 NEXUS V6.0 Bootstrap...")
+    print("🚀 NEXUS V7.0 Chrysalis Bootstrap...")
 
     # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
     sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -153,7 +153,7 @@ def bootstrap():
 
     # Success!
     print("\n" + "="*60)
-    print("✅ NEXUS V6.0 Bootstrap Complete")
+    print("✅ NEXUS V7.0 Chrysalis Bootstrap Complete")
     print("="*60)
     print(f"\n📊 Gemini")
     print(f"   Model: {gemini_info['model']}")
@@ -172,10 +172,10 @@ def bootstrap():
 
 
 def main():
-    """Entry point NEXUS V6.0"""
+    """Entry point NEXUS V7.0 Chrysalis"""
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description="NEXUS V6.0 - The Omniscient REPL",
+        description="NEXUS V7.0 Chrysalis - The Omniscient REPL",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -211,9 +211,9 @@ Documentation: https://github.com/nexus-ai/nexus-v6
 
     # Handle --version
     if args.version:
-        print("NEXUS V6.0 - The Omniscient REPL")
+        print("NEXUS V7.0 Chrysalis - The Omniscient REPL")
         print("Persistent FSM Orchestrator with Hybrid Drivers")
-        print("https://github.com/nexus-ai/nexus-v6")
+        print("https://github.com/yannabadie/NEXUS (branch: N7C)")
         sys.exit(0)
 
     try:
@@ -223,7 +223,7 @@ Documentation: https://github.com/nexus-ai/nexus-v6
         # Handle --verify (exit after bootstrap)
         if args.verify:
             print("\n✅ Bootstrap verification successful!")
-            print("   NEXUS V6.0 is ready to use.")
+            print("   NEXUS V7.0 Chrysalis is ready to use.")
             sys.exit(0)
 
         # Import and launch REPL
@@ -259,7 +259,7 @@ Documentation: https://github.com/nexus-ai/nexus-v6
         repl.run()
 
     except KeyboardInterrupt:
-        print("\n\n👋 NEXUS V6.0 terminated by user")
+        print("\n\n👋 NEXUS V7.0 Chrysalis terminated by user")
         sys.exit(0)
 
     except Exception as e:

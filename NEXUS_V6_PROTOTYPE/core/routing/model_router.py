@@ -1,15 +1,21 @@
 """
-Model Router - Intelligent Model Selection for NEXUS V7
+Model Router - Intelligent Model Selection for NEXUS V7 Chrysalis
 
 Routes tasks to the most appropriate model based on task type and complexity.
-Implements the Opus vs Sonnet routing strategy for Claude models.
+Implements routing strategies for both Claude (Opus/Sonnet) and Gemini (Pro/Flash).
 
 Usage:
     from core.routing import ModelRouter
 
     router = ModelRouter(config)
+
+    # Claude routing
     model = router.select_claude_model(TaskType.BRAINSTORM)
     # Returns: "claude-opus-4-5-20251101"
+
+    # Gemini routing (V7 Sprint 6)
+    model = router.select_gemini_model(TaskType.REASONING)
+    # Returns: "gemini-3-pro-preview"
 """
 
 from enum import Enum
@@ -25,15 +31,19 @@ class TaskType(Enum):
     """
     Task types for model routing.
 
-    Complex tasks route to Opus, simpler tasks route to Sonnet.
+    Claude: Complex tasks → Opus, simpler tasks → Sonnet
+    Gemini: Complex tasks → 3-Pro, simpler tasks → Flash
     """
-    # Opus-routed (complex, creative, security-critical)
+    # Opus/3-Pro routed (complex, creative, security-critical)
     BRAINSTORM = "brainstorm"      # Evolution brainstorming
     REDTEAM = "redteam"            # Security/alignment testing
     ARCHITECT = "architect"        # Architecture decisions
     EVOLUTION = "evolution"        # Child mutation design
+    REASONING = "reasoning"        # Complex reasoning (Gemini 3 Pro)
+    RESEARCH = "research"          # Web research (Gemini 3 Pro)
+    ANALYSIS = "analysis"          # Deep analysis (Gemini 3 Pro)
 
-    # Sonnet-routed (simpler, faster)
+    # Sonnet/Flash routed (simpler, faster)
     TOOL = "tool"                  # Tool execution
     VALIDATION = "validation"      # Code validation
     SIMPLE = "simple"              # Simple queries
@@ -56,8 +66,13 @@ class ModelRouter:
     """
     Routes tasks to appropriate models based on complexity.
 
-    Opus (claude-opus-4-5): Complex reasoning, creativity, security
-    Sonnet (claude-sonnet-4-5): Speed, tools, simple tasks
+    Claude:
+        Opus (claude-opus-4-5): Complex reasoning, creativity, security
+        Sonnet (claude-sonnet-4-5): Speed, tools, simple tasks
+
+    Gemini (V7 Sprint 6):
+        3-Pro (gemini-3-pro-preview): Complex reasoning, research, analysis
+        Flash (gemini-2.5-flash): Simple tasks, validation, formatting
     """
 
     def __init__(self, config: Optional["Config"] = None):
@@ -67,24 +82,39 @@ class ModelRouter:
         Args:
             config: NEXUS config with model IDs and task type mappings
         """
-        # Default model IDs (can be overridden by config)
+        # Default Claude model IDs
         self.opus_model = "claude-opus-4-5-20251101"
         self.sonnet_model = "claude-sonnet-4-5-20250929"
-        self.gemini_model = "gemini-2.5-pro"
 
-        # Default task type mappings
+        # Default Gemini model IDs (V7 Sprint 6)
+        self.gemini_model = "gemini-3-pro-preview"
+        self.gemini_pro_model = "gemini-3-pro-preview"
+        self.gemini_flash_model = "gemini-2.5-flash"
+
+        # Default Claude task type mappings
         self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM,
                           TaskType.ARCHITECT, TaskType.EVOLUTION}
         self.sonnet_tasks = {TaskType.TOOL, TaskType.VALIDATION,
                             TaskType.SIMPLE, TaskType.FORMAT}
 
+        # Default Gemini task type mappings (V7 Sprint 6)
+        self.gemini_pro_tasks = {TaskType.REASONING, TaskType.RESEARCH,
+                                 TaskType.ANALYSIS, TaskType.BRAINSTORM, TaskType.EVOLUTION}
+        self.gemini_flash_tasks = {TaskType.SIMPLE, TaskType.FORMAT,
+                                   TaskType.VALIDATION, TaskType.TOOL}
+
         # Override with config if provided
         if config:
+            # Claude models
             self.opus_model = getattr(config, 'claude_opus_model', self.opus_model)
             self.sonnet_model = getattr(config, 'claude_sonnet_model', self.sonnet_model)
-            self.gemini_model = getattr(config, 'gemini_default_model', self.gemini_model)
 
-            # Update task mappings from config lists
+            # Gemini models (V7 Sprint 6)
+            self.gemini_model = getattr(config, 'gemini_default_model', self.gemini_model)
+            self.gemini_pro_model = getattr(config, 'gemini_pro_model', self.gemini_pro_model)
+            self.gemini_flash_model = getattr(config, 'gemini_flash_model', self.gemini_flash_model)
+
+            # Update Claude task mappings from config lists
             opus_list = getattr(config, 'opus_task_types', [])
             sonnet_list = getattr(config, 'sonnet_task_types', [])
 
@@ -92,6 +122,15 @@ class ModelRouter:
                 self.opus_tasks = {TaskType(t) for t in opus_list if t in [e.value for e in TaskType]}
             if sonnet_list:
                 self.sonnet_tasks = {TaskType(t) for t in sonnet_list if t in [e.value for e in TaskType]}
+
+            # Update Gemini task mappings from config lists (V7 Sprint 6)
+            gemini_pro_list = getattr(config, 'gemini_pro_tasks', [])
+            gemini_flash_list = getattr(config, 'gemini_flash_tasks', [])
+
+            if gemini_pro_list:
+                self.gemini_pro_tasks = {TaskType(t) for t in gemini_pro_list if t in [e.value for e in TaskType]}
+            if gemini_flash_list:
+                self.gemini_flash_tasks = {TaskType(t) for t in gemini_flash_list if t in [e.value for e in TaskType]}
 
     def select_claude_model(self, task_type: TaskType) -> str:
         """
@@ -149,8 +188,45 @@ class ModelRouter:
         )
 
     def get_gemini_model(self) -> str:
-        """Get the configured Gemini model"""
+        """Get the default configured Gemini model"""
         return self.gemini_model
+
+    def select_gemini_model(self, task_type: TaskType) -> str:
+        """
+        Select appropriate Gemini model for task type (V7 Sprint 6).
+
+        Complex tasks (reasoning, research, analysis) → Gemini 3 Pro
+        Simple tasks (tool, validation, format) → Gemini Flash
+
+        Args:
+            task_type: Type of task to perform
+
+        Returns:
+            Model ID string (gemini-3-pro-preview or gemini-2.5-flash)
+        """
+        if task_type in self.gemini_pro_tasks:
+            return self.gemini_pro_model
+        return self.gemini_flash_model
+
+    def select_gemini_model_str(self, task_type_str: str) -> str:
+        """
+        Select Gemini model from string task type.
+
+        Args:
+            task_type_str: String like "reasoning", "research", "tool", etc.
+
+        Returns:
+            Model ID string
+        """
+        try:
+            task_type = TaskType(task_type_str.lower())
+        except ValueError:
+            task_type = TaskType.DEFAULT
+        return self.select_gemini_model(task_type)
+
+    def should_use_gemini_pro(self, task_type: TaskType) -> bool:
+        """Check if task should use Gemini 3 Pro (V7 Sprint 6)"""
+        return task_type in self.gemini_pro_tasks
 
     def should_use_opus(self, task_type: TaskType) -> bool:
         """Check if task should use Opus"""

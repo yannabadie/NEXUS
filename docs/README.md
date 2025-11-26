@@ -1,7 +1,7 @@
 # NEXUS Documentation Index
 
-**Last Updated**: 2025-11-25
-**Version**: V6.5 (Real Benchmarks + Security Hardening)
+**Last Updated**: 2025-11-26
+**Version**: V7.0 Chrysalis (Sprint System + DyLAN Metrics)
 **Maintainers**: Claude Code + Yann Abadie
 
 ---
@@ -245,7 +245,7 @@ NEXUS_V6_PROTOTYPE/
 ### NEXUS Resources
 
 - **GitHub**: https://github.com/yannabadie/NEXUS
-- **Branch**: N6P (active development)
+- **Branch**: N7C (V7 Chrysalis active development)
 - **Issues**: https://github.com/yannabadie/NEXUS/issues
 
 ---

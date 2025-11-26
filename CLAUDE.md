@@ -127,11 +127,11 @@ cat workspace/logs/errors_YYYYMMDD.log
 
 ### Git Workflow:
 ```bash
-# Branch: N6P (current development branch)
-git checkout N6P
+# Branch: N7C (V7 Chrysalis development branch)
+git checkout N7C
 git add .
-git commit -m "feat(v6): description"
-git push origin N6P
+git commit -m "feat(v7): description"
+git push origin N7C
 ```
 
 ---
