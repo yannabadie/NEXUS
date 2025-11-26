@@ -66,6 +66,37 @@ class OrchestratorState(Enum):
     Session doit être redémarrée.
     """
 
+    # ====================================================================
+    # HYBRID SWARM STATES (Sprint 9)
+    # ====================================================================
+
+    SWARM_ANALYZING = auto()
+    """
+    Swarm Engine analyse la tâche utilisateur:
+    - Déterminer la complexité (TRIVIAL → EXPERT)
+    - Identifier les domaines (CODING, RESEARCH, etc.)
+    - Calculer les scores de fit Gemini/Claude
+    """
+
+    SWARM_NEGOTIATING = auto()
+    """
+    Agents négocient le mode de collaboration optimal:
+    - Débat en langage naturel avec <negotiate> JSON
+    - Maximum 4 tours de négociation
+    - Consensus ou fallback vers mode initial
+    """
+
+    SWARM_EXECUTING = auto()
+    """
+    Exécution du mode de collaboration négocié:
+    - PARALLEL: Travail simultané
+    - SEQUENTIAL: Enchaînement ordonné
+    - LEAD_SUPPORT: Lead + Support
+    - PING_PONG: Alternance rapide
+    - SPECIALIST: Expert unique
+    - RED_BLUE: Adversarial propose/attack
+    """
+
 
 class TransitionGuard:
     """
@@ -131,5 +162,23 @@ TRANSITION_MATRIX = {
     },
     OrchestratorState.PANIC: {
         # Aucune transition - doit redémarrer
+    },
+    # ====================================================================
+    # HYBRID SWARM TRANSITIONS (Sprint 9)
+    # ====================================================================
+    OrchestratorState.SWARM_ANALYZING: {
+        "analysis_complete": OrchestratorState.SWARM_NEGOTIATING,
+        "skip_negotiation": OrchestratorState.SWARM_EXECUTING,
+        "error": OrchestratorState.ERROR
+    },
+    OrchestratorState.SWARM_NEGOTIATING: {
+        "consensus": OrchestratorState.SWARM_EXECUTING,
+        "timeout": OrchestratorState.SWARM_EXECUTING,  # Fallback to initial mode
+        "error": OrchestratorState.ERROR
+    },
+    OrchestratorState.SWARM_EXECUTING: {
+        "execution_complete": OrchestratorState.VALIDATING_CFL,
+        "continue": OrchestratorState.SWARM_EXECUTING,
+        "error": OrchestratorState.ERROR
     }
 }

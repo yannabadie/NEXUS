@@ -156,6 +156,24 @@ class Config:
         self.agent_metrics_enabled: bool = os.getenv("AGENT_METRICS", "True").lower() == "true"
         self.agent_metrics_window: int = int(os.getenv("AGENT_METRICS_WINDOW", "100"))
 
+        # ====================================================================
+        # HYBRID SWARM ENGINE (V7 Sprint 9)
+        # ====================================================================
+
+        # Enable/Disable Swarm Engine
+        self.swarm_enabled: bool = os.getenv("SWARM_ENABLED", "True").lower() == "true"
+
+        # Negotiation settings
+        self.swarm_negotiation_enabled: bool = os.getenv("SWARM_NEGOTIATION", "True").lower() == "true"
+        self.swarm_negotiation_max_turns: int = int(os.getenv("SWARM_NEGOTIATION_TURNS", "4"))
+
+        # Mode defaults
+        self.swarm_default_mode: str = os.getenv("SWARM_DEFAULT_MODE", "ping_pong")
+        self.swarm_skip_trivial: bool = os.getenv("SWARM_SKIP_TRIVIAL", "True").lower() == "true"
+
+        # Execution limits
+        self.swarm_max_rounds: int = int(os.getenv("SWARM_MAX_ROUNDS", "6"))
+
     def to_dict(self) -> dict:
         """Export config as dict"""
         return {

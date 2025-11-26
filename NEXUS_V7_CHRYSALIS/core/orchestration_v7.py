@@ -24,6 +24,12 @@ from core.synapse.memory_v7 import MemoryManagerV7
 from core.execution.tool_manager import ToolManager
 from core.logging import init_logger, get_logger
 from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
+from core.swarm import (
+    HybridSwarmEngine,
+    SwarmPhase,
+    CollaborationMode,
+    TaskAnalysis
+)
 from pydantic import ValidationError
 import time
 import json
@@ -120,10 +126,26 @@ class OrchestratorV7:
         else:
             self.agent_pool = None
 
+        # V7 Sprint 9: Hybrid Swarm Engine for dynamic multi-agent collaboration
+        if getattr(self.config, 'swarm_enabled', False):
+            self.swarm_engine = HybridSwarmEngine(
+                agent_pool=self.agent_pool,
+                model_router=self.model_router,
+                config=self.config,
+                invoke_agent=self._invoke_for_swarm
+            )
+            self.logger.debug("HybridSwarmEngine initialized", {
+                "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
+                "default_mode": getattr(self.config, 'swarm_default_mode', 'ping_pong')
+            })
+        else:
+            self.swarm_engine = None
+
         self.logger.debug("OrchestratorV7 initialized", {
             "gemini_model": gemini_info.get("model"),
             "claude_model": claude_info.get("model"),
-            "agent_metrics": self.config.agent_metrics_enabled
+            "agent_metrics": self.config.agent_metrics_enabled,
+            "swarm_enabled": self.swarm_engine is not None
         })
 
     def _get_claude_driver(self, task_type: TaskType) -> ClaudeDriverHybrid:
@@ -154,6 +176,41 @@ class OrchestratorV7:
             return driver.invoke(context)
         else:
             return self.gemini_driver.invoke(context)
+
+    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
+        """
+        Invoke agent for HybridSwarmEngine.
+
+        V7 Sprint 9: Callback for swarm engine to invoke agents.
+        Returns raw content string for negotiation/execution.
+
+        Args:
+            agent_id: "gemini_primary" or "claude_opus"
+            task_type: Task type string (negotiation, execution, etc.)
+            context: Full context to send to agent
+
+        Returns:
+            Agent response content as string
+        """
+        is_claude = "claude" in agent_id.lower()
+        self.active_agent = "Claude" if is_claude else "Gemini"
+
+        try:
+            # Map task type string to TaskType enum
+            task_type_enum = TaskType.BRAINSTORM  # Default
+            if task_type == "negotiation":
+                task_type_enum = TaskType.BRAINSTORM  # Use Opus for negotiation
+            elif task_type == "execution":
+                task_type_enum = TaskType.TOOL  # Use Sonnet for execution
+            elif task_type == "validation":
+                task_type_enum = TaskType.VALIDATION
+
+            response = self._invoke_agent(task_type_enum, context)
+            return response.get("content", str(response))
+
+        except Exception as e:
+            self.logger.error(f"Swarm invocation failed: {e}")
+            return f"[Error invoking {agent_id}]: {str(e)}"
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
         """
@@ -492,6 +549,104 @@ class OrchestratorV7:
                 # Unknown action type - continue anyway
                 return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
 
+        # === STATE: SWARM_ANALYZING (V7 Sprint 9) ===
+        elif self.state == OrchestratorState.SWARM_ANALYZING:
+            if not self.swarm_engine:
+                self._transition_to(OrchestratorState.BRAINSTORMING)
+                return self._make_result("BRAINSTORMING", "Swarm disabled, using classic mode", self.active_agent, False)
+
+            # Run task analysis
+            analysis = self.swarm_engine.start_analysis(self.blackboard.get("objective", ""))
+
+            # Skip negotiation for trivial tasks
+            if analysis.should_skip_negotiation:
+                self._transition_to(OrchestratorState.SWARM_EXECUTING)
+                return self._make_result(
+                    "SWARM_EXECUTING",
+                    f"[Swarm] Task trivial - skipping negotiation\n"
+                    f"Complexity: {analysis.complexity.name}\n"
+                    f"Mode: {getattr(self.config, 'swarm_default_mode', 'ping_pong')}",
+                    None,
+                    False
+                )
+
+            # Proceed to negotiation
+            self._transition_to(OrchestratorState.SWARM_NEGOTIATING)
+            return self._make_result(
+                "SWARM_NEGOTIATING",
+                f"[Swarm Analysis]\n"
+                f"Complexity: {analysis.complexity.name}\n"
+                f"Domains: {', '.join(d.value for d in analysis.domains[:3])}\n"
+                f"Gemini fit: {analysis.gemini_fit_score:.0%}\n"
+                f"Claude fit: {analysis.claude_fit_score:.0%}\n"
+                f"Recommended lead: {analysis.recommended_lead}",
+                None,
+                False
+            )
+
+        # === STATE: SWARM_NEGOTIATING (V7 Sprint 9) ===
+        elif self.state == OrchestratorState.SWARM_NEGOTIATING:
+            if not self.swarm_engine:
+                self._transition_to(OrchestratorState.BRAINSTORMING)
+                return self._make_result("BRAINSTORMING", "Swarm disabled", self.active_agent, False)
+
+            # Start mode selection and negotiation
+            proposal = self.swarm_engine.start_selection()
+            negotiation_result = self.swarm_engine.start_negotiation()
+
+            # Proceed to execution
+            self._transition_to(OrchestratorState.SWARM_EXECUTING)
+
+            if negotiation_result:
+                return self._make_result(
+                    "SWARM_EXECUTING",
+                    f"[Swarm Negotiation]\n"
+                    f"Status: {negotiation_result.status.value}\n"
+                    f"Selected mode: {negotiation_result.selected_mode.value}\n"
+                    f"Consensus: {negotiation_result.consensus_confidence:.0%}\n"
+                    f"Turns: {negotiation_result.total_turns}",
+                    None,
+                    False
+                )
+            else:
+                return self._make_result(
+                    "SWARM_EXECUTING",
+                    f"[Swarm] Using initial proposal: {proposal.mode.value}",
+                    None,
+                    False
+                )
+
+        # === STATE: SWARM_EXECUTING (V7 Sprint 9) ===
+        elif self.state == OrchestratorState.SWARM_EXECUTING:
+            if not self.swarm_engine:
+                self._transition_to(OrchestratorState.BRAINSTORMING)
+                return self._make_result("BRAINSTORMING", "Swarm disabled", self.active_agent, False)
+
+            # Execute the selected mode
+            objective = self.blackboard.get("objective", "")
+            execution_result = self.swarm_engine.execute_turn(objective, self.blackboard)
+
+            if execution_result.finished:
+                # Transition back to validation
+                self._transition_to(OrchestratorState.VALIDATING_CFL)
+                return self._make_result(
+                    "VALIDATING_CFL",
+                    f"[Swarm Execution Complete]\n"
+                    f"Mode: {execution_result.mode.value}\n"
+                    f"Rounds: {execution_result.total_rounds}\n"
+                    f"---\n{execution_result.final_output}",
+                    None,
+                    False
+                )
+            else:
+                # Continue execution
+                return self._make_result(
+                    "SWARM_EXECUTING",
+                    f"[Swarm executing...]\n{execution_result.final_output[:500]}",
+                    None,
+                    False
+                )
+
         # === STATE: ERROR ===
         elif self.state == OrchestratorState.ERROR:
             return self._make_result("ERROR", "System in error state. Use /reset", None, False, error="ERROR")
@@ -780,6 +935,10 @@ Error: {result_dict['error']}
             "backups": {
                 "available": len(self.memory.list_backups()),
                 "latest": self.memory.list_backups()[0] if self.memory.list_backups() else None
+            },
+            "swarm": {
+                "enabled": self.swarm_engine is not None,
+                "stats": self.swarm_engine.get_stats() if self.swarm_engine else None
             }
         }
 
@@ -806,5 +965,88 @@ Error: {result_dict['error']}
 
             return True
         return False
+
+    def start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode] = None) -> Dict:
+        """
+        Start Hybrid Swarm mode for a task (V7 Sprint 9).
+
+        This bypasses the normal IDLE→BRAINSTORMING flow and uses
+        the HybridSwarmEngine for dynamic mode negotiation.
+
+        Args:
+            objective: Task description
+            force_mode: Optional mode to force (skip negotiation)
+
+        Returns:
+            Initial swarm result dict
+        """
+        if not self.swarm_engine:
+            return self._make_result("ERROR", "Swarm engine not enabled", None, False, error="SWARM_DISABLED")
+
+        # Set objective
+        self.blackboard["objective"] = objective
+        self.blackboard["mode"] = "SWARM"
+
+        # Transition to swarm analyzing
+        self._transition_to(OrchestratorState.SWARM_ANALYZING)
+
+        return self._make_result(
+            "SWARM_ANALYZING",
+            f"[Swarm Mode Started]\nObjective: {objective}\nForce mode: {force_mode.value if force_mode else 'auto'}",
+            None,
+            False
+        )
+
+    def process_with_swarm(
+        self,
+        task_input: str,
+        force_mode: Optional[CollaborationMode] = None,
+        skip_negotiation: bool = False
+    ) -> Dict:
+        """
+        Process a task using HybridSwarmEngine directly (V7 Sprint 9).
+
+        Runs the full swarm pipeline synchronously and returns the result.
+        This is a convenience method for when you want to use swarm
+        without going through the FSM states.
+
+        Args:
+            task_input: Task description
+            force_mode: Force a specific collaboration mode
+            skip_negotiation: Skip negotiation phase
+
+        Returns:
+            Result dict with swarm output
+        """
+        if not self.swarm_engine:
+            return self._make_result("ERROR", "Swarm engine not enabled", None, False, error="SWARM_DISABLED")
+
+        try:
+            result = self.swarm_engine.process_task(
+                task_input=task_input,
+                blackboard=self.blackboard,
+                force_mode=force_mode,
+                skip_negotiation=skip_negotiation
+            )
+
+            # Update history with swarm result
+            self.memory.add_to_history({
+                "sender": "Swarm",
+                "action_type": "SWARM_RESULT",
+                "content": result.final_output[:2000]
+            })
+
+            return {
+                "state": result.status.value,
+                "output": result.final_output,
+                "mode": result.selected_mode.value,
+                "finished": result.status == SwarmPhase.COMPLETED,
+                "analysis": result.task_analysis.to_dict(),
+                "execution": result.execution_result.to_dict()
+            }
+
+        except Exception as e:
+            self.logger.error(f"Swarm processing failed: {e}")
+            return self._make_result("ERROR", f"Swarm failed: {e}", None, False, error=str(e))
 
 

@@ -1,38 +1,48 @@
-# SESSION CONTINUITY - NEXUS V7.0 "Chrysalis" Sprint 7
+# SESSION CONTINUITY - NEXUS V7.0 "Chrysalis" Sprint 9
 
 **Date**: 2025-11-26
-**Session**: Sprint 7 - Full V7 Branding + Runtime Benchmarks
-**Status**: ✅ **SPRINT 7 COMPLETE**
+**Session**: Sprint 9 - Hybrid Swarm Engine
+**Status**: ✅ **SPRINT 9 COMPLETE**
 **Branch**: N7C
-**Last Commit**: Pending (Sprint 7)
+**Last Commit**: Pending (Sprint 9)
 **Operator**: Claude Code (Opus 4.5)
 
 ---
 
-## 🦋 V7.0 SPRINT 7: Chrysalis Complete (2025-11-26)
+## 🐝 V7.0 SPRINT 9: Hybrid Swarm Engine (2025-11-26)
 
 ### Objectifs Accomplis
 
-**Sprint 7** finalise le branding V7 "Chrysalis":
+**Sprint 9** implémente le **Hybrid Swarm Engine** - le cœur de NEXUS V7:
 
-1. ✅ **Auto-Promotion**: `check_auto_promotion_eligibility()` câblé dans `/review`
-2. ✅ **Runtime Benchmarks**: Reasoning + Creativity dynamiques (subprocess)
-3. ✅ **Folder Rename**: `NEXUS_V6_PROTOTYPE` → `NEXUS_V7_CHRYSALIS`
-4. ✅ **Module Rename**: `*_v6.py` → `*_v7.py`, `nexus6.py` → `nexus7.py`
-5. ✅ **Prompt Rename**: `system_*_v6.md` → `system_*_v7.md`
+1. ✅ **6 Collaboration Modes**: PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
+2. ✅ **TaskAnalyzer**: Détection complexité (TRIVIAL→EXPERT) et domaines (CODING, RESEARCH, etc.)
+3. ✅ **ModeSelector**: Sélection basée sur DyLAN importance scores
+4. ✅ **NegotiationProtocol**: Débat hybride (langage naturel + `<negotiate>` JSON)
+5. ✅ **6 Mode Executors**: Implémentation complète de chaque mode
+6. ✅ **HybridSwarmEngine**: Moteur principal orchestrant tout
+7. ✅ **FSM Integration**: 3 nouveaux états (SWARM_ANALYZING, SWARM_NEGOTIATING, SWARM_EXECUTING)
+8. ✅ **Documentation**: HYBRID_SWARM.md (~500 lignes)
+9. ✅ **Tests**: 41 tests unitaires (97 total)
 
-### Fichiers Clés Modifiés
+### Fichiers Créés/Modifiés
 
-| Fichier | Changements |
-|---------|-------------|
-| `NEXUS_V7_CHRYSALIS/core/interface/repl.py` | Auto-promotion + SafetyGates display |
-| `BENCHMARKS/asi_benchmark.py` | `_run_reasoning_dynamic()`, `_run_creativity_dynamic()` |
-| `NEXUS_V7_CHRYSALIS/core/evolution/tiered_validator.py` | Runtime benchmarks integration |
-| `NEXUS_V7_CHRYSALIS/core/orchestration_v7.py` | Renamed from v6 |
-| `NEXUS_V7_CHRYSALIS/nexus7.py` | Entry point renamed |
-| `LINEAGE.json` | path = NEXUS_V7_CHRYSALIS |
+| Fichier | Action | Description |
+|---------|--------|-------------|
+| `core/swarm/collaboration_modes.py` | NEW | 6 modes + ModeCharacteristics |
+| `core/swarm/task_analyzer.py` | NEW | TaskComplexity, TaskDomain, TaskAnalyzer |
+| `core/swarm/mode_selector.py` | NEW | ModeSelector avec DyLAN |
+| `core/swarm/negotiation_protocol.py` | NEW | Protocole hybride <negotiate> |
+| `core/swarm/mode_executors.py` | NEW | 6 executors |
+| `core/swarm/hybrid_swarm_engine.py` | NEW | HybridSwarmEngine |
+| `core/swarm/__init__.py` | MODIFY | ~50 exports ajoutés |
+| `core/fsm/states.py` | MODIFY | 3 nouveaux états FSM |
+| `core/config.py` | MODIFY | 6 options swarm |
+| `core/orchestration_v7.py` | MODIFY | Intégration HybridSwarmEngine |
+| `tests/test_hybrid_swarm.py` | NEW | 41 tests |
+| `docs/HYBRID_SWARM.md` | NEW | Documentation complète |
 
-### V7.0 Features (Sprints 1-7)
+### V7.0 Features (Sprints 1-9)
 
 | Feature | Sprint | Status |
 |---------|--------|--------|
@@ -48,15 +58,52 @@
 | V7 Officialisation | Sprint 5 | ✅ |
 | Gemini 3 Pro routing | Sprint 6 | ✅ |
 | V7 Chrysalis branding | Sprint 6 | ✅ |
-| **Auto-promotion wiring** | Sprint 7 | ✅ |
-| **Runtime Benchmarks (Reasoning)** | Sprint 7 | ✅ |
-| **Runtime Benchmarks (Creativity)** | Sprint 7 | ✅ |
-| **Full folder/module rename** | Sprint 7 | ✅ |
+| Auto-promotion wiring | Sprint 7 | ✅ |
+| Runtime Benchmarks | Sprint 7 | ✅ |
+| Model Router wiring | Sprint 8 | ✅ |
+| V6→V7 docstrings | Sprint 8 | ✅ |
+| **Hybrid Swarm Engine** | Sprint 9 | ✅ |
+| **6 Collaboration Modes** | Sprint 9 | ✅ |
+| **Task Analyzer** | Sprint 9 | ✅ |
+| **Negotiation Protocol** | Sprint 9 | ✅ |
+| **FSM Swarm States** | Sprint 9 | ✅ |
+
+### Configuration Swarm
+
+```bash
+# .env
+SWARM_ENABLED=True
+SWARM_NEGOTIATION=True
+SWARM_NEGOTIATION_TURNS=4
+SWARM_DEFAULT_MODE=ping_pong
+SWARM_SKIP_TRIVIAL=True
+SWARM_MAX_ROUNDS=6
+```
 
 ### Prochaines Étapes
 
-1. **Sprint 8**: Scalability benchmarks runtime (optional)
-2. **Phase 6**: Hybrid Swarm avec N agents
+1. **Sprint 10**: Commandes REPL (/swarm, /swarm-mode, /swarm-stats)
+2. **Phase 6+**: RAG Integration + Vector Store
+3. **Evolution**: Self-improvement via Hybrid Swarm
+
+---
+
+## 🦋 V7.0 SPRINT 7: Chrysalis Complete (2025-11-26)
+
+### Objectifs Accomplis
+
+**Sprint 7** finalise le branding V7 "Chrysalis":
+
+1. ✅ **Auto-Promotion**: `check_auto_promotion_eligibility()` câblé dans `/review`
+2. ✅ **Runtime Benchmarks**: Reasoning + Creativity dynamiques (subprocess)
+3. ✅ **Folder Rename**: `NEXUS_V6_PROTOTYPE` → `NEXUS_V7_CHRYSALIS`
+4. ✅ **Module Rename**: `*_v6.py` → `*_v7.py`, `nexus6.py` → `nexus7.py`
+5. ✅ **Prompt Rename**: `system_*_v6.md` → `system_*_v7.md`
+
+### Prochaines Étapes (ARCHIVED - see Sprint 9)
+
+1. ~~**Sprint 8**: Scalability benchmarks runtime (optional)~~
+2. ~~**Phase 6**: Hybrid Swarm avec N agents~~ → **COMPLETED in Sprint 9**
 3. **RAG Integration**: Vector store pour mémoire long-terme
 
 ---
