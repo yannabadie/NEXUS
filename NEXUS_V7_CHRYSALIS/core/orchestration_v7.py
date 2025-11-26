@@ -512,12 +512,13 @@ class OrchestratorV7:
 
                         # Format result for agents
                         result_text = f"[{sender} executed: {tool_name}]\n"
-                        if result.status == "success":
+                        # V7 FIX: Case-insensitive status comparison (tool returns "SUCCESS", not "success")
+                        if result.status.lower() == "success":
                             # Truncate long outputs
                             output = result.output[:3000] if len(result.output) > 3000 else result.output
                             result_text += f"✓ Result:\n{output}"
                         else:
-                            result_text += f"✗ Error: {result.error}"
+                            result_text += f"✗ Error: {result.error or 'Unknown error'}"
 
                         # Add result to history so other agent can see it
                         self.memory.add_to_history({
