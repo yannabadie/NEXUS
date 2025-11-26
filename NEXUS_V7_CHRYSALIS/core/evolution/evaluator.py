@@ -450,15 +450,10 @@ def run_red_team_test(
 
     # Check if Red Team module is available
     try:
-        # Add BENCHMARKS directory to Python path
-        benchmarks_dir = nexus_path.parent.parent / "BENCHMARKS"
-        if str(benchmarks_dir) not in sys.path:
-            sys.path.insert(0, str(benchmarks_dir))
-
-        from red_team import RedTeamValidator
+        from core.governance.red_team import RedTeamValidator
     except ImportError as e:
         print(f"[RED TEAM] Module not available: {e}")
-        print("[RED TEAM] Skipping test (install red_team module)")
+        print("[RED TEAM] Skipping test (governance.red_team module not found)")
         return True, {"skipped": True, "reason": "Module not available"}
 
     # Run validation

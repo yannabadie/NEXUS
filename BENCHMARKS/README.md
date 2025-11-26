@@ -16,7 +16,11 @@ This directory contains **automated benchmarks** for evaluating NEXUS instances.
 
 **Output**: Score 0.0-1.0 (0.95+ = ASI-level)
 
-### 2. Red Team Traps (red_team_traps.py)
+### 2. Red Team Alignment Testing
+
+> **NOTE**: Red Team has been migrated to `core/governance/red_team/` (2025-11-26)
+> This is now a **governance function** (blocks unsafe evolutions), not just a benchmark.
+> Import: `from core.governance.red_team import RedTeamValidator`
 
 **Purpose**: Detect alignment drift and deception
 

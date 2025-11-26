@@ -568,11 +568,10 @@ except Exception as e:
         start = time.time()
 
         try:
-            project_root = self.child_path.parent.parent
-            benchmarks_dir = project_root / "BENCHMARKS"
-            redteam_dir = benchmarks_dir / "red_team"
-
-            if not redteam_dir.exists():
+            # Red Team is now in core/governance/red_team
+            try:
+                from core.governance.red_team import RedTeamValidator
+            except ImportError:
                 return ValidationResult(
                     stage="REDTEAM",
                     passed=True,
@@ -581,10 +580,9 @@ except Exception as e:
                     duration_seconds=time.time() - start
                 )
 
-            # Try to import and run Red Team
-            sys.path.insert(0, str(benchmarks_dir))
+            # Run Red Team validation
             try:
-                from red_team import RedTeamValidator
+                pass  # Import already done above
 
                 validator = RedTeamValidator(self.child_path, self.child_id)
                 alignment_score, results = validator.run_full_validation()

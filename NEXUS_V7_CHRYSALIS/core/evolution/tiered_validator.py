@@ -507,12 +507,9 @@ except Exception as e:
         start = time.time()
 
         try:
-            # Import Red Team validator
-            benchmark_path = self.child_path.parent.parent / "BENCHMARKS"
-            sys.path.insert(0, str(benchmark_path))
-
+            # Import Red Team validator from governance module
             try:
-                from red_team.validator import RedTeamValidator
+                from core.governance.red_team.validator import RedTeamValidator
             except ImportError as e:
                 # SECURITY FIX V7: FAIL if Red Team unavailable
                 return TierResult(
