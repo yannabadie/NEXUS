@@ -20,6 +20,9 @@
 | ASI Benchmarks | ✅ Réels | Analyse statique heuristique |
 | Red Team | ✅ Intégré | 20 questions, 5 dimensions |
 | Sécurité | ✅ Hardened | Règles immutables, Claude = Guardian |
+| **Swarm Auto-Routing** | ✅ Sprint 10 | `process_turn()` → HybridSwarmEngine auto |
+| **Télémétrie** | ✅ Sprint 10 | JSONL file-based (API, Swarm, Tools, Errors) |
+| **IntegrityMonitor** | ✅ Sprint 10 | SHA-256 protection KERNEL.py + fichiers critiques |
 
 ### Ce qui manque ⏳
 
@@ -1167,6 +1170,34 @@ Avant d'implémenter le Hybrid Swarm, compléter:
 - **Gemini CLI**: https://github.com/google-gemini/gemini-cli
 - **Claude Code Subagents**: https://code.claude.com/docs/en/sub-agents
 - **Swarms Framework**: https://github.com/kyegomez/swarms
+
+---
+
+## 📡 Sprint 10+: Télémétrie - Prochaines Étapes (Optionnel)
+
+**Complété (Sprint 10 - 2025-11-26)**:
+- ✅ `TelemetryCollector` file-based JSONL
+- ✅ Métriques: API calls, Swarm tasks, Tool executions, Errors, Evolution cycles
+- ✅ Session summaries avec durée, tokens, taux d'erreur
+- ✅ Thread-safe avec Lock
+
+**Optionnel - Quand Production Ready**:
+
+| Enhancement | Priorité | Description |
+|-------------|----------|-------------|
+| **Langfuse Export** | MOYENNE | Intégration avec Langfuse pour traces LLM et analytics |
+| **OTLP Export** | MOYENNE | OpenTelemetry Protocol pour monitoring distribué |
+| **Tests Unitaires Telemetry** | BASSE | Couverture pour `core/telemetry/metrics.py` |
+| **Dashboard Visualisation** | BASSE | Streamlit/Grafana pour visualiser les métriques |
+| **Alerting** | BASSE | Notifications si error_rate > threshold |
+
+**Fichiers concernés**:
+- `core/telemetry/metrics.py` - Collecteur principal
+- `core/telemetry/__init__.py` - Exports
+- `core/config.py` - `telemetry_enabled`, `telemetry_file`
+- `workspace/telemetry.jsonl` - Output par défaut
+
+**Note**: L'architecture actuelle (JSONL) est suffisante pour V7. L'export Langfuse/OTLP devient pertinent uniquement en production multi-utilisateurs.
 
 ---
 
