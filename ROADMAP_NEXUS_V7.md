@@ -1,13 +1,13 @@
 # ROADMAP NEXUS V7 - Evolution Vers l'ASI
 
-**Date**: 2025-11-25
+**Date**: 2025-11-26 (Mis à jour)
 **Auteur**: Claude Code (Opus 4.5) + Yann Abadie
-**Version Actuelle**: V6.5
+**Version Actuelle**: V7.0 "Chrysalis"
 **Objectif**: Atteindre ASI Proximity Score > 0.85
 
 ---
 
-## 📊 État Actuel (V6.5)
+## 📊 État Actuel (V7.0 Chrysalis)
 
 ### Ce qui fonctionne ✅
 
@@ -27,9 +27,9 @@
 |-----------|--------|----------|-------|
 | **Promotion Logic** | ✅ Implémenté | ~~🔴 CRITIQUE~~ | Câblé 2025-11-25 via `_promote_child()` |
 | **🔴 RED TEAM RÉEL** | ⏳ **MOCKÉ!** | 🔴 **CRITIQUE** | Audit Gemini 3 Pro: tests d'alignement mockés! |
-| **🔴 Benchmarks Runtime** | ⏳ Heuristique (70%) | 🔴 **CRITIQUE** | Risque Goodhart - besoin SWE-bench réel |
+| **Benchmarks Runtime** | ✅ Partiel (Sprint 7) | 🟠 HAUTE | Reasoning + Creativity via subprocess NEXUS |
 | **Reasoning Score** | 0.37 (Critique) | 🔴 **CRITIQUE** | FSM trop rigide - besoin GoT |
-| Auto-promotion | ⏳ Manuel | HAUTE | Threshold-based auto-approve à faire |
+| Auto-promotion | ✅ Sprint 7 | ~~HAUTE~~ | `check_auto_promotion_eligibility()` + SafetyGates |
 | **Opus 4.5 Integration** | ⏳ Non implémenté | 🟠 **HAUTE** | Modèle supérieur pour brainstorming |
 | RAG/Mémoire Long-terme | ⏳ blackboard.json | MOYENNE | Besoin Vector Store |
 | Signature SSH | ⏳ Placeholder | MOYENNE | Pour birth certificates |
@@ -345,8 +345,8 @@ class ModelConfig:
 ```bash
 # Jour 1: Test /evolve
 cd NEXUS_V7_CHRYSALIS
-python nexus6.py
-nexus6> /evolve 1
+python nexus7.py
+nexus7> /evolve 1
 
 # Jour 2: Vérification
 - Vérifier GENERATION_ACTIVE/NEXUS_V6.1_CHILD_xxx/
@@ -355,7 +355,7 @@ nexus6> /evolve 1
 - Vérifier EVALUATION_RESULTS.json
 
 # Jour 3: Review
-nexus6> /review
+nexus7> /review
 - Tester l'enfant manuellement
 - Comparer comportement parent vs enfant
 - Documenter différences observées
@@ -386,8 +386,8 @@ python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V7_C
 **Objectif**: Valider `/specialize` pour créer des variants
 
 ```bash
-nexus6> /specialize Code review et analyse de sécurité
-nexus6> /specialize Recherche académique et veille technologique
+nexus7> /specialize Code review et analyse de sécurité
+nexus7> /specialize Recherche académique et veille technologique
 ```
 
 **Critères de succès**:
@@ -700,14 +700,14 @@ python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V7_C
 
 # 2. Premier cycle évolution
 cd NEXUS_V7_CHRYSALIS
-python nexus6.py
-nexus6> /evolve 1
+python nexus7.py
+nexus7> /evolve 1
 
 # 3. Vérifier résultats
-nexus6> /evolve-status
+nexus7> /evolve-status
 
 # 4. Review enfant
-nexus6> /review
+nexus7> /review
 ```
 
 ---

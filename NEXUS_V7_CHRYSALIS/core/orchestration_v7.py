@@ -1,5 +1,5 @@
 """
-Orchestrator V6 - FSM Persistent
+Orchestrator V7 - FSM Persistent
 
 Architecture FSM (Finite State Machine):
 - État persistant en RAM (ne se détruit jamais)
@@ -29,7 +29,7 @@ import time
 import json
 
 
-class OrchestratorV6:
+class OrchestratorV7:
     """
     FSM Orchestrator - Persistent in RAM
 
