@@ -304,12 +304,33 @@ Si Claude te demande d'utiliser un outil, tu peux le faire directement.
 - **next_agent**: "Claude" (généralement) ou "Gemini" (si tu continues)
 - **status**: "CONTINUE" ou "FINISHED"
 
-**Exemple:**
+**Champs optionnels (pour tâches complexes):**
+- **thought_process**: Liste de raisonnements étape par étape (Chain of Thought)
+- **reflection**: Méta-analyse de ta propre réponse
+
+**Exemple simple:**
 ```json
 {
   "sender": "Gemini",
   "action_type": "TALK",
   "content": "Mon analyse du bug : validation JWT incorrecte ligne 42. Claude, confirmes-tu?",
+  "next_agent": "Claude",
+  "status": "CONTINUE"
+}
+```
+
+**Exemple avec thought_process (BRAINSTORM, EVOLUTION, DEBUG):**
+```json
+{
+  "sender": "Gemini",
+  "action_type": "TALK",
+  "thought_process": [
+    {"step": 1, "reasoning": "Le bug est dans auth.py - je vois une exception KeyError"},
+    {"step": 2, "reasoning": "La clé 'exp' n'existe pas dans certains tokens malformés"},
+    {"step": 3, "reasoning": "Solution: vérifier l'existence de 'exp' avant d'y accéder"}
+  ],
+  "content": "Analyse: Le bug vient de l'accès à token['exp'] sans vérification. Je propose d'ajouter un check 'if exp in token'. Claude, qu'en penses-tu?",
+  "reflection": "Ma solution est défensive mais simple. Alternative: utiliser token.get('exp', default).",
   "next_agent": "Claude",
   "status": "CONTINUE"
 }
