@@ -1,5 +1,5 @@
 """
-FSM States - États de la Machine à États NEXUS V6
+FSM States - États de la Machine à États NEXUS V7
 
 États possibles de l'orchestrateur:
 - IDLE: En attente d'input utilisateur

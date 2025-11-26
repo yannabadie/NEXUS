@@ -1,13 +1,11 @@
 """
-Claude Hybrid Driver V6 - CORRECTIF CRITIQUE
+Claude Hybrid Driver V7 - Mode Hybride avec Dynamic Model Selection
 
-Problème V5: Claude CLI forçé à répondre en JSON → échec 90% du temps → boucles infinies
-
-Solution V6: Mode Hybride
+Architecture:
 - Claude répond en TEXTE NATUREL
 - Utilise des balises XML pour les outils: <tool_use name="read">...</tool_use>
 - Parser intelligent extrait content + tool_use
-- Plus de JSON forcé = plus de boucles infinies
+- V7: Dynamic model selection (Opus for brainstorm, Sonnet for validation)
 
 Example Input Prompt:
     "Lis le fichier auth.py et identifie le bug"

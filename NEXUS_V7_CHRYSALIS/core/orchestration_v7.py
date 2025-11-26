@@ -48,7 +48,7 @@ class OrchestratorV7:
         init_logger(workspace_path, config.log_level)
         self.logger = get_logger()
 
-        self.logger.debug("Initializing OrchestratorV6", {
+        self.logger.debug("Initializing OrchestratorV7", {
             "workspace": str(workspace_path),
             "log_level": config.log_level
         })
@@ -84,11 +84,14 @@ class OrchestratorV7:
         # V7: Model Router for intelligent model selection
         self.model_router = ModelRouter(config)
 
-        # Drivers - V7: Use Opus for Claude (main use case is brainstorming)
-        opus_model = self.model_router.select_claude_model(TaskType.BRAINSTORM)
+        # V7 Sprint 8: Task-aware driver creation
+        # Gemini driver is static, Claude driver is created dynamically per task type
+        self.gemini_driver = GeminiDriverV7(config, workspace_path, agent_id="gemini_primary")
+
+        # Legacy drivers dict for backwards compatibility
         self.drivers = {
-            "Gemini": GeminiDriverV7(config, workspace_path, agent_id="gemini_primary"),
-            "Claude": ClaudeDriverHybrid(config, workspace_path, model=opus_model, agent_id="claude_opus")
+            "Gemini": self.gemini_driver,
+            "Claude": None  # Created dynamically via _get_claude_driver()
         }
 
         # Tool manager
@@ -117,11 +120,40 @@ class OrchestratorV7:
         else:
             self.agent_pool = None
 
-        self.logger.debug("OrchestratorV6 initialized", {
+        self.logger.debug("OrchestratorV7 initialized", {
             "gemini_model": gemini_info.get("model"),
             "claude_model": claude_info.get("model"),
             "agent_metrics": self.config.agent_metrics_enabled
         })
+
+    def _get_claude_driver(self, task_type: TaskType) -> ClaudeDriverHybrid:
+        """
+        Get Claude driver with appropriate model for task type.
+
+        V7 Sprint 8: Task-aware model selection
+        - Opus for: BRAINSTORM, REDTEAM, ARCHITECT, EVOLUTION
+        - Sonnet for: TOOL, VALIDATION, SIMPLE, FORMAT
+        """
+        model = self.model_router.select_claude_model(task_type)
+        return ClaudeDriverHybrid(
+            self.config,
+            self.workspace_path,
+            model=model,
+            agent_id=f"claude_{task_type.value}"
+        )
+
+    def _invoke_agent(self, task_type: TaskType, context: str) -> Dict:
+        """
+        Invoke the active agent with task-aware model selection.
+
+        V7 Sprint 8: Routes Claude to Opus/Sonnet based on task type.
+        Gemini always uses the same driver.
+        """
+        if self.active_agent == "Claude":
+            driver = self._get_claude_driver(task_type)
+            return driver.invoke(context)
+        else:
+            return self.gemini_driver.invoke(context)
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
         """
@@ -180,12 +212,13 @@ class OrchestratorV7:
             if self.stagnation_detector.is_stagnant():
                 return self._handle_stagnation()
 
-            # Invoke active agent
+            # Invoke active agent - V7 Sprint 8: Task-aware model selection
             context = self._build_context()
             invoke_start = time.time()
 
             try:
-                response = self.drivers[self.active_agent].invoke(context)
+                # V7 Sprint 8: Use Opus for brainstorming
+                response = self._invoke_agent(TaskType.BRAINSTORM, context)
                 invoke_duration = time.time() - invoke_start
                 message = self._validate_message(response)
                 self.json_parse_failures = 0  # Reset on success
@@ -276,7 +309,8 @@ class OrchestratorV7:
             context = self._build_context_with_tool_result()
 
             try:
-                response = self.drivers[self.active_agent].invoke(context)
+                # V7 Sprint 8: Use Sonnet for validation (fast, reliable)
+                response = self._invoke_agent(TaskType.VALIDATION, context)
                 message = self._validate_message(response, expect_heavy=True)
             except Exception as e:
                 # Record error in panic system
@@ -341,7 +375,8 @@ class OrchestratorV7:
             invoke_start = time.time()
 
             try:
-                response = self.drivers[self.active_agent].invoke(context)
+                # V7 Sprint 8: Use Opus for evolution brainstorming (complex reasoning)
+                response = self._invoke_agent(TaskType.EVOLUTION, context)
                 invoke_duration = time.time() - invoke_start
                 message = self._validate_message(response)
                 self.json_parse_failures = 0  # Reset on success
@@ -640,7 +675,7 @@ class OrchestratorV7:
         # This ensures the agent knows exactly what tools are available in the runtime
         tools_list = list(self.tool_manager.tools.keys())
 
-        context = f"""# NEXUS V6.0 - Tour {self.iteration}
+        context = f"""# NEXUS V7.0 "Chrysalis" - Tour {self.iteration}
 
 {system_prompt}
 

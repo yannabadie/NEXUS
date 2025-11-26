@@ -1,5 +1,5 @@
 """
-Quick test for NEXUS V6 tools without requiring real CLIs
+Quick test for NEXUS V7 tools without requiring real CLIs
 """
 import sys
 if sys.platform == 'win32':
@@ -22,7 +22,7 @@ def test_all_tools_available():
         "web_search", "web_fetch", "glob", "grep", "todo_write"
     ]
 
-    print("Testing NEXUS V6 Tool Manager...")
+    print("Testing NEXUS V7 Tool Manager...")
     print(f"Expected: {len(expected_tools)} tools")
 
     # Check handler dict
@@ -108,7 +108,7 @@ def test_todo_write_tool():
 
 if __name__ == "__main__":
     print("="*60)
-    print("NEXUS V6.0 - Tool Manager Quick Test")
+    print("NEXUS V7.0 - Tool Manager Quick Test")
     print("="*60)
 
     try:
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         print("\n" + "="*60)
         print("✅ ALL TESTS PASSED!")
         print("="*60)
-        print("\nNEXUS V6 Tool Manager is ready! 🎯")
+        print("\nNEXUS V7 Tool Manager is ready! 🎯")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")

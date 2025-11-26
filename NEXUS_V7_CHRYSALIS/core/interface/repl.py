@@ -1,8 +1,8 @@
 """
-REPL Interface V6 - Persistent Orchestrator
+REPL Interface V7 - Persistent Orchestrator
 
 Le REPL crée l'orchestrateur UNE FOIS et le garde en mémoire
-toute la session (contrairement à V5 qui redémarre à chaque commande)
+toute la session (persistent FSM architecture)
 """
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
@@ -25,7 +25,7 @@ from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 
 class InteractiveNexusV7:
     """
-    REPL persistant pour NEXUS V6
+    REPL persistant pour NEXUS V7
 
     Features:
     - Orchestrator créé UNE FOIS (vit toute la session)

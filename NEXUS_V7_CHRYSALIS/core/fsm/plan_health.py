@@ -1,7 +1,7 @@
 """
 Plan Health Monitoring - Détecte les plans zombies et stagnants
 
-Inspiré de NEXUS V5 mais implémenté proprement pour V6.
+V7 Architecture: Proper implementation for zombie detection.
 """
 from typing import Dict, List, Optional
 from datetime import datetime

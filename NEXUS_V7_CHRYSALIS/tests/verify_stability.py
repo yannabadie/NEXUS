@@ -79,7 +79,7 @@ class MockDriver:
         }
 
 def test_stability_and_context():
-    print("Testing NEXUS V6 Logic, Stability and Context Injection...")
+    print("Testing NEXUS V7 Logic, Stability and Context Injection...")
 
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)

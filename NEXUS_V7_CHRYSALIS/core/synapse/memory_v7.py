@@ -1,7 +1,7 @@
 """
-Memory Manager V6 - Persistent in-RAM state
+Memory Manager V7 - Persistent in-RAM state
 
-V6 Changes:
+Architecture:
 - Blackboard loaded ONCE at init (not reloaded from disk between turns)
 - State persists in RAM throughout session
 - Backup to disk only for crash recovery
@@ -19,7 +19,7 @@ class MemoryManagerV7:
     """
     Manage blackboard state in-RAM
 
-    V6: State lives in RAM, disk is backup only
+    State lives in RAM, disk is backup only
     """
 
     def __init__(self, workspace_path: Path, config):

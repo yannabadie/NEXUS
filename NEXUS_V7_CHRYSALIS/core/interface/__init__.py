@@ -1,1 +1,1 @@
-"""NEXUS V6 Interface Module"""
+"""NEXUS V7 Interface Module"""

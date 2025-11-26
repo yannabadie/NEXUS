@@ -1,1 +1,1 @@
-"""NEXUS V6 Synapse - Protocol & Memory"""
+"""NEXUS V7 Synapse - Protocol & Memory"""

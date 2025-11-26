@@ -1,7 +1,7 @@
 """
 Panic System - Gestion des erreurs critiques et panic states
 
-Inspiré de NEXUS V5 mais amélioré pour V6.
+Architecture V7: Improved panic handling with detailed logging.
 """
 from pathlib import Path
 from datetime import datetime

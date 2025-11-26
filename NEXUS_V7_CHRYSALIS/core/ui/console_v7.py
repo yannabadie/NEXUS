@@ -1,5 +1,5 @@
 """
-Console UI V6 - Interface minimaliste avec Rich
+Console UI V7 - Interface minimaliste avec Rich
 
 Principes:
 - Affiche: messages agents (content), résumés d'actions, résultats outils
@@ -16,7 +16,7 @@ import os
 
 
 class ConsoleV7:
-    """Console UI minimaliste pour NEXUS V6"""
+    """Console UI minimaliste pour NEXUS V7"""
 
     def __init__(self, verbose: bool = False):
         """
@@ -30,7 +30,7 @@ class ConsoleV7:
 
     def print_banner(self, gemini_model: str, claude_model: str):
         """
-        Print NEXUS V6 banner au démarrage
+        Print NEXUS V7 banner au démarrage
 
         Args:
             gemini_model: Nom du modèle Gemini détecté
@@ -38,7 +38,7 @@ class ConsoleV7:
         """
         banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
-║          NEXUS V6.0 - THE OMNISCIENT REPL                 ║
+║        NEXUS V7.0 "Chrysalis" - OMNISCIENT REPL           ║
 ║              Persistent FSM Orchestrator                  ║
 ╚═══════════════════════════════════════════════════════════╝
 

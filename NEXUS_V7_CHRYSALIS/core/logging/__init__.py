@@ -1,5 +1,5 @@
 """
-Logging module for NEXUS V6
+Logging module for NEXUS V7
 
 Exports:
 - NexusLogger: Main logger class

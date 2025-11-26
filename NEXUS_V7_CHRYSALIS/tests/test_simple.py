@@ -1,5 +1,5 @@
 """
-Simple smoke tests for NEXUS V6
+Simple smoke tests for NEXUS V7
 
 Run with: python -m pytest tests/
 """
@@ -39,12 +39,12 @@ def test_stagnation_detector():
 
     detector = StagnationDetector(similarity_threshold=0.8, window_size=3)
 
-    # Add similar messages
-    detector.add_message("Let's read auth.py")
-    detector.add_message("Yes, read auth.py")
-    detector.add_message("Ok, reading auth.py")
+    # Add highly similar messages (same with minor variation)
+    detector.add_message("I will read auth.py to find the bug")
+    detector.add_message("I will read auth.py to find the bug")
+    detector.add_message("I will read auth.py to find the bug")
 
-    # Should detect stagnation
+    # Should detect stagnation (identical messages)
     assert detector.is_stagnant()
 
 

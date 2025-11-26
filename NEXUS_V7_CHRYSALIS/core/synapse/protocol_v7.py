@@ -1,7 +1,7 @@
 """
-Protocol V6 - Schémas Pydantic souples avec auto-repair
+Protocol V7 - Schémas Pydantic souples avec auto-repair
 
-Correctifs V6:
+Features:
 - Tous les champs optionnels avec defaults intelligents
 - Validateurs auto-réparent les typos courants
 - Plus de crashes sur champs manquants
@@ -20,8 +20,8 @@ class LightMessageV7(BaseModel):
     """
     Message léger pour communication (TALK, DELEGATE)
 
-    V6: Tous les champs optionnels avec defaults intelligents
-    Validateurs auto-réparent les erreurs courantes
+    All fields optional with intelligent defaults.
+    Validators auto-repair common errors.
     """
     sender: str
     action_type: str

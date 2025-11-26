@@ -1,1 +1,1 @@
-"""NEXUS V6 Meta Module - CLI Inspection"""
+"""NEXUS V7 Meta Module - CLI Inspection"""

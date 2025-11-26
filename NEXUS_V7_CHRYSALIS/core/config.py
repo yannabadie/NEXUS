@@ -1,5 +1,5 @@
 """
-Configuration Management - NEXUS V6
+Configuration Management - NEXUS V7
 
 Load configuration from:
 1. .env file (if present)
@@ -13,7 +13,7 @@ from typing import Optional
 
 
 class Config:
-    """NEXUS V6 Configuration"""
+    """NEXUS V7 Configuration"""
 
     def __init__(self):
         # Load .env if present
@@ -27,7 +27,7 @@ class Config:
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))
         self.timeout: int = int(os.getenv("TIMEOUT", "120"))  # seconds
 
-        # Stagnation Detection (V6)
+        # Stagnation Detection
         self.stagnation_similarity_threshold: float = float(
             os.getenv("STAGNATION_SIMILARITY_THRESHOLD", "0.8")
         )

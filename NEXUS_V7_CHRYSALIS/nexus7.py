@@ -34,7 +34,7 @@ UI_VERBOSE=False
 
 def bootstrap():
     """
-    Bootstrap NEXUS V6 - Vérifie tout avant de démarrer
+    Bootstrap NEXUS V7 - Vérifie tout avant de démarrer
 
     Vérifie:
     0. KERNEL.py integrity (immutability verification)
@@ -184,7 +184,7 @@ Examples:
   nexus6 --version          Show version
   nexus6 --workspace ./myproject  Use custom workspace
 
-Documentation: https://github.com/nexus-ai/nexus-v6
+Documentation: https://github.com/nexus-ai/nexus-v7
         """
     )
 

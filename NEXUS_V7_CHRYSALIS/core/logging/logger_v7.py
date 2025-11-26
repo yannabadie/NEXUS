@@ -1,5 +1,5 @@
 """
-Logging System V6 - Structured logging pour development et runtime
+Logging System V7 - Structured logging pour development et runtime
 
 Architecture:
 - JSONL format pour parsing facile
@@ -69,7 +69,7 @@ class EventType(Enum):
 
 class NexusLogger:
     """
-    Logger structuré pour NEXUS V6
+    Logger structuré pour NEXUS V7
 
     Features:
     - JSONL events log (machine-readable)

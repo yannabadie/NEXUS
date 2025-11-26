@@ -1,1 +1,1 @@
-"""NEXUS V6 UI Module"""
+"""NEXUS V7 UI Module"""
