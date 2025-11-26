@@ -191,16 +191,18 @@ class OrchestratorV6:
                 self.json_parse_failures = 0  # Reset on success
                 self.panic_system.reset_errors()  # Reset error counter on success
 
-                # V7 Sprint 3: Record successful invocation
+                # V7 Sprint 4: Calculate dynamic quality score
+                is_stagnant = self.stagnation_detector.is_stagnant()
+                quality = self._calculate_quality_score(message, True, is_stagnant)
                 self._record_invocation(
-                    self.active_agent, "brainstorm", True, invoke_duration, 0.6
+                    self.active_agent, "brainstorm", True, invoke_duration, quality
                 )
 
             except Exception as e:
                 invoke_duration = time.time() - invoke_start
                 self.json_parse_failures += 1
 
-                # V7 Sprint 3: Record failed invocation
+                # V7 Sprint 3: Record failed invocation (quality=0)
                 self._record_invocation(
                     self.active_agent, "brainstorm", False, invoke_duration, 0.0
                 )
@@ -345,9 +347,11 @@ class OrchestratorV6:
                 self.json_parse_failures = 0  # Reset on success
                 self.panic_system.reset_errors()
 
-                # V7 Sprint 3: Record successful invocation (evolution task type)
+                # V7 Sprint 4: Calculate dynamic quality score for evolution
+                is_stagnant = self.stagnation_detector.is_stagnant()
+                quality = self._calculate_quality_score(message, True, is_stagnant)
                 self._record_invocation(
-                    self.active_agent, "evolution", True, invoke_duration, 0.7
+                    self.active_agent, "evolution", True, invoke_duration, quality
                 )
 
             except Exception as e:
@@ -356,7 +360,7 @@ class OrchestratorV6:
                 # Let the caller handle retries and state management
                 self.json_parse_failures += 1
 
-                # V7 Sprint 3: Record failed invocation
+                # V7 Sprint 3: Record failed invocation (quality=0)
                 self._record_invocation(
                     self.active_agent, "evolution", False, invoke_duration, 0.0
                 )
@@ -527,6 +531,53 @@ class OrchestratorV6:
         """Trigger panic state"""
         self._transition_to(OrchestratorState.PANIC)
         return self._make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
+
+    def _calculate_quality_score(
+        self,
+        message: dict,
+        validation_ok: bool,
+        is_stagnant: bool
+    ) -> float:
+        """
+        Calculate DyLAN quality score for agent invocation.
+
+        Quality is based on multiple factors:
+        - Message validation success (+0.2)
+        - Response length appropriate (+0.1)
+        - No stagnation detected (+0.2)
+        - Task completion status (+0.2 FINISHED, +0.1 CONTINUE)
+
+        Args:
+            message: Parsed message dict from agent
+            validation_ok: Whether message validation succeeded
+            is_stagnant: Whether stagnation was detected
+
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        score = 0.3  # Base score
+
+        # Validation success
+        if validation_ok:
+            score += 0.2
+
+        # Response length (neither too short nor too long)
+        content = message.get("content", "")
+        if 50 < len(content) < 5000:
+            score += 0.1
+
+        # No stagnation
+        if not is_stagnant:
+            score += 0.2
+
+        # Task status
+        status = message.get("status", "")
+        if status == "FINISHED":
+            score += 0.2
+        elif status == "CONTINUE":
+            score += 0.1
+
+        return min(1.0, score)
 
     def _record_invocation(
         self,

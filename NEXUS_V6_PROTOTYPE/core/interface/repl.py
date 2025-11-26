@@ -181,6 +181,9 @@ class InteractiveNexusV6:
         elif cmd == "/evolve-status":
             self.show_evolve_status()
 
+        elif cmd == "/pool-stats":
+            self.show_pool_stats()
+
         elif cmd == "/specialize":
             if args:
                 self.run_specialization(mission=args)
@@ -1136,6 +1139,61 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
         except Exception as e:
             self.console.print_error(f"Failed to load evolution status: {e}")
+
+    def show_pool_stats(self):
+        """
+        Show AgentPool statistics with DyLAN importance scores.
+
+        Displays per-agent metrics including:
+        - Invocation count
+        - Average importance score
+        - Success rate
+        - Task type performance
+
+        Example output:
+            /pool-stats
+            ========== AGENT POOL STATISTICS ==========
+            Agent: gemini_primary
+              Invocations: 15
+              Avg Importance: 0.0234
+              Success Rate: 93.3%
+        """
+        # Check if agent pool is available
+        if not hasattr(self.orchestrator, 'agent_pool') or not self.orchestrator.agent_pool:
+            self.console.print("\n⚠️  AgentMetrics disabled")
+            self.console.print("   Set AGENT_METRICS=True in .env to enable")
+            return
+
+        pool = self.orchestrator.agent_pool
+        stats = pool.get_pool_stats()
+
+        self.console.print("\n" + "="*60)
+        self.console.print("📊 AGENT POOL STATISTICS (DyLAN Metrics)")
+        self.console.print("="*60)
+
+        # Pool summary
+        self.console.print(f"\nTotal Agents: {stats['agents']}")
+        self.console.print(f"Total Invocations: {stats['total_invocations']}")
+        self.console.print(f"Average Pool Importance: {stats['average_pool_importance']:.4f}")
+
+        # Per-agent details
+        agents_detail = stats.get('agents_detail', {})
+        for agent_id, agent_data in agents_detail.items():
+            self.console.print(f"\n{'─'*60}")
+            self.console.print(f"🤖 Agent: {agent_id}")
+            self.console.print(f"{'─'*60}")
+            self.console.print(f"  Provider:       {agent_data['provider']}")
+            self.console.print(f"  Model:          {agent_data['model']}")
+            self.console.print(f"  Capabilities:   {', '.join(agent_data.get('capabilities', []))}")
+            self.console.print(f"  Invocations:    {agent_data['invocation_count']}")
+            self.console.print(f"  Avg Importance: {agent_data['average_importance']:.4f}")
+            self.console.print(f"  Success Rate:   {agent_data['success_rate']:.1%}")
+
+        # DyLAN formula explanation
+        self.console.print(f"\n{'─'*60}")
+        self.console.print("ℹ️  DyLAN Formula: importance = quality / (tokens/1000 + time)")
+        self.console.print("   Higher importance = better quality/cost ratio")
+        self.console.print("="*60 + "\n")
 
     def _promote_child(self, child: dict, generation: int):
         """

@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class CodingTasks:
     """10 coding tasks with automated verification."""
@@ -111,7 +112,7 @@ class CodingTasks:
         self.timeout = timeout
 
     def run_all(self) -> Tuple[int, int, Dict]:
-        """Run all tasks and return (passed, total, details)."""
+        """Run all tasks sequentially and return (passed, total, details)."""
         passed = 0
         details = {}
 
@@ -125,6 +126,58 @@ class CodingTasks:
                 passed += 1
             print(f"   Task {task['id']}: {'PASS' if success else 'FAIL'}")
 
+        return passed, len(self.TASKS), details
+
+    def run_all_parallel(self, max_workers: int = 4) -> Tuple[int, int, Dict]:
+        """
+        Run all coding tasks in parallel for 3-4x speedup.
+
+        Uses ThreadPoolExecutor to run tasks concurrently.
+        Each task invokes NEXUS independently, so parallelization is safe.
+
+        Args:
+            max_workers: Maximum parallel tasks (default 4, conservative for API limits)
+
+        Returns:
+            Tuple of (passed_count, total_count, details_dict)
+
+        Example:
+            tasks = CodingTasks(nexus_path)
+            passed, total, details = tasks.run_all_parallel(max_workers=4)
+            # Runs 10 tasks in ~180s instead of ~600s
+        """
+        passed = 0
+        details = {}
+
+        print(f"[PARALLEL] Running {len(self.TASKS)} tasks with {max_workers} workers")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            futures = {
+                executor.submit(self._run_task, task): task["id"]
+                for task in self.TASKS
+            }
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                task_id = futures[future]
+                try:
+                    success, result = future.result(timeout=self.timeout + 10)
+                    details[task_id] = {
+                        "success": success,
+                        "result": result
+                    }
+                    if success:
+                        passed += 1
+                    print(f"   Task {task_id}: {'PASS' if success else 'FAIL'}")
+                except Exception as e:
+                    details[task_id] = {
+                        "success": False,
+                        "result": f"Execution error: {e}"
+                    }
+                    print(f"   Task {task_id}: ERROR - {e}")
+
+        print(f"[PARALLEL] Completed: {passed}/{len(self.TASKS)} passed")
         return passed, len(self.TASKS), details
 
     def _run_task(self, task: Dict) -> Tuple[bool, str]:

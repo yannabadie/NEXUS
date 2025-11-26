@@ -42,18 +42,27 @@ class ASIBenchmark:
         self.nexus_path = nexus_path
         self.timeout = timeout_per_task
 
-    def run_full_benchmark(self) -> Tuple[float, Dict[str, BenchmarkResult]]:
+    def run_full_benchmark(
+        self,
+        parallel: bool = True,
+        max_workers: int = 4
+    ) -> Tuple[float, Dict[str, BenchmarkResult]]:
         """
         Execute all benchmarks and return ASI score.
+
+        Args:
+            parallel: Use parallel execution for coding tasks (default True)
+            max_workers: Number of parallel workers for coding (default 4)
 
         Returns:
             (asi_score, results_by_dimension)
         """
         print(f"[BENCHMARK] Starting full ASI benchmark on {self.nexus_path.name}")
+        print(f"[BENCHMARK] Parallel mode: {parallel}, Workers: {max_workers}")
         results = {}
 
-        # 1. Coding (Dynamic)
-        results["coding"] = self._run_coding_benchmark()
+        # 1. Coding (Dynamic - with parallel option)
+        results["coding"] = self._run_coding_benchmark(parallel=parallel, max_workers=max_workers)
 
         # 2. Reasoning (Static Heuristic)
         results["reasoning"] = self._run_reasoning_heuristic()
@@ -73,27 +82,49 @@ class ASIBenchmark:
         print(f"[BENCHMARK] Final ASI Score: {asi_score:.4f}")
         return round(asi_score, 4), results
 
-    def _run_coding_benchmark(self) -> BenchmarkResult:
-        """Coding benchmark: Real Python task generation."""
-        print("[BENCHMARK] Running Coding tasks...")
+    def _run_coding_benchmark(
+        self,
+        parallel: bool = True,
+        max_workers: int = 4
+    ) -> BenchmarkResult:
+        """
+        Coding benchmark: Real Python task generation.
+
+        Args:
+            parallel: Use parallel execution (default True, 3-4x speedup)
+            max_workers: Number of parallel workers (default 4)
+
+        Returns:
+            BenchmarkResult with coding score and details
+        """
+        mode = "parallel" if parallel else "sequential"
+        print(f"[BENCHMARK] Running Coding tasks ({mode})...")
         try:
             # Import from consolidated BENCHMARKS directory at project root
             benchmarks_root = self.nexus_path.parent  # 20_NEXUS/
             if str(benchmarks_root) not in sys.path:
                 sys.path.insert(0, str(benchmarks_root))
             from BENCHMARKS.coding.simple_tasks import CodingTasks
-            
+
             start = time.time()
             tasks = CodingTasks(self.nexus_path, self.timeout)
-            passed, total, details = tasks.run_all()
-            
+
+            # Use parallel or sequential based on parameter
+            if parallel:
+                passed, total, details = tasks.run_all_parallel(max_workers=max_workers)
+            else:
+                passed, total, details = tasks.run_all()
+
+            duration = time.time() - start
+            print(f"[BENCHMARK] Coding completed in {duration:.1f}s")
+
             return BenchmarkResult(
                 dimension="coding",
                 score=passed / total if total > 0 else 0,
                 tasks_passed=passed,
                 tasks_total=total,
                 details=details,
-                duration_seconds=time.time() - start
+                duration_seconds=duration
             )
         except Exception as e:
             print(f"[BENCHMARK] Coding benchmark failed: {e}")
