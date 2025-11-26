@@ -30,6 +30,7 @@ from core.swarm import (
     CollaborationMode,
     TaskAnalysis
 )
+from core.telemetry import TelemetryCollector
 from pydantic import ValidationError
 import time
 import json
@@ -141,11 +142,21 @@ class OrchestratorV7:
         else:
             self.swarm_engine = None
 
+        # V7 Sprint 10: Telemetry for metrics tracking
+        if getattr(self.config, 'telemetry_enabled', True):
+            self.telemetry = TelemetryCollector(self.config)
+            self.logger.debug("TelemetryCollector initialized", {
+                "output_file": str(self.telemetry.output_file)
+            })
+        else:
+            self.telemetry = None
+
         self.logger.debug("OrchestratorV7 initialized", {
             "gemini_model": gemini_info.get("model"),
             "claude_model": claude_info.get("model"),
             "agent_metrics": self.config.agent_metrics_enabled,
-            "swarm_enabled": self.swarm_engine is not None
+            "swarm_enabled": self.swarm_engine is not None,
+            "telemetry_enabled": self.telemetry is not None
         })
 
     def _get_claude_driver(self, task_type: TaskType) -> ClaudeDriverHybrid:
@@ -235,7 +246,50 @@ class OrchestratorV7:
             if not user_input:
                 return self._make_result("IDLE", None, None, False)
 
-            # Nouvelle tâche → Init brainstorming
+            # V7 Sprint 9: Auto-route to Swarm if enabled and not trivial
+            if self.swarm_engine and getattr(self.config, 'swarm_auto_route', True):
+                # Use Swarm for automatic mode selection and collaboration
+                self.logger.debug("Auto-routing to Swarm Engine", {"input": user_input[:100]})
+                swarm_start = time.time()
+                try:
+                    swarm_result = self.process_with_swarm(user_input)
+                    swarm_duration = time.time() - swarm_start
+
+                    # V7 Sprint 10: Record swarm telemetry
+                    if self.telemetry and swarm_result:
+                        analysis = swarm_result.get("analysis", {})
+                        execution = swarm_result.get("execution", {})
+                        self.telemetry.record_swarm_task(
+                            mode=swarm_result.get("mode", "unknown"),
+                            rounds=execution.get("rounds", 0) if isinstance(execution, dict) else 0,
+                            duration_seconds=swarm_duration,
+                            success=swarm_result.get("finished", False),
+                            agents_used=execution.get("agents", []) if isinstance(execution, dict) else []
+                        )
+
+                    # If swarm completed successfully, return the result
+                    if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
+                        return {
+                            "state": "WAITING_USER",
+                            "output": swarm_result.get("output", ""),
+                            "agent": "Swarm",
+                            "finished": True,
+                            "swarm_mode": swarm_result.get("mode"),
+                            "swarm_analysis": swarm_result.get("analysis")
+                        }
+                    # If swarm errored, fall through to regular brainstorming
+                    elif swarm_result.get("error"):
+                        self.logger.warn("Swarm failed, falling back to BRAINSTORMING", {
+                            "error": swarm_result.get("error")
+                        })
+                        if self.telemetry:
+                            self.telemetry.record_error("SWARM_ERROR", swarm_result.get("error"))
+                except Exception as e:
+                    self.logger.warn(f"Swarm exception, falling back to BRAINSTORMING: {e}")
+                    if self.telemetry:
+                        self.telemetry.record_error("SWARM_EXCEPTION", str(e))
+
+            # Nouvelle tâche → Init brainstorming (fallback or non-swarm mode)
             self.blackboard["objective"] = user_input
             self.blackboard["current_state"]["iteration"] = self.iteration
             self.active_agent = "Gemini"  # First agent by convention (equal rotation after)

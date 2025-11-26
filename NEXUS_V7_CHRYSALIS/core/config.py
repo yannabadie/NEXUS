@@ -25,7 +25,7 @@ class Config:
 
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))
-        self.timeout: int = int(os.getenv("TIMEOUT", "120"))  # seconds
+        self.timeout: int = int(os.getenv("TIMEOUT", "300"))  # seconds
 
         # Stagnation Detection
         self.stagnation_similarity_threshold: float = float(
@@ -173,6 +173,16 @@ class Config:
 
         # Execution limits
         self.swarm_max_rounds: int = int(os.getenv("SWARM_MAX_ROUNDS", "6"))
+
+        # Auto-routing: automatically use Swarm for all tasks (vs explicit /swarm)
+        self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "True").lower() == "true"
+
+        # ====================================================================
+        # TELEMETRY (V7 Sprint 10)
+        # ====================================================================
+
+        self.telemetry_enabled: bool = os.getenv("TELEMETRY_ENABLED", "True").lower() == "true"
+        self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
 
     def to_dict(self) -> dict:
         """Export config as dict"""
