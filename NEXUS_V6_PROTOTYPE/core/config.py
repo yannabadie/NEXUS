@@ -129,6 +129,22 @@ class Config:
         # Task types routed to Sonnet (simpler, faster)
         self.sonnet_task_types: list = ["tool", "validation", "simple", "format"]
 
+        # ====================================================================
+        # V7 SPRINT 2: OPTIMIZATION FLAGS
+        # ====================================================================
+
+        # Tiered Validation (1=syntax, 2=smoke, 3=benchmark, 4=redteam)
+        self.validation_tier_default: int = int(os.getenv("VALIDATION_TIER", "4"))
+        self.validation_use_tiered: bool = os.getenv("USE_TIERED_VALIDATION", "True").lower() == "true"
+
+        # Parallel Benchmarks
+        self.parallel_benchmark_workers: int = int(os.getenv("BENCHMARK_WORKERS", "4"))
+        self.benchmark_task_timeout: int = int(os.getenv("BENCHMARK_TIMEOUT", "60"))
+
+        # Agent Metrics (DyLAN scoring)
+        self.agent_metrics_enabled: bool = os.getenv("AGENT_METRICS", "True").lower() == "true"
+        self.agent_metrics_window: int = int(os.getenv("AGENT_METRICS_WINDOW", "100"))
+
     def to_dict(self) -> dict:
         """Export config as dict"""
         return {

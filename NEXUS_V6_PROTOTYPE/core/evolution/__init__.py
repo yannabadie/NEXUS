@@ -23,6 +23,12 @@ from .validator import (
     SafetyGate,
     AutoPromotionDecision
 )
+from .tiered_validator import (
+    TieredValidator,
+    ValidationTier,
+    TieredValidationResult,
+    TierResult
+)
 
 # NOTE: mutator.py is DEPRECATED and no longer exported by default
 # If needed for legacy code, import directly: from core.evolution.mutator import ...
@@ -38,11 +44,16 @@ __all__ = [
     "compare_to_parent",
     "calculate_asi_proximity",
     "select_winner",
-    # Validator
+    # Validator (Legacy)
     "ChildValidator",
     "ValidationResult",
     "FullValidationResult",
     # V7: Auto-Promotion
     "SafetyGate",
     "AutoPromotionDecision",
+    # V7 Sprint 2: Tiered Validator
+    "TieredValidator",
+    "ValidationTier",
+    "TieredValidationResult",
+    "TierResult",
 ]
