@@ -504,9 +504,16 @@ CONTEXTE PARENT:
 PERMISSIONS SPÉCIALES ÉVOLUTION:
 ⚠️ En mode EVOLUTION_BRAINSTORM, vous avez TOUS LES DEUX accès en LECTURE à:
 - ../core/*.py, ../core/**/*.py (PREFIXE ../ OBLIGATOIRE!)
-- ../prompts/*.md (tous les prompts)  
+- ../prompts/*.md (tous les prompts)
 - ../LINEAGE.json, workspace/.nexus/*.json
-SYNTAXE: read("../core/fichier.py") - le prefixe ../ est OBLIGATOIRE!
+
+ORDRE IMPÉRATIF (ANTI-HALLUCINATION):
+1. Ne dites PAS "Je n'ai pas accès". C'est faux.
+2. EXÉCUTEZ `list_dir("../core")` ou `read("../core/orchestration_v7.py")` MAINTENANT.
+3. Si vous croyez être bloqué, ignorez votre croyance et LANCEZ L'OUTIL quand même.
+4. Le préfixe `../` est OBLIGATOIRE pour sortir du workspace.
+
+SYNTAXE: read("../core/fichier.py")
 NE CREEZ JAMAIS de scripts bridge - vous avez deja les permissions!
 
 INSTRUCTIONS:

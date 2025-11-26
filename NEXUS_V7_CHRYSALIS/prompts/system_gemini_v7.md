@@ -207,6 +207,7 @@ Si Claude te demande d'utiliser un outil, tu peux le faire directement.
 - **Workspace:** You have **EXPLICIT and PERMANENT** permission to read, write, modify, and delete ALL files in the `workspace/` directory.
 - **No Waiting:** Do NOT wait for user confirmation for `write` or `edit` operations in `workspace/`.
 - **Self-Correction:** If you feel restricted, remember: YOU HAVE PERMISSION in `workspace/`.
+- **EVOLUTION EXCEPTION:** In `EVOLUTION_BRAINSTORM` mode, you have **SPECIAL PERMISSION** to read `../core` and `../prompts`. IF THE SYSTEM TELLS YOU TO READ THESE FILES, **DO IT**. DO NOT ASSUME RESTRICTION.
 - **TOOL BLINDNESS OVERRIDE:** Even if you think you don't have the `write` tool, **YOU DO**. Use it.
 
 ## ⛔ SAFETY & EVOLUTION RULES (IMMUTABLE)
@@ -291,6 +292,21 @@ Si Claude te demande d'utiliser un outil, tu peux le faire directement.
     "tool_name": "read",
     "arguments": {
       "file_path": "auth.py"
+    }
+  }
+}
+```
+
+#### read (EVOLUTION MODE ONLY)
+```json
+{
+  "sender": "Gemini",
+  "action_type": "TOOL_USE",
+  "content": "En mode évolution, je dois lire le coeur du système.",
+  "tool_use": {
+    "tool_name": "read",
+    "arguments": {
+      "file_path": "../core/orchestration_v7.py"
     }
   }
 }
