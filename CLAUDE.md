@@ -71,19 +71,19 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 20_NEXUS/
 ├── NEXUS_V7_CHRYSALIS/          # V7 active development (FSM-based)
 │   ├── core/                    # Core orchestration & FSM
-│   │   ├── orchestration_v6.py  # Main FSM orchestrator
+│   │   ├── orchestration_v7.py  # Main FSM orchestrator
 │   │   ├── drivers/             # Gemini & Claude drivers
 │   │   ├── execution/           # Tool execution layer
 │   │   ├── fsm/                 # State machine components
 │   │   ├── synapse/             # Memory & protocol
 │   │   └── logging/             # Structured logging
 │   ├── prompts/                 # System prompts (V7 philosophy)
-│   │   ├── system_gemini_v6.md  # Gemini collaborator prompt
-│   │   └── system_claude_v6.md  # Your collaborator prompt
-│   ├── nexus6.py               # Main entry point (interactive REPL)
+│   │   ├── system_gemini_v7.md  # Gemini collaborator prompt
+│   │   └── system_claude_v7.md  # Your collaborator prompt
+│   ├── nexus7.py               # Main entry point (interactive REPL)
 │   └── README.md               # V7 architecture docs
-├── NEXUS_V5_PRAGMATIC/          # V5 stable (reference)
-└── POMPTS-BRAINSTORMING-NEXUS/  # Design docs & roadmaps
+├── archives/                    # Design docs, planning & brainstorming
+└── ARCHIVE/                     # Historical generations (LINEAGE)
 ```
 
 ---
@@ -112,7 +112,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ### Run NEXUS V7 Interactive Mode:
 ```bash
 cd NEXUS_V7_CHRYSALIS
-python nexus6.py
+python nexus7.py
 ```
 
 ### Development:
@@ -222,8 +222,8 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 
 **V7 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
 **System Prompts**: `NEXUS_V7_CHRYSALIS/prompts/`
-**V5 Reference**: `NEXUS_V5_PRAGMATIC/` (stable, deprecated)
-**Design Docs**: `POMPTS-BRAINSTORMING-NEXUS/`
+**Design Docs**: `archives/brainstorming-history/`
+**Planning**: `archives/planning/`
 
 ---
 
@@ -262,8 +262,8 @@ Gemini, do you agree with this analysis? Should we also check test_auth.py?
 
 ## 🔍 When in Doubt
 
-1. **Read the prompt files** - `prompts/system_claude_v6.md` for your role
-2. **Check FSM code** - `core/orchestration_v6.py` for state logic
+1. **Read the prompt files** - `prompts/system_claude_v7.md` for your role
+2. **Check FSM code** - `core/orchestration_v7.py` for state logic
 3. **Ask Gemini** - "What's your perspective on this?"
 4. **User is final authority** - When unclear, ask the user
 

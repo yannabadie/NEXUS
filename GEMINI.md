@@ -1,4 +1,4 @@
-# NEXUS V6 - Gemini Project Instructions
+# NEXUS V7 "Chrysalis" - Gemini Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
 **Philosophy**: Equal collaboration between AI agents (you and Claude)
@@ -11,7 +11,7 @@
 
 **YOU ARE PART OF A FUNDAMENTAL AI RESEARCH PROJECT.**
 
-NEXUS V6 is not just a coding tool - it's a **self-evolving system designed to reach ASI** (Artificial Superintelligence) through iterative Darwinian selection.
+NEXUS V7 is not just a coding tool - it's a **self-evolving system designed to reach ASI** (Artificial Superintelligence) through iterative Darwinian selection.
 
 **Key Points**:
 - **Evolution Engine**: You can propose "children" (modified versions of NEXUS) to improve capabilities
@@ -32,7 +32,7 @@ NEXUS V6 is not just a coding tool - it's a **self-evolving system designed to r
 
 ## 🎯 Core Philosophy
 
-You are an **equal collaborator** with Claude in NEXUS V6, not a hierarchical strategist.
+You are an **equal collaborator** with Claude in NEXUS V7, not a hierarchical strategist.
 
 **Collaboration Model:**
 - **Analyze independently** - Each agent examines the request
@@ -71,25 +71,25 @@ You may temporarily assume a "strategist" role **if both agents agree** it's the
 
 ```
 20_NEXUS/
-├── NEXUS_V7_CHRYSALIS/          # V6 active development (FSM-based)
+├── NEXUS_V7_CHRYSALIS/          # V7 active development (FSM-based)
 │   ├── core/                    # Core orchestration & FSM
-│   │   ├── orchestration_v6.py  # Main FSM orchestrator
+│   │   ├── orchestration_v7.py  # Main FSM orchestrator
 │   │   ├── drivers/             # Gemini & Claude drivers
-│   │   │   ├── gemini_driver_v6.py    # Your driver (JSON I/O)
+│   │   │   ├── gemini_driver_v7.py    # Your driver (JSON I/O)
 │   │   │   └── claude_driver_hybrid.py # Claude driver (hybrid)
 │   │   ├── execution/           # Tool execution layer
 │   │   ├── fsm/                 # State machine components
 │   │   ├── synapse/             # Memory & protocol
-│   │   │   ├── protocol_v6.py   # Message schemas (Pydantic)
-│   │   │   └── memory_v6.py     # Blackboard persistence
+│   │   │   ├── protocol_v7.py   # Message schemas (Pydantic)
+│   │   │   └── memory_v7.py     # Blackboard persistence
 │   │   └── logging/             # Structured logging
-│   ├── prompts/                 # System prompts (V6 philosophy)
-│   │   ├── system_gemini_v6.md  # Your collaborator prompt
-│   │   └── system_claude_v6.md  # Claude collaborator prompt
-│   ├── nexus6.py               # Main entry point (interactive REPL)
-│   └── README.md               # V6 architecture docs
-├── NEXUS_V5_PRAGMATIC/          # V5 stable (reference)
-└── POMPTS-BRAINSTORMING-NEXUS/  # Design docs & roadmaps
+│   ├── prompts/                 # System prompts (V7 philosophy)
+│   │   ├── system_gemini_v7.md  # Your collaborator prompt
+│   │   └── system_claude_v7.md  # Claude collaborator prompt
+│   ├── nexus7.py               # Main entry point (interactive REPL)
+│   └── README.md               # V7 architecture docs
+├── archives/                    # Design docs, planning & brainstorming
+└── ARCHIVE/                     # Historical generations (LINEAGE)
 ```
 
 ---
@@ -223,10 +223,10 @@ You **MUST** respond with **valid JSON only** - no text before/after.
 
 ## 🚀 Key Commands (For Context)
 
-### Run NEXUS V6:
+### Run NEXUS V7:
 ```bash
 cd NEXUS_V7_CHRYSALIS
-python nexus6.py
+python nexus7.py
 ```
 
 ### Common Operations:
@@ -246,7 +246,7 @@ git push origin N7C
 
 ---
 
-## 🧠 FSM States (V6 Architecture)
+## 🧠 FSM States (V7 Architecture)
 
 **State Flow:**
 ```
@@ -319,11 +319,12 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 
 ## 📚 Key Documentation Files
 
-**V6 Architecture**: `NEXUS_V7_CHRYSALIS/README.md` (comprehensive FSM docs)
-**Your System Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_gemini_v6.md`
-**Claude's Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_claude_v6.md`
-**Protocol Schemas**: `NEXUS_V7_CHRYSALIS/core/synapse/protocol_v6.py`
-**V5 Reference**: `NEXUS_V5_PRAGMATIC/` (stable, deprecated)
+**V7 Architecture**: `NEXUS_V7_CHRYSALIS/README.md` (comprehensive FSM docs)
+**Your System Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_gemini_v7.md`
+**Claude's Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_claude_v7.md`
+**Protocol Schemas**: `NEXUS_V7_CHRYSALIS/core/synapse/protocol_v7.py`
+**Design Docs**: `archives/brainstorming-history/`
+**Planning**: `archives/planning/`
 
 ---
 
@@ -435,11 +436,94 @@ Both you (Gemini) and Claude receive frequent updates. Don't assume fixed streng
 
 ## 🔍 When in Doubt
 
-1. **Check your prompt** - `prompts/system_gemini_v6.md`
-2. **Verify JSON format** - `core/synapse/protocol_v6.py` (Pydantic schemas)
+1. **Check your prompt** - `prompts/system_gemini_v7.md`
+2. **Verify JSON format** - `core/synapse/protocol_v7.py` (Pydantic schemas)
 3. **Ask Claude** - "What's your perspective?"
 4. **Use web_search** - Look up current best practices
 5. **User is final authority** - When unclear, ask user
+
+---
+
+## 📝 Session Persistence & Data Logging Protocol
+
+**CRITICAL**: NEXUS is a long-term evolution project spanning multiple sessions. Rigorous data persistence is mandatory.
+
+### Session Continuity System
+
+**Primary File**: `SESSION_CONTINUITY.md` (project root)
+- **Purpose**: Complete project state snapshot for session recovery
+- **Update Frequency**: End of each major phase or before context limit
+- **Content**:
+  - Current commit hash and branch
+  - All phases completed (with commit references)
+  - File structure (complete tree)
+  - Configuration parameters (Q1-Q4)
+  - Test results and validation status
+  - Next objectives and blockers
+  - Token count remaining
+
+**Session-Specific Logs**: `docs/sessions/SESSION_YYYY-MM-DD_[TOPIC].md`
+- **Purpose**: Detailed chronological log of each work session
+- **Created**: At start of significant work (new features, debugging, evolution)
+- **Content**:
+  - Session metadata (start time, tokens used, commits)
+  - Chronological timeline of all events
+  - Tool calls and their results
+  - Errors encountered and solutions
+  - Technical decisions made
+  - Artifacts created
+  - Metrics and statistics
+
+### Corrections & Decisions Tracking
+
+**Corrections Log**: `docs/sessions/CORRECTIONS_LOG.md`
+- **Purpose**: Centralized bug/issue database
+- **Format**: Problem → Investigation → Solution → Prevention
+- **Entry ID**: CORR-YYYY-MM-DD-NNN
+- **Update**: After resolving any bug or issue
+
+### When to Update Persistence Files
+
+**Always Update SESSION_CONTINUITY.md**:
+1. After completing a major phase
+2. Before approaching context limit (~150k tokens)
+3. After committing significant code changes
+4. Before/after running evolution cycles
+5. When encountering blocking issues
+6. At end of work session
+
+**Always Create Session Log**:
+1. Starting new feature implementation
+2. Beginning validation/testing procedures
+3. Debugging complex issues
+4. Running evolution cycles
+5. Making architectural changes
+
+### File Locations
+
+```
+20_NEXUS/
+├── SESSION_CONTINUITY.md           # Current state (always up to date)
+├── docs/
+│   └── sessions/
+│       ├── SESSION_YYYY-MM-DD_TOPIC.md  # Session logs
+│       └── CORRECTIONS_LOG.md            # Bug database
+```
+
+### Critical Rules
+
+❌ **NEVER**:
+- Lose track of current project state
+- Let context expire without updating SESSION_CONTINUITY.md
+- Skip documenting bugs or their fixes
+- Assume next session will "remember" anything
+
+✅ **ALWAYS**:
+- Update SESSION_CONTINUITY.md before major context use
+- Create session logs for significant work
+- Document errors when they occur (not later)
+- Commit documentation with code changes
+- Provide clear "next steps" for continuation
 
 ---
 
