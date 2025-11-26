@@ -1,42 +1,83 @@
 #!/usr/bin/env python3
 """
-NEXUS V6 - Clone and Mutate Service
+NEXUS V7 - Clone and Mutate Service (Enhanced)
 
 Purpose: Allow agents to safely test mutations by cloning the current environment
          to GENERATION_ACTIVE before applying changes.
+
+Supports:
+    - Multiple mutations in a single JSON file
+    - Two actions: 'overwrite' (replace file) or 'append' (add to end)
+    - Syntax validation for Python files via ast.parse()
 
 Usage:
     python clone_and_mutate.py <target_name> <mutation_json_file>
 
 Example:
-    python clone_and_mutate.py TEST_V6.1_FIX_MEMORY workspace/mutation.json
+    python clone_and_mutate.py TEST_V7.1_EVOLUTION workspace/mutation.json
+
+Mutation JSON Schema:
+[
+  {
+    "file": "path/to/file.py",
+    "action": "overwrite",  // or "append" (default: "overwrite")
+    "change": "new content or content to append",
+    "reason": "why this mutation",
+    "expected_asi_impact": 0.0
+  }
+]
 """
 
+import ast
 import json
 import sys
 import shutil
-import os
 from pathlib import Path
 from datetime import datetime
+from typing import List, Dict, Any
 
 
-def load_mutation(json_path: Path) -> dict:
-    """Load and validate mutation JSON."""
+def load_mutations(json_path: Path) -> List[Dict[str, Any]]:
+    """
+    Load and validate mutation JSON.
+
+    Accepts:
+        - A list of mutations: [{"file": ..., "change": ...}, ...]
+        - A single mutation dict: {"file": ..., "change": ...} (converted to list)
+
+    Required keys per mutation: file, change, reason
+    Optional keys: action (default: 'overwrite'), expected_asi_impact
+    """
     with open(json_path, 'r', encoding='utf-8') as f:
-        mutations = json.load(f)
+        data = json.load(f)
 
-    if not isinstance(mutations, list):
-        raise ValueError("Mutation JSON must be a list")
+    # Convert single dict to list
+    if isinstance(data, dict):
+        mutations = [data]
+    elif isinstance(data, list):
+        mutations = data
+    else:
+        raise ValueError("Mutation JSON must be a list or a dict")
 
-    if len(mutations) != 1:
-        raise ValueError(f"Expected 1 mutation, got {len(mutations)}")
+    if len(mutations) == 0:
+        raise ValueError("Mutation JSON is empty")
 
-    mutation = mutations[0]
-    required_keys = {"file", "change", "reason", "expected_asi_impact"}
-    if not required_keys.issubset(mutation.keys()):
-        raise ValueError(f"Missing required keys. Expected: {required_keys}")
+    # Validate each mutation
+    required_keys = {"file", "change", "reason"}
+    for i, mutation in enumerate(mutations):
+        missing = required_keys - set(mutation.keys())
+        if missing:
+            raise ValueError(f"Mutation {i+1}: Missing required keys: {missing}")
 
-    return mutation
+        # Set default action if not specified
+        if "action" not in mutation:
+            mutation["action"] = "overwrite"
+
+        # Validate action value
+        if mutation["action"] not in ("overwrite", "append"):
+            raise ValueError(f"Mutation {i+1}: Invalid action '{mutation['action']}'. Must be 'overwrite' or 'append'")
+
+    return mutations
 
 
 def clone_project(source_dir: Path, target_dir: Path) -> None:
@@ -44,70 +85,106 @@ def clone_project(source_dir: Path, target_dir: Path) -> None:
     if target_dir.exists():
         print(f"[WARN] Target directory {target_dir} exists. Cleaning up...")
         shutil.rmtree(target_dir)
-    
-    target_dir.mkdir(parents=True, exist_ok=True)
 
+    # Note: Do NOT create target_dir here - copytree will create it
     print(f"[INFO] Cloning {source_dir} to {target_dir}...")
 
-    def ignore_patterns(path, names):
-        return {
-            '__pycache__', '*.pyc', '.nexus', 'workspace', '.git',
-            '.env', 'venv', '.idea', '.vscode'
-        }
-
-    # We manually copy to handle the workspace folder specially if needed, 
-    # but shutil.copytree with ignore is cleaner for the main structure.
-    # Note: we want to copy the PARENT of the workspace (the project root), 
-    # but excluding the 'workspace' directory itself to avoid recursive loops 
-    # if we are running from within it? 
-    # No, we are in NEXUS_V7_CHRYSALIS/workspace. We want to copy NEXUS_V7_CHRYSALIS.
-    
-    # Source is the project root (parent of workspace)
+    # Clone with ignore patterns
     shutil.copytree(
         source_dir,
         target_dir,
         ignore=shutil.ignore_patterns(
-            '__pycache__', '*.pyc', '.nexus', 'workspace', '.git', '.env', 
-            'GENERATION_ACTIVE', 'NEXUS_V5_PRAGMATIC' # Explicitly ignore sibling projects
+            '__pycache__', '*.pyc', '.nexus', 'workspace', '.git', '.env',
+            'GENERATION_ACTIVE', 'archives', 'ARCHIVE',  # Ignore evolution & archive dirs
+            'NEXUS_V5_PRAGMATIC', 'venv', '.idea', '.vscode'
         )
     )
-    
-    # We also need to create a fresh workspace in the target
+
+    # Create fresh workspace structure in target
     (target_dir / "workspace").mkdir(exist_ok=True)
     (target_dir / "workspace" / "_IO_BUFFER").mkdir(exist_ok=True)
     (target_dir / "workspace" / ".nexus").mkdir(exist_ok=True)
-    
+
     print("[OK] Project cloned.")
 
 
-def apply_mutation_to_target(mutation: dict, target_dir: Path) -> None:
-    """Apply mutation to the cloned project."""
+def validate_python_syntax(content: str, file_path: Path) -> bool:
+    """
+    Validate Python syntax using ast.parse().
+    Returns True if valid, raises SyntaxError with details if invalid.
+    """
+    try:
+        ast.parse(content)
+        return True
+    except SyntaxError as e:
+        raise SyntaxError(f"Python syntax error in {file_path}: line {e.lineno}, {e.msg}") from e
+
+
+def apply_mutation_to_target(mutation: Dict[str, Any], target_dir: Path, index: int) -> None:
+    """
+    Apply a single mutation to the cloned project.
+
+    Actions:
+        - 'overwrite': Replace entire file content with mutation['change']
+        - 'append': Add mutation['change'] to end of file with comment header
+    """
     target_file = target_dir / mutation["file"]
+    action = mutation["action"]
+    change = mutation["change"]
+    reason = mutation["reason"]
 
-    if not target_file.exists():
-        print(f"[WARN] Target file {target_file} does not exist in clone. Creating it.")
+    # Create parent directories if needed
+    if not target_file.parent.exists():
         target_file.parent.mkdir(parents=True, exist_ok=True)
-        target_file.touch()
 
-    # Read current content
-    with open(target_file, 'r', encoding='utf-8') as f:
-        original_content = f.read()
+    # Handle file creation if it doesn't exist
+    if not target_file.exists():
+        if action == "append":
+            print(f"[WARN] Mutation {index}: Target file {target_file} does not exist. Creating empty file for append.")
+            target_file.touch()
+        # For overwrite, we'll create the file with new content anyway
 
-    # Apply mutation (append)
+    # Read current content (for append mode)
+    original_content = ""
+    if target_file.exists():
+        with open(target_file, 'r', encoding='utf-8') as f:
+            original_content = f.read()
+
+    # Apply mutation based on action
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    new_content = original_content + "\n\n# MUTATION APPLIED: " + timestamp + "\n"
-    new_content += "# Reason: " + mutation["reason"] + "\n"
-    new_content += mutation["change"] + "\n"
 
+    if action == "overwrite":
+        # Complete replacement
+        new_content = change
+        print(f"[INFO] Mutation {index}: OVERWRITE {target_file}")
+    else:  # append
+        # Append with header comment
+        new_content = original_content + "\n\n# MUTATION APPLIED: " + timestamp + "\n"
+        new_content += "# Reason: " + reason + "\n"
+        new_content += change + "\n"
+        print(f"[INFO] Mutation {index}: APPEND to {target_file}")
+
+    # Validate Python syntax BEFORE writing
+    if target_file.suffix == ".py":
+        try:
+            validate_python_syntax(new_content, target_file)
+            print(f"[OK] Mutation {index}: Python syntax validated")
+        except SyntaxError as e:
+            print(f"[ERROR] Mutation {index}: {e}")
+            raise
+
+    # Write the mutated content
     with open(target_file, 'w', encoding='utf-8') as f:
         f.write(new_content)
 
-    print(f"[OK] Mutation applied to: {target_file}")
+    print(f"[OK] Mutation {index}: Applied to {target_file}")
 
 
 def main():
     if len(sys.argv) != 3:
         print("Usage: python clone_and_mutate.py <target_name> <mutation_json_file>")
+        print("\nMutation JSON Schema:")
+        print('[{"file": "path", "action": "overwrite|append", "change": "content", "reason": "why"}]')
         sys.exit(1)
 
     target_name = sys.argv[1]
@@ -121,31 +198,48 @@ def main():
     # We are in NEXUS_V7_CHRYSALIS/workspace
     # Project root is ..
     project_root = Path(__file__).parent.parent.resolve()
-    
+
     # Global root is ../.. (20_NEXUS)
     global_root = project_root.parent.resolve()
-    
+
     # Generation Active dir
     gen_active_dir = global_root / "GENERATION_ACTIVE"
     if not gen_active_dir.exists():
         gen_active_dir.mkdir()
-        
+
     target_dir = gen_active_dir / target_name
 
     try:
-        # 1. Load mutation
-        mutation = load_mutation(json_path)
-        print(f"[INFO] Loaded mutation for file: {mutation['file']}")
+        # 1. Load mutations (plural now!)
+        mutations = load_mutations(json_path)
+        print(f"[INFO] Loaded {len(mutations)} mutation(s)")
+        for i, m in enumerate(mutations, 1):
+            print(f"  [{i}] {m['file']} ({m['action']})")
 
         # 2. Clone project
         clone_project(project_root, target_dir)
 
-        # 3. Apply mutation
-        apply_mutation_to_target(mutation, target_dir)
+        # 3. Apply all mutations sequentially
+        success_count = 0
+        for i, mutation in enumerate(mutations, 1):
+            try:
+                apply_mutation_to_target(mutation, target_dir, i)
+                success_count += 1
+            except SyntaxError:
+                print(f"[ABORT] Stopping at mutation {i} due to syntax error")
+                break
+            except Exception as e:
+                print(f"[ERROR] Mutation {i} failed: {e}")
+                break
 
+        # Summary
         print("\n" + "="*60)
-        print(f"SUCCESS: Sandbox created at {target_dir}")
-        print(f"To test: cd {target_dir} && python nexus6.py")
+        if success_count == len(mutations):
+            print(f"SUCCESS: All {success_count} mutation(s) applied!")
+        else:
+            print(f"PARTIAL: {success_count}/{len(mutations)} mutation(s) applied")
+        print(f"Sandbox created at: {target_dir}")
+        print(f"To test: cd {target_dir} && python nexus7.py")
         print("="*60)
 
     except Exception as e:

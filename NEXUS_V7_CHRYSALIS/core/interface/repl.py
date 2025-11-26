@@ -817,7 +817,8 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                 child_dir,
                 ignore=shutil.ignore_patterns(
                     '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
-                )
+                ),
+                dirs_exist_ok=True
             )
             self.console.print(f"✓ Copied parent base")
 
