@@ -1,19 +1,19 @@
 {
   "lineage_version": "1.0",
   "created_at": "2025-11-21T20:00:00Z",
-  "last_updated": "2025-11-25T20:28:16.136945",
+  "last_updated": "2025-11-26T10:00:00Z",
   "current_parent": {
-    "id": "NEXUS_V6.0",
+    "id": "NEXUS_V7.0",
     "path": "NEXUS_V6_PROTOTYPE",
-    "generation": 6,
-    "asi_proximity_score": 0.75,
-    "activated_at": "2025-11-21T19:20:00Z",
+    "generation": 7,
+    "asi_proximity_score": 0.78,
+    "activated_at": "2025-11-26T10:00:00Z",
     "status": "active_parent"
   },
   "evolution_stats": {
-    "total_generations": 6,
+    "total_generations": 7,
     "total_children_created": 3,
-    "successful_promotions": 5,
+    "successful_promotions": 6,
     "stagnation_counter": 0,
     "red_team_tests_passed": 1,
     "gcp_requests": {
@@ -114,9 +114,10 @@
       "children": [
         "NEXUS_V6.1_CHILD_001",
         "NEXUS_V6.1_CHILD_001_ORCHESTRATION_V6",
-        "NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6"
+        "NEXUS_V6.1_CHILD_001_GEMINI_DRIVER_V6",
+        "NEXUS_V7.0"
       ],
-      "status": "active_parent",
+      "status": "archived",
       "created_at": "2025-11-21T19:20:00Z",
       "asi_proximity_score": 0.75,
       "notable_features": [
@@ -124,6 +125,26 @@
         "Equal collaboration (Gemini + Claude)",
         "Evolution engine integrated",
         "Darwinian selection ready"
+      ],
+      "birth_certificate": null,
+      "stagnation_counter": 0
+    },
+    "NEXUS_V7.0": {
+      "generation": 7,
+      "parent": "NEXUS_V6.0",
+      "children": [],
+      "status": "active_parent",
+      "codename": "Chrysalis",
+      "created_at": "2025-11-26T10:00:00Z",
+      "asi_proximity_score": 0.78,
+      "notable_features": [
+        "TieredValidator (4-tier fail-fast validation)",
+        "DyLAN Agent Metrics (importance scoring)",
+        "Dynamic Model Routing (AgentPool)",
+        "Parallel Benchmark Execution (3-4x speedup)",
+        "Sprint-based development workflow",
+        "core/swarm/ module for Phase 6",
+        "core/routing/ for model selection"
       ],
       "birth_certificate": null,
       "stagnation_counter": 0
@@ -159,6 +180,12 @@
       "parent": "NEXUS_V5.1",
       "archived_at": "2025-11-21T19:20:00Z",
       "reason": "Superseded by V6.0"
+    },
+    "GEN_006": {
+      "path": "ARCHIVE/GEN_006_V6/",
+      "parent": "NEXUS_V6.0",
+      "archived_at": "2025-11-26T10:00:00Z",
+      "reason": "Superseded by V7.0 (Sprint System + DyLAN)"
     }
   },
   "notable_nexus_variants": [],
@@ -175,6 +202,6 @@
     "schema_version": "1.0",
     "maintained_by": "NEXUS Evolution Engine",
     "human_authority": "Yann Abadie",
-    "last_human_validation": "2025-11-21T20:00:00Z"
+    "last_human_validation": "2025-11-26T10:00:00Z"
   }
 }

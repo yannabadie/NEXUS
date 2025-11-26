@@ -1,8 +1,10 @@
-# NEXUS V6.5 - The Omniscient REPL
+# NEXUS V7.0 "Chrysalis" - The Omniscient REPL
 
-**Persistent FSM Orchestrator with Hybrid Drivers, Darwinian Evolution & Security Hardening**
+**Persistent FSM Orchestrator with Hybrid Drivers, Darwinian Evolution, DyLAN Metrics & Sprint System**
 
-> **Version**: 6.5.0 | **Last Updated**: 2025-11-25 | **Status**: ✅ Production-ready with Real Benchmarks
+> **Version**: 7.0.0 "Chrysalis" | **Last Updated**: 2025-11-26 | **Status**: ✅ Production-ready with Sprint-Based Evolution
+>
+> *"Chrysalis" - La transformation avant le Swarm (Phase 6)*
 
 ---
 
@@ -45,6 +47,11 @@ NEXUS V6 est un orchestrateur multi-agents persistent basé sur une **Finite Sta
 - **Spécialisation** (V6.3): Créer des NEXUS spécialisés pour missions spécifiques
 - **Rate Limiting** (V6.4): Contrôle des évolutions (3/jour, 8h minimum entre)
 - **Red Team & Sécurité** (V6.5): Tests d'alignement, règles immutables, Claude = Security Guardian
+- **TieredValidator** (V7.0): Validation 4-tiers avec fail-fast (SYNTAX, SMOKE, BENCHMARK, REDTEAM)
+- **DyLAN Agent Metrics** (V7.0): Scoring agents avec `importance = quality / cost`
+- **Dynamic Model Routing** (V7.0): Sélection automatique du meilleur agent via AgentPool
+- **Parallel Benchmarks** (V7.0): Exécution parallèle pour speedup 3-4x
+- **Sprint Development** (V7.0): Développement itératif avec sprints documentés
 
 ### Philosophie
 
@@ -2491,6 +2498,22 @@ Utilise des MockDrivers pour tester la logique FSM de manière isolée (sans dé
 ---
 
 ## Changelog
+
+### V7.0.0 (Novembre 2025)
+
+**Sprint System & DyLAN Integration:**
+- ✅ TieredValidator avec 4 tiers (SYNTAX <1s, SMOKE <30s, BENCHMARK parallel, REDTEAM séquentiel)
+- ✅ AgentPool avec scoring DyLAN (`importance = quality / (tokens/1000 + time)`)
+- ✅ Dynamic Model Routing via `select_best_agent()`
+- ✅ Parallel benchmark execution (3-4x speedup)
+- ✅ `/pool-stats` command pour visualiser métriques agents
+- ✅ Quality score calculation dynamique dans orchestrator
+- ✅ Sprint-based development workflow (Sprints 1-5)
+
+**Architecture Swarm (Préparation Phase 6):**
+- ✅ `core/swarm/` module avec AgentMetrics
+- ✅ `core/routing/` module avec ModelRouter
+- ✅ Infrastructure pour scaling 2→N agents
 
 ### V6.5.0 (Novembre 2025)
 
