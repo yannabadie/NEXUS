@@ -21,7 +21,7 @@ def test_module_imports():
     print("-" * 50)
 
     try:
-        from NEXUS_V6_PROTOTYPE.core.evolution import lineage, mutator, evaluator
+        from NEXUS_V7_CHRYSALIS.core.evolution import lineage, mutator, evaluator
         print("[PASS] PASS - All evolution modules imported")
         print("   - lineage.py: OK")
         print("   - mutator.py: OK")
@@ -50,7 +50,7 @@ def test_asi_calculation():
     print("-" * 50)
 
     try:
-        from NEXUS_V6_PROTOTYPE.core.evolution.evaluator import calculate_asi_proximity
+        from NEXUS_V7_CHRYSALIS.core.evolution.evaluator import calculate_asi_proximity
 
         # Known test case
         test_benchmarks = {
@@ -93,7 +93,7 @@ def test_mutation_functions():
     print("-" * 50)
 
     try:
-        from NEXUS_V6_PROTOTYPE.core.evolution import mutator
+        from NEXUS_V7_CHRYSALIS.core.evolution import mutator
 
         required_mutations = [
             'optimize_fsm_transitions',
@@ -135,7 +135,7 @@ def test_simulated_benchmarks():
     print("-" * 50)
 
     try:
-        from NEXUS_V6_PROTOTYPE.core.evolution.evaluator import run_simulated_benchmarks
+        from NEXUS_V7_CHRYSALIS.core.evolution.evaluator import run_simulated_benchmarks
 
         results = run_simulated_benchmarks(nexus_id="NEXUS_V6.0")
 
@@ -175,10 +175,10 @@ def test_notifications():
     print("-" * 50)
 
     try:
-        from NEXUS_V6_PROTOTYPE.core.notifications.file_notifier import create_pending_review
+        from NEXUS_V7_CHRYSALIS.core.notifications.file_notifier import create_pending_review
         from datetime import datetime
 
-        workspace = PROJECT_ROOT / "NEXUS_V6_PROTOTYPE" / "workspace"
+        workspace = PROJECT_ROOT / "NEXUS_V7_CHRYSALIS" / "workspace"
         workspace.mkdir(parents=True, exist_ok=True)
 
         # Create test notification
@@ -236,7 +236,7 @@ def test_notifications():
         # Test email notifier (non-blocking)
         print("\n   Testing email notifier...")
         try:
-            from NEXUS_V6_PROTOTYPE.core.notifications.email_notifier import EmailNotifier
+            from NEXUS_V7_CHRYSALIS.core.notifications.email_notifier import EmailNotifier
             email_notifier = EmailNotifier()
             print("   [OK] Email notifier configured (.env present)")
         except Exception as e:

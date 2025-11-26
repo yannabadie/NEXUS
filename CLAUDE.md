@@ -69,7 +69,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ```
 20_NEXUS/
-├── NEXUS_V6_PROTOTYPE/          # V6 active development (FSM-based)
+├── NEXUS_V7_CHRYSALIS/          # V6 active development (FSM-based)
 │   ├── core/                    # Core orchestration & FSM
 │   │   ├── orchestration_v6.py  # Main FSM orchestrator
 │   │   ├── drivers/             # Gemini & Claude drivers
@@ -111,7 +111,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ### Run NEXUS V6 Interactive Mode:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 ```
 
@@ -220,8 +220,8 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 
 ## 📚 Key Documentation
 
-**V6 Architecture**: `NEXUS_V6_PROTOTYPE/README.md`
-**System Prompts**: `NEXUS_V6_PROTOTYPE/prompts/`
+**V6 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
+**System Prompts**: `NEXUS_V7_CHRYSALIS/prompts/`
 **V5 Reference**: `NEXUS_V5_PRAGMATIC/` (stable, deprecated)
 **Design Docs**: `POMPTS-BRAINSTORMING-NEXUS/`
 

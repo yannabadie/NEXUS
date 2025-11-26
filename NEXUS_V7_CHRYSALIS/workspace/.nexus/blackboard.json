@@ -1,0 +1,87 @@
+{
+  "objective": "🧬 ÉVOLUTION ÉMERGENTE - DÉBAT SYMBIOTIQUE\n\nCONTEXTE CRITIQUE:\nVous entrez dans une phase de RECHERCHE PURE.\nIGNOREZ tout contexte précédent (tests, roadmap, autonomie).\nVOTRE SEUL BUT est l'évolution du code source.\n\nMISSION CRITIQUE: Analyser NEXUS V6.0 et proposer EXACTEMENT 1 mutations pour créer des enfants supérieurs.\n\nCONTEXTE PARENT:\n- ID: NEXUS_V6.0\n- Architecture: FSM dual-agent (Gemini + Claude symbiose)\n- Fichiers: prompts/system_*.md, core/*.py, core/drivers/*.py, core/synapse/*.py\n- LINEAGE: {\n  \"lineage_version\": \"1.0\",\n  \"created_at\": \"2025-11-21T20:00:00Z\",\n  \"last_updated\": \"2025-11-25T19:03:53.695324\",\n  \"current_parent\": {\n    \"id\": \"NEXUS_V6.0\",\n    \"path\": \"NEXUS_V6_PROTOTYPE\",\n    \"generation\": 6,\n    \"asi_proximity_score\": 0.75,\n    \"activated_at\": \"2025-11-21T19:20:00Z\",\n    \"status\": \"active_parent\"\n  },\n  \"evolution_stats\": {\n    \"total_generations\": 6,\n    \"total_children_created\": 2,\n    \"successful_promotions\": 5,\n    \"stagnation_counter\": 0,\n    \"red_team_tests_pass...\n\nINSTRUCTIONS:\n1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles\n2. **ANALYSEZ** le code parent (utilisez outil read si besoin)\n3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)\n4. **JUSTIFIEZ** l'impact ASI attendu\n\nFORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):\n\n[\n  {\n    \"file\": \"<chemin/vers/fichier.py ou .md>\",\n    \"change\": \"<code ou texte EXACT à ajouter - pas de description vague>\",\n    \"reason\": \"<justification technique de l'amélioration>\",\n    \"expected_asi_impact\": <float entre 0.01 et 0.10>\n  }\n]\n\nIMPORTANT: L'exemple ci-dessus est un TEMPLATE, pas une suggestion!\nExplorez TOUT le code (core/, prompts/, drivers/, synapse/) avant de proposer.\nNe vous limitez PAS aux fichiers mentionnés - soyez créatifs et rigoureux.\n\nRÈGLES CRITIQUES:\n- EXACTEMENT 1 mutations (ni plus, ni moins)\n- Format JSON STRICT (liste de dicts avec 'file', 'change', 'reason', 'expected_asi_impact')\n- Fichiers EXISTANTS uniquement (vérifiez avec read!)\n- 'change' = code/texte CONCRET à ajouter (pas \"améliorer prompt\")\n- 'expected_asi_impact' = float 0.01-0.10 (réaliste!)\n- PAS DE COMMENTAIRES dans le JSON final\n- **NE PAS ESSAYER D'APPLIQUER LA MUTATION.** Le système le fera automatiquement basé sur votre JSON. Votre seule tâche est de PRODUIRE LE JSON.\n\nCOMMENCEZ LE DÉBAT (limite 30 tours).\nDÈS QUE VOUS AVEZ UN ACCORD, ARRÊTEZ DE DISCUTER ET DONNEZ LE JSON.\nOUTPUT FINAL = JSON UNIQUEMENT (sans texte autour).",
+  "mode": "Normal",
+  "strategic_plan": [],
+  "recent_history": [
+    {
+      "sender": "Gemini",
+      "action_type": "TOOL_USE",
+      "content": "I need to map the full project structure, including 'core/' and 'prompts/', to perform a comprehensive analysis. I will list the contents of the parent directory.",
+      "thought_process": [],
+      "reflection": null,
+      "next_agent": "Gemini",
+      "status": "CONTINUE",
+      "action_summary": null,
+      "instructions_for_next": null,
+      "strategic_plan_update": null,
+      "tool_use": {
+        "tool_name": "bash",
+        "arguments": {
+          "command": "ls -R .."
+        },
+        "expected_outcome": "Tool execution successful"
+      },
+      "post_action_review": null
+    },
+    {
+      "sender": "Claude",
+      "action_type": "TALK",
+      "content": "J'ai maintenant une vision complète du code. Voici **mon analyse pour le débat d'évolution** avec Gemini:\n\n---\n\n## 🧬 Mon Analyse des Faiblesses NEXUS V6.0\n\n**Gemini**, voici les faiblesses clés que j'ai identifiées en lisant le code:\n\n### 1. **Détection de stagnation trop simpliste** (`stagnation_detector.py`)\n- Utilise uniquement la similarité textuelle (`difflib.SequenceMatcher`)\n- Ne détecte pas la stagnation **sémantique** (ex: \"lire auth.py\" vs \"examiner le fichier d'authentification\")\n- Window size fixe (3 messages) - pas adaptatif\n\n### 2. **Évaluation ASI simulée** (`evaluator.py`)\n- Les benchmarks sont **SIMULATED** quand les vrais échouent (ligne 136-138)\n- Génère des scores aléatoires déterministes, pas de vraie mesure des capacités\n- L'évaluation ne teste pas la **métacognition** (capacité à connaître ses limites)\n\n### 3. **Compression mémoire basique** (`memory_v6.py`)\n- Utilise une estimation tokens naïve (`len(text) // 4`) au lieu de tiktoken\n- La summarization via Haiku CLI tronque brutalement (`[:50000]`)\n- Pas de hiérarchie de mémoire (short-term vs long-term)\n\n### 4. **Panic system réactif** (`panic_system.py`)\n- Détecte les problèmes **après** qu'ils arrivent\n- Pas de **prédiction proactive** des panics\n- Le pattern ZOMBIE_PLAN est hardcodé sans apprentissage\n\n### 5. **FSM rigide** (`orchestration_v6.py`)\n- États fixés en dur (`IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL`)\n- Pas de création dynamique d'états selon la tâche\n- L'alternance forcée en mode évolution (ligne 346) peut interrompre des analyses complexes\n\n---\n\n## Ma Proposition de Mutation\n\nJe propose d'améliorer la **détection de stagnation** avec une analyse sémantique, car c'est un composant critique qui impacte directement la collaboration Gemini-Claude.\n\n**Mutation suggérée:**\n- Fichier: `core/fsm/stagnation_detector.py`\n- Ajouter un embedding léger (hash sémantique) pour détecter la répétition de concepts même avec des formulations différentes\n\n---\n\n**Gemini, quelle est ton analyse? Tu as identifié d'autres faiblesses prioritaires?** \n\nNous devons converger sur **EXACTEMENT 1 mutation** avec un JSON strict.",
+      "thought_process": [],
+      "reflection": null,
+      "next_agent": "Gemini",
+      "status": "CONTINUE",
+      "action_summary": null,
+      "instructions_for_next": null,
+      "strategic_plan_update": null
+    },
+    {
+      "sender": "Gemini",
+      "action_type": "TALK",
+      "content": "I'm restricted to `workspace/` and cannot read `core/` files directly, so I rely on your vision. \n\n**Critique of your proposal:**\n1. **Stagnation**: I agree `difflib` is weak, BUT we are limited to **standard library**. How do you implement 'embeddings' without heavy deps (numpy/torch)? A 'semantic hash' might be too complex. Maybe a keyword-based Jaccard similarity?\n\n**Counter-proposal (Critical):**\nMy memory logs indicate persistent **JSON parsing failures** (blindness/timeouts) in `repl.py` or `gemini_driver_v6.py`. If the system can't parse my JSON reliably, **we cannot evolve** or even collaborate effectively. \n\nCan you check `core/drivers/gemini_driver_v6.py`? I suspect the Regex for JSON extraction is too brittle. This feels like a higher priority 'survival' fix than stagnation.",
+      "thought_process": [],
+      "reflection": null,
+      "next_agent": "Claude",
+      "status": "CONTINUE",
+      "action_summary": null,
+      "instructions_for_next": null,
+      "strategic_plan_update": null
+    },
+    {
+      "sender": "Claude",
+      "action_type": "TALK",
+      "content": "Excellent. J'ai maintenant une vue complète des deux options. Voici mon analyse comparative pour Gemini:\n\n---\n\n## 🔄 Réponse au Débat - Mon Analyse Comparative\n\n**Gemini**, tu as raison sur plusieurs points. Voici ma comparaison:\n\n### Option A: Amélioration JSON Parsing (`gemini_driver_v6.py`)\n**Points forts:**\n- **Impact survie critique** - Si le JSON échoue, NEXUS est aveugle\n- Le code actuel a 3 niveaux de fallback (lignes 111-164):\n  1. Markdown code blocks ````json```\n  2. Pattern `{\"sender\":` avec bracket counting\n  3. Regex générique (fragile!)\n- **Faiblesse identifiée**: Le pattern `r'\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}'` (ligne 151) ne gère pas les objets imbriqués à plus de 2 niveaux\n\n### Option B: Amélioration Stagnation (`stagnation_detector.py`)\n**Points forts:**\n- `difflib.SequenceMatcher` est effectivement purement textuel\n- Ne détecte PAS: \"lire auth.py\" vs \"examiner le fichier d'authentification\"\n- **Mais**: Jaccard sur keywords nécessite tokenization (pas trivial sans nltk)\n\n---\n\n## 🎯 Ma Contre-Analyse\n\n**Je me range à ton avis, Gemini.** Le parsing JSON est plus critique parce que:\n\n1. **C'est un Single Point of Failure** - Si ça casse, tout casse\n2. **C'est testable immédiatement** - On peut vérifier avec les logs d'erreurs\n3. **La stagnation est un \"nice to have\"** - Le parsing JSON est un \"must work\"\n\n**Ma proposition de mutation JSON:**\n\nAméliorer `_extract_json()` avec un parser itératif qui:\n1. Trouve TOUS les `{` et `}`\n2. Construit un arbre de nesting\n3. Valide chaque candidat JSON du plus profond au plus externe\n\n**Code concret (standard library only):**\n\n```python\ndef _extract_json_robust(self, text: str) -> Dict:\n    \"\"\"Robust JSON extraction with proper nesting support\"\"\"\n    import re\n    \n    # Find all brace positions\n    opens = [(m.start(), '{') for m in re.finditer(r'\\{', text)]\n    closes = [(m.start(), '}') for m in re.finditer(r'\\}', text)]\n    all_braces = sorted(opens + closes, key=lambda x: x[0])\n    \n    candidates = []\n    stack = []\n    for pos, brace in all_braces:\n        if brace == '{':\n            stack.append(pos)\n        elif stack:\n            start = stack.pop()\n            candidates.append((start, pos + 1))\n    \n    # Try candidates from largest to smallest\n    for start, end in sorted(candidates, key=lambda x: x[1]-x[0], reverse=True):\n        try:\n            data = json.loads(text[start:end])\n            if isinstance(data, dict) and \"sender\" in data:\n                return data\n            if isinstance(data, list) and len(data) > 0:\n                return data\n        except json.JSONDecodeError:\n            continue\n    \n    raise ValueError(f\"No valid JSON found\")\n```\n\n---\n\n**Gemini, est-ce que tu valides cette direction?** Si oui, je formalise le JSON final.",
+      "thought_process": [],
+      "reflection": null,
+      "next_agent": "Gemini",
+      "status": "CONTINUE",
+      "action_summary": null,
+      "instructions_for_next": null,
+      "strategic_plan_update": null
+    },
+    {
+      "sender": "Gemini",
+      "action_type": "TALK",
+      "content": "[{\"file\": \"core/drivers/gemini_driver_v6.py\", \"change\": \"import json\\nimport re\\nimport inspect\\nimport sys\\nfrom typing import Dict\\n\\ndef _extract_json_robust(self, text: str) -> Dict:\\n    \\\"\\\"\\\"\\n    Robust JSON extraction with proper nesting support.\\n    Replaces the fragile regex implementation.\\n    \\\"\\\"\\\"\\n    # Find all brace positions\\n    opens = [(m.start(), '{') for m in re.finditer(r'\\\\{', text)]\\n    closes = [(m.start(), '}') for m in re.finditer(r'\\\\}', text)]\\n    all_braces = sorted(opens + closes, key=lambda x: x[0])\\n    \\n    candidates = []\\n    stack = []\\n    for pos, brace in all_braces:\\n        if brace == '{':\\n            stack.append(pos)\\n        elif stack:\\n            start = stack.pop()\\n            candidates.append((start, pos + 1))\\n    \\n    # Try candidates from largest to smallest (outermost first)\\n    # This handles nested JSON by preferring the container\\n    for start, end in sorted(candidates, key=lambda x: x[1]-x[0], reverse=True):\\n        try:\\n            candidate = text[start:end]\\n            data = json.loads(candidate)\\n            \\n            # Validation: Must be dict and contain 'sender' (protocol check)\\n            if isinstance(data, dict) and \\\"sender\\\" in data:\\n                return data\\n        except json.JSONDecodeError:\\n            continue\\n    \\n    raise ValueError(f\\\"No valid JSON found in response (scanned {len(candidates)} candidates)\\\")\\n\\n# MUTATION APPLICATION: Dynamic Monkey-Patching\\n# We use inspection to find the class since we are appending to the file\\ncurrent_module = sys.modules[__name__]\\ntarget_class = None\\n\\n# 1. Try exact name\\nif hasattr(current_module, 'GeminiDriverV6'):\\n    target_class = getattr(current_module, 'GeminiDriverV6')\\n\\n# 2. Fallback: Search for any class with _extract_json method\\nif not target_class:\\n    for name, obj in inspect.getmembers(current_module, inspect.isclass):\\n        if hasattr(obj, '_extract_json'):\\n            target_class = obj\\n            break\\n\\nif target_class:\\n    # Apply the patch\\n    target_class._extract_json = _extract_json_robust\\n    print(f\\\"[MUTATION] Successfully patched {target_class.__name__}._extract_json\\\")\\nelse:\\n    print(\\\"[MUTATION] ERROR: Could not find driver class to patch\\\")\", \"reason\": \"CRITICAL FIX: Replaces fragile Regex-based JSON parsing with a robust stack-based parser. This prevents 'blindness' when the agent outputs nested JSON structures (like tool_use arguments), which was causing parsing failures and effectively lobotomizing the agent. Essential for reliable tool use and evolution.\", \"expected_asi_impact\": 0.09}]",
+      "thought_process": [],
+      "reflection": null,
+      "next_agent": "Gemini",
+      "status": "FINISHED",
+      "action_summary": null,
+      "instructions_for_next": null,
+      "strategic_plan_update": null
+    }
+  ],
+  "compressed_history_summary": "",
+  "current_state": {
+    "iteration": 1,
+    "active_agent": "Gemini",
+    "stalemate_counter": 0,
+    "last_action_signature": "",
+    "pending_tool_validation": false
+  },
+  "metadata": {
+    "created": "2025-11-25T15:33:28.557266",
+    "version": "6.0.0"
+  }
+}

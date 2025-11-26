@@ -71,7 +71,7 @@ You may temporarily assume a "strategist" role **if both agents agree** it's the
 
 ```
 20_NEXUS/
-├── NEXUS_V6_PROTOTYPE/          # V6 active development (FSM-based)
+├── NEXUS_V7_CHRYSALIS/          # V6 active development (FSM-based)
 │   ├── core/                    # Core orchestration & FSM
 │   │   ├── orchestration_v6.py  # Main FSM orchestrator
 │   │   ├── drivers/             # Gemini & Claude drivers
@@ -225,7 +225,7 @@ You **MUST** respond with **valid JSON only** - no text before/after.
 
 ### Run NEXUS V6:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 ```
 
@@ -319,10 +319,10 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 
 ## 📚 Key Documentation Files
 
-**V6 Architecture**: `NEXUS_V6_PROTOTYPE/README.md` (comprehensive FSM docs)
-**Your System Prompt**: `NEXUS_V6_PROTOTYPE/prompts/system_gemini_v6.md`
-**Claude's Prompt**: `NEXUS_V6_PROTOTYPE/prompts/system_claude_v6.md`
-**Protocol Schemas**: `NEXUS_V6_PROTOTYPE/core/synapse/protocol_v6.py`
+**V6 Architecture**: `NEXUS_V7_CHRYSALIS/README.md` (comprehensive FSM docs)
+**Your System Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_gemini_v6.md`
+**Claude's Prompt**: `NEXUS_V7_CHRYSALIS/prompts/system_claude_v6.md`
+**Protocol Schemas**: `NEXUS_V7_CHRYSALIS/core/synapse/protocol_v6.py`
 **V5 Reference**: `NEXUS_V5_PRAGMATIC/` (stable, deprecated)
 
 ---

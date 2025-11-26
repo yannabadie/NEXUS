@@ -177,7 +177,7 @@ graph TD
 - La fonction `promote_child_to_parent()` existait déjà dans `lineage.py:153-220`
 - Ajouté `_promote_child()` dans `repl.py` qui:
   1. Archive le parent dans `ARCHIVE/GEN_XXX/`
-  2. Copie l'enfant vers `NEXUS_V6_PROTOTYPE/`
+  2. Copie l'enfant vers `NEXUS_V7_CHRYSALIS/`
   3. Met à jour `LINEAGE.json` via fonctions existantes
   4. Commit git automatique
 
@@ -215,7 +215,7 @@ V6.5 Baseline (estimé):
 1. **Découverte**: `promote_child_to_parent()` existait déjà dans `lineage.py:153-220`
 2. **Câblage**: Ajouté `_promote_child()` dans `repl.py:962-1106` qui:
    - Archive le parent actuel vers `ARCHIVE/GEN_XXX/`
-   - Copie les fichiers enfant vers `NEXUS_V6_PROTOTYPE/`
+   - Copie les fichiers enfant vers `NEXUS_V7_CHRYSALIS/`
    - Appelle `promote_child_to_parent()` et `archive_generation()` de lineage.py
    - Sauvegarde `LINEAGE.json`
    - Commit git automatique
@@ -344,7 +344,7 @@ class ModelConfig:
 
 ```bash
 # Jour 1: Test /evolve
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 nexus6> /evolve 1
 
@@ -372,7 +372,7 @@ nexus6> /review
 **Objectif**: Établir le score ASI de référence pour V6.5
 
 ```bash
-python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V6_PROTOTYPE > baseline_v6.5.json
+python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V7_CHRYSALIS > baseline_v6.5.json
 ```
 
 **Documenter**:
@@ -696,10 +696,10 @@ ASI (0.95+):    0.95+ ███████████████████�
 ```bash
 # 1. Mesurer baseline
 cd C:\Code\NEXUS\20_NEXUS
-python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V6_PROTOTYPE
+python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.5 --nexus-path NEXUS_V7_CHRYSALIS
 
 # 2. Premier cycle évolution
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 nexus6> /evolve 1
 

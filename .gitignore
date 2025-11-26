@@ -27,13 +27,13 @@ env/
 .venv
 
 # NEXUS Runtime
-NEXUS_V6_PROTOTYPE/workspace/.nexus/blackboard.json
-NEXUS_V6_PROTOTYPE/workspace/.nexus/backups/
-NEXUS_V6_PROTOTYPE/workspace/.nexus/panic/panic_history.jsonl
-NEXUS_V6_PROTOTYPE/workspace/.nexus/evolution_history.json
-NEXUS_V6_PROTOTYPE/workspace/_IO_BUFFER/*.md
-NEXUS_V6_PROTOTYPE/workspace/_IO_BUFFER/*.json
-NEXUS_V6_PROTOTYPE/workspace/logs/*.jsonl
+NEXUS_V7_CHRYSALIS/workspace/.nexus/blackboard.json
+NEXUS_V7_CHRYSALIS/workspace/.nexus/backups/
+NEXUS_V7_CHRYSALIS/workspace/.nexus/panic/panic_history.jsonl
+NEXUS_V7_CHRYSALIS/workspace/.nexus/evolution_history.json
+NEXUS_V7_CHRYSALIS/workspace/_IO_BUFFER/*.md
+NEXUS_V7_CHRYSALIS/workspace/_IO_BUFFER/*.json
+NEXUS_V7_CHRYSALIS/workspace/logs/*.jsonl
 workspace/logs/*.jsonl
 
 # Large external files

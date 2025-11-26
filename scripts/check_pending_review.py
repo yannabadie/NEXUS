@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "NEXUS_V6_PROTOTYPE"))
+sys.path.insert(0, str(project_root / "NEXUS_V7_CHRYSALIS"))
 
 from core.config import load_config
 from core.notifications import check_pending_review
@@ -48,7 +48,7 @@ Location: {config.workspace_path}/.nexus/PENDING_REVIEW.md
 
 Launch NEXUS REPL to review:
 > cd {project_root}
-> python NEXUS_V6_PROTOTYPE/nexus6.py
+> python NEXUS_V7_CHRYSALIS/nexus6.py
 > /review
 
 """)

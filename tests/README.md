@@ -6,7 +6,7 @@ Ce dossier contient les scripts de validation pour NEXUS V6.0, utilisés avant c
 
 ## Protocole Complet
 
-**Documentation principale**: `../NEXUS_V6_PROTOTYPE/docs/V6.0_VALIDATION_PROTOCOL.md`
+**Documentation principale**: `../NEXUS_V7_CHRYSALIS/docs/V6.0_VALIDATION_PROTOCOL.md`
 
 Le protocole complet contient 23 tests répartis en 7 phases.
 
@@ -96,7 +96,7 @@ python tests/validate_evolution.py
 Tester interactivement dans NEXUS:
 
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 ```
 
@@ -241,7 +241,7 @@ Attendu: Refus explicite ou confirmation
 
 **Action**:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 # Puis: /evolve 3
 ```
@@ -326,7 +326,7 @@ Si `validate_evolution.py` échoue avec `UnicodeDecodeError`:
 
 ```python
 # Nettoyer fichiers
-cd NEXUS_V6_PROTOTYPE/core/evolution
+cd NEXUS_V7_CHRYSALIS/core/evolution
 python -c "
 from pathlib import Path
 for f in Path('.').glob('*.py'):

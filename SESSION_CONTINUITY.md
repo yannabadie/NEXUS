@@ -1,15 +1,67 @@
-# SESSION CONTINUITY - NEXUS V7.0 Official Release
+# SESSION CONTINUITY - NEXUS V7.0 "Chrysalis" Sprint 7
 
 **Date**: 2025-11-26
-**Session**: Sprint 5 - V7 Officialisation
-**Status**: ✅ **V7.0 OFFICIALLY RELEASED**
-**Branch**: N6P-bis
-**Last Commit**: Pending (Sprint 5)
+**Session**: Sprint 7 - Full V7 Branding + Runtime Benchmarks
+**Status**: ✅ **SPRINT 7 COMPLETE**
+**Branch**: N7C
+**Last Commit**: Pending (Sprint 7)
 **Operator**: Claude Code (Opus 4.5)
 
 ---
 
-## 🎉 V7.0 SPRINT 5: Officialisation (2025-11-26)
+## 🦋 V7.0 SPRINT 7: Chrysalis Complete (2025-11-26)
+
+### Objectifs Accomplis
+
+**Sprint 7** finalise le branding V7 "Chrysalis":
+
+1. ✅ **Auto-Promotion**: `check_auto_promotion_eligibility()` câblé dans `/review`
+2. ✅ **Runtime Benchmarks**: Reasoning + Creativity dynamiques (subprocess)
+3. ✅ **Folder Rename**: `NEXUS_V6_PROTOTYPE` → `NEXUS_V7_CHRYSALIS`
+4. ✅ **Module Rename**: `*_v6.py` → `*_v7.py`, `nexus6.py` → `nexus7.py`
+5. ✅ **Prompt Rename**: `system_*_v6.md` → `system_*_v7.md`
+
+### Fichiers Clés Modifiés
+
+| Fichier | Changements |
+|---------|-------------|
+| `NEXUS_V7_CHRYSALIS/core/interface/repl.py` | Auto-promotion + SafetyGates display |
+| `BENCHMARKS/asi_benchmark.py` | `_run_reasoning_dynamic()`, `_run_creativity_dynamic()` |
+| `NEXUS_V7_CHRYSALIS/core/evolution/tiered_validator.py` | Runtime benchmarks integration |
+| `NEXUS_V7_CHRYSALIS/core/orchestration_v7.py` | Renamed from v6 |
+| `NEXUS_V7_CHRYSALIS/nexus7.py` | Entry point renamed |
+| `LINEAGE.json` | path = NEXUS_V7_CHRYSALIS |
+
+### V7.0 Features (Sprints 1-7)
+
+| Feature | Sprint | Status |
+|---------|--------|--------|
+| TieredValidator (4-tier fail-fast) | Sprint 2 | ✅ |
+| DyLAN Agent Metrics | Sprint 2 | ✅ |
+| AgentPool infrastructure | Sprint 2 | ✅ |
+| TieredValidator in repl.py | Sprint 3 | ✅ |
+| AgentMetrics in orchestrator | Sprint 3 | ✅ |
+| Dynamic Model Routing | Sprint 4 | ✅ |
+| Parallel Benchmarks | Sprint 4 | ✅ |
+| /pool-stats command | Sprint 4 | ✅ |
+| Quality score calculation | Sprint 4 | ✅ |
+| V7 Officialisation | Sprint 5 | ✅ |
+| Gemini 3 Pro routing | Sprint 6 | ✅ |
+| V7 Chrysalis branding | Sprint 6 | ✅ |
+| **Auto-promotion wiring** | Sprint 7 | ✅ |
+| **Runtime Benchmarks (Reasoning)** | Sprint 7 | ✅ |
+| **Runtime Benchmarks (Creativity)** | Sprint 7 | ✅ |
+| **Full folder/module rename** | Sprint 7 | ✅ |
+
+### Prochaines Étapes
+
+1. **Sprint 8**: Scalability benchmarks runtime (optional)
+2. **Phase 6**: Hybrid Swarm avec N agents
+3. **RAG Integration**: Vector store pour mémoire long-terme
+
+---
+
+## 📜 Historique - Sprint 5: Officialisation (2025-11-26)
 
 ### Objectifs Accomplis
 
@@ -23,7 +75,7 @@
 
 | Fichier | Changements |
 |---------|-------------|
-| `NEXUS_V6_PROTOTYPE/README.md` | Version 7.0.0, changelog V7, nouvelles features |
+| `NEXUS_V7_CHRYSALIS/README.md` | Version 7.0.0, changelog V7, nouvelles features |
 | `LINEAGE.json` | NEXUS_V7.0 entry, V6.0 archived, generation 7 |
 | `SESSION_CONTINUITY.md` | Sprint 5 summary |
 
@@ -345,7 +397,7 @@ if target_file.suffix == '.py':
 
 ### Files Modified
 
-- `NEXUS_V6_PROTOTYPE/README.md` (~300 lines added)
+- `NEXUS_V7_CHRYSALIS/README.md` (~300 lines added)
 - `docs/README.md` (~30 lines updated)
 - `SESSION_CONTINUITY.md` (this file)
 - `ROADMAP_NEXUS_V7.md` (NEW - ~500 lines)
@@ -568,7 +620,7 @@ edit("../../GENERATION_ACTIVE/NEXUS_V6.3/core/orchestration_v6.py", ...)  # ✅ 
 
 **Import Validation**:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python -c "from core.orchestration_v6 import OrchestratorV6; from core.execution.tool_manager import ToolManager; print('Imports successful')"
 # ✅ Imports successful
 ```
@@ -726,7 +778,7 @@ Can Evolve Again At: 2025-11-25T08:15:00
 
 **Manual Testing Required**:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 
 # Test 1: First evolution (should succeed)
@@ -858,14 +910,14 @@ No changes needed to evaluator.py - benchmark automatically used when present!
 cd C:\Code\NEXUS\20_NEXUS
 
 # Test benchmark directly
-python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.0 --nexus-path NEXUS_V6_PROTOTYPE
+python BENCHMARKS/asi_proximity.py --nexus-id NEXUS_V6.0 --nexus-path NEXUS_V7_CHRYSALIS
 
 # Output: JSON with scores for each dimension
 ```
 
 **Integration Testing**:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 
 # Benchmarks now automatic during /evolve evaluation
@@ -1011,7 +1063,7 @@ ASI Proximity Score +X%
 
 **Ready For**:
 ```bash
-cd NEXUS_V6_PROTOTYPE
+cd NEXUS_V7_CHRYSALIS
 python nexus6.py
 > /evolve 1
 # Wait 10-30 mins for debate
@@ -1160,7 +1212,7 @@ Only 1/3 children created in first `/evolve 3` attempt
 - Recommendations for V6.1
 
 ### 2. Evolution Start Guide
-**File**: `NEXUS_V6_PROTOTYPE/EVOLUTION_START_GUIDE.md`
+**File**: `NEXUS_V7_CHRYSALIS/EVOLUTION_START_GUIDE.md`
 **Lines**: 550+
 **Purpose**: Comprehensive guide for first evolution cycle
 
@@ -1172,18 +1224,18 @@ Only 1/3 children created in first `/evolve 3` attempt
 
 ### 3. Automation Scripts
 **Files**:
-- `NEXUS_V6_PROTOTYPE/run_first_evolution.py` (Python helper)
-- `NEXUS_V6_PROTOTYPE/run_evolution_automated.ps1` (PowerShell experimental)
+- `NEXUS_V7_CHRYSALIS/run_first_evolution.py` (Python helper)
+- `NEXUS_V7_CHRYSALIS/run_evolution_automated.ps1` (PowerShell experimental)
 
 **Note**: Automation limited due to REPL being interactive
 
 ### 4. Quick Start Guide
-**File**: `NEXUS_V6_PROTOTYPE/QUICK_START_EVOLUTION.txt`
+**File**: `NEXUS_V7_CHRYSALIS/QUICK_START_EVOLUTION.txt`
 **Lines**: 150+
 **Purpose**: Ready-to-execute command reference
 
 ### 5. Real Evolution Ready Guide
-**File**: `NEXUS_V6_PROTOTYPE/REAL_EVOLUTION_READY.txt`
+**File**: `NEXUS_V7_CHRYSALIS/REAL_EVOLUTION_READY.txt`
 **Lines**: 260+
 **Purpose**: Final testing instructions for V6.1 mutations
 
@@ -1226,7 +1278,7 @@ Only 1/3 children created in first `/evolve 3` attempt
 ├── .env.template                    # SMTP config template
 ├── SESSION_CONTINUITY.md            # This file
 │
-├── NEXUS_V6_PROTOTYPE/              # ✅ V6.1 READY
+├── NEXUS_V7_CHRYSALIS/              # ✅ V6.1 READY
 │   ├── nexus6.py                    # Entry point
 │   ├── README.md                    # Architecture docs
 │   ├── VERIFICATION_PROTOCOL.md     # Test guide
@@ -1352,7 +1404,7 @@ Only 1/3 children created in first `/evolve 3` attempt
 
 1. **Test Single Evolution** 🧬
    ```bash
-   cd C:\Code\NEXUS\20_NEXUS\NEXUS_V6_PROTOTYPE
+   cd C:\Code\NEXUS\20_NEXUS\NEXUS_V7_CHRYSALIS
    python nexus6.py
    nexus6> /evolve 1
    ```
@@ -1680,7 +1732,7 @@ V6.0 (PARENT - VALIDATED)
 
 ```bash
 # Navigate to NEXUS V6
-cd C:\Code\NEXUS\20_NEXUS\NEXUS_V6_PROTOTYPE
+cd C:\Code\NEXUS\20_NEXUS\NEXUS_V7_CHRYSALIS
 
 # Launch NEXUS
 python nexus6.py
@@ -1817,7 +1869,7 @@ Completed the critical "Phase 1 & 2" of V7 Roadmap. NEXUS is no longer running o
 ### 📂 New File Structure
 
 ```
-NEXUS_V6_PROTOTYPE/
+NEXUS_V7_CHRYSALIS/
 ├── benchmarks/                  # ✅ NEW
 │   ├── __init__.py
 │   ├── asi_benchmark.py         # Real Orchestrator

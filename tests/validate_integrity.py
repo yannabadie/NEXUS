@@ -97,7 +97,7 @@ def test_lineage_coherence():
 
     try:
         # Import after path setup
-        from NEXUS_V6_PROTOTYPE.core.evolution import lineage
+        from NEXUS_V7_CHRYSALIS.core.evolution import lineage
 
         lin = lineage.load_lineage()
 

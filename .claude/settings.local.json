@@ -1,13 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)",
-      "Bash(git add:*)",
-      "Bash(git push:*)",
-      "Bash(python:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nrefactor(cleanup): Archive old docs + Update roadmap with Opus integration\n\nRoot cleanup:\n- Archive POMPTS-BRAINSTORMING-NEXUS/ → archives/brainstorming-history/\n- Archive 6 old planning docs → archives/planning/\n- Remove NEXUS_V5_PRAGMATIC (deprecated)\n- Keep only essential .md files at root\n\nROADMAP_NEXUS_V7.md updates:\n- Add Phase 0: Fix Promotion Logic (CRITICAL blocker)\n- Add Phase 0.5: Opus 4.5 Integration\n  - Model Router architecture (Sonnet/Opus)\n  - Opus for: brainstorming, red team, architecture\n  - Sonnet for: tools, validation, simple tasks\n  - No extra cost (Max subscription)\n- Correct gap analysis after technical audit review\n\nTechnical findings:\n- ASI benchmarks: ✅ Real (asi_proximity.py works)\n- Red Team: ✅ Wired (RedTeamValidator imports OK)\n- Promotion: ❌ TODO (repl.py:260) - ONLY real blocker\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git commit:*)",
-      "Bash(findstr:*)"
+      "Bash(find:*)",
+      "Bash(git mv:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

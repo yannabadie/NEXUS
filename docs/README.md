@@ -27,18 +27,18 @@ docs/
 1. **Project Vision**: `../MISSION.md` - Understand the ASI goal
 2. **Current State**: `../SESSION_CONTINUITY.md` - Latest status
 3. **Evolution Theory**: `../EVOLUTION_PROTOCOL.md` - How evolution works
-4. **V6 Architecture**: `../NEXUS_V6_PROTOTYPE/README.md` - System design
+4. **V6 Architecture**: `../NEXUS_V7_CHRYSALIS/README.md` - System design
 
 **Want to Run NEXUS?**
 
-1. **Verification**: `../NEXUS_V6_PROTOTYPE/VERIFICATION_PROTOCOL.md`
+1. **Verification**: `../NEXUS_V7_CHRYSALIS/VERIFICATION_PROTOCOL.md`
 2. **Bootstrap**: `python nexus6.py --verify`
 3. **Launch**: `python nexus6.py`
 
 **Want to Evolve NEXUS?** (V6.1+)
 
-1. **Evolution Guide**: `../NEXUS_V6_PROTOTYPE/EVOLUTION_START_GUIDE.md`
-2. **Quick Reference**: `../NEXUS_V6_PROTOTYPE/QUICK_START_EVOLUTION.txt`
+1. **Evolution Guide**: `../NEXUS_V7_CHRYSALIS/EVOLUTION_START_GUIDE.md`
+2. **Quick Reference**: `../NEXUS_V7_CHRYSALIS/QUICK_START_EVOLUTION.txt`
 
 ---
 
@@ -120,13 +120,13 @@ docs/
 ### Use Case 2: "I Want to Understand How NEXUS Works"
 
 **Architecture**:
-1. `../NEXUS_V6_PROTOTYPE/README.md` - System architecture
+1. `../NEXUS_V7_CHRYSALIS/README.md` - System architecture
 2. `../MISSION.md` - Vision and goals
 3. `../EVOLUTION_PROTOCOL.md` - Evolution theory
 
 **Code Structure**:
 ```
-NEXUS_V6_PROTOTYPE/
+NEXUS_V7_CHRYSALIS/
 ├── core/
 │   ├── orchestration_v6.py      # FSM orchestrator
 │   ├── drivers/                 # Gemini & Claude drivers
@@ -163,7 +163,7 @@ NEXUS_V6_PROTOTYPE/
 
 **Evolution Theory**:
 - `../EVOLUTION_PROTOCOL.md` - 5-phase Darwinian process
-- `../NEXUS_V6_PROTOTYPE/README.md#évolution-darwinienne` - Complete guide
+- `../NEXUS_V7_CHRYSALIS/README.md#évolution-darwinienne` - Complete guide
 - `sessions/CORRECTIONS_LOG.md` (CORR-015) - Security incident
 
 ---
@@ -328,19 +328,19 @@ git log -p docs/sessions/CORRECTIONS_LOG.md
 
 1. **Start Here**: `../SESSION_CONTINUITY.md` - Current state
 2. **Troubleshooting**: `sessions/CORRECTIONS_LOG.md` - Known issues
-3. **Evolution**: `../NEXUS_V6_PROTOTYPE/EVOLUTION_START_GUIDE.md` - How to evolve
-4. **Architecture**: `../NEXUS_V6_PROTOTYPE/README.md` - System design
+3. **Evolution**: `../NEXUS_V7_CHRYSALIS/EVOLUTION_START_GUIDE.md` - How to evolve
+4. **Architecture**: `../NEXUS_V7_CHRYSALIS/README.md` - System design
 
 ### By Role
 
 **Developer**:
 - `sessions/CORRECTIONS_LOG.md` - Bugs and fixes
 - `debugging/V6_JSON_PARSING_DEBUG_GUIDE.md` - Debug methodology
-- `../NEXUS_V6_PROTOTYPE/core/evolution/README.md` - Evolution engine
+- `../NEXUS_V7_CHRYSALIS/core/evolution/README.md` - Evolution engine
 
 **User**:
-- `../NEXUS_V6_PROTOTYPE/QUICK_START_EVOLUTION.txt` - Quick commands
-- `../NEXUS_V6_PROTOTYPE/VERIFICATION_PROTOCOL.md` - Testing guide
+- `../NEXUS_V7_CHRYSALIS/QUICK_START_EVOLUTION.txt` - Quick commands
+- `../NEXUS_V7_CHRYSALIS/VERIFICATION_PROTOCOL.md` - Testing guide
 
 **Researcher**:
 - `../MISSION.md` - ASI vision
