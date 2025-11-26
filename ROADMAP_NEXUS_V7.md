@@ -38,6 +38,69 @@
 
 ---
 
+## 🧠 VISION: Intelligence Collaborative Déployable (Ajout 2025-11-26)
+
+### Concept Fondamental
+
+**NEXUS = Cœur d'intelligence collaborative déployable qui se spécialise selon le contexte.**
+
+```
+NEXUS CORE (Déployé dans Projet X)
+├── 1. ANALYSER    → Découvrir structure, stack, besoins (auto)
+├── 2. SPÉCIALISER → /specialize pour créer spinoff mission-spécifique
+├── 3. IDENTIFIER  → Découvrir tâches & problèmes (Swarm analyse)
+├── 4. EXÉCUTER    → Résoudre (Swarm négocie le mode optimal)
+└── 5. ÉVOLUER     → /evolve si amélioration nécessaire
+```
+
+### Utilisation Intelligente des Capacités Existantes
+
+**NEXUS ne nécessite PAS de nouvelles commandes** - il utilise intelligemment:
+
+| Capacité | Déclencheur | Quand |
+|----------|-------------|-------|
+| **Swarm Engine** | Automatique | Toute tâche multi-étapes |
+| **TaskAnalyzer** | Automatique | Analyse complexité |
+| **ModeSelector** | Automatique | Choix mode collaboration |
+| `/specialize` | Manuel | Nouveau projet/domaine |
+| `/evolve` | Manuel ou auto | Performance plateau |
+
+### Flux de Déploiement
+
+```
+Jour 1: Clone NEXUS dans projet
+  └─> nexus7> "Analyse ce projet"
+      └─> Swarm choisit PARALLEL (glob + grep + read)
+      └─> Agents découvrent structure
+
+Jour 2: Spécialisation
+  └─> nexus7> /specialize "Expert FastAPI e-commerce"
+      └─> Brainstorm Gemini+Claude
+      └─> Spinoff créé dans GENERATION_ACTIVE/
+
+Jour 3+: Travail quotidien
+  └─> Chaque tâche → Swarm négocie mode optimal
+  └─> Métriques DyLAN s'accumulent
+  └─> /evolve si stagnation détectée
+```
+
+### Bootstrap Auto-NEXUS.md
+
+**Si projet sans NEXUS.md**, les agents doivent:
+1. Analyser (glob, grep, read de fichiers clés)
+2. Générer NEXUS.md initial (généraliste)
+3. Raffiner au fil du travail
+
+### Impact sur Phases Existantes
+
+- **Phase 6 Swarm**: Devient le cœur de l'intelligence adaptative
+- **Phase 0.5 Opus**: Model Router pour tâches complexes vs simples
+- **/specialize**: Déjà implémenté, à utiliser plus systématiquement
+
+**Ce n'est pas une nouvelle feature - c'est une PHILOSOPHIE d'utilisation des capacités existantes.**
+
+---
+
 ## 🔴 AUDIT GEMINI 3 PRO DEEP THINK (2025-11-25)
 
 ### Résumé Exécutif
