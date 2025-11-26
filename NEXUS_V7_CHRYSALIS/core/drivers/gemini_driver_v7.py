@@ -53,6 +53,7 @@ class GeminiDriverV7:
             TimeoutError: Si timeout dépassé
         """
         import sys
+        import shutil
 
         # Write context to file
         context_file = self.io_buffer / "gemini_context_in.md"
@@ -64,22 +65,33 @@ class GeminiDriverV7:
         if output_file.exists():
             output_file.unlink()
 
-        # Invoke Gemini with JSON output
-        # V7 FIX: Use list format for subprocess.run to avoid shell issues
-        # V7 FIX: Don't use shell redirection - capture output directly
-        args = [
-            str(self.cli_path),
-            "-m", self.model,
-            "-p", f"@{context_file}",
-            "-o", "json"
-        ]
+        # Find the actual CLI path (handles PATH lookup)
+        cli_executable = shutil.which(str(self.cli_path))
+        if not cli_executable:
+            # Fallback to original path if shutil.which fails
+            cli_executable = str(self.cli_path)
+
+        # Build command - use shell=True on Windows for proper PATH resolution
+        # and handling of .cmd/.bat files (common for npm global installs)
+        import platform
+        use_shell = platform.system() == "Windows"
+
+        if use_shell:
+            # Shell command string for Windows
+            command = f'"{cli_executable}" -m {self.model} -p @"{context_file}" -o json'
+        else:
+            # List format for Unix
+            command = [cli_executable, "-m", self.model, "-p", f"@{context_file}", "-o", "json"]
 
         try:
             print(f"[DEBUG] Invoking Gemini: {self.model} (timeout: {self.timeout}s)", file=sys.stderr)
+            if use_shell:
+                print(f"[DEBUG] Command: {command}", file=sys.stderr)
 
             result = subprocess.run(
-                args,
+                command,
                 cwd=str(self.workspace_path),
+                shell=use_shell,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
@@ -94,7 +106,7 @@ class GeminiDriverV7:
                 print(f"[DEBUG] Gemini error: {error_msg[:500]}", file=sys.stderr)
                 raise RuntimeError(f"Gemini CLI failed (code {result.returncode}): {error_msg}")
 
-            # V7 FIX: Get output from stdout, not file
+            # Get output from stdout
             output_text = result.stdout
 
             # Also save to file for debugging
