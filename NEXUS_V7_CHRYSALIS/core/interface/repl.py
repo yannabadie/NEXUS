@@ -71,7 +71,7 @@ class InteractiveNexusV7:
         while True:
             try:
                 # Get user input
-                user_input = self.session.prompt("nexus6> ")
+                user_input = self.session.prompt("nexus7> ")
 
                 if not user_input.strip():
                     continue
@@ -298,7 +298,7 @@ class InteractiveNexusV7:
             while True:
                 self.console.print("\n[A]pprove | [R]eject | [T]est | [S]kip | [Q]uit review")
                 try:
-                    decision = self.session.prompt("nexus6/review> ").strip().lower()
+                    decision = self.session.prompt("nexus7/review> ").strip().lower()
                 except KeyboardInterrupt:
                     self.console.print("\nReview interrupted.")
                     return
@@ -338,7 +338,7 @@ class InteractiveNexusV7:
         # Ask to delete PENDING_REVIEW files
         self.console.print("\nDelete PENDING_REVIEW files? [y/N]")
         try:
-            confirm = self.session.prompt("nexus6/review> ").strip().lower()
+            confirm = self.session.prompt("nexus7/review> ").strip().lower()
         except KeyboardInterrupt:
             self.console.print("\nKeeping PENDING_REVIEW files.")
             return
@@ -463,7 +463,7 @@ Vous entrez dans une phase de RECHERCHE PURE.
 IGNOREZ tout contexte précédent (tests, roadmap, autonomie).
 VOTRE SEUL BUT est l'évolution du code source.
 
-MISSION CRITIQUE: Analyser NEXUS V6.0 et proposer EXACTEMENT {child_count} mutations pour créer des enfants supérieurs.
+MISSION CRITIQUE: Analyser NEXUS V7.0 et proposer EXACTEMENT {child_count} mutations pour créer des enfants supérieurs.
 
 CONTEXTE PARENT:
 - ID: {parent_id}
@@ -705,7 +705,7 @@ MISSION CIBLE : {mission}
 
 VOTRE TÂCHE :
 1. Analyser les besoins spécifiques de la mission (outils requis, style de prompt, configuration).
-2. Proposer des mutations pour transformer NEXUS V6 en un SPÉCIALISTE.
+2. Proposer des mutations pour transformer NEXUS V7 en un SPÉCIALISTE.
    - Exemple: Si la mission est "App Mobile", on peut pré-charger des prompts Flutter/Dart, ajouter des outils ADB, etc.
    - Exemple: Si la mission est "Audit Sécurité", on peut durcir les prompts, ajouter des outils d'analyse statique.
 
@@ -853,7 +853,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             self.console.print("\n" + "="*60)
             self.console.print(f"✅ SPECIALIST CREATED: {spinoff_id}")
             self.console.print(f"Location: GENERATION_ACTIVE/{spinoff_id}")
-            self.console.print("To use: cd into directory and run nexus6.py")
+            self.console.print("To use: cd into directory and run nexus7.py")
             self.console.print("="*60 + "\n")
 
         except Exception as e:
@@ -936,7 +936,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             for i, mutation in enumerate(mutations_proposals):
                 # Generate unique child_id based on mutation
                 file_basename = Path(mutation['file']).stem
-                child_id = f"NEXUS_V6.1_CHILD_{i+1:03d}_{file_basename.upper()}"
+                child_id = f"NEXUS_V7.1_CHILD_{i+1:03d}_{file_basename.upper()}"
 
                 self.console.print(f"\n{'─'*60}")
                 self.console.print(f"Creating Child {i+1}/{child_count}: {child_id}")
@@ -1066,7 +1066,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                 self.console.print("[V7] Using TieredValidator (fail-fast mode)")
             else:
                 from core.evolution.validator import ChildValidator
-                self.console.print("[V6] Using legacy ChildValidator")
+                self.console.print("[V7] Using TieredValidator")
 
             validated_children = []
             for child_data in children_created:
@@ -1154,7 +1154,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             pending_content += """## Next Steps
 
 1. Review each child manually
-2. Test with `cd GENERATION_ACTIVE/<child_id> && python nexus6.py --verify`
+2. Test with `cd GENERATION_ACTIVE/<child_id> && python nexus7.py --verify`
 3. Select winner with `/review` command
 4. Promote winner to parent
 

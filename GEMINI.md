@@ -51,29 +51,31 @@ NEXUS is designed to be **cloned into any project** and become its dedicated int
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Deployment Scenarios
+### Intelligent Use of Existing Capabilities
 
-**Scenario 1: New Project Integration**
-```bash
-# Clone NEXUS into project
-git clone nexus /my-project/.nexus-brain/
-cd /my-project
-nexus7                          # Start NEXUS
-nexus7> /analyze-project        # NEXUS analyzes everything
-nexus7> /evolve specialized     # Create project-specialized child
+**NEXUS already has powerful capabilities - use them intelligently based on context:**
+
+| Capability | Command/Module | When to Use |
+|------------|----------------|-------------|
+| **Swarm Engine** | Auto | Multi-step tasks → negotiates best collaboration mode |
+| **Specialization** | `/specialize <mission>` | New project/domain → creates specialized spinoff |
+| **Evolution** | `/evolve` | Performance plateau → creates improved children |
+| **Task Analysis** | Auto (TaskAnalyzer) | Every task → determines complexity & domains |
+| **Mode Selection** | Auto (ModeSelector) | Every collaboration → uses DyLAN scores |
+
+**Deployment Flow (No New Commands Needed):**
 ```
+1. Clone NEXUS into project
+2. nexus7> "Analyze this project and tell me what you see"
+   → Swarm automatically chooses optimal collaboration mode
+   → Agents use glob, grep, read to understand structure
 
-**Scenario 2: Data Analysis Pipeline**
-```bash
-nexus7> /connect @external_sources/sales_data.csv
-nexus7> Analyze anomalies in Q3 revenue
-# NEXUS processes external data, identifies patterns
-```
+3. nexus7> /specialize "Expert for this FastAPI e-commerce project"
+   → Creates specialized spinoff via Gemini+Claude brainstorming
 
-**Scenario 3: Autonomous Task Discovery**
-```bash
-nexus7> /scan-issues            # NEXUS identifies TODOs, bugs, tech debt
-nexus7> /auto-resolve --batch   # Work through issues autonomously
+4. Use specialized NEXUS for project work
+   → Swarm handles task-by-task collaboration
+   → Evolution if needed: /evolve
 ```
 
 ### Your Role in This Vision
