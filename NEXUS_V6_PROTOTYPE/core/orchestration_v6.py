@@ -23,6 +23,7 @@ from core.synapse.protocol_v6 import LightMessageV6, HeavyMessageV6, ToolUse
 from core.synapse.memory_v6 import MemoryManagerV6
 from core.execution.tool_manager import ToolManager
 from core.logging import init_logger, get_logger
+from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
 from pydantic import ValidationError
 import time
 import json
@@ -107,9 +108,19 @@ class OrchestratorV6:
         self.gemini_info = gemini_info
         self.claude_info = claude_info
 
+        # V7 Sprint 3: Agent Pool for DyLAN-style metrics
+        if self.config.agent_metrics_enabled:
+            self.agent_pool = create_default_pool(self.config)
+            self.logger.debug("AgentPool initialized", {
+                "agents": list(self.agent_pool.agents.keys())
+            })
+        else:
+            self.agent_pool = None
+
         self.logger.debug("OrchestratorV6 initialized", {
             "gemini_model": gemini_info.get("model"),
-            "claude_model": claude_info.get("model")
+            "claude_model": claude_info.get("model"),
+            "agent_metrics": self.config.agent_metrics_enabled
         })
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
@@ -171,15 +182,28 @@ class OrchestratorV6:
 
             # Invoke active agent
             context = self._build_context()
+            invoke_start = time.time()
 
             try:
                 response = self.drivers[self.active_agent].invoke(context)
+                invoke_duration = time.time() - invoke_start
                 message = self._validate_message(response)
                 self.json_parse_failures = 0  # Reset on success
                 self.panic_system.reset_errors()  # Reset error counter on success
 
+                # V7 Sprint 3: Record successful invocation
+                self._record_invocation(
+                    self.active_agent, "brainstorm", True, invoke_duration, 0.6
+                )
+
             except Exception as e:
+                invoke_duration = time.time() - invoke_start
                 self.json_parse_failures += 1
+
+                # V7 Sprint 3: Record failed invocation
+                self._record_invocation(
+                    self.active_agent, "brainstorm", False, invoke_duration, 0.0
+                )
 
                 # Record error in panic system
                 if self.panic_system.record_error("AGENT_INVOCATION", str(e)):
@@ -312,17 +336,31 @@ class OrchestratorV6:
 
             # Invoke active agent for debate
             context = self._build_context()
+            invoke_start = time.time()
 
             try:
                 response = self.drivers[self.active_agent].invoke(context)
+                invoke_duration = time.time() - invoke_start
                 message = self._validate_message(response)
                 self.json_parse_failures = 0  # Reset on success
                 self.panic_system.reset_errors()
 
+                # V7 Sprint 3: Record successful invocation (evolution task type)
+                self._record_invocation(
+                    self.active_agent, "evolution", True, invoke_duration, 0.7
+                )
+
             except Exception as e:
+                invoke_duration = time.time() - invoke_start
                 # FIX: Don't transition to IDLE on error - stay in EVOLUTION_BRAINSTORM
                 # Let the caller handle retries and state management
                 self.json_parse_failures += 1
+
+                # V7 Sprint 3: Record failed invocation
+                self._record_invocation(
+                    self.active_agent, "evolution", False, invoke_duration, 0.0
+                )
+
                 return self._make_result("EVOLUTION_BRAINSTORM", f"Evolution debate error: {e}", self.active_agent, False, error=str(e))
 
             # Save to history
@@ -489,6 +527,52 @@ class OrchestratorV6:
         """Trigger panic state"""
         self._transition_to(OrchestratorState.PANIC)
         return self._make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
+
+    def _record_invocation(
+        self,
+        agent_name: str,
+        task_type: str,
+        success: bool,
+        duration: float,
+        quality_score: float = 0.5
+    ):
+        """
+        Record agent invocation for DyLAN-style metrics (V7 Sprint 3).
+
+        Args:
+            agent_name: "Gemini" or "Claude"
+            task_type: Task type (brainstorm, tool, etc.)
+            success: Whether invocation succeeded
+            duration: Time in seconds
+            quality_score: Quality score 0.0-1.0 (default 0.5)
+        """
+        if not self.agent_pool:
+            return
+
+        # Map agent name to agent_id
+        agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
+
+        # Estimate tokens (rough: 4 chars = 1 token)
+        # TODO: Get actual token count from driver response
+        estimated_tokens = 500  # Default estimate
+
+        invocation = AgentInvocationResult(
+            agent_id=agent_id,
+            task_type=task_type,
+            success=success,
+            quality_score=quality_score,
+            tokens_used=estimated_tokens,
+            time_seconds=duration
+        )
+        self.agent_pool.record_invocation(invocation)
+
+        self.logger.debug("Agent invocation recorded", {
+            "agent_id": agent_id,
+            "task_type": task_type,
+            "success": success,
+            "duration": f"{duration:.2f}s",
+            "importance": f"{invocation.importance_score:.4f}"
+        })
 
     def _build_context(self) -> str:
         """Build context markdown for agent"""

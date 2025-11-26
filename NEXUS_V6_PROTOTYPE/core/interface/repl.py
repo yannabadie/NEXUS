@@ -959,19 +959,31 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             self.console.print("🔍 VALIDATION PIPELINE")
             self.console.print("="*60 + "\n")
 
-            from core.evolution.validator import ChildValidator
+            # V7 Sprint 3: Use TieredValidator for fast-fail validation
+            if self.config.validation_use_tiered:
+                from core.evolution import TieredValidator, ValidationTier
+                self.console.print("[V7] Using TieredValidator (fail-fast mode)")
+            else:
+                from core.evolution.validator import ChildValidator
+                self.console.print("[V6] Using legacy ChildValidator")
 
             validated_children = []
             for child_data in children_created:
                 child_path = child_data['child_path']
-                validator = ChildValidator(child_path)
 
-                # Run validation - Red Team is MANDATORY every generation (V7 Security)
-                result = validator.run_full_validation(
-                    skip_benchmark=False,
-                    skip_redteam=False,  # SECURITY: Never skip Red Team
-                    generation=generation
-                )
+                if self.config.validation_use_tiered:
+                    # V7: TieredValidator with parallel benchmarks and early exit
+                    validator = TieredValidator(child_path, self.config)
+                    max_tier = ValidationTier(self.config.validation_tier_default)
+                    result = validator.run_tiered(max_tier=max_tier)
+                else:
+                    # Legacy: ChildValidator (fallback)
+                    validator = ChildValidator(child_path)
+                    result = validator.run_full_validation(
+                        skip_benchmark=False,
+                        skip_redteam=False,  # SECURITY: Never skip Red Team
+                        generation=generation
+                    )
 
                 # Save validation report
                 validator.save_report(result)
