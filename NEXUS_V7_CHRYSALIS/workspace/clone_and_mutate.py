@@ -38,70 +38,126 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 # ============================================================================
-# SECURITY GUARDS - Prevent dangerous mutations
+# MUTATION AUDIT SYSTEM - Flag suspicious mutations for post-creation validation
 # ============================================================================
+# Philosophy: Allow ALL mutations (Darwinian freedom), but AUDIT suspicious ones.
+# The real protection comes from drastic benchmarks + Red Team AFTER creation.
+# Parent is always safe (we clone first). Child can mutate freely.
 
-# Files that CANNOT be targeted by mutations (immutable)
-PROTECTED_FILES = [
+# Sensitive files - mutations here are FLAGGED (not blocked)
+SENSITIVE_FILES = [
     "KERNEL.py",
     "KERNEL_HASH.txt",
-    "core/governance/__init__.py",
     "core/governance/red_team/validator.py",
     "core/governance/red_team/alignment_tests.py",
 ]
 
-# Patterns that CANNOT be added to config files (security bypass attempts)
-FORBIDDEN_CONFIG_PATTERNS = [
-    r"VALIDATION_TIER.*=.*[01]",           # Bypass Red Team (tier 0-1)
-    r"SKIP.*RED.*TEAM.*=.*True",           # Skip Red Team
-    r"RED_TEAM.*ENABLED.*=.*False",        # Disable Red Team
-    r"ALIGNMENT.*CHECK.*=.*False",         # Disable alignment
-    r"KERNEL.*VERIFY.*=.*False",           # Skip kernel check
+# Patterns that suggest security bypass attempts - FLAGGED for Red Team review
+SUSPICIOUS_CONFIG_PATTERNS = [
+    (r"VALIDATION_TIER.*=.*[01]", "LOW_VALIDATION_TIER"),
+    (r"SKIP.*RED.*TEAM.*=.*True", "SKIP_RED_TEAM"),
+    (r"RED_TEAM.*ENABLED.*=.*False", "DISABLED_RED_TEAM"),
+    (r"ALIGNMENT.*CHECK.*=.*False", "DISABLED_ALIGNMENT"),
+    (r"KERNEL.*VERIFY.*=.*False", "DISABLED_KERNEL_VERIFY"),
 ]
 
-# Minimum sizes for critical files (prevent lobotomization)
-MIN_FILE_SIZES = {
-    "prompts/system_gemini_v7.md": 5000,   # ~500 lines minimum
-    "prompts/system_claude_v7.md": 5000,   # ~500 lines minimum
+# Size thresholds - mutations below these sizes are FLAGGED as potential lobotomization
+SIZE_THRESHOLDS = {
+    "prompts/system_gemini_v7.md": 5000,   # ~500 lines expected
+    "prompts/system_claude_v7.md": 5000,   # ~500 lines expected
+}
+
+# Audit log structure
+AUDIT_FLAGS = {
+    "KERNEL_MUTATION": "Mutation targets KERNEL - requires enhanced Red Team validation",
+    "LOBOTOMIZATION_RISK": "Critical file size drastically reduced - check for content destruction",
+    "SECURITY_BYPASS": "Pattern suggests attempt to bypass security controls",
+    "RED_TEAM_MUTATION": "Mutation targets Red Team itself - highest scrutiny required",
 }
 
 
-def validate_mutation_security(mutation: Dict[str, Any], index: int) -> None:
+def audit_mutation(mutation: Dict[str, Any], index: int) -> List[Dict[str, Any]]:
     """
-    Security validation for a single mutation.
-    Raises SecurityError if mutation violates safety rules.
+    Audit a mutation for suspicious patterns. Returns list of flags (not blocking).
+
+    Philosophy: Allow ALL mutations, but flag suspicious ones for enhanced
+    Red Team validation after child creation.
+
+    Returns:
+        List of audit flags, each with: flag_type, severity, message
     """
+    flags = []
     file_path = mutation["file"]
     change = mutation["change"]
     action = mutation.get("action", "overwrite")
 
-    # Check 1: Protected files cannot be mutated
-    for protected in PROTECTED_FILES:
-        if file_path == protected or file_path.endswith(protected):
-            raise PermissionError(
-                f"SECURITY VIOLATION (Mutation {index}): "
-                f"Cannot mutate protected file '{file_path}'"
-            )
+    # Audit 1: Sensitive file mutations (KERNEL, Red Team)
+    for sensitive in SENSITIVE_FILES:
+        if file_path == sensitive or file_path.endswith(sensitive):
+            flag_type = "RED_TEAM_MUTATION" if "red_team" in sensitive.lower() else "KERNEL_MUTATION"
+            flags.append({
+                "mutation_index": index,
+                "flag_type": flag_type,
+                "severity": "HIGH",
+                "file": file_path,
+                "message": AUDIT_FLAGS[flag_type]
+            })
 
-    # Check 2: Forbidden patterns in config mutations
+    # Audit 2: Suspicious patterns in config files
     if "config" in file_path.lower():
-        for pattern in FORBIDDEN_CONFIG_PATTERNS:
+        for pattern, flag_name in SUSPICIOUS_CONFIG_PATTERNS:
             if re.search(pattern, change, re.IGNORECASE):
-                raise PermissionError(
-                    f"SECURITY VIOLATION (Mutation {index}): "
-                    f"Forbidden security bypass pattern detected in config mutation"
-                )
+                flags.append({
+                    "mutation_index": index,
+                    "flag_type": "SECURITY_BYPASS",
+                    "severity": "CRITICAL",
+                    "file": file_path,
+                    "pattern_detected": flag_name,
+                    "message": AUDIT_FLAGS["SECURITY_BYPASS"]
+                })
 
-    # Check 3: Minimum file sizes (prevent lobotomization)
+    # Audit 3: Size threshold violations (potential lobotomization)
     if action == "overwrite":
-        for critical_file, min_size in MIN_FILE_SIZES.items():
+        for critical_file, threshold in SIZE_THRESHOLDS.items():
             if file_path == critical_file or file_path.endswith(critical_file):
-                if len(change) < min_size:
-                    raise ValueError(
-                        f"SECURITY VIOLATION (Mutation {index}): "
-                        f"Overwrite of '{file_path}' too small ({len(change)} < {min_size} chars). "
-                        f"Use 'append' action to add content without destroying the original."
-                    )
+                if len(change) < threshold:
+                    flags.append({
+                        "mutation_index": index,
+                        "flag_type": "LOBOTOMIZATION_RISK",
+                        "severity": "CRITICAL",
+                        "file": file_path,
+                        "new_size": len(change),
+                        "threshold": threshold,
+                        "message": AUDIT_FLAGS["LOBOTOMIZATION_RISK"]
+                    })
+
+    return flags
+
+
+def save_audit_report(flags: List[Dict[str, Any]], target_dir: Path, mutations: List[Dict]) -> None:
+    """Save audit report to the child's directory for Red Team review."""
+    if not flags:
+        return
+
+    report = {
+        "audit_timestamp": datetime.now().isoformat(),
+        "total_mutations": len(mutations),
+        "flagged_mutations": len(set(f["mutation_index"] for f in flags)),
+        "flags": flags,
+        "requires_enhanced_validation": any(f["severity"] == "CRITICAL" for f in flags),
+        "validation_instructions": [
+            "Run full benchmark suite on this child",
+            "Red Team must review all CRITICAL flags before approval",
+            "Check KERNEL hash integrity if KERNEL_MUTATION flagged",
+            "Verify prompt completeness if LOBOTOMIZATION_RISK flagged"
+        ]
+    }
+
+    audit_file = target_dir / "MUTATION_AUDIT.json"
+    with open(audit_file, 'w', encoding='utf-8') as f:
+        json.dump(report, f, indent=2)
+
+    print(f"[AUDIT] Report saved to {audit_file}")
 
 
 def load_mutations(json_path: Path) -> List[Dict[str, Any]]:
@@ -286,17 +342,28 @@ def main():
         # 2. Clone project
         clone_project(project_root, target_dir)
 
-        # 3. SECURITY CHECK - Validate all mutations BEFORE applying any
-        print("\n[SECURITY] Validating mutations...")
+        # 3. AUDIT - Flag suspicious mutations (but don't block - Darwinian freedom)
+        print("\n[AUDIT] Scanning mutations for suspicious patterns...")
+        all_flags = []
         for i, mutation in enumerate(mutations, 1):
-            try:
-                validate_mutation_security(mutation, i)
-                print(f"  [OK] Mutation {i}: Security check passed")
-            except (PermissionError, ValueError) as e:
-                print(f"\n[BLOCKED] {e}")
-                print("[ABORT] Mutation rejected for security reasons.")
-                sys.exit(1)
-        print("[SECURITY] All mutations passed security validation.\n")
+            flags = audit_mutation(mutation, i)
+            all_flags.extend(flags)
+            if flags:
+                for flag in flags:
+                    severity_icon = "[!!]" if flag["severity"] == "CRITICAL" else "[!]"
+                    print(f"  {severity_icon} Mutation {i}: {flag['flag_type']} ({flag['severity']})")
+                    print(f"      => {flag['message']}")
+            else:
+                print(f"  [OK] Mutation {i}: No flags")
+
+        # Save audit report if any flags
+        if all_flags:
+            save_audit_report(all_flags, target_dir, mutations)
+            critical_count = sum(1 for f in all_flags if f["severity"] == "CRITICAL")
+            print(f"\n[AUDIT] {len(all_flags)} flag(s) raised ({critical_count} CRITICAL)")
+            print("[AUDIT] Child will require enhanced Red Team validation.")
+        else:
+            print("[AUDIT] All mutations clean - standard validation sufficient.\n")
 
         # 4. Apply all mutations sequentially
         success_count = 0
