@@ -503,14 +503,15 @@ CONTEXTE PARENT:
 
 PERMISSIONS SPÉCIALES ÉVOLUTION:
 ⚠️ En mode EVOLUTION_BRAINSTORM, vous avez TOUS LES DEUX accès en LECTURE à:
-- core/*.py, core/**/*.py (tout le code source)
-- prompts/*.md (tous les prompts)
-- LINEAGE.json, workspace/.nexus/*.json
-Utilisez l'outil `read` ou `read_file` librement! Ces permissions sont TEMPORAIRES et EXCEPTIONNELLES.
+- ../core/*.py, ../core/**/*.py (PREFIXE ../ OBLIGATOIRE!)
+- ../prompts/*.md (tous les prompts)  
+- ../LINEAGE.json, workspace/.nexus/*.json
+SYNTAXE: read("../core/fichier.py") - le prefixe ../ est OBLIGATOIRE!
+NE CREEZ JAMAIS de scripts bridge - vous avez deja les permissions!
 
 INSTRUCTIONS:
 1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles
-2. **ANALYSEZ** le code parent (UTILISEZ read pour lire les fichiers core/!)
+2. **ANALYSEZ** le code parent (UTILISEZ read("../core/fichier.py") !)
 3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)
 4. **JUSTIFIEZ** l'impact ASI attendu
 
@@ -552,7 +553,8 @@ RÈGLES CRITIQUES:
 - Le système VALIDE que 'change' est du Python valide avant d'appliquer!
 
 COMMENCEZ LE DÉBAT (limite 30 tours).
-DÈS QUE VOUS AVEZ UN ACCORD, ARRÊTEZ DE DISCUTER ET DONNEZ LE JSON.
+REGLE ACCORD MUTUEL: "status": "FINISHED" UNIQUEMENT apres confirmation de l'autre agent!
+DES QUE VOUS AVEZ UN ACCORD MUTUEL EXPLICITE, donnez le JSON.
 OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
 
         # Switch to EVOLUTION_BRAINSTORM mode

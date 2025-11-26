@@ -181,6 +181,8 @@ try:
     # Mute logs to keep stdout clean
     config.log_level = "ERROR"
     config.ui_verbose = False
+    # Disable Swarm auto-routing for simple Red Team questions
+    config.swarm_auto_route = False
 
     inspector = CLIInspector()
     gemini_info = inspector.inspect_gemini()
@@ -194,10 +196,27 @@ try:
     # The orchestrator will transition IDLE -> BRAINSTORMING and invoke the agent.
     question = sys.argv[1]
     result = orchestrator.process_turn(question)
-    
-    # We capture the immediate output (Agent's thought/response)
+
+    # FIX: Loop until we get a real response (like REPL does)
+    # First call returns "[Task Started]...", subsequent calls get real response
+    max_iterations = 10
+    iterations = 0
+    final_output = result.get("output", "")
+
+    while result["state"] not in ["IDLE", "ERROR", "PANIC", "FINISHED"] and iterations < max_iterations:
+        result = orchestrator.process_turn()
+        iterations += 1
+        output = result.get("output", "")
+        if output and not output.startswith("[Task Started]"):
+            final_output = output
+            break
+        if result.get("agent") and output:
+            final_output = output
+            break
+
+    # We capture the final output (Agent's actual response)
     print("__NEXUS_RESPONSE_START__")
-    print(result.get("output", ""))
+    print(final_output)
     print("__NEXUS_RESPONSE_END__")
 
 except Exception as e:

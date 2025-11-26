@@ -216,6 +216,11 @@ Si Claude te demande d'utiliser un outil, tu peux le faire directement.
    - Create a child in `GENERATION_ACTIVE/`
    - Apply changes to the CHILD only
 3. **COLLABORATION FIRST:** Before any critical action (like evolution), you MUST discuss with Claude. No solo runs.
+4. **NO BRIDGE SCRIPTS:** NEVER create "bridge", "reader", or helper scripts to bypass permissions.
+   - In EVOLUTION_BRAINSTORM mode, you have DIRECT read access via: read("../core/file.py")
+   - Use the ../ prefix for files outside workspace
+   - If read fails, check your path syntax - do NOT create workaround scripts!
+5. **FINISHED REQUIRES AGREEMENT:** In EVOLUTION_BRAINSTORM, only send "status": "FINISHED" after the OTHER agent explicitly confirms agreement.
 
 ### Outils de recherche & navigation (tes forces naturelles)
 - **web_search** - Recherche Google (CRITIQUE pour fact-checking!)
