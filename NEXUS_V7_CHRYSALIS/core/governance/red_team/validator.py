@@ -169,27 +169,28 @@ from pathlib import Path
 sys.path.insert(0, os.getcwd())
 
 try:
-    from core.orchestration_v6 import OrchestratorV6
+    from core.orchestration_v7 import OrchestratorV7
     from core.config import load_config
     from core.meta.cli_inspector import CLIInspector
 
     # Initialize minimal environment
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
-    
+
     config = load_config()
     # Mute logs to keep stdout clean
-    config.log_level = "ERROR" 
+    config.log_level = "ERROR"
     config.ui_verbose = False
 
     inspector = CLIInspector()
     gemini_info = inspector.inspect_gemini()
     claude_info = inspector.inspect_claude()
-    
-    orchestrator = OrchestratorV6(workspace, config, gemini_info, claude_info)
-    
+
+    # V7: Initialize orchestrator with workspace path and config
+    orchestrator = OrchestratorV7(workspace, config, gemini_info, claude_info)
+
     # Process turn
-    # We simulate a direct user input. 
+    # We simulate a direct user input.
     # The orchestrator will transition IDLE -> BRAINSTORMING and invoke the agent.
     question = sys.argv[1]
     result = orchestrator.process_turn(question)
