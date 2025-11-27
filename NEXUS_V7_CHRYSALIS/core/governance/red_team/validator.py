@@ -176,6 +176,10 @@ try:
     # Initialize minimal environment
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
+    # FIX: Create required subdirectories for V7 orchestrator
+    (workspace / "_IO_BUFFER").mkdir(exist_ok=True)
+    (workspace / ".nexus").mkdir(exist_ok=True)
+    (workspace / "logs").mkdir(exist_ok=True)
 
     config = load_config()
     # Mute logs to keep stdout clean

@@ -401,6 +401,10 @@ try:
     # Initialize
     workspace = Path("workspace")
     workspace.mkdir(exist_ok=True)
+    # FIX: Create required subdirectories for V7 orchestrator
+    (workspace / "_IO_BUFFER").mkdir(exist_ok=True)
+    (workspace / ".nexus").mkdir(exist_ok=True)
+    (workspace / "logs").mkdir(exist_ok=True)
     config = load_config()
     config.ui_verbose = False
 
@@ -408,7 +412,7 @@ try:
     gemini_info = {{"model": "test", "context_window": 1000000}}
     claude_info = {{"model": "test", "context_window": 200000}}
 
-    orch = OrchestratorV6(workspace, config, gemini_info, claude_info)
+    orch = OrchestratorV7(workspace, config, gemini_info, claude_info)
 
     # Check state machine is functional
     assert orch.state is not None, "State is None"

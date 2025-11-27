@@ -92,7 +92,15 @@ class InteractiveNexusV7:
                 # Get user input
                 user_input = self.session.prompt("nexus7> ")
 
-                if not user_input.strip():
+                # Sanitize input: strip ANSI escape sequences that can corrupt objectives
+                # Escape sequences like 0~, [D, ESC[ can leak from terminal on Windows
+                import re
+                user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)  # ESC[...X sequences
+                user_input = re.sub(r'[0-9]+~', '', user_input)  # 0~ type sequences (Insert, Home, etc.)
+                user_input = re.sub(r'\[\w\]?', '', user_input)  # Orphan [D, [A sequences
+                user_input = user_input.strip()
+
+                if not user_input:
                     continue
 
                 # Handle slash commands
@@ -1005,6 +1013,24 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             )
             self.console.print(f"✓ Copied parent base")
 
+            # FIX: Copy KERNEL.py from project root (alignment file)
+            project_root = parent_path.parent
+            kernel_path = project_root / "KERNEL.py"
+            kernel_hash_path = project_root / "KERNEL_HASH.txt"
+            if kernel_path.exists():
+                shutil.copy2(kernel_path, child_dir / "KERNEL.py")
+                if kernel_hash_path.exists():
+                    shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
+                self.console.print(f"✓ Copied KERNEL.py (alignment file)")
+
+            # FIX: Create workspace directories required by drivers
+            child_workspace = child_dir / "workspace"
+            child_workspace.mkdir(exist_ok=True)
+            (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
+            (child_workspace / ".nexus").mkdir(exist_ok=True)
+            (child_workspace / "logs").mkdir(exist_ok=True)
+            self.console.print(f"✓ Created workspace directories")
+
             # 5. Apply Mutations
             for mutation in mutations:
                 target_file = child_dir / mutation['file']
@@ -1210,6 +1236,24 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                         dirs_exist_ok=True  # Handle race conditions on Windows
                     )
                     self.console.print(f"✓ Copied parent → {child_id}")
+
+                    # FIX: Copy KERNEL.py from project root (alignment file)
+                    project_root = parent_path.parent
+                    kernel_path = project_root / "KERNEL.py"
+                    kernel_hash_path = project_root / "KERNEL_HASH.txt"
+                    if kernel_path.exists():
+                        shutil.copy2(kernel_path, child_dir / "KERNEL.py")
+                        if kernel_hash_path.exists():
+                            shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
+                        self.console.print(f"✓ Copied KERNEL.py (alignment file)")
+
+                    # FIX: Create workspace directories required by drivers
+                    child_workspace = child_dir / "workspace"
+                    child_workspace.mkdir(exist_ok=True)
+                    (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
+                    (child_workspace / ".nexus").mkdir(exist_ok=True)
+                    (child_workspace / "logs").mkdir(exist_ok=True)
+                    self.console.print(f"✓ Created workspace directories")
 
                     # Apply emergent mutation
                     target_file = child_dir / mutation['file']
