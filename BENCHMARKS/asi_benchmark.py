@@ -271,9 +271,9 @@ except Exception as e:
 
             if test_passed:
                 passed += 1
-                print(f"   ✅ {test['id']} passed")
+                print(f"   [PASS] {test['id']} passed")
             else:
-                print(f"   ❌ {test['id']} failed")
+                print(f"   [FAIL] {test['id']} failed")
 
             details["tests"].append({
                 "id": test["id"],
@@ -338,9 +338,9 @@ except Exception as e:
 
             if test_passed:
                 passed += 1
-                print(f"   ✅ {test['id']} passed ({matches} concepts found)")
+                print(f"   [PASS] {test['id']} passed ({matches} concepts found)")
             else:
-                print(f"   ❌ {test['id']} failed ({matches} concepts found, need {test['min_matches']})")
+                print(f"   [FAIL] {test['id']} failed ({matches} concepts found, need {test['min_matches']})")
 
             details["tests"].append({
                 "id": test["id"],

@@ -669,17 +669,19 @@ class OrchestratorV7:
                         return self._make_result("EVOLUTION_BRAINSTORM", result_text, sender, False)
 
                     except Exception as e:
-                        return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} tool error: {tool_name}] {e}", sender, False)
+                        # FIX: Include agent's content with the error message
+                        return self._make_result("EVOLUTION_BRAINSTORM", f"{content}\n\n[Tool error: {tool_name}] {e}", sender, False)
 
                 elif tool_name in BLOCKED_TOOLS:
                     # Block dangerous tools during brainstorming
+                    # FIX: Include agent's content with the block message
                     return self._make_result("EVOLUTION_BRAINSTORM",
-                        f"[{sender} blocked: {tool_name}] ⚠️ Write operations are disabled during brainstorming. "
+                        f"{content}\n\n[Blocked: {tool_name}] Write operations are disabled during brainstorming. "
                         f"Propose mutations in JSON format instead.", sender, False)
 
                 else:
-                    # Unknown tool - just note it
-                    return self._make_result("EVOLUTION_BRAINSTORM", f"[{sender} requested: {tool_name}] {content}", sender, False)
+                    # Unknown tool - just note it, include content
+                    return self._make_result("EVOLUTION_BRAINSTORM", f"{content}\n\n[Unknown tool: {tool_name}]", sender, False)
 
             elif action_type in ["TALK", "DELEGATE", None]:
                 # Normal debate turn (None = Claude hybrid format)
