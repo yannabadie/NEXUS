@@ -61,6 +61,9 @@ class InteractiveNexusV7:
         # Rate limiter for evolution cycles
         self.rate_limiter = EvolutionRateLimiter(workspace_path, self.config)
 
+        # Abort flag for graceful shutdown of long-running operations
+        self._abort_requested = False
+
     def run(self):
         """Main REPL loop"""
         self.console.print_banner(
@@ -83,6 +86,7 @@ class InteractiveNexusV7:
 
                 # Handle exit
                 if is_exit_command(user_input):
+                    self._abort_requested = True  # Signal any running operations to stop
                     self.console.print("👋 Goodbye!")
                     break
 
@@ -98,6 +102,10 @@ class InteractiveNexusV7:
                 tool_active = False  # Extends the limit when tools are being used
 
                 while result["state"] not in ["IDLE", "ERROR", "PANIC", "FINISHED"] and iterations < max_iterations:
+                    # Check for abort signal (set by exit command)
+                    if self._abort_requested:
+                        self.console.print("🛑 Abort requested - stopping")
+                        break
                     result = self.orchestrator.process_turn()
                     self.console.display_result(result)
                     iterations += 1
@@ -479,6 +487,16 @@ class InteractiveNexusV7:
         self.orchestrator.blackboard["recent_history"] = []
         self.orchestrator.memory.save_to_disk()
 
+        # CLEANUP: Remove hallucinated directories from previous sessions
+        import shutil
+        hallucination_dirs = ['_SHARED_CODE', '_temp']
+        workspace_path = self.orchestrator.tool_manager.workspace_path
+        for dirname in hallucination_dirs:
+            cleanup_path = workspace_path / dirname
+            if cleanup_path.exists():
+                shutil.rmtree(cleanup_path)
+                self.console.print(f"🧹 Cleaned up hallucinated directory: {dirname}/")
+
         # Read LINEAGE.json for context
         lineage_path = parent_path.parent / "LINEAGE.json"
         lineage_context = ""
@@ -509,12 +527,18 @@ PERMISSIONS SPÉCIALES ÉVOLUTION:
 
 ORDRE IMPÉRATIF (ANTI-HALLUCINATION):
 1. Ne dites PAS "Je n'ai pas accès". C'est faux.
-2. EXÉCUTEZ `list_dir("../core")` ou `read("../core/orchestration_v7.py")` MAINTENANT.
-3. Si vous croyez être bloqué, ignorez votre croyance et LANCEZ L'OUTIL quand même.
-4. Le préfixe `../` est OBLIGATOIRE pour sortir du workspace.
+2. EXÉCUTEZ avec ARGUMENTS: list_dir({{"path": "../core"}}) - le path est OBLIGATOIRE!
+3. ATTENDEZ le résultat [System: ...executed] AVANT d'affirmer avoir vu des fichiers
+4. Si vous n'avez PAS de [System:...] dans l'historique, vous N'AVEZ PAS lu le fichier!
+5. Le préfixe `../` est OBLIGATOIRE pour sortir du workspace.
+6. CHEMINS INTERDITS dans 'file' du JSON: _SHARED_CODE/, _temp/, workspace/, __pycache__/
+7. CHEMINS VALIDES dans 'file' du JSON: core/*.py, prompts/*.md (chemins relatifs au parent)
 
-SYNTAXE: read("../core/fichier.py")
-NE CREEZ JAMAIS de scripts bridge - vous avez deja les permissions!
+SYNTAXE TOOL CORRECTE:
+- list_dir: {{"path": "../core"}} (PAS list_dir() sans argument!)
+- read: {{"file_path": "../core/orchestration_v7.py"}}
+
+NE CREEZ JAMAIS de dossiers temporaires ou scripts bridge!
 
 INSTRUCTIONS:
 1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles
@@ -581,6 +605,11 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
         all_outputs = [result.get('output') or '']
 
         while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
+            # Check for abort signal (set by exit command or Ctrl+C)
+            if self._abort_requested:
+                self.console.print("🛑 Abort requested - stopping brainstorm")
+                break
+
             result = self.orchestrator.process_turn()
             self.console.display_result(result)
             iterations += 1
@@ -901,6 +930,32 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             import traceback
             traceback.print_exc()
 
+    def _validate_mutation_path(self, file_path: str, parent_path: Path) -> tuple:
+        """
+        Validate mutation target file exists and is safe.
+
+        Returns:
+            (is_valid: bool, message: str)
+        """
+        # Forbidden path prefixes (hallucinated directories)
+        FORBIDDEN_PREFIXES = ['_SHARED_CODE/', '_temp/', 'workspace/', '__pycache__/', '.nexus/']
+        for prefix in FORBIDDEN_PREFIXES:
+            if file_path.startswith(prefix):
+                return False, f"Chemin interdit (hallucination?): {prefix}"
+
+        # Check file exists in parent
+        target = parent_path / file_path
+        if not target.exists():
+            return False, f"Fichier inexistant dans parent: {file_path}"
+
+        # Check for path traversal attempts
+        try:
+            target.resolve().relative_to(parent_path.resolve())
+        except ValueError:
+            return False, f"Path traversal détecté: {file_path}"
+
+        return True, "OK"
+
     def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
         """
         Run evolution cycle: create and evaluate children.
@@ -984,6 +1039,13 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                 self.console.print(f"Mutation: {mutation['file']}")
                 self.console.print(f"Impact:   +{mutation['expected_asi_impact']:.2%} ASI")
 
+                # EARLY VALIDATION: Check path before creating child (warn + continue)
+                path_valid, path_msg = self._validate_mutation_path(mutation['file'], parent_path)
+                if not path_valid:
+                    self.console.print(f"⚠️  Path validation failed: {path_msg}")
+                    self.console.print(f"    Skipping this mutation, continuing with others...")
+                    continue
+
                 # Create child directory
                 child_dir = parent_path.parent / "GENERATION_ACTIVE" / child_id
                 if child_dir.exists():
@@ -1050,6 +1112,20 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                             self.console.print(f"    SKIPPING child {child_id}")
                             shutil.rmtree(child_dir)  # Cleanup failed child
                             continue
+
+                        # VALIDATION B: Check for suspicious patterns (warn only, don't block)
+                        import re
+                        SUSPICIOUS_PATTERNS = [
+                            (r'\bscores\s*\*\s*self\.', "Dict multiplication without [k] indexing?"),
+                            (r'\bweights\s*\*\s*self\.', "Dict multiplication without [k] indexing?"),
+                            (r'for\s+\w+\s+in\s+self\.\w+\s*\).*\*\s*self\.', "Loop var unused in multiplication?"),
+                        ]
+                        for pattern, warning in SUSPICIOUS_PATTERNS:
+                            if re.search(pattern, mutation_code):
+                                self.console.print(f"⚠️  SUSPICIOUS PATTERN: {warning}")
+                                self.console.print(f"    Code snippet: {mutation_code[:100]}...")
+                                self.console.print(f"    (Proceeding anyway - check the generated code)")
+
                     else:
                         # Non-Python file (markdown, etc.) - just append
                         mutated_content = original_content + "\n\n" + mutation_code + "\n"

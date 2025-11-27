@@ -561,6 +561,12 @@ class OrchestratorV7:
                         # Normalize tool name using alias if needed
                         normalized_name = TOOL_ALIASES.get(tool_name, tool_name)
                         normalized_tool_use = {**tool_use, 'tool_name': normalized_name}
+
+                        # DEBUG: Log tool arguments for troubleshooting
+                        tool_args = tool_use.get('arguments', {})
+                        self.logger.debug(f"[EVOLUTION_BRAINSTORM] Tool: {tool_name} -> {normalized_name}")
+                        self.logger.debug(f"[EVOLUTION_BRAINSTORM] Arguments: {tool_args}")
+
                         tool_request = ToolUse(**normalized_tool_use)
                         result = self.tool_manager.execute(tool_request)
 
