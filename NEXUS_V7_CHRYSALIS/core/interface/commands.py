@@ -19,6 +19,7 @@ SLASH_COMMANDS = {
     "/reset": "Reset orchestrator to IDLE state",
     "/mode <name>": "Change mode (Normal, InProjectImprovement, etc.)",
     "/chat": "Enter chat-only mode (no tool execution)",
+    "/bootstrap [path]": "Analyze project and generate NEXUS.md (default: current dir)",
     "/evolve [count]": "Create and evaluate child generations (default: 3)",
     "/evolve-status": "Show evolution stats and stagnation counter",
     "/pool-stats": "Show agent pool DyLAN metrics (importance scores)",

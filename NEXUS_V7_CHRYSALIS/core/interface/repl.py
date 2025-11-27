@@ -227,6 +227,9 @@ class InteractiveNexusV7:
         elif cmd == "/pool-stats":
             self.show_pool_stats()
 
+        elif cmd == "/bootstrap":
+            self.run_bootstrap(args)
+
         elif cmd == "/specialize":
             if args:
                 self.run_specialization(mission=args)
@@ -268,6 +271,67 @@ class InteractiveNexusV7:
         }
 
         self.console.print_doctor_results(results)
+
+    def run_bootstrap(self, args: str):
+        """Run AutoBootstrap to generate NEXUS.md (/bootstrap command)"""
+        from core.bootstrap import AutoBootstrap
+
+        # Parse path argument (default: current directory)
+        if args.strip():
+            project_path = Path(args.strip()).resolve()
+        else:
+            project_path = Path.cwd()
+
+        if not project_path.exists():
+            self.console.print_error(f"Path does not exist: {project_path}")
+            return
+
+        if not project_path.is_dir():
+            self.console.print_error(f"Path is not a directory: {project_path}")
+            return
+
+        self.console.print(f"🔍 Analyzing project: {project_path}")
+
+        try:
+            # Run analysis
+            bootstrap = AutoBootstrap(project_path)
+            analysis = bootstrap.analyze()
+
+            # Display results
+            self.console.print("\n📊 Analysis Results:")
+            self.console.print(f"   Project: {analysis.project_name}")
+            self.console.print(f"   Languages: {', '.join(analysis.languages) or 'None detected'}")
+            self.console.print(f"   Frameworks: {', '.join(analysis.frameworks) or 'None detected'}")
+            self.console.print(f"   Databases: {', '.join(analysis.databases) or 'None detected'}")
+            self.console.print(f"   Tools: {', '.join(analysis.tools) or 'None detected'}")
+            self.console.print(f"   Has tests: {'Yes' if analysis.has_tests else 'No'}")
+            self.console.print(f"   Has docs: {'Yes' if analysis.has_docs else 'No'}")
+            self.console.print(f"   Has CI: {'Yes' if analysis.has_ci else 'No'}")
+
+            if analysis.commands:
+                self.console.print(f"\n📝 Commands discovered:")
+                for cmd, desc in list(analysis.commands.items())[:5]:
+                    self.console.print(f"   {cmd}: {desc}")
+
+            # Generate NEXUS.md
+            nexus_md = bootstrap.generate_nexus_md(analysis)
+
+            # Check if NEXUS.md already exists
+            nexus_path = project_path / "NEXUS.md"
+            if nexus_path.exists():
+                self.console.print(f"\n⚠️  NEXUS.md already exists at {nexus_path}")
+                response = input("   Overwrite? (y/N): ").strip().lower()
+                if response != 'y':
+                    self.console.print("   Cancelled.")
+                    return
+
+            # Save
+            bootstrap.save(nexus_md)
+            self.console.print(f"\n✅ Generated: {nexus_path}")
+            self.console.print(f"   Size: {len(nexus_md)} characters")
+
+        except Exception as e:
+            self.console.print_error(f"Bootstrap failed: {e}")
 
     def run_review(self):
         """Run interactive review of pending children (/review command)"""

@@ -7,6 +7,18 @@ Advanced reasoning patterns for complex problem-solving:
 - Tree of Thought (ToT): Tree-based exploration with pruning
 """
 
-from .graph_of_thought import GraphOfThought, ThoughtNode, ThoughtGraph
+from .graph_of_thought import (
+    GraphOfThought,
+    ThoughtNode,
+    ThoughtGraph,
+    ThoughtStatus,
+    ThoughtType
+)
 
-__all__ = ['GraphOfThought', 'ThoughtNode', 'ThoughtGraph']
+__all__ = [
+    'GraphOfThought',
+    'ThoughtNode',
+    'ThoughtGraph',
+    'ThoughtStatus',
+    'ThoughtType'
+]

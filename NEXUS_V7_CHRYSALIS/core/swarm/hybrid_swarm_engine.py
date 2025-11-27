@@ -39,12 +39,24 @@ from .mode_executors import (
     AgentResponse,
     get_executor
 )
+from .task_analyzer import TaskComplexity
+
+# GoT integration (lazy import for optional dependency)
+_GOT_AVAILABLE = False
+try:
+    from core.reasoning import GraphOfThought, ThoughtGraph, ThoughtNode
+    _GOT_AVAILABLE = True
+except ImportError:
+    GraphOfThought = None
+    ThoughtGraph = None
+    ThoughtNode = None
 
 
 class SwarmPhase(Enum):
     """Current phase of swarm processing"""
     IDLE = "idle"
     ANALYZING = "analyzing"
+    DECOMPOSING = "decomposing"  # GoT decomposition phase
     SELECTING = "selecting"
     NEGOTIATING = "negotiating"
     EXECUTING = "executing"
@@ -133,6 +145,11 @@ class HybridSwarmEngine:
         self._current_analysis: Optional[TaskAnalysis] = None
         self._current_proposal: Optional[ModeProposal] = None
         self._negotiation_result: Optional[NegotiationResult] = None
+
+        # GoT state
+        self._got_engine: Optional[Any] = None
+        self._current_thought_graph: Optional[Any] = None
+        self._got_enabled = _GOT_AVAILABLE and self._get_config("swarm_got_enabled", True)
 
         # History
         self.processing_history: List[Dict] = []
@@ -469,6 +486,7 @@ class HybridSwarmEngine:
         self._current_analysis = None
         self._current_proposal = None
         self._negotiation_result = None
+        self._current_thought_graph = None
 
     def get_stats(self) -> Dict:
         """Get swarm engine statistics"""
@@ -482,5 +500,192 @@ class HybridSwarmEngine:
             "total_processed": len(self.processing_history),
             "mode_distribution": mode_counts,
             "agent_pool_stats": self.agent_pool.get_pool_stats() if self.agent_pool else {},
-            "mode_selector_stats": self.mode_selector.get_selection_stats()
+            "mode_selector_stats": self.mode_selector.get_selection_stats(),
+            "got_enabled": self._got_enabled,
+            "got_available": _GOT_AVAILABLE
         }
+
+    # === Graph of Thought (GoT) Integration ===
+
+    def should_use_got(self, analysis: Optional[TaskAnalysis] = None) -> bool:
+        """
+        Determine if GoT should be used for current task.
+
+        GoT is used for COMPLEX or EXPERT tasks to decompose them into
+        manageable sub-problems before execution.
+
+        Args:
+            analysis: TaskAnalysis (uses current if not provided)
+
+        Returns:
+            True if GoT decomposition is recommended
+        """
+        if not self._got_enabled or not _GOT_AVAILABLE:
+            return False
+
+        analysis = analysis or self._current_analysis
+        if analysis is None:
+            return False
+
+        # Use GoT for complex tasks (COMPLEX=4, EXPERT=5)
+        return analysis.complexity >= TaskComplexity.COMPLEX
+
+    def decompose_with_got(
+        self,
+        task_input: str,
+        analysis: Optional[TaskAnalysis] = None,
+        sub_problems: Optional[List[str]] = None
+    ) -> Optional[Any]:  # Returns ThoughtGraph
+        """
+        Decompose task using Graph of Thought.
+
+        For complex tasks, creates a ThoughtGraph that breaks down the
+        problem into sub-problems with dependencies.
+
+        Args:
+            task_input: Main problem description
+            analysis: TaskAnalysis for context
+            sub_problems: Optional pre-defined sub-problems
+
+        Returns:
+            ThoughtGraph if decomposition succeeded, None otherwise
+        """
+        if not _GOT_AVAILABLE or GraphOfThought is None:
+            return None
+
+        self.current_phase = SwarmPhase.DECOMPOSING
+
+        # Initialize GoT engine if needed
+        if self._got_engine is None:
+            self._got_engine = GraphOfThought()
+
+        analysis = analysis or self._current_analysis
+
+        # Auto-generate sub-problems based on task analysis
+        if sub_problems is None:
+            sub_problems = self._generate_sub_problems(task_input, analysis)
+
+        # Create thought graph
+        graph = self._got_engine.decompose_problem(
+            main_problem=task_input,
+            sub_problems=sub_problems
+        )
+
+        self._current_thought_graph = graph
+        return graph
+
+    def _generate_sub_problems(
+        self,
+        task_input: str,
+        analysis: Optional[TaskAnalysis]
+    ) -> List[str]:
+        """
+        Generate sub-problems based on task analysis.
+
+        Uses domain knowledge to create appropriate decomposition steps.
+        """
+        sub_problems = []
+
+        if analysis is None:
+            # Generic decomposition
+            return [
+                "Understand the requirements",
+                "Plan the approach",
+                "Execute the solution",
+                "Verify the result"
+            ]
+
+        # Domain-specific sub-problems
+        domains = analysis.domains
+
+        # Always start with understanding
+        sub_problems.append("Analyze and understand the problem context")
+
+        # Research phase for web-required tasks
+        if analysis.requires_web:
+            sub_problems.append("Research relevant documentation and resources")
+
+        # Code analysis for coding tasks
+        if any(d.value in ["coding", "debugging", "testing"] for d in domains):
+            sub_problems.append("Read and understand existing code structure")
+
+        # Security review for security tasks
+        if any(d.value == "security" for d in domains):
+            sub_problems.append("Identify potential security concerns")
+
+        # Design phase for architecture tasks
+        if any(d.value == "architecture" for d in domains):
+            sub_problems.append("Design the solution architecture")
+
+        # Implementation
+        sub_problems.append("Implement the solution")
+
+        # Testing for code tasks
+        if analysis.requires_code_execution:
+            sub_problems.append("Test and validate the implementation")
+
+        # Documentation for doc tasks
+        if any(d.value == "documentation" for d in domains):
+            sub_problems.append("Update relevant documentation")
+
+        return sub_problems
+
+    def execute_thought_graph(
+        self,
+        graph: Optional[Any] = None,
+        blackboard: Optional[Dict] = None
+    ) -> Optional[Any]:  # Returns ThoughtGraph
+        """
+        Execute a ThoughtGraph through the swarm engine.
+
+        Each thought node is executed using the appropriate collaboration mode.
+
+        Args:
+            graph: ThoughtGraph to execute (uses current if not provided)
+            blackboard: Shared state dictionary
+
+        Returns:
+            Completed ThoughtGraph with results
+        """
+        if not _GOT_AVAILABLE:
+            return None
+
+        graph = graph or self._current_thought_graph
+        if graph is None:
+            return None
+
+        blackboard = blackboard or {}
+
+        def node_executor(node) -> str:
+            """Execute a single thought node through the swarm."""
+            # Use the question as the task input
+            task_input = f"{node.question}\n\nContext: {node.reasoning or 'No additional context'}"
+
+            # Execute through swarm (skip GoT to avoid recursion)
+            result = self.process_task(
+                task_input=task_input,
+                blackboard=blackboard,
+                skip_negotiation=True  # Keep it fast for sub-tasks
+            )
+
+            return result.final_output
+
+        # Execute the graph
+        completed_graph = self._got_engine.execute(graph, node_executor)
+        self._current_thought_graph = completed_graph
+
+        return completed_graph
+
+    def get_thought_graph(self) -> Optional[Any]:
+        """Get current thought graph"""
+        return self._current_thought_graph
+
+    def get_got_summary(self) -> Optional[str]:
+        """Get summary of current thought graph execution"""
+        if self._current_thought_graph is None:
+            return None
+
+        graph = self._current_thought_graph
+        if hasattr(graph, 'get_final_answer'):
+            return graph.get_final_answer()
+        return None
