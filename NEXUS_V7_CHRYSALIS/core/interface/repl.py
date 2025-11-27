@@ -37,6 +37,9 @@ class InteractiveNexusV7:
         self.workspace_path = workspace_path
         self.config = load_config()
 
+        # Calculate NEXUS root path robustly (with validation)
+        self.nexus_root = self._calculate_nexus_root()
+
         # Create orchestrator ONCE (persistent!)
         self.orchestrator = OrchestratorV7(
             workspace_path,
@@ -397,7 +400,7 @@ class InteractiveNexusV7:
             Parent ASI Proximity Score (default 0.75 if not found)
         """
         import json
-        lineage_path = Path(__file__).parent.parent.parent.parent / "LINEAGE.json"
+        lineage_path = self.nexus_root.parent / "LINEAGE.json"  # 20_NEXUS/LINEAGE.json
         if lineage_path.exists():
             try:
                 data = json.loads(lineage_path.read_text(encoding='utf-8'))
@@ -550,33 +553,52 @@ FORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):
 
 [
   {{
-    "file": "chemin/vers/fichier.py",
+    "file": "core/fichier.py",
+    "operation": "APPEND",
     "change": "def nouvelle_fonction():\\n    return 42\\n",
     "reason": "Ajoute une fonction utilitaire pour X",
     "expected_asi_impact": 0.03
+  }},
+  {{
+    "file": "core/autre.py",
+    "operation": "REPLACE",
+    "target": "def old_function():",
+    "change": "def old_function():\\n    # Fixed version\\n    return optimized_result\\n",
+    "reason": "Corrige un bug dans old_function",
+    "expected_asi_impact": 0.02
   }}
 ]
+
+⚠️ OPÉRATIONS DISPONIBLES:
+- **APPEND** (défaut): Ajoute 'change' à la FIN du fichier
+- **REPLACE**: Remplace le bloc commençant par 'target' avec 'change'
+  - 'target' = première ligne unique identifiant le bloc (ex: "def my_func():", "class MyClass:")
+  - 'change' = le code complet de remplacement (incluant la ligne 'target' modifiée)
 
 ⚠️ RÈGLE CRITIQUE POUR 'change':
 - Pour fichiers .py: DOIT être du CODE PYTHON VALIDE (fonctions, classes, imports)
 - Pour fichiers .md: Peut être du texte Markdown
 - JAMAIS de descriptions comme "ajouter une section qui fait X"
 - JAMAIS d'instructions comme "Dans _build_context(), modifier..."
-- Le contenu de 'change' sera APPENDÉ tel quel à la fin du fichier!
 
-EXEMPLES VALIDES de 'change' pour .py:
-✅ "def calculate_score():\\n    return self.asi_score * 1.1\\n"
-✅ "# Optimization flag\\nENABLE_CACHE = True\\n"
-✅ "class MetacognitionTracker:\\n    def __init__(self):\\n        self.history = []\\n"
+⚠️ RÈGLE CRITIQUE POUR 'file':
+- Chemin RELATIF au parent NEXUS (PAS de préfixe ../!)
+- ✅ "core/orchestration_v7.py" (CORRECT pour JSON)
+- ❌ "../core/orchestration_v7.py" (INCORRECT - le ../ est pour les OUTILS seulement!)
 
-EXEMPLES INVALIDES de 'change' (SERONT REJETÉS):
-❌ "Ajouter une fonction qui calcule le score"
-❌ "Dans la méthode X, modifier Y pour Z"
-❌ "Améliorer la détection de stagnation"
+EXEMPLES VALIDES:
+✅ APPEND: {{"file": "core/utils.py", "operation": "APPEND", "change": "def new_func():\\n    pass\\n", ...}}
+✅ REPLACE: {{"file": "core/fsm/states.py", "operation": "REPLACE", "target": "def old_handler():", "change": "def old_handler():\\n    return fixed\\n", ...}}
+
+EXEMPLES INVALIDES (SERONT REJETÉS):
+❌ "Ajouter une fonction qui calcule le score" (description, pas du code)
+❌ "Dans la méthode X, modifier Y pour Z" (instruction, pas du code)
+❌ {{"file": "../core/x.py", ...}} (préfixe ../ interdit dans JSON!)
 
 RÈGLES CRITIQUES:
 - EXACTEMENT {child_count} mutations (ni plus, ni moins)
-- Format JSON STRICT (liste de dicts avec 'file', 'change', 'reason', 'expected_asi_impact')
+- Format JSON STRICT (liste de dicts avec 'file', 'operation', 'change', 'reason', 'expected_asi_impact')
+- 'operation' = "APPEND" (défaut) ou "REPLACE" (avec 'target' obligatoire)
 - Fichiers EXISTANTS uniquement (vérifiez avec read!)
 - 'change' = CODE PYTHON VALIDE pour .py, texte Markdown pour .md
 - 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
@@ -730,7 +752,9 @@ PRODUISEZ LE JSON MAINTENANT.""",
                 # Continue debate without new user_input (keeps original objective)
                 result = self.orchestrator.process_turn()
                 self.console.display_result(result)
-                final_content = result.get('output') or ''
+                # APPEND new output to preserve any partial JSON from previous turns
+                new_output = result.get('output') or ''
+                final_content = final_content + '\n' + new_output
 
         if proposals is None:
             self.console.print("[ERROR] Failed to extract valid JSON after 3 attempts")
@@ -859,7 +883,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             parent = get_current_parent(lineage)
             parent_id = parent["id"]
             
-            parent_path = Path(__file__).parent.parent.parent  # NEXUS_V7_CHRYSALIS
+            parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS (validated at init)
 
             # 1. Brainstorm mutations
             mutations = self.brainstorm_spinoff_with_ais(parent_id, parent_path, mission)
@@ -929,6 +953,36 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
             self.console.print_error(f"Specialization failed: {e}")
             import traceback
             traceback.print_exc()
+
+    def _calculate_nexus_root(self) -> Path:
+        """
+        Calculate NEXUS root path robustly with validation.
+
+        Returns:
+            Path to NEXUS_V7_CHRYSALIS directory
+
+        Raises:
+            RuntimeError if path cannot be determined
+        """
+        # Primary method: Calculate from __file__
+        calculated_path = Path(__file__).parent.parent.parent.resolve()
+
+        # Validation: Check for expected markers
+        expected_markers = ['nexus7.py', 'core', 'prompts']
+        for marker in expected_markers:
+            if not (calculated_path / marker).exists():
+                # Fallback: Try to find from workspace_path
+                if self.workspace_path.name == 'workspace':
+                    fallback_path = self.workspace_path.parent.resolve()
+                    if all((fallback_path / m).exists() for m in expected_markers):
+                        return fallback_path
+
+                raise RuntimeError(
+                    f"NEXUS root path validation failed. "
+                    f"Expected markers {expected_markers} not found at {calculated_path}"
+                )
+
+        return calculated_path
 
     def _validate_mutation_path(self, file_path: str, parent_path: Path) -> tuple:
         """
@@ -1014,7 +1068,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
             # Create children
             children_created = []
-            parent_path = Path(__file__).parent.parent.parent  # NEXUS_V7_CHRYSALIS
+            parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS (validated at init)
 
             # ÉMERGENT BRAINSTORMING: Gemini+Claude propose mutations librement
             mutations_proposals = self.brainstorm_children_with_ais(
@@ -1076,6 +1130,67 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                     # Read original content
                     original_content = target_file.read_text(encoding='utf-8')
                     mutation_code = mutation['change']
+                    operation = mutation.get('operation', 'APPEND').upper()
+
+                    # Strip ../ prefix if agents mistakenly included it in JSON
+                    if mutation['file'].startswith('../'):
+                        self.console.print(f"⚠️  Stripping ../ prefix from file path (should not be in JSON)")
+                        mutation['file'] = mutation['file'][3:]
+
+                    # APPLY MUTATION based on operation type
+                    if operation == 'REPLACE':
+                        # REPLACE operation: Find target block and replace it
+                        target_line = mutation.get('target', '')
+                        if not target_line:
+                            self.console.print(f"⚠️  REPLACE operation requires 'target' field")
+                            self.console.print(f"    SKIPPING child {child_id}")
+                            shutil.rmtree(child_dir)
+                            continue
+
+                        # Find the target in original content
+                        if target_line not in original_content:
+                            self.console.print(f"⚠️  Target not found in file: {target_line[:50]}...")
+                            self.console.print(f"    SKIPPING child {child_id}")
+                            shutil.rmtree(child_dir)
+                            continue
+
+                        # Find the block to replace (from target line to next same-indent or blank line block)
+                        lines = original_content.split('\n')
+                        target_idx = None
+                        target_indent = 0
+
+                        for idx, line in enumerate(lines):
+                            if target_line.strip() in line:
+                                target_idx = idx
+                                target_indent = len(line) - len(line.lstrip())
+                                break
+
+                        if target_idx is None:
+                            self.console.print(f"⚠️  Could not locate target line index")
+                            shutil.rmtree(child_dir)
+                            continue
+
+                        # Find end of block (next line with same or less indent, excluding blank lines)
+                        end_idx = target_idx + 1
+                        while end_idx < len(lines):
+                            line = lines[end_idx]
+                            if line.strip() == '':
+                                end_idx += 1
+                                continue
+                            line_indent = len(line) - len(line.lstrip())
+                            if line_indent <= target_indent and not line.strip().startswith('#'):
+                                break
+                            end_idx += 1
+
+                        # Build mutated content
+                        mutated_lines = lines[:target_idx] + mutation_code.split('\n') + lines[end_idx:]
+                        mutated_content = '\n'.join(mutated_lines)
+                        self.console.print(f"✓ REPLACE: Replaced block at line {target_idx+1}")
+
+                    else:
+                        # APPEND operation (default): Add to end of file
+                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
+                        self.console.print(f"✓ APPEND: Added code to end of file")
 
                     # VALIDATION A: For Python files, verify mutation is valid syntax
                     if target_file.suffix == '.py':
@@ -1103,7 +1218,6 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                             continue
 
                         # Second, check if mutated file compiles
-                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
                         try:
                             ast.parse(mutated_content)
                         except SyntaxError as e:
@@ -1126,13 +1240,9 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                                 self.console.print(f"    Code snippet: {mutation_code[:100]}...")
                                 self.console.print(f"    (Proceeding anyway - check the generated code)")
 
-                    else:
-                        # Non-Python file (markdown, etc.) - just append
-                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
-
                     # Write mutated content
                     target_file.write_text(mutated_content, encoding='utf-8')
-                    self.console.print(f"✓ Applied mutation to {mutation['file']} (validated)")
+                    self.console.print(f"✓ Applied {operation} mutation to {mutation['file']} (validated)")
 
                     # Create BIRTH_CERTIFICATE.json
                     birth_cert = {
@@ -1434,9 +1544,9 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
         child_id = child['id']
         asi_score = child['score']
 
-        # Paths
-        project_root = Path(__file__).parent.parent.parent.parent  # 20_NEXUS/
-        parent_path = Path(__file__).parent.parent.parent  # NEXUS_V7_CHRYSALIS/
+        # Paths (use validated nexus_root)
+        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/ (validated at init)
+        project_root = parent_path.parent  # 20_NEXUS/
         child_path = project_root / "GENERATION_ACTIVE" / child_id
         archive_dir = project_root / "ARCHIVE" / f"GEN_{generation-1:03d}"
 

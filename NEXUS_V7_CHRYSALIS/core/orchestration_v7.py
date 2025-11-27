@@ -604,11 +604,16 @@ class OrchestratorV7:
 
             elif action_type in ["TALK", "DELEGATE", None]:
                 # Normal debate turn (None = Claude hybrid format)
-                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
+                # Check if content contains a valid mutation JSON (signals end of debate)
+                finished = self._detect_mutation_json(content)
+                if finished:
+                    self.logger.info("[EVOLUTION_BRAINSTORM] Valid mutation JSON detected - signaling finished")
+                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, finished)
 
             else:
                 # Unknown action type - continue anyway
-                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, False)
+                finished = self._detect_mutation_json(content)
+                return self._make_result("EVOLUTION_BRAINSTORM", content, sender, finished)
 
         # === STATE: SWARM_ANALYZING (V7 Sprint 9) ===
         elif self.state == OrchestratorState.SWARM_ANALYZING:
@@ -756,6 +761,70 @@ class OrchestratorV7:
         if tool:
             result["tool"] = tool
         return result
+
+    def _detect_mutation_json(self, content: str) -> bool:
+        """
+        Detect if content contains a valid mutation JSON array.
+        Used to signal end of EVOLUTION_BRAINSTORM when agents produce final output.
+
+        Returns:
+            True if valid mutation JSON detected, False otherwise
+        """
+        if not content:
+            return False
+
+        # Quick check: must contain all required keys
+        required_keys = ['"file"', '"change"', '"reason"', '"expected_asi_impact"']
+        if not all(key in content for key in required_keys):
+            return False
+
+        # Must look like a JSON array starting with [{
+        import re
+        if not re.search(r'\[\s*\{', content):
+            return False
+
+        # Try to extract and parse JSON
+        import json
+        try:
+            # Find JSON array boundaries
+            for match in re.finditer(r'\[\s*\{', content):
+                start = match.start()
+                depth = 0
+                in_string = False
+                escape_next = False
+
+                for i, char in enumerate(content[start:], start):
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    if char == '\\' and in_string:
+                        escape_next = True
+                        continue
+                    if char == '"' and not escape_next:
+                        in_string = not in_string
+                        continue
+                    if in_string:
+                        continue
+                    if char == '[':
+                        depth += 1
+                    elif char == ']':
+                        depth -= 1
+                        if depth == 0:
+                            candidate = content[start:i+1]
+                            try:
+                                parsed = json.loads(candidate)
+                                if isinstance(parsed, list) and len(parsed) > 0:
+                                    # Verify all entries have required fields
+                                    req_fields = {'file', 'change', 'reason', 'expected_asi_impact'}
+                                    if all(isinstance(p, dict) and req_fields.issubset(p.keys()) for p in parsed):
+                                        return True
+                            except json.JSONDecodeError:
+                                pass
+                            break
+        except Exception:
+            pass
+
+        return False
 
     def _handle_stagnation(self) -> Dict:
         """Handle stagnation détectée"""
