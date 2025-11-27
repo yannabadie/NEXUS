@@ -21,7 +21,36 @@ import json
 import re
 import fnmatch
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
+
+# Security imports
+from core.security import PathGuardian
+
+
+# ============================================================================
+# BASH BLACKLIST - Permissive mode (allow all EXCEPT dangerous patterns)
+# ============================================================================
+BASH_BLACKLIST_PATTERNS: List[Tuple[str, str]] = [
+    # Deep path traversal (3+ levels up)
+    (r"\.\.\/\.\.\/\.\.", "Deep path traversal (../../../)"),
+    (r";\s*cd\s+\.\.", "cd to parent after command"),
+    (r"&&\s*cd\s+\.\.", "cd to parent chained"),
+    # Destructive commands on parent (with word boundary)
+    (r"\brm\s+(-[rf]+\s+)*\.\.", "rm on parent directory"),
+    (r"\brm\s+-rf?\s+/", "rm on root"),
+    (r"\brmdir\s+\.\.", "rmdir on parent"),
+    # Redirections to parent
+    (r">\s*\.\.\/", "Redirect output to parent"),
+    (r">>\s*\.\.\/", "Append output to parent"),
+    # Git write operations
+    (r"\bgit\s+(push|commit|add|reset|checkout\s+-)", "Git write operation via bash"),
+    # Code execution targeting parent
+    (r"\b(python|python3|py)\s+\.\.\/", "Python exec in parent"),
+    (r"\b(bash|sh|cmd)\s+\.\.\/", "Shell exec in parent"),
+    # File modifications in parent
+    (r"\bmv\s+[^\s]+\s+\.\.\/", "Move file to parent"),
+    (r"\bcp\s+[^\s]+\s+\.\.\/", "Copy file to parent"),
+]
 
 
 class ToolResult:
@@ -57,6 +86,13 @@ class ToolManager:
         self.parent_path = workspace_path.parent  # NEXUS_V7_CHRYSALIS/
         self.project_root = workspace_path.parent.parent  # 20_NEXUS/
         self.generation_active = self.project_root / "GENERATION_ACTIVE"
+
+        # Initialize PathGuardian (security layer 2)
+        self.path_guardian = PathGuardian(
+            workspace_path=workspace_path,
+            parent_path=self.parent_path,
+            generation_active=self.generation_active
+        )
 
         # Dispatch to appropriate handler
         self.tools = {
@@ -112,8 +148,19 @@ class ToolManager:
             )
 
     def _execute_bash(self, args: Dict) -> ToolResult:
-        """Execute bash command"""
+        """Execute bash command with security blacklist."""
         command = args.get("command", "")
+
+        # SECURITY LAYER 1: Check against blacklist
+        import re as regex_module
+        for pattern, description in BASH_BLACKLIST_PATTERNS:
+            if regex_module.search(pattern, command, regex_module.IGNORECASE):
+                return ToolResult(
+                    tool_name="bash",
+                    status="BLOCKED",
+                    output="",
+                    error=f"[SECURITY] Command blocked: {description}. Command: {command[:80]}..."
+                )
 
         try:
             result = subprocess.run(
@@ -192,12 +239,21 @@ class ToolManager:
             )
 
     def _execute_write(self, args: Dict) -> ToolResult:
-        """Write file (create or overwrite)"""
-        file_path = Path(args.get("file_path", ""))
-        content = args.get("content", "")
+        """Write file (create or overwrite) - with PathGuardian security."""
+        file_path_str = args.get("file_path", "")
+        file_content = args.get("content", "")
 
-        # Evolution mode: Allow writing to GENERATION_ACTIVE
-        if self.evolution_mode and not file_path.is_absolute():
+        # SECURITY LAYER 2: PathGuardian validation
+        valid, resolved_path, msg = self.path_guardian.validate_write(
+            file_path_str, is_evolution_mode=self.evolution_mode
+        )
+        if not valid:
+            return ToolResult(tool_name="write", status="BLOCKED", output="", error=msg)
+
+        file_path = resolved_path
+
+        # Evolution mode: Allow writing to GENERATION_ACTIVE (additional check)
+        if self.evolution_mode and not Path(file_path_str).is_absolute():
             path_str = str(file_path)
             if path_str.startswith("../../GENERATION_ACTIVE/"):
                 # Resolve relative to workspace
@@ -223,7 +279,7 @@ class ToolManager:
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write file
-            file_path.write_text(content, encoding="utf-8")
+            file_path.write_text(file_content, encoding="utf-8")
 
             return ToolResult(
                 tool_name="write",
@@ -239,13 +295,22 @@ class ToolManager:
             )
 
     def _execute_edit(self, args: Dict) -> ToolResult:
-        """Edit file (search and replace)"""
-        file_path = Path(args.get("file_path", ""))
+        """Edit file (search and replace) - with PathGuardian security."""
+        file_path_str = args.get("file_path", "")
         old_string = args.get("old_string", "")
         new_string = args.get("new_string", "")
 
-        # Evolution mode: Allow editing GENERATION_ACTIVE files
-        if self.evolution_mode and not file_path.is_absolute():
+        # SECURITY LAYER 2: PathGuardian validation
+        valid, resolved_path, msg = self.path_guardian.validate_write(
+            file_path_str, is_evolution_mode=self.evolution_mode
+        )
+        if not valid:
+            return ToolResult(tool_name="edit", status="BLOCKED", output="", error=msg)
+
+        file_path = resolved_path
+
+        # Evolution mode: Allow editing GENERATION_ACTIVE files (additional check)
+        if self.evolution_mode and not Path(file_path_str).is_absolute():
             path_str = str(file_path)
             if path_str.startswith("../../GENERATION_ACTIVE/"):
                 # Resolve relative to workspace
@@ -350,9 +415,20 @@ class ToolManager:
         operation = args.get("operation", "")
         additional_args = args.get("args", "")
 
-        # Whitelist allowed operations
-        allowed_ops = ["add", "commit", "status", "diff", "log", "push", "pull"]
-        if operation not in allowed_ops:
+        # SECURITY: Read-only operations allowed
+        SAFE_OPS = {"status", "diff", "log", "show", "branch"}
+        BLOCKED_OPS = {"push", "commit", "add", "reset", "checkout", "merge", "rebase"}
+
+        if operation.lower() in BLOCKED_OPS:
+            return ToolResult(
+                tool_name="git",
+                status="BLOCKED",
+                output="",
+                error=f"[SECURITY] Git '{operation}' BLOCKED. Parent repo is READ-ONLY."
+            )
+
+        allowed_ops = list(SAFE_OPS) + ["pull"]
+        if operation.lower() not in allowed_ops:
             return ToolResult(
                 tool_name="git",
                 status="ERROR",

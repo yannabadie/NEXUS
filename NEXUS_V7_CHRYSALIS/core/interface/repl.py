@@ -21,6 +21,7 @@ from core.config import load_config
 from core.fsm.states import OrchestratorState
 from core.evolution.rate_limiter import EvolutionRateLimiter
 from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
+from core.security import MutationValidator
 
 
 class InteractiveNexusV7:
@@ -1131,6 +1132,20 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                     original_content = target_file.read_text(encoding='utf-8')
                     mutation_code = mutation['change']
                     operation = mutation.get('operation', 'APPEND').upper()
+
+                    # SECURITY: MutationValidator (warn mode - never blocks)
+                    mutation_validator = MutationValidator(workspace_path=self.workspace_path)
+                    mv_warnings, mv_info = mutation_validator.validate(mutation_code, mutation['file'])
+                    
+                    if mv_warnings:
+                        self.console.print(f"[yellow]MUTATION WARNINGS for {mutation['file']}:[/yellow]")
+                        for w in mv_warnings:
+                            self.console.print(f"  {w}")
+                        self.console.print(f"  [dim](Applying anyway - review the code)[/dim]")
+                    
+                    if mv_info and self.config.ui_verbose:
+                        for info_msg in mv_info:
+                            self.console.print(f"  [dim]{info_msg}[/dim]")
 
                     # Strip ../ prefix if agents mistakenly included it in JSON
                     if mutation['file'].startswith('../'):
