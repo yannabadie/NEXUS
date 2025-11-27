@@ -53,7 +53,28 @@ def bootstrap():
     print("🚀 NEXUS V7.0 Chrysalis Bootstrap...")
 
     # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
-    sys.path.insert(0, str(Path(__file__).parent.parent))
+    # KERNEL.py location:
+    # - For children: same directory (copied by clone_and_mutate.py)
+    # - For parent NEXUS_V7_CHRYSALIS: at 20_NEXUS/KERNEL.py (parent.parent)
+    nexus_dir = Path(__file__).parent
+    kernel_locations = [
+        nexus_dir,                    # Children: KERNEL.py in same dir
+        nexus_dir.parent,             # Fallback: parent dir
+        nexus_dir.parent.parent,      # Parent NEXUS: 20_NEXUS/
+    ]
+
+    kernel_found = False
+    for loc in kernel_locations:
+        if (loc / "KERNEL.py").exists():
+            sys.path.insert(0, str(loc))
+            kernel_found = True
+            break
+
+    if not kernel_found:
+        print("❌ FATAL: KERNEL.py not found in any expected location!")
+        print(f"   Searched: {[str(l) for l in kernel_locations]}")
+        sys.exit(1)
+
     from KERNEL import verify_kernel_integrity
 
     print("\n🔒 Verifying KERNEL.py integrity...")

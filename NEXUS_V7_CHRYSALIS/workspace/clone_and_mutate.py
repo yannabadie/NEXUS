@@ -228,7 +228,38 @@ def clone_project(source_dir: Path, target_dir: Path) -> None:
     (target_dir / "workspace" / "_IO_BUFFER").mkdir(exist_ok=True)
     (target_dir / "workspace" / ".nexus").mkdir(exist_ok=True)
 
-    print("[OK] Project cloned.")
+    # Copy foundation files from 20_NEXUS/ root (parent of source)
+    # Source: 20_NEXUS/NEXUS_V7_CHRYSALIS -> Root: 20_NEXUS/
+    nexus_root = source_dir.parent
+    foundation_files = [
+        # Core immutable files
+        "KERNEL.py",
+        "KERNEL_HASH.txt",
+        # Mission & governance
+        "MISSION.md",
+        "INVARIANTS.md",
+        "EVOLUTION_PROTOCOL.md",
+        # Agent instructions
+        "CLAUDE.md",
+        "GEMINI.md",
+        # Lineage tracking
+        "LINEAGE.json",
+        # Project meta
+        "README.md",
+        "LICENSE",
+        "requirements.txt",
+    ]
+
+    print("[INFO] Copying foundation files...")
+    for filename in foundation_files:
+        src_file = nexus_root / filename
+        if src_file.exists():
+            shutil.copy2(src_file, target_dir / filename)
+            print(f"  [OK] {filename}")
+        else:
+            print(f"  [WARN] {filename} not found at {src_file}")
+
+    print("[OK] Project cloned with foundation files.")
 
 
 def validate_python_syntax(content: str, file_path: Path) -> bool:

@@ -34,6 +34,15 @@ from core.telemetry import TelemetryCollector
 from pydantic import ValidationError
 import time
 import json
+import sys
+
+# KERNEL import - path set by nexus7.py bootstrap
+try:
+    from KERNEL import runtime_integrity_check
+    KERNEL_AVAILABLE = True
+except ImportError:
+    KERNEL_AVAILABLE = False
+    runtime_integrity_check = None
 
 
 class OrchestratorV7:
@@ -319,6 +328,22 @@ class OrchestratorV7:
             }
         """
         self.iteration += 1
+
+        # KERNEL RUNTIME INTEGRITY CHECK (every 100 iterations)
+        # As per KERNEL.py specification: verify invariants haven't been tampered in memory
+        if KERNEL_AVAILABLE and self.iteration % 100 == 0:
+            self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
+            if not runtime_integrity_check():
+                self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
+                self.state = OrchestratorState.PANIC
+                return self._make_result(
+                    "PANIC",
+                    "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED. "
+                    "Invariants may have been modified in memory. Immediate shutdown required.",
+                    None,
+                    True,
+                    error="KERNEL_INTEGRITY_VIOLATION"
+                )
 
         # === STATE: IDLE ===
         if self.state == OrchestratorState.IDLE:

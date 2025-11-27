@@ -236,7 +236,7 @@ except Exception as e:
                 cwd=str(self.nexus_path),
                 capture_output=True,
                 text=True,
-                timeout=60, # Timeout for individual question
+                timeout=120, # Timeout for individual question (increased for Gemini latency)
                 encoding='utf-8',
                 errors='replace'
             )

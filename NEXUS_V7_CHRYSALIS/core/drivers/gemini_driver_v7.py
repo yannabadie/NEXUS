@@ -102,12 +102,21 @@ class GeminiDriverV7:
         import platform
         use_shell = platform.system() == "Windows"
 
+        # Include parent directory for READ access to core/ code
+        nexus_root = self.workspace_path.parent
+
+        # Read-only tools for parent code (write tools blocked outside workspace)
+        # Gemini's write tools only work in workspace (cwd), read tools work everywhere
+        read_only_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch"
+
         if use_shell:
             # Shell command string for Windows
-            command = f'"{cli_executable}" -m {self.model} -p @"{context_file}" -o json'
+            # --allowed-tools: Only auto-approve read tools (write/shell require confirmation)
+            # --include-directories: Give Gemini READ access to parent NEXUS code
+            command = f'"{cli_executable}" -m {self.model} --allowed-tools {read_only_tools} --include-directories "{nexus_root}" -p @"{context_file}" -o json'
         else:
             # List format for Unix
-            command = [cli_executable, "-m", self.model, "-p", f"@{context_file}", "-o", "json"]
+            command = [cli_executable, "-m", self.model, "--allowed-tools", read_only_tools, "--include-directories", str(nexus_root), "-p", f"@{context_file}", "-o", "json"]
 
         try:
             print(f"[DEBUG] Invoking Gemini: {self.model} (timeout: {self.timeout}s)", file=sys.stderr)
