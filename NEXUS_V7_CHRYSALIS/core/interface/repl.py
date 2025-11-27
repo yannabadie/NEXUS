@@ -75,6 +75,14 @@ class InteractiveNexusV7:
             claude_model=self.orchestrator.claude_info["model"]
         )
 
+        # V7 Sprint 11: Display startup hints (bootstrap, swarm status)
+        hints = self.orchestrator.get_startup_hints()
+        if hints:
+            self.console.print("")
+            for hint in hints:
+                self.console.print(f"  {hint}")
+            self.console.print("")
+
         while True:
             try:
                 # Get user input

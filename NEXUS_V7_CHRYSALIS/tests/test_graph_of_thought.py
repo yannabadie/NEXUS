@@ -428,6 +428,110 @@ class TestConvenienceFunctions:
 
 
 # ============================================================================
+# Parallel Execution Tests
+# ============================================================================
+
+class TestParallelExecution:
+    """Test parallel execution features."""
+
+    def test_execute_parallel_basic(self):
+        """Should execute graph in parallel."""
+        got = GraphOfThought()
+        graph = got.decompose_problem(
+            "Test parallel",
+            sub_problems=["Step 1", "Step 2", "Step 3"]
+        )
+
+        def mock_executor(node: ThoughtNode) -> str:
+            return f"Result for {node.name}"
+
+        result = got.execute_parallel(graph, mock_executor, max_workers=2)
+
+        assert result.is_complete()
+        assert result.get_failed_count() == 0
+
+    def test_execute_parallel_with_callback(self):
+        """Should call progress callback."""
+        got = GraphOfThought()
+        graph = got.decompose_problem(
+            "Test callbacks",
+            sub_problems=["Step 1"]
+        )
+
+        events = []
+
+        def on_progress(g, node, event):
+            events.append((node.name, event))
+
+        def mock_executor(node: ThoughtNode) -> str:
+            return "Done"
+
+        got.execute_parallel(graph, mock_executor, on_progress=on_progress)
+
+        # Should have started and completed events
+        assert any("started" in e[1] for e in events)
+        assert any("completed" in e[1] for e in events)
+
+    def test_execute_parallel_handles_failure(self):
+        """Should handle node failures gracefully."""
+        got = GraphOfThought()
+        graph = got.decompose_problem(
+            "Test failure",
+            sub_problems=["Failing step"]
+        )
+
+        def failing_executor(node: ThoughtNode) -> str:
+            if "Failing" in node.question:
+                raise Exception("Simulated failure")
+            return "Done"
+
+        result = got.execute_parallel(graph, failing_executor)
+
+        # Should complete (with failures)
+        assert result.is_complete()
+
+    def test_get_execution_progress(self):
+        """Should return progress metrics."""
+        got = GraphOfThought()
+        graph = got.decompose_problem(
+            "Test progress",
+            sub_problems=["Step 1", "Step 2"]
+        )
+
+        # Before execution
+        progress = got.get_execution_progress(graph)
+        assert progress["total"] > 0
+        assert progress["pending"] > 0
+        assert progress["completed"] == 0
+
+        # After execution
+        def mock_executor(node: ThoughtNode) -> str:
+            return "Done"
+
+        got.execute(graph, mock_executor)
+        progress = got.get_execution_progress(graph)
+
+        assert progress["completed"] > 0
+        assert progress["is_complete"] == True
+
+    def test_visualize_progress(self):
+        """Should generate progress visualization."""
+        got = GraphOfThought()
+        graph = got.decompose_problem(
+            "Test viz",
+            sub_problems=["Step 1"],
+            name="test_graph"
+        )
+
+        viz = got.visualize_progress(graph)
+
+        assert "test_graph" in viz  # Graph name in header
+        assert "%" in viz  # Progress percentage
+        assert "⏳" in viz or "✅" in viz  # Status icons
+        assert "main_problem" in viz  # Node name
+
+
+# ============================================================================
 # Integration Tests
 # ============================================================================
 

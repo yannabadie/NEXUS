@@ -628,9 +628,352 @@ class EvaluationError(Exception):
 
 ---
 
+## Module: `core.bootstrap`
+
+AutoBootstrap module for automatic NEXUS.md generation when deployed to new projects.
+
+### `class AutoBootstrap`
+
+Automatically analyze a project and generate NEXUS.md.
+
+**Constructor**:
+```python
+AutoBootstrap(project_path: Path)
+```
+
+**Parameters**:
+- `project_path` (Path): Path to project root
+
+**Methods**:
+
+#### `analyze() -> ProjectAnalysis`
+
+Analyze project structure, detect tech stack, frameworks, and commands.
+
+**Returns**:
+- `ProjectAnalysis`: Dataclass with detected information
+
+**Example**:
+```python
+from pathlib import Path
+from core.bootstrap import AutoBootstrap
+
+bootstrap = AutoBootstrap(Path("/path/to/project"))
+analysis = bootstrap.analyze()
+
+print(f"Languages: {analysis.languages}")
+print(f"Frameworks: {analysis.frameworks}")
+print(f"Has tests: {analysis.has_tests}")
+```
+
+#### `generate_nexus_md(analysis: ProjectAnalysis = None) -> str`
+
+Generate NEXUS.md content from analysis results.
+
+**Parameters**:
+- `analysis` (ProjectAnalysis, optional): Analysis results (runs analyze() if not provided)
+
+**Returns**:
+- `str`: Complete NEXUS.md markdown content
+
+#### `save(content: str = None, path: Path = None) -> Path`
+
+Save NEXUS.md to project.
+
+**Parameters**:
+- `content` (str, optional): NEXUS.md content (generates if not provided)
+- `path` (Path, optional): Save path (defaults to project_path/NEXUS.md)
+
+**Returns**:
+- `Path`: Path where file was saved
+
+---
+
+### `class ProjectAnalysis`
+
+Dataclass containing project analysis results.
+
+**Fields**:
+- `languages` (List[str]): Detected programming languages
+- `frameworks` (List[str]): Detected frameworks (FastAPI, React, etc.)
+- `databases` (List[str]): Detected databases
+- `tools` (List[str]): Detected tools (pytest, eslint, etc.)
+- `directories` (List[str]): Top-level directories
+- `key_files` (List[str]): Important files found
+- `commands` (Dict[str, str]): Discovered commands (name -> description)
+- `has_tests` (bool): Tests directory detected
+- `has_docs` (bool): Documentation directory detected
+- `has_ci` (bool): CI/CD configuration detected
+- `project_name` (str): Inferred project name
+
+---
+
+## Module: `core.reasoning`
+
+Graph of Thought (GoT) module for advanced non-linear reasoning.
+
+### `class GraphOfThought`
+
+Main interface for Graph of Thought reasoning.
+
+**Methods**:
+
+#### `decompose_problem(...) -> ThoughtGraph`
+
+Decompose a complex problem into a graph of sub-problems.
+
+**Parameters**:
+- `main_problem` (str): Main problem description
+- `sub_problems` (List[str]): List of sub-problem descriptions
+- `parallel_groups` (List[List[int]], optional): Groups of sub-problem indices to run in parallel
+- `name` (str, optional): Graph name
+
+**Returns**:
+- `ThoughtGraph`: Graph with root, sub-problem nodes, and aggregation node
+
+**Example**:
+```python
+from core.reasoning import GraphOfThought
+
+got = GraphOfThought()
+graph = got.decompose_problem(
+    main_problem="Refactor authentication module",
+    sub_problems=[
+        "Analyze current code",
+        "Identify security issues",
+        "Design new architecture",
+        "Implement changes",
+        "Add tests"
+    ],
+    parallel_groups=[[3, 4]]  # Implement and test in parallel
+)
+```
+
+#### `execute(graph, executor, max_iterations=100) -> ThoughtGraph`
+
+Execute graph sequentially using provided executor function.
+
+**Parameters**:
+- `graph` (ThoughtGraph): Graph to execute
+- `executor` (Callable[[ThoughtNode], str]): Function that processes a node and returns answer
+- `max_iterations` (int): Maximum iterations
+
+**Returns**:
+- `ThoughtGraph`: Completed graph with answers
+
+#### `execute_parallel(...) -> ThoughtGraph`
+
+Execute graph with parallel node processing.
+
+**Parameters**:
+- `graph` (ThoughtGraph): Graph to execute
+- `executor` (Callable[[ThoughtNode], str]): Executor function
+- `max_workers` (int): Maximum parallel workers (default: 3)
+- `max_iterations` (int): Maximum iterations (default: 100)
+- `on_progress` (Callable, optional): Progress callback(graph, node, event)
+
+**Returns**:
+- `ThoughtGraph`: Completed graph
+
+**Example**:
+```python
+def my_executor(node):
+    # Call LLM with node.question
+    return llm_response
+
+def on_progress(graph, node, event):
+    print(f"{event}: {node.name}")
+
+result = got.execute_parallel(
+    graph,
+    my_executor,
+    max_workers=3,
+    on_progress=on_progress
+)
+```
+
+#### `visualize_progress(graph) -> str`
+
+Generate progress visualization string for REPL display.
+
+**Returns**:
+- `str`: Formatted ASCII progress display
+
+---
+
+### `class ThoughtGraph`
+
+Graph structure containing thought nodes.
+
+**Properties**:
+- `name` (str): Graph name
+- `nodes` (Dict[str, ThoughtNode]): All nodes by ID
+- `root_nodes` (List[str]): IDs of root nodes (no dependencies)
+- `leaf_nodes` (List[str]): IDs of leaf nodes (no children)
+
+**Methods**:
+- `create_node(question, name, ...)` - Create and add a node
+- `get_ready_nodes()` - Get nodes ready for execution
+- `get_execution_order()` - Get topological execution order
+- `is_complete()` - Check if all nodes are processed
+- `get_final_answer()` - Aggregate answers from leaf nodes
+
+---
+
+### `class ThoughtNode`
+
+Single node in the thought graph.
+
+**Fields**:
+- `id` (str): Unique identifier
+- `name` (str): Human-readable name
+- `question` (str): Question/task for this node
+- `answer` (str): Result after processing
+- `status` (ThoughtStatus): PENDING, IN_PROGRESS, COMPLETED, FAILED, SKIPPED
+- `dependencies` (List[str]): IDs of nodes this depends on
+- `children` (List[str]): IDs of dependent nodes
+- `confidence` (float): Confidence in answer (0.0-1.0)
+
+---
+
+## Module: `core.security`
+
+Security modules for protecting parent code and validating mutations.
+
+### `class PathGuardian`
+
+Path validation for read/write operations with zone-based security.
+
+**Constructor**:
+```python
+PathGuardian(
+    workspace_path: Path,
+    parent_path: Path,
+    generation_active: Path = None
+)
+```
+
+**Methods**:
+
+#### `validate_read(file_path: str) -> tuple`
+
+Validate a file path for read operations.
+
+**Parameters**:
+- `file_path` (str): Path to validate
+
+**Returns**:
+- `tuple`: (valid: bool, resolved_path: Path, message: str)
+
+#### `validate_write(file_path: str, is_evolution_mode: bool = False) -> tuple`
+
+Validate a file path for write operations.
+
+**Parameters**:
+- `file_path` (str): Path to validate
+- `is_evolution_mode` (bool): Whether evolution mode is active
+
+**Returns**:
+- `tuple`: (valid: bool, resolved_path: Path, message: str)
+
+**Example**:
+```python
+from core.security import PathGuardian
+
+guardian = PathGuardian(
+    workspace_path=Path("workspace"),
+    parent_path=Path("NEXUS_V7_CHRYSALIS")
+)
+
+valid, path, msg = guardian.validate_write("new_file.py")
+if valid:
+    print(f"OK to write: {path}")
+else:
+    print(f"BLOCKED: {msg}")
+```
+
+**Security Zones**:
+- **Workspace**: Full read/write access
+- **Parent**: Read-only access (no writes)
+- **GENERATION_ACTIVE**: Write access only in evolution mode
+- **Sacred files**: KERNEL.py, MISSION.md, .env always protected
+
+---
+
+### `class MutationValidator`
+
+AST-based behavioral analysis for mutation code.
+
+**Constructor**:
+```python
+MutationValidator(workspace_path: Path)
+```
+
+**Methods**:
+
+#### `validate(code: str, filename: str) -> tuple`
+
+Validate Python code for suspicious patterns.
+
+**Parameters**:
+- `code` (str): Python source code
+- `filename` (str): Filename for context
+
+**Returns**:
+- `tuple`: (warnings: List[str], info: List[str])
+
+**Example**:
+```python
+from core.security import MutationValidator
+
+validator = MutationValidator(Path("workspace"))
+
+code = '''
+import os
+os.system("rm -rf /")
+'''
+
+warnings, info = validator.validate(code, "dangerous.py")
+# warnings: ["Suspicious import: os", "Suspicious call: os.system"]
+```
+
+**Detected Patterns**:
+- Suspicious imports: os, subprocess, shutil, socket
+- Dangerous calls: exec(), eval(), os.system(), subprocess.run()
+- Path traversal in open(): "../" paths, absolute paths
+
+---
+
+## REPL Commands
+
+### `/bootstrap [path]`
+
+Analyze project and generate NEXUS.md.
+
+**Parameters**:
+- `path` (optional): Project path (defaults to current directory)
+
+**Example**:
+```
+nexus7> /bootstrap /path/to/project
+🔍 Analyzing project: /path/to/project
+
+📊 Analysis Results:
+   Project: my-project
+   Languages: Python
+   Frameworks: FastAPI
+   Has tests: Yes
+
+✅ Generated: /path/to/project/NEXUS.md
+```
+
+---
+
 ## References
 
-- **core/evolution/README.md** - Module documentation
+- **core/evolution/README.md** - Evolution module documentation
+- **core/bootstrap/README.md** - Bootstrap module documentation
+- **core/reasoning/README.md** - Reasoning module documentation
 - **EVOLUTION_GUIDE.md** - User guide
 - **EVOLUTION_PROTOCOL.md** - Protocol specification
 - **INVARIANTS.md** - Immutable laws
@@ -643,3 +986,4 @@ class EvaluationError(Exception):
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-11-21 | Initial API reference |
+| 1.1 | 2025-11-27 | Added bootstrap, reasoning, security modules |

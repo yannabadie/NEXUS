@@ -221,7 +221,86 @@ class OrchestratorV7:
 
         except Exception as e:
             self.logger.error(f"Swarm invocation failed: {e}")
-            return f"[Error invoking {agent_id}]: {str(e)}"
+            return f"Error: {e}"
+
+    # === Project Context Methods (Sprint 11) ===
+
+    def check_project_context(self, project_path: Optional[Path] = None) -> Dict:
+        """
+        Check project context and suggest bootstrap if NEXUS.md is missing.
+
+        V7 Sprint 11: AutoBootstrap integration
+
+        Args:
+            project_path: Path to check (defaults to workspace parent)
+
+        Returns:
+            {
+                "has_nexus_md": bool,
+                "project_path": str,
+                "suggestion": Optional[str],
+                "tech_hint": Optional[str]  # Quick detected stack
+            }
+        """
+        # Default to parent of workspace (typically project root)
+        if project_path is None:
+            project_path = self.workspace_path.parent
+
+        nexus_md_path = project_path / "NEXUS.md"
+        has_nexus_md = nexus_md_path.exists()
+
+        result = {
+            "has_nexus_md": has_nexus_md,
+            "project_path": str(project_path),
+            "suggestion": None,
+            "tech_hint": None
+        }
+
+        if not has_nexus_md:
+            result["suggestion"] = (
+                f"No NEXUS.md found in {project_path}. "
+                "Use /bootstrap to auto-generate project context."
+            )
+
+            # Quick tech detection
+            tech_hints = []
+            if (project_path / "pyproject.toml").exists() or (project_path / "requirements.txt").exists():
+                tech_hints.append("Python")
+            if (project_path / "package.json").exists():
+                tech_hints.append("JavaScript/Node")
+            if (project_path / "Cargo.toml").exists():
+                tech_hints.append("Rust")
+            if (project_path / "go.mod").exists():
+                tech_hints.append("Go")
+
+            if tech_hints:
+                result["tech_hint"] = f"Detected: {', '.join(tech_hints)}"
+
+        self.logger.debug("Project context check", result)
+        return result
+
+    def get_startup_hints(self) -> list:
+        """
+        Get startup hints for REPL display.
+
+        Returns list of hint strings to show user on startup.
+        """
+        hints = []
+
+        # Check project context
+        ctx = self.check_project_context()
+        if not ctx["has_nexus_md"]:
+            if ctx["tech_hint"]:
+                hints.append(f"📦 {ctx['tech_hint']}")
+            hints.append("💡 Tip: Use /bootstrap to generate project context (NEXUS.md)")
+
+        # Swarm status
+        if self.swarm_engine:
+            hints.append("🐝 Hybrid Swarm Engine: enabled")
+            if self.swarm_engine._got_enabled:
+                hints.append("🧠 Graph of Thought: available for complex tasks")
+
+        return hints
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
         """

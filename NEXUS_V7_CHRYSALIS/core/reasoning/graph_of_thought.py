@@ -604,9 +604,202 @@ class GraphOfThought:
 
         return graph
 
+    def execute_parallel(
+        self,
+        graph: ThoughtGraph,
+        executor: Callable[[ThoughtNode], str],
+        max_workers: int = 3,
+        max_iterations: int = 100,
+        on_progress: Optional[Callable[[ThoughtGraph, ThoughtNode, str], None]] = None
+    ) -> ThoughtGraph:
+        """
+        Execute the thought graph with parallel node processing.
+
+        Args:
+            graph: The ThoughtGraph to execute
+            executor: Function that takes a ThoughtNode and returns answer string
+            max_workers: Maximum parallel workers (default: 3)
+            max_iterations: Maximum iterations to prevent infinite loops
+            on_progress: Optional callback(graph, node, event) for progress updates
+                         Events: "started", "completed", "failed", "skipped"
+
+        Returns:
+            The executed ThoughtGraph with answers
+
+        Example:
+            def my_executor(node: ThoughtNode) -> str:
+                return llm_response
+
+            def on_progress(graph, node, event):
+                print(f"{event}: {node.name}")
+
+            result = got.execute_parallel(graph, my_executor, on_progress=on_progress)
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        iterations = 0
+
+        def _notify(node: ThoughtNode, event: str):
+            if on_progress:
+                try:
+                    on_progress(graph, node, event)
+                except Exception:
+                    pass  # Don't let callback errors break execution
+
+        def _execute_node(node: ThoughtNode) -> tuple:
+            """Execute a single node, return (node_id, success, result/error)."""
+            node.status = ThoughtStatus.IN_PROGRESS
+            node.attempts += 1
+            _notify(node, "started")
+
+            try:
+                # Build context from completed dependencies
+                dep_context = []
+                for dep_id in node.dependencies:
+                    dep_node = graph.get_node(dep_id)
+                    if dep_node and dep_node.status == ThoughtStatus.COMPLETED:
+                        dep_context.append(f"[{dep_node.name}]: {dep_node.answer}")
+
+                if dep_context:
+                    node.context = f"Previous results:\n" + "\n".join(dep_context) + "\n\n" + (node.context or "")
+
+                # Execute
+                answer = executor(node)
+                return (node.id, True, answer)
+
+            except Exception as e:
+                return (node.id, False, str(e))
+
+        while not graph.is_complete() and iterations < max_iterations:
+            iterations += 1
+
+            # Get nodes ready to process
+            ready_nodes = graph.get_ready_nodes()
+
+            if not ready_nodes:
+                # Handle stuck nodes
+                self._handle_stuck_nodes(graph, _notify)
+                continue
+
+            # Execute ready nodes in parallel
+            with ThreadPoolExecutor(max_workers=min(max_workers, len(ready_nodes))) as pool:
+                futures = {pool.submit(_execute_node, node): node for node in ready_nodes}
+
+                for future in as_completed(futures):
+                    node = futures[future]
+                    try:
+                        node_id, success, result = future.result()
+
+                        if success:
+                            node.mark_completed(result, confidence=1.0)
+                            _notify(node, "completed")
+                        else:
+                            if node.attempts >= node.max_attempts:
+                                node.mark_failed(result)
+                                _notify(node, "failed")
+                            else:
+                                node.status = ThoughtStatus.PENDING  # Retry
+
+                    except Exception as e:
+                        node.mark_failed(str(e))
+                        _notify(node, "failed")
+
+        return graph
+
+    def _handle_stuck_nodes(
+        self,
+        graph: ThoughtGraph,
+        notify: Optional[Callable] = None
+    ):
+        """Handle nodes that are stuck due to failed dependencies."""
+        pending = [n for n in graph.nodes.values() if n.status == ThoughtStatus.PENDING]
+
+        for node in pending:
+            failed_deps = [
+                d for d in node.dependencies
+                if graph.nodes.get(d) and graph.nodes[d].status == ThoughtStatus.FAILED
+            ]
+            if failed_deps:
+                node.status = ThoughtStatus.SKIPPED
+                node.reasoning = f"Skipped due to failed dependencies: {failed_deps}"
+                if notify:
+                    notify(node, "skipped")
+
     def get_graph(self, name: str) -> Optional[ThoughtGraph]:
         """Get a graph by name."""
         return self.graphs.get(name)
+
+    def get_execution_progress(self, graph: ThoughtGraph) -> Dict:
+        """
+        Get detailed execution progress for a graph.
+
+        Returns:
+            Dictionary with progress metrics and status
+        """
+        total = len(graph.nodes)
+        completed = graph.get_completed_count()
+        failed = graph.get_failed_count()
+        skipped = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.SKIPPED)
+        in_progress = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.IN_PROGRESS)
+        pending = sum(1 for n in graph.nodes.values() if n.status == ThoughtStatus.PENDING)
+
+        return {
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+            "skipped": skipped,
+            "in_progress": in_progress,
+            "pending": pending,
+            "progress_pct": round((completed + failed + skipped) / total * 100, 1) if total > 0 else 0,
+            "success_rate": round(completed / (completed + failed) * 100, 1) if (completed + failed) > 0 else 0,
+            "is_complete": graph.is_complete()
+        }
+
+    def visualize_progress(self, graph: ThoughtGraph) -> str:
+        """
+        Create a progress visualization string for REPL display.
+
+        Returns:
+            Formatted string showing execution progress
+        """
+        progress = self.get_execution_progress(graph)
+        lines = []
+
+        # Header
+        lines.append(f"╔══ {graph.name} ══╗")
+
+        # Progress bar
+        width = 30
+        filled = int(progress["progress_pct"] / 100 * width)
+        bar = "█" * filled + "░" * (width - filled)
+        lines.append(f"│ [{bar}] {progress['progress_pct']}%")
+
+        # Stats
+        lines.append(f"│ ✅ {progress['completed']}/{progress['total']} completed")
+        if progress['failed'] > 0:
+            lines.append(f"│ ❌ {progress['failed']} failed")
+        if progress['skipped'] > 0:
+            lines.append(f"│ ⏭️  {progress['skipped']} skipped")
+        if progress['in_progress'] > 0:
+            lines.append(f"│ 🔄 {progress['in_progress']} in progress")
+
+        # Nodes detail
+        lines.append("│")
+        for node in graph.nodes.values():
+            icon = {
+                ThoughtStatus.PENDING: "⏳",
+                ThoughtStatus.IN_PROGRESS: "🔄",
+                ThoughtStatus.COMPLETED: "✅",
+                ThoughtStatus.FAILED: "❌",
+                ThoughtStatus.SKIPPED: "⏭️",
+                ThoughtStatus.MERGED: "🔀"
+            }.get(node.status, "❓")
+            name = node.name[:25] + "..." if len(node.name) > 25 else node.name
+            lines.append(f"│ {icon} {name}")
+
+        lines.append(f"╚{'═' * (len(graph.name) + 6)}╝")
+
+        return "\n".join(lines)
 
 
 # Convenience functions
