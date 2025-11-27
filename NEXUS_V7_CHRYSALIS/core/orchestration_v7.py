@@ -1113,8 +1113,13 @@ Error: {result_dict['error']}
         except ValidationError as e:
             raise ValueError(f"Invalid message schema: {e}")
 
-    def reset_to_idle(self):
-        """Reset orchestrator to IDLE (for /reset command)"""
+    def reset_to_idle(self, clear_task: bool = True):
+        """
+        Reset orchestrator to IDLE (for /reset command)
+
+        Args:
+            clear_task: If True, also clears the current objective and history
+        """
         self.state = OrchestratorState.IDLE
         self.stagnation_detector.reset()
         self.stalemate_counter = 0
@@ -1122,6 +1127,13 @@ Error: {result_dict['error']}
         self.json_parse_failures = 0
         self.panic_system.clear_panic()  # Clear panic state
         self.plan_health.reset()  # Reset plan health monitoring
+
+        # Clear task-related state to avoid stale objectives
+        if clear_task:
+            self.blackboard["objective"] = ""
+            self.blackboard["strategic_plan"] = []
+            self.blackboard["recent_history"] = []
+            self.memory.save_to_disk()
 
     def get_system_status(self) -> Dict:
         """Get comprehensive system status (for /status command)"""
@@ -1169,8 +1181,8 @@ Error: {result_dict['error']}
             # Reload blackboard reference
             self.blackboard = self.memory.blackboard
 
-            # Reset to IDLE
-            self.reset_to_idle()
+            # Reset to IDLE but keep restored task
+            self.reset_to_idle(clear_task=False)
 
             return True
         return False

@@ -10,8 +10,33 @@ V7 Features:
 """
 import subprocess
 import json
+import sys
+import atexit
 from pathlib import Path
 from typing import Dict, Optional
+
+
+# Global reference for cleanup at exit
+_active_processes = []
+
+
+def _cleanup_processes():
+    """Kill any remaining Gemini processes at exit."""
+    for proc in _active_processes:
+        try:
+            if proc.poll() is None:  # Still running
+                proc.terminate()
+                proc.wait(timeout=2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    _active_processes.clear()
+
+
+# Register cleanup handler
+atexit.register(_cleanup_processes)
 
 
 class GeminiDriverV7:
@@ -88,16 +113,105 @@ class GeminiDriverV7:
             if use_shell:
                 print(f"[DEBUG] Command: {command}", file=sys.stderr)
 
-            result = subprocess.run(
+            # Use Popen with polling loop to allow CTRL+C interruption
+            proc = subprocess.Popen(
                 command,
                 cwd=str(self.workspace_path),
                 shell=use_shell,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.timeout,
                 encoding='utf-8',
                 errors='replace'
             )
+
+            # Track for cleanup at exit
+            _active_processes.append(proc)
+
+            try:
+                import threading
+                import queue
+
+                start_time = time.time()
+                stdout_data = []
+                stderr_data = []
+                output_queue = queue.Queue()
+
+                def read_stream(stream, stream_name, data_list):
+                    """Read stream in thread and queue lines for display."""
+                    try:
+                        for line in iter(stream.readline, ''):
+                            if line:
+                                data_list.append(line)
+                                output_queue.put((stream_name, line.strip()))
+                    except Exception:
+                        pass
+
+                # Start reader threads
+                stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, 'stdout', stdout_data))
+                stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, 'stderr', stderr_data))
+                stdout_thread.daemon = True
+                stderr_thread.daemon = True
+                stdout_thread.start()
+                stderr_thread.start()
+
+                # Poll loop - shows real activity
+                last_activity = ""
+                while proc.poll() is None:
+                    elapsed = time.time() - start_time
+                    if elapsed > self.timeout:
+                        print("\r" + " " * 80 + "\r", end="", file=sys.stderr)
+                        proc.kill()
+                        proc.wait()
+                        raise TimeoutError(f"Gemini CLI timed out after {self.timeout}s")
+
+                    # Check for new output
+                    try:
+                        while True:
+                            stream_name, line = output_queue.get_nowait()
+                            if line and len(line) > 3:
+                                # Show real activity from Gemini
+                                last_activity = line[:60] + "..." if len(line) > 60 else line
+                    except queue.Empty:
+                        pass
+
+                    # Show status with real activity or waiting message
+                    status = f"🤖 Gemini [{int(elapsed)}s]"
+                    if last_activity:
+                        print(f"\r{status}: {last_activity[:50]}", end="", file=sys.stderr)
+                    else:
+                        print(f"\r{status}: Processing...", end="", file=sys.stderr)
+
+                    time.sleep(0.2)
+
+                # Wait for threads to finish
+                stdout_thread.join(timeout=1)
+                stderr_thread.join(timeout=1)
+
+                # Clear status line
+                print("\r" + " " * 80 + "\r", end="", file=sys.stderr)
+
+                # Combine outputs
+                stdout = ''.join(stdout_data)
+                stderr = ''.join(stderr_data)
+
+            except KeyboardInterrupt:
+                print("\n[DEBUG] Interrupt received, killing Gemini process...", file=sys.stderr)
+                proc.kill()
+                proc.wait()
+                raise
+            finally:
+                # Remove from tracking once done
+                if proc in _active_processes:
+                    _active_processes.remove(proc)
+
+            # Create result-like object for compatibility
+            class Result:
+                pass
+            result = Result()
+            result.returncode = proc.returncode
+            result.stdout = stdout
+            result.stderr = stderr
 
             print(f"[DEBUG] Gemini returned: code={result.returncode}, stdout_len={len(result.stdout)}", file=sys.stderr)
 
@@ -140,21 +254,23 @@ class GeminiDriverV7:
             
             return extracted_data
 
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"Gemini CLI timed out after {self.timeout}s")
+        except TimeoutError:
+            # Re-raise timeout from the inner try block
+            raise
 
-    def _extract_json(self, text: str) -> Dict:
+    def _extract_json(self, text: str, fallback_to_error: bool = True) -> Dict:
         """
         Extract JSON from text (robust fallback)
 
         Args:
             text: Raw text that might contain JSON
+            fallback_to_error: If True, return error dict instead of raising
 
         Returns:
-            Dict
+            Dict (extracted JSON or error fallback)
 
         Raises:
-            ValueError: If no JSON found
+            ValueError: If no JSON found and fallback_to_error is False
         """
         import re
 
@@ -173,13 +289,13 @@ class GeminiDriverV7:
         # 2. Try to find a raw JSON object structure
         # Look for { at start of line or after newline, followed by "sender" key
         # This helps filter out example JSONs in the prompt
-        
+
         # Robust pattern to find the outermost JSON object
         # We look for the largest block starting with { and ending with }
         try:
             # Find start of potential JSON (heuristic: looks for {"sender":)
             start_indices = [m.start() for m in re.finditer(r'\{\s*"sender"', text)]
-            
+
             for start in reversed(start_indices): # Try last occurrence first
                 # Simple bracket counting to find the end
                 brackets = 0
@@ -210,5 +326,19 @@ class GeminiDriverV7:
                 except json.JSONDecodeError:
                     continue
 
-        # No JSON found
-        raise ValueError(f"Could not extract JSON from Gemini response: {text[:500]}...")
+        # No JSON found - provide fallback or raise
+        if fallback_to_error:
+            # Return a structured error response that won't crash the system
+            # Extract any useful content from the raw text
+            content_preview = text[:1000] if text else "[Empty response]"
+            return {
+                "sender": "Gemini",
+                "action_type": "TALK",
+                "content": f"[JSON extraction failed - raw response]\n{content_preview}",
+                "status": "CONTINUE",
+                "next_agent": "Claude",
+                "_json_extraction_failed": True,
+                "_raw_response_preview": text[:500] if text else ""
+            }
+        else:
+            raise ValueError(f"Could not extract JSON from Gemini response: {text[:500]}...")

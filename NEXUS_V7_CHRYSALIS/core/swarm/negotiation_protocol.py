@@ -59,6 +59,24 @@ class NegotiationProposal:
     @classmethod
     def from_dict(cls, data: Dict) -> "NegotiationProposal":
         """Parse proposal from dictionary"""
+        # Validate subtasks is a dict, not a list
+        subtasks_raw = data.get("subtasks")
+        if isinstance(subtasks_raw, list):
+            # Convert list to dict: index -> value or skip malformed entries
+            subtasks = {}
+            for i, item in enumerate(subtasks_raw):
+                if isinstance(item, dict):
+                    # Try to extract agent and task from dict
+                    agent = item.get("agent", f"agent_{i}")
+                    task = item.get("task", str(item))
+                    subtasks[agent] = task
+                elif isinstance(item, str):
+                    subtasks[f"agent_{i}"] = item
+        elif isinstance(subtasks_raw, dict):
+            subtasks = subtasks_raw
+        else:
+            subtasks = None
+
         return cls(
             proposed_mode=data.get("proposed_mode"),
             proposed_lead=data.get("proposed_lead"),
@@ -67,7 +85,7 @@ class NegotiationProposal:
             justification=data.get("justification"),
             agrees_with_partner=data.get("agrees_with_partner", False),
             consensus_reached=data.get("consensus_reached", False),
-            subtasks=data.get("subtasks"),
+            subtasks=subtasks,
             counter_proposal=data.get("counter_proposal")
         )
 
@@ -410,9 +428,12 @@ class NegotiationProtocol:
         """Finalize agent assignments based on consensus"""
         assignments = []
 
-        if message.structured_proposal and message.structured_proposal.subtasks:
+        subtasks = message.structured_proposal.subtasks if message.structured_proposal else None
+
+        # Defensive check: ensure subtasks is a dict before iterating
+        if subtasks and isinstance(subtasks, dict):
             # Use negotiated subtasks
-            for agent_id, subtask in message.structured_proposal.subtasks.items():
+            for agent_id, subtask in subtasks.items():
                 role = "equal"
                 if message.structured_proposal.proposed_lead:
                     if agent_id.lower() == message.structured_proposal.proposed_lead.lower():

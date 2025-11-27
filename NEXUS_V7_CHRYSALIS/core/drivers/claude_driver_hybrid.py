@@ -35,8 +35,34 @@ Parser Output:
 import re
 import json
 import subprocess
+import sys
+import time
+import atexit
 from pathlib import Path
 from typing import Dict, Optional
+
+
+# Global reference for cleanup at exit
+_active_claude_processes = []
+
+
+def _cleanup_claude_processes():
+    """Kill any remaining Claude processes at exit."""
+    for proc in _active_claude_processes:
+        try:
+            if proc.poll() is None:  # Still running
+                proc.terminate()
+                proc.wait(timeout=2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    _active_claude_processes.clear()
+
+
+# Register cleanup handler
+atexit.register(_cleanup_claude_processes)
 
 
 class ClaudeDriverHybrid:
@@ -88,27 +114,108 @@ class ClaudeDriverHybrid:
         command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions'
 
         try:
-            result = subprocess.run(
+            # Use Popen with polling loop to allow CTRL+C interruption
+            proc = subprocess.Popen(
                 command,
                 cwd=str(self.workspace_path),
                 shell=True,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.timeout,
                 encoding='utf-8',
                 errors='replace'
             )
 
-            if result.returncode != 0:
-                raise RuntimeError(f"Claude CLI failed: {result.stderr}")
+            # Track for cleanup at exit
+            _active_claude_processes.append(proc)
 
-            raw_response = result.stdout
+            try:
+                import threading
+                import queue
+
+                start_time = time.time()
+                stdout_data = []
+                stderr_data = []
+                output_queue = queue.Queue()
+
+                def read_stream(stream, stream_name, data_list):
+                    """Read stream in thread and queue lines for display."""
+                    try:
+                        for line in iter(stream.readline, ''):
+                            if line:
+                                data_list.append(line)
+                                output_queue.put((stream_name, line.strip()))
+                    except Exception:
+                        pass
+
+                # Start reader threads
+                stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, 'stdout', stdout_data))
+                stderr_thread = threading.Thread(target=read_stream, args=(proc.stderr, 'stderr', stderr_data))
+                stdout_thread.daemon = True
+                stderr_thread.daemon = True
+                stdout_thread.start()
+                stderr_thread.start()
+
+                # Poll loop - shows real activity
+                last_activity = ""
+                while proc.poll() is None:
+                    elapsed = time.time() - start_time
+                    if elapsed > self.timeout:
+                        print("\r" + " " * 80 + "\r", end="", file=sys.stderr)
+                        proc.kill()
+                        proc.wait()
+                        raise TimeoutError(f"Claude CLI timed out after {self.timeout}s")
+
+                    # Check for new output
+                    try:
+                        while True:
+                            stream_name, line = output_queue.get_nowait()
+                            if line and len(line) > 3:
+                                # Show real activity from Claude
+                                last_activity = line[:60] + "..." if len(line) > 60 else line
+                    except queue.Empty:
+                        pass
+
+                    # Show status with real activity or waiting message
+                    status = f"🧠 Claude [{int(elapsed)}s]"
+                    if last_activity:
+                        print(f"\r{status}: {last_activity[:50]}", end="", file=sys.stderr)
+                    else:
+                        print(f"\r{status}: Processing...", end="", file=sys.stderr)
+
+                    time.sleep(0.2)
+
+                # Wait for threads to finish
+                stdout_thread.join(timeout=1)
+                stderr_thread.join(timeout=1)
+
+                # Clear status line
+                print("\r" + " " * 80 + "\r", end="", file=sys.stderr)
+
+                # Combine outputs
+                stdout = ''.join(stdout_data)
+                stderr = ''.join(stderr_data)
+
+            except KeyboardInterrupt:
+                print("\n[DEBUG] Interrupt received, killing Claude process...", file=sys.stderr)
+                proc.kill()
+                proc.wait()
+                raise
+            finally:
+                # Remove from tracking once done
+                if proc in _active_claude_processes:
+                    _active_claude_processes.remove(proc)
+
+            if proc.returncode != 0:
+                raise RuntimeError(f"Claude CLI failed: {stderr}")
+
+            raw_response = stdout
 
             # Parse hybrid response
             return self._parse_hybrid_response(raw_response)
 
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"Claude CLI timed out after {self.timeout}s")
+        except TimeoutError:
+            raise
 
     def _parse_hybrid_response(self, raw_text: str) -> Dict:
         """

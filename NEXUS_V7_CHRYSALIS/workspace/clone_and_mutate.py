@@ -243,6 +243,41 @@ def validate_python_syntax(content: str, file_path: Path) -> bool:
         raise SyntaxError(f"Python syntax error in {file_path}: line {e.lineno}, {e.msg}") from e
 
 
+def validate_path_containment(target_dir: Path, file_path: str) -> Path:
+    """
+    SECURITY: Ensure the resolved path stays within target_dir sandbox.
+
+    Prevents path traversal attacks like:
+    - "../../NEXUS_V7_CHRYSALIS/KERNEL.py"
+    - "/etc/passwd" (absolute paths)
+    - "..\\..\\kernel.py" (Windows style)
+
+    Args:
+        target_dir: The sandbox directory (GENERATION_ACTIVE/<child>)
+        file_path: The requested file path from mutation JSON
+
+    Returns:
+        Resolved Path if valid
+
+    Raises:
+        ValueError: If path escapes the sandbox
+    """
+    # Resolve the full path
+    full_path = (target_dir / file_path).resolve()
+    target_resolved = target_dir.resolve()
+
+    # Ensure it's within target_dir
+    try:
+        full_path.relative_to(target_resolved)
+    except ValueError:
+        raise ValueError(
+            f"PATH TRAVERSAL BLOCKED: '{file_path}' resolves to '{full_path}' "
+            f"which is outside sandbox '{target_resolved}'"
+        )
+
+    return full_path
+
+
 def apply_mutation_to_target(mutation: Dict[str, Any], target_dir: Path, index: int) -> None:
     """
     Apply a single mutation to the cloned project.
@@ -251,7 +286,9 @@ def apply_mutation_to_target(mutation: Dict[str, Any], target_dir: Path, index: 
         - 'overwrite': Replace entire file content with mutation['change']
         - 'append': Add mutation['change'] to end of file with comment header
     """
-    target_file = target_dir / mutation["file"]
+    # SECURITY: Validate path containment BEFORE any file operations
+    target_file = validate_path_containment(target_dir, mutation["file"])
+
     action = mutation["action"]
     change = mutation["change"]
     reason = mutation["reason"]

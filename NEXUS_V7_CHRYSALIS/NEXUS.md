@@ -1,516 +1,299 @@
-# NEXUS V7.0 - Project Context System
+# NEXUS V7 Chrysalis
 
-**The Best of Both Worlds: Claude Code + Gemini CLI Context Management**
-
-NEXUS V7.0 implements a hierarchical markdown file system for project context, inspired by both Claude CLI's `CLAUDE.md` and Gemini CLI's `GEMINI.md` systems. This gives you powerful, flexible project-aware AI assistance.
+> Self-evolving Multi-Agent Orchestrator pursuing ASI through Darwinian evolution
 
 ---
 
-## What is NEXUS.md?
+## Vision: Intelligence Collaborative Déployable
 
-**NEXUS.md** is a special markdown file that NEXUS automatically reads to gain project-specific context before starting work. It's your project's persistent instruction set that NEXUS follows throughout the entire session.
+**NEXUS n'est pas un simple outil - c'est une intelligence collaborative déployable qui se spécialise selon le contexte.**
 
-Think of it as a **project configuration file** that teaches NEXUS:
-- Your tech stack and tools
-- Code conventions and style guides
-- Project structure and architecture
-- Important commands (build, test, deploy)
-- What NOT to change
+### Le Concept Fondamental
 
----
-
-## File Hierarchy (Inspired by Both CLIs)
-
-NEXUS uses a **hierarchical loading system** combining the best features from both Claude Code and Gemini CLI:
-
-### Loading Order
-
-1. **`~/.nexus/NEXUS.md`** (User home directory)
-   - Default instructions for ALL your projects
-   - Personal preferences, global conventions
-
-2. **`/project/root/NEXUS.md`** (Project root)
-   - Project-wide context
-   - Tech stack, architecture, team conventions
-
-3. **`/project/subdirectory/NEXUS.md`** (Subdirectories)
-   - Module-specific instructions
-   - Component-level context
-
-4. **`NEXUS.local.md`** (Git-ignored, like Claude Code)
-   - Local working notes
-   - Session-specific memory
-   - Personal reminders (not shared with team)
-
-### How It Works
+NEXUS est conçu pour être **cloné dans n'importe quel projet** et devenir son intelligence dédiée :
 
 ```
-~/.nexus/NEXUS.md
-    ↓ (loads first)
-/my-project/NEXUS.md
-    ↓ (loads second)
-/my-project/src/auth/NEXUS.md
-    ↓ (loads third, most specific)
+┌─────────────────────────────────────────────────────────────┐
+│  NEXUS CORE (Cloné dans Projet X)                           │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ 1. ANALYZE    → Découvrir structure, stack, besoins    ││
+│  │ 2. SPECIALIZE → Évoluer pour s'adapter au domaine      ││
+│  │ 3. IDENTIFY   → Découvrir tâches & problèmes           ││
+│  │ 4. EXECUTE    → Résoudre collaborativement             ││
+│  │ 5. EVOLVE     → S'améliorer via données projet         ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Files lower in the hierarchy can override instructions from higher files.**
-
----
-
-## File Structure (Best Practices from Both CLIs)
-
-### Recommended Sections
-
-A well-structured NEXUS.md file should include:
-
-```markdown
-# Tech Stack
-
-- Language: Python 3.11+
-- Framework: FastAPI 0.104+
-- Database: PostgreSQL 15
-- Testing: pytest
-- CI/CD: GitHub Actions
-
-# Project Structure
-
-- `src/` - Source code
-- `tests/` - Test suite
-- `docs/` - Documentation
-- `prompts/` - NEXUS system prompts
-
-# Code Conventions
-
-- Indentation: 4 spaces (Python), 2 spaces (JSON)
-- Linting: ruff (Python), eslint (JS)
-- Naming: snake_case for functions, PascalCase for classes
-- Max line length: 100 characters
-- Docstrings: Google style
-
-# Important Commands
-
-## Build
-\`\`\`bash
-python -m build
-\`\`\`
-
-## Test
-\`\`\`bash
-pytest tests/ -v
-\`\`\`
-
-## Deploy
-\`\`\`bash
-./scripts/deploy.sh production
-\`\`\`
-
-# Architecture Notes
-
-- Auth module uses JWT tokens with 1-hour expiration
-- All database queries use async/await pattern
-- API follows REST conventions
-
-# DO NOT
-
-- DO NOT rewrite working tests without explicit request
-- DO NOT modify config.py without backup
-- DO NOT change database schema without migration
-- DO NOT remove type annotations
-```
-
----
-
-## Modular Organization (Inspired by Gemini CLI)
-
-### Import Syntax
-
-Break large NEXUS.md files into smaller components using **@file.md** syntax:
-
-```markdown
-# Main NEXUS.md
-
-@docs/tech-stack.md
-@docs/conventions.md
-@docs/architecture.md
-```
-
-This allows you to:
-- Keep files manageable (< 200 lines each)
-- Share context modules across projects
-- Organize by concern (tech, style, architecture)
-
-### Example Structure
-
-```
-project/
-├── NEXUS.md (main file)
-├── .nexus/
-│   ├── tech-stack.md
-│   ├── conventions.md
-│   ├── architecture.md
-│   └── system.md (custom system prompt)
-└── NEXUS.local.md (git-ignored)
-```
-
----
-
-## Custom System Prompts (Inspired by Gemini CLI)
-
-### Override Default Prompts
-
-Create `.nexus/system.md` to override NEXUS's default system prompts:
-
-```markdown
-# Custom System Prompt
-
-You are NEXUS working on a high-security financial application.
-
-**CRITICAL RULES:**
-1. ALWAYS validate input against SQL injection
-2. ALWAYS use parameterized queries
-3. NEVER log sensitive data (passwords, tokens, SSNs)
-4. ALWAYS require code review for auth changes
-
-**Security Standards:**
-- OWASP Top 10 compliance
-- PCI-DSS requirements
-- SOC 2 Type II controls
-```
-
-Set environment variable to enable:
-```bash
-export NEXUS_SYSTEM_MD=true
-```
-
----
-
-## Interactive Memory (Inspired by Claude Code)
-
-### During a Session
-
-**Coming Soon:** Press `#` during a NEXUS session to add instructions that will be automatically saved to the appropriate NEXUS.md file.
-
-```
-nexus7> # Remember: Always run black formatter before commit
-[Saved to /project/NEXUS.local.md]
-```
-
----
-
-## Gitignore Integration (Inspired by Gemini CLI)
-
-NEXUS respects both `.gitignore` and `.nexusignore`:
-
-### .nexusignore Example
-
-```
-# Exclude from NEXUS context loading
-node_modules/
-*.log
-*.cache
-dist/
-build/
-.env
-secrets/
-```
-
-This prevents NEXUS from loading NEXUS.md files in excluded directories.
-
----
-
-## Slash Commands (Inspired by Claude Code)
-
-Store reusable workflow templates in `.nexus/commands/`:
-
-### Example: .nexus/commands/review.md
-
-```markdown
-# Code Review Command
-
-Please perform a comprehensive code review:
-
-1. Check for security vulnerabilities
-2. Verify test coverage (>80%)
-3. Validate code style (ruff, black)
-4. Check for performance issues
-5. Verify documentation completeness
-
-Focus on:
-- Error handling
-- Edge cases
-- Type safety
-```
-
-**Usage:**
-```
-nexus6> /review src/auth.py
-```
-
----
-
-## Advanced Features
-
-### Environment-Specific Context
-
-Use environment variables to conditionally load context:
+### Flux de Déploiement
 
 ```bash
-export NEXUS_ENV=production
+# 1. Cloner NEXUS dans le projet cible
+cp -r NEXUS_V7_CHRYSALIS /path/to/project/.nexus
+
+# 2. Lancer et laisser NEXUS analyser
+cd /path/to/project/.nexus && python nexus7.py
+nexus7> "Analyse ce projet et dis-moi ce que tu vois"
+# → AutoBootstrap génère NEXUS.md adapté au projet
+
+# 3. Spécialiser si nécessaire
+nexus7> /specialize "Expert FastAPI e-commerce avec PostgreSQL"
+# → Crée un spinoff spécialisé via brainstorm Claude+Gemini
+
+# 4. Utiliser NEXUS spécialisé pour le travail quotidien
+# → Le Swarm Engine choisit le mode de collaboration optimal par tâche
 ```
 
-In NEXUS.md:
-```markdown
-# Production-Only Instructions
+### Mécanismes d'Adaptation
 
-@if NEXUS_ENV=production
-- NEVER modify database directly
-- ALWAYS use blue-green deployment
-- REQUIRE approval for schema changes
-@endif
-```
+| Mécanisme | Description | Quand |
+|-----------|-------------|-------|
+| **NEXUS.md** | Instructions spécifiques au projet (auto-générées) | Toujours |
+| **AutoBootstrap** | Analyse et génère contexte initial | Premier lancement |
+| **Évolution** | Crée enfants spécialisés pour expertise domaine | Projets complexes |
+| **Mémoire** | Blackboard persiste les patterns appris | Entre sessions |
+| **Swarm** | Négocie le mode de collaboration optimal | Chaque tâche |
 
-### Team-Shared vs Personal
+### Objectif Ultime
 
-```
-NEXUS.md           → Committed to git (team-shared)
-NEXUS.local.md     → Git-ignored (personal notes)
-```
+Un NEXUS déployé dans un projet doit devenir :
+- **Autonome** - Identifier et résoudre des problèmes sans prompts constants
+- **Spécialisé** - Meilleur sur CE projet qu'une IA générique
+- **Évolutif** - Amélioration continue des capacités spécifiques
+- **Collaboratif** - Claude + Gemini travaillant comme une seule intelligence
 
-**In .gitignore:**
-```
-NEXUS.local.md
-.nexus/local/
-```
+**Ce n'est pas juste atteindre l'ASI abstraitement - c'est une superintelligence pratique pour des projets réels.**
 
 ---
-
-## Best Practices
-
-### 1. Be Specific
-
-**❌ BAD:**
-```markdown
-Format code properly
-```
-
-**✅ GOOD:**
-```markdown
-- Use 4-space indentation for Python
-- Max line length: 100 characters
-- Always use trailing commas in multi-line dicts
-- Sort imports with isort
-```
-
-### 2. Use Markdown Structure
-
-Organize with clear headings:
-```markdown
-## Backend
-- Python 3.11+
-- FastAPI
-
-### Database
-- PostgreSQL 15
-- SQLAlchemy 2.0 ORM
-```
-
-### 3. Document Critical Commands
-
-```markdown
-## Critical Commands
-
-**Emergency Rollback:**
-\`\`\`bash
-./scripts/rollback.sh --confirm
-\`\`\`
-
-**Database Backup:**
-\`\`\`bash
-pg_dump -U postgres -d mydb > backup.sql
-\`\`\`
-```
-
-### 4. Use DO NOT Section
-
-Prevent common mistakes:
-```markdown
-## DO NOT
-
-- DO NOT run migrations on production without backup
-- DO NOT commit .env files
-- DO NOT modify legacy/auth.py (deprecated, waiting removal)
-- DO NOT use pandas for large datasets (use polars)
-```
-
-### 5. Keep It Updated
-
-Treat NEXUS.md like documentation:
-- Update when tech stack changes
-- Add new conventions when team agrees
-- Remove obsolete instructions
-- Version control it with git
-
----
-
-## Examples from Real Projects
-
-### Microservices Project
-
-```markdown
-# E-Commerce Platform
-
-## Services
-- `auth-service/` - JWT authentication
-- `product-service/` - Product catalog
-- `order-service/` - Order processing
-- `payment-service/` - Stripe integration
-
-## Inter-Service Communication
-- Use gRPC for synchronous calls
-- Use RabbitMQ for async events
-- Never call services directly (use API gateway)
-
-## Testing
-- Each service has its own test suite
-- Integration tests in `tests/integration/`
-- Contract tests with Pact
-```
-
-### Data Science Project
-
-```markdown
-# ML Pipeline
 
 ## Tech Stack
-- Python 3.11
-- PyTorch 2.0
-- Pandas / Polars
-- MLflow for tracking
 
-## Conventions
-- All experiments in `notebooks/`
-- Production code in `src/models/`
-- Always log hyperparameters to MLflow
-- Use reproducible seeds (42)
+**Language:** Python 3.13+
+**Architecture:** FSM (Finite State Machine) + Hybrid Swarm Engine
 
-## Data
-- Raw data: `data/raw/`
-- Processed data: `data/processed/`
-- NEVER commit data to git (use DVC)
+**AI Models:**
+- Claude Opus 4.5 / Sonnet 4.5 (via Claude CLI)
+- Gemini 3 Pro / 2.5 Flash (via Gemini CLI)
+
+**Key Libraries:**
+- `pydantic` - Message validation
+- `pathlib` - Cross-platform path handling
+- `subprocess` - CLI invocation
+- `json` - Protocol serialization
+- Standard library only for core FSM
+
+**Protocols:**
+- Gemini: JSON strict (LightMessageV7, HeavyMessageV7)
+- Claude: Hybrid (natural language + XML `<tool_use>` tags)
+
+---
+
+## Project Structure
+
+```
+NEXUS_V7_CHRYSALIS/
+├── core/                    # Core orchestration engine
+│   ├── orchestration_v7.py  # Main FSM orchestrator
+│   ├── drivers/             # AI model drivers
+│   │   ├── claude_driver_hybrid.py  # Claude CLI wrapper
+│   │   └── gemini_driver_v7.py      # Gemini CLI wrapper
+│   ├── execution/           # Tool execution layer
+│   │   └── tool_manager.py  # 11 tools management
+│   ├── fsm/                 # State machine components
+│   │   ├── states.py        # State definitions
+│   │   ├── panic_system.py  # Fatal error handling
+│   │   └── stagnation_detector.py
+│   ├── synapse/             # Memory & protocol
+│   │   ├── memory_v6.py     # Blackboard persistence
+│   │   └── protocol_v6.py   # Message validation
+│   ├── swarm/               # Hybrid Swarm Engine
+│   │   ├── task_analyzer.py # Complexity detection
+│   │   ├── mode_selector.py # Collaboration mode selection
+│   │   └── negotiation_protocol.py
+│   ├── bootstrap/           # Auto-bootstrap system
+│   │   └── auto_bootstrap.py # NEXUS.md generator
+│   ├── interface/           # User interface
+│   │   ├── repl.py          # Interactive REPL
+│   │   └── commands.py      # Slash commands
+│   ├── logging/             # Structured logging
+│   └── governance/          # Alignment & KERNEL
+├── prompts/                 # System prompts
+│   ├── system_gemini_v7.md  # Gemini collaborator prompt
+│   └── system_claude_v7.md  # Claude collaborator prompt
+├── workspace/               # Runtime workspace
+│   ├── _IO_BUFFER/          # Agent I/O files
+│   ├── .nexus/              # State persistence
+│   │   ├── blackboard.json  # Current state
+│   │   └── history.txt      # Session history
+│   └── logs/                # Runtime logs
+├── tests/                   # Test suite (312+ tests)
+├── nexus7.py               # Main entry point
+└── NEXUS.md                # This file
 ```
 
 ---
 
-## Comparison: Claude vs Gemini vs NEXUS
+## Key Commands
 
-| Feature | Claude CLI | Gemini CLI | NEXUS V7 |
-|---------|-----------|------------|----------|
-| Main file | CLAUDE.md | GEMINI.md | NEXUS.md |
-| Hierarchical loading | ✅ | ✅ | ✅ |
-| Local (git-ignored) | CLAUDE.local.md | ❌ | NEXUS.local.md |
-| Import syntax | @path | @file.md | @file.md |
-| Custom system prompt | ❌ | system.md | .nexus/system.md |
-| Slash commands | .claude/commands/ | ❌ | .nexus/commands/ |
-| Gitignore support | ✅ | ✅ .geminiignore | ✅ .nexusignore |
-| Interactive memory | # command | ❌ | # command |
-| Environment vars | ❌ | GEMINI_SYSTEM_MD | NEXUS_SYSTEM_MD |
-
-**NEXUS V7 combines the best features from both!**
-
----
-
-## Quick Start
-
-### 1. Create Your First NEXUS.md
-
+### Run NEXUS V7
 ```bash
-cd /your/project
-```
-
-Create `NEXUS.md`:
-```markdown
-# My Project
-
-## Tech Stack
-- Python 3.11
-- FastAPI
-
-## Commands
-\`\`\`bash
-pytest tests/ -v
-\`\`\`
-
-## Conventions
-- 4-space indentation
-- Black formatter
-```
-
-### 2. Launch NEXUS
-
-```bash
+cd NEXUS_V7_CHRYSALIS
 python nexus7.py
 ```
 
-NEXUS automatically loads your NEXUS.md context!
+### Run Tests
+```bash
+pytest tests/ -v
+pytest tests/ -v --tb=short  # Compact output
+pytest tests/test_specific.py -v  # Single file
+```
 
-### 3. Verify Context Loaded
+### REPL Commands (inside nexus7>)
+- `/status` - Show current FSM state and task
+- `/bootstrap` - Re-analyze project and regenerate NEXUS.md
+- `/reset` - Clear current task, return to IDLE
+- `/evolve` - Start evolution mode (create child NEXUS)
+- `/specialize <mission>` - Create specialized spinoff
+- `exit` or `quit` - Exit NEXUS
+
+### Git Workflow
+```bash
+git checkout N7C  # Development branch
+git add . && git commit -m "feat(v7): description"
+git push origin N7C
+```
+
+---
+
+## Code Conventions
+
+- **Indentation:** 4 spaces (Python)
+- **Naming:** snake_case for functions/variables, PascalCase for classes
+- **Type hints:** Required on all function signatures
+- **Docstrings:** Google style for public APIs
+- **Max line length:** 100 characters
+- **Imports:** Standard lib → Third-party → Local (isort order)
+
+---
+
+## FSM States
 
 ```
-nexus7> /status
+IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
+         ↓
+    WAITING_USER (task finished)
+         ↓
+    ERROR → /reset → IDLE
+         ↓
+    PANIC (fatal - restart required)
 ```
 
-Check that your NEXUS.md was loaded in the context.
+**Swarm Extension:**
+```
+IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATING_CFL
+```
+
+---
+
+## DO NOT
+
+### Critical Protection
+- **DO NOT** modify `core/governance/KERNEL.py` - Immutable alignment core
+- **DO NOT** disable security validators in `clone_and_mutate.py`
+- **DO NOT** bypass path traversal protection
+- **DO NOT** allow children to modify parent code
+
+### Architecture Rules
+- **DO NOT** use `subprocess.run()` with long timeouts - Use Popen with polling
+- **DO NOT** block signal handlers - Always allow CTRL+C interruption
+- **DO NOT** hardcode paths with `/` - Use `pathlib.Path` for cross-platform
+- **DO NOT** catch bare `except:` - Always specify exception types
+
+### Testing Rules
+- **DO NOT** commit with failing tests
+- **DO NOT** modify `tests/` structure without updating conftest.py
+- **DO NOT** skip tests without documenting reason
+
+### Data Rules
+- **DO NOT** commit `.env` files or API keys
+- **DO NOT** log sensitive data (tokens, credentials)
+- **DO NOT** overwrite `workspace/.nexus/blackboard.json` without backup
+
+---
+
+## Architecture Notes
+
+### Agent Communication
+- Agents communicate via file-based I/O buffer (`workspace/_IO_BUFFER/`)
+- Claude: `claude_context_in.md` → stdout parsed
+- Gemini: `gemini_context_in.md` → `gemini_output.json`
+
+### Model Routing
+| Task Type | Claude | Gemini |
+|-----------|--------|--------|
+| Brainstorm, Evolution | Opus | 3-Pro |
+| Reasoning, Research | Sonnet | 3-Pro |
+| Tool execution | Sonnet | Flash |
+| Validation | Sonnet | Flash |
+
+### Swarm Collaboration Modes
+- `PARALLEL` - Both work simultaneously
+- `SEQUENTIAL` - Ordered execution
+- `LEAD_SUPPORT` - Lead drives, support assists
+- `PING_PONG` - Rapid alternation
+- `SPECIALIST` - Single expert
+- `RED_BLUE` - Adversarial review
+
+### Evolution System
+- Children created in `GENERATION_ACTIVE/`
+- Selection via ASI Proximity Score
+- Max 30 turns per evolution brainstorm
+- 3 stagnant generations triggers human intervention
 
 ---
 
 ## Troubleshooting
 
-### NEXUS.md Not Loading
+### Common Issues
 
-**Problem:** Your NEXUS.md file isn't being loaded.
+**CTRL+C not working:**
+- Drivers use Popen with polling loop (not communicate())
+- Check for blocking operations in tool execution
 
-**Solutions:**
-1. Check file is in project root or subdirectory
-2. Verify filename is exactly `NEXUS.md` (case-sensitive)
-3. Ensure file is valid Markdown
-4. Check `.nexusignore` isn't excluding it
+**Gemini CLI timeout:**
+- Default timeout: 300s for reasoning models
+- Check `gemini_driver_v7.py` timeout parameter
 
-### Import Not Working
+**Stale blackboard state:**
+- Run `/reset` to clear current task
+- Delete `workspace/.nexus/blackboard.json` if corrupted
 
-**Problem:** `@file.md` imports not resolving.
-
-**Solutions:**
-1. Use relative paths: `@./docs/tech.md`
-2. Verify imported file exists
-3. Check for circular imports
-4. Ensure imported files are valid Markdown
-
-### Conflicting Instructions
-
-**Problem:** Instructions from multiple NEXUS.md files conflict.
-
-**Solution:** Remember the hierarchy:
-- More specific (deeper) files override general (higher) files
-- Use clear section headings to organize
-- Comment out old instructions instead of deleting
+**False positive framework detection:**
+- Check `exclude_dirs` in `auto_bootstrap.py`
+- Bootstrap module itself excluded from detection
 
 ---
 
-## Resources
+## Testing
 
-- **NEXUS V6 Documentation:** `docs/QUICKSTART.md`
-- **Claude Code Docs:** https://docs.claude.com/en/docs/claude-code/memory
-- **Gemini CLI Docs:** https://google-gemini.github.io/gemini-cli/docs/cli/gemini-md.html
-- **Example Templates:** https://github.com/nexus-ai/templates
+312+ tests covering:
+- FSM state transitions
+- Tool execution
+- Protocol validation
+- Swarm negotiation
+- Security (path traversal, KERNEL protection)
+- Integration scenarios
+
+Run full suite before commits:
+```bash
+pytest tests/ -v --tb=short
+```
 
 ---
 
-## Contributing
+## Related Documentation
 
-Have ideas for improving NEXUS.md? Open an issue or PR!
-
-**Built with the best practices from:**
-- Claude Code by Anthropic
-- Gemini CLI by Google
-
-**Made better together.** 🚀
+- `CLAUDE.md` (parent directory) - Claude Code project instructions
+- `prompts/system_*.md` - Agent system prompts
+- `docs/` - Additional documentation
+- `SESSION_CONTINUITY.md` - Session state tracking

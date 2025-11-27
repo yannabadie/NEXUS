@@ -70,6 +70,10 @@ class InteractiveNexusV7:
 
     def run(self):
         """Main REPL loop"""
+        # Clear previous session state at startup (fresh start)
+        # This prevents stale objectives from previous sessions
+        self.orchestrator.reset_to_idle(clear_task=True)
+
         self.console.print_banner(
             gemini_model=self.orchestrator.gemini_info["model"],
             claude_model=self.orchestrator.claude_info["model"]
@@ -327,11 +331,25 @@ class InteractiveNexusV7:
             # Check if NEXUS.md already exists
             nexus_path = project_path / "NEXUS.md"
             if nexus_path.exists():
+                existing_size = len(nexus_path.read_text(encoding='utf-8'))
                 self.console.print(f"\n⚠️  NEXUS.md already exists at {nexus_path}")
-                response = input("   Overwrite? (y/N): ").strip().lower()
+                self.console.print(f"   Existing file size: {existing_size} characters")
+                self.console.print(f"   New file size: {len(nexus_md)} characters")
+
+                if existing_size > len(nexus_md) * 2:
+                    self.console.print(f"\n   [bold red]WARNING: Existing file is much larger![/bold red]")
+                    self.console.print(f"   The existing NEXUS.md may contain important documentation.")
+
+                response = input("   Create backup and overwrite? (y/N): ").strip().lower()
                 if response != 'y':
                     self.console.print("   Cancelled.")
                     return
+
+                # Create backup before overwriting
+                backup_path = project_path / "NEXUS.md.bak"
+                import shutil
+                shutil.copy2(nexus_path, backup_path)
+                self.console.print(f"   📦 Backup created: {backup_path}")
 
             # Save
             bootstrap.save(nexus_md)
