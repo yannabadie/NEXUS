@@ -1,11 +1,11 @@
-# NEXUS V6.0 - Quick Start Guide
+# NEXUS V7.0 "Chrysalis" - Quick Start Guide
 
 ## Installation
 
 1. **Install dependencies:**
 ```bash
 cd NEXUS_V7_CHRYSALIS
-pip install -r requirements_v6.txt
+pip install -r requirements_v7.txt
 ```
 
 2. **Verify CLIs installed:**
@@ -14,7 +14,7 @@ pip install -r requirements_v6.txt
 
 3. **Launch NEXUS:**
 ```bash
-python nexus6.py
+python nexus7.py
 ```
 
 ## First Use
@@ -22,34 +22,34 @@ python nexus6.py
 When you launch NEXUS V6, you'll see:
 
 ```
-🚀 NEXUS V6.0 Bootstrap...
+🚀 NEXUS V7.0 "Chrysalis" Bootstrap...
 ✓ Python 3.13.x
 ✓ Dependencies installed
 ✓ Workspace structure
 ✓ .env file found
 🔍 Testing CLI tools...
-✅ NEXUS V6.0 Bootstrap Complete
+✅ NEXUS V7.0 "Chrysalis" Bootstrap Complete
 
 📊 Gemini: gemini-3-pro-preview
 🧠 Claude: claude-sonnet-4.5
 
 ╔═══════════════════════════════════════════╗
-║    NEXUS V6.0 - THE OMNISCIENT REPL       ║
+║    NEXUS V7.0 "Chrysalis" - THE OMNISCIENT REPL       ║
 ╚═══════════════════════════════════════════╝
 
-nexus6>
+nexus7>
 ```
 
 ## Basic Usage
 
 ### Simple Task
 ```
-nexus6> Read the file config.py and explain what it does
+nexus7> Read the file config.py and explain what it does
 ```
 
 ### Complex Task
 ```
-nexus6> Find and fix the authentication bug in src/auth.py
+nexus7> Find and fix the authentication bug in src/auth.py
 ```
 
 ## Slash Commands
@@ -90,12 +90,12 @@ nexus6> Find and fix the authentication bug in src/auth.py
 → Install: https://docs.anthropic.com/en/docs/claude-cli
 
 **"Missing packages"**
-→ Run: `pip install -r requirements_v6.txt`
+→ Run: `pip install -r requirements_v7.txt`
 
 ## Example Session
 
 ```
-nexus6> Create a Python function to calculate fibonacci
+nexus7> Create a Python function to calculate fibonacci
 
 [Gemini] I'll help create a fibonacci function. Claude, can you create the file?
 [Claude] Yes, I'll create it now.
@@ -105,7 +105,7 @@ nexus6> Create a Python function to calculate fibonacci
 
 [Claude] I've created fibonacci.py with the function. Would you like me to add tests?
 
-nexus6> yes
+nexus7> yes
 
 [Claude] Adding tests...
 
@@ -114,7 +114,7 @@ nexus6> yes
 
 [Task Complete]
 
-nexus6>
+nexus7>
 ```
 
 ## Next Steps

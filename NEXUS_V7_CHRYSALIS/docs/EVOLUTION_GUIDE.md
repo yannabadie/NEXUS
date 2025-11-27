@@ -12,13 +12,13 @@
 
 ```bash
 # 1. Check current status
-nexus6> /evolve-status
+nexus7> /evolve-status
 
 # 2. Trigger evolution (3 children)
-nexus6> /evolve 3
+nexus7> /evolve 3
 
 # 3. Review children after benchmarks complete
-nexus6> /review
+nexus7> /review
 
 # 4. Approve best child
 [A]pprove | [R]eject
@@ -42,12 +42,12 @@ nexus6> /review
 
 **Example**:
 ```bash
-nexus6> /evolve 3
+nexus7> /evolve 3
 # Wait for "EVOLUTION CYCLE COMPLETE"
 # Check email notification or PENDING_REVIEW.md
 
-nexus6> /review
-Child 1/3: NEXUS_V6.1_CHILD_001
+nexus7> /review
+Child 1/3: NEXUS_V7.1_CHILD_001
 ASI Score: 0.78 (+4.0% vs parent)
 Improvements: Optimized FSM state transitions
 > A  # Approve
@@ -67,7 +67,7 @@ Improvements: Optimized FSM state transitions
 
 **Example**:
 ```bash
-nexus6> [Working on task 50...]
+nexus7> [Working on task 50...]
 � AUTO-EVOLUTION TRIGGER: 50 successful turns reached
    Starting evolution cycle...
 [Evolution runs in background]
@@ -90,15 +90,15 @@ Use /review to evaluate children
 
 **Example**:
 ```bash
-nexus6> /evolve-status
+nexus7> /evolve-status
 Stagnation Counter: 3/3
 =� CRITICAL: SURVIVAL_LAW triggered
 
 # Option A: Custom mutation
-nexus6> /evolve-custom --mutation="rewrite_memory_system"
+nexus7> /evolve-custom --mutation="rewrite_memory_system"
 
 # Option B: Rollback
-nexus6> /rollback GEN_005
+nexus7> /rollback GEN_005
 ```
 
 ---
@@ -134,14 +134,14 @@ from core.evolution.mutator import create_child
 
 def enhance_data_analysis(child_path, **kwargs):
     # Add pandas/numpy optimization
-    prompt_file = child_path / "prompts/system_claude_v6.md"
+    prompt_file = child_path / "prompts/system_claude_v7.md"
     with open(prompt_file, 'a') as f:
         f.write("\n\n## Data Analysis Expertise\n...")
     return {"files_modified": [str(prompt_file)], "lines_changed": 50}
 
 result = create_child(
     parent_path=Path("NEXUS_V7_CHRYSALIS"),
-    child_id="NEXUS_V6.1_DATA_ANALYSIS",
+    child_id="NEXUS_V7.1_DATA_ANALYSIS",
     mutation_functions=[enhance_data_analysis],
     ...
 )
@@ -214,7 +214,7 @@ result = create_child(
 **Solution**:
 - Manual promotion:
 ```bash
-cd GENERATION_ACTIVE/NEXUS_V6.1_CHILD_001
+cd GENERATION_ACTIVE/NEXUS_V7.1_CHILD_001
 # Move to production location
 # Update LINEAGE.json manually
 # Reboot NEXUS
@@ -338,5 +338,5 @@ expected_improvements = {
 
 - **Email**: yann.abadie@outlook.com
 - **GitHub**: https://github.com/yannabadie/NEXUS
-- **Branch**: N6P (development)
+- **Branch**: N7C (development)
 - **Issues**: https://github.com/yannabadie/NEXUS/issues

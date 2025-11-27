@@ -60,7 +60,7 @@ Get current active parent NEXUS instance metadata.
 - `Dict`: Current parent metadata
   ```python
   {
-    "id": "NEXUS_V6.0",
+    "id": "NEXUS_V7.0",
     "path": "NEXUS_V7_CHRYSALIS",
     "generation": 6,
     "asi_proximity_score": 0.75,
@@ -193,10 +193,10 @@ Clone parent NEXUS to GENERATION_ACTIVE/ directory.
 ```python
 child_path = clone_parent(
     parent_path=Path("NEXUS_V7_CHRYSALIS"),
-    child_id="NEXUS_V6.1_CHILD_001",
+    child_id="NEXUS_V7.1_CHILD_001",
     workspace_path=Path("workspace")
 )
-# Returns: Path("GENERATION_ACTIVE/NEXUS_V6.1_CHILD_001")
+# Returns: Path("GENERATION_ACTIVE/NEXUS_V7.1_CHILD_001")
 ```
 
 ---
@@ -216,9 +216,9 @@ Apply mutation functions to child NEXUS.
 **Example**:
 ```python
 mutations = apply_mutations(
-    child_path=Path("GENERATION_ACTIVE/NEXUS_V6.1_CHILD_001"),
+    child_path=Path("GENERATION_ACTIVE/NEXUS_V7.1_CHILD_001"),
     mutation_functions=[optimize_fsm_transitions],
-    mutation_params=[{"target_file": "core/orchestration_v6.py"}]
+    mutation_params=[{"target_file": "core/orchestration_v7.py"}]
 )
 ```
 
@@ -257,7 +257,7 @@ Complete child creation workflow (clone � mutate � diff � birth cert).
 - `Dict`: Child creation result
   ```python
   {
-    "child_id": "NEXUS_V6.1_CHILD_001",
+    "child_id": "NEXUS_V7.1_CHILD_001",
     "child_path": Path(...),
     "cert_path": Path(...),
     "diff_path": Path(...),
@@ -272,12 +272,12 @@ from core.evolution.mutator import create_child, optimize_fsm_transitions
 
 result = create_child(
     parent_path=Path("NEXUS_V7_CHRYSALIS"),
-    child_id="NEXUS_V6.1_FSM_OPT",
-    parent_id="NEXUS_V6.0",
+    child_id="NEXUS_V7.1_FSM_OPT",
+    parent_id="NEXUS_V7.0",
     generation=7,
     justification="Optimize FSM state transitions with caching",
     mutation_functions=[optimize_fsm_transitions],
-    mutation_params=[{"target_file": "core/orchestration_v6.py"}],
+    mutation_params=[{"target_file": "core/orchestration_v7.py"}],
     expected_improvements={"latency_reduction": "15%"},
     workspace_path=Path("workspace")
 )
@@ -325,7 +325,7 @@ Run benchmark suite on NEXUS instance.
 - `Dict`: Benchmark results with scores per dimension
   ```python
   {
-    "nexus_id": "NEXUS_V6.1_FSM_OPT",
+    "nexus_id": "NEXUS_V7.1_FSM_OPT",
     "benchmark_suite": "asi_proximity",
     "timestamp": "2025-11-21T21:00:00Z",
     "scores": {
@@ -379,8 +379,8 @@ Compare child ASI score to parent.
 - `Dict`: Comparison metadata
   ```python
   {
-    "child_id": "NEXUS_V6.1_CHILD_001",
-    "parent_id": "NEXUS_V6.0",
+    "child_id": "NEXUS_V7.1_CHILD_001",
+    "parent_id": "NEXUS_V7.0",
     "child_score": 0.78,
     "parent_score": 0.75,
     "improvement_percent": 4.0,
@@ -441,7 +441,7 @@ Complete evaluation workflow for a single child.
 - `Dict`: Complete evaluation results
   ```python
   {
-    "child_id": "NEXUS_V6.1_CHILD_001",
+    "child_id": "NEXUS_V7.1_CHILD_001",
     "child_results": {...},
     "parent_results": {...},
     "comparison": {...},
@@ -468,7 +468,7 @@ Complete evaluation workflow for a single child.
   "created_at": "2025-11-21T20:00:00Z",
   "last_updated": "2025-11-21T20:00:00Z",
   "current_parent": {
-    "id": "NEXUS_V6.0",
+    "id": "NEXUS_V7.0",
     "path": "NEXUS_V7_CHRYSALIS",
     "generation": 6,
     "asi_proximity_score": 0.75,
@@ -482,7 +482,7 @@ Complete evaluation workflow for a single child.
     "stagnation_counter": 0
   },
   "lineage_tree": {
-    "NEXUS_V6.0": {
+    "NEXUS_V7.0": {
       "generation": 6,
       "parent": "NEXUS_V5.1",
       "children": [],
@@ -504,15 +504,15 @@ Complete evaluation workflow for a single child.
 ```python
 {
   "birth_certificate": {
-    "child_id": "NEXUS_V6.1_FSM_OPT",
-    "parent_id": "NEXUS_V6.0",
+    "child_id": "NEXUS_V7.1_FSM_OPT",
+    "parent_id": "NEXUS_V7.0",
     "generation": 7,
     "birth_timestamp": "2025-11-21T20:30:00Z",
     "creator": "NEXUS Evolution Engine",
     "human_authority": "Yann Abadie",
     "justification": "Optimize FSM state transitions with caching",
     "code_changes": {
-      "files_modified": ["core/orchestration_v6.py"],
+      "files_modified": ["core/orchestration_v7.py"],
       "diff_hash": "sha256:...",
       "lines_changed": 127
     },
@@ -535,7 +535,7 @@ Complete evaluation workflow for a single child.
 
 ```python
 {
-  "nexus_id": "NEXUS_V6.1_FSM_OPT",
+  "nexus_id": "NEXUS_V7.1_FSM_OPT",
   "benchmark_suite": "asi_proximity",
   "timestamp": "2025-11-21T21:00:00Z",
   "scores": {
