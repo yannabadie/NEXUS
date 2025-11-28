@@ -8,10 +8,16 @@ V7 Features:
 - Gemini Flash for simple tasks (tool, validation, format)
 - Model routing via ModelRouter.select_gemini_model()
 
-V7 Sprint 12: Persistent Mode
-- Interactive mode (-i) with YOLO restricted to read-only tools
-- ~7-10s latency reduction per turn after first invocation
-- Automatic fallback to subprocess mode on failure
+V7 Sprint 12: Session Resume Mode
+- Uses --resume latest for context persistence between invocations
+- Automatic session management (no manual session ID tracking)
+
+V7 Sprint 13: PTY Mode (Experimental)
+- Single-shot PTY mode via gemini_pty.py
+- Uses --prompt-interactive for initial prompt processing
+- LIMITATION: Follow-up prompts don't submit in PTY mode (TUI input issue)
+- Use for: Single-turn operations where you want PTY benefits
+- Default: Subprocess mode (reliable multi-turn support)
 """
 import subprocess
 import json
@@ -25,6 +31,14 @@ from typing import Dict, Optional
 # Global reference for cleanup at exit
 _active_processes = []
 _persistent_process = None  # Singleton persistent process
+
+# PTY availability check
+try:
+    from .gemini_pty import PersistentGeminiPTY, WINPTY_AVAILABLE
+    PTY_AVAILABLE = WINPTY_AVAILABLE
+except ImportError:
+    PTY_AVAILABLE = False
+    PersistentGeminiPTY = None
 
 
 def _cleanup_processes():
@@ -71,7 +85,8 @@ class GeminiDriverV7:
         workspace_path: Path,
         model: Optional[str] = None,
         agent_id: Optional[str] = None,
-        persistent: Optional[bool] = None
+        persistent: Optional[bool] = None,
+        pty_mode: Optional[bool] = None
     ):
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
@@ -92,6 +107,12 @@ class GeminiDriverV7:
         # Legacy persistent process (disabled - use session resume instead)
         self.persistent = False  # Disabled: -i with stdin doesn't work
         self._persistent_process = None
+
+        # V7 Sprint 13: PTY mode (experimental single-shot)
+        # NOTE: PTY mode only works for ONE prompt per session due to TUI input limitations
+        # Enable for single-turn operations, disable for multi-turn conversations
+        self.pty_mode = pty_mode if pty_mode is not None else getattr(config, 'gemini_pty_mode', False)
+        self.pty_available = PTY_AVAILABLE
 
     def _init_persistent(self):
         """Initialize the persistent Gemini process."""
@@ -122,14 +143,16 @@ class GeminiDriverV7:
             print(f"[WARNING] Could not initialize persistent Gemini: {e}", file=sys.stderr)
             self._persistent_process = None
 
-    def invoke(self, context: str) -> Dict:
+    def invoke(self, context: str, use_pty: Optional[bool] = None) -> Dict:
         """
         Invoke Gemini CLI avec contexte markdown.
 
         V7 Sprint 12: Uses persistent mode if available, with automatic fallback.
+        V7 Sprint 13: PTY single-shot mode for one-off operations.
 
         Args:
             context: Contexte markdown avec system prompt
+            use_pty: Override PTY mode for this invocation (None = use default)
 
         Returns:
             Dict structuré NEXUS (JSON parsé)
@@ -138,7 +161,18 @@ class GeminiDriverV7:
             RuntimeError: Si Gemini CLI échoue
             TimeoutError: Si timeout dépassé
         """
-        # V7 Sprint 12: Try persistent mode first, fallback to subprocess
+        # Determine if we should try PTY mode
+        try_pty = use_pty if use_pty is not None else self.pty_mode
+
+        # V7 Sprint 13: Try PTY single-shot mode if enabled and available
+        if try_pty and self.pty_available:
+            try:
+                return self._invoke_pty_single_shot(context)
+            except Exception as e:
+                print(f"[WARNING] PTY mode failed: {e}, falling back to subprocess", file=sys.stderr)
+                # Fall through to subprocess mode
+
+        # V7 Sprint 12: Try persistent mode if available (legacy)
         if self.persistent and self._persistent_process and self._persistent_process.is_alive():
             try:
                 return self._invoke_persistent(context)
@@ -148,9 +182,69 @@ class GeminiDriverV7:
 
         return self._invoke_subprocess(context)
 
+    def _invoke_pty_single_shot(self, context: str) -> Dict:
+        """
+        Invoke Gemini using PTY single-shot mode.
+
+        Creates a new PTY session for each invocation with the prompt passed
+        via --prompt-interactive. The PTY is closed after getting the response.
+
+        NOTE: This mode is useful for single-turn operations. For multi-turn
+        conversations, use subprocess mode with --resume latest.
+
+        Args:
+            context: Context markdown
+
+        Returns:
+            Dict structured NEXUS response
+        """
+        print(f"[DEBUG] Invoking Gemini (PTY single-shot): {self.model}", file=sys.stderr)
+
+        # Calculate nexus_root for include_directories
+        resolved_workspace = self.workspace_path.resolve()
+        parent_dir = resolved_workspace.parent
+        grandparent = parent_dir.parent
+        if grandparent.name == "GENERATION_ACTIVE":
+            nexus_root = grandparent.parent
+        else:
+            nexus_root = grandparent
+
+        # Create PTY instance
+        pty = PersistentGeminiPTY(
+            config=self.config,
+            workspace_path=self.workspace_path,
+            model=self.model,
+            include_directories=[nexus_root]
+        )
+
+        try:
+            # Start PTY with prompt as initial prompt (this is the key!)
+            # PTY mode works for initial prompts via --prompt-interactive
+            start_time = time.time()
+            if not pty.start(initial_prompt=context):
+                raise RuntimeError("Failed to start PTY process")
+
+            # Since start() waits for the response, we can get stats
+            elapsed = time.time() - start_time
+            print(f"[DEBUG] PTY single-shot completed in {elapsed:.1f}s", file=sys.stderr)
+
+            # Get the initial response captured during startup
+            raw_response = pty.get_initial_response()
+            if not raw_response:
+                # Fallback to raw output if extraction failed
+                raw_response = pty.get_startup_raw_output()
+                print(f"[DEBUG] Using raw startup output ({len(raw_response)} chars)", file=sys.stderr)
+
+            # Extract JSON from response
+            return self._extract_json(raw_response)
+
+        finally:
+            # Always close PTY (single-shot mode)
+            pty.close()
+
     def _invoke_persistent(self, context: str) -> Dict:
         """
-        Invoke Gemini using persistent process.
+        Invoke Gemini using persistent process (legacy).
 
         Args:
             context: Context markdown

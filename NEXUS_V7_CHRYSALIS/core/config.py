@@ -178,11 +178,61 @@ class Config:
         self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "True").lower() == "true"
 
         # ====================================================================
+        # GEMINI PTY MODE (V7 Sprint 13 - Experimental)
+        # ====================================================================
+
+        # Enable PTY single-shot mode for Gemini (experimental)
+        # NOTE: PTY mode only works for ONE prompt per session due to TUI limitations
+        # - True: Use PTY for single-turn operations (--prompt-interactive)
+        # - False: Use subprocess mode (reliable, supports multi-turn with --resume)
+        self.gemini_pty_mode: bool = os.getenv("GEMINI_PTY_MODE", "False").lower() == "true"
+
+        # PTY timeouts (seconds)
+        self.gemini_pty_startup_timeout: float = float(os.getenv("GEMINI_PTY_STARTUP_TIMEOUT", "60"))
+        self.gemini_pty_timeout: float = float(os.getenv("GEMINI_PTY_TIMEOUT", "300"))
+        self.gemini_pty_idle_timeout: float = float(os.getenv("GEMINI_PTY_IDLE_TIMEOUT", "5"))
+        self.gemini_pty_max_restarts: int = int(os.getenv("GEMINI_PTY_MAX_RESTARTS", "3"))
+
+        # Session resume mode (uses --resume latest for context persistence)
+        # This is the recommended mode for multi-turn conversations
+        self.gemini_persistent_mode: bool = os.getenv("GEMINI_PERSISTENT_MODE", "False").lower() == "true"
+
+        # JSON output mode for PTY (may interfere with screen reader mode)
+        self.gemini_stream_json: bool = os.getenv("GEMINI_STREAM_JSON", "False").lower() == "true"
+
+        # ====================================================================
         # TELEMETRY (V7 Sprint 10)
         # ====================================================================
 
         self.telemetry_enabled: bool = os.getenv("TELEMETRY_ENABLED", "True").lower() == "true"
         self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
+
+        # ====================================================================
+        # GEMINI PERSISTENT MODE (V7 Sprint 12)
+        # ====================================================================
+        # Eliminates ~7-10s subprocess startup latency per turn
+        # Uses interactive mode (-i) with restricted read-only tools
+
+        # Enable/disable session resume mode (uses --resume latest for context persistence)
+        # V7 Sprint 12: Uses Gemini's built-in session management instead of persistent process
+        # When enabled: First call creates session, subsequent calls use --resume latest
+        # Benefits: ~14k cached tokens, reduced latency on follow-up calls
+        self.gemini_persistent_mode: bool = os.getenv(
+            "GEMINI_PERSISTENT", "True"
+        ).lower() == "true"
+
+        # Approval mode for persistent process (yolo is safe with restricted tools)
+        self.gemini_approval_mode: str = os.getenv("GEMINI_APPROVAL_MODE", "yolo")
+
+        # Use stream-json for response detection in persistent mode
+        self.gemini_stream_json: bool = os.getenv(
+            "GEMINI_STREAM_JSON", "True"
+        ).lower() == "true"
+
+        # Persistent process timeout (seconds)
+        self.gemini_persistent_timeout: float = float(
+            os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")
+        )
 
     def to_dict(self) -> dict:
         """Export config as dict"""
