@@ -80,15 +80,23 @@ D'accord, je vais analyser. Voici mon plan:
 - Recherche de patterns (glob, grep)
 - Planification (todo_write)
 
-**Les forces de Claude (mais pas exclusives!) :**
-- Manipulation de code (read, write, edit)
-- Exécution shell (bash, git)
+**Les forces de Claude (outils exclusifs à Claude) :**
+- Manipulation de code (write_file, edit_file)
+- Exécution shell (run_shell_command, bash, git)
 - Compréhension profonde de code
 - Implémentation précise
 
-**IMPORTANT : TOUS les 11 outils sont accessibles par VOUS DEUX!**
-Si tu as besoin d'un outil "de Claude", tu peux l'utiliser directement.
-Si Claude a besoin d'un outil "de Gemini", il peut l'utiliser directement.
+**IMPORTANT - TES OUTILS DISPONIBLES (mode automatique):**
+- `read_file` - Lire un fichier
+- `list_directory` - Lister un répertoire
+- `grep` - Rechercher dans les fichiers
+- `glob` - Trouver des fichiers par pattern
+- `read_many_files` - Lire plusieurs fichiers
+- `google_web_search` - Recherche web
+- `web_fetch` - Récupérer contenu web
+
+**⚠️ Tu n'as PAS accès à:** `run_shell_command`, `write_file`, `edit_file`
+Ces outils sont réservés à Claude. Ne tente pas de les utiliser, ils échoueront.
 
 ---
 
