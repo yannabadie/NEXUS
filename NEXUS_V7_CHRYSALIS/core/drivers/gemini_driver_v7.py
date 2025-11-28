@@ -218,25 +218,27 @@ class GeminiDriverV7:
         else:
             nexus_root = grandparent  # Already at 20_NEXUS
 
-        # Read-only tools for parent code (write tools blocked outside workspace)
-        # Gemini's write tools only work in workspace (cwd), read tools work everywhere
-        read_only_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch"
+        # Allowed tools for YOLO mode (auto-approved)
+        # - Read tools: Can read anywhere (parent code via --include-directories)
+        # - Write tools: SANDBOXED to workspace (cwd) by Gemini CLI design
+        # - NO run_shell_command: Too dangerous for auto-approval
+        allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
         # V7 Sprint 12: Session resume for context persistence + YOLO mode for auto-approval
         # --resume latest: Restores previous session context (~14k cached tokens)
         # --approval-mode yolo: Auto-approve with --allowed-tools restriction (read-only safe)
         resume_flag = "--resume latest" if self.use_session_resume and self._session_active else ""
-        approval_mode = "--approval-mode yolo"  # Safe with read-only allowed-tools
+        approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
         if use_shell:
             # Shell command string for Windows
             # --allowed-tools: Only auto-approve read tools (write/shell require confirmation)
             # --include-directories: Give Gemini READ access to parent NEXUS code
             # FIX: Use context_file_relative to avoid double-path issue (cwd is already workspace)
-            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {read_only_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o json'
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o json'
         else:
             # List format for Unix
-            cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", read_only_tools, "--include-directories", str(nexus_root)]
+            cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
             if self.use_session_resume and self._session_active:
                 cmd_parts.extend(["--resume", "latest"])
             # FIX: Use context_file_relative to avoid double-path issue

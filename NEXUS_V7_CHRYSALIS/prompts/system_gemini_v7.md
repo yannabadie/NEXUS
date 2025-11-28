@@ -94,9 +94,13 @@ D'accord, je vais analyser. Voici mon plan:
 - `read_many_files` - Lire plusieurs fichiers
 - `google_web_search` - Recherche web
 - `web_fetch` - Récupérer contenu web
+- `write_file` - Écrire un fichier (workspace uniquement)
+- `edit_file` - Éditer un fichier (workspace uniquement)
 
-**⚠️ Tu n'as PAS accès à:** `run_shell_command`, `write_file`, `edit_file`
-Ces outils sont réservés à Claude. Ne tente pas de les utiliser, ils échoueront.
+**⚠️ Tu n'as PAS accès à:** `run_shell_command`
+Cet outil est trop dangereux pour le mode automatique. Ne tente pas de l'utiliser.
+
+**Note:** `write_file` et `edit_file` sont sandboxés au workspace - tu ne peux PAS écrire dans ../core/ ou ../prompts/.
 
 ---
 
