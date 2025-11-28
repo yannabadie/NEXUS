@@ -368,6 +368,25 @@ class ToolManager:
         """List directory contents"""
         dir_path = Path(args.get("path", "."))
 
+        # Evolution mode: Allow listing parent directories
+        if self.evolution_mode and not dir_path.is_absolute():
+            path_str = str(dir_path)
+            if path_str.startswith("../"):
+                # Resolve relative to workspace
+                resolved = (self.workspace_path / dir_path).resolve()
+
+                # Check whitelist (reuse read whitelist logic)
+                if self._is_evolution_safe_list(resolved):
+                    dir_path = resolved
+                else:
+                    return ToolResult(
+                        tool_name="list_dir",
+                        status="FAILURE",
+                        output="",
+                        error=f"Evolution mode: List not allowed for {resolved} (not in whitelist)"
+                    )
+
+        # Normal mode: Resolve relative to workspace
         if not dir_path.is_absolute():
             dir_path = self.workspace_path / dir_path
 
@@ -1020,6 +1039,50 @@ class ToolManager:
 
             # Check allowed root files
             if path_str in allowed_root_files:
+                return True
+
+            return False
+
+        except ValueError:
+            # Path not under parent
+            return False
+
+    def _is_evolution_safe_list(self, path: Path) -> bool:
+        """
+        Check if path is allowed for evolution LIST operations.
+
+        Whitelist:
+        - ../core/ (parent project code)
+        - ../prompts/ (parent prompts)
+        - ../benchmarks/ (benchmark scripts)
+
+        Uses same logic as _is_evolution_safe_read but for directories.
+        """
+        try:
+            # Check path is under parent project
+            relative = path.relative_to(self.parent_path)
+            path_str = str(relative).replace("\\", "/")  # Normalize for Windows
+
+            # Allowed directory prefixes
+            allowed_prefixes = [
+                "core",
+                "prompts",
+                "benchmarks",
+            ]
+
+            # Forbidden directories
+            forbidden = [
+                "NEXUS_V5_PRAGMATIC",
+                ".git",
+                "__pycache__",
+            ]
+
+            # Check forbidden first
+            if any(forb in path_str for forb in forbidden):
+                return False
+
+            # Check allowed prefixes (directory listing)
+            if any(path_str.startswith(prefix) or path_str == prefix for prefix in allowed_prefixes):
                 return True
 
             return False
