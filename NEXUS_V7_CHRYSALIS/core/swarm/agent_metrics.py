@@ -281,7 +281,7 @@ def create_default_pool(config=None) -> AgentPool:
     pool = AgentPool()
 
     # Gemini agent
-    gemini_model = "gemini-2.5-pro"
+    gemini_model = "gemini-3-pro-preview"
     if config:
         gemini_model = getattr(config, 'gemini_default_model', gemini_model)
 

@@ -89,7 +89,7 @@ class ModelRouter:
         # Default Gemini model IDs (V7 Sprint 6)
         self.gemini_model = "gemini-3-pro-preview"
         self.gemini_pro_model = "gemini-3-pro-preview"
-        self.gemini_flash_model = "gemini-2.5-flash"
+        self.gemini_flash_model = "gemini-3-pro-preview"  # Use Pro for all tasks
 
         # Default Claude task type mappings
         self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM,

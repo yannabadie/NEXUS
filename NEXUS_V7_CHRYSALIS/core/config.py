@@ -128,7 +128,7 @@ class Config:
         # Gemini models (V7 Sprint 6: Gemini 3 Pro with task routing)
         self.gemini_default_model: str = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
         self.gemini_pro_model: str = "gemini-3-pro-preview"
-        self.gemini_flash_model: str = "gemini-2.5-flash"
+        self.gemini_flash_model: str = "gemini-3-pro-preview"  # Use Pro for all tasks
 
         # Task types routed to Opus (complex, creative, security-critical)
         self.opus_task_types: list = ["brainstorm", "redteam", "architect", "evolution"]

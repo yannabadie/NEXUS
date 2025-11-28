@@ -149,8 +149,7 @@ NEXUS_V7_CHRYSALIS/
 |-------|-------|-----|----------|
 | **Claude** | Opus 4.5 | `claude-opus-4-5-20251101` | Complex reasoning, creativity, security, evolution |
 | **Claude** | Sonnet 4.5 | `claude-sonnet-4-5-20250929` | Speed, tool execution, simple tasks |
-| **Gemini** | 3 Pro | `gemini-3-pro-preview` | Complex reasoning, research, analysis |
-| **Gemini** | 2.5 Flash | `gemini-2.5-flash` | Quick operations, validation, formatting |
+| **Gemini** | 3 Pro | `gemini-3-pro-preview` | All tasks (unified model) |
 
 ### Automatic Routing
 

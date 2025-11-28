@@ -52,7 +52,7 @@ class TestModelRouterInit:
         assert router.opus_model == "claude-opus-4-5-20251101"
         assert router.sonnet_model == "claude-sonnet-4-5-20250929"
         assert router.gemini_pro_model == "gemini-3-pro-preview"
-        assert router.gemini_flash_model == "gemini-2.5-flash"
+        assert router.gemini_flash_model == "gemini-3-pro-preview"
 
     def test_default_task_mappings(self):
         """Test default task type mappings"""

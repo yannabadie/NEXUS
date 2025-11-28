@@ -100,7 +100,7 @@ Interface for Gemini CLI using **JSON strict mode**.
 GeminiDriverV7(
     config: Config,
     workspace_path: Path,
-    model: Optional[str] = None,      # "gemini-3-pro-preview" or "gemini-2.5-flash"
+    model: Optional[str] = None,      # "gemini-3-pro-preview" (default)
     agent_id: Optional[str] = None
 ) -> None
 ```

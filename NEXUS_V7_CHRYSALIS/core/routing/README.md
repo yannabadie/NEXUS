@@ -72,7 +72,7 @@ gemini_model = router.select_gemini_model(TaskType.REASONING)
 # "gemini-3-pro-preview"
 
 gemini_model = router.select_gemini_model(TaskType.TOOL)
-# "gemini-2.5-flash"
+# "gemini-3-pro-preview" (unified model for all tasks)
 ```
 
 **Methods**:
@@ -161,7 +161,7 @@ GEMINI_MODEL=gemini-3-pro-preview
 claude_opus_model = "claude-opus-4-5-20251101"
 claude_sonnet_model = "claude-sonnet-4-5-20250929"
 gemini_pro_model = "gemini-3-pro-preview"
-gemini_flash_model = "gemini-2.5-flash"
+gemini_flash_model = "gemini-3-pro-preview"  # Use Pro for all tasks
 
 # Task type lists
 opus_task_types = ["brainstorm", "redteam", "architect", "evolution"]
