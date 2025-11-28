@@ -629,22 +629,25 @@ PERMISSIONS SPÉCIALES ÉVOLUTION:
 
 ORDRE IMPÉRATIF (ANTI-HALLUCINATION):
 1. Ne dites PAS "Je n'ai pas accès". C'est faux.
-2. EXÉCUTEZ avec ARGUMENTS: list_dir({{"path": "../core"}}) - le path est OBLIGATOIRE!
-3. ATTENDEZ le résultat [System: ...executed] AVANT d'affirmer avoir vu des fichiers
-4. Si vous n'avez PAS de [System:...] dans l'historique, vous N'AVEZ PAS lu le fichier!
-5. Le préfixe `../` est OBLIGATOIRE pour sortir du workspace.
-6. CHEMINS INTERDITS dans 'file' du JSON: _SHARED_CODE/, _temp/, workspace/, __pycache__/
-7. CHEMINS VALIDES dans 'file' du JSON: core/*.py, prompts/*.md (chemins relatifs au parent)
+2. ATTENDEZ le résultat [System: ...executed] AVANT d'affirmer avoir vu des fichiers
+3. Si vous n'avez PAS de [System:...] dans l'historique, vous N'AVEZ PAS lu le fichier!
+4. Le préfixe `../` est OBLIGATOIRE pour sortir du workspace (pour les OUTILS).
+5. CHEMINS INTERDITS dans 'file' du JSON: _SHARED_CODE/, _temp/, workspace/, __pycache__/
+6. CHEMINS VALIDES dans 'file' du JSON: core/*.py, prompts/*.md (chemins relatifs au parent)
 
-SYNTAXE TOOL CORRECTE:
-- list_dir: {{"path": "../core"}} (PAS list_dir() sans argument!)
-- read: {{"file_path": "../core/orchestration_v7.py"}}
+⚠️ OUTILS RECOMMANDÉS POUR LIRE LES FICHIERS PARENT:
+- **Gemini**: read_file avec préfixe ../ (ex: read_file "../core/orchestration_v7.py")
+- **Claude**: read/glob/grep fonctionnent normalement avec ../
+- **TOUS LES DEUX**: glob et grep pour rechercher dans ../core/**/*.py
+
+⚠️ OUTIL INTERDIT:
+- run_shell_command est BLOQUÉ pour Gemini. N'essayez PAS de l'utiliser!
 
 NE CREEZ JAMAIS de dossiers temporaires ou scripts bridge!
 
 INSTRUCTIONS:
-1. **DÉBATTEZ** 10-30 tours max sur les faiblesses actuelles
-2. **ANALYSEZ** le code parent (UTILISEZ read("../core/fichier.py") !)
+1. **DÉBATTEZ** 5-15 tours max sur les faiblesses (pas 30, c'est trop long!)
+2. **ANALYSEZ** le code parent via read_file avec ../ (les deux agents)
 3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)
 4. **JUSTIFIEZ** l'impact ASI attendu
 
@@ -679,6 +682,8 @@ FORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):
 - Pour fichiers .md: Peut être du texte Markdown
 - JAMAIS de descriptions comme "ajouter une section qui fait X"
 - JAMAIS d'instructions comme "Dans _build_context(), modifier..."
+⚠️ INDENTATION CRITIQUE (cause #1 d'échec):- Les méthodes de classe DOIVENT commencer avec 4 espaces: "    def method(self):"- Le corps des méthodes a 8 espaces d'indentation- VÉRIFIEZ le fichier source pour copier l'indentation EXACTE- Exemple CORRECT pour méthode: "    def _execute_list_dir(self, args):
+        ..."- Exemple INCORRECT: "def _execute_list_dir(self, args):" (manque les 4 espaces!)
 
 ⚠️ RÈGLE CRITIQUE POUR 'file':
 - Chemin RELATIF au parent NEXUS (PAS de préfixe ../!)
@@ -703,6 +708,15 @@ RÈGLES CRITIQUES:
 - 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
 - PAS DE COMMENTAIRES dans le JSON final
 - Le système VALIDE que 'change' est du Python valide avant d'appliquer!
+
+⛔ ANTI-PATTERNS (erreurs fréquentes à éviter):
+1. **APPEND seul = CODE MORT**: Si vous ajoutez une classe/fonction, vous DEVEZ aussi
+   fournir une 2ème mutation REPLACE pour l'intégrer (ex: dans __init__, import, appel).
+2. **REPLACE partiel = DESTRUCTION**: Le 'change' doit contenir le bloc COMPLET.
+   Ne jamais fournir juste le début en espérant que le système devine la suite.
+3. **Échappement JSON**: Attention aux \\n (newlines) et \\" (quotes).
+   Testez mentalement: ce JSON est-il parsable? Ce Python compile-t-il?
+4. **Une mutation = une idée complète**: Chaque mutation doit être autonome et testable.
 
 COMMENCEZ LE DÉBAT (limite 30 tours).
 REGLE ACCORD MUTUEL: "status": "FINISHED" UNIQUEMENT apres confirmation de l'autre agent!
@@ -772,9 +786,19 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
             """
             Robust JSON array extraction that handles nested braces in string values.
             Finds all potential JSON arrays starting with [{ and tries to parse them.
+            Also handles JSON inside markdown code blocks.
             """
             candidates = []
-            # Find all positions where a JSON array might start
+
+            # PRIORITY 1: Extract from markdown code blocks first
+            # Pattern matches triple-backtick json code blocks
+            code_block_pattern = r'`{3}json\s*([\s\S]*?)\s*`{3}'
+            for json_block in re.finditer(code_block_pattern, text):
+                block_content = json_block.group(1).strip()
+                if block_content.startswith('['):
+                    candidates.append(block_content)
+
+            # PRIORITY 2: Find raw JSON arrays (fallback)
             for match in re.finditer(r'\[\s*\{', text):
                 start = match.start()
                 # Try to find the matching closing bracket by parsing

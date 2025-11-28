@@ -26,6 +26,9 @@ ENV/
 env/
 .venv
 
+# NEXUS Evolution (generated children - DO NOT COMMIT)
+GENERATION_ACTIVE/
+
 # NEXUS Runtime
 NEXUS_V7_CHRYSALIS/workspace/.nexus/blackboard.json
 NEXUS_V7_CHRYSALIS/workspace/.nexus/backups/
@@ -54,3 +57,29 @@ Thumbs.db
 # Environment
 .env.local
 .env.*.local
+
+# Temp runner files (benchmark/validation)
+_red_team_runner_*.py
+_benchmark_runner_*.py
+_coding_benchmark_runner_*.py
+
+# Windows artifacts
+nul
+**/nul
+
+# Audit reports (generated)
+audit/AUDIT_REPORT_*.md
+
+# Workspace temp files
+NEXUS_V7_CHRYSALIS/workspace/mutation*.json
+NEXUS_V7_CHRYSALIS/workspace/telemetry.jsonl
+NEXUS_V7_CHRYSALIS/workspace/logs/*.log
+NEXUS_V7_CHRYSALIS/workspace/logs/*.json
+NEXUS_V7_CHRYSALIS/workspace/workspace/
+NEXUS_V7_CHRYSALIS/workspace/e2e_test/
+NEXUS_V7_CHRYSALIS/workspace/*.py
+!NEXUS_V7_CHRYSALIS/workspace/clone_and_mutate.py
+
+# Test scripts (dev only)
+NEXUS_V7_CHRYSALIS/test_*.py
+NEXUS_V7_CHRYSALIS/tests/

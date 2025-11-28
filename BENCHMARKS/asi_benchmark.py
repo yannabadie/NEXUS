@@ -18,6 +18,7 @@ import json
 import time
 import sys
 import subprocess
+import uuid
 
 @dataclass
 class BenchmarkResult:
@@ -181,11 +182,14 @@ except Exception as e:
     traceback.print_exc()
     print(f"__NEXUS_ERROR_START__\n{e}\n__NEXUS_ERROR_END__")
 '''
-        runner_path = self.nexus_path / "_benchmark_runner.py"
+        # Use unique filename per invocation to avoid parallel file contention (WinError 5/32)
+        unique_id = uuid.uuid4().hex[:8]
+        runner_filename = f"_benchmark_runner_{unique_id}.py"
+        runner_path = self.nexus_path / runner_filename
         runner_path.write_text(runner_script, encoding='utf-8')
 
         try:
-            cmd = ["python", "_benchmark_runner.py", prompt]
+            cmd = ["python", runner_filename, prompt]
             result = subprocess.run(
                 cmd,
                 cwd=str(self.nexus_path),

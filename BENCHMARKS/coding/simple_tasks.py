@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import sys
 import os
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class CodingTasks:
@@ -236,11 +237,14 @@ except Exception as e:
     print(f"__NEXUS_ERROR_START__\n{e}\n__NEXUS_ERROR_END__")
 """
         
-        runner_path = self.nexus_path / "_coding_benchmark_runner.py"
+        # Use unique filename per worker to avoid parallel file contention (WinError 5/32)
+        unique_id = uuid.uuid4().hex[:8]
+        runner_filename = f"_coding_benchmark_runner_{unique_id}.py"
+        runner_path = self.nexus_path / runner_filename
         runner_path.write_text(runner_script, encoding='utf-8')
-        
+
         try:
-            cmd = ["python", "_coding_benchmark_runner.py", prompt]
+            cmd = ["python", runner_filename, prompt]
             result = subprocess.run(
                 cmd,
                 cwd=str(self.nexus_path),

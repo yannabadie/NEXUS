@@ -10,7 +10,7 @@ Architecture:
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
 from datetime import datetime
 import tiktoken
 
@@ -31,6 +31,10 @@ class MemoryManagerV7:
 
         # Load initial state ONCE
         self.blackboard = self._load_or_create_blackboard()
+        
+        # Load Global Memory (Inter-project Persistence)
+        self.global_memory_path = Path.home() / ".nexus" / "global_context.json"
+        self.global_memory = self._load_global_memory()
 
     def load_initial_state(self) -> Dict:
         """
@@ -40,6 +44,57 @@ class MemoryManagerV7:
             Blackboard dict
         """
         return self.blackboard
+
+    def _load_global_memory(self) -> Dict:
+        """Load global memory from user home directory"""
+        if self.global_memory_path.exists():
+            try:
+                return json.loads(self.global_memory_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                print(f"Warning: Could not load global memory: {e}")
+                return self._create_empty_global_memory()
+        else:
+            return self._create_empty_global_memory()
+
+    def _create_empty_global_memory(self) -> Dict:
+        """Create empty global memory structure"""
+        return {
+            "user_profile": {},       # Preferences, name, style
+            "learned_patterns": {},   # Cross-project coding patterns
+            "project_index": [],      # List of known projects
+            "metadata": {
+                "created": datetime.now().isoformat(),
+                "version": "1.0"
+            }
+        }
+
+    def save_global_memory(self):
+        """Save global memory to disk"""
+        try:
+            self.global_memory_path.parent.mkdir(parents=True, exist_ok=True)
+            self.global_memory_path.write_text(
+                json.dumps(self.global_memory, indent=2, ensure_ascii=False),
+                encoding="utf-8"
+            )
+        except Exception as e:
+            print(f"Warning: Could not save global memory: {e}")
+
+    def update_global_context(self, category: str, key: str, value: Any):
+        """
+        Update a value in global memory
+        
+        Args:
+            category: 'user_profile', 'learned_patterns', etc.
+            key: The specific key to update
+            value: The value to store
+        """
+        if category in self.global_memory:
+            self.global_memory[category][key] = value
+            self.save_global_memory()
+
+    def get_global_context(self) -> Dict:
+        """Get the full global memory"""
+        return self.global_memory
 
     def _load_or_create_blackboard(self) -> Dict:
         """
@@ -138,8 +193,13 @@ class MemoryManagerV7:
             # Serialize history to estimate size
             history_text = json.dumps(history, ensure_ascii=False)
 
-            # Estimate tokens (rough approximation: 1 token ≈ 4 chars)
-            estimated_tokens = len(history_text) // 4
+            # Use tiktoken for accurate token counting (was: rough 1 token ≈ 4 chars)
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")
+                estimated_tokens = len(encoding.encode(history_text))
+            except Exception:
+                # Fallback to rough estimation if tiktoken fails
+                estimated_tokens = len(history_text) // 4
 
             # Compress if >120k tokens
             if estimated_tokens > 120000:

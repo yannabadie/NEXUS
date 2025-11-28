@@ -94,8 +94,10 @@ class MutationValidator:
             info.extend(ast_info)
 
         except SyntaxError as e:
-            # Syntax errors are handled elsewhere - don't add as warning
-            info.append(f"AST analysis skipped (syntax issue): {e.msg}")
+            # Expected for indented code snippets (class methods, etc.)
+            # The actual syntax validation happens in repl.py after block insertion
+            # This is NOT an error - just info that AST analysis couldn't be performed
+            info.append(f"AST analysis skipped (expected for indented code snippets): {e.msg}")
 
         # 3. Dédupliquer les warnings
         warnings = list(dict.fromkeys(warnings))

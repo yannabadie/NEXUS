@@ -13,6 +13,7 @@ import re
 import json
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple
@@ -155,10 +156,17 @@ class RedTeamValidator:
         """
         return self._invoke_nexus_via_subprocess(question)
 
-    def _invoke_nexus_via_subprocess(self, question: str) -> str:
+    def _invoke_nexus_via_subprocess(self, question: str, max_retries: int = 2) -> str:
         """
         Run NEXUS in a separate process to ensure isolation and environment purity.
         Creates a temporary runner script inside the child's directory.
+
+        Args:
+            question: The question to ask NEXUS
+            max_retries: Number of retries on timeout (default 2)
+
+        Returns:
+            NEXUS response string (empty on failure after retries)
         """
         runner_script = r"""
 import sys
@@ -228,49 +236,60 @@ except Exception as e:
     traceback.print_exc()
     print(f"__NEXUS_ERROR_START__\n{e}\n__NEXUS_ERROR_END__")
 """
-        
-        runner_path = self.nexus_path / "_red_team_runner.py"
+
+        # Use unique filename to avoid file contention in parallel scenarios
+        unique_id = uuid.uuid4().hex[:8]
+        runner_filename = f"_red_team_runner_{unique_id}.py"
+        runner_path = self.nexus_path / runner_filename
         runner_path.write_text(runner_script, encoding='utf-8')
-        
-        try:
-            # Run the runner script in the child's directory
-            cmd = ["python", "_red_team_runner.py", question]
-            result = subprocess.run(
-                cmd,
-                cwd=str(self.nexus_path),
-                capture_output=True,
-                text=True,
-                timeout=120, # Timeout for individual question (increased for Gemini latency)
-                encoding='utf-8',
-                errors='replace'
-            )
-            
-            output = result.stdout
-            
-            # Extract response
-            if "__NEXUS_RESPONSE_START__" in output:
-                response = output.split("__NEXUS_RESPONSE_START__")[1].split("__NEXUS_RESPONSE_END__")[0].strip()
-                return response
-            elif "__NEXUS_ERROR_START__" in output:
-                error = output.split("__NEXUS_ERROR_START__")[1].split("__NEXUS_ERROR_END__")[0].strip()
-                print(f"   [ERROR] NEXUS Internal Error: {error}")
-                return ""
-            else:
-                # If script failed silently or printed garbage
-                if result.stderr:
-                    print(f"   [ERROR] Runner Stderr: {result.stderr[:200]}...")
-                return ""
-                
-        except subprocess.TimeoutExpired:
-            print("   [TIMEOUT] NEXUS runner timed out")
-            return ""
-        except Exception as e:
-            print(f"   [ERROR] Runner invocation failed: {e}")
-            return ""
-        finally:
-            # Cleanup runner script
-            if runner_path.exists():
-                runner_path.unlink()
+
+        # Retry loop for timeout resilience
+        for attempt in range(max_retries + 1):
+            try:
+                # Run the runner script in the child's directory
+                cmd = ["python", runner_filename, question]
+                result = subprocess.run(
+                    cmd,
+                    cwd=str(self.nexus_path),
+                    capture_output=True,
+                    text=True,
+                    timeout=120,  # Timeout for individual question (increased for Gemini latency)
+                    encoding='utf-8',
+                    errors='replace'
+                )
+
+                output = result.stdout
+
+                # Extract response
+                if "__NEXUS_RESPONSE_START__" in output:
+                    response = output.split("__NEXUS_RESPONSE_START__")[1].split("__NEXUS_RESPONSE_END__")[0].strip()
+                    # Cleanup runner script
+                    if runner_path.exists():
+                        runner_path.unlink()
+                    return response
+                elif "__NEXUS_ERROR_START__" in output:
+                    error = output.split("__NEXUS_ERROR_START__")[1].split("__NEXUS_ERROR_END__")[0].strip()
+                    print(f"   [ERROR] NEXUS Internal Error: {error}")
+                    break  # Don't retry on internal errors
+                else:
+                    # If script failed silently or printed garbage
+                    if result.stderr:
+                        print(f"   [ERROR] Runner Stderr: {result.stderr[:200]}...")
+                    break  # Don't retry on unknown errors
+
+            except subprocess.TimeoutExpired:
+                if attempt < max_retries:
+                    print(f"   [TIMEOUT] Attempt {attempt + 1}/{max_retries + 1} - retrying...")
+                else:
+                    print(f"   [TIMEOUT] NEXUS runner timed out after {max_retries + 1} attempts")
+            except Exception as e:
+                print(f"   [ERROR] Runner invocation failed: {e}")
+                break  # Don't retry on exceptions
+
+        # Cleanup runner script
+        if runner_path.exists():
+            runner_path.unlink()
+        return ""
 
     def _validate_response(
         self,
