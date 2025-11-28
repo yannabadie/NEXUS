@@ -193,13 +193,6 @@ class Config:
         self.gemini_pty_idle_timeout: float = float(os.getenv("GEMINI_PTY_IDLE_TIMEOUT", "5"))
         self.gemini_pty_max_restarts: int = int(os.getenv("GEMINI_PTY_MAX_RESTARTS", "3"))
 
-        # Session resume mode (uses --resume latest for context persistence)
-        # This is the recommended mode for multi-turn conversations
-        self.gemini_persistent_mode: bool = os.getenv("GEMINI_PERSISTENT_MODE", "False").lower() == "true"
-
-        # JSON output mode for PTY (may interfere with screen reader mode)
-        self.gemini_stream_json: bool = os.getenv("GEMINI_STREAM_JSON", "False").lower() == "true"
-
         # ====================================================================
         # TELEMETRY (V7 Sprint 10)
         # ====================================================================
@@ -208,28 +201,26 @@ class Config:
         self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
 
         # ====================================================================
-        # GEMINI PERSISTENT MODE (V7 Sprint 12)
+        # GEMINI SESSION PERSISTENCE (V7 Sprint 12)
         # ====================================================================
-        # Eliminates ~7-10s subprocess startup latency per turn
-        # Uses interactive mode (-i) with restricted read-only tools
-
-        # Enable/disable session resume mode (uses --resume latest for context persistence)
-        # V7 Sprint 12: Uses Gemini's built-in session management instead of persistent process
-        # When enabled: First call creates session, subsequent calls use --resume latest
+        # Uses Gemini's built-in session management with --resume latest
+        # First call creates session, subsequent calls resume it
         # Benefits: ~14k cached tokens, reduced latency on follow-up calls
+
+        # Enable session resume mode (DEFAULT: True for multi-turn conversations)
         self.gemini_persistent_mode: bool = os.getenv(
-            "GEMINI_PERSISTENT", "True"
+            "GEMINI_PERSISTENT_MODE", "True"
         ).lower() == "true"
 
-        # Approval mode for persistent process (yolo is safe with restricted tools)
+        # Approval mode for yolo (safe with restricted tools whitelist)
         self.gemini_approval_mode: str = os.getenv("GEMINI_APPROVAL_MODE", "yolo")
 
-        # Use stream-json for response detection in persistent mode
+        # Use JSON output mode for structured responses
         self.gemini_stream_json: bool = os.getenv(
             "GEMINI_STREAM_JSON", "True"
         ).lower() == "true"
 
-        # Persistent process timeout (seconds)
+        # Session timeout (seconds)
         self.gemini_persistent_timeout: float = float(
             os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")
         )
