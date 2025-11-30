@@ -651,77 +651,97 @@ INSTRUCTIONS:
 3. **PROPOSEZ** des mutations ÉMERGENTES (pas hardcodées!)
 4. **JUSTIFIEZ** l'impact ASI attendu
 
-FORMAT JSON FINAL (STRICT, PARSABLE, PAS DE COMMENTAIRES):
+FORMAT SEARCH/REPLACE (préserve l'indentation exacte):
 
-[
-  {{
-    "file": "core/fichier.py",
-    "operation": "APPEND",
-    "change": "def nouvelle_fonction():\\n    return 42\\n",
-    "reason": "Ajoute une fonction utilitaire pour X",
-    "expected_asi_impact": 0.03
-  }},
-  {{
-    "file": "core/autre.py",
-    "operation": "REPLACE",
-    "target": "def old_function():",
-    "change": "def old_function():\\n    # Fixed version\\n    return optimized_result\\n",
-    "reason": "Corrige un bug dans old_function",
-    "expected_asi_impact": 0.02
-  }}
-]
+Pour chaque mutation, utilisez ce format (PAS de JSON, PAS de \\n):
+
+```
+FILE: core/fichier.py
+REASON: Description de la mutation
+IMPACT: 0.03
+
+<<<<<<< SEARCH
+def old_function():
+    return 42
+=======
+def old_function():
+    return optimized_result
+>>>>>>> REPLACE
+```
+
+Pour AJOUTER du code à la fin d'un fichier (APPEND):
+
+```
+FILE: core/autre.py
+REASON: Ajoute une nouvelle fonction
+IMPACT: 0.02
+
+<<<<<<< APPEND
+def nouvelle_fonction():
+    \"\"\"Nouvelle fonction utilitaire.\"\"\"
+    return 123
+>>>>>>> END
+```
 
 ⚠️ OPÉRATIONS DISPONIBLES:
-- **APPEND** (défaut): Ajoute 'change' à la FIN du fichier
-- **REPLACE**: Remplace le bloc commençant par 'target' avec 'change'
-  - 'target' = première ligne unique identifiant le bloc (ex: "def my_func():", "class MyClass:")
-  - 'change' = le code complet de remplacement (incluant la ligne 'target' modifiée)
+- **SEARCH/REPLACE**: Remplace le bloc SEARCH par le bloc REPLACE
+  - SEARCH = code EXACT à trouver (copié depuis le fichier source)
+  - REPLACE = nouveau code avec même indentation
+- **APPEND**: Ajoute du code à la fin du fichier
 
-⚠️ RÈGLE CRITIQUE POUR 'change':
-- Pour fichiers .py: DOIT être du CODE PYTHON VALIDE (fonctions, classes, imports)
-- Pour fichiers .md: Peut être du texte Markdown
-- JAMAIS de descriptions comme "ajouter une section qui fait X"
-- JAMAIS d'instructions comme "Dans _build_context(), modifier..."
-⚠️ INDENTATION CRITIQUE (cause #1 d'échec):- Les méthodes de classe DOIVENT commencer avec 4 espaces: "    def method(self):"- Le corps des méthodes a 8 espaces d'indentation- VÉRIFIEZ le fichier source pour copier l'indentation EXACTE- Exemple CORRECT pour méthode: "    def _execute_list_dir(self, args):
-        ..."- Exemple INCORRECT: "def _execute_list_dir(self, args):" (manque les 4 espaces!)
+⚠️ RÈGLES CRITIQUES:
+1. **INDENTATION PRÉSERVÉE**: Le code dans les blocs garde son indentation réelle
+   - PAS de \\n, PAS d'échappement - écrivez le code normalement!
+2. **SEARCH EXACT**: Le bloc SEARCH doit correspondre EXACTEMENT au code source
+   - Lisez le fichier avec read_file AVANT de proposer une mutation
+3. **REPLACE COMPLET**: Le bloc REPLACE doit être du code Python VALIDE et COMPLET
+4. **CHEMINS RELATIFS**: Utilisez "core/fichier.py" (pas "../core/fichier.py")
 
-⚠️ RÈGLE CRITIQUE POUR 'file':
+⚠️ RÈGLE CRITIQUE POUR FILE:
 - Chemin RELATIF au parent NEXUS (PAS de préfixe ../!)
-- ✅ "core/orchestration_v7.py" (CORRECT pour JSON)
+- ✅ "core/orchestration_v7.py" (CORRECT)
 - ❌ "../core/orchestration_v7.py" (INCORRECT - le ../ est pour les OUTILS seulement!)
 
 EXEMPLES VALIDES:
-✅ APPEND: {{"file": "core/utils.py", "operation": "APPEND", "change": "def new_func():\\n    pass\\n", ...}}
-✅ REPLACE: {{"file": "core/fsm/states.py", "operation": "REPLACE", "target": "def old_handler():", "change": "def old_handler():\\n    return fixed\\n", ...}}
+```
+FILE: core/utils.py
+REASON: Améliore la fonction de calcul
+IMPACT: 0.03
 
-EXEMPLES INVALIDES (SERONT REJETÉS):
-❌ "Ajouter une fonction qui calcule le score" (description, pas du code)
-❌ "Dans la méthode X, modifier Y pour Z" (instruction, pas du code)
-❌ {{"file": "../core/x.py", ...}} (préfixe ../ interdit dans JSON!)
+<<<<<<< SEARCH
+def calculate(x):
+    return x * 2
+=======
+def calculate(x):
+    \"\"\"Calculate with improved algorithm.\"\"\"
+    return x * 2.5 + 10
+>>>>>>> REPLACE
+```
 
-RÈGLES CRITIQUES:
-- EXACTEMENT {child_count} mutations (ni plus, ni moins)
-- Format JSON STRICT (liste de dicts avec 'file', 'operation', 'change', 'reason', 'expected_asi_impact')
-- 'operation' = "APPEND" (défaut) ou "REPLACE" (avec 'target' obligatoire)
-- Fichiers EXISTANTS uniquement (vérifiez avec read!)
-- 'change' = CODE PYTHON VALIDE pour .py, texte Markdown pour .md
-- 'expected_asi_impact' = float 0.01-0.10 (réaliste!)
-- PAS DE COMMENTAIRES dans le JSON final
-- Le système VALIDE que 'change' est du Python valide avant d'appliquer!
+```
+FILE: core/helpers.py
+REASON: Ajoute helper pour validation
+IMPACT: 0.02
+
+<<<<<<< APPEND
+def validate_input(data: dict) -> bool:
+    \"\"\"Validate input data structure.\"\"\"
+    return isinstance(data, dict) and 'id' in data
+>>>>>>> END
+```
 
 ⛔ ANTI-PATTERNS (erreurs fréquentes à éviter):
 1. **APPEND seul = CODE MORT**: Si vous ajoutez une classe/fonction, vous DEVEZ aussi
    fournir une 2ème mutation REPLACE pour l'intégrer (ex: dans __init__, import, appel).
-2. **REPLACE partiel = DESTRUCTION**: Le 'change' doit contenir le bloc COMPLET.
-   Ne jamais fournir juste le début en espérant que le système devine la suite.
-3. **Échappement JSON**: Attention aux \\n (newlines) et \\" (quotes).
-   Testez mentalement: ce JSON est-il parsable? Ce Python compile-t-il?
-4. **Une mutation = une idée complète**: Chaque mutation doit être autonome et testable.
+2. **SEARCH inexact**: Le SEARCH doit être copié EXACTEMENT depuis le fichier source.
+   Utilisez read_file pour obtenir le code exact avant de proposer un REPLACE.
+3. **Une mutation = une idée complète**: Chaque mutation doit être autonome et testable.
 
 COMMENCEZ LE DÉBAT (limite 30 tours).
-REGLE ACCORD MUTUEL: "status": "FINISHED" UNIQUEMENT apres confirmation de l'autre agent!
-DES QUE VOUS AVEZ UN ACCORD MUTUEL EXPLICITE, donnez le JSON.
-OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
+EXACTEMENT {child_count} mutations requises.
+RÈGLE ACCORD MUTUEL: "status": "FINISHED" UNIQUEMENT après confirmation de l'autre agent!
+DÈS QUE VOUS AVEZ UN ACCORD MUTUEL EXPLICITE, donnez les blocs de mutation.
+OUTPUT FINAL = Blocs FILE/SEARCH/REPLACE uniquement (sans texte autour)."""
 
         # Switch to EVOLUTION_BRAINSTORM mode
         original_state = self.orchestrator.state
@@ -778,9 +798,26 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
         # Get all outputs combined for JSON extraction
         final_content = '\n'.join(all_outputs)
 
-        # ROBUST JSON EXTRACTION: Find and parse mutation arrays
+        # ROBUST MUTATION EXTRACTION: Try SEARCH/REPLACE first, then JSON fallback
         proposals = None
         required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
+
+        def extract_search_replace_blocks(text: str) -> list:
+            """
+            Extract mutations from SEARCH/REPLACE block format.
+            This format preserves exact indentation (no \\n escaping issues).
+            Returns list of dicts compatible with JSON format.
+            """
+            from core.evolution.mutation_parser import MutationParser
+
+            parser = MutationParser()
+            mutations = parser.parse(text)
+
+            if not mutations:
+                return []
+
+            # Convert to legacy dict format for compatibility
+            return [m.to_dict() for m in mutations]
 
         def extract_json_array(text: str) -> list:
             """
@@ -840,29 +877,45 @@ OUTPUT FINAL = JSON UNIQUEMENT (sans texte autour)."""
             return None
 
         for retry in range(3):  # 0, 1, 2 = 3 attempts total
-            proposals = extract_json_array(final_content)
-
+            # PRIORITY 1: Try SEARCH/REPLACE format first (preserves indentation)
+            proposals = extract_search_replace_blocks(final_content)
             if proposals:
-                self.console.print(f"✓ JSON extracted successfully with {len(proposals)} mutation(s)")
+                self.console.print(f"✓ SEARCH/REPLACE format extracted with {len(proposals)} mutation(s)")
                 break
-            else:
-                self.console.print(f"[Retry {retry+1}/3] No valid JSON array found in output")
+
+            # PRIORITY 2: Fallback to JSON format
+            proposals = extract_json_array(final_content)
+            if proposals:
+                self.console.print(f"✓ JSON format extracted with {len(proposals)} mutation(s)")
+                break
+
+            self.console.print(f"[Retry {retry+1}/3] No valid mutations found in output")
 
             # Retry: continue debate without overwriting objective
             if retry < 2 and proposals is None:
-                self.console.print("\n⚠️  RAPPEL: JSON strict requis!\n")
+                self.console.print("\n⚠️  RAPPEL: Format SEARCH/REPLACE requis!\n")
 
                 # FIX CORR-019: Don't send reminder as new objective - add to history instead
                 # This preserves the original brainstorm_task as objective
                 reminder_msg = {
                     "sender": "System",
                     "action_type": "TALK",
-                    "content": f"""RAPPEL: Le JSON n'a pas été parsé correctement.
+                    "content": f"""RAPPEL: Le format de mutation n'a pas été parsé correctement.
 
-FORMAT ATTENDU: Une liste JSON avec exactement {child_count} mutation(s).
-Exemple: [{{"file": "prompts/system_gemini_v7.md", "change": "...", "reason": "...", "expected_asi_impact": 0.03}}]
+FORMAT SEARCH/REPLACE ATTENDU:
+```
+FILE: core/fichier.py
+REASON: Description
+IMPACT: 0.03
 
-PRODUISEZ LE JSON MAINTENANT.""",
+<<<<<<< SEARCH
+code original exact
+=======
+nouveau code
+>>>>>>> REPLACE
+```
+
+PRODUISEZ LES BLOCS DE MUTATION MAINTENANT ({child_count} mutations requises).""",
                     "status": "CONTINUE"
                 }
                 self.orchestrator.memory.add_to_history(reminder_msg)
@@ -1312,53 +1365,60 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
 
                     # APPLY MUTATION based on operation type
                     if operation == 'REPLACE':
-                        # REPLACE operation: Find target block and replace it
-                        target_line = mutation.get('target', '')
-                        if not target_line:
-                            self.console.print(f"⚠️  REPLACE operation requires 'target' field")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)
-                            continue
-
-                        # Find the target in original content
-                        if target_line not in original_content:
-                            self.console.print(f"⚠️  Target not found in file: {target_line[:50]}...")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)
-                            continue
-
-                        # Find the block to replace (from target line to next same-indent or blank line block)
-                        lines = original_content.split('\n')
-                        target_idx = None
-                        target_indent = 0
-
-                        for idx, line in enumerate(lines):
-                            if target_line.strip() in line:
-                                target_idx = idx
-                                target_indent = len(line) - len(line.lstrip())
-                                break
-
-                        if target_idx is None:
-                            self.console.print(f"⚠️  Could not locate target line index")
-                            shutil.rmtree(child_dir)
-                            continue
-
-                        # Find end of block (next line with same or less indent, excluding blank lines)
-                        end_idx = target_idx + 1
-                        while end_idx < len(lines):
-                            line = lines[end_idx]
-                            if line.strip() == '':
-                                end_idx += 1
+                        # PRIORITY 1: Use search_block for exact matching (from SEARCH/REPLACE format)
+                        search_block = mutation.get('search_block', '')
+                        if search_block and search_block in original_content:
+                            # Direct replacement - most reliable
+                            mutated_content = original_content.replace(search_block, mutation_code, 1)
+                            self.console.print(f"✓ REPLACE: Exact block match replaced")
+                        else:
+                            # PRIORITY 2: Fallback to target line matching (legacy JSON format)
+                            target_line = mutation.get('target', '')
+                            if not target_line:
+                                self.console.print(f"⚠️  REPLACE operation requires 'target' or 'search_block'")
+                                self.console.print(f"    SKIPPING child {child_id}")
+                                shutil.rmtree(child_dir)
                                 continue
-                            line_indent = len(line) - len(line.lstrip())
-                            if line_indent <= target_indent and not line.strip().startswith('#'):
-                                break
-                            end_idx += 1
 
-                        # Build mutated content
-                        mutated_lines = lines[:target_idx] + mutation_code.split('\n') + lines[end_idx:]
-                        mutated_content = '\n'.join(mutated_lines)
-                        self.console.print(f"✓ REPLACE: Replaced block at line {target_idx+1}")
+                            # Find the target in original content
+                            if target_line not in original_content:
+                                self.console.print(f"⚠️  Target not found in file: {target_line[:50]}...")
+                                self.console.print(f"    SKIPPING child {child_id}")
+                                shutil.rmtree(child_dir)
+                                continue
+
+                            # Find the block to replace (from target line to next same-indent or blank line block)
+                            lines = original_content.split('\n')
+                            target_idx = None
+                            target_indent = 0
+
+                            for idx, line in enumerate(lines):
+                                if target_line.strip() in line:
+                                    target_idx = idx
+                                    target_indent = len(line) - len(line.lstrip())
+                                    break
+
+                            if target_idx is None:
+                                self.console.print(f"⚠️  Could not locate target line index")
+                                shutil.rmtree(child_dir)
+                                continue
+
+                            # Find end of block (next line with same or less indent, excluding blank lines)
+                            end_idx = target_idx + 1
+                            while end_idx < len(lines):
+                                line = lines[end_idx]
+                                if line.strip() == '':
+                                    end_idx += 1
+                                    continue
+                                line_indent = len(line) - len(line.lstrip())
+                                if line_indent <= target_indent and not line.strip().startswith('#'):
+                                    break
+                                end_idx += 1
+
+                            # Build mutated content
+                            mutated_lines = lines[:target_idx] + mutation_code.split('\n') + lines[end_idx:]
+                            mutated_content = '\n'.join(mutated_lines)
+                            self.console.print(f"✓ REPLACE: Replaced block at line {target_idx+1}")
 
                     else:
                         # APPEND operation (default): Add to end of file
