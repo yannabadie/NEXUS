@@ -632,10 +632,17 @@ class OrchestratorV7:
             sender = message.get("sender", self.active_agent)
             self.stagnation_detector.add_message(content)
 
-            # Check if finished
+            # Check if finished - but ONLY if content contains valid mutation JSON
+            # Fix: Don't accept FINISHED with conversational text - agents must produce JSON
             if message.get("status") == "FINISHED":
-                self._transition_to(OrchestratorState.IDLE)
-                return self._make_result("FINISHED", content, sender, True)
+                has_valid_json = self._detect_mutation_json(content)
+                if has_valid_json:
+                    self._transition_to(OrchestratorState.IDLE)
+                    return self._make_result("FINISHED", content, sender, True)
+                else:
+                    # Agent said FINISHED but no valid JSON - continue debate
+                    self.logger.warning("[EVOLUTION_BRAINSTORM] Agent sent FINISHED without valid JSON - continuing debate")
+                    # Fall through to alternation logic below
 
             # FORCE ALTERNATION in evolution mode - equal participation
             # Don't let one agent monopolize the debate
@@ -661,7 +668,7 @@ class OrchestratorV7:
                 if tool_name in SAFE_TOOLS:
                     # Execute the safe tool and return result
                     try:
-                        from core.synapse.protocol_v7 import ToolUse
+                        # ToolUse is already imported at module level
                         # Normalize tool name using alias if needed
                         normalized_name = TOOL_ALIASES.get(tool_name, tool_name)
                         normalized_tool_use = {**tool_use, 'tool_name': normalized_name}

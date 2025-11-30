@@ -1,37 +1,36 @@
 """
 Gemini Persistent PTY Driver - NEXUS V7
 
-EXPERIMENTAL: PTY-based driver for Gemini CLI interaction.
+DEPRECATED: PTY mode does not work for multi-turn conversations.
+Use subprocess mode with --resume latest instead.
 
-## What Works
-- Initial prompt processing via --prompt-interactive flag
-- Startup time reduced to ~25-30s (includes first prompt response)
-- Screen reader mode provides cleaner output parsing
-
-## Known Limitations
-- Follow-up prompts via PTY write do NOT submit properly to TUI
+## Why PTY Mode Failed
+- Gemini's TUI uses special input handling that winpty stdin doesn't emulate
+- Follow-up prompts via PTY write do NOT submit to the TUI:
   - Text is received and displayed in input field
   - Text appears as "Queued (press up to edit)"
   - But Enter/newline doesn't trigger submission
-- Gemini's TUI uses special input handling that PTY stdin doesn't fully emulate
+- Only --prompt-interactive flag works (for initial prompt only)
 
-## Recommended Usage
-1. Use PTY for INITIAL prompt only (via --prompt-interactive)
-2. For multi-turn conversations, use subprocess mode with --resume
+## Recommended Alternative: Session Resume Mode
+Instead of PTY, use subprocess mode with --resume latest:
+```bash
+# First call (creates session):
+gemini -m gemini-3-pro-preview -p "your prompt" -o json
 
-## Architecture
+# Subsequent calls (resume session):
+gemini -m gemini-3-pro-preview --resume latest -p "follow-up" -o json
+```
+Benefits:
+- ~5s latency (vs ~15s without resume)
+- Context preserved across invocations
+- Cached tokens reduce API costs
+
+## This Module
+Kept for reference and potential future use if Gemini CLI improves.
 - Uses winpty.PtyProcess for Windows TTY emulation
 - Screen reader mode (--screen-reader) for cleaner output
 - ANSI escape codes stripped via ANSIParser
-- Response detection via "Model:" and "Type your message" markers
-
-## Security
-- --approval-mode yolo with --allowed-tools whitelist
-- Write operations restricted to workspace
-
-## Future Work
-- Investigate conpty or native Windows PTY for better TUI input
-- Consider Gemini API integration as alternative to CLI
 """
 
 import re
@@ -440,19 +439,20 @@ class PersistentGeminiPTY:
         Wait for Gemini to finish starting up and process initial prompt.
 
         In screen reader mode with --prompt-interactive, we need to wait for:
-        1. Gemini to start
-        2. Initial prompt to be processed (look for "Model:" response)
-        3. Next input prompt to appear (ready for follow-up)
+        1. Gemini to start and process initial prompt
+        2. "Model:" response to appear
+        3. Final "Type your message" prompt (ready for follow-up)
 
-        V7 Sprint 13: Also captures the initial response for single-shot mode.
+        NOTE: "Type your message" may appear BEFORE "Model:" as TUI initializes,
+        so we wait for BOTH markers and check they're in the right order.
 
         Returns:
             True if startup detected, False on timeout
         """
         self.detector.reset()
         start_time = time.time()
-        saw_model_response = False
         all_output = ""
+        last_type_msg_pos = -1
 
         while time.time() - start_time < self.startup_timeout:
             if not self.is_alive():
@@ -465,22 +465,16 @@ class PersistentGeminiPTY:
                     all_output += chunk
                     self.detector.add_data(chunk)
 
-                    # In screen reader mode, wait for "Model:" which indicates
-                    # Gemini has responded to our initial prompt
-                    if not saw_model_response and 'Model:' in all_output:
-                        saw_model_response = True
-                        self._log("DEBUG", f"Initial response detected at {time.time()-start_time:.1f}s")
-
-                    # After seeing Model response, wait for next input prompt
-                    # Check in full buffer since they might be in different chunks
-                    if saw_model_response:
-                        # Find "Type your message" AFTER the Model response
-                        model_pos = all_output.rfind('Model:')
+                    # Check if we have both markers in the right order
+                    # Model: should appear, then Type your message AFTER it
+                    model_pos = all_output.rfind('Model:')
+                    if model_pos >= 0:
+                        # Find "Type your message" AFTER the LAST "Model:"
                         type_msg_pos = all_output.find('Type your message', model_pos)
                         if type_msg_pos > model_pos:
-                            self._log("DEBUG", f"Ready for input at {time.time()-start_time:.1f}s")
+                            self._log("DEBUG", f"Startup complete at {time.time()-start_time:.1f}s")
 
-                            # V7 Sprint 13: Capture and extract initial response
+                            # Capture and extract initial response
                             self._startup_raw_output = all_output
                             self._initial_response = self._extract_response(all_output)
 
@@ -493,7 +487,9 @@ class PersistentGeminiPTY:
             time.sleep(0.1)
 
         # Timeout - log what we got
-        self._log("WARNING", f"Startup timeout. Got {len(all_output)} bytes, saw_model={saw_model_response}")
+        has_model = 'Model:' in all_output
+        has_type = 'Type your message' in all_output
+        self._log("WARNING", f"Startup timeout. Got {len(all_output)} bytes, model={has_model}, type_msg={has_type}")
         # Still save what we got in case it's useful
         self._startup_raw_output = all_output
         return False
@@ -516,6 +512,44 @@ class PersistentGeminiPTY:
         """
         return self._startup_raw_output
 
+    def _wait_until_ready(self, timeout: float = 10) -> bool:
+        """
+        Wait until PTY is ready to receive a prompt.
+
+        Reads any pending output and waits for "Type your message" indicator.
+
+        Args:
+            timeout: Maximum time to wait
+
+        Returns:
+            True if ready, False if timeout
+        """
+        start_time = time.time()
+        buffer = ""
+
+        while time.time() - start_time < timeout:
+            if not self.is_alive():
+                return False
+
+            try:
+                # Read any pending output
+                chunk = self.process.read(4096)
+                if chunk:
+                    buffer += chunk
+                    # Check if we're at the input prompt
+                    if 'Type your message' in chunk:
+                        self._log("DEBUG", f"PTY ready at {time.time()-start_time:.1f}s")
+                        return True
+            except Exception:
+                pass
+
+            time.sleep(0.1)
+
+        # If we have output but no prompt, might still be processing
+        if buffer:
+            self._log("WARNING", f"Ready timeout, buffer: {len(buffer)} bytes")
+        return True  # Continue anyway - the prompt might work
+
     def send_prompt(self, prompt: str, timeout: Optional[float] = None) -> str:
         """
         Send a prompt and wait for the complete response.
@@ -533,15 +567,13 @@ class PersistentGeminiPTY:
         """
         timeout = timeout or self.response_timeout
 
-        # Longer stabilization delay (matches test_pty_simple.py timing)
-        time.sleep(1.0)
-
         # Ensure process is running
-        is_running = self.is_alive()
-        self._log("DEBUG", f"Pre-send is_alive: {is_running}, process: {self.process}")
-        if not is_running:
+        if not self.is_alive():
             if not self._try_restart():
                 raise RuntimeError("PTY process not running and restart failed")
+
+        # NOTE: Skip _wait_until_ready() - startup already ensures we're at the prompt
+        # The pattern that works is: write prompt + newline, then read until markers
 
         with self._lock:
             start_time = time.time()
@@ -577,10 +609,8 @@ class PersistentGeminiPTY:
         """
         Read from PTY until response is complete.
 
-        Simplified detection that matches the working test_pty_simple.py pattern:
-        - Wait until we see content being generated (User:, responding, etc.)
-        - Then wait for the next "Type your message" prompt (ready for next input)
-        - Use idle detection as backup
+        SIMPLIFIED: Just wait for "Type your message" after we see "Model:"
+        This matches the working test_pty_simple.py pattern.
 
         Args:
             timeout: Maximum time to wait
@@ -590,64 +620,50 @@ class PersistentGeminiPTY:
         """
         start_time = time.time()
         raw_output = ""
-        saw_user_echo = False
-        saw_activity = False  # Any sign that our prompt is being processed
+        saw_model = False
 
         while time.time() - start_time < timeout:
-            if not self.is_alive():
-                raise RuntimeError("PTY process died during response")
+            # Check if PTY is still alive before reading
+            if not self.process or not self.process.isalive():
+                self._log("ERROR", f"PTY died during read, got {len(raw_output)} bytes")
+                raise RuntimeError(f"PTY died: Pty is closed")
 
             try:
                 chunk = self.process.read(self.DEFAULT_READ_CHUNK_SIZE)
                 if chunk:
                     raw_output += chunk
-                    self.detector.add_data(chunk)
-                    # Log content sample for first few chunks
-                    if len(raw_output) < 3000:
-                        clean = ANSIParser.extract_visible_text(chunk)[:80]
-                        self._log("DEBUG", f"Got {len(chunk)} bytes: {clean}")
 
-                    # Track any processing activity
-                    if 'User:' in chunk or 'Queued' in chunk:
-                        saw_user_echo = True
-                        self._log("DEBUG", f"User prompt queued at {time.time()-start_time:.1f}s")
-                    if 'responding' in chunk.lower() or 'Model:' in chunk:
-                        saw_activity = True
-                        self._log("DEBUG", f"Response activity at {time.time()-start_time:.1f}s")
+                    # Track Model: response
+                    if 'Model:' in chunk:
+                        saw_model = True
+                        self._log("DEBUG", f"Model response at {time.time()-start_time:.1f}s")
 
-                    # Completion: After seeing activity, wait for next input prompt
-                    if saw_activity and 'Type your message' in chunk:
+                    # Completion: After seeing Model:, wait for Type your message
+                    if saw_model and 'Type your message' in raw_output[raw_output.rfind('Model:'):]:
                         self._log("DEBUG", f"Response complete at {time.time()-start_time:.1f}s")
                         break
 
-                    # Alternative completion: Model response followed by input prompt anywhere in buffer
-                    if saw_activity and 'Type your message' in raw_output:
-                        # Check if Type your message comes after our activity
-                        if raw_output.rfind('Type your message') > raw_output.find('responding'):
-                            self._log("DEBUG", f"Response complete (buffer check) at {time.time()-start_time:.1f}s")
-                            break
-
                 else:
-                    # No data - check idle timeout (only after seeing some activity)
-                    if saw_activity and self.detector.is_idle():
-                        self._log("DEBUG", f"Response idle at {time.time()-start_time:.1f}s")
-                        break
-                    # Log periodic no-data status
-                    elapsed = time.time() - start_time
-                    if int(elapsed) % 5 == 0 and int(elapsed) > 0:
-                        self._log("DEBUG", f"No data at {elapsed:.0f}s, total bytes={len(raw_output)}, alive={self.is_alive()}")
                     time.sleep(0.05)
 
+            except EOFError:
+                # PTY closed - this is fatal
+                self._log("ERROR", f"PTY EOF during read")
+                raise RuntimeError("PTY died: EOF")
+
             except Exception as e:
-                # Read error - might be temporary
-                time.sleep(0.1)
-                if not self.is_alive():
+                error_str = str(e).lower()
+                if 'closed' in error_str or 'eof' in error_str:
+                    # PTY died
+                    self._log("ERROR", f"PTY died: {e}")
                     raise RuntimeError(f"PTY died: {e}")
+                # Other exceptions - log and retry briefly
+                self._log("DEBUG", f"Read exception (continuing): {e}")
+                time.sleep(0.05)
 
         # Check for timeout
         if time.time() - start_time >= timeout:
-            clean_sample = ANSIParser.extract_visible_text(raw_output[-500:]) if raw_output else "(empty)"
-            self._log("WARNING", f"Timeout: user_echo={saw_user_echo}, activity={saw_activity}, sample={clean_sample[:100]}")
+            self._log("WARNING", f"Timeout after {timeout}s, saw_model={saw_model}")
             raise TimeoutError(f"Response timeout after {timeout}s")
 
         # Clean and return response

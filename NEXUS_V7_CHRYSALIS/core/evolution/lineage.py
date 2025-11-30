@@ -36,11 +36,12 @@ def load_lineage(workspace_path: Path = None) -> Dict:
         LineageError: If LINEAGE.json not found or invalid
     """
     # Find LINEAGE.json in project root (20_NEXUS/)
+    # NOTE: Must resolve() first to handle relative paths correctly
     if workspace_path:
-        lineage_path = workspace_path.parent.parent / "LINEAGE.json"
+        lineage_path = workspace_path.resolve().parent.parent / "LINEAGE.json"
     else:
         # Default: assume we're in NEXUS_V7_CHRYSALIS/core/evolution/
-        lineage_path = Path(__file__).parent.parent.parent.parent / "LINEAGE.json"
+        lineage_path = Path(__file__).resolve().parent.parent.parent.parent / "LINEAGE.json"
 
     if not lineage_path.exists():
         raise LineageError(f"LINEAGE.json not found at {lineage_path}")

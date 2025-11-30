@@ -178,13 +178,14 @@ class Config:
         self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "True").lower() == "true"
 
         # ====================================================================
-        # GEMINI PTY MODE (V7 Sprint 13 - Experimental)
+        # GEMINI PTY MODE (V7 Sprint 13) - DISABLED
         # ====================================================================
-
-        # Enable PTY single-shot mode for Gemini (experimental)
-        # NOTE: PTY mode only works for ONE prompt per session due to TUI limitations
-        # - True: Use PTY for single-turn operations (--prompt-interactive)
-        # - False: Use subprocess mode (reliable, supports multi-turn with --resume)
+        # PTY mode is DISABLED because Gemini's TUI doesn't accept input via PTY stdin.
+        # The --prompt-interactive flag works for initial prompt only.
+        # For multi-turn conversations, use subprocess mode with --resume latest instead.
+        #
+        # - False (DEFAULT): Use subprocess mode with --resume latest (~5s latency)
+        # - True: Attempt PTY mode (experimental, single-turn only)
         self.gemini_pty_mode: bool = os.getenv("GEMINI_PTY_MODE", "False").lower() == "true"
 
         # PTY timeouts (seconds)
