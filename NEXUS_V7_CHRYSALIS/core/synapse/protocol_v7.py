@@ -7,7 +7,7 @@ Features:
 - Plus de crashes sur champs manquants
 """
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, validator, Field
+from pydantic import BaseModel, field_validator, Field, ValidationInfo
 
 
 class ThoughtChain(BaseModel):
@@ -36,9 +36,10 @@ class LightMessageV7(BaseModel):
     instructions_for_next: Optional[str] = None
     strategic_plan_update: Optional[List[Dict]] = None
 
-    # Validateurs auto-réparateurs
-    @validator('action_type')
-    def repair_action_type(cls, v):
+    # Validateurs auto-réparateurs (Pydantic V2 syntax)
+    @field_validator('action_type')
+    @classmethod
+    def repair_action_type(cls, v: str) -> str:
         """Auto-correct typos et variations"""
         if not v:
             return "TALK"  # Default safe
@@ -59,24 +60,27 @@ class LightMessageV7(BaseModel):
         v_upper = v.upper()
         return repairs.get(v_upper, v_upper)
 
-    @validator('sender')
-    def repair_sender(cls, v):
+    @field_validator('sender')
+    @classmethod
+    def repair_sender(cls, v: str) -> str:
         """Capitalize sender name"""
         if not v:
             return "Unknown"
         return v.capitalize()
 
-    @validator('next_agent', always=True)
-    def default_next_agent(cls, v, values):
+    @field_validator('next_agent', mode='before')
+    @classmethod
+    def default_next_agent(cls, v: Optional[str], info: ValidationInfo) -> Optional[str]:
         """Si next_agent oublié, reste sur même agent"""
-        if v is None and 'sender' in values:
-            return values['sender']
+        if v is None and info.data.get('sender'):
+            return info.data['sender']
         if v:
             return v.capitalize()
         return None
 
-    @validator('status')
-    def repair_status(cls, v):
+    @field_validator('status')
+    @classmethod
+    def repair_status(cls, v: Optional[str]) -> str:
         """Auto-correct status"""
         if not v:
             return "CONTINUE"
