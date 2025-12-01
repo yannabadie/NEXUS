@@ -777,13 +777,29 @@ OUTPUT FINAL = Blocs FILE/SEARCH/REPLACE uniquement (sans texte autour)."""
             if result.get("finished"):
                 break
 
-            # EARLY EXIT: Check if output looks like it contains a mutation JSON
-            # Simple heuristic: contains [{ and all required keys and ends with }]
+            # FINISHED DETECTION: Check for explicit consensus signals
+            # Gemini/Claude signal FINISHED when they agree on mutations
+            output_lower = output.lower()
+            if ('"status": "FINISHED"' in output.upper() or
+                '"status":"FINISHED"' in output.upper() or
+                'consensus reached' in output_lower or
+                'accord mutuel' in output_lower):
+                self.console.print(f"\n✓ FINISHED status detected at iteration {iterations}")
+                break
+
+            # EARLY EXIT: Check for SEARCH/REPLACE mutation blocks
             if iterations >= 4:  # Give at least 4 turns for real debate
+                # Check for new SEARCH/REPLACE format
+                if ('FILE:' in output and '<<<<<<< SEARCH' in output and
+                    '=======' in output and '>>>>>>> REPLACE' in output):
+                    self.console.print(f"\n✓ SEARCH/REPLACE mutation detected at iteration {iterations}, ending debate")
+                    break
+
+                # Legacy: Check for JSON format
                 if ('"file"' in output and '"change"' in output and
                     '"reason"' in output and '"expected_asi_impact"' in output and
                     '[{' in output.replace(' ', '').replace('\n', '')):
-                    self.console.print(f"\n✓ Potential JSON detected at iteration {iterations}, ending debate")
+                    self.console.print(f"\n✓ JSON mutation detected at iteration {iterations}, ending debate")
                     break
 
         # Return to IDLE state

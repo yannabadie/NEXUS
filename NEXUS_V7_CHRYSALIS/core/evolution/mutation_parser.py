@@ -109,6 +109,9 @@ class MutationParser:
         """
         mutations = []
 
+        # Pre-process: Extract content from Gemini JSON wrapper if present
+        text = self._extract_from_json_wrapper(text)
+
         # Split by FILE: markers
         file_blocks = self._split_by_file(text)
 
@@ -119,6 +122,91 @@ class MutationParser:
                 mutations.append(parsed)
 
         return mutations
+
+    def _extract_from_json_wrapper(self, text: str) -> str:
+        """
+        Extract mutation content from Gemini multi-layer wrapper.
+
+        Gemini CLI wraps output in multiple layers:
+        1. Outer JSON: {"response": "```json\\n{...}\\n```", "stats": {...}}
+        2. Markdown code block: ```json\\n{...}\\n```
+        3. Inner JSON: {"sender": "Gemini", "content": "FILE:..."}
+
+        The inner JSON often has malformed escaping, so we use regex extraction.
+        """
+        import json
+
+        working_text = text
+
+        # LAYER 1: Extract from outer {"response": "..."} wrapper
+        try:
+            outer = json.loads(working_text)
+            if isinstance(outer, dict) and 'response' in outer:
+                working_text = outer['response']
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # LAYER 2: Extract from markdown code blocks
+        code_block_pattern = re.compile(r'```(?:json)?\s*\n(.*?)\n```', re.DOTALL)
+        code_matches = code_block_pattern.findall(working_text)
+        if code_matches:
+            working_text = '\n\n'.join(code_matches)
+
+        # LAYER 3: Try JSON parsing first (clean case)
+        try:
+            inner = json.loads(working_text)
+            if isinstance(inner, dict) and 'content' in inner:
+                content = inner['content']
+                if 'FILE:' in content or '<<<<<<< SEARCH' in content:
+                    return content
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # LAYER 3 FALLBACK: Regex extraction for malformed JSON
+        # Extract content between "content": " and the closing patterns
+        # This handles cases where content has unescaped newlines
+        content_start_pattern = re.compile(r'"content"\s*:\s*"', re.DOTALL)
+        match = content_start_pattern.search(working_text)
+
+        if match:
+            start_pos = match.end()
+            # Find the end by looking for typical JSON field endings
+            # The content ends at ",\n  " or "\n}" patterns
+            remaining = working_text[start_pos:]
+
+            # Look for end patterns: '",\n' followed by a new field, or '"\n}'
+            end_patterns = [
+                ('",\n  "next_agent"', -1),
+                ('",\n  "status"', -1),
+                ('",\n  "action_summary"', -1),
+                ('"\n}', -1),
+            ]
+
+            end_pos = len(remaining)
+            for pattern, offset in end_patterns:
+                idx = remaining.find(pattern)
+                if idx != -1 and idx < end_pos:
+                    end_pos = idx
+
+            if end_pos < len(remaining):
+                raw_content = remaining[:end_pos]
+                # Decode JSON escape sequences
+                try:
+                    decoded = json.loads(f'"{raw_content}"')
+                    if 'FILE:' in decoded or '<<<<<<< SEARCH' in decoded:
+                        return decoded
+                except json.JSONDecodeError:
+                    # If JSON decode fails, try manual unescape
+                    decoded = raw_content.replace('\\n', '\n').replace('\\"', '"').replace('\\\\', '\\')
+                    if 'FILE:' in decoded or '<<<<<<< SEARCH' in decoded:
+                        return decoded
+
+        # If FILE: or SEARCH markers are directly in text, return as-is
+        if 'FILE:' in working_text or '<<<<<<< SEARCH' in working_text:
+            return working_text
+
+        # Last resort: return original
+        return text
 
     def _split_by_file(self, text: str) -> List[Tuple[str, str]]:
         """Split text into (file_path, block_content) tuples."""
