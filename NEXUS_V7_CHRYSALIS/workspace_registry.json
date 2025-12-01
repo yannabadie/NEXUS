@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "active_workspace": "workspace-20251201",
+  "workspaces": {
+    "default": {
+      "name": "default",
+      "path": "C:\\Code\\NEXUS\\20_NEXUS - Copie\\NEXUS_V7_CHRYSALIS\\workspace",
+      "status": "archived",
+      "created_at": "2025-12-01T10:19:19.356042",
+      "last_accessed": "2025-12-01T13:44:25.896386",
+      "last_task": "",
+      "description": "",
+      "metrics": {
+        "iterations": 0,
+        "files_count": 86,
+        "size_bytes": 3680770,
+        "gemini_calls": 0,
+        "claude_calls": 0,
+        "tokens_used": 0
+      },
+      "is_current": true
+    },
+    "workspace-20251201": {
+      "name": "workspace-20251201",
+      "path": "C:\\Code\\NEXUS\\20_NEXUS - Copie\\NEXUS_V7_CHRYSALIS\\workspace",
+      "status": "active",
+      "created_at": "2025-12-01T13:44:26.079329",
+      "last_accessed": "2025-12-01T13:44:26.079333",
+      "last_task": "",
+      "description": "",
+      "metrics": {
+        "iterations": 0,
+        "files_count": 0,
+        "size_bytes": 0,
+        "gemini_calls": 0,
+        "claude_calls": 0,
+        "tokens_used": 0
+      },
+      "is_current": true
+    }
+  },
+  "metadata": {
+    "total_workspaces": 2,
+    "total_archived": 1,
+    "registry_created": "2025-12-01T13:39:18.214977",
+    "last_updated": "2025-12-01T13:44:26.080059"
+  }
+}

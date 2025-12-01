@@ -138,10 +138,25 @@ class InteractiveNexusV7:
                     if result.get("state") == "EXECUTING_TOOL":
                         tool_active = True
 
-                    # V7 UX: After each full exchange (2 turns = Gemini + Claude), prompt user
-                    # Unless tools are actively being used
-                    if not tool_active and iterations % 2 == 0:
-                        self.console.print("[dim]─── Press Enter to continue, or type to interject ───[/dim]")
+                    # V7.1 Balanced Autonomy: Visual checkpoint every 10 turns (no blocking)
+                    # Agents iterate freely, user can Ctrl+C to interrupt anytime
+                    if iterations > 0 and iterations % 10 == 0:
+                        state = result.get("state", "UNKNOWN")
+                        self.console.print(f"[dim]─── Iteration {iterations} | State: {state} ───[/dim]")
+                        tool_active = False  # Reset tool tracking
+
+                    # Prompt user only in specific cases:
+                    # 1. Approaching max iterations (warning at 48)
+                    # 2. Agent explicitly needs input
+                    # 3. Error state detected
+                    needs_user_prompt = (
+                        result.get("needs_user_input", False) or
+                        result.get("state") == "ERROR" or
+                        iterations >= (max_iterations - 2)  # Warning before limit
+                    )
+
+                    if needs_user_prompt and not tool_active:
+                        self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
                         try:
                             user_input = input().strip()
                             if user_input:
@@ -158,22 +173,6 @@ class InteractiveNexusV7:
                                 iterations = 0
                         except (EOFError, KeyboardInterrupt):
                             self.console.print("\n[Returning to prompt]")
-                            self.orchestrator.reset_to_idle()
-                            break
-
-                    # Extended checkpoint for tool-heavy tasks
-                    if tool_active and iterations > 0 and iterations % 10 == 0:
-                        tool_active = False  # Reset for next check
-                        self.console.print(f"\n[Checkpoint: {iterations} iterations]")
-                        self.console.print("Press Enter to continue, or type 'stop' to interrupt:")
-                        try:
-                            user_input = input().strip().lower()
-                            if user_input in ['stop', 'quit', 'exit', 'abort']:
-                                self.console.print("🛑 User interrupted. Resetting to IDLE.")
-                                self.orchestrator.reset_to_idle()
-                                break
-                        except (EOFError, KeyboardInterrupt):
-                            self.console.print("\n🛑 Interrupted. Resetting to IDLE.")
                             self.orchestrator.reset_to_idle()
                             break
 
@@ -255,6 +254,9 @@ class InteractiveNexusV7:
                 self.run_specialization(mission=args)
             else:
                 self.console.print_error("Usage: /specialize <mission_description>")
+
+        elif cmd == "/workspace":
+            self.handle_workspace_command(args)
 
         elif cmd == "/help":
             self.console.print_help(get_help_message())
@@ -559,6 +561,290 @@ class InteractiveNexusV7:
             parent_asi_score=parent_asi,
             config=self.config
         )
+
+    # ==================== WORKSPACE MANAGEMENT ====================
+
+    def handle_workspace_command(self, args: str):
+        """
+        Handle /workspace commands (V7.1 Multi-Workspace).
+
+        Subcommands:
+            /workspace           - Show current workspace
+            /workspace new [name] - Create new workspace, archive current
+            /workspace list      - List all workspaces
+            /workspace switch <name> - Switch to another workspace
+        """
+        from core.workspace import (
+            WorkspaceManager, WorkspaceError,
+            WorkspaceNotFoundError, WorkspaceExistsError
+        )
+        from rich.table import Table
+        from rich.panel import Panel
+
+        # Lazy init workspace manager
+        if not hasattr(self, 'workspace_manager'):
+            self.workspace_manager = WorkspaceManager(self.nexus_root)
+
+        parts = args.strip().split(maxsplit=1)
+        subcommand = parts[0].lower() if parts else ""
+        sub_args = parts[1] if len(parts) > 1 else ""
+
+        try:
+            if not subcommand:
+                # /workspace - Show current workspace status
+                self._show_workspace_status()
+
+            elif subcommand == "new":
+                self._workspace_new(sub_args or None)
+
+            elif subcommand == "list":
+                self._show_workspace_list()
+
+            elif subcommand == "switch":
+                if not sub_args:
+                    self.console.print_error("Usage: /workspace switch <name>")
+                    self.console.print("Use '/workspace list' to see available workspaces")
+                    return
+                self._workspace_switch(sub_args)
+
+            else:
+                self.console.print_error(f"Unknown subcommand: {subcommand}")
+                self.console.print("Usage: /workspace [new|list|switch] [args]")
+
+        except WorkspaceNotFoundError as e:
+            self.console.print_error(str(e))
+            suggestions = self.workspace_manager.get_suggestions(sub_args)
+            if suggestions:
+                self.console.print(f"Did you mean: {', '.join(suggestions)}?")
+
+        except WorkspaceExistsError as e:
+            self.console.print_error(str(e))
+
+        except WorkspaceError as e:
+            self.console.print_error(f"Workspace error: {e}")
+
+    def _show_workspace_status(self):
+        """Display current workspace info."""
+        from rich.panel import Panel
+
+        current = self.workspace_manager.get_current()
+        if not current:
+            self.console.print("No active workspace.")
+            return
+
+        content = f"""[bold cyan]Current Workspace:[/bold cyan] {current.name}
+
+[dim]Created:[/dim]     {current.created_at.strftime('%Y-%m-%d %H:%M')}
+[dim]Last used:[/dim]   {current.get_relative_time()}
+[dim]Task:[/dim]        "{current.last_task[:50] + '...' if len(current.last_task) > 50 else current.last_task or 'None'}"
+[dim]Iterations:[/dim]  {current.metrics.iterations}
+[dim]Size:[/dim]        {current.get_size_human()}
+[dim]Files:[/dim]       {current.metrics.files_count}
+
+[dim]Commands:[/dim]
+   /workspace new [name]     Create fresh workspace
+   /workspace list           Show all workspaces
+   /workspace switch <name>  Switch to another workspace"""
+
+        panel = Panel(content, title="Workspace", border_style="cyan")
+        self.console.console.print(panel)
+
+    def _show_workspace_list(self):
+        """Display workspace list as Rich table."""
+        from rich.table import Table
+
+        workspaces = self.workspace_manager.list_workspaces()
+
+        if not workspaces:
+            self.console.print("No workspaces found.")
+            return
+
+        table = Table(
+            title="NEXUS Workspaces",
+            show_header=True,
+            header_style="bold cyan",
+            border_style="dim"
+        )
+
+        table.add_column("Status", style="bold", width=8)
+        table.add_column("Name", style="cyan", max_width=28)
+        table.add_column("Last Used", width=12)
+        table.add_column("Task", max_width=20)
+        table.add_column("Size", justify="right", width=8)
+
+        for ws in workspaces:
+            status = "[green]● ACTIF[/green]" if ws.is_current else ""
+            name = ws.name[:28]
+            last_used = ws.get_relative_time()
+            task = (ws.last_task[:18] + "..") if len(ws.last_task) > 18 else ws.last_task or "-"
+            size = ws.get_size_human()
+
+            table.add_row(status, name, last_used, task, size)
+
+        self.console.console.print(table)
+        self.console.print("\n[dim]Tip: Use /workspace switch <name> to change workspace[/dim]")
+
+    def _workspace_new(self, name: str = None):
+        """Create new workspace with confirmation."""
+        current = self.workspace_manager.get_current()
+
+        # Show confirmation
+        self.console.print("\n📦 [bold]Création d'un nouveau workspace[/bold]\n")
+
+        if current:
+            self.console.print(f"  Workspace actuel:  {current.name}")
+            self.console.print(f"  Archive vers:      workspace_archive/{current.name}/")
+            self.console.print(f"  Fichiers:          {current.metrics.files_count} ({current.get_size_human()})")
+
+        if name:
+            self.console.print(f"\n  Nouveau workspace: {name}")
+        else:
+            self.console.print(f"\n  Nouveau workspace: [auto-généré depuis l'objectif]")
+
+        self.console.console.print("\n  Confirmer? (Y/n): ", end="")
+
+        try:
+            confirm = input().strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            self.console.print("\nAnnulé.")
+            return
+
+        if confirm and confirm != 'y':
+            self.console.print("Annulé.")
+            return
+
+        # Create workspace with spinner effect
+        self.console.print("\n  ⠋ Archivage en cours...")
+
+        try:
+            new_ws = self.workspace_manager.create_workspace(name=name, archive_current=True)
+
+            self.console.print("  ✓ Workspace archivé")
+            self.console.print("  ✓ Nouveau workspace créé")
+
+            # Hot-swap: reinitialize orchestrator
+            self._reinit_orchestrator(new_ws.path)
+
+            self.console.print(f"\n✅ Workspace prêt: [bold cyan]{new_ws.name}[/bold cyan]\n")
+
+        except Exception as e:
+            self.console.print_error(f"Erreur: {e}")
+
+    def _workspace_switch(self, name: str):
+        """Switch to another workspace with confirmation."""
+        current = self.workspace_manager.get_current()
+
+        # Find target
+        target = self.workspace_manager.find_workspace(name)
+        if not target:
+            suggestions = self.workspace_manager.get_suggestions(name)
+            if suggestions:
+                self.console.print_error(f"Workspace '{name}' non trouvé.")
+                self.console.print(f"Vouliez-vous dire: {', '.join(suggestions)}?")
+            else:
+                self.console.print_error(f"Workspace '{name}' non trouvé.")
+                self.console.print("Use '/workspace list' to see available workspaces")
+            return
+
+        # Check if already active
+        if target.name == (current.name if current else ""):
+            self.console.print(f"Workspace '{name}' est déjà actif.")
+            return
+
+        # Show confirmation
+        self.console.print("\n🔄 [bold]Changement de workspace[/bold]\n")
+
+        if current:
+            self.console.print(f"  De:   {current.name} ({current.metrics.iterations} iterations)")
+
+        self.console.print(f"  Vers: {target.name}")
+
+        self.console.console.print("\n  Sauvegarder l'état actuel? (Y/n): ", end="")
+
+        try:
+            confirm = input().strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            self.console.print("\nAnnulé.")
+            return
+
+        archive_current = confirm != 'n'
+
+        # Switch
+        self.console.print("\n  ⠋ Sauvegarde...")
+
+        try:
+            old_ws, new_ws = self.workspace_manager.switch_workspace(
+                name=target.name,
+                archive_current=archive_current
+            )
+
+            self.console.print("  ✓ État sauvegardé")
+            self.console.print(f"  ⠋ Chargement {new_ws.name}...")
+
+            # Hot-swap: reinitialize orchestrator
+            self._reinit_orchestrator(new_ws.path)
+
+            self.console.print("  ✓ Workspace chargé")
+
+            # Show restored state
+            self.console.print(f"""
+  État restauré:
+    Iterations:    {new_ws.metrics.iterations}
+    Dernière tâche: "{new_ws.last_task[:40] + '...' if len(new_ws.last_task) > 40 else new_ws.last_task or 'None'}"
+
+✅ Switched to: [bold cyan]{new_ws.name}[/bold cyan]
+""")
+
+        except Exception as e:
+            self.console.print_error(f"Erreur: {e}")
+            import traceback
+            if self.config.ui_verbose:
+                traceback.print_exc()
+
+    def _reinit_orchestrator(self, new_workspace_path: Path):
+        """
+        Reinitialize orchestrator for new workspace (hot-swap).
+
+        This allows changing workspace without restarting NEXUS.
+        """
+        from core.synapse.memory_v7 import MemoryManagerV7
+        from core.execution.tool_manager import ToolManager
+        from prompt_toolkit.history import FileHistory
+
+        # 1. Save current state to disk
+        self.orchestrator.memory.save_to_disk()
+
+        # 2. Update workspace paths
+        self.workspace_path = new_workspace_path
+        self.orchestrator.workspace_path = new_workspace_path
+
+        # 3. Recreate MemoryManager with new path
+        self.orchestrator.memory = MemoryManagerV7(
+            workspace_path=new_workspace_path,
+            config=self.config
+        )
+
+        # 4. Load blackboard from new workspace
+        self.orchestrator.blackboard = self.orchestrator.memory.blackboard
+
+        # 5. Recreate ToolManager
+        self.orchestrator.tool_manager = ToolManager(new_workspace_path)
+
+        # 6. Update prompt_toolkit history
+        history_file = new_workspace_path / ".nexus" / "history.txt"
+        history_file.parent.mkdir(parents=True, exist_ok=True)
+        self.session = PromptSession(history=FileHistory(str(history_file)))
+
+        # 7. Reset FSM to IDLE
+        self.orchestrator.state = OrchestratorState.IDLE
+        self.orchestrator.iteration = 0
+
+        # 8. Update workspace manager reference
+        if hasattr(self, 'workspace_manager'):
+            from core.workspace import WorkspaceManager
+            self.workspace_manager = WorkspaceManager(self.nexus_root)
+
+    # ==================== END WORKSPACE MANAGEMENT ====================
 
     def brainstorm_children_with_ais(self, parent_id: str, parent_path: Path, child_count: int) -> list:
         """

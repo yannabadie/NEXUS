@@ -208,7 +208,7 @@ class OrchestratorV7:
         Args:
             agent_id: "gemini_primary" or "claude_opus"
             task_type: Task type string (negotiation, execution, etc.)
-            context: Full context to send to agent
+            context: Task context from swarm executor (will be enriched)
 
         Returns:
             Agent response content as string
@@ -226,12 +226,95 @@ class OrchestratorV7:
             elif task_type == "validation":
                 task_type_enum = TaskType.VALIDATION
 
-            response = self._invoke_agent(task_type_enum, context)
+            # V7 FIX: Build rich context for swarm execution
+            # The executor provides task-specific context, but we need to add:
+            # - System prompt
+            # - Workspace context
+            # - Available tools
+            enriched_context = self._build_swarm_context(context, task_type)
+
+            response = self._invoke_agent(task_type_enum, enriched_context)
             return response.get("content", str(response))
 
         except Exception as e:
             self.logger.error(f"Swarm invocation failed: {e}")
             return f"Error: {e}"
+
+    def _build_swarm_context(self, task_context: str, task_type: str) -> str:
+        """
+        Build enriched context for swarm execution.
+
+        Combines the task-specific context from executors with:
+        - System prompt for the active agent
+        - Workspace information
+        - Available tools
+        - Current objective
+
+        Args:
+            task_context: Context from swarm executor (mode + subtask)
+            task_type: Type of task (negotiation, execution, etc.)
+
+        Returns:
+            Enriched markdown context
+        """
+        # Load system prompt
+        prompt_file = "system_gemini_v7.md" if self.active_agent == "Gemini" else "system_claude_v7.md"
+        prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
+
+        try:
+            system_prompt = prompt_path.read_text(encoding="utf-8")
+        except Exception:
+            system_prompt = f"You are {self.active_agent}, a collaborative AI agent."
+
+        # Get available tools
+        tools_list = list(self.tool_manager.tools.keys())
+
+        # Build enriched context
+        enriched = f"""# NEXUS V7.0 "Chrysalis" - Swarm Execution
+
+{system_prompt}
+
+---
+
+## WORKSPACE
+Path: {self.workspace_path}
+
+---
+
+## OBJECTIF UTILISATEUR
+{self.blackboard.get('objective', 'Non défini')}
+
+---
+
+## SWARM TASK CONTEXT
+{task_context}
+
+---
+
+## AVAILABLE TOOLS
+{json.dumps(tools_list, indent=2, ensure_ascii=False)}
+
+---
+
+## INSTRUCTIONS
+- You are working in SWARM mode with collaborative execution
+- Task type: {task_type}
+- Use the tools available to accomplish your subtask
+- Coordinate with other agents via your responses
+- Use <tool_use name="tool_name">{{...}}</tool_use> for tool calls (Claude)
+- Use JSON tool format for tool calls (Gemini)
+"""
+
+        # Add recent history for context (last 10 messages only to keep it focused)
+        recent = self.blackboard.get("recent_history", [])[-10:]
+        if recent:
+            enriched += "\n---\n\n## RECENT CONTEXT\n"
+            for msg in recent:
+                sender = msg.get("sender", "Unknown")
+                content = msg.get("content", "")[:500]  # Truncate for swarm
+                enriched += f"\n**{sender}:** {content}\n"
+
+        return enriched
 
     # === Project Context Methods (Sprint 11) ===
 
@@ -1136,8 +1219,13 @@ class OrchestratorV7:
 
 ## HISTORIQUE RÉCENT
 """
-        # Add last 30 messages (Increased from 5 to avoid context loss)
-        for msg in self.blackboard.get("recent_history", [])[-30:]:
+        # Add compressed history summary if available (preserves long-term context)
+        compressed = self.blackboard.get("compressed_history_summary", "")
+        if compressed:
+            context += f"\n**[Résumé des échanges précédents]:**\n{compressed}\n\n---\n"
+
+        # Add last 50 messages (increased from 30 to improve context retention)
+        for msg in self.blackboard.get("recent_history", [])[-50:]:
             sender = msg.get("sender", "Unknown")
             content = msg.get("content", "")
             context += f"\n**{sender}:** {content}\n"

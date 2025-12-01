@@ -84,7 +84,7 @@ class SwarmResult:
     def to_dict(self) -> Dict:
         return {
             "status": self.status.value,
-            "final_output": self.final_output[:2000],
+            "final_output": self.final_output,  # Full output (no truncation)
             "selected_mode": self.selected_mode.value,
             "task_analysis": self.task_analysis.to_dict(),
             "mode_proposal": self.mode_proposal.to_dict(),
@@ -346,10 +346,13 @@ class HybridSwarmEngine:
             if isinstance(response, AgentResponse):
                 return response
             elif isinstance(response, str):
+                # V7 FIX: Detect error responses from _invoke_for_swarm
+                is_error = response.startswith("Error:") or "timed out" in response.lower()
                 return AgentResponse(
                     agent_id=agent_id,
                     content=response,
-                    status="success",
+                    status="error" if is_error else "success",
+                    error=response if is_error else None,
                     time_seconds=elapsed
                 )
             elif isinstance(response, dict):

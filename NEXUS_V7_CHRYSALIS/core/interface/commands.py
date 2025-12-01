@@ -25,6 +25,10 @@ SLASH_COMMANDS = {
     "/pool-stats": "Show agent pool DyLAN metrics (importance scores)",
     "/specialize <mission>": "Create a specialized NEXUS spinoff for a specific mission",
     "/review": "Review and evaluate pending children from evolution",
+    "/workspace": "Show current workspace info",
+    "/workspace new [name]": "Create new workspace, archive current",
+    "/workspace list": "List all workspaces (active and archived)",
+    "/workspace switch <name>": "Switch to another workspace (hot-swap)",
     "/help": "Show this help message",
     "exit": "Exit NEXUS V7.0 Chrysalis"
 }

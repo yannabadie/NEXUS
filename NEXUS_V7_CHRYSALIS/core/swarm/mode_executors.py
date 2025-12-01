@@ -18,9 +18,11 @@ from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
+from pathlib import Path
 
 from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
+from ..utils.artifact_verifier import ArtifactVerifier
 
 
 class ExecutionStatus(Enum):
@@ -55,7 +57,7 @@ class AgentResponse:
     def to_dict(self) -> Dict:
         return {
             "agent_id": self.agent_id,
-            "content": self.content[:500],  # Truncate for logging
+            "content": self.content,  # Full content (no truncation)
             "status": self.status,
             "tool_results_count": len(self.tool_results),
             "tokens_used": self.tokens_used,
@@ -105,7 +107,7 @@ class ExecutionResult:
         return {
             "mode": self.mode.value,
             "status": self.status.value,
-            "final_output": self.final_output[:1000],
+            "final_output": self.final_output,  # Full output (no truncation)
             "agent_outputs": [a.to_dict() for a in self.agent_outputs],
             "total_rounds": self.total_rounds,
             "total_tokens": self.total_tokens,
@@ -229,8 +231,13 @@ class ParallelExecutor(ModeExecutor):
         """Merge parallel outputs into unified result"""
         merged_parts = []
         for output in outputs:
-            if output.status != "error":
-                merged_parts.append(f"[{output.agent_id}]:\n{output.content}")
+            if output.status == "error":
+                # V7 FIX: Show errors in output so user knows what happened
+                agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
+                merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
+            else:
+                agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
+                merged_parts.append(f"[{agent_name}]:\n{output.content}")
 
         return "\n\n---\n\n".join(merged_parts)
 
@@ -559,9 +566,32 @@ class RedBlueExecutor(ModeExecutor):
         total_tokens += verdict.tokens_used
         total_time += verdict.time_seconds
 
-        # Determine status
-        passed = "PASS" in verdict.content.upper()
-        status = ExecutionStatus.COMPLETED if passed else ExecutionStatus.COMPLETED
+        # Determine status with robust validation
+        verdict_upper = verdict.content.upper()
+
+        # 1. Improved text-based verdict detection
+        # Require explicit "VERDICT: PASS" or "PASS" without "FAIL"
+        text_passed = (
+            "VERDICT: PASS" in verdict_upper or
+            ("PASS" in verdict_upper and "FAIL" not in verdict_upper)
+        )
+
+        # 2. Artifact verification - check if mentioned files actually exist
+        workspace_path = context.blackboard.get("workspace_path", Path.cwd())
+        verifier = ArtifactVerifier(Path(workspace_path))
+        artifacts_ok, successes, failures = verifier.verify_from_content(defense.content)
+
+        # 3. Combined verdict: PASS only if BOTH text verdict AND artifacts are OK
+        passed = text_passed and artifacts_ok
+
+        # 4. Override verdict if false positive detected (text says PASS but artifacts broken)
+        final_verdict_content = verdict.content
+        if text_passed and not artifacts_ok:
+            override_msg = "\n\n[ARTIFACT VERIFICATION FAILED]\n" + "\n".join(failures)
+            final_verdict_content = verdict.content + override_msg
+
+        # FIX: Status was always COMPLETED before - now properly set to FAILED if not passed
+        status = ExecutionStatus.COMPLETED if passed else ExecutionStatus.FAILED
 
         return ExecutionResult(
             mode=self.mode,
@@ -574,7 +604,12 @@ class RedBlueExecutor(ModeExecutor):
             metadata={
                 "execution_type": "red_blue",
                 "verdict": "PASS" if passed else "FAIL",
-                "verdict_content": verdict.content[:500]
+                "text_verdict": text_passed,
+                "artifacts_verified": artifacts_ok,
+                "artifact_successes": successes,
+                "artifact_failures": failures,
+                "verdict_content": final_verdict_content,
+                "validation_method": "robust_artifacts"
             }
         )
 
