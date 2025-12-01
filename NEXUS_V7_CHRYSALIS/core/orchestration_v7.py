@@ -807,22 +807,31 @@ class OrchestratorV7:
             execution_result = self.swarm_engine.execute_turn(objective, self.blackboard)
 
             if execution_result.finished:
+                # Format output with agent names (DNA of NEXUS: show conversation)
+                formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
+                for agent_output in execution_result.agent_outputs:
+                    agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                    formatted_output += f"\n{agent_name}:\n{agent_output.content}\n"
+                    formatted_output += "---\n"
+
                 # Transition back to validation
                 self._transition_to(OrchestratorState.VALIDATING_CFL)
                 return self._make_result(
                     "VALIDATING_CFL",
-                    f"[Swarm Execution Complete]\n"
-                    f"Mode: {execution_result.mode.value}\n"
-                    f"Rounds: {execution_result.total_rounds}\n"
-                    f"---\n{execution_result.final_output}",
+                    formatted_output,
                     None,
                     False
                 )
             else:
-                # Continue execution
+                # Format in-progress output with agent names
+                formatted_output = "[Swarm executing...]\n"
+                for agent_output in execution_result.agent_outputs[-2:]:  # Last 2 outputs
+                    agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                    formatted_output += f"\n{agent_name}:\n{agent_output.content[:300]}...\n"
+
                 return self._make_result(
                     "SWARM_EXECUTING",
-                    f"[Swarm executing...]\n{execution_result.final_output[:500]}",
+                    formatted_output,
                     None,
                     False
                 )
