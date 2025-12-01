@@ -135,8 +135,14 @@ class AgentProfile:
         if len(self.invocation_history) > self.history_window:
             self.invocation_history = self.invocation_history[-self.history_window:]
 
-    def to_dict(self) -> Dict:
-        return {
+    def to_dict(self, include_history: bool = False) -> Dict:
+        """
+        Convert to dictionary.
+
+        Args:
+            include_history: If True, include full invocation history (for persistence)
+        """
+        result = {
             "agent_id": self.agent_id,
             "provider": self.provider,
             "model": self.model,
@@ -146,6 +152,9 @@ class AgentProfile:
             "success_rate": round(self.success_rate, 4),
             "invocation_count": len(self.invocation_history)
         }
+        if include_history:
+            result["invocation_history"] = [r.to_dict() for r in self.invocation_history]
+        return result
 
 
 @dataclass
@@ -158,8 +167,33 @@ class AgentPool:
     - Phase 6: Dynamic N agents with spawning
 
     Selection uses DyLAN importance scoring.
+
+    V7 Enhancement: Auto-persistence of DyLAN scores.
     """
     agents: Dict[str, AgentProfile] = field(default_factory=dict)
+    _persistence_path: Optional[str] = field(default=None, repr=False)
+    _auto_save: bool = field(default=False, repr=False)
+    _save_counter: int = field(default=0, repr=False)
+    _save_interval: int = field(default=5, repr=False)  # Save every N invocations
+
+    def enable_persistence(self, path: str, auto_save: bool = True, save_interval: int = 5):
+        """
+        Enable auto-persistence of DyLAN scores.
+
+        Args:
+            path: File path for persistence (JSON)
+            auto_save: Whether to auto-save after invocations
+            save_interval: Save every N invocations (default 5)
+        """
+        self._persistence_path = path
+        self._auto_save = auto_save
+        self._save_interval = save_interval
+
+        # Try to load existing data
+        try:
+            self._load_history_from_file(path)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass  # No existing file, start fresh
 
     def register(self, profile: AgentProfile):
         """Register an agent in the pool"""
@@ -210,9 +244,19 @@ class AgentPool:
         return [agent for agent, _ in scored[:top_k]]
 
     def record_invocation(self, result: AgentInvocationResult):
-        """Record invocation result to appropriate agent"""
+        """Record invocation result to appropriate agent with auto-persistence"""
         if result.agent_id in self.agents:
             self.agents[result.agent_id].record_invocation(result)
+
+            # Auto-save if enabled (every N invocations to avoid I/O overhead)
+            if self._auto_save and self._persistence_path:
+                self._save_counter += 1
+                if self._save_counter >= self._save_interval:
+                    self._save_counter = 0
+                    try:
+                        self.save_to_file(self._persistence_path)
+                    except Exception:
+                        pass  # Silently fail to not interrupt execution
 
     def get_pool_stats(self) -> Dict:
         """Get aggregate statistics for the pool"""
@@ -234,19 +278,47 @@ class AgentPool:
             "agents_detail": {a.agent_id: a.to_dict() for a in active}
         }
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, include_history: bool = False) -> Dict:
+        """Convert to dictionary, optionally with full history for persistence."""
         return {
             "agents": {
-                agent_id: profile.to_dict()
+                agent_id: profile.to_dict(include_history=include_history)
                 for agent_id, profile in self.agents.items()
             },
             "stats": self.get_pool_stats()
         }
 
     def save_to_file(self, path: str):
-        """Persist pool state to JSON file"""
+        """Persist pool state with full history to JSON file"""
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(self.to_dict(include_history=True), f, indent=2)
+
+    def _load_history_from_file(self, path: str):
+        """
+        Load invocation history from file into existing agents.
+
+        Only loads history for agents that already exist in the pool.
+        This preserves the current agent configuration while restoring DyLAN scores.
+        """
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        for agent_id, agent_data in data.get("agents", {}).items():
+            if agent_id in self.agents:
+                # Load history into existing agent
+                history_data = agent_data.get("invocation_history", [])
+                for inv_data in history_data:
+                    # Reconstruct AgentInvocationResult
+                    result = AgentInvocationResult(
+                        agent_id=inv_data.get("agent_id", agent_id),
+                        task_type=inv_data.get("task_type", "unknown"),
+                        success=inv_data.get("success", True),
+                        quality_score=inv_data.get("quality_score", 0.5),
+                        tokens_used=inv_data.get("tokens_used", 0),
+                        time_seconds=inv_data.get("time_seconds", 0.0),
+                        error=inv_data.get("error")
+                    )
+                    self.agents[agent_id].invocation_history.append(result)
 
     @classmethod
     def load_from_file(cls, path: str) -> "AgentPool":

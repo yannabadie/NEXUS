@@ -131,8 +131,18 @@ class OrchestratorV7:
         # V7 Sprint 3: Agent Pool for DyLAN-style metrics
         if self.config.agent_metrics_enabled:
             self.agent_pool = create_default_pool(self.config)
+
+            # V7 Enhancement: Enable DyLAN score persistence
+            dylan_persistence_path = self.workspace_path / ".nexus" / "dylan_scores.json"
+            self.agent_pool.enable_persistence(
+                path=str(dylan_persistence_path),
+                auto_save=True,
+                save_interval=5  # Save every 5 invocations
+            )
+
             self.logger.debug("AgentPool initialized", {
-                "agents": list(self.agent_pool.agents.keys())
+                "agents": list(self.agent_pool.agents.keys()),
+                "persistence": str(dylan_persistence_path)
             })
         else:
             self.agent_pool = None
@@ -1454,6 +1464,7 @@ Error: {result_dict['error']}
             return {
                 "state": result.status.value,
                 "output": result.final_output,
+                "agent": "Swarm",  # V7 FIX: Add agent key for display_result
                 "mode": result.selected_mode.value,
                 "finished": result.status == SwarmPhase.COMPLETED,
                 "analysis": result.task_analysis.to_dict(),

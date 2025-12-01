@@ -305,6 +305,11 @@ class NegotiationProtocol:
                     current_proposal.agent_assignments
                 )
 
+                # V7 Enhancement: Log negotiation outcome
+                import sys
+                print(f"[NEGOTIATION] Consensus reached in {current_turn + 1} turns: {final_mode.value}",
+                      file=sys.stderr)
+
                 return NegotiationResult(
                     status=NegotiationStatus.CONSENSUS,
                     selected_mode=final_mode,
@@ -330,6 +335,11 @@ class NegotiationProtocol:
             current_turn += 1
 
         # Timeout: use initial proposal
+        # V7 Enhancement: Log negotiation timeout
+        import sys
+        print(f"[NEGOTIATION] Timeout after {current_turn} turns, using initial: {initial_proposal.mode.value}",
+              file=sys.stderr)
+
         return NegotiationResult(
             status=NegotiationStatus.TIMEOUT,
             selected_mode=initial_proposal.mode,
@@ -346,37 +356,72 @@ class NegotiationProtocol:
         history: List[HybridNegotiationMessage],
         agent_id: str
     ) -> str:
-        """Build context string for agent negotiation turn"""
+        """Build enriched context string for agent negotiation turn"""
         lines = [
-            "=== SWARM NEGOTIATION ===",
+            "╔════════════════════════════════════════════════════════════════╗",
+            "║              SWARM NEGOTIATION PROTOCOL                        ║",
+            "╚════════════════════════════════════════════════════════════════╝",
             "",
-            f"TASK ANALYSIS:",
-            f"- Complexity: {analysis.complexity.name}",
-            f"- Domains: {', '.join(d.value for d in analysis.domains)}",
-            f"- Gemini fit: {analysis.gemini_fit_score:.0%}",
-            f"- Claude fit: {analysis.claude_fit_score:.0%}",
-            f"- Recommended lead: {analysis.recommended_lead}",
+            "You are participating in a multi-agent collaboration negotiation.",
+            "Your goal: Agree on the best collaboration mode for this task.",
             "",
-            f"INITIAL PROPOSAL: {proposal.mode.value}",
+            "─── TASK ANALYSIS ───",
+            f"• Complexity: {analysis.complexity.name} ({analysis.complexity.value}/5)",
+            f"• Domains: {', '.join(d.value for d in analysis.domains)}",
+            f"• Gemini fit score: {analysis.gemini_fit_score:.0%}",
+            f"• Claude fit score: {analysis.claude_fit_score:.0%}",
+            f"• Recommended lead: {analysis.recommended_lead}",
+            "",
+            "─── INITIAL PROPOSAL ───",
+            f"Mode: {proposal.mode.value.upper()}",
             f"Reasoning: {proposal.reasoning}",
             "",
         ]
 
         if history:
-            lines.append("NEGOTIATION HISTORY:")
+            lines.append("─── NEGOTIATION HISTORY ───")
             for msg in history[-4:]:  # Last 4 messages
-                lines.append(f"[{msg.sender}]: {msg.natural_content[:200]}...")
+                lines.append(f"[{msg.sender.upper()}]: {msg.natural_content[:300]}")
                 if msg.structured_proposal:
-                    lines.append(f"  → Proposal: {msg.structured_proposal.to_dict()}")
+                    lines.append(f"  └─ Proposal: {msg.structured_proposal.proposed_mode or 'none'}, "
+                                 f"agrees: {msg.structured_proposal.agrees_with_partner}")
             lines.append("")
 
         lines.extend([
-            f"YOUR TURN ({agent_id}):",
-            "1. Discuss your perspective on the proposed mode",
-            "2. Agree, counter-propose, or negotiate subtasks",
-            "3. Include <negotiate>JSON</negotiate> with your position",
+            "─── YOUR TURN ───",
+            f"Agent: {agent_id}",
             "",
-            "Available modes: parallel, sequential, lead_support, ping_pong, specialist, red_blue"
+            "INSTRUCTIONS:",
+            "1. Briefly discuss your perspective on the proposed collaboration mode",
+            "2. Either AGREE with partner or COUNTER-PROPOSE a different mode",
+            "3. MANDATORY: Include a <negotiate> block with your formal position",
+            "",
+            "RESPONSE FORMAT EXAMPLE:",
+            '"""',
+            "I agree that PARALLEL mode makes sense for this task since we can",
+            "work on independent subtasks simultaneously.",
+            "",
+            "<negotiate>",
+            "{",
+            '  "proposed_mode": "parallel",',
+            '  "proposed_lead": null,',
+            '  "confidence": 0.85,',
+            '  "my_role": "equal",',
+            '  "agrees_with_partner": true,',
+            '  "consensus_reached": true',
+            "}",
+            "</negotiate>",
+            '"""',
+            "",
+            "AVAILABLE MODES:",
+            "• parallel     - Work simultaneously, merge results",
+            "• sequential   - First agent then second agent",
+            "• lead_support - Lead (80%) + Support reviewer (20%)",
+            "• ping_pong    - Rapid alternation until convergence",
+            "• specialist   - Single expert handles everything",
+            "• red_blue     - Adversarial: propose/attack/defend",
+            "",
+            "Set 'consensus_reached': true when you agree with your partner to end negotiation."
         ])
 
         return "\n".join(lines)

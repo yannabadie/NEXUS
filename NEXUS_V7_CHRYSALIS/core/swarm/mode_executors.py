@@ -166,6 +166,94 @@ class ModeExecutor(ABC):
                 time_seconds=(datetime.now() - start_time).total_seconds()
             )
 
+    def _invoke_with_failover(
+        self,
+        context: ExecutionContext,
+        primary_agent_id: str,
+        backup_agent_id: str,
+        task_context: str
+    ) -> AgentResponse:
+        """
+        Invoke primary agent, failover to backup if primary fails.
+
+        V7 Enhancement: Resilience when one agent times out or errors.
+
+        Args:
+            context: Execution context
+            primary_agent_id: First agent to try
+            backup_agent_id: Fallback agent if primary fails
+            task_context: Task context to send
+
+        Returns:
+            AgentResponse from whichever agent succeeded
+        """
+        # Try primary agent
+        response = self._invoke(context, primary_agent_id, task_context)
+
+        # Check if primary failed (error status or timeout indicator)
+        if response.status == "error" or "timed out" in (response.error or "").lower():
+            # Log failover (via print since we don't have logger here)
+            import sys
+            print(f"[FAILOVER] {primary_agent_id} failed, trying {backup_agent_id}",
+                  file=sys.stderr)
+
+            # Add failover context to task
+            failover_context = (
+                f"{task_context}\n\n"
+                f"[NOTE: {primary_agent_id} was unavailable. You are the failover agent.]"
+            )
+
+            # Try backup agent
+            backup_response = self._invoke(context, backup_agent_id, failover_context)
+
+            # Mark that this was a failover
+            if backup_response.status != "error":
+                backup_response.content = (
+                    f"[Failover from {primary_agent_id}]\n\n{backup_response.content}"
+                )
+
+            return backup_response
+
+        return response
+
+    def _get_backup_agent(self, agent_id: str) -> str:
+        """Get the backup agent for a given agent"""
+        if "gemini" in agent_id.lower():
+            return "claude_opus"
+        else:
+            return "gemini_primary"
+
+    def _verify_artifacts(
+        self,
+        content: str,
+        context: "ExecutionContext"
+    ) -> Dict[str, Any]:
+        """
+        Verify artifacts mentioned in agent output.
+
+        V7 Enhancement: Generalized artifact verification for all modes.
+
+        Args:
+            content: Agent output text
+            context: Execution context (for workspace path)
+
+        Returns:
+            Dict with verification results:
+            - verified: bool (all artifacts OK)
+            - successes: List[str]
+            - failures: List[str]
+        """
+        workspace_path = context.blackboard.get("workspace_path", Path.cwd())
+        verifier = ArtifactVerifier(Path(workspace_path))
+
+        verified, successes, failures = verifier.verify_from_content(content)
+
+        return {
+            "verified": verified,
+            "successes": successes,
+            "failures": failures
+        }
+
 
 class ParallelExecutor(ModeExecutor):
     """
@@ -356,6 +444,9 @@ class LeadSupportExecutor(ModeExecutor):
 
         final_output = outputs[-1].content if outputs else ""
 
+        # V7 Enhancement: Verify artifacts in final output
+        artifact_result = self._verify_artifacts(final_output, context)
+
         return ExecutionResult(
             mode=self.mode,
             status=ExecutionStatus.COMPLETED,
@@ -364,7 +455,12 @@ class LeadSupportExecutor(ModeExecutor):
             total_rounds=len(outputs),
             total_tokens=total_tokens,
             total_time_seconds=total_time,
-            metadata={"execution_type": "lead_support"}
+            metadata={
+                "execution_type": "lead_support",
+                "artifacts_verified": artifact_result["verified"],
+                "artifact_successes": artifact_result["successes"],
+                "artifact_failures": artifact_result["failures"]
+            }
         )
 
 
@@ -449,6 +545,8 @@ class SpecialistExecutor(ModeExecutor):
     Single expert handles everything.
 
     Use case: Exclusive expertise, highly specialized tasks.
+
+    V7 Enhancement: Failover to backup agent if specialist fails.
     """
 
     mode = CollaborationMode.SPECIALIST
@@ -473,7 +571,18 @@ class SpecialistExecutor(ModeExecutor):
             )
 
         task_context = f"SPECIALIST MODE - You are the sole expert:\n{context.task_input}\n\nHandle this task completely."
-        response = self._invoke(context, specialist.agent_id, task_context)
+
+        # V7 Enhancement: Use failover for resilience
+        backup_agent = self._get_backup_agent(specialist.agent_id)
+        response = self._invoke_with_failover(
+            context,
+            specialist.agent_id,
+            backup_agent,
+            task_context
+        )
+
+        # V7 Enhancement: Verify artifacts in output
+        artifact_result = self._verify_artifacts(response.content, context)
 
         return ExecutionResult(
             mode=self.mode,
@@ -483,7 +592,14 @@ class SpecialistExecutor(ModeExecutor):
             total_rounds=1,
             total_tokens=response.tokens_used,
             total_time_seconds=response.time_seconds,
-            metadata={"execution_type": "specialist", "specialist": specialist.agent_id}
+            metadata={
+                "execution_type": "specialist",
+                "specialist": specialist.agent_id,
+                "used_failover": "Failover" in response.content,
+                "artifacts_verified": artifact_result["verified"],
+                "artifact_successes": artifact_result["successes"],
+                "artifact_failures": artifact_result["failures"]
+            }
         )
 
 

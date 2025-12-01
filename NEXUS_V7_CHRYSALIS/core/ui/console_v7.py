@@ -79,7 +79,13 @@ Type your task or use slash commands (/help for list)
 
         # Agent message
         if output and agent:
-            color = "cyan" if agent == "Gemini" else "green"
+            # V7 FIX: Handle Swarm agent with distinct color
+            if agent == "Gemini":
+                color = "cyan"
+            elif agent == "Swarm":
+                color = "magenta"
+            else:  # Claude or others
+                color = "green"
             self.console.print(f"[{color}][{agent}][/{color}] {output}")
         elif output and not agent:
             # Output without agent (system messages)
