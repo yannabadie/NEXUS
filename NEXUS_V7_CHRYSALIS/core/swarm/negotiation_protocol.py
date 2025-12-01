@@ -20,6 +20,7 @@ Example exchange:
 
 import re
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional, List, Callable, Any
 from datetime import datetime
@@ -209,7 +210,8 @@ class NegotiationProtocol:
         self,
         max_turns: int = 4,
         consensus_threshold: float = 0.6,
-        skip_trivial: bool = True
+        skip_trivial: bool = True,
+        timeout_seconds: Optional[float] = 60.0
     ):
         """
         Initialize NegotiationProtocol.
@@ -218,10 +220,12 @@ class NegotiationProtocol:
             max_turns: Maximum negotiation turns before timeout
             consensus_threshold: Minimum confidence for consensus
             skip_trivial: Skip negotiation for trivial tasks
+            timeout_seconds: Maximum time in seconds for negotiation (None = no limit)
         """
         self.max_turns = max_turns
         self.consensus_threshold = consensus_threshold
         self.skip_trivial = skip_trivial
+        self.timeout_seconds = timeout_seconds
         self.negotiation_log: List[Dict] = []
 
     def run_negotiation(
@@ -255,11 +259,26 @@ class NegotiationProtocol:
         history: List[HybridNegotiationMessage] = []
         current_turn = 0
         current_proposal = initial_proposal
+        start_time = time.time()
 
         # Agents alternate: Gemini starts
         agents = ["gemini", "claude"]
 
         while current_turn < self.max_turns:
+            # Check time-based timeout
+            if self.timeout_seconds is not None:
+                elapsed = time.time() - start_time
+                if elapsed > self.timeout_seconds:
+                    # Time limit exceeded - use current best proposal
+                    return NegotiationResult(
+                        status=NegotiationStatus.TIMEOUT,
+                        selected_mode=current_proposal.mode,
+                        agent_assignments=current_proposal.agent_assignments,
+                        negotiation_history=history,
+                        total_turns=current_turn,
+                        consensus_confidence=current_proposal.confidence
+                    )
+
             agent_id = agents[current_turn % 2]
 
             # Build context for agent

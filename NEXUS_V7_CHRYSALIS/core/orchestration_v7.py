@@ -35,6 +35,7 @@ from pydantic import ValidationError
 import time
 import json
 import sys
+import tiktoken
 
 # KERNEL import - path set by nexus7.py bootstrap
 try:
@@ -1018,7 +1019,8 @@ class OrchestratorV7:
         task_type: str,
         success: bool,
         duration: float,
-        quality_score: float = 0.5
+        quality_score: float = 0.5,
+        response_text: Optional[str] = None
     ):
         """
         Record agent invocation for DyLAN-style metrics (V7 Sprint 3).
@@ -1029,6 +1031,7 @@ class OrchestratorV7:
             success: Whether invocation succeeded
             duration: Time in seconds
             quality_score: Quality score 0.0-1.0 (default 0.5)
+            response_text: Optional response text for accurate token counting
         """
         if not self.agent_pool:
             return
@@ -1036,9 +1039,15 @@ class OrchestratorV7:
         # Map agent name to agent_id
         agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
 
-        # Estimate tokens (rough: 4 chars = 1 token)
-        # TODO: Get actual token count from driver response
+        # Count tokens using tiktoken (accurate) or fallback to estimate
         estimated_tokens = 500  # Default estimate
+        if response_text:
+            try:
+                encoding = tiktoken.get_encoding("cl100k_base")
+                estimated_tokens = len(encoding.encode(response_text))
+            except Exception:
+                # Fallback: rough estimate (1 token ≈ 4 chars)
+                estimated_tokens = len(response_text) // 4
 
         invocation = AgentInvocationResult(
             agent_id=agent_id,
@@ -1055,6 +1064,7 @@ class OrchestratorV7:
             "task_type": task_type,
             "success": success,
             "duration": f"{duration:.2f}s",
+            "tokens": estimated_tokens,
             "importance": f"{invocation.importance_score:.4f}"
         })
 

@@ -696,6 +696,10 @@ def nouvelle_fonction():
    - Lisez le fichier avec read_file AVANT de proposer une mutation
 3. **REPLACE COMPLET**: Le bloc REPLACE doit être du code Python VALIDE et COMPLET
 4. **CHEMINS RELATIFS**: Utilisez "core/fichier.py" (pas "../core/fichier.py")
+5. **MUTATIONS PETITES (<50 lignes)**: Chaque bloc SEARCH/REPLACE doit faire MAX 50 lignes!
+   - Une mutation = UNE fonction ou UN petit bloc logique
+   - Si vous voulez modifier 200 lignes, faites 4-5 mutations séparées
+   - Préférez des changements CHIRURGICAUX et CIBLÉS
 
 ⚠️ RÈGLE CRITIQUE POUR FILE:
 - Chemin RELATIF au parent NEXUS (PAS de préfixe ../!)
