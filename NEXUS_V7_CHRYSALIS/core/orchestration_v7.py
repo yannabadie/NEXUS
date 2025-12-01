@@ -374,12 +374,28 @@ class OrchestratorV7:
 
                     # If swarm completed successfully, return the result
                     if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
+                        # Format output with agent names (DNA of NEXUS: show conversation)
+                        execution = swarm_result.get("execution", {})
+                        agent_outputs = execution.get("agent_outputs", [])
+                        mode = swarm_result.get("mode", "unknown")
+
+                        if agent_outputs:
+                            formatted_output = f"[Swarm] Mode: {mode} | Agents: {len(agent_outputs)}\n"
+                            for agent_data in agent_outputs:
+                                agent_id = agent_data.get("agent_id", "")
+                                content = agent_data.get("content", "")
+                                agent_name = "Gemini" if "gemini" in agent_id.lower() else "Claude"
+                                formatted_output += f"\n{agent_name}:\n{content}\n---\n"
+                        else:
+                            # Fallback: use raw output
+                            formatted_output = f"[Swarm] Mode: {mode}\n\n{swarm_result.get('output', '')}"
+
                         return {
                             "state": "WAITING_USER",
-                            "output": swarm_result.get("output", ""),
+                            "output": formatted_output,
                             "agent": "Swarm",
                             "finished": True,
-                            "swarm_mode": swarm_result.get("mode"),
+                            "swarm_mode": mode,
                             "swarm_analysis": swarm_result.get("analysis")
                         }
                     # If swarm errored, fall through to regular brainstorming
