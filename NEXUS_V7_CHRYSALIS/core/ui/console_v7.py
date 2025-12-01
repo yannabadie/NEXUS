@@ -82,11 +82,15 @@ Type your task or use slash commands (/help for list)
             # V7 FIX: Handle Swarm agent with distinct color
             if agent == "Gemini":
                 color = "cyan"
+                self.console.print(f"[{color}][{agent}][/{color}] {output}")
             elif agent == "Swarm":
+                # V7 FIX: Swarm output already has [Swarm] prefix from orchestration
+                # Don't add another prefix, just use magenta color for the whole output
                 color = "magenta"
+                self.console.print(f"[{color}]{output}[/{color}]")
             else:  # Claude or others
                 color = "green"
-            self.console.print(f"[{color}][{agent}][/{color}] {output}")
+                self.console.print(f"[{color}][{agent}][/{color}] {output}")
         elif output and not agent:
             # Output without agent (system messages)
             self.console.print(output)

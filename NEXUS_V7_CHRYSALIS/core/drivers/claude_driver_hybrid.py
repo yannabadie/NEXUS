@@ -105,13 +105,17 @@ class ClaudeDriverHybrid:
             RuntimeError: Si Claude CLI échoue
             TimeoutError: Si timeout dépassé
         """
-        # Write context to file
+        # Write context to file for debugging/logging
         context_file = self.io_buffer / "claude_context_in.md"
         context_file.write_text(context, encoding="utf-8")
 
         # Invoke Claude (mode naturel, PAS de flag JSON!)
-        # Added --dangerously-skip-permissions to bypass interactive prompts which block automation
-        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions'
+        # V7 FIX: Pass context via stdin, NOT @file syntax (which doesn't work)
+        # The -p flag is --print (non-interactive mode), prompt comes from stdin
+        # V7 FIX: Use --tools to limit available tools in print mode
+        # This prevents Claude from doing unlimited silent operations
+        tools = "Read,Glob,Grep,Edit,Write,Bash"
+        command = f'"{self.cli_path}" -p --dangerously-skip-permissions --tools "{tools}"'
 
         try:
             # Use Popen with polling loop to allow CTRL+C interruption
@@ -119,12 +123,20 @@ class ClaudeDriverHybrid:
                 command,
                 cwd=str(self.workspace_path),
                 shell=True,
+                stdin=subprocess.PIPE,  # V7 FIX: Accept stdin for context
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 encoding='utf-8',
                 errors='replace'
             )
+
+            # V7 FIX: Send context via stdin immediately, then close stdin
+            try:
+                proc.stdin.write(context)
+                proc.stdin.close()
+            except Exception as e:
+                print(f"[ERROR] Failed to write to Claude stdin: {e}", file=sys.stderr)
 
             # Track for cleanup at exit
             _active_claude_processes.append(proc)
