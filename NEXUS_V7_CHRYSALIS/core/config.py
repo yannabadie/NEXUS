@@ -25,7 +25,7 @@ class Config:
 
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))
-        self.timeout: int = int(os.getenv("TIMEOUT", "300"))  # seconds
+        self.timeout: int = int(os.getenv("TIMEOUT", "600"))  # seconds
 
         # Stagnation Detection
         self.stagnation_similarity_threshold: float = float(
@@ -174,8 +174,8 @@ class Config:
         # Execution limits
         self.swarm_max_rounds: int = int(os.getenv("SWARM_MAX_ROUNDS", "6"))
 
-        # Auto-routing: automatically use Swarm for all tasks (vs explicit /swarm)
-        self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "True").lower() == "true"
+        # V7 FIX: BRAINSTORMING par défaut, SWARM explicite via /swarm
+        self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "False").lower() == "true"
 
         # ====================================================================
         # GEMINI PTY MODE (V7 Sprint 13) - DISABLED

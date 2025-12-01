@@ -500,19 +500,24 @@ Path: {self.workspace_path}
                         mode = swarm_result.get("mode", "unknown")
 
                         if agent_outputs:
-                            # V7 FIX: Single [Swarm] prefix, format agent outputs
+                            # V7 FIX: Single [Swarm] prefix, format agent outputs with emojis
                             formatted_output = f"[Swarm] Mode: {mode} | Agents: {len(agent_outputs)}\n"
                             for agent_data in agent_outputs:
                                 agent_id = agent_data.get("agent_id", "")
                                 content = agent_data.get("content", "")
-                                agent_name = "Gemini" if "gemini" in agent_id.lower() else "Claude"
-                                # V7 FIX: Show error status clearly
                                 status = agent_data.get("status", "success")
-                                if status == "error":
-                                    error_msg = agent_data.get("error") or content
-                                    formatted_output += f"\n{agent_name} ❌ Error:\n{error_msg}\n---\n"
+
+                                # V7 FIX: Emojis distinctifs par agent
+                                if "gemini" in agent_id.lower():
+                                    agent_name = "🤖 Gemini"
                                 else:
-                                    formatted_output += f"\n{agent_name}:\n{content}\n---\n"
+                                    agent_name = "🧠 Claude"
+
+                                if status == "error" or content.startswith("Error:") or not content.strip():
+                                    error_msg = agent_data.get("error") or content or "[No response]"
+                                    formatted_output += f"\n{agent_name} ❌ ERREUR:\n{error_msg}\n{'─'*40}\n"
+                                else:
+                                    formatted_output += f"\n{agent_name}:\n{content}\n{'─'*40}\n"
                         else:
                             # Fallback: use raw output, strip any existing [Swarm] prefix to avoid duplication
                             raw_output = swarm_result.get('output', '')
@@ -632,11 +637,13 @@ Path: {self.workspace_path}
                 # Capture sender BEFORE updating active_agent
                 sender = message.get("sender", self.active_agent)
 
-                # Check agent switch
-                next_agent = message.get("next_agent", self.active_agent)
-                if next_agent != self.active_agent:
-                    self.active_agent = next_agent
-                    self.stagnation_detector.reset()  # Reset on switch
+                # V7 FIX: FORCE alternance Gemini↔Claude (comme EVOLUTION_BRAINSTORM)
+                # L'alternance ne doit PAS dépendre de next_agent de l'agent
+                previous_agent = self.active_agent
+                self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+                self.stagnation_detector.reset()
+                if self.config.ui_verbose:
+                    print(f"[BRAINSTORM] {previous_agent} → {self.active_agent}", file=sys.stderr)
 
                 return self._make_result("BRAINSTORMING", content, sender, False)
 

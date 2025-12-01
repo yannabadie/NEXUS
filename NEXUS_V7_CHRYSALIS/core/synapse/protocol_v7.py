@@ -71,9 +71,11 @@ class LightMessageV7(BaseModel):
     @field_validator('next_agent', mode='before')
     @classmethod
     def default_next_agent(cls, v: Optional[str], info: ValidationInfo) -> Optional[str]:
-        """Si next_agent oublié, reste sur même agent"""
+        """V7 FIX: Si next_agent oublié, ALTERNER vers l'autre agent"""
         if v is None and info.data.get('sender'):
-            return info.data['sender']
+            sender = info.data['sender'].capitalize()
+            # Alterner au lieu de garder le même
+            return "Claude" if sender == "Gemini" else "Gemini"
         if v:
             return v.capitalize()
         return None

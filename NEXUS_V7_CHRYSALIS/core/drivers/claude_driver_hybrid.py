@@ -295,10 +295,8 @@ class ClaudeDriverHybrid:
         if any(keyword in content.lower() for keyword in finish_keywords):
             status = "FINISHED"
 
-        # Detect next_agent from content
-        next_agent = "Claude"  # By default, stay with Claude
-        if "gemini" in content.lower() and action_type == "TALK":
-            next_agent = "Gemini"  # Asking Gemini's opinion
+        # V7 FIX: Alterner par défaut (l'orchestrateur force aussi)
+        next_agent = "Gemini"  # Default: passer à Gemini après Claude
 
         # Construct structured message
         return {
