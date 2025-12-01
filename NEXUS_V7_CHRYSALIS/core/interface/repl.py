@@ -4,10 +4,17 @@ REPL Interface V7 - Persistent Orchestrator
 Le REPL crée l'orchestrateur UNE FOIS et le garde en mémoire
 toute la session (persistent FSM architecture)
 """
+import sys
+import os
+from pathlib import Path
+from typing import Dict, Optional
+
+# Fix VS Code terminal on Windows: unset TERM to let prompt_toolkit auto-detect
+if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
+    del os.environ['TERM']
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
-from pathlib import Path
-from typing import Dict
 from core.orchestration_v7 import OrchestratorV7
 from core.ui.console_v7 import ConsoleV7
 from core.interface.commands import (
@@ -52,11 +59,19 @@ class InteractiveNexusV7:
         # UI
         self.console = ConsoleV7(verbose=self.config.ui_verbose)
 
-        # Prompt toolkit session
+        # Prompt toolkit session with fallback for non-interactive terminals
         history_file = workspace_path / ".nexus" / "history.txt"
-        self.session = PromptSession(
-            history=FileHistory(str(history_file))
-        )
+        self.session = None
+        self._use_simple_input = False
+
+        try:
+            self.session = PromptSession(
+                history=FileHistory(str(history_file))
+            )
+        except Exception as e:
+            # Fallback for VS Code terminal, piped input, or other non-standard terminals
+            print(f"[INFO] prompt_toolkit unavailable ({type(e).__name__}), using simple input mode")
+            self._use_simple_input = True
 
         # Evolution tracking
         self.successful_turns = 0  # Counter for auto-evolution trigger
@@ -67,6 +82,16 @@ class InteractiveNexusV7:
 
         # Abort flag for graceful shutdown of long-running operations
         self._abort_requested = False
+
+    def _get_input(self, prompt: str = "nexus7> ") -> str:
+        """Get user input with fallback for non-interactive terminals."""
+        if self._use_simple_input:
+            try:
+                return input(prompt)
+            except EOFError:
+                return "/exit"
+        else:
+            return self.session.prompt(prompt)
 
     def run(self):
         """Main REPL loop"""
@@ -90,7 +115,7 @@ class InteractiveNexusV7:
         while True:
             try:
                 # Get user input
-                user_input = self.session.prompt("nexus7> ")
+                user_input = self._get_input("nexus7> ")
 
                 # Sanitize input: strip ANSI escape sequences that can corrupt objectives
                 # Escape sequences like 0~, [D, ESC[ can leak from terminal on Windows
@@ -440,7 +465,7 @@ class InteractiveNexusV7:
             while True:
                 self.console.print("\n[A]pprove | [R]eject | [T]est | [S]kip | [Q]uit review")
                 try:
-                    decision = self.session.prompt("nexus7/review> ").strip().lower()
+                    decision = self._get_input("nexus7/review> ").strip().lower()
                 except KeyboardInterrupt:
                     self.console.print("\nReview interrupted.")
                     return
@@ -480,7 +505,7 @@ class InteractiveNexusV7:
         # Ask to delete PENDING_REVIEW files
         self.console.print("\nDelete PENDING_REVIEW files? [y/N]")
         try:
-            confirm = self.session.prompt("nexus7/review> ").strip().lower()
+            confirm = self._get_input("nexus7/review> ").strip().lower()
         except KeyboardInterrupt:
             self.console.print("\nKeeping PENDING_REVIEW files.")
             return
