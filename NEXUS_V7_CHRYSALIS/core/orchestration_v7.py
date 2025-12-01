@@ -214,7 +214,9 @@ class OrchestratorV7:
             Agent response content as string
         """
         is_claude = "claude" in agent_id.lower()
-        self.active_agent = "Claude" if is_claude else "Gemini"
+        # V7 FIX: Use local variable instead of shared self.active_agent to avoid race condition
+        # in parallel execution mode. Each thread must know which agent it's invoking.
+        target_agent = "Claude" if is_claude else "Gemini"
 
         try:
             # Map task type string to TaskType enum
@@ -231,16 +233,37 @@ class OrchestratorV7:
             # - System prompt
             # - Workspace context
             # - Available tools
-            enriched_context = self._build_swarm_context(context, task_type)
+            enriched_context = self._build_swarm_context(context, task_type, target_agent)
 
-            response = self._invoke_agent(task_type_enum, enriched_context)
+            # V7 FIX: Pass target_agent explicitly to avoid race condition
+            response = self._invoke_agent_direct(task_type_enum, enriched_context, target_agent)
             return response.get("content", str(response))
 
         except Exception as e:
             self.logger.error(f"Swarm invocation failed: {e}")
             return f"Error: {e}"
 
-    def _build_swarm_context(self, task_context: str, task_type: str) -> str:
+    def _invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) -> Dict:
+        """
+        Invoke a specific agent directly without using shared state.
+
+        Thread-safe version for parallel execution.
+
+        Args:
+            task_type: Type of task for model routing
+            context: Full context to send
+            target_agent: "Claude" or "Gemini"
+
+        Returns:
+            Response dict with content
+        """
+        if target_agent == "Claude":
+            driver = self._get_claude_driver(task_type)
+            return driver.invoke(context)
+        else:
+            return self.gemini_driver.invoke(context)
+
+    def _build_swarm_context(self, task_context: str, task_type: str, target_agent: str = None) -> str:
         """
         Build enriched context for swarm execution.
 
@@ -253,18 +276,22 @@ class OrchestratorV7:
         Args:
             task_context: Context from swarm executor (mode + subtask)
             task_type: Type of task (negotiation, execution, etc.)
+            target_agent: "Claude" or "Gemini" (for thread-safe operation)
 
         Returns:
             Enriched markdown context
         """
+        # Use target_agent if provided (thread-safe), otherwise fallback to self.active_agent
+        agent = target_agent or self.active_agent or "Gemini"
+
         # Load system prompt
-        prompt_file = "system_gemini_v7.md" if self.active_agent == "Gemini" else "system_claude_v7.md"
+        prompt_file = "system_gemini_v7.md" if agent == "Gemini" else "system_claude_v7.md"
         prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
 
         try:
             system_prompt = prompt_path.read_text(encoding="utf-8")
         except Exception:
-            system_prompt = f"You are {self.active_agent}, a collaborative AI agent."
+            system_prompt = f"You are {agent}, a collaborative AI agent."
 
         # Get available tools
         tools_list = list(self.tool_manager.tools.keys())
@@ -463,15 +490,25 @@ Path: {self.workspace_path}
                         mode = swarm_result.get("mode", "unknown")
 
                         if agent_outputs:
+                            # V7 FIX: Single [Swarm] prefix, format agent outputs
                             formatted_output = f"[Swarm] Mode: {mode} | Agents: {len(agent_outputs)}\n"
                             for agent_data in agent_outputs:
                                 agent_id = agent_data.get("agent_id", "")
                                 content = agent_data.get("content", "")
                                 agent_name = "Gemini" if "gemini" in agent_id.lower() else "Claude"
-                                formatted_output += f"\n{agent_name}:\n{content}\n---\n"
+                                # V7 FIX: Show error status clearly
+                                status = agent_data.get("status", "success")
+                                if status == "error":
+                                    error_msg = agent_data.get("error") or content
+                                    formatted_output += f"\n{agent_name} ❌ Error:\n{error_msg}\n---\n"
+                                else:
+                                    formatted_output += f"\n{agent_name}:\n{content}\n---\n"
                         else:
-                            # Fallback: use raw output
-                            formatted_output = f"[Swarm] Mode: {mode}\n\n{swarm_result.get('output', '')}"
+                            # Fallback: use raw output, strip any existing [Swarm] prefix to avoid duplication
+                            raw_output = swarm_result.get('output', '')
+                            if raw_output.startswith("[Swarm]"):
+                                raw_output = raw_output[7:].lstrip()  # Remove "[Swarm]" prefix
+                            formatted_output = f"[Swarm] Mode: {mode}\n\n{raw_output}"
 
                         return {
                             "state": "WAITING_USER",
