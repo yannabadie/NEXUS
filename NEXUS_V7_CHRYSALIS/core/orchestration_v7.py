@@ -28,7 +28,8 @@ from core.swarm import (
     HybridSwarmEngine,
     SwarmPhase,
     CollaborationMode,
-    TaskAnalysis
+    TaskAnalysis,
+    TaskAnalyzer  # V7 FIX: For trivial input detection
 )
 from core.telemetry import TelemetryCollector
 from pydantic import ValidationError
@@ -146,6 +147,9 @@ class OrchestratorV7:
             })
         else:
             self.agent_pool = None
+
+        # V7 FIX: Task Analyzer for trivial input detection
+        self.task_analyzer = TaskAnalyzer()
 
         # V7 Sprint 9: Hybrid Swarm Engine for dynamic multi-agent collaboration
         if getattr(self.config, 'swarm_enabled', False):
@@ -470,6 +474,29 @@ Path: {self.workspace_path}
         if self.state == OrchestratorState.IDLE:
             if not user_input:
                 return self._make_result("IDLE", None, None, False)
+
+            # V7 FIX: Bypass multi-agent for trivial conversational inputs
+            # This prevents "hello" from triggering 12+ agent iterations
+            if self.task_analyzer.is_conversational_trivial(user_input):
+                self.logger.debug("Trivial input detected, bypassing multi-agent", {
+                    "input": user_input
+                })
+                # Simple greeting response - no need for multi-agent
+                greeting_responses = {
+                    "hello": "Hello! How can I help you today?",
+                    "hi": "Hi! What would you like to work on?",
+                    "bonjour": "Bonjour ! Comment puis-je vous aider ?",
+                    "salut": "Salut ! Qu'est-ce que je peux faire pour vous ?",
+                    "hey": "Hey! What's up?",
+                    "test": "Test acknowledged. System operational.",
+                    "ok": "Understood. What's next?",
+                    "oui": "D'accord. Quelle est la prochaine étape ?",
+                    "merci": "De rien ! N'hésitez pas si vous avez d'autres questions.",
+                    "thanks": "You're welcome! Let me know if you need anything else.",
+                }
+                input_lower = user_input.strip().lower().rstrip("!?.")
+                response = greeting_responses.get(input_lower, f"Acknowledged: '{user_input}'. What would you like to do?")
+                return self._make_result("WAITING_USER", response, None, True)
 
             # V7 Sprint 9: Auto-route to Swarm if enabled and not trivial
             if self.swarm_engine and getattr(self.config, 'swarm_auto_route', True):

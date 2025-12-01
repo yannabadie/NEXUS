@@ -114,6 +114,24 @@ AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
     }
 }
 
+# V7 FIX: Patterns for trivial conversational inputs (greetings, etc.)
+# These inputs should NOT trigger multi-agent collaboration
+CONVERSATIONAL_TRIVIAL_PATTERNS = [
+    # Greetings (FR/EN/ES/DE)
+    r'^(hello|hi|hey|bonjour|salut|coucou|hola|hallo|guten tag)[\s!?.]*$',
+    r'^(bonsoir|good morning|good evening|good night)[\s!?.]*$',
+    # Farewells
+    r'^(bye|goodbye|au revoir|ciao|adieu|à bientôt)[\s!?.]*$',
+    # Acknowledgments
+    r'^(ok|okay|d\'accord|oui|yes|non|no|merci|thanks|thank you)[\s!?.]*$',
+    # Simple questions about the assistant
+    r'^(ça va\??|how are you\??|comment vas-tu\??|tu vas bien\??)[\s!?.]*$',
+    # Testing/probing
+    r'^(test|testing|1234?|ping)[\s!?.]*$',
+    # Empty or whitespace-only (after strip)
+    r'^\s*$',
+]
+
 # Keywords that increase complexity
 COMPLEXITY_INDICATORS: Dict[str, int] = {
     # High complexity (+2)
@@ -215,6 +233,26 @@ class TaskAnalyzer:
 
     def __init__(self):
         self._domain_patterns = self._compile_patterns()
+        self._trivial_patterns = self._compile_trivial_patterns()
+
+    def _compile_trivial_patterns(self) -> list:
+        """Compile regex patterns for trivial conversational inputs"""
+        return [re.compile(p, re.IGNORECASE) for p in CONVERSATIONAL_TRIVIAL_PATTERNS]
+
+    def is_conversational_trivial(self, text: str) -> bool:
+        """
+        V7 FIX: Detect trivial conversational inputs that don't need multi-agent.
+
+        Examples: "hello", "bonjour", "test", "ok", etc.
+
+        Returns:
+            True if input is a simple greeting/acknowledgment
+        """
+        text_stripped = text.strip()
+        for pattern in self._trivial_patterns:
+            if pattern.match(text_stripped):
+                return True
+        return False
 
     def _compile_patterns(self) -> Dict[TaskDomain, re.Pattern]:
         """Compile regex patterns for domain detection"""
@@ -236,6 +274,23 @@ class TaskAnalyzer:
             TaskAnalysis with complexity, domains, and agent fit scores
         """
         input_lower = user_input.lower()
+
+        # V7 FIX: Check for trivial conversational inputs FIRST
+        if self.is_conversational_trivial(user_input):
+            return TaskAnalysis(
+                complexity=TaskComplexity.TRIVIAL,
+                domains=[],  # No specific domain
+                primary_domain=TaskDomain.CREATIVE,  # Fallback
+                requires_web=False,
+                requires_code_execution=False,
+                requires_deep_reasoning=False,
+                requires_iteration=False,
+                gemini_fit_score=0.5,
+                claude_fit_score=0.5,
+                raw_input=user_input,
+                confidence=1.0,  # High confidence it's trivial
+                detected_keywords=["[TRIVIAL_CONVERSATIONAL]"]
+            )
 
         # Detect domains
         domains, detected_keywords = self._detect_domains(user_input)

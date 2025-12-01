@@ -324,3 +324,63 @@ class TestFullAlternationIntegration:
         # Both agents should have participated
         assert orch.drivers["Gemini"].call_count >= 1
         assert orch.drivers["Claude"].call_count >= 1
+
+
+# =============================================================================
+# Tests TRIVIAL Input Detection (V7 FIX)
+# =============================================================================
+
+class TestTrivialInputDetection:
+    """Tests pour la détection des inputs triviaux (salutations, etc.)."""
+
+    def test_greeting_patterns_detected(self):
+        """Les salutations simples doivent être détectées comme TRIVIAL."""
+        from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+
+        ta = TaskAnalyzer()
+
+        trivial_inputs = [
+            "hello", "Hello!", "HELLO?",
+            "bonjour", "Bonjour!",
+            "salut", "hey", "hi",
+            "test", "ok", "oui", "merci",
+        ]
+
+        for input_text in trivial_inputs:
+            assert ta.is_conversational_trivial(input_text), \
+                f"'{input_text}' should be detected as trivial"
+            analysis = ta.analyze(input_text)
+            assert analysis.complexity == TaskComplexity.TRIVIAL, \
+                f"'{input_text}' should have TRIVIAL complexity"
+
+    def test_non_trivial_inputs_not_detected(self):
+        """Les tâches réelles ne doivent PAS être détectées comme TRIVIAL."""
+        from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+
+        ta = TaskAnalyzer()
+
+        non_trivial_inputs = [
+            "fix the bug in auth.py",
+            "implement user authentication",
+            "refactor the database layer",
+            "hello world how are you doing today let me tell you about my problem",
+        ]
+
+        for input_text in non_trivial_inputs:
+            assert not ta.is_conversational_trivial(input_text), \
+                f"'{input_text}' should NOT be detected as trivial"
+            analysis = ta.analyze(input_text)
+            assert analysis.complexity != TaskComplexity.TRIVIAL, \
+                f"'{input_text}' should NOT have TRIVIAL complexity"
+
+    def test_trivial_analysis_has_special_keyword(self):
+        """Les inputs TRIVIAL doivent avoir le keyword spécial."""
+        from core.swarm.task_analyzer import TaskAnalyzer
+
+        ta = TaskAnalyzer()
+        analysis = ta.analyze("hello")
+
+        assert "[TRIVIAL_CONVERSATIONAL]" in analysis.detected_keywords, \
+            "TRIVIAL input should have special keyword marker"
+        assert analysis.confidence == 1.0, \
+            "TRIVIAL input should have high confidence"
