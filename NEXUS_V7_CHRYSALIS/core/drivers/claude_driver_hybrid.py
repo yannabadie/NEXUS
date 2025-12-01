@@ -162,9 +162,17 @@ class ClaudeDriverHybrid:
                     elapsed = time.time() - start_time
                     if elapsed > self.timeout:
                         print("\r" + " " * 80 + "\r", end="", file=sys.stderr)
-                        proc.kill()
-                        proc.wait()
-                        raise TimeoutError(f"Claude CLI timed out after {self.timeout}s")
+                        # Capture any pending stderr before killing
+                        current_stderr = ''.join(stderr_data)
+                        print(f"[ERROR] Claude CLI Timeout. Partial stderr: {current_stderr[-500:]}", file=sys.stderr)
+
+                        try:
+                            proc.kill()
+                            proc.wait(timeout=5)
+                        except Exception as e:
+                            print(f"[ERROR] Failed to kill Claude process: {e}", file=sys.stderr)
+
+                        raise TimeoutError(f"Claude CLI timed out after {self.timeout}s. Stderr: {current_stderr[-200:]}")
 
                     # Check for new output
                     try:
