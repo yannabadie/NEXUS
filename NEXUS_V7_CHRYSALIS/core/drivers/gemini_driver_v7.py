@@ -54,10 +54,12 @@ class GeminiDriverV7(BaseDriver):
             try:
                 output_json = json.loads(result.stdout)
                 # Gemini CLI often wraps response in specific structure
-                if "response" in output_json:
-                     # If response is a string, it might be markdown.
-                     # If it is a dict, it is likely the parsed tool output or JSON.
-                     return self._extract_content(output_json["response"])
+                if "content" in output_json:
+                    return self._extract_content(output_json)
+                elif "response" in output_json:
+                    # If response is a string, it might be markdown.
+                    # If it is a dict, it is likely the parsed tool output or JSON.
+                    return self._extract_content(output_json["response"])
                 return self._extract_content(output_json)
 
             except json.JSONDecodeError:
