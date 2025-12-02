@@ -33,6 +33,7 @@ from core.swarm import (
     TaskComplexity  # V7 FIX: For complexity-based routing
 )
 from core.telemetry import TelemetryCollector
+from core.governance.sandbox_policy import SandboxPolicy
 from pydantic import ValidationError
 import time
 import json
@@ -927,15 +928,10 @@ Path: {self.workspace_path}
                 tool_use = message.get('tool_use', {})
                 tool_name = tool_use.get('tool_name', 'unknown')
 
-                # Safe read-only tools that can be executed during brainstorming
-                # Include aliases for different naming conventions (Gemini CLI vs NEXUS)
-                SAFE_TOOLS = {'read', 'read_file', 'glob', 'grep', 'list_dir', 'web_search', 'web_fetch'}
-                # Tool name normalization (Gemini CLI names -> NEXUS names)
-                TOOL_ALIASES = {'read_file': 'read', 'write_file': 'write', 'run_shell_command': 'bash'}
-                # Dangerous tools that modify state - block during brainstorming
-                BLOCKED_TOOLS = {'write', 'write_file', 'edit', 'bash', 'run_shell_command', 'git', 'todo_write'}
-
-                if tool_name in SAFE_TOOLS:
+                # Check tool permissions using centralized sandbox policy
+                if SandboxPolicy.is_tool_blocked(tool_name):
+                    reason = SandboxPolicy.get_blocked_reason(tool_name)
+                    return self._make_result("TOOL_BLOCKED", f"[SANDBOX] {reason}", self.active_agent, False)
                     # Execute the safe tool and return result
                     try:
                         # ToolUse is already imported at module level
@@ -974,11 +970,12 @@ Path: {self.workspace_path}
                         # FIX: Include agent's content with the error message
                         return self._make_result("EVOLUTION_BRAINSTORM", f"{content}\n\n[Tool error: {tool_name}] {e}", sender, False)
 
-                elif tool_name in BLOCKED_TOOLS:
+                elif SandboxPolicy.is_tool_blocked(tool_name):
                     # Block dangerous tools during brainstorming
                     # FIX: Include agent's content with the block message
+                    reason = SandboxPolicy.get_blocked_reason(tool_name)
                     return self._make_result("EVOLUTION_BRAINSTORM",
-                        f"{content}\n\n[Blocked: {tool_name}] Write operations are disabled during brainstorming. "
+                        f"{content}\n\n[Blocked: {tool_name}] {reason}. "
                         f"Propose mutations in JSON format instead.", sender, False)
 
                 else:

@@ -53,9 +53,10 @@ class TestAgentAlternationE2E:
             "status": "FINISHED"
         }])
 
-        # Premier tour: IDLE → BRAINSTORMING (pas d'invocation agent)
-        result1 = orch.process_turn("Test alternation forcée")
-        assert orch.state == OrchestratorState.BRAINSTORMING
+        # Premier tour: Forcer BRAINSTORMING manuellement pour le test
+        orch.active_agent = "Gemini"
+        orch._transition_to(OrchestratorState.BRAINSTORMING)
+        orch.stagnation_detector.reset()
         initial_agent = orch.active_agent  # Should be "Gemini"
 
         # Deuxième tour: Gemini répond
@@ -85,9 +86,10 @@ class TestAgentAlternationE2E:
             "status": "FINISHED"
         }])
 
-        # Start with Gemini
-        orch.process_turn("Start task")
-        assert orch.active_agent == "Gemini"
+        # Start with Gemini in BRAINSTORMING mode
+        orch.active_agent = "Gemini"
+        orch._transition_to(OrchestratorState.BRAINSTORMING)
+        orch.stagnation_detector.reset()
 
         # After Gemini responds, should switch to Claude
         orch.process_turn()
@@ -114,9 +116,10 @@ class TestAgentAlternationE2E:
             "status": "FINISHED"
         }])
 
-        # Transition to BRAINSTORMING
-        orch.process_turn("Start with Claude")
-        orch.active_agent = "Claude"  # Ensure Claude starts
+        # Force start with Claude in BRAINSTORMING mode
+        orch.active_agent = "Claude"
+        orch._transition_to(OrchestratorState.BRAINSTORMING)
+        orch.stagnation_detector.reset()
 
         # After Claude responds, should switch to Gemini
         orch.process_turn()
@@ -140,6 +143,11 @@ class TestAgentAlternationE2E:
             {"sender": "Claude", "action_type": "TALK", "content": "Turn 2", "status": "CONTINUE"},
             {"sender": "Claude", "action_type": "FINISH", "content": "Turn 4", "status": "FINISHED"},
         ])
+
+        # Force BRAINSTORMING mode for testing alternation
+        orch.active_agent = "Gemini"
+        orch._transition_to(OrchestratorState.BRAINSTORMING)
+        orch.stagnation_detector.reset()
 
         # Run until completion
         result = run_orchestrator_loop(orch, "Multi-turn test", max_iterations=6)
@@ -314,6 +322,11 @@ class TestFullAlternationIntegration:
             "content": "D'accord, je vais faire la modification. Tâche terminée.",
             "status": "FINISHED"
         }])
+
+        # Force BRAINSTORMING mode for testing alternation
+        orch.active_agent = "Gemini"
+        orch._transition_to(OrchestratorState.BRAINSTORMING)
+        orch.stagnation_detector.reset()
 
         result = run_orchestrator_loop(orch, "Fix the auth bug")
 

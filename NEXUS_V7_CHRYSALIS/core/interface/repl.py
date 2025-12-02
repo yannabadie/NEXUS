@@ -482,7 +482,12 @@ class InteractiveNexusV7:
                     break
                 elif decision in ['r', 'reject']:
                     self.console.print(f"✗ Rejected: {child['id']} will be archived")
-                    # TODO: Implement archival logic
+                    try:
+                        self._archive_rejected_child(child, generation)
+                        self.console.print(f"✅ Child archived: {child['id']}")
+                    except Exception as e:
+                        self.console.print_error(f"Archival failed: {e}")
+                        self.console.print("⚠️  Manual cleanup required")
                     break
                 elif decision in ['t', 'test']:
                     self.console.print(f"🧪 Opening test mode for {child['id']}")
@@ -2228,3 +2233,67 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
         self.console.print(f"New active parent: {child_id}")
         self.console.print(f"Generation: {generation}")
         self.console.print(f"ASI Score: {asi_score:.3f}")
+
+    def _archive_rejected_child(self, child: dict, generation: int):
+        """
+        Archive a rejected child to prevent accumulation in GENERATION_ACTIVE.
+
+        Steps:
+        1. Create archive directory for rejected children
+        2. Move child from GENERATION_ACTIVE/ to ARCHIVE/rejected/GEN_XXX/
+        3. Update lineage with rejection reason
+
+        Args:
+            child: Child metadata dict from pending review
+            generation: Generation number
+        """
+        import shutil
+        from datetime import datetime
+        from core.evolution.lineage import load_lineage, save_lineage
+
+        child_id = child['id']
+
+        # Paths
+        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/
+        project_root = parent_path.parent  # 20_NEXUS/
+        child_path = project_root / "GENERATION_ACTIVE" / child_id
+        archive_dir = project_root / "ARCHIVE" / "rejected" / f"GEN_{generation:03d}"
+
+        # Validate child exists
+        if not child_path.exists():
+            raise FileNotFoundError(f"Child not found: {child_path}")
+
+        self.console.print(f"Archiving rejected child: {child_id}")
+
+        # 1. Create archive directory
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2. Move child to archive
+        archive_child_path = archive_dir / child_id
+        if archive_child_path.exists():
+            # If already exists, add timestamp to avoid collision
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_child_path = archive_dir / f"{child_id}_rejected_{timestamp}"
+
+        shutil.move(str(child_path), str(archive_child_path))
+        self.console.print(f"✓ Moved to {archive_child_path}")
+
+        # 3. Update lineage with rejection
+        try:
+            lineage = load_lineage(self.workspace_path)
+            if "rejected_children" not in lineage:
+                lineage["rejected_children"] = []
+
+            lineage["rejected_children"].append({
+                "id": child_id,
+                "generation": generation,
+                "rejected_at": datetime.now().isoformat(),
+                "reason": "manual_review_rejection",
+                "archive_path": str(archive_child_path),
+                "asi_score": child.get('score', 0.0)
+            })
+
+            save_lineage(lineage, self.workspace_path)
+            self.console.print("✓ Updated lineage with rejection record")
+        except Exception as e:
+            self.console.print(f"⚠️  Lineage update failed: {e}")

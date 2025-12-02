@@ -7,10 +7,10 @@ Handles security policies, alignment verification, and access control.
 
 ### Active
 - `red_team/`: Alignment testing with trap questions (blocks unsafe evolutions)
+- `sandbox_policy.py`: Tool execution permissions and security policies
 
 ### Planned (TODO)
 - `gcp_gatekeeper.py`: GCP access control with ROI validation
-- `sandbox_policy.py`: Permission policies (logic currently in tool_manager.py)
 - `ethics.py`: Alignment verification to Creator (Yann Abadie)
 
 ## Architecture
@@ -22,8 +22,9 @@ governance/
 │   ├── __init__.py
 │   ├── alignment_tests.py
 │   └── validator.py
+├── sandbox_policy.py    # Tool execution permissions and security policies
 ├── gcp_gatekeeper.py    # TODO: ROI-based cloud access
-└── sandbox_policy.py    # TODO: Extract from tool_manager.py
+└── ethics.py            # TODO: Alignment verification to Creator
 ```
 
 ## Usage
