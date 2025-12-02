@@ -29,7 +29,8 @@ from core.swarm import (
     SwarmPhase,
     CollaborationMode,
     TaskAnalysis,
-    TaskAnalyzer  # V7 FIX: For trivial input detection
+    TaskAnalyzer,  # V7 FIX: For trivial input detection
+    TaskComplexity  # V7 FIX: For complexity-based routing
 )
 from core.telemetry import TelemetryCollector
 from pydantic import ValidationError
@@ -487,13 +488,31 @@ Path: {self.workspace_path}
             if not user_input:
                 return self._make_result("IDLE", None, None, False)
 
-            # V7 FIX: Bypass multi-agent for trivial conversational inputs
-            # This prevents "hello" from triggering 12+ agent iterations
-            if self.task_analyzer.is_conversational_trivial(user_input):
-                self.logger.debug("Trivial input detected, bypassing multi-agent", {
-                    "input": user_input
-                })
-                # Simple greeting response - no need for multi-agent
+            # ================================================================
+            # V7 FIX: COMPLEXITY-BASED ROUTING (aligned with MISSION.md)
+            # ================================================================
+            # - TRIVIAL: Static response (greetings, acknowledgments)
+            # - SIMPLE: Single agent, direct execution, NO CFL
+            # - MODERATE+: Multi-agent BRAINSTORMING with CFL
+            # - BRAINSTORMING state reserved for /evolve debates
+            # ================================================================
+
+            # Step 1: Analyze task complexity
+            task_analysis = self.task_analyzer.analyze(user_input)
+            complexity = task_analysis.complexity
+
+            self.logger.debug("Task complexity analysis", {
+                "input": user_input[:100],
+                "complexity": complexity.name,
+                "domains": [d.value for d in task_analysis.domains[:3]],
+                "recommended_lead": task_analysis.recommended_lead
+            })
+
+            # Step 2: Route based on complexity
+
+            # TRIVIAL: Static greeting responses
+            if complexity == TaskComplexity.TRIVIAL:
+                self.logger.debug("TRIVIAL task - static response", {"input": user_input})
                 greeting_responses = {
                     "hello": "Hello! How can I help you today?",
                     "hi": "Hi! What would you like to work on?",
@@ -510,10 +529,22 @@ Path: {self.workspace_path}
                 response = greeting_responses.get(input_lower, f"Acknowledged: '{user_input}'. What would you like to do?")
                 return self._make_result("WAITING_USER", response, None, True)
 
-            # V7 Sprint 9: Auto-route to Swarm if enabled and not trivial
+            # SIMPLE: Single agent, direct execution, NO CFL, NO alternation
+            # As per MISSION.md: "Tâche Simple → NEXUS parent résout directement"
+            if complexity == TaskComplexity.SIMPLE:
+                self.logger.debug("SIMPLE task - single agent mode", {
+                    "input": user_input,
+                    "lead": task_analysis.recommended_lead
+                })
+                return self._execute_simple_task(user_input, task_analysis)
+
+            # MODERATE/COMPLEX/EXPERT: Multi-agent collaboration
+            # Route to Swarm if enabled, otherwise use BRAINSTORMING
+
+            # V7 Sprint 9: Auto-route to Swarm if enabled
             if self.swarm_engine and getattr(self.config, 'swarm_auto_route', True):
                 # Use Swarm for automatic mode selection and collaboration
-                self.logger.debug("Auto-routing to Swarm Engine", {"input": user_input[:100]})
+                self.logger.debug("MODERATE+ task - Swarm mode", {"input": user_input[:100]})
                 swarm_start = time.time()
                 try:
                     swarm_result = self.process_with_swarm(user_input)
@@ -584,7 +615,7 @@ Path: {self.workspace_path}
                     if self.telemetry:
                         self.telemetry.record_error("SWARM_EXCEPTION", str(e))
 
-            # Nouvelle tâche → Init brainstorming (fallback or non-swarm mode)
+            # Fallback: BRAINSTORMING for MODERATE+ tasks (non-swarm mode)
             self.blackboard["objective"] = user_input
             self.blackboard["current_state"]["iteration"] = self.iteration
             self.active_agent = "Gemini"  # First agent by convention (equal rotation after)
@@ -1084,6 +1115,188 @@ Path: {self.workspace_path}
 
         # Fallback
         return self._make_result("ERROR", "Unknown state", None, False, error="UNKNOWN_STATE")
+
+    def _execute_simple_task(self, user_input: str, task_analysis: TaskAnalysis) -> Dict:
+        """
+        Execute SIMPLE tasks with a single agent (no CFL, no alternation).
+
+        As per MISSION.md: "Tâche Simple → NEXUS parent résout directement"
+
+        This mode:
+        - Uses ONE agent (selected by fit score)
+        - Executes tools directly without CFL validation
+        - Returns result immediately when agent finishes
+        - No brainstorming debate, no alternation
+
+        Args:
+            user_input: User's task description
+            task_analysis: Pre-computed task analysis
+
+        Returns:
+            Result dict with agent output
+        """
+        # Select best agent based on fit scores
+        if task_analysis.recommended_lead == "gemini":
+            agent = "Gemini"
+        elif task_analysis.recommended_lead == "claude":
+            agent = "Claude"
+        else:
+            # Equal fit - use Gemini by default (faster)
+            agent = "Gemini"
+
+        self.logger.info(f"[SIMPLE MODE] Single agent: {agent}", {
+            "task": user_input[:80],
+            "gemini_fit": f"{task_analysis.gemini_fit_score:.2f}",
+            "claude_fit": f"{task_analysis.claude_fit_score:.2f}"
+        })
+
+        # Set objective for context
+        self.blackboard["objective"] = user_input
+        self.blackboard["mode"] = "SIMPLE"
+        self.active_agent = agent
+
+        # Build context (lighter than brainstorming)
+        context = self._build_simple_context(user_input, task_analysis)
+
+        # Invoke agent
+        invoke_start = time.time()
+        max_tool_iterations = 5  # Safety limit for tool loops
+
+        for iteration in range(max_tool_iterations):
+            try:
+                if agent == "Claude":
+                    driver = self._get_claude_driver(TaskType.SIMPLE)
+                    response = driver.invoke(context)
+                else:
+                    response = self.gemini_driver.invoke(context)
+
+                invoke_duration = time.time() - invoke_start
+                message = self._validate_message(response)
+
+                # Record invocation
+                self._record_invocation(
+                    agent, "simple", True, invoke_duration,
+                    self._calculate_quality_score(message, True, False)
+                )
+
+            except Exception as e:
+                self.logger.error(f"[SIMPLE MODE] Agent error: {e}")
+                return self._make_result(
+                    "ERROR",
+                    f"Agent {agent} failed: {e}",
+                    agent,
+                    True,
+                    error=str(e)
+                )
+
+            # Check action type
+            action_type = message.get("action_type")
+            content = message.get("content", "")
+
+            if action_type == "TOOL_USE":
+                # Execute tool directly (NO CFL validation for simple tasks)
+                tool_use = message.get("tool_use", {})
+                tool_name = tool_use.get("tool_name", "unknown")
+
+                self.logger.debug(f"[SIMPLE MODE] Executing tool: {tool_name}")
+
+                try:
+                    tool_request = ToolUse(**tool_use)
+                    result = self.tool_manager.execute(tool_request)
+
+                    # Add tool result to context for next iteration
+                    if result.status.lower() == "success":
+                        tool_output = result.output[:2000] if len(result.output) > 2000 else result.output
+                        context += f"\n\n## Tool Result [{tool_name}]\n✓ SUCCESS:\n```\n{tool_output}\n```\n"
+                    else:
+                        context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {result.error}\n"
+
+                    # Check if agent is done after tool
+                    if message.get("status") == "FINISHED":
+                        return self._make_result("FINISHED", content, agent, True)
+
+                    # Continue to next iteration (agent will see tool result)
+
+                except Exception as e:
+                    self.logger.error(f"[SIMPLE MODE] Tool error: {e}")
+                    context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {e}\n"
+
+            elif message.get("status") == "FINISHED" or action_type == "FINISHED":
+                # Task complete
+                return self._make_result("FINISHED", content, agent, True)
+
+            else:
+                # TALK without tool - check if done
+                finish_keywords = ["done", "complete", "finished", "terminé", "fini"]
+                if any(kw in content.lower() for kw in finish_keywords):
+                    return self._make_result("FINISHED", content, agent, True)
+
+                # Not done but no tool - return what we have
+                return self._make_result("WAITING_USER", content, agent, True)
+
+        # Max iterations reached
+        self.logger.warn("[SIMPLE MODE] Max tool iterations reached")
+        return self._make_result(
+            "FINISHED",
+            f"{content}\n\n[Max iterations reached]",
+            agent,
+            True
+        )
+
+    def _build_simple_context(self, user_input: str, task_analysis: TaskAnalysis) -> str:
+        """
+        Build lightweight context for SIMPLE task execution.
+
+        Simpler than full brainstorming context - focused on task completion.
+        """
+        agent = self.active_agent
+        prompt_file = "system_gemini_v7.md" if agent == "Gemini" else "system_claude_v7.md"
+        prompt_path = Path(__file__).parent.parent / "prompts" / prompt_file
+
+        try:
+            system_prompt = prompt_path.read_text(encoding="utf-8")
+        except Exception:
+            system_prompt = f"You are {agent}."
+
+        tools_list = list(self.tool_manager.tools.keys())
+
+        return f"""# NEXUS V7 - SIMPLE TASK MODE
+
+{system_prompt}
+
+---
+
+## MODE
+**SIMPLE TASK** - Single agent, direct execution.
+Complete the task efficiently. No need for extensive debate.
+
+---
+
+## TASK
+{user_input}
+
+---
+
+## TASK ANALYSIS
+- Complexity: {task_analysis.complexity.name}
+- Primary Domain: {task_analysis.primary_domain.value}
+- Requires Web: {task_analysis.requires_web}
+- Requires Code: {task_analysis.requires_code_execution}
+
+---
+
+## AVAILABLE TOOLS
+{json.dumps(tools_list, indent=2, ensure_ascii=False)}
+
+---
+
+## INSTRUCTIONS
+1. Analyze the task
+2. Use tools as needed to complete it
+3. When done, say "FINISHED" or "Task complete"
+
+Execute efficiently. You are the sole agent for this task.
+"""
 
     def _transition_to(self, new_state: OrchestratorState):
         """Transition FSM"""
