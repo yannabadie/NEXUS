@@ -689,13 +689,20 @@ Path: {self.workspace_path}
             result = self.tool_manager.execute(tool_request)
             self.pending_tool_result = result
 
+            # FIX: Switch to OTHER agent for CFL validation (collaboration)
+            # The agent who requested the tool should NOT validate its own result
+            requesting_agent = self.active_agent
+            self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+            if self.config.ui_verbose:
+                print(f"[CFL] {requesting_agent} tool → {self.active_agent} validates", file=sys.stderr)
+
             # Transition to CFL validation
             self._transition_to(OrchestratorState.VALIDATING_CFL)
 
             return self._make_result(
                 "VALIDATING_CFL",
                 self._format_tool_result(result),
-                self.active_agent,
+                requesting_agent,  # Report who requested the tool
                 False
             )
 
@@ -716,6 +723,16 @@ Path: {self.workspace_path}
 
             # Check validation (peut être dans post_action_review ou inféré du content)
             content = message.get("content", "")
+            action_type = message.get("action_type")
+            status = message.get("status", "")
+
+            # FIX: Check if agent explicitly says task is FINISHED
+            task_finished = (
+                status == "FINISHED" or
+                action_type == "FINISHED" or
+                "task complete" in content.lower() or
+                "tâche terminée" in content.lower()
+            )
 
             # Simple heuristic: si "✓" ou "success" dans content → success
             if "✓" in content or "success" in content.lower() or "successfully" in content.lower():
@@ -726,27 +743,47 @@ Path: {self.workspace_path}
                 # Assume success si pas d'erreur explicite
                 validation_success = True
 
-            if validation_success:
-                # Success → Reset all counters
-                self.pending_tool_result = None
+            # Reset counters on any CFL completion
+            self.pending_tool_result = None
+
+            if task_finished:
+                # Task explicitly finished → Go to IDLE
                 self.stalemate_counter = 0
                 self.panic_system.reset_stalemate()
                 self.panic_system.reset_errors()
                 self._transition_to(OrchestratorState.IDLE)
+                return self._make_result("FINISHED", f"✓ {content}", self.active_agent, True)
 
-                return self._make_result("IDLE", f"✓ {content}", self.active_agent, False)
+            elif validation_success:
+                # Tool success but task not finished → Continue brainstorming
+                # FIX: Switch to other agent for next step (equal collaboration)
+                self.stalemate_counter = 0
+                self.panic_system.reset_stalemate()
+                self.panic_system.reset_errors()
+
+                # Alternate agent after successful tool execution
+                previous_agent = self.active_agent
+                self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
+                if self.config.ui_verbose:
+                    print(f"[CFL SUCCESS] {previous_agent} → {self.active_agent}", file=sys.stderr)
+
+                self._transition_to(OrchestratorState.BRAINSTORMING)
+                return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
+
             else:
                 # Failure → Check stalemate via panic system
-                self.pending_tool_result = None
                 self.stalemate_counter += 1
 
                 # Use panic system for stalemate check
                 if self.panic_system.check_stalemate():
                     return self._trigger_panic(f"Stalemate: {self.stalemate_counter} failures")
 
-                self._transition_to(OrchestratorState.BRAINSTORMING)
+                # Alternate agent to get fresh perspective on failure
+                previous_agent = self.active_agent
+                self.active_agent = "Claude" if self.active_agent == "Gemini" else "Gemini"
 
-                return self._make_result("BRAINSTORMING", f"✗ {content}", self.active_agent, False)
+                self._transition_to(OrchestratorState.BRAINSTORMING)
+                return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
 
         # === STATE: EVOLUTION_BRAINSTORM ===
         elif self.state == OrchestratorState.EVOLUTION_BRAINSTORM:

@@ -109,6 +109,17 @@ class ToolManager:
             "todo_write": self._execute_todo_write
         }
 
+    # Tool name aliases (Gemini CLI names -> NEXUS names)
+    TOOL_ALIASES = {
+        'read_file': 'read',
+        'write_file': 'write',
+        'edit_file': 'edit',
+        'list_directory': 'list_dir',
+        'run_shell_command': 'bash',
+        'google_web_search': 'web_search',
+        'read_many_files': 'read',  # Fallback to single read
+    }
+
     def execute(self, tool_request) -> ToolResult:
         """
         Execute tool request
@@ -128,6 +139,9 @@ class ToolManager:
         """
         tool_name = tool_request.tool_name
         arguments = tool_request.arguments
+
+        # Normalize tool name using alias if needed (Gemini CLI compatibility)
+        tool_name = self.TOOL_ALIASES.get(tool_name, tool_name)
 
         if tool_name not in self.tools:
             return ToolResult(
