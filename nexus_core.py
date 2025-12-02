@@ -42,7 +42,8 @@ def main():
         print("\n✅ Result:")
         print(result.final_output)
     else:
-        print("❌ Error: Must provide either an objective or --evolve flag.")
+        print("❌ Error: Must provide either an objective or use the --evolve flag.")
+        print("   Run 'python nexus_core.py --help' for usage information.")
         parser.print_help()
 
 if __name__ == "__main__":
