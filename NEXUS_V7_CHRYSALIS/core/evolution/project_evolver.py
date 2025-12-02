@@ -114,8 +114,8 @@ class ProjectEvolver:
             if match:
                  data = json.loads(match.group(0))
                  return ArchitecturePlan.from_dict(data)
-        except:
-            pass
+        except (AttributeError, json.JSONDecodeError, TypeError) as e:
+            print(f"Failed to extract architecture plan from result.final_output: {e}")
 
         # Default Plan if negotiation fails extraction
         return ArchitecturePlan(
