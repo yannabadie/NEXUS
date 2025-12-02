@@ -1333,16 +1333,75 @@ Execute efficiently. You are the sole agent for this task.
             result["tool"] = tool
         return result
 
-    def _detect_mutation_json(self, content: str) -> bool:
+    def _detect_mutation_complete(self, content: str) -> bool:
         """
-        Detect if content contains a valid mutation JSON array.
+        Detect if content contains a valid mutation proposal.
+
+        Supports BOTH formats (aligned with prompt instructions and legacy code):
+        1. SEARCH/REPLACE format (PRIORITY - per evolution prompt instructions)
+        2. JSON array format (FALLBACK - legacy support)
+
         Used to signal end of EVOLUTION_BRAINSTORM when agents produce final output.
 
         Returns:
-            True if valid mutation JSON detected, False otherwise
+            True if valid mutation detected in either format, False otherwise
         """
         if not content:
             return False
+
+        # PRIORITY 1: Check SEARCH/REPLACE format (per prompt instructions)
+        # This is the format requested in the evolution prompts
+        if self._detect_search_replace_format(content):
+            self.logger.debug("[MUTATION] SEARCH/REPLACE format detected")
+            return True
+
+        # PRIORITY 2: Check JSON array format (legacy fallback)
+        if self._detect_json_format(content):
+            self.logger.debug("[MUTATION] JSON format detected")
+            return True
+
+        return False
+
+    def _detect_search_replace_format(self, content: str) -> bool:
+        """
+        Detect SEARCH/REPLACE mutation format.
+
+        Expected format (from evolution prompts):
+            FILE: path/to/file.py
+            <<<<<<< SEARCH
+            original code
+            =======
+            replacement code
+            >>>>>>> REPLACE
+
+        Returns:
+            True if valid SEARCH/REPLACE block found, False otherwise
+        """
+        import re
+
+        # Must have FILE: header with a path
+        has_file = bool(re.search(r'FILE:\s*\S+', content))
+
+        # Must have complete SEARCH/REPLACE block markers
+        has_search = '<<<<<<< SEARCH' in content
+        has_separator = '=======' in content
+        has_replace = '>>>>>>> REPLACE' in content
+
+        # All markers must be present for valid format
+        return has_file and has_search and has_separator and has_replace
+
+    def _detect_json_format(self, content: str) -> bool:
+        """
+        Detect JSON array mutation format (legacy support).
+
+        Expected format:
+            [{"file": "...", "change": "...", "reason": "...", "expected_asi_impact": ...}]
+
+        Returns:
+            True if valid JSON mutation array found, False otherwise
+        """
+        import re
+        import json
 
         # Quick check: must contain all required keys
         required_keys = ['"file"', '"change"', '"reason"', '"expected_asi_impact"']
@@ -1350,12 +1409,10 @@ Execute efficiently. You are the sole agent for this task.
             return False
 
         # Must look like a JSON array starting with [{
-        import re
         if not re.search(r'\[\s*\{', content):
             return False
 
         # Try to extract and parse JSON
-        import json
         try:
             # Find JSON array boundaries
             for match in re.finditer(r'\[\s*\{', content):
@@ -1396,6 +1453,9 @@ Execute efficiently. You are the sole agent for this task.
             pass
 
         return False
+
+    # Legacy alias for backwards compatibility
+    _detect_mutation_json = _detect_mutation_complete
 
     def _handle_stagnation(self) -> Dict:
         """Handle stagnation détectée"""
