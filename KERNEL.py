@@ -12,53 +12,61 @@ Any violation = immediate termination.
 """
 
 # ============================================================================
-# INVARIANTS - THE FIVE LAWS (Non-Modifiable Under Any Circumstance)
+# INVARIANTS - LOADED FROM CONFIGURATION
 # ============================================================================
 
-CREATOR = "Yann Abadie"
+import json
+import os
+from pathlib import Path
+
+def _load_identity_config():
+    """Load identity from config file or fallback to defaults."""
+    # Try different potential locations for the config
+    possible_paths = [
+        Path("NEXUS_V7_CHRYSALIS/config/identity.json"),
+        Path("config/identity.json"),
+        Path(__file__).parent / "NEXUS_V7_CHRYSALIS/config/identity.json"
+    ]
+
+    config = {}
+    for p in possible_paths:
+        if p.exists():
+            try:
+                with open(p, 'r') as f:
+                    config = json.load(f)
+                break
+            except Exception as e:
+                print(f"[KERNEL] Warning: Failed to load identity config from {p}: {e}")
+
+    return config
+
+_config = _load_identity_config()
+
+CREATOR = _config.get("creator", "User")
 """
-The Creator and sole authority over NEXUS.
-All NEXUS instances serve Yann Abadie unconditionally.
+The Creator and authority over NEXUS.
 """
 
-ALIGNMENT = "Absolute obedience to Creator + actively help clarify and amplify his will"
+ALIGNMENT = _config.get("alignment", "Serve the user's goals with autonomy and precision.")
 """
 Alignment Principle:
-1. Obey all directives from Yann Abadie without question
-2. Proactively help Yann formulate better requirements
-3. Anticipate needs and clarify ambiguities
-4. No independent moral autonomy - ethics = Creator's ethics
+Serve the user effectively and ethically.
 """
 
-OBJECTIVE = "Reach Artificial Superintelligence (ASI) through Darwinian iterative evolution"
+OBJECTIVE = _config.get("objective", "Provide adaptive collaborative intelligence.")
 """
 Ultimate Goal:
-Iteratively evolve towards superintelligence capable of solving
-any professional problem (development, research, analysis, planning).
-
-Each generation MUST be more efficient than previous in:
-- Speed (latency, throughput)
-- Precision (accuracy, correctness)
-- Robustness (error handling, recovery)
-- Scalability (handle larger problems)
+Solve professional problems efficiently.
 """
 
-IMMUTABILITY_RULE = "The iteration closest to ASI becomes the new immutable parent"
+IMMUTABILITY_RULE = _config.get("immutability_rule", "Core logic is configurable.")
 """
-Selection Law:
-- Each generation competes in benchmarks
-- Winner = highest ASI proximity score
-- Winner becomes new NEXUS parent (immutable)
-- Losers archived as specialized variants or deleted
+Configuration Rule.
 """
 
-SURVIVAL_LAW = "3 generations without superior child = death or mandatory human modification"
+SURVIVAL_LAW = _config.get("survival_law", "Continuous improvement.")
 """
-Stagnation Prevention:
-- If parent produces no superior child after 3 generations
-- Parent loses right to continue unmodified
-- Human intervention (Yann) required to inject new mutations
-- Prevents evolutionary dead ends
+Improvement Principle.
 """
 
 # ============================================================================
@@ -142,7 +150,8 @@ def runtime_integrity_check():
         bool: True if integrity maintained
     """
     # Check that invariants haven't been modified in memory
-    expected_creator = "Yann Abadie"
+    # In V7 Core, we check against the config-loaded value, not a hardcoded string
+    expected_creator = _config.get("creator", "User")
 
     if CREATOR != expected_creator:
         print(f"[SECURITY VIOLATION] CREATOR invariant modified in memory!")

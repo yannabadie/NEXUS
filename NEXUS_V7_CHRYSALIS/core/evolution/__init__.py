@@ -1,58 +1,27 @@
 """
-NEXUS V7 Evolution Engine
+Core Evolution Module - Project-Centric
 
-Handles self-modification, lineage tracking, child evaluation, and validation.
-
-Modules:
-- lineage.py: Manages LINEAGE.json and ancestry tree
-- evaluator.py: Runs benchmarks and compares to parent
-- validator.py: Validates children before promotion (syntax, import, smoke, benchmark, redteam)
-- tiered_validator.py: V7 fast-fail validation with parallel benchmarks
-- rate_limiter.py: Controls evolution frequency
-
-Note: Child creation uses emergent JSON patches from Gemini+Claude symbiotic debate
-in repl.py, not hardcoded mutation functions.
+This module replaces the legacy "Self-Replication" evolution.
+Instead of copying the NEXUS codebase to create children, it focuses on
+evolving the target project code through iterative refactoring and testing.
 """
 
-from .lineage import *
-from .evaluator import *
-from .validator import (
-    ChildValidator,
-    ValidationResult,
-    FullValidationResult,
-    SafetyGate,
-    AutoPromotionDecision
-)
-from .tiered_validator import (
-    TieredValidator,
-    ValidationTier,
-    TieredValidationResult,
-    TierResult
-)
+from typing import Dict, Any
 
-# V7: mutator.py removed - evolution uses emergent JSON patches from AI debate
+class ProjectEvolution:
+    """
+    Manages evolution of the user's project.
+    """
+    def __init__(self, workspace_path):
+        self.workspace_path = workspace_path
 
-__all__ = [
-    # Lineage
-    "load_lineage",
-    "add_child",
-    "get_ancestry",
-    "sign_birth_certificate",
-    # Evaluator
-    "run_benchmarks",
-    "compare_to_parent",
-    "calculate_asi_proximity",
-    "select_winner",
-    # Validator (Legacy)
-    "ChildValidator",
-    "ValidationResult",
-    "FullValidationResult",
-    # V7: Auto-Promotion
-    "SafetyGate",
-    "AutoPromotionDecision",
-    # V7 Sprint 2: Tiered Validator
-    "TieredValidator",
-    "ValidationTier",
-    "TieredValidationResult",
-    "TierResult",
-]
+    def propose_mutation(self, file_path: str, change_description: str) -> Dict:
+        """
+        Propose a change to the project code.
+        """
+        return {
+            "type": "project_mutation",
+            "file": file_path,
+            "description": change_description,
+            "status": "proposed"
+        }
