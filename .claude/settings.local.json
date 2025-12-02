@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python3:*)",
+      "Bash(xargs -I {} sh -c \"python3 -m py_compile {} 2>&1 && echo ''✓ {}'' || echo ''✗ {}''\")",
+      "Bash(while read f)",
+      "Bash(do if ! python3 -m py_compile \"$f\")",
+      "Bash(then echo \"SYNTAX ERROR: $f\" fi done)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(do if ! python -m py_compile \"$f\")",
+      "Bash(then echo \"SYNTAX ERROR: $f\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(tar:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
