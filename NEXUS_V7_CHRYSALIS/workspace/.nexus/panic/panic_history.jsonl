@@ -18,3 +18,9 @@
 {"type": "RECOVERY", "timestamp": "2025-11-25T08:20:01.282645", "message": "Panic cleared, system recovered"}
 {"type": "ERROR", "error_type": "AGENT_INVOCATION", "message": "Gemini CLI timed out after 300s", "consecutive_errors": 1, "timestamp": "2025-11-25T13:59:46.008349"}
 {"type": "ERROR", "error_type": "AGENT_INVOCATION", "message": "Gemini CLI failed: Loaded cached credentials.\n{\n  \"error\": {\n    \"type\": \"FatalCancellationError\",\n    \"message\": \"Operation cancelled.\",\n    \"code\": 130\n  }\n}\n", "consecutive_errors": 1, "timestamp": "2025-11-25T14:50:43.878651"}
+{"type": "RECOVERY", "timestamp": "2025-12-01T14:39:05.098701", "message": "Panic cleared, system recovered"}
+{"type": "RECOVERY", "timestamp": "2025-12-01T15:08:27.624719", "message": "Panic cleared, system recovered"}
+{"type": "RECOVERY", "timestamp": "2025-12-01T15:43:25.447806", "message": "Panic cleared, system recovered"}
+{"type": "RECOVERY", "timestamp": "2025-12-01T19:11:42.912249", "message": "Panic cleared, system recovered"}
+{"type": "ERROR", "error_type": "AGENT_INVOCATION", "message": "Gemini CLI failed (code 130): [ERROR] [ImportProcessor] Failed to import external_sources,: ENOENT: no such file or directory, access 'C:\\Code\\NEXUS\\20_NEXUS - Copie\\external_sources,'\nYOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nError executing tool read_file: File not found: C:\\Code\\NEXUS\\20_NEXUS - Copie\\NEXUS_V7_CHRYSALIS\\workspace\\workspace\\orchestration_v7_temp.py\n{\n  \"error\": {\n    \"type\": \"FatalCancellationError\",\n    \"message\": \"Operation cancelled.\",\n    \"code\": 130\n  }\n}\n", "consecutive_errors": 1, "timestamp": "2025-12-01T19:20:35.037403"}
+{"type": "RECOVERY", "timestamp": "2025-12-01T19:20:38.468844", "message": "Panic cleared, system recovered"}

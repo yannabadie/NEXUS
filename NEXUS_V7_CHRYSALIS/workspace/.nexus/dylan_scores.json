@@ -1,0 +1,181 @@
+{
+  "agents": {
+    "gemini_primary": {
+      "agent_id": "gemini_primary",
+      "provider": "gemini",
+      "model": "gemini-3-pro-preview",
+      "capabilities": [
+        "reasoning",
+        "coding",
+        "research"
+      ],
+      "is_active": true,
+      "average_importance": 0.0325,
+      "success_rate": 1.0,
+      "invocation_count": 5,
+      "invocation_history": [
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:12:17.260096",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 25.30296802520752,
+          "importance_score": 0.0349,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:13:05.465827",
+          "success": true,
+          "quality_score": 1.0,
+          "tokens_used": 500,
+          "time_seconds": 26.110156059265137,
+          "importance_score": 0.0376,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:13:48.875270",
+          "success": true,
+          "quality_score": 1.0,
+          "tokens_used": 500,
+          "time_seconds": 22.510429620742798,
+          "importance_score": 0.0435,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:14:36.292349",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 28.32109570503235,
+          "importance_score": 0.0312,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:16:35.957649",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 58.834240436553955,
+          "importance_score": 0.0152,
+          "error": null
+        }
+      ]
+    },
+    "claude_opus": {
+      "agent_id": "claude_opus",
+      "provider": "claude",
+      "model": "claude-opus-4-5-20251101",
+      "capabilities": [
+        "brainstorm",
+        "creativity",
+        "architecture"
+      ],
+      "is_active": true,
+      "average_importance": 0.0316,
+      "success_rate": 1.0,
+      "invocation_count": 5,
+      "invocation_history": [
+        {
+          "agent_id": "claude_opus",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:12:39.342832",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 21.888507843017578,
+          "importance_score": 0.0402,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:13:26.358629",
+          "success": true,
+          "quality_score": 1.0,
+          "tokens_used": 500,
+          "time_seconds": 20.88785219192505,
+          "importance_score": 0.0468,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:14:07.961244",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 19.077836275100708,
+          "importance_score": 0.046,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:15:37.113784",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 60.8145637512207,
+          "importance_score": 0.0147,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "brainstorm",
+          "timestamp": "2025-12-01T20:18:03.843938",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 87.87747931480408,
+          "importance_score": 0.0102,
+          "error": null
+        }
+      ]
+    }
+  },
+  "stats": {
+    "agents": 2,
+    "total_invocations": 10,
+    "average_pool_importance": 0.032,
+    "agents_detail": {
+      "gemini_primary": {
+        "agent_id": "gemini_primary",
+        "provider": "gemini",
+        "model": "gemini-3-pro-preview",
+        "capabilities": [
+          "reasoning",
+          "coding",
+          "research"
+        ],
+        "is_active": true,
+        "average_importance": 0.0325,
+        "success_rate": 1.0,
+        "invocation_count": 5
+      },
+      "claude_opus": {
+        "agent_id": "claude_opus",
+        "provider": "claude",
+        "model": "claude-opus-4-5-20251101",
+        "capabilities": [
+          "brainstorm",
+          "creativity",
+          "architecture"
+        ],
+        "is_active": true,
+        "average_importance": 0.0316,
+        "success_rate": 1.0,
+        "invocation_count": 5
+      }
+    }
+  }
+}
