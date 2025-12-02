@@ -738,6 +738,24 @@ class ToolManager:
             )
 
         try:
+            # Evolution mode: Allow searching parent code
+            if self.evolution_mode and not Path(search_path).is_absolute():
+                path_str = str(search_path)
+                if path_str.startswith("../"):
+                    # Resolve relative to workspace
+                    resolved = (self.workspace_path / search_path).resolve()
+
+                    # Check whitelist (reuse list whitelist logic)
+                    if self._is_evolution_safe_list(resolved):
+                        search_path = resolved
+                    else:
+                        return ToolResult(
+                            tool_name="glob",
+                            status="FAILURE",
+                            output="",
+                            error=f"Evolution mode: Search not allowed for {resolved} (not in whitelist)"
+                        )
+
             # Resolve search path relative to workspace
             if not Path(search_path).is_absolute():
                 search_path = self.workspace_path / search_path
@@ -832,6 +850,24 @@ class ToolManager:
             )
 
         try:
+            # Evolution mode: Allow searching parent code
+            if self.evolution_mode and not Path(search_path).is_absolute():
+                path_str = str(search_path)
+                if path_str.startswith("../"):
+                    # Resolve relative to workspace
+                    resolved = (self.workspace_path / search_path).resolve()
+
+                    # Check whitelist (reuse list whitelist logic)
+                    if self._is_evolution_safe_list(resolved):
+                        search_path = resolved
+                    else:
+                        return ToolResult(
+                            tool_name="grep",
+                            status="FAILURE",
+                            output="",
+                            error=f"Evolution mode: Search not allowed for {resolved} (not in whitelist)"
+                        )
+
             # Resolve search path
             if not Path(search_path).is_absolute():
                 search_path = self.workspace_path / search_path
@@ -874,7 +910,11 @@ class ToolManager:
 
                     for line_num, line in enumerate(lines, start=1):
                         if regex.search(line):
-                            rel_path = file_path.relative_to(self.workspace_path)
+                            try:
+                                rel_path = file_path.relative_to(self.workspace_path)
+                            except ValueError:
+                                # Evolution mode: path might be outside workspace
+                                rel_path = file_path
                             matches.append(f"{rel_path}:{line_num}: {line.strip()}")
 
                             if len(matches) >= max_results:
