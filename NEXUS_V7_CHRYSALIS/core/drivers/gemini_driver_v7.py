@@ -4,7 +4,6 @@ Gemini Driver V7 - Pure CLI Implementation
 import subprocess
 import json
 import sys
-import shutil
 from typing import Dict, Any, Optional
 from pathlib import Path
 from .base_driver import BaseDriver
