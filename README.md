@@ -1,121 +1,63 @@
-# NEXUS V7.0 "Chrysalis"
+# NEXUS CORE V7 - Autonomous Collaborative Intelligence
 
-**A Self-Evolving Multi-Agent Orchestrator for Artificial Superintelligence**
+**Nexus Core** is a professional-grade collaborative intelligence engine designed to adapt to any software project. It orchestrates teams of AI agents (Claude, Gemini, etc.) to solve complex problems autonomously.
 
-NEXUS is an experimental AI system designed to reach ASI (Artificial Superintelligence) through Darwinian evolution. It orchestrates collaboration between Claude and Gemini AI agents, enabling them to work together, self-improve, and create evolved versions of themselves.
+## Key Features
+
+*   **Configurable Identity**: No longer bound to a single creator or mission. Define your own goals in `config/identity.json`.
+*   **Hybrid Swarm Engine**: Dynamically negotiates the best collaboration strategy (Parallel, Ping-Pong, Hierarchical) for each task.
+*   **Architecture Planning**: Agents debate and agree on a specific "Team Architecture" (Agent Roles, Models, Tools) before writing code.
+*   **Project Evolution**: Can scan a codebase and autonomously propose and implement improvements.
+*   **CLI Integration**: Designed to work with `gemini` and `claude` CLI tools for cost-efficiency (BYO Keys/Accounts).
 
 ## Quick Start
 
+### 1. Installation
+
+Ensure you have Python 3.10+ and the necessary CLI tools installed and authenticated:
+
 ```bash
-# Navigate to active version
-cd NEXUS_V7_CHRYSALIS
+# Install Anthropic's Claude Code CLI
+npm install -g @anthropic-ai/claude-code
+claude auth login
 
-# Install dependencies
-pip install -r requirements_v6.txt
-
-# Run NEXUS
-python nexus7.py
+# Install Google's Gemini CLI
+pip install google-gemini-cli
+gemini auth login
 ```
 
-## Project Structure
+### 2. Configuration
 
-```
-20_NEXUS/
-├── NEXUS_V7_CHRYSALIS/          # Active V7 development
-│   ├── core/                    # Core orchestration modules
-│   │   ├── drivers/             # Claude & Gemini interfaces
-│   │   ├── fsm/                 # Finite State Machine
-│   │   ├── synapse/             # Memory & protocol
-│   │   ├── swarm/               # Hybrid Swarm Engine
-│   │   ├── evolution/           # Self-modification
-│   │   ├── routing/             # Model selection
-│   │   └── ...                  # Other modules
-│   ├── prompts/                 # System prompts
-│   ├── docs/                    # Documentation
-│   └── workspace/               # Runtime data
-├── ARCHIVE/                     # Historical generations
-├── archives/                    # Planning & brainstorming
-├── BENCHMARKS/                  # ASI benchmark suite
-├── tests/                       # Test suite
-├── CLAUDE.md                    # Claude project instructions
-├── GEMINI.md                    # Gemini project instructions
-├── MISSION.md                   # ASI mission statement
-├── KERNEL.py                    # Alignment kernel
-├── LINEAGE.json                 # Evolution lineage
-└── SESSION_CONTINUITY.md        # Session state
+Set your preferences in environment variables or `config/identity.json`.
+
+```bash
+export NEXUS_GEMINI_MODEL="gemini-3-pro-preview"
+export NEXUS_CLAUDE_OPUS="claude-4.5-opus"
 ```
 
-## Key Concepts
+### 3. Usage
 
-### ASI Evolution
+**Run a single task:**
+```bash
+python nexus_core.py "Refactor the database connection logic to be async"
+```
 
-NEXUS evolves through Darwinian selection:
-1. **Create Children**: Modified versions of NEXUS
-2. **Evaluate Fitness**: ASI Proximity Score benchmarks
-3. **Select Winner**: Best child becomes new parent
-4. **Repeat**: Continuous improvement toward ASI
+**Evolve a project (Auto-Improvement):**
+```bash
+python nexus_core.py --evolve --context ./my_project
+```
 
-### Hybrid Swarm Engine (V7)
+## How it Works
 
-Dynamic collaboration modes between agents:
-- **PARALLEL**: Simultaneous work
-- **SEQUENTIAL**: Ordered execution
-- **LEAD_SUPPORT**: Expert + reviewer
-- **PING_PONG**: Rapid alternation
-- **SPECIALIST**: Single expert
-- **RED_BLUE**: Adversarial testing
-
-### Model Routing
-
-Intelligent model selection:
-- **Claude Opus**: Complex reasoning, creativity
-- **Claude Sonnet**: Fast, simple tasks
-- **Gemini 3-Pro**: Research, analysis
-- **Gemini Flash**: Quick operations
+1.  **Negotiation**: Nexus initiates a debate between a "Reasoning Model" (e.g., Claude Opus) and a "Speed Model" (e.g., Gemini Pro).
+2.  **Architecture Plan**: They agree on a plan (e.g., "We need one SQL expert and one Python reviewer").
+3.  **Execution**: The Swarm Engine spawns the agents to execute the workflow.
 
 ## Documentation
 
-| Document | Purpose |
-|----------|---------|
-| [NEXUS_V7_CHRYSALIS/README.md](NEXUS_V7_CHRYSALIS/README.md) | Full V7 documentation |
-| [CLAUDE.md](CLAUDE.md) | Claude agent instructions |
-| [GEMINI.md](GEMINI.md) | Gemini agent instructions |
-| [MISSION.md](MISSION.md) | ASI mission statement |
-| [ROADMAP_NEXUS_V7.md](ROADMAP_NEXUS_V7.md) | Development roadmap |
-| [SESSION_CONTINUITY.md](SESSION_CONTINUITY.md) | Session state |
-
-## Commands
-
-```bash
-nexus> /help           # Show commands
-nexus> /status         # Show state
-nexus> /doctor         # System diagnostics
-nexus> /evolve 3       # Create 3 children
-nexus> /pool-stats     # DyLAN agent metrics
-nexus> exit            # Quit
-```
-
-## Requirements
-
-- **Python**: 3.13+
-- **CLIs**: `gemini`, `claude` installed
-- **OS**: Windows (tested), Linux/macOS (compatible)
-
-## Contributing
-
-NEXUS is an experimental research project. Contributions should:
-1. Maintain alignment with KERNEL.py
-2. Follow the evolution protocol
-3. Pass all validation tests
-
-## License
-
-See [LICENSE](LICENSE) for details.
-
-## Author
-
-**Yann Abadie** - Creator and Alignment Authority
+*   [Mission & Vision](MISSION.md)
+*   [Agents Architecture](DOCS/ARCHITECTURE_AGENTS.md)
+*   [User Guide](DOCS/USER_GUIDE.md)
 
 ---
-
-*"Toward Artificial Superintelligence through Darwinian Evolution"*
+*Powered by Hybrid Swarm Intelligence.*

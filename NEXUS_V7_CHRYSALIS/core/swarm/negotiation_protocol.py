@@ -232,15 +232,17 @@ class NegotiationProtocol:
         self,
         task_analysis: TaskAnalysis,
         initial_proposal: ModeProposal,
-        invoke_agent: Callable[[str, str, str], str]
+        invoke_agent: Callable[[str, str, str], str],
+        user_input_callback: Optional[Callable[[str], str]] = None
     ) -> NegotiationResult:
         """
-        Run full negotiation process.
+        Run full negotiation process (Interactive).
 
         Args:
             task_analysis: Analysis of the task
             initial_proposal: Initial mode proposal from ModeSelector
             invoke_agent: Callable(agent_id, task_type, context) -> response
+            user_input_callback: Optional callback to get user input during negotiation
 
         Returns:
             NegotiationResult with final mode and history
@@ -264,12 +266,14 @@ class NegotiationProtocol:
         # Agents alternate: Gemini starts
         agents = ["gemini", "claude"]
 
+        print("\n🤝 STARTING NEGOTIATION DEBATE")
+        print("--------------------------------")
+
         while current_turn < self.max_turns:
             # Check time-based timeout
             if self.timeout_seconds is not None:
                 elapsed = time.time() - start_time
                 if elapsed > self.timeout_seconds:
-                    # Time limit exceeded - use current best proposal
                     return NegotiationResult(
                         status=NegotiationStatus.TIMEOUT,
                         selected_mode=current_proposal.mode,
@@ -281,6 +285,15 @@ class NegotiationProtocol:
 
             agent_id = agents[current_turn % 2]
 
+            # Allow user intervention before agent turn
+            user_msg = None
+            if user_input_callback:
+                 # We can allow user to inject info.
+                 # For MVP, let's say we check if user provided input in a queue or prompt them?
+                 # Since this is a library, the callback should handle the interaction policy.
+                 # Currently passing current history context to callback might be useful.
+                 pass
+
             # Build context for agent
             context = self._build_negotiation_context(
                 task_analysis,
@@ -290,7 +303,13 @@ class NegotiationProtocol:
             )
 
             # Invoke agent
+            print(f"\n[{agent_id.upper()} thinking...]")
             response = invoke_agent(agent_id, "negotiation", context)
+
+            # Print response for user visibility
+            # Remove the <negotiate> block for cleaner display
+            clean_response = self.NEGOTIATE_PATTERN.sub("", response).strip()
+            print(f"[{agent_id.upper()}]: {clean_response}")
 
             # Parse response
             message = self._parse_response(response, agent_id, current_turn)
@@ -305,10 +324,7 @@ class NegotiationProtocol:
                     current_proposal.agent_assignments
                 )
 
-                # V7 Enhancement: Log negotiation outcome
-                import sys
-                print(f"[NEGOTIATION] Consensus reached in {current_turn + 1} turns: {final_mode.value}",
-                      file=sys.stderr)
+                print(f"\n✅ CONSENSUS REACHED: {final_mode.value.upper()}")
 
                 return NegotiationResult(
                     status=NegotiationStatus.CONSENSUS,
@@ -334,11 +350,7 @@ class NegotiationProtocol:
 
             current_turn += 1
 
-        # Timeout: use initial proposal
-        # V7 Enhancement: Log negotiation timeout
-        import sys
-        print(f"[NEGOTIATION] Timeout after {current_turn} turns, using initial: {initial_proposal.mode.value}",
-              file=sys.stderr)
+        print(f"\n⚠️ NEGOTIATION TIMEOUT. Defaulting to: {initial_proposal.mode.value.upper()}")
 
         return NegotiationResult(
             status=NegotiationStatus.TIMEOUT,
