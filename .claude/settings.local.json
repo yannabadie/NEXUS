@@ -1,14 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(git mv:*)",
-      "Bash(python -m py_compile:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(python:*)",
-      "WebSearch",
-      "Bash(git push:*)"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat(v7): Evolution mode support for glob and grep tools\n\nEnables parent directory introspection during evolution brainstorming:\n\n**Changes**:\n- `_execute_glob()`: Add evolution_mode check for ../ paths\n- `_execute_grep()`: Add evolution_mode check for ../ paths  \n- `_execute_grep()`: Fix relative_to for paths outside workspace\n\n**Security**:\n- Uses existing `_is_evolution_safe_list()` whitelist\n- Allowed: core/, prompts/, benchmarks/\n- Blocked: .git/, __pycache__/, NEXUS_V5_PRAGMATIC/\n\n**Pattern**: Follows exact same pattern as `_execute_list_dir()` (L386-401)\n\n**Context**: Mutation originally proposed during /evolve session\n(archived as evolution_tour10_glob_grep.json)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

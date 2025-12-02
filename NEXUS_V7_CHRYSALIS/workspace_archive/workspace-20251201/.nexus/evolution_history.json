@@ -1,0 +1,21 @@
+{
+  "evolutions": [
+    {
+      "timestamp": "2025-11-25T19:03:53.699211",
+      "generation": 7,
+      "parent_id": "NEXUS_V6.0",
+      "num_children": 1
+    },
+    {
+      "timestamp": "2025-11-25T20:28:16.142291",
+      "generation": 7,
+      "parent_id": "NEXUS_V6.0",
+      "num_children": 1
+    }
+  ],
+  "stats": {
+    "total_evolutions": 2,
+    "total_children": 2,
+    "last_evolution": "2025-11-25T20:28:16.142291"
+  }
+}

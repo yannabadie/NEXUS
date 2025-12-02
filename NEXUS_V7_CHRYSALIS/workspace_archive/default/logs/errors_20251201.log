@@ -1,0 +1,12 @@
+[2025-12-01 09:43:08] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: [WinError 5] Accès refusé: 'C:\\\\Code\\\\NEXUS\\\\20_NEXUS - Copie\\\\NEXUS_V7_CHRYSALIS\\\\workspace\\\\_IO_BUFFER\\\\gemini_output.json'",
+  "context": {}
+}
+--------------------------------------------------------------------------------
+[2025-12-01 10:34:28] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: Claude CLI timed out after 300s",
+  "context": {}
+}
+--------------------------------------------------------------------------------

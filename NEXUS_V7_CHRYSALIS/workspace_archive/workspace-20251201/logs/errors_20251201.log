@@ -1,0 +1,12 @@
+[2025-12-01 12:52:57] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: Claude CLI timed out after 300s",
+  "context": {}
+}
+--------------------------------------------------------------------------------
+[2025-12-01 13:50:59] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: Claude CLI timed out after 300s",
+  "context": {}
+}
+--------------------------------------------------------------------------------

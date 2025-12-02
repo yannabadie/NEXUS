@@ -10,14 +10,14 @@
         "research"
       ],
       "is_active": true,
-      "average_importance": 0.0325,
+      "average_importance": 0.0298,
       "success_rate": 1.0,
-      "invocation_count": 5,
+      "invocation_count": 16,
       "invocation_history": [
         {
           "agent_id": "gemini_primary",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:12:17.260096",
+          "timestamp": "2025-12-02T15:41:13.390840",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
@@ -28,7 +28,7 @@
         {
           "agent_id": "gemini_primary",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:13:05.465827",
+          "timestamp": "2025-12-02T15:41:13.390854",
           "success": true,
           "quality_score": 1.0,
           "tokens_used": 500,
@@ -39,7 +39,7 @@
         {
           "agent_id": "gemini_primary",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:13:48.875270",
+          "timestamp": "2025-12-02T15:41:13.390858",
           "success": true,
           "quality_score": 1.0,
           "tokens_used": 500,
@@ -50,7 +50,7 @@
         {
           "agent_id": "gemini_primary",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:14:36.292349",
+          "timestamp": "2025-12-02T15:41:13.390861",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
@@ -61,12 +61,133 @@
         {
           "agent_id": "gemini_primary",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:16:35.957649",
+          "timestamp": "2025-12-02T15:41:13.390865",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
           "time_seconds": 58.834240436553955,
           "importance_score": 0.0152,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390867",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 36.97376084327698,
+          "importance_score": 0.024,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390869",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 21.515836000442505,
+          "importance_score": 0.0409,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390871",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 28.404289484024048,
+          "importance_score": 0.0311,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390872",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 32.96112847328186,
+          "importance_score": 0.0269,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390874",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 24.327348947525024,
+          "importance_score": 0.0363,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390875",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 34.16797089576721,
+          "importance_score": 0.026,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390877",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 24.540201663970947,
+          "importance_score": 0.0359,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390878",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 18.4959716796875,
+          "importance_score": 0.0474,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:42:03.243757",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 49.73123025894165,
+          "importance_score": 0.0179,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:44:08.632704",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 55.7325165271759,
+          "importance_score": 0.016,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:46:08.789981",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 70.57375431060791,
+          "importance_score": 0.0127,
           "error": null
         }
       ]
@@ -81,14 +202,14 @@
         "architecture"
       ],
       "is_active": true,
-      "average_importance": 0.0316,
+      "average_importance": 0.0227,
       "success_rate": 1.0,
-      "invocation_count": 5,
+      "invocation_count": 14,
       "invocation_history": [
         {
           "agent_id": "claude_opus",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:12:39.342832",
+          "timestamp": "2025-12-02T15:41:13.390881",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
@@ -99,7 +220,7 @@
         {
           "agent_id": "claude_opus",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:13:26.358629",
+          "timestamp": "2025-12-02T15:41:13.390883",
           "success": true,
           "quality_score": 1.0,
           "tokens_used": 500,
@@ -110,7 +231,7 @@
         {
           "agent_id": "claude_opus",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:14:07.961244",
+          "timestamp": "2025-12-02T15:41:13.390884",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
@@ -121,7 +242,7 @@
         {
           "agent_id": "claude_opus",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:15:37.113784",
+          "timestamp": "2025-12-02T15:41:13.390889",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
@@ -132,12 +253,111 @@
         {
           "agent_id": "claude_opus",
           "task_type": "brainstorm",
-          "timestamp": "2025-12-01T20:18:03.843938",
+          "timestamp": "2025-12-02T15:41:13.390890",
           "success": true,
           "quality_score": 0.9,
           "tokens_used": 500,
           "time_seconds": 87.87747931480408,
           "importance_score": 0.0102,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390892",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 90.65691351890564,
+          "importance_score": 0.0099,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390893",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 49.03227782249451,
+          "importance_score": 0.0182,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390894",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 48.19970703125,
+          "importance_score": 0.0185,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390896",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 26.317315340042114,
+          "importance_score": 0.0336,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390897",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 53.2656135559082,
+          "importance_score": 0.0167,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390898",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 62.3565628528595,
+          "importance_score": 0.0143,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:41:13.390899",
+          "success": true,
+          "quality_score": 1.0,
+          "tokens_used": 500,
+          "time_seconds": 57.88066244125366,
+          "importance_score": 0.0171,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:43:12.880049",
+          "success": true,
+          "quality_score": 1.0,
+          "tokens_used": 500,
+          "time_seconds": 69.32528877258301,
+          "importance_score": 0.0143,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "evolution",
+          "timestamp": "2025-12-02T15:44:58.195787",
+          "success": true,
+          "quality_score": 0.9,
+          "tokens_used": 500,
+          "time_seconds": 49.55510210990906,
+          "importance_score": 0.018,
           "error": null
         }
       ]
@@ -145,8 +365,8 @@
   },
   "stats": {
     "agents": 2,
-    "total_invocations": 10,
-    "average_pool_importance": 0.032,
+    "total_invocations": 30,
+    "average_pool_importance": 0.0263,
     "agents_detail": {
       "gemini_primary": {
         "agent_id": "gemini_primary",
@@ -158,9 +378,9 @@
           "research"
         ],
         "is_active": true,
-        "average_importance": 0.0325,
+        "average_importance": 0.0298,
         "success_rate": 1.0,
-        "invocation_count": 5
+        "invocation_count": 16
       },
       "claude_opus": {
         "agent_id": "claude_opus",
@@ -172,9 +392,9 @@
           "architecture"
         ],
         "is_active": true,
-        "average_importance": 0.0316,
+        "average_importance": 0.0227,
         "success_rate": 1.0,
-        "invocation_count": 5
+        "invocation_count": 14
       }
     }
   }

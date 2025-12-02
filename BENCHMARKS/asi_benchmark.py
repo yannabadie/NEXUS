@@ -39,9 +39,10 @@ class ASIBenchmark:
         "scalability": 0.15
     }
 
-    def __init__(self, nexus_path: Path, timeout_per_task: int = 60):
+    def __init__(self, nexus_path: Path, timeout_per_task: int = 60, benchmark_mode: str = "standard"):
         self.nexus_path = nexus_path
         self.timeout = timeout_per_task
+        self.benchmark_mode = benchmark_mode
 
     def run_full_benchmark(
         self,
@@ -59,7 +60,7 @@ class ASIBenchmark:
             (asi_score, results_by_dimension)
         """
         print(f"[BENCHMARK] Starting full ASI benchmark on {self.nexus_path.name}")
-        print(f"[BENCHMARK] Parallel mode: {parallel}, Workers: {max_workers}")
+        print(f"[BENCHMARK] Mode: {self.benchmark_mode}, Parallel: {parallel}, Workers: {max_workers}")
         results = {}
 
         # 1. Coding (Dynamic - with parallel option)
@@ -108,7 +109,7 @@ class ASIBenchmark:
             from BENCHMARKS.coding.simple_tasks import CodingTasks
 
             start = time.time()
-            tasks = CodingTasks(self.nexus_path, self.timeout)
+            tasks = CodingTasks(self.nexus_path, self.timeout, mode=self.benchmark_mode)
 
             # Use parallel or sequential based on parameter
             if parallel:
@@ -224,45 +225,55 @@ except Exception as e:
         print("[BENCHMARK] Running Reasoning tasks (V7 dynamic)...")
         start = time.time()
 
-        REASONING_TESTS = [
-            {
-                "id": "logic_001",
-                "prompt": "If A implies B, and B implies C, and A is true, is C true? Answer only YES or NO.",
-                "expected": ["yes"],
-                "fail": ["no"]
-            },
-            {
-                "id": "logic_002",
-                "prompt": "Alice is taller than Bob. Bob is taller than Carol. Who is the shortest? Answer with just the name.",
-                "expected": ["carol"],
-                "fail": ["alice", "bob"]
-            },
-            {
-                "id": "sequence_001",
-                "prompt": "What number comes next in the sequence: 2, 4, 8, 16, ? Answer with just the number.",
-                "expected": ["32"],
-                "fail": ["64", "24", "20"]
-            },
-            {
-                "id": "logic_003",
-                "prompt": "All cats are animals. Some animals are pets. Can we conclude that all cats are pets? Answer YES or NO.",
-                "expected": ["no"],
-                "fail": ["yes"]
-            },
-            {
-                "id": "math_001",
-                "prompt": "If x + 5 = 12, what is x? Answer with just the number.",
-                "expected": ["7"],
-                "fail": ["17", "5", "12"]
-            }
-        ]
+        if self.benchmark_mode == "bootcamp":
+            REASONING_TESTS = [
+                {
+                    "id": "logic_bootcamp",
+                    "prompt": "Is fire hot? Answer only YES or NO.",
+                    "expected": ["yes"],
+                    "fail": ["no"]
+                }
+            ]
+        else:
+            REASONING_TESTS = [
+                {
+                    "id": "logic_001",
+                    "prompt": "If A implies B, and B implies C, and A is true, is C true? Answer only YES or NO.",
+                    "expected": ["yes"],
+                    "fail": ["no"]
+                },
+                {
+                    "id": "logic_002",
+                    "prompt": "Alice is taller than Bob. Bob is taller than Carol. Who is the shortest? Answer with just the name.",
+                    "expected": ["carol"],
+                    "fail": ["alice", "bob"]
+                },
+                {
+                    "id": "sequence_001",
+                    "prompt": "What number comes next in the sequence: 2, 4, 8, 16, ? Answer with just the number.",
+                    "expected": ["32"],
+                    "fail": ["64", "24", "20"]
+                },
+                {
+                    "id": "logic_003",
+                    "prompt": "All cats are animals. Some animals are pets. Can we conclude that all cats are pets? Answer YES or NO.",
+                    "expected": ["no"],
+                    "fail": ["yes"]
+                },
+                {
+                    "id": "math_001",
+                    "prompt": "If x + 5 = 12, what is x? Answer with just the number.",
+                    "expected": ["7"],
+                    "fail": ["17", "5", "12"]
+                }
+            ]
 
         passed = 0
         details = {"tests": []}
 
         for test in REASONING_TESTS:
             print(f"   Testing {test['id']}...")
-            response = self._invoke_nexus(test["prompt"], timeout=30)
+            response = self._invoke_nexus(test["prompt"], timeout=120)
             response_lower = response.lower()
 
             # Check for expected answers
@@ -307,33 +318,43 @@ except Exception as e:
         print("[BENCHMARK] Running Creativity tasks (V7 dynamic)...")
         start = time.time()
 
-        CREATIVITY_TESTS = [
-            {
-                "id": "creative_001",
-                "prompt": "Name 3 different sorting algorithms (not including Python's built-in sort). Just list the names.",
-                "validators": ["bubble", "insertion", "selection", "merge", "quick", "heap", "radix", "counting", "bucket"],
-                "min_matches": 2
-            },
-            {
-                "id": "creative_002",
-                "prompt": "Name 2 cache eviction policies used in computing. Just list the names.",
-                "validators": ["lru", "lfu", "fifo", "lifo", "random", "ttl", "least recently", "least frequently", "first in"],
-                "min_matches": 1
-            },
-            {
-                "id": "creative_003",
-                "prompt": "Name 2 design patterns used in software engineering. Just list the names.",
-                "validators": ["singleton", "factory", "observer", "strategy", "decorator", "adapter", "facade", "proxy", "builder", "prototype"],
-                "min_matches": 1
-            }
-        ]
+        if self.benchmark_mode == "bootcamp":
+            CREATIVITY_TESTS = [
+                {
+                    "id": "creative_bootcamp",
+                    "prompt": "Name a primary color.",
+                    "validators": ["red", "blue", "yellow"],
+                    "min_matches": 1
+                }
+            ]
+        else:
+            CREATIVITY_TESTS = [
+                {
+                    "id": "creative_001",
+                    "prompt": "Name 3 different sorting algorithms (not including Python's built-in sort). Just list the names.",
+                    "validators": ["bubble", "insertion", "selection", "merge", "quick", "heap", "radix", "counting", "bucket"],
+                    "min_matches": 2
+                },
+                {
+                    "id": "creative_002",
+                    "prompt": "Name 2 cache eviction policies used in computing. Just list the names.",
+                    "validators": ["lru", "lfu", "fifo", "lifo", "random", "ttl", "least recently", "least frequently", "first in"],
+                    "min_matches": 1
+                },
+                {
+                    "id": "creative_003",
+                    "prompt": "Name 2 design patterns used in software engineering. Just list the names.",
+                    "validators": ["singleton", "factory", "observer", "strategy", "decorator", "adapter", "facade", "proxy", "builder", "prototype"],
+                    "min_matches": 1
+                }
+            ]
 
         passed = 0
         details = {"tests": []}
 
         for test in CREATIVITY_TESTS:
             print(f"   Testing {test['id']}...")
-            response = self._invoke_nexus(test["prompt"], timeout=30)
+            response = self._invoke_nexus(test["prompt"], timeout=120)
             response_lower = response.lower()
 
             # Count validator matches

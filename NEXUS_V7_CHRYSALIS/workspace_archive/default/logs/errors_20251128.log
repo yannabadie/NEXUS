@@ -1,0 +1,6 @@
+[2025-11-28 14:27:05] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: Gemini CLI failed (code 143): [ERROR] [ImportProcessor] Failed to import external_sources,: ENOENT: no such file or directory, access 'C:\\Code\\NEXUS\\20_NEXUS\\external_sources,'\nYOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\n",
+  "context": {}
+}
+--------------------------------------------------------------------------------

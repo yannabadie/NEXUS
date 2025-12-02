@@ -1,0 +1,6 @@
+[2025-11-28 11:01:13] [ERROR] fsm_state
+  {
+  "message": "Swarm invocation failed: [WinError 2] Le fichier spécifié est introuvable: 'C:\\\\Code\\\\NEXUS\\\\20_NEXUS\\\\NEXUS_V7_CHRYSALIS\\\\workspace\\\\e2e_test\\\\_IO_BUFFER\\\\gemini_output.json'",
+  "context": {}
+}
+--------------------------------------------------------------------------------

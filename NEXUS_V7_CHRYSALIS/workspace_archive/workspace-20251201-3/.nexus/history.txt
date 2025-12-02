@@ -1,0 +1,6 @@
+
+# 2025-12-01 16:47:07.051084
++Parcours le dossier external_sources, identifiez les objectifs. Iterez jusqu'a les avoir atteints, vérifiez régulièrement vos résultats. Ne vous arretez que quand la solution est parfaite.
+
+# 2025-12-01 17:14:26.269569
++/workspace new

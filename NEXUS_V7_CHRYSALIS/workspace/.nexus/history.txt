@@ -10,3 +10,15 @@
 
 # 2025-12-01 20:21:48.116427
 +exit
+
+# 2025-12-02 10:32:39.728267
++Explore le dosssier external_sources il s'agit de traduire le contenu d'un .vsdx du francais a l'anglais sans déterriorer le dessin initial.
+
+# 2025-12-02 10:53:39.638241
++exit
+
+# 2025-12-02 11:13:30.339488
++Explore le dosssier external_sources il s'agit de traduire le contenu d'un .vsdx du francais a l'anglais sans déterriorer le dessin initial.
+
+# 2025-12-02 11:28:06.388792
++exit

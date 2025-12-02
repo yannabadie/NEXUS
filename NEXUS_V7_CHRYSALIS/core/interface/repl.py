@@ -1644,7 +1644,7 @@ COMMENCEZ LE DÉBAT (10-20 tours). ANALYSEZ LA MISSION D'ABORD."""
                         parent_path,
                         child_dir,
                         ignore=shutil.ignore_patterns(
-                            '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
+                            '__pycache__', '*.pyc', '.nexus', 'workspace', 'workspace_archive', '.git'
                         ),
                         dirs_exist_ok=True  # Handle race conditions on Windows
                     )

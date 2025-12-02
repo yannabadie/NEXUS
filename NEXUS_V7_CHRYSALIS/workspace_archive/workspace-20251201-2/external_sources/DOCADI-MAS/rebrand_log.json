@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-12-01T16:18:27.386890",
+  "files_processed": 3,
+  "results": [
+    {
+      "file": "PR4-HY_Rev_02_Fiche_processus_INDUSTRIALISER.pdf",
+      "pages": 3,
+      "replacements": {
+        "groupe ADI → groupe MAS": 3,
+        "ADI group → MAS group": 3,
+        "ADI-Hydraulics → MAS-Hydraulics": 1,
+        "ADI Hydraulics → MAS Hydraulics": 2,
+        "sites AD → sites MAS": 1,
+        "ADI-H → MAS-H": 1
+      },
+      "errors": [],
+      "success": true,
+      "method": "text_extraction"
+    },
+    {
+      "file": "PR4-MCO_Rev_03_Fiche Processus Industrialiser.pdf",
+      "pages": 3,
+      "replacements": {
+        "groupe ADI → groupe MAS": 3,
+        "ADI group → MAS group": 3,
+        "ADI Chavignon → MAS Chavignon": 1,
+        "ADIMC → MASMC": 4,
+        "ADI MC → MAS MC": 1
+      },
+      "errors": [],
+      "success": true,
+      "method": "text_extraction"
+    },
+    {
+      "file": "PR4_MAB.pdf",
+      "pages": 3,
+      "replacements": {},
+      "errors": [],
+      "success": true,
+      "method": "text_extraction"
+    }
+  ]
+}

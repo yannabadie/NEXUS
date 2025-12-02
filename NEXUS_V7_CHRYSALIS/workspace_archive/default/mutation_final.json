@@ -1,0 +1,17 @@
+[
+  {
+    "file": "core/orchestration_v7.py",
+    "action": "append",
+    "change": "\n\nclass CycleDetector:\n    \"\"\"Detects ping-pong cycles in agent conversation.\"\"\"\n    \n    def __init__(self, buffer_size: int = 30, cycle_threshold: int = 2):\n        self.buffer_size = buffer_size\n        self.cycle_threshold = cycle_threshold\n        self.hash_buffer: list = []\n    \n    def _hash_message(self, msg: str) -> str:\n        \"\"\"Create a normalized hash of message content.\"\"\"\n        import hashlib\n        # Normalize: lowercase, remove whitespace, take first 500 chars\n        # Use chr(10) for newline and chr(32) for space to avoid escape issues\n        normalized = msg.lower().replace(chr(32), '').replace(chr(10), '')[:500]\n        return hashlib.md5(normalized.encode()).hexdigest()[:16]\n    \n    def check_cycle(self, message: str) -> bool:\n        \"\"\"Check if this message creates a cycle. Returns True if cycle detected.\"\"\"\n        msg_hash = self._hash_message(message)\n        \n        # Count occurrences of this hash in buffer\n        occurrences = self.hash_buffer.count(msg_hash)\n        \n        # Add to buffer\n        self.hash_buffer.append(msg_hash)\n        if len(self.hash_buffer) > self.buffer_size:\n            self.hash_buffer.pop(0)\n        \n        return occurrences >= self.cycle_threshold\n    \n    def reset(self):\n        \"\"\"Clear the hash buffer.\"\"\"\n        self.hash_buffer.clear()",
+    "reason": "Ajoute détection de cycles ping-pong via hash rolling buffer pour éviter les boucles infinies entre agents",
+    "expected_asi_impact": 0.05
+  },
+  {
+    "file": "core/drivers/gemini_driver_v7.py",
+    "action": "replace",
+    "target": "        # 1. Try to find JSON in markdown code blocks first (most reliable)\n        json_block_pattern = r'```json\\s*(.*?)\\s*```'",
+    "change": "        # 0. NEW: Try to find JSON array (for evolution mutations)\n        array_block_pattern = r'```json\\s*(\\[.*?\\])\\s*```'\n        array_matches = re.findall(array_block_pattern, text, re.DOTALL)\n        if array_matches:\n            for match in reversed(array_matches):\n                try:\n                    parsed = json.loads(match)\n                    if isinstance(parsed, list) and len(parsed) > 0:\n                        # Return as wrapper dict for compatibility\n                        return {\"_json_array\": parsed, \"_is_mutation_list\": True}\n                except json.JSONDecodeError:\n                    continue\n\n        # 1. Try to find JSON in markdown code blocks first (most reliable)\n        json_block_pattern = r'```json\\s*(.*?)\\s*```'",
+    "reason": "Ajoute extraction de listes JSON [{},...] pour les mutations d'evolution",
+    "expected_asi_impact": 0.02
+  }
+]

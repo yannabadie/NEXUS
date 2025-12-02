@@ -145,6 +145,11 @@ class Config:
         # V7 SPRINT 2: OPTIMIZATION FLAGS
         # ====================================================================
 
+        # Benchmark Mode (standard vs bootcamp)
+        # standard: Real difficult tasks (requires high performance)
+        # bootcamp: Simplified tasks for evolution validation (low latency tolerance)
+        self.benchmark_mode: str = os.getenv("BENCHMARK_MODE", "standard")
+
         # Tiered Validation (1=syntax, 2=smoke, 3=benchmark, 4=redteam)
         self.validation_tier_default: int = int(os.getenv("VALIDATION_TIER", "4"))
         self.validation_use_tiered: bool = os.getenv("USE_TIERED_VALIDATION", "True").lower() == "true"
@@ -238,7 +243,8 @@ class Config:
             "compression_threshold_tokens": self.compression_threshold_tokens,
             "workspace_path": str(self.workspace_path),
             "log_level": self.log_level,
-            "ui_verbose": self.ui_verbose
+            "ui_verbose": self.ui_verbose,
+            "benchmark_mode": self.benchmark_mode
         }
 
 

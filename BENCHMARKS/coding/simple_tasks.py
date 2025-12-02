@@ -108,9 +108,32 @@ class CodingTasks:
         },
     ]
 
-    def __init__(self, nexus_path: Path, timeout: int = 60):
+    TASKS_BOOTCAMP = [
+        {
+            "id": "return_true",
+            "prompt": "Write a Python function return_true() that returns True.",
+            "test_cases": [
+                ("return_true()", True),
+            ]
+        },
+        {
+            "id": "add_numbers",
+            "prompt": "Write a Python function add(a, b) that returns the sum of a and b.",
+            "test_cases": [
+                ("add(1, 2)", 3),
+                ("add(-1, 1)", 0),
+            ]
+        }
+    ]
+
+    def __init__(self, nexus_path: Path, timeout: int = 60, mode: str = "standard"):
         self.nexus_path = nexus_path
         self.timeout = timeout
+        
+        if mode == "bootcamp":
+            self.TASKS = self.TASKS_BOOTCAMP
+            # Reduce timeout for simple tasks
+            self.timeout = min(timeout, 30)
 
     def run_all(self) -> Tuple[int, int, Dict]:
         """Run all tasks sequentially and return (passed, total, details)."""

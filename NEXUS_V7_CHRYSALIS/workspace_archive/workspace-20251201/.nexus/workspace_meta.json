@@ -1,0 +1,18 @@
+{
+  "name": "workspace-20251201",
+  "path": "C:\\Code\\NEXUS\\20_NEXUS - Copie\\NEXUS_V7_CHRYSALIS\\workspace",
+  "status": "active",
+  "created_at": "2025-12-01T13:44:26.079329",
+  "last_accessed": "2025-12-01T16:09:23.455736",
+  "last_task": "",
+  "description": "",
+  "metrics": {
+    "iterations": 0,
+    "files_count": 49,
+    "size_bytes": 13687766,
+    "gemini_calls": 0,
+    "claude_calls": 0,
+    "tokens_used": 0
+  },
+  "is_current": true
+}
