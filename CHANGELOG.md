@@ -1,5 +1,27 @@
 # NEXUS V7.0 "Chrysalis" - Changelog
 
+## Version 7.0.14 (2025-12-02) - Sprint 13: Structural Cleanup (Gemini Follow-up)
+
+### Nettoyage Structurel
+
+Suite à l'analyse de Claude, finalisation du nettoyage pour éliminer la dette technique restante avant spécialisation.
+
+**Actions:**
+
+1.  **Extraction des Prompts Hardcodés :**
+    *   Création de `prompts/evolution_brainstorm.md` (extrait de `repl.py`).
+    *   Création de `prompts/specialization_mission.md` (extrait de `repl.py`).
+    *   Refactoring de `core/interface/repl.py` pour lire ces fichiers dynamiquement.
+    *   *Bénéfice :* Permet de modifier la logique d'évolution sans toucher au code Python.
+
+2.  **Suppression Fichiers Zombies :**
+    *   Supprimé `trigger_evolution.py` (script de test obsolète).
+    *   Supprimé `nexus_batch.py` (doublon de fonctionnalité CLI).
+
+**État Final :** Codebase prête pour la spécialisation (Mission Specialist).
+
+---
+
 ## Version 7.0.13 (2025-12-02) - Sprint 13: Codebase Analysis & Cleanup
 
 ### Analyse Approfondie
