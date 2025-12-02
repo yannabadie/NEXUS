@@ -29,7 +29,7 @@ from core.execution.tool_manager import (
 @pytest.fixture
 def temp_workspace():
     """Create a temporary workspace for testing."""
-    workspace = Path(tempfile.mkdtemp()) / "workspace"
+    workspace = Path(tempfile.mkdtemp()).resolve() / "workspace"
     workspace.mkdir(parents=True)
 
     # Create .nexus directory
@@ -515,6 +515,31 @@ class TestGlobTool:
         assert result.status == "SUCCESS"
         assert "no files found" in result.output.lower()
 
+    def test_glob_evolution_mode(self, tool_manager, mock_tool_request, temp_workspace):
+        """glob should support evolution mode (access parent)."""
+        # Setup parent structure
+        parent = temp_workspace.parent
+        (parent / "core").mkdir(exist_ok=True)
+        (parent / "core" / "parent_file.py").write_text("content")
+
+        # Enable evolution mode
+        tool_manager.evolution_mode = True
+
+        # Test allowed access
+        request = mock_tool_request("glob", {"pattern": "*.py", "path": "../core"})
+        result = tool_manager.execute(request)
+
+        assert result.status == "SUCCESS", f"Glob failed: {result.error}"
+        assert "parent_file.py" in result.output
+
+        # Test forbidden access
+        (parent / "forbidden").mkdir(exist_ok=True)
+        request = mock_tool_request("glob", {"pattern": "*", "path": "../forbidden"})
+        result = tool_manager.execute(request)
+
+        assert result.status == "FAILURE"
+        assert "not allowed" in result.error
+
 
 # ============================================================================
 # Grep Tool Tests
@@ -565,6 +590,32 @@ class TestGrepTool:
 
         assert result.status == "SUCCESS"
         # Should find "Hello World" despite case mismatch
+
+    def test_grep_evolution_mode(self, tool_manager, mock_tool_request, temp_workspace):
+        """grep should support evolution mode (access parent)."""
+        # Setup parent structure
+        parent = temp_workspace.parent
+        (parent / "core").mkdir(exist_ok=True)
+        (parent / "core" / "parent_file.py").write_text("def target_function(): pass")
+
+        # Enable evolution mode
+        tool_manager.evolution_mode = True
+
+        # Test allowed access
+        request = mock_tool_request("grep", {"pattern": "target_function", "path": "../core"})
+        result = tool_manager.execute(request)
+
+        assert result.status == "SUCCESS", f"Grep failed: {result.error}"
+        assert "parent_file.py" in result.output
+        assert "target_function" in result.output
+
+        # Test forbidden access
+        (parent / "forbidden").mkdir(exist_ok=True)
+        request = mock_tool_request("grep", {"pattern": "target", "path": "../forbidden"})
+        result = tool_manager.execute(request)
+
+        assert result.status == "FAILURE"
+        assert "not allowed" in result.error
 
 
 # ============================================================================
