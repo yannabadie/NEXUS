@@ -4,7 +4,6 @@ NEXUS CORE - Unified Entry Point
 """
 import sys
 import argparse
-import json
 from pathlib import Path
 
 # Add project root to path
