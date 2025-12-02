@@ -45,7 +45,7 @@ class StandaloneSwarm:
                 content = response.get("content", "")
                 # If error in status, prefix it
                 if response.get("status") == "error":
-                     return f"Error: {content}"
+                    return f"Error: {content}"
                 return content
             return str(response)
 
