@@ -26,6 +26,7 @@ class Config:
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))
         self.timeout: int = int(os.getenv("TIMEOUT", "600"))  # seconds
+        self.cfl_timeout: int = int(os.getenv("CFL_TIMEOUT", "60"))  # CFL validation timeout (fast)
 
         # Stagnation Detection
         self.stagnation_similarity_threshold: float = float(

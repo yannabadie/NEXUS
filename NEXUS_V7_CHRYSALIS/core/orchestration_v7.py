@@ -183,21 +183,33 @@ class OrchestratorV7:
             "telemetry_enabled": self.telemetry is not None
         })
 
-    def _get_claude_driver(self, task_type: TaskType) -> ClaudeDriverHybrid:
+    def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None) -> ClaudeDriverHybrid:
         """
         Get Claude driver with appropriate model for task type.
 
         V7 Sprint 8: Task-aware model selection
         - Opus for: BRAINSTORM, REDTEAM, ARCHITECT, EVOLUTION
         - Sonnet for: TOOL, VALIDATION, SIMPLE, FORMAT
+
+        Args:
+            task_type: Type of task for model selection
+            timeout_override: Optional timeout override (e.g., shorter for CFL)
         """
         model = self.model_router.select_claude_model(task_type)
-        return ClaudeDriverHybrid(
+
+        # Create driver with optional timeout override
+        driver = ClaudeDriverHybrid(
             self.config,
             self.workspace_path,
             model=model,
             agent_id=f"claude_{task_type.value}"
         )
+
+        # Override timeout if specified (for CFL validation)
+        if timeout_override:
+            driver.timeout = timeout_override
+
+        return driver
 
     def _invoke_agent(self, task_type: TaskType, context: str) -> Dict:
         """
@@ -708,12 +720,21 @@ Path: {self.workspace_path}
 
         # === STATE: VALIDATING_CFL ===
         elif self.state == OrchestratorState.VALIDATING_CFL:
-            # Agent MUST validate result
+            # Agent MUST validate result - use lightweight context
             context = self._build_context_with_tool_result()
 
             try:
-                # V7 Sprint 8: Use Sonnet for validation (fast, reliable)
-                response = self._invoke_agent(TaskType.VALIDATION, context)
+                # FIX: Use shorter CFL timeout (60s default) - validation should be FAST
+                cfl_timeout = getattr(self.config, 'cfl_timeout', 60)
+
+                if self.active_agent == "Claude":
+                    # Use Claude with CFL-specific timeout
+                    driver = self._get_claude_driver(TaskType.VALIDATION, timeout_override=cfl_timeout)
+                    response = driver.invoke(context)
+                else:
+                    # Gemini for CFL (should be rare - usually Claude validates)
+                    response = self.gemini_driver.invoke(context)
+
                 message = self._validate_message(response, expect_heavy=True)
             except Exception as e:
                 # Record error in panic system
@@ -1351,26 +1372,59 @@ Path: {self.workspace_path}
         return context
 
     def _build_context_with_tool_result(self) -> str:
-        """Build context WITH tool result (for CFL validation)"""
-        context = self._build_context()
+        """Build LIGHTWEIGHT context for CFL validation (fast, focused)"""
+        # CFL should be FAST - only include what's needed for validation
+        # Do NOT include full history, system prompts, or strategic plans
 
-        if self.pending_tool_result:
-            result_dict = self.pending_tool_result.to_dict()
-            context += f"""
+        objective = self.blackboard.get('objective', 'Task in progress')
 
----
+        # Get the last message (tool request)
+        last_msg = self.memory.get_last_message() if self.memory else {}
+        tool_request = last_msg.get("tool_use", {})
+        tool_name = tool_request.get("tool_name", "unknown")
+        tool_args = tool_request.get("arguments", {})
 
-## [TOOL RESULT] - VOUS DEVEZ VALIDER
+        # Get tool result
+        result_dict = self.pending_tool_result.to_dict() if self.pending_tool_result else {}
 
-Tool: {result_dict['tool_name']}
-Status: {result_dict['status']}
-Output:
+        # Truncate output if too long (CFL doesn't need full output)
+        output = result_dict.get('output', '')
+        if len(output) > 2000:
+            output = output[:1000] + "\n...[truncated]...\n" + output[-500:]
+
+        context = f"""# CFL VALIDATION - Quick Check
+
+## Your Role
+You are validating a tool execution. Be BRIEF and FAST.
+
+## Task Context
+User objective: {objective}
+
+## Tool Executed
+- Tool: {tool_name}
+- Arguments: {json.dumps(tool_args, ensure_ascii=False)[:500]}
+
+## Tool Result
+- Status: {result_dict.get('status', 'UNKNOWN')}
+- Output:
 ```
-{result_dict['output']}
+{output}
 ```
-Error: {result_dict['error']}
+- Error: {result_dict.get('error', 'None')}
 
-**VOUS DEVEZ:** Analyser ce résultat et décider si c'est un succès ou échec.
+## YOUR TASK (IMPORTANT)
+1. Check if the tool executed successfully
+2. If SUCCESS: Say "✓" and briefly note what was accomplished
+3. If FAILURE: Say "✗" and note the error
+4. If task is COMPLETE: Add "FINISHED" to your response
+
+**DO NOT:**
+- Analyze the full task
+- Propose next steps
+- Ask questions to the other agent
+- Do deep research
+
+**JUST VALIDATE** the tool result in 1-2 sentences, then stop.
 """
         return context
 
