@@ -153,6 +153,89 @@ def process_turn(self, user_input: str):
 - [ ] Config: `fast_path_enabled=True` (désactivable)
 - [ ] Métrique: Temps de réponse < 2s pour patterns matchés
 
+### Phase 7: Session Isolation & Context Management [Priorité: CRITIQUE]
+**Objectif**: Isolation des contextes pour exécution parallèle multi-agents
+**Effort**: 3-4 jours
+**Source**: Bug context bleeding (2025-12-03) + [Google ADK Parallel Agents](https://google.github.io/adk-docs/agents/workflow-agents/parallel-agents/) + [Microsoft MCP Patterns](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/orchestrating-multi-agent-intelligence-mcp-driven-patterns-in-agent-framework/4462150)
+
+> **Problème actuel**: `--resume latest` cause un "context bleeding" entre tâches Swarm.
+> Task 2 reçoit le contexte de Task 1, causant confusion et mauvaise analyse.
+>
+> **Contexte industrie**: "Independent Branches: Sub-agents operate in isolated execution
+> paths with no automatic sharing of conversation history" (Google ADK)
+
+**Architecture Session Management**:
+```
+~/.gemini/tmp/<project_hash>/chats/
+├── <session-uuid-1>.json  ← Task: "Analyse core/swarm"
+├── <session-uuid-2>.json  ← Task: "Fibonacci function"
+└── <session-uuid-3>.json  ← Agent: sql_expert parallel work
+```
+
+**Stratégie d'isolation**:
+```python
+# Chaque tâche Swarm = nouvelle session UUID
+class SwarmSessionManager:
+    def create_session(self, task_id: str) -> str:
+        """Génère un UUID unique pour cette tâche"""
+        return f"swarm_{task_id}_{uuid.uuid4().hex[:8]}"
+
+    def get_resume_flag(self, session_id: str) -> str:
+        """Retourne --resume <session> ou '' pour nouvelle session"""
+        if self._session_exists(session_id):
+            return f"--resume {self._get_session_index(session_id)}"
+        return ""  # Fresh session
+```
+
+**Implémentation** (`core/drivers/gemini_driver_v7.py`):
+- [ ] `SwarmSessionManager` - Gestionnaire de sessions par tâche
+- [ ] `session_registry.json` - Mapping task_id → session_uuid
+- [ ] Modifier `_build_command()` pour utiliser session spécifique
+- [ ] Ne PAS utiliser `--resume latest` pour Swarm (seulement brainstorm continu)
+
+**Implémentation** (`core/swarm/hybrid_swarm_engine.py`):
+- [ ] Générer `task_id` unique au début de `process_task()`
+- [ ] Passer `task_id` au driver pour isolation session
+- [ ] `reset()` nettoie aussi le session manager
+
+**Modes de session**:
+| Mode | Comportement | Use Case |
+|------|--------------|----------|
+| `FRESH` | Nouvelle session, pas de resume | Swarm task isolée |
+| `CONTINUE` | Resume session existante | Brainstorm multi-tour |
+| `BRANCH` | Fork depuis session parent | Agent spawned parallèle |
+
+**Parallel Execution Isolation**:
+```python
+# PARALLEL mode: chaque agent a sa propre session
+async def execute_parallel(agents, task):
+    sessions = {}
+    for agent in agents:
+        sessions[agent.id] = session_manager.create_session(
+            f"{task.id}_{agent.id}"
+        )
+
+    # Exécution parallèle avec sessions isolées
+    results = await asyncio.gather(*[
+        invoke_agent(agent, sessions[agent.id])
+        for agent in agents
+    ])
+
+    # Merge results (pas de context bleeding)
+    return merge_results(results)
+```
+
+**Cleanup & Lifecycle**:
+- [ ] Auto-cleanup sessions > 24h
+- [ ] `/session list` - Lister sessions actives
+- [ ] `/session clear` - Nettoyer toutes les sessions Swarm
+- [ ] Config: `session_retention_hours=24`
+
+**Tests de validation**:
+- [ ] Test: Deux tâches Swarm consécutives n'ont pas de context bleeding
+- [ ] Test: PARALLEL mode avec 2 agents = 2 sessions distinctes
+- [ ] Test: Brainstorm multi-tour conserve le contexte (CONTINUE mode)
+
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
 **Effort**: 1 semaine
@@ -260,9 +343,14 @@ Pattern Anthropic "Code Execution with MCP" - réduction 98.7% tokens. L'agent g
 
 ```
 V7.5.3 (Décembre 2025) ← CURRENT
+├── Phase 7: Session Isolation [CRITIQUE - Bug Fix]
+│   └── Corrige context bleeding entre tâches Swarm
 ├── Phase 5b: N-Agent Agnosticism Complet [CRITIQUE]
+│   └── Spawned agents dans tous les 6 modes
 ├── Phase 8: Self-Healing Swarm
+│   └── Fallback automatique de MODE
 └── Phase 9: Fast Path ⚡
+    └── Bypass FSM pour requêtes triviales
 
 V7.6 (Janvier 2026)
 ├── Phase 10a: Auto-Memory Storage
@@ -293,6 +381,7 @@ V8.0 (Mars 2026)
 | Memory Hit Rate | N/A | >60% |
 | **Spawned Agent Lead Rate** | >20% | >40% |
 | **Self-Healing Recovery Rate** | >50% | >80% |
+| **Context Isolation Rate** | 100% | 100% |
 
 ---
 
