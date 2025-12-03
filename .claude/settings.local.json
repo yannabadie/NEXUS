@@ -1,27 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(cat:*)",
-      "Bash(python -m pytest:*)",
-      "Bash(python3:*)",
-      "Bash(xargs -I {} sh -c \"python3 -m py_compile {} 2>&1 && echo ''✓ {}'' || echo ''✗ {}''\")",
-      "Bash(while read f)",
-      "Bash(do if ! python3 -m py_compile \"$f\")",
-      "Bash(then echo \"SYNTAX ERROR: $f\" fi done)",
-      "Bash(python -m py_compile:*)",
-      "Bash(python:*)",
-      "Bash(do if ! python -m py_compile \"$f\")",
-      "Bash(then echo \"SYNTAX ERROR: $f\")",
-      "Bash(fi)",
-      "Bash(done)",
-      "Bash(tar:*)",
-      "Bash(git init:*)",
-      "Bash(git remote add:*)",
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(del KERNEL_HASH.txt)",
-      "Bash(Remove-Item -Path KERNEL_HASH.txt -ErrorAction SilentlyContinue)"
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: Gemini audit V7.5 + README modules\n\n- NEW: audit/AUDIT_GEMINI_V7.5_HIVE_MIND_2025-12-03.md\n- NEW: README.md for all core/* modules\n- Updated prompts and driver docs\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nCo-Authored-By: Gemini <noreply@google.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

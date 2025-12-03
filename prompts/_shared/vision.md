@@ -11,4 +11,4 @@ NEXUS CORE (Déployé dans Projet X)
 └── 5. APPRENDRE   → Auto-Memory des succès/échecs
 ```
 
-**Coeur de Puissance:** Gemini + Claude en symbiose cognitive.
+**Coeur de Puissance:** Gemini 3 Pro + Claude Opus 4.5 en symbiose cognitive.
