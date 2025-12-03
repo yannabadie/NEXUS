@@ -236,6 +236,42 @@ async def execute_parallel(agents, task):
 - [ ] Test: PARALLEL mode avec 2 agents = 2 sessions distinctes
 - [ ] Test: Brainstorm multi-tour conserve le contexte (CONTINUE mode)
 
+**Méthodologie d'implémentation** (basée sur recherches 2025-12-03):
+
+1. **Découverte Gemini CLI**:
+   ```bash
+   gemini --list-sessions
+   # Output: sessions avec UUIDs [cc74e0e6-3f08-4ca9-...]
+   # Storage: ~/.gemini/tmp/<project_hash>/chats/<uuid>.json
+   ```
+
+2. **Pattern Google ADK** ([source](https://google.github.io/adk-docs/agents/workflow-agents/parallel-agents/)):
+   > "Sub-agents operate in isolated execution paths with no automatic sharing
+   > of conversation history between branches during execution."
+
+   → Implémenter `InvocationContext.branch` pour chaque agent parallèle
+
+3. **Pattern Microsoft MCP** ([source](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/orchestrating-multi-agent-intelligence-mcp-driven-patterns-in-agent-framework/4462150)):
+   > "Tenant isolation ensures one user's session state does not leak to another"
+
+   → Chaque tâche Swarm = "tenant" isolé avec son propre contexte
+
+4. **Checkpointing** (pour Self-Healing Phase 8):
+   > "Checkpointing can snapshot shared and executor-local state at any point,
+   > supporting pause/resume and fault recovery."
+
+   → Sauvegarder état session avant fallback de mode
+
+5. **Ordre d'implémentation**:
+   ```
+   Étape 1: SwarmSessionManager (core/swarm/session_manager.py) [NOUVEAU]
+   Étape 2: Modifier GeminiDriverV7._build_command() pour session_id
+   Étape 3: Modifier HybridSwarmEngine.process_task() pour générer task_id
+   Étape 4: Intégrer dans mode_executors.py pour PARALLEL
+   Étape 5: Tests d'isolation
+   Étape 6: Commands /session list|clear
+   ```
+
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
 **Effort**: 1 semaine
