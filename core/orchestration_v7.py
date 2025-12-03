@@ -11,7 +11,7 @@ Architecture FSM (Finite State Machine):
 États spéciaux: EVOLUTION_BRAINSTORM (débat émergent 30 tours max)
 """
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
 from core.fsm.states import OrchestratorState, TransitionGuard
 from core.fsm.stagnation_detector import StagnationDetector
 from core.fsm.plan_health import PlanHealthMonitor
