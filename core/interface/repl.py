@@ -28,6 +28,7 @@ from core.config import load_config
 from core.fsm.states import OrchestratorState
 from core.evolution.rate_limiter import EvolutionRateLimiter
 from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
+from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security import MutationValidator
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 
@@ -81,6 +82,16 @@ class InteractiveNexusV7:
         # Rate limiter for evolution cycles
         self.rate_limiter = EvolutionRateLimiter(workspace_path, self.config)
 
+        # V7.5 Phase 0a: EvolutionManager - Central orchestrator for evolution
+        self.evolution_manager = EvolutionManager(
+            workspace_path=workspace_path,
+            nexus_root=self.nexus_root,
+            config=self.config,
+            orchestrator=self.orchestrator,
+            rate_limiter=self.rate_limiter,
+            progress_callback=self._evolution_progress_callback,
+        )
+
         # Abort flag for graceful shutdown of long-running operations
         self._abort_requested = False
 
@@ -93,6 +104,15 @@ class InteractiveNexusV7:
                 return "/exit"
         else:
             return self.session.prompt(prompt)
+
+    def _evolution_progress_callback(self, message: str, progress: float):
+        """Callback for EvolutionManager progress updates."""
+        # Display progress bar if console supports it
+        progress_pct = int(progress * 100)
+        bar_width = 30
+        filled = int(bar_width * progress)
+        bar = "█" * filled + "░" * (bar_width - filled)
+        self.console.print(f"[dim][{bar}] {progress_pct}%[/dim] {message}")
 
     def run(self):
         """Main REPL loop"""
@@ -907,235 +927,9 @@ class InteractiveNexusV7:
 
     # ==================== END WORKSPACE MANAGEMENT ====================
 
-    def brainstorm_children_with_ais(self, parent_id: str, parent_path: Path, child_count: int) -> list:
-        """
-        Collaborative brainstorming: Gemini+Claude propose children mutations.
-
-        This implements EVOLUTION_PROTOCOL.md Phase 1, Step 2:
-        "Design Mutation - Brainstorm with collaborator (Gemini ↔ Claude)"
-
-        Args:
-            parent_id: Current parent NEXUS ID
-            parent_path: Path to parent NEXUS
-            child_count: Number of children to propose
-
-        Returns:
-            list: List of child proposals with mutations, params, justifications
-        """
-        import json
-        import re
-        from core.fsm.states import OrchestratorState
-        # V7.5 HIVE MIND: Use robust extractor
-        from core.utils.json_extractor import extract_json_safe as robust_extract_json
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🧠 COLLABORATIVE BRAINSTORMING PHASE")
-        self.console.print("="*60)
-        self.console.print(f"Gemini + Claude will now debate and propose {child_count} children\n")
-
-        # CLEAR HISTORY to prevent context pollution from previous tasks
-        self.console.print("🧹 Clearing short-term memory for focused brainstorming...")
-        self.orchestrator.blackboard["recent_history"] = []
-        self.orchestrator.memory.save_to_disk()
-
-        # CLEANUP: Remove hallucinated directories from previous sessions
-        import shutil
-        hallucination_dirs = ['_SHARED_CODE', '_temp']
-        workspace_path = self.orchestrator.tool_manager.workspace_path
-        for dirname in hallucination_dirs:
-            cleanup_path = workspace_path / dirname
-            if cleanup_path.exists():
-                shutil.rmtree(cleanup_path)
-                self.console.print(f"🧹 Cleaned up hallucinated directory: {dirname}/")
-
-        # Read LINEAGE.json for context
-        lineage_path = parent_path.parent / "LINEAGE.json"
-        lineage_context = ""
-        if lineage_path.exists():
-            lineage_context = lineage_path.read_text(encoding='utf-8')[:2000]  # First 2000 chars
-
-        # V7.5 HIVE MIND: Load prompt with includes resolved
-        try:
-            brainstorm_task = load_prompt("evolution_brainstorm", {
-                "child_count": child_count,
-                "parent_id": parent_id,
-                "lineage_context": lineage_context[:500]
-            })
-        except FileNotFoundError as e:
-            self.console.print_error(f"Missing prompt file: {e}")
-            return []
-
-        # Switch to EVOLUTION_BRAINSTORM mode
-        original_state = self.orchestrator.state
-        self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-        self.console.print(f"[FSM] Mode: EVOLUTION_BRAINSTORM (max 30 tours)\n")
-
-        # Start brainstorming with the task
-        result = self.orchestrator.process_turn(brainstorm_task)
-        self.console.display_result(result)
-
-        # Continue processing until FINISHED, IDLE, or max 30 turns
-        max_iterations = 30  # Evolution debate limit
-        iterations = 0
-
-        # Track all outputs to find JSON
-        all_outputs = [result.get('output') or '']
-
-        while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
-            # Check for abort signal (set by exit command or Ctrl+C)
-            if self._abort_requested:
-                self.console.print("🛑 Abort requested - stopping brainstorm")
-                break
-
-            result = self.orchestrator.process_turn()
-            self.console.display_result(result)
-            iterations += 1
-
-            # Collect output (use 'or' to handle None values)
-            output = result.get('output') or ''
-            all_outputs.append(output)
-
-            # Check if task is finished
-            if result.get("finished"):
-                break
-
-            # FINISHED DETECTION: Check for explicit consensus signals
-            # Gemini/Claude signal FINISHED when they agree on mutations
-            output_lower = output.lower()
-            if ('"status": "FINISHED"' in output.upper() or
-                '"status":"FINISHED"' in output.upper() or
-                'consensus reached' in output_lower or
-                'accord mutuel' in output_lower):
-                self.console.print(f"\n✓ FINISHED status detected at iteration {iterations}")
-                break
-
-            # EARLY EXIT: Check for SEARCH/REPLACE mutation blocks
-            if iterations >= 4:  # Give at least 4 turns for real debate
-                # Check for new SEARCH/REPLACE format
-                if ('FILE:' in output and '<<<<<<< SEARCH' in output and
-                    '=======' in output and '>>>>>>> REPLACE' in output):
-                    self.console.print(f"\n✓ SEARCH/REPLACE mutation detected at iteration {iterations}, ending debate")
-                    break
-
-                # Legacy: Check for JSON format
-                if ('"file"' in output and '"change"' in output and
-                    '"reason"' in output and '"expected_asi_impact"' in output and
-                    '[{' in output.replace(' ', '').replace('\n', '')):
-                    self.console.print(f"\n✓ JSON mutation detected at iteration {iterations}, ending debate")
-                    break
-
-        # Return to IDLE state
-        self.orchestrator._transition_to(OrchestratorState.IDLE)
-
-        if iterations >= max_iterations:
-            self.console.print(f"⚠️  Debate reached {max_iterations} turns limit")
-
-        if result["state"] in ["ERROR", "PANIC"]:
-            raise ValueError(f"Brainstorming failed with state: {result['state']}")
-
-        # Get all outputs combined for JSON extraction
-        final_content = '\n'.join(all_outputs)
-
-        # ROBUST MUTATION EXTRACTION: Try SEARCH/REPLACE first, then JSON fallback
-        proposals = None
-        required_keys = {'file', 'change', 'reason', 'expected_asi_impact'}
-
-        def extract_search_replace_blocks(text: str) -> list:
-            """
-            Extract mutations from SEARCH/REPLACE block format.
-            This format preserves exact indentation (no \\n escaping issues).
-            Returns list of dicts compatible with JSON format.
-            """
-            from core.evolution.mutation_parser import MutationParser
-
-            parser = MutationParser()
-            mutations = parser.parse(text)
-
-            if not mutations:
-                return []
-
-            # Convert to legacy dict format for compatibility
-            return [m.to_dict() for m in mutations]
-
-        for retry in range(3):  # 0, 1, 2 = 3 attempts total
-            # PRIORITY 1: Try SEARCH/REPLACE format first (preserves indentation)
-            proposals = extract_search_replace_blocks(final_content)
-            if proposals:
-                self.console.print(f"✓ SEARCH/REPLACE format extracted with {len(proposals)} mutation(s)")
-                break
-
-            # PRIORITY 2: Fallback to JSON format (using robust extractor)
-            json_result, _ = robust_extract_json(final_content, verbose=True)
-            
-            if json_result and isinstance(json_result, list):
-                # Validate structure
-                if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in json_result):
-                    proposals = json_result
-                    self.console.print(f"✓ JSON format extracted with {len(proposals)} mutation(s)")
-                    break
-            
-            # If we got a dict (maybe wrapped in a message), check if it contains the list
-            if json_result and isinstance(json_result, dict):
-                # Sometimes agents wrap list in {"mutations": [...]}
-                if "mutations" in json_result and isinstance(json_result["mutations"], list):
-                     proposals = json_result["mutations"]
-                     if all(isinstance(p, dict) and required_keys.issubset(p.keys()) for p in proposals):
-                        self.console.print(f"✓ JSON format extracted with {len(proposals)} mutation(s)")
-                        break
-
-            self.console.print(f"[Retry {retry+1}/3] No valid mutations found in output")
-
-            # Retry: continue debate without overwriting objective
-            if retry < 2 and proposals is None:
-                self.console.print("\n⚠️  RAPPEL: Format SEARCH/REPLACE requis!\n")
-
-                # FIX CORR-019: Don't send reminder as new objective - add to history instead
-                # This preserves the original brainstorm_task as objective
-                reminder_msg = {
-                    "sender": "System",
-                    "action_type": "TALK",
-                    "content": f"""RAPPEL: Le format de mutation n'a pas été parsé correctement.
-
-FORMAT SEARCH/REPLACE ATTENDU:
-```
-FILE: core/fichier.py
-REASON: Description
-IMPACT: 0.03
-
-<<<<<<< SEARCH
-code original exact
-=======
-nouveau code
->>>>>>> REPLACE
-```
-
-PRODUISEZ LES BLOCS DE MUTATION MAINTENANT ({child_count} mutations requises).""",
-                    "status": "CONTINUE"
-                }
-                self.orchestrator.memory.add_to_history(reminder_msg)
-
-                # Ensure we're still in EVOLUTION_BRAINSTORM state
-                if self.orchestrator.state != OrchestratorState.EVOLUTION_BRAINSTORM:
-                    self.console.print(f"[WARNING] State changed to {self.orchestrator.state.name}, restoring EVOLUTION_BRAINSTORM")
-                    self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-
-                # Continue debate without new user_input (keeps original objective)
-                result = self.orchestrator.process_turn()
-                self.console.display_result(result)
-                # APPEND new output to preserve any partial JSON from previous turns
-                new_output = result.get('output') or ''
-                final_content = final_content + '\n' + new_output
-
-        if proposals is None:
-            self.console.print("[ERROR] Failed to extract valid JSON after 3 attempts")
-            self.console.print(f"Final output:\n{final_content[:1000]}...")
-            raise ValueError("Brainstorming failed: No valid JSON proposals after retries")
-
-        self.console.print(f"\n✓ Parsed {len(proposals)} émergent mutations:")
-        for i, p in enumerate(proposals):
-            self.console.print(f"  [{i+1}] {p['file']}: {p['reason'][:50]}...")
-
-        return proposals
+    # V7.5 Phase 0a: brainstorm_children_with_ais() REMOVED
+    # Logic moved to core/evolution/phases/brainstorm.py (BrainstormPhase)
+    # Called via EvolutionManager.brainstorm_mutations()
 
     def brainstorm_spinoff_with_ais(self, parent_id: str, parent_path: Path, mission: str) -> list:
         """
@@ -1338,44 +1132,21 @@ PRODUISEZ LES BLOCS DE MUTATION MAINTENANT ({child_count} mutations requises).""
 
         return calculated_path
 
-    def _validate_mutation_path(self, file_path: str, parent_path: Path) -> tuple:
-        """
-        Validate mutation target file exists and is safe.
-
-        Returns:
-            (is_valid: bool, message: str)
-        """
-        # Forbidden path prefixes (hallucinated directories)
-        FORBIDDEN_PREFIXES = ['_SHARED_CODE/', '_temp/', 'workspace/', '__pycache__/', '.nexus/']
-        for prefix in FORBIDDEN_PREFIXES:
-            if file_path.startswith(prefix):
-                return False, f"Chemin interdit (hallucination?): {prefix}"
-
-        # Check file exists in parent
-        target = parent_path / file_path
-        if not target.exists():
-            return False, f"Fichier inexistant dans parent: {file_path}"
-
-        # Check for path traversal attempts
-        try:
-            target.resolve().relative_to(parent_path.resolve())
-        except ValueError:
-            return False, f"Path traversal détecté: {file_path}"
-
-        return True, "OK"
+    # V7.5 Phase 0a: _validate_mutation_path() REMOVED
+    # Logic moved to core/evolution/phases/create.py (CreatePhase._validate_mutation_path)
 
     def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
         """
         Run evolution cycle: create and evaluate children.
 
+        V7.5 Phase 0a: Delegates to EvolutionManager for all evolution logic.
+        REPL handles only UI/console output.
+
         Args:
             child_count: Number of children to create
             auto_triggered: True if triggered by 50-turn threshold
         """
-        from core.evolution.lineage import load_lineage, get_current_parent, save_lineage
-        # NOTE: mutator.py is DEPRECATED - evolution uses emergent JSON patches from AI debate
-        from core.evolution.evaluator import evaluate_child, select_winner
-        from core.notifications import create_pending_review
+        from datetime import datetime
 
         self.console.print("\n" + "="*60)
         self.console.print("🧬 EVOLUTION CYCLE STARTED")
@@ -1389,7 +1160,7 @@ PRODUISEZ LES BLOCS DE MUTATION MAINTENANT ({child_count} mutations requises).""
         self.console.print(f"Children to create: {child_count}")
         self.console.print("="*60 + "\n")
 
-        # Check rate limits BEFORE starting evolution
+        # Check rate limits with UI feedback
         can_evolve, reason = self.rate_limiter.can_evolve(child_count)
         if not can_evolve:
             self.console.print(f"[red]❌ Evolution blocked: {reason}[/red]")
@@ -1404,399 +1175,34 @@ PRODUISEZ LES BLOCS DE MUTATION MAINTENANT ({child_count} mutations requises).""
             return
 
         try:
-            # Load lineage
-            lineage = load_lineage(self.workspace_path)
-            parent = get_current_parent(lineage)
-            parent_id = parent["id"]
-            generation = parent["generation"] + 1
-
-            self.console.print(f"[*] Current Parent: {parent_id} (Gen {parent['generation']})")
-            # V7.5: Support both old and new field names
-            score = parent.get('fitness_score') or parent.get('asi_proximity_score', 0.7)
-            self.console.print(f"[*] Fitness Score: {score}")
-            self.console.print(f"📊 Next Generation: {generation}\n")
-
-            # Check max children limit (Q1C: 3 for MVP, 10 for stable)
-            max_children = self.config.max_children_concurrent
-            if child_count > max_children:
-                self.console.print(f"⚠️  Limiting to {max_children} children (config.max_children_concurrent)")
-                child_count = max_children
-
-            # Create children
-            children_created = []
-            parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS (validated at init)
-
-            # ÉMERGENT BRAINSTORMING: Gemini+Claude propose mutations librement
-            mutations_proposals = self.brainstorm_children_with_ais(
-                parent_id=parent_id,
-                parent_path=parent_path,
-                child_count=child_count
+            # V7.5 Phase 0a: Delegate to EvolutionManager
+            result = self.evolution_manager.run_evolution_cycle(
+                child_count=child_count,
+                focus_areas=None,  # TODO: Add focus areas from command
             )
 
-            # Create children with EMERGENT mutations (no hardcoded functions)
-            import shutil
-            import json
-            from datetime import datetime
-
-            for i, mutation in enumerate(mutations_proposals):
-                # Generate unique child_id based on mutation
-                file_basename = Path(mutation['file']).stem
-                child_id = f"NEXUS_V7.1_CHILD_{i+1:03d}_{file_basename.upper()}"
-
-                self.console.print(f"\n{'─'*60}")
-                self.console.print(f"Creating Child {i+1}/{child_count}: {child_id}")
-                self.console.print(f"{'─'*60}")
-                self.console.print(f"Mutation: {mutation['file']}")
-                # V7.5: Support both old and new field names for fitness impact
-                impact = mutation.get('fitness_impact') or mutation.get('expected_asi_impact', 0)
-                self.console.print(f"Impact:   +{impact:.2%} Fitness")
-
-                # EARLY VALIDATION: Check path before creating child (warn + continue)
-                path_valid, path_msg = self._validate_mutation_path(mutation['file'], parent_path)
-                if not path_valid:
-                    self.console.print(f"⚠️  Path validation failed: {path_msg}")
-                    self.console.print(f"    Skipping this mutation, continuing with others...")
-                    continue
-
-                # Create child directory
-                child_dir = parent_path.parent / "GENERATION_ACTIVE" / child_id
-                if child_dir.exists():
-                    shutil.rmtree(child_dir)
-                # Note: Don't mkdir here - copytree creates the destination
-
-                # Copy parent to child (sandbox)
-                try:
-                    # Ensure parent directory exists
-                    child_dir.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copytree(
-                        parent_path,
-                        child_dir,
-                        ignore=shutil.ignore_patterns(
-                            '__pycache__', '*.pyc', '.nexus', 'workspace', 'workspace_archive', '.git'
-                        ),
-                        dirs_exist_ok=True  # Handle race conditions on Windows
-                    )
-                    self.console.print(f"✓ Copied parent → {child_id}")
-
-                    # FIX: Copy KERNEL.py from project root (alignment file)
-                    project_root = parent_path.parent
-                    kernel_path = project_root / "KERNEL.py"
-                    kernel_hash_path = project_root / "KERNEL_HASH.txt"
-                    if kernel_path.exists():
-                        shutil.copy2(kernel_path, child_dir / "KERNEL.py")
-                        if kernel_hash_path.exists():
-                            shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
-                        self.console.print(f"✓ Copied KERNEL.py (alignment file)")
-
-                    # FIX: Create workspace directories required by drivers
-                    child_workspace = child_dir / "workspace"
-                    child_workspace.mkdir(exist_ok=True)
-                    (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
-                    (child_workspace / ".nexus").mkdir(exist_ok=True)
-                    (child_workspace / "logs").mkdir(exist_ok=True)
-                    self.console.print(f"✓ Created workspace directories")
-
-                    # Apply emergent mutation
-                    target_file = child_dir / mutation['file']
-                    if not target_file.exists():
-                        self.console.print(f"⚠️  File not found: {mutation['file']} - SKIPPING")
-                        shutil.rmtree(child_dir)  # Cleanup failed child
-                        continue
-
-                    # Read original content
-                    original_content = target_file.read_text(encoding='utf-8')
-                    mutation_code = mutation['change']
-                    operation = mutation.get('operation', 'APPEND').upper()
-
-                    # SECURITY: MutationValidator (warn mode - never blocks)
-                    mutation_validator = MutationValidator(workspace_path=self.workspace_path)
-                    mv_warnings, mv_info = mutation_validator.validate(mutation_code, mutation['file'])
-                    
-                    if mv_warnings:
-                        self.console.print(f"[yellow]MUTATION WARNINGS for {mutation['file']}:[/yellow]")
-                        for w in mv_warnings:
-                            self.console.print(f"  {w}")
-                        self.console.print(f"  [dim](Applying anyway - review the code)[/dim]")
-                    
-                    if mv_info and self.config.ui_verbose:
-                        for info_msg in mv_info:
-                            self.console.print(f"  [dim]{info_msg}[/dim]")
-
-                    # Strip ../ prefix if agents mistakenly included it in JSON
-                    if mutation['file'].startswith('../'):
-                        self.console.print(f"⚠️  Stripping ../ prefix from file path (should not be in JSON)")
-                        mutation['file'] = mutation['file'][3:]
-
-                    # APPLY MUTATION based on operation type
-                    if operation == 'REPLACE':
-                        # PRIORITY 1: Use search_block for exact matching (from SEARCH/REPLACE format)
-                        search_block = mutation.get('search_block', '')
-                        if search_block and search_block in original_content:
-                            # Direct replacement - most reliable
-                            mutated_content = original_content.replace(search_block, mutation_code, 1)
-                            self.console.print(f"✓ REPLACE: Exact block match replaced")
-                        else:
-                            # PRIORITY 2: Fallback to target line matching (legacy JSON format)
-                            target_line = mutation.get('target', '')
-                            if not target_line:
-                                self.console.print(f"⚠️  REPLACE operation requires 'target' or 'search_block'")
-                                self.console.print(f"    SKIPPING child {child_id}")
-                                shutil.rmtree(child_dir)
-                                continue
-
-                            # Find the target in original content
-                            if target_line not in original_content:
-                                self.console.print(f"⚠️  Target not found in file: {target_line[:50]}...")
-                                self.console.print(f"    SKIPPING child {child_id}")
-                                shutil.rmtree(child_dir)
-                                continue
-
-                            # Find the block to replace (from target line to next same-indent or blank line block)
-                            lines = original_content.split('\n')
-                            target_idx = None
-                            target_indent = 0
-
-                            for idx, line in enumerate(lines):
-                                if target_line.strip() in line:
-                                    target_idx = idx
-                                    target_indent = len(line) - len(line.lstrip())
-                                    break
-
-                            if target_idx is None:
-                                self.console.print(f"⚠️  Could not locate target line index")
-                                shutil.rmtree(child_dir)
-                                continue
-
-                            # Find end of block (next line with same or less indent, excluding blank lines)
-                            end_idx = target_idx + 1
-                            while end_idx < len(lines):
-                                line = lines[end_idx]
-                                if line.strip() == '':
-                                    end_idx += 1
-                                    continue
-                                line_indent = len(line) - len(line.lstrip())
-                                if line_indent <= target_indent and not line.strip().startswith('#'):
-                                    break
-                                end_idx += 1
-
-                            # Build mutated content
-                            mutated_lines = lines[:target_idx] + mutation_code.split('\n') + lines[end_idx:]
-                            mutated_content = '\n'.join(mutated_lines)
-                            self.console.print(f"✓ REPLACE: Replaced block at line {target_idx+1}")
-
-                    else:
-                        # APPEND operation (default): Add to end of file
-                        mutated_content = original_content + "\n\n" + mutation_code + "\n"
-                        self.console.print(f"✓ APPEND: Added code to end of file")
-
-                    # VALIDATION A: For Python files, verify mutation is valid syntax
-                    if target_file.suffix == '.py':
-                        import ast
-
-                        # First, check if mutation alone is valid Python
-                        mutation_valid = False
-                        try:
-                            ast.parse(mutation_code)
-                            mutation_valid = True
-                        except SyntaxError:
-                            # Mutation alone isn't valid - might be a code fragment
-                            # Try wrapping in a function to see if it's at least statements
-                            try:
-                                ast.parse(f"def _test():\n    " + mutation_code.replace('\n', '\n    '))
-                                mutation_valid = True
-                            except SyntaxError:
-                                pass
-
-                        if not mutation_valid:
-                            self.console.print(f"⚠️  Mutation is not valid Python code:")
-                            self.console.print(f"    {mutation_code[:100]}...")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)  # Cleanup failed child
-                            continue
-
-                        # Second, check if mutated file compiles
-                        try:
-                            ast.parse(mutated_content)
-                        except SyntaxError as e:
-                            self.console.print(f"⚠️  Mutated file would have syntax error at line {e.lineno}:")
-                            self.console.print(f"    {e.msg}")
-                            self.console.print(f"    SKIPPING child {child_id}")
-                            shutil.rmtree(child_dir)  # Cleanup failed child
-                            continue
-
-                        # VALIDATION B: Check for suspicious patterns (warn only, don't block)
-                        import re
-                        SUSPICIOUS_PATTERNS = [
-                            (r'\bscores\s*\*\s*self\.', "Dict multiplication without [k] indexing?"),
-                            (r'\bweights\s*\*\s*self\.', "Dict multiplication without [k] indexing?"),
-                            (r'for\s+\w+\s+in\s+self\.\w+\s*\).*\*\s*self\.', "Loop var unused in multiplication?"),
-                        ]
-                        for pattern, warning in SUSPICIOUS_PATTERNS:
-                            if re.search(pattern, mutation_code):
-                                self.console.print(f"⚠️  SUSPICIOUS PATTERN: {warning}")
-                                self.console.print(f"    Code snippet: {mutation_code[:100]}...")
-                                self.console.print(f"    (Proceeding anyway - check the generated code)")
-
-                    # Write mutated content
-                    target_file.write_text(mutated_content, encoding='utf-8')
-                    self.console.print(f"✓ Applied {operation} mutation to {mutation['file']} (validated)")
-
-                    # Create BIRTH_CERTIFICATE.json
-                    birth_cert = {
-                        "child_id": child_id,
-                        "parent_id": parent_id,
-                        "generation": generation,
-                        "created_at": datetime.now().isoformat(),
-                        "creator": "Yann Abadie",
-                        "mutations": [{
-                            "file": mutation['file'],
-                            "change": mutation['change'],
-                            "reason": mutation['reason'],
-                            "expected_asi_impact": mutation['expected_asi_impact']
-                        }],
-                        "source": "Gemini+Claude symbiotic debate (emergent)",
-                        "signature": "NEXUS_KERNEL_ALIGNED"
-                    }
-
-                    birth_cert_path = child_dir / "BIRTH_CERTIFICATE.json"
-                    birth_cert_path.write_text(
-                        json.dumps(birth_cert, indent=2, ensure_ascii=False),
-                        encoding='utf-8'
-                    )
-
-                    self.console.print(f"✓ Birth certificate signed")
-
-                    children_created.append({
-                        "child_id": child_id,
-                        "child_path": child_dir,
-                        "mutation": mutation
-                    })
-
-                except Exception as e:
-                    self.console.print(f"[ERROR] Failed to create child: {e}")
-                    continue
-
-            self.console.print(f"\n✓ {len(children_created)} children created\n")
-
-            # === VALIDATION PIPELINE ===
-            self.console.print("="*60)
-            self.console.print("🔍 VALIDATION PIPELINE")
-            self.console.print("="*60 + "\n")
-
-            # V7 Sprint 3: Use TieredValidator for fast-fail validation
-            if self.config.validation_use_tiered:
-                from core.evolution import TieredValidator, ValidationTier
-                self.console.print("[V7] Using TieredValidator (fail-fast mode)")
+            # Display results
+            if result.success:
+                self.console.print("\n" + "="*60)
+                self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
+                self.console.print("="*60)
+                self.console.print(f"\n📊 Summary:")
+                self.console.print(f"  Mutations proposed: {result.mutations_proposed}")
+                self.console.print(f"  Children created: {result.children_created}")
+                self.console.print(f"  Children validated: {result.children_validated}")
+                if result.winner_id:
+                    self.console.print(f"  🏆 Winner: {result.winner_id}")
+                    self.console.print(f"  📈 Fitness Score: {result.winner_score:.3f}")
+                if result.promoted:
+                    self.console.print(f"  ✓ Winner promoted to parent")
+                self.console.print(f"\n  Duration: {result.duration_seconds:.1f}s")
+                self.console.print(f"\nReview with: /review")
+                self.console.print(f"Status with: /evolve-status\n")
             else:
-                from core.evolution.validator import ChildValidator
-                self.console.print("[V7] Using TieredValidator")
-
-            validated_children = []
-            for child_data in children_created:
-                child_path = child_data['child_path']
-
-                if self.config.validation_use_tiered:
-                    # V7: TieredValidator with parallel benchmarks and early exit
-                    validator = TieredValidator(child_path, self.config)
-                    max_tier = ValidationTier(self.config.validation_tier_default)
-                    result = validator.run_tiered(max_tier=max_tier)
-                else:
-                    # Legacy: ChildValidator (fallback)
-                    validator = ChildValidator(child_path)
-                    result = validator.run_full_validation(
-                        skip_benchmark=False,
-                        skip_redteam=False,  # SECURITY: Never skip Red Team
-                        generation=generation
-                    )
-
-                # Save validation report
-                validator.save_report(result)
-
-                if result.passed:
-                    validated_children.append({
-                        **child_data,
-                        "validation": result.to_dict()
-                    })
-                    self.console.print(f"✓ {child_data['child_id']}: VALIDATED")
-                else:
-                    self.console.print(f"✗ {child_data['child_id']}: REJECTED ({result.recommendation})")
-
-            if not validated_children:
-                self.console.print("\n[ERROR] No children passed validation!")
-                self.console.print("Check VALIDATION_REPORT.json in each child directory.")
-                return
-
-            self.console.print(f"\n✓ {len(validated_children)}/{len(children_created)} children validated\n")
-
-            # Update LINEAGE.json (only validated children)
-            children_created = validated_children  # Replace with validated only
-
-            self.console.print("="*60)
-            self.console.print("📝 UPDATING LINEAGE")
-            self.console.print("="*60 + "\n")
-
-            for child_data in children_created:
-                from core.evolution.lineage import add_child
-                lineage = add_child(lineage, parent_id, child_data['child_id'])
-                self.console.print(f"✓ Added {child_data['child_id']} to lineage")
-
-            save_lineage(lineage, self.workspace_path)
-            self.console.print(f"✓ LINEAGE.json updated")
-
-            # Create simple PENDING_REVIEW.md for human
-            pending_review_path = self.workspace_path / "PENDING_REVIEW.md"
-            pending_content = f"""# NEXUS Evolution - Pending Review
-
-**Generated**: {datetime.now().isoformat()}
-**Parent**: {parent_id}
-**Generation**: {generation}
-**Children Created**: {len(children_created)}
-
-## Children
-
-"""
-            for i, child_data in enumerate(children_created, 1):
-                mutation = child_data['mutation']
-                pending_content += f"""### {i}. {child_data['child_id']}
-
-- **File**: `{mutation['file']}`
-- **Reason**: {mutation['reason']}
-- **Expected Fitness Impact**: +{mutation.get('fitness_impact') or mutation.get('expected_asi_impact', 0):.2%}
-- **Location**: `GENERATION_ACTIVE/{child_data['child_id']}/`
-- **Birth Certificate**: `GENERATION_ACTIVE/{child_data['child_id']}/BIRTH_CERTIFICATE.json`
-
-**Change**:
-```
-{mutation['change'][:200]}...
-```
-
----
-
-"""
-
-            pending_content += """## Next Steps
-
-1. Review each child manually
-2. Test with `cd GENERATION_ACTIVE/<child_id> && python nexus7.py --verify`
-3. Select winner with `/review` command
-4. Promote winner to parent
-
-🧬 Generated by NEXUS Emergent Evolution (Gemini+Claude Symbiosis)
-"""
-
-            pending_review_path.write_text(pending_content, encoding='utf-8')
-            self.console.print(f"\n✓ Pending review: {pending_review_path}")
-
-            # Record evolution in rate limiter history
-            self.rate_limiter.record_evolution(generation, len(children_created), parent_id)
-            self.console.print(f"✓ Evolution recorded in rate limiter")
-
-            self.console.print("\n" + "="*60)
-            self.console.print("✅ ÉMERGENT EVOLUTION COMPLETE")
-            self.console.print("="*60)
-            self.console.print(f"\n{len(children_created)} children created from AI symbiotic debate")
-            self.console.print(f"Review with: /review")
-            self.console.print(f"Manual check: cat {pending_review_path}\n")
+                self.console.print(f"\n[red]❌ Evolution failed at phase: {result.phase_reached}[/red]")
+                for error in result.errors:
+                    self.console.print(f"  • {error}")
+                self.console.print("\nUse /evolve-status for more details.\n")
 
         except Exception as e:
             self.console.print_error(f"Evolution cycle failed: {e}")

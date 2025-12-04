@@ -16,7 +16,7 @@ NEXUS est un **protocole de collaboration multi-agents** capable de:
 3. **Orchestrer** leur collaboration via Hybrid Swarm Engine
 4. **Évoluer** par sélection des meilleures configurations
 
-Ce n'est pas un outil vers l'ASI abstraite, mais une **plateforme génératrice d'intelligences adaptées** aux problèmes réels.
+C'est une **plateforme génératrice d'intelligences spécialisées** pour résoudre des problèmes réels.
 
 ### Puissance Fondamentale : Gemini + Claude
 

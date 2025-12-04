@@ -14,6 +14,11 @@ V7 Sprint 12: Session Resume Mode (DEFAULT)
 - Benefits: ~5s latency (vs ~15s without resume), cached context tokens
 - IMPORTANT: First call does NOT use --resume (creates new session)
 
+V7.5 Phase 7: Session Isolation via session_uuid
+- SwarmSessionManager generates unique session UUIDs per task+role
+- When session_uuid is provided, uses --resume {uuid} for isolation
+- Enables parallel task execution without context bleeding
+
 V7 Sprint 13: PTY Mode (DEPRECATED)
 - PTY mode disabled by default - Gemini TUI doesn't accept PTY stdin input
 - The --prompt-interactive flag only works for initial prompt
@@ -125,16 +130,25 @@ class GeminiDriverV7:
         # Persistent process mode was removed - use session resume instead
         self._persistent_process = None
 
-    def invoke(self, context: str, use_pty: Optional[bool] = None) -> Dict:
+    def invoke(
+        self,
+        context: str,
+        use_pty: Optional[bool] = None,
+        session_uuid: Optional[str] = None
+    ) -> Dict:
         """
         Invoke Gemini CLI avec contexte markdown.
 
         V7 Sprint 12: Uses persistent mode if available, with automatic fallback.
         V7 Sprint 13: PTY single-shot mode for one-off operations.
+        V7.5 Phase 7: Session isolation via session_uuid parameter.
 
         Args:
             context: Contexte markdown avec system prompt
             use_pty: Override PTY mode for this invocation (None = use default)
+            session_uuid: Optional session UUID for isolation (Phase 7).
+                         When provided, uses --resume {uuid} instead of --resume latest.
+                         This enables parallel task execution without context bleeding.
 
         Returns:
             Dict structuré NEXUS (JSON parsé)
@@ -142,6 +156,7 @@ class GeminiDriverV7:
         Raises:
             RuntimeError: Si Gemini CLI échoue
             TimeoutError: Si timeout dépassé
+            ValueError: Si session_uuid invalide (resume failed)
         """
         # Determine if we should try PTY mode
         try_pty = use_pty if use_pty is not None else self.pty_mode
@@ -163,7 +178,7 @@ class GeminiDriverV7:
                 print(f"[WARNING] Persistent mode failed: {e}, falling back to subprocess", file=sys.stderr)
                 # Fall through to subprocess mode
 
-        return self._invoke_subprocess(context)
+        return self._invoke_subprocess(context, session_uuid=session_uuid)
 
     def _ensure_pty_started(self) -> bool:
         """
@@ -267,12 +282,20 @@ class GeminiDriverV7:
         # Extract JSON from response
         return self._extract_json(raw_response)
 
-    def _invoke_subprocess(self, context: str) -> Dict:
+    def _invoke_subprocess(
+        self,
+        context: str,
+        session_uuid: Optional[str] = None
+    ) -> Dict:
         """
         Invoke Gemini using subprocess (original method).
 
+        V7.5 Phase 7: Session isolation support via session_uuid.
+
         Args:
             context: Context markdown
+            session_uuid: Optional session UUID for isolation.
+                         When provided, uses --resume {uuid} for session isolation.
 
         Returns:
             Dict structured NEXUS response
@@ -325,10 +348,21 @@ class GeminiDriverV7:
         # - NO run_shell_command: Too dangerous for auto-approval
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
+        # V7.5 Phase 7: Session isolation via explicit session_uuid
         # V7 Sprint 12: Session resume for context persistence + YOLO mode for auto-approval
+        # --resume {uuid}: Isolates this task from other parallel tasks
         # --resume latest: Restores previous session context (~14k cached tokens)
         # --approval-mode yolo: Auto-approve with --allowed-tools restriction (read-only safe)
-        resume_flag = "--resume latest" if self.use_session_resume and self._session_active else ""
+        if session_uuid:
+            # Phase 7: Explicit session UUID for isolation (Swarm parallel tasks)
+            resume_flag = f"--resume {session_uuid}"
+            print(f"[DEBUG] Using session isolation: {session_uuid[:8]}...", file=sys.stderr)
+        elif self.use_session_resume and self._session_active:
+            # Default: Resume latest session for single-agent mode
+            resume_flag = "--resume latest"
+        else:
+            # New session (first invocation or session resume disabled)
+            resume_flag = ""
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
         if use_shell:
@@ -340,7 +374,10 @@ class GeminiDriverV7:
         else:
             # List format for Unix
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            if self.use_session_resume and self._session_active:
+            # V7.5 Phase 7: Session isolation support
+            if session_uuid:
+                cmd_parts.extend(["--resume", session_uuid])
+            elif self.use_session_resume and self._session_active:
                 cmd_parts.extend(["--resume", "latest"])
             # FIX: Use context_file_relative to avoid double-path issue
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "json"])

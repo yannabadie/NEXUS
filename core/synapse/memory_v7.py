@@ -6,13 +6,20 @@ Architecture:
 - State persists in RAM throughout session
 - Backup to disk only for crash recovery
 - Auto-compression via Haiku CLI when >120k tokens
+
+V7.5 Phase 7: Atomic JSON persistence via AtomicJsonStore
+- All disk writes use Write-Replace pattern (temp → fsync → rename)
+- Thread-safe for Swarm PARALLEL mode
 """
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Any
+from threading import RLock
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 import tiktoken
+
+from core.utils.atomic_store import AtomicJsonStore
 
 
 class MemoryManagerV7:
@@ -29,11 +36,18 @@ class MemoryManagerV7:
         self.backup_dir = workspace_path / ".nexus" / "backups"
         self.backup_dir.mkdir(parents=True, exist_ok=True)
 
+        # V7.5 Phase 0c: Thread safety for PARALLEL mode
+        self._lock = RLock()
+
+        # V7.5 Phase 7: Atomic JSON stores for safe concurrent writes
+        self._blackboard_store = AtomicJsonStore(self.blackboard_path)
+        self.global_memory_path = Path.home() / ".nexus" / "global_context.json"
+        self._global_memory_store = AtomicJsonStore(self.global_memory_path)
+
         # Load initial state ONCE
         self.blackboard = self._load_or_create_blackboard()
-        
+
         # Load Global Memory (Inter-project Persistence)
-        self.global_memory_path = Path.home() / ".nexus" / "global_context.json"
         self.global_memory = self._load_global_memory()
 
     def load_initial_state(self) -> Dict:
@@ -46,14 +60,14 @@ class MemoryManagerV7:
         return self.blackboard
 
     def _load_global_memory(self) -> Dict:
-        """Load global memory from user home directory"""
-        if self.global_memory_path.exists():
-            try:
-                return json.loads(self.global_memory_path.read_text(encoding="utf-8"))
-            except Exception as e:
-                print(f"Warning: Could not load global memory: {e}")
+        """Load global memory from user home directory (Phase 7: via AtomicJsonStore)"""
+        try:
+            data = self._global_memory_store.load_safe()
+            if not data:
                 return self._create_empty_global_memory()
-        else:
+            return data
+        except Exception as e:
+            print(f"Warning: Could not load global memory: {e}")
             return self._create_empty_global_memory()
 
     def _create_empty_global_memory(self) -> Dict:
@@ -69,28 +83,27 @@ class MemoryManagerV7:
         }
 
     def save_global_memory(self):
-        """Save global memory to disk"""
-        try:
-            self.global_memory_path.parent.mkdir(parents=True, exist_ok=True)
-            self.global_memory_path.write_text(
-                json.dumps(self.global_memory, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
-        except Exception as e:
-            print(f"Warning: Could not save global memory: {e}")
+        """Save global memory to disk (Phase 7: atomic write via AtomicJsonStore)"""
+        with self._lock:
+            try:
+                self._global_memory_store.save(self.global_memory)
+            except Exception as e:
+                print(f"Warning: Could not save global memory: {e}")
 
     def update_global_context(self, category: str, key: str, value: Any):
         """
         Update a value in global memory
-        
+
         Args:
             category: 'user_profile', 'learned_patterns', etc.
             key: The specific key to update
             value: The value to store
         """
-        if category in self.global_memory:
-            self.global_memory[category][key] = value
-            self.save_global_memory()
+        with self._lock:
+            if category in self.global_memory:
+                self.global_memory[category][key] = value
+        # save_global_memory() has its own lock (RLock allows reentrant)
+        self.save_global_memory()
 
     def get_global_context(self) -> Dict:
         """Get the full global memory"""
@@ -98,18 +111,18 @@ class MemoryManagerV7:
 
     def _load_or_create_blackboard(self) -> Dict:
         """
-        Load blackboard from disk or create new if missing
+        Load blackboard from disk or create new if missing (Phase 7: via AtomicJsonStore)
 
         Returns:
             Blackboard dict
         """
-        if self.blackboard_path.exists():
-            try:
-                return json.loads(self.blackboard_path.read_text(encoding="utf-8"))
-            except Exception as e:
-                print(f"Warning: Could not load blackboard: {e}")
+        try:
+            data = self._blackboard_store.load_safe()
+            if not data:
                 return self._create_empty_blackboard()
-        else:
+            return data
+        except Exception as e:
+            print(f"Warning: Could not load blackboard: {e}")
             return self._create_empty_blackboard()
 
     def _create_empty_blackboard(self) -> Dict:
@@ -135,9 +148,10 @@ class MemoryManagerV7:
 
     def get_last_message(self) -> Dict:
         """Get last message from history"""
-        if self.blackboard["recent_history"]:
-            return self.blackboard["recent_history"][-1]
-        return {}
+        with self._lock:
+            if self.blackboard["recent_history"]:
+                return self.blackboard["recent_history"][-1]
+            return {}
 
     def add_to_history(self, message: Dict):
         """
@@ -146,41 +160,47 @@ class MemoryManagerV7:
         Args:
             message: Agent message dict
         """
-        self.blackboard["recent_history"].append(message)
+        with self._lock:
+            self.blackboard["recent_history"].append(message)
 
-        # Keep last 50 messages
-        if len(self.blackboard["recent_history"]) > 50:
-            self.blackboard["recent_history"] = self.blackboard["recent_history"][-50:]
+            # Keep last 50 messages
+            if len(self.blackboard["recent_history"]) > 50:
+                self.blackboard["recent_history"] = self.blackboard["recent_history"][-50:]
 
-        # Auto-compress if >120k tokens estimated
-        self.compress_history()
+            # Auto-compress if >120k tokens estimated
+            self._compress_history_unsafe()
 
     def save_to_disk(self):
         """
         Save blackboard to disk (for crash recovery)
+        Phase 7: Atomic write via AtomicJsonStore
 
         Called after state transitions to ensure persistence
         """
-        try:
-            # Ensure directory exists
-            self.blackboard_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Write blackboard
-            self.blackboard_path.write_text(
-                json.dumps(self.blackboard, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
-        except Exception as e:
-            print(f"Warning: Could not save blackboard: {e}")
+        with self._lock:
+            try:
+                self._blackboard_store.save(self.blackboard)
+            except Exception as e:
+                print(f"Warning: Could not save blackboard: {e}")
 
     def update_strategic_plan(self, plan: List[Dict]):
         """Update strategic plan"""
-        self.blackboard["strategic_plan"] = plan
+        with self._lock:
+            self.blackboard["strategic_plan"] = plan
         self.save_to_disk()
 
     def compress_history(self):
         """
-        Compress old history if >120k tokens
+        Compress old history if >120k tokens (thread-safe wrapper)
+
+        Uses Haiku CLI to summarize history, preserving key context
+        """
+        with self._lock:
+            self._compress_history_unsafe()
+
+    def _compress_history_unsafe(self):
+        """
+        Internal compression (must be called with lock held)
 
         Uses Haiku CLI to summarize history, preserving key context
         """
@@ -250,46 +270,47 @@ Résumé concis (max 2000 tokens) :"""
         except Exception as e:
             print(f"[Memory] Warning: Compression error: {e}")
 
-    def create_backup(self, reason: str = "manual") -> Path:
+    def create_backup(self, reason: str = "manual") -> Optional[Path]:
         """
         Create timestamped backup of current state
+        Phase 7: Atomic write via AtomicJsonStore
 
         Args:
             reason: Reason for backup (manual, panic, error, checkpoint)
 
         Returns:
-            Path to backup file
+            Path to backup file, or None on error
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = self.backup_dir / f"blackboard_{timestamp}_{reason}.json"
+        with self._lock:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = self.backup_dir / f"blackboard_{timestamp}_{reason}.json"
 
-        try:
-            backup_data = {
-                "blackboard": self.blackboard,
-                "metadata": {
-                    "reason": reason,
-                    "timestamp": datetime.now().isoformat(),
-                    "iteration": self.blackboard.get("current_state", {}).get("iteration", 0)
+            try:
+                backup_data = {
+                    "blackboard": self.blackboard,
+                    "metadata": {
+                        "reason": reason,
+                        "timestamp": datetime.now().isoformat(),
+                        "iteration": self.blackboard.get("current_state", {}).get("iteration", 0)
+                    }
                 }
-            }
 
-            backup_file.write_text(
-                json.dumps(backup_data, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
+                # Use AtomicJsonStore for backup file
+                backup_store = AtomicJsonStore(backup_file)
+                backup_store.save(backup_data)
 
-            # Keep only last 10 backups
-            self._cleanup_old_backups()
+                # Keep only last 10 backups
+                self._cleanup_old_backups()
 
-            return backup_file
+                return backup_file
 
-        except Exception as e:
-            print(f"Warning: Could not create backup: {e}")
-            return None
+            except Exception as e:
+                print(f"Warning: Could not create backup: {e}")
+                return None
 
     def restore_from_backup(self, backup_file: Path = None) -> bool:
         """
-        Restore state from backup
+        Restore state from backup (Phase 7: via AtomicJsonStore)
 
         Args:
             backup_file: Specific backup to restore (None = latest)
@@ -297,36 +318,38 @@ Résumé concis (max 2000 tokens) :"""
         Returns:
             True if restore successful, False otherwise
         """
-        try:
-            if backup_file is None:
-                # Find latest backup
-                backups = sorted(self.backup_dir.glob("blackboard_*.json"), reverse=True)
-                if not backups:
-                    print("No backups found")
-                    return False
-                backup_file = backups[0]
+        with self._lock:
+            try:
+                if backup_file is None:
+                    # Find latest backup
+                    backups = sorted(self.backup_dir.glob("blackboard_*.json"), reverse=True)
+                    if not backups:
+                        print("No backups found")
+                        return False
+                    backup_file = backups[0]
 
-            if not backup_file.exists():
-                print(f"Backup file not found: {backup_file}")
+                if not backup_file.exists():
+                    print(f"Backup file not found: {backup_file}")
+                    return False
+
+                # Load backup via AtomicJsonStore
+                backup_store = AtomicJsonStore(backup_file)
+                backup_data = backup_store.load()
+                self.blackboard = backup_data["blackboard"]
+
+                print(f"State restored from: {backup_file.name}")
+
+            except Exception as e:
+                print(f"Error restoring backup: {e}")
                 return False
 
-            # Load backup
-            backup_data = json.loads(backup_file.read_text(encoding="utf-8"))
-            self.blackboard = backup_data["blackboard"]
-
-            # Save restored state as current
-            self.save_to_disk()
-
-            print(f"State restored from: {backup_file.name}")
-            return True
-
-        except Exception as e:
-            print(f"Error restoring backup: {e}")
-            return False
+        # Save restored state as current (RLock allows reentrant locking)
+        self.save_to_disk()
+        return True
 
     def list_backups(self) -> List[Dict]:
         """
-        List available backups
+        List available backups (Phase 7: via AtomicJsonStore)
 
         Returns:
             List of backup info dicts
@@ -334,7 +357,8 @@ Résumé concis (max 2000 tokens) :"""
         backups = []
         for backup_file in sorted(self.backup_dir.glob("blackboard_*.json"), reverse=True):
             try:
-                data = json.loads(backup_file.read_text(encoding="utf-8"))
+                backup_store = AtomicJsonStore(backup_file)
+                data = backup_store.load_safe()
                 metadata = data.get("metadata", {})
                 backups.append({
                     "file": backup_file.name,
@@ -343,7 +367,7 @@ Résumé concis (max 2000 tokens) :"""
                     "timestamp": metadata.get("timestamp", "unknown"),
                     "iteration": metadata.get("iteration", 0)
                 })
-            except:
+            except Exception:
                 pass
         return backups
 

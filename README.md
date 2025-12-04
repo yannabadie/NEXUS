@@ -111,6 +111,7 @@ NEXUS-N7A/
 
 ## Documentation
 
+### Core Documents
 | Document | Purpose |
 |----------|---------|
 | [MISSION.md](MISSION.md) | HIVE MIND vision & philosophy |
@@ -119,6 +120,18 @@ NEXUS-N7A/
 | [ROADMAP_HIVE_MIND.md](ROADMAP_HIVE_MIND.md) | Development roadmap |
 | [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm documentation |
 | [docs/EVOLUTION_GUIDE.md](docs/EVOLUTION_GUIDE.md) | Evolution guide |
+| [docs/NEXUS_V7.5_AUDIT_REPORT.md](docs/NEXUS_V7.5_AUDIT_REPORT.md) | Architecture audit (CHRYSALIS-SYNC) |
+
+### Module Documentation (V7.5)
+| Module | README |
+|--------|--------|
+| core/evolution/ | [Evolution & Agent Factory](core/evolution/README.md) |
+| core/evolution/phases/ | [Evolution Pipeline Phases](core/evolution/phases/README.md) |
+| core/bootstrap/ | [Project Analysis & Agent Discovery](core/bootstrap/README.md) |
+| core/swarm/ | [Hybrid Swarm Engine](core/swarm/README.md) |
+| core/synapse/ | [Memory & Protocol](core/synapse/README.md) |
+| core/security/ | [Defense-in-Depth](core/security/README.md) |
+| workspace/ | [Runtime Directory](workspace/README.md) |
 
 ## Requirements
 

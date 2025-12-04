@@ -16,6 +16,7 @@ from core.fsm.states import OrchestratorState, TransitionGuard
 from core.fsm.stagnation_detector import StagnationDetector
 from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
+from core.fsm.context import TaskExecutionContext
 from core.drivers.gemini_driver_v7 import GeminiDriverV7
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
 from core.routing.model_router import ModelRouter, TaskType
@@ -211,6 +212,57 @@ class OrchestratorV7:
             "telemetry_enabled": self.telemetry is not None,
             "auto_memory": True
         })
+
+        # V7.5 Phase 0d: Task execution context for thread-safe operations
+        self._task_context: Optional[TaskExecutionContext] = None
+
+    # =========================================================================
+    # V7.5 Phase 0d: Execution Context (Thread-Safe Agent Tracking)
+    # =========================================================================
+
+    def _build_execution_context(self, objective: str = "") -> TaskExecutionContext:
+        """
+        Build a TaskExecutionContext from current orchestrator state.
+
+        V7.5 Phase 0d: Creates immutable context for thread-safe execution.
+        Use this in parallel/swarm modes instead of self.active_agent.
+
+        Args:
+            objective: Task objective for the context
+
+        Returns:
+            Immutable TaskExecutionContext
+        """
+        return TaskExecutionContext.create(
+            objective=objective or self.blackboard.get("objective", ""),
+            initial_agent=self.active_agent
+        )
+
+    @property
+    def current_context(self) -> TaskExecutionContext:
+        """
+        Get current task context (creates new if none exists).
+
+        V7.5: For backward compatibility, syncs with self.active_agent.
+        In V7.6+, this will become the primary agent tracking mechanism.
+        """
+        if self._task_context is None:
+            self._task_context = self._build_execution_context()
+        return self._task_context
+
+    def _sync_context_agent(self, context: TaskExecutionContext):
+        """
+        Sync self.active_agent with context (backward compatibility).
+
+        V7.5: Bridge between old self.active_agent and new context system.
+        This allows gradual migration without breaking existing code.
+        """
+        self.active_agent = context.current_agent
+        self._task_context = context
+
+    # =========================================================================
+    # Model Routing & Agent Drivers
+    # =========================================================================
 
     def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None) -> ClaudeDriverHybrid:
         """

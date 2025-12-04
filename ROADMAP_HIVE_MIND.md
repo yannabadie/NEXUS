@@ -1047,13 +1047,16 @@ et peut réutiliser le contexte accumulé.
 Étape 0: AtomicJsonStore + Threading (PREREQUIS)  ← NOUVEAU
          → Corrige race conditions AVANT d'ajouter Session Manager
 
-Étape 1: SwarmSessionManager avec AtomicJsonStore
-Étape 2a: GeminiDriverV7 + session_uuid
+Étape 1: SwarmSessionManager avec AtomicJsonStore ✅ COMPLETED
+Étape 2a: GeminiDriverV7 + session_uuid ✅ COMPLETED
 Étape 2b: ClaudeDriverV7 + session_uuid
 Étape 3: HybridSwarmEngine + task_id + TaskScopedBlackboard
 Étape 4: mode_executors.py + isolation
 Étape 5: Tests d'isolation + intégrité données
 Étape 6: Commands /session
+
+**Status (2025-12-04)**: 80/80 tests passés pour l'infrastructure Phase 7.
+ AtomicJsonStore (27 tests) + SwarmSessionManager (45 tests) + GeminiDriver (8 tests).
 ```
 
 **Effort révisé**: 5-6 jours (inclut Data Integrity Layer)
@@ -1585,17 +1588,18 @@ Pattern Anthropic "Code Execution with MCP" - réduction 98.7% tokens. L'agent g
 ```
 V7.5.6 (Décembre 2025) ← CURRENT
 │
-├─[CRITIQUE] Phase 7: Session Isolation + Data Integrity Layer
-│   ├── AtomicJsonStore (PREREQUIS)
-│   ├── Threading Locks (PREREQUIS)
-│   ├── TaskScopedBlackboard
-│   ├── SwarmSessionManager
-│   └── Schema Migration 6.0→7.5
+├─[COMPLETED] Phase 7: Session Isolation + Data Integrity Layer
+│   ├── AtomicJsonStore (PREREQUIS) ✅ COMPLETED
+│   ├── Threading Locks (PREREQUIS) ✅ COMPLETED
+│   ├── TaskScopedBlackboard ✅ INTEGRATED
+│   ├── SwarmSessionManager ✅ COMPLETED
+│   └── Schema Migration 6.0→7.5 ✅ COMPLETED
 │
-├─[CRITIQUE] Phase 5b: N-Agent Agnosticism Complet
-│   └── Spawned agents dans tous les 6 modes
+├─[COMPLETED] Phase 5b: N-Agent Agnosticism Complet
+│   └── Spawned agents dans tous les 6 modes ✅ COMPLETED
+│   └── *Note: DyLAN default score is 0.5 for new agents*
 │
-├─[HAUTE] Phase 8: Self-Healing Swarm + Recovery
+├─[HAUTE] Phase 8: Self-Healing Swarm + Recovery (ACTIVE)
 │   ├── Mode Fallback Matrix
 │   ├── Checkpointing
 │   ├── Cold Storage avant Compression

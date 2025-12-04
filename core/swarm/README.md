@@ -1,6 +1,6 @@
 # Swarm Module
 
-Hybrid Swarm Engine for dynamic multi-agent collaboration in NEXUS V7.
+Hybrid Swarm Engine for dynamic multi-agent collaboration in NEXUS V7.5 HIVE MIND.
 
 ## Overview
 
@@ -45,6 +45,14 @@ The Swarm module (Sprint 9) enables **dynamic collaboration mode selection** whe
 | **SPECIALIST** | Single expert handles all | Exclusive expertise |
 | **RED_BLUE** | Adversarial propose/attack/defend | Security, critical decisions |
 
+## Alignement ROADMAP V7.5+
+
+| Phase ROADMAP | Impact sur ce module |
+|---------------|---------------------|
+| **Phase 7: Session Isolation** | `SwarmSessionManager` - Session UUIDs per task (COMPLETE) |
+| **Phase 5b: N-Agent Agnosticism** | Spawned agents utilisables dans tous les modes (PENDING) |
+| **Phase 8: Self-Healing** | Mode fallback automatique (PENDING) |
+
 ## Files
 
 | File | Purpose | Key Classes |
@@ -56,6 +64,7 @@ The Swarm module (Sprint 9) enables **dynamic collaboration mode selection** whe
 | `mode_executors.py` | Execution strategies | `ParallelExecutor`, `RedBlueExecutor`, etc. |
 | `hybrid_swarm_engine.py` | Main engine | `HybridSwarmEngine`, `SwarmResult` |
 | `agent_metrics.py` | DyLAN scoring | `AgentProfile`, `AgentPool` |
+| `session_manager.py` | Phase 7: Session isolation | `SwarmSessionManager`, `TaskSession`, `AgentSession` |
 
 ## Key Classes
 
@@ -293,12 +302,67 @@ print(f"Status: {result.status}")            # SUCCESS
 print(f"Agent outputs: {result.outputs}")    # [Claude proposal, Gemini attack, ...]
 ```
 
+## SwarmSessionManager (Phase 7)
+
+Session isolation to prevent "Context Bleeding" in PARALLEL mode.
+
+**Problem**: Without isolation, parallel tasks share context and corrupt each other's state.
+
+**Solution**: Each task gets a unique `task_id`, and each agent-role combination gets a unique `session_uuid`.
+
+```python
+from core.swarm import SwarmSessionManager, generate_task_id
+
+# Initialize manager (persists to workspace/.nexus/session_registry.json)
+manager = SwarmSessionManager(workspace_path)
+
+# Create a task
+task_id = generate_task_id()  # "task_20251204_151800_abc123"
+manager.create_task(task_id, "PARALLEL")
+
+# Get session UUIDs for each agent-role
+gemini_uuid = manager.get_or_create_session(task_id, "lead", "gemini")
+claude_uuid = manager.get_or_create_session(task_id, "support", "claude")
+
+# Pass UUIDs to CLI drivers for session resumption
+# gemini --resume {gemini_uuid}
+
+# Complete task when done
+manager.complete_task(task_id)
+
+# Cleanup old completed tasks
+manager.cleanup_completed(max_age_hours=24)
+```
+
+**Key Features**:
+- **Atomic persistence** via `AtomicJsonStore` (no corruption)
+- **Thread-safe** with `RLock` for concurrent access
+- **Session modes**: FRESH, CONTINUE, BRANCH (fork from existing)
+- **Crash recovery**: Registry survives restarts
+
+**Session Flow**:
+```
+1. HybridSwarmEngine.process_task()
+   │
+2. SwarmSessionManager.create_task(task_id, mode)
+   │
+3. For each agent in task:
+   │  SwarmSessionManager.get_or_create_session(task_id, role, agent_id)
+   │  → Returns unique session_uuid
+   │
+4. ModeExecutor passes session_uuid to driver
+   │  → CLI uses --resume {uuid} for isolation
+   │
+5. SwarmSessionManager.complete_task(task_id)
+```
+
 ## Dependencies
 
 ### Internal
 - `core.config` - Swarm configuration
 - `core.synapse` - Message schemas
 - `core.routing` - Model selection
+- `core.utils` - AtomicJsonStore (Phase 7)
 
 ### External
 - `concurrent.futures` - Parallel execution

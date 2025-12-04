@@ -154,7 +154,7 @@ NEXUS, deployed in a project, should become:
 - **Evolving** - Continuously improving its project-specific capabilities
 - **Collaborative** - You + Gemini working as one intelligence
 
-**This is not just about reaching ASI abstractly - it's about practical superintelligence for real-world projects.**
+**This is about building practical collaborative intelligence for real-world projects.**
 
 ---
 

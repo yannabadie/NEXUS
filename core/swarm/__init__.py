@@ -95,6 +95,16 @@ from .hybrid_swarm_engine import (
     HybridSwarmEngine
 )
 
+# Session Manager (Phase 7 - V7.5)
+from .session_manager import (
+    SessionStatus,
+    SessionMode,
+    AgentSession,
+    TaskSession,
+    SwarmSessionManager,
+    generate_task_id
+)
+
 __all__ = [
     # Agent Metrics
     "AgentInvocationResult",
@@ -150,4 +160,12 @@ __all__ = [
     "SwarmPhase",
     "SwarmResult",
     "HybridSwarmEngine",
+
+    # Session Manager (Phase 7)
+    "SessionStatus",
+    "SessionMode",
+    "AgentSession",
+    "TaskSession",
+    "SwarmSessionManager",
+    "generate_task_id",
 ]

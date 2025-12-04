@@ -1,6 +1,6 @@
 # NEXUS V7 Core Module
 
-The `core/` module is the heart of NEXUS V7 "Chrysalis" - a self-evolving multi-agent orchestration system designed to achieve ASI through Darwinian evolution.
+The `core/` module is the heart of NEXUS V7.5 "HIVE MIND" - a collaborative multi-agent orchestration system that generates specialized agents to solve complex problems.
 
 ## Overview
 

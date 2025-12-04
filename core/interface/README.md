@@ -141,9 +141,9 @@ Create and evaluate child generations.
 ```bash
 nexus> /evolve 3
 Creating 3 children...
-Child 1: NEXUS_V7.0_CHILD_001 (ASI: 0.78)
-Child 2: NEXUS_V7.0_CHILD_002 (ASI: 0.81)
-Child 3: NEXUS_V7.0_CHILD_003 (ASI: 0.79)
+Child 1: NEXUS_V7.5_CHILD_001 (Fitness: 0.78)
+Child 2: NEXUS_V7.5_CHILD_002 (Fitness: 0.81)
+Child 3: NEXUS_V7.5_CHILD_003 (Fitness: 0.79)
 
 Winner: CHILD_002 (+3.8% improvement)
 Review pending at PENDING_REVIEW.md

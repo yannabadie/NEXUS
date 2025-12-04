@@ -1,78 +1,182 @@
-# Security Module
+# Module: Security - Defense-in-Depth Layer
 
-Defense-in-depth implementation for NEXUS V7.5.
+**Version**: 7.5 (HIVE MIND)
+**Last Updated**: 2025-12-04
 
-## Overview
+---
 
-The Security module provides the active defense mechanisms that enforce the Governance policies. It protects the parent codebase and the user's system.
+## Role Architectural
 
-## Components
+Implementation des mecanismes de defense actifs qui enforecent les politiques de Governance. Protege le code parent NEXUS et le systeme utilisateur.
 
-### 1. PathGuardian (`path_guardian.py`)
-Central authority for file access control.
+**Principe**: Defense multi-couches - chaque requete passe par plusieurs validations.
 
-**Zones:**
-- **Workspace**: `workspace/` (Read/Write)
-- **Agents**: `workspace/agents/` (Read/Write)
-- **Evolution**: `GENERATION_ACTIVE/` (Read/Write in Evolution mode)
-- **Parent**: `core/`, `prompts/` (Read-Only)
+---
 
-**Protection:**
-- **Immutable Files**: `KERNEL.py`, `MISSION.md`, `.env`
-- **Anti-Traversal**: Resolves symlinks and `..` paths.
+## Alignement ROADMAP V7.5+
 
-### 2. MutationValidator (`mutation_validator.py`)
-Static analysis (AST) of agent-generated code.
+| Phase ROADMAP | Impact sur ce module |
+|---------------|---------------------|
+| **Phase 5: Agent Factory** | PathGuardian protege agents spawnes |
+| **Phase 7: Session Isolation** | PathGuardian supportera sessions isolees |
+| **Phase 8: Self-Healing** | IntegrityMonitor detectera corruption |
 
-**Checks:**
-- **Dangerous Calls**: `exec`, `eval`, `os.system`, `subprocess.Popen`
-- **Suspicious Imports**: `socket`, `ctypes`
-- **Mode**: Warn-only (doesn't block, but logs warnings).
+**MutationValidator**: Utilise par `core/evolution/phases/create.py` pour valider le code genere par AI.
 
-### 3. IntegrityMonitor (`integrity_monitor.py`)
-Boot-time verification of system integrity.
+---
 
-**Checks:**
-- Verifies SHA-256 hash of `KERNEL.py`.
-- Aborts execution if modification detected.
+## Composants Cles
 
-## Architecture
+### Fichier: `path_guardian.py`
+
+**Classe**: `PathGuardian`
+
+* **Fonction**: Autorite centrale pour controle d'acces fichiers
+* **Interaction FSM**: Consulte par ToolManager avant chaque operation fichier
+* **Notes d'Audit**: OK - Protection robuste
+
+**Zones de securite**:
+| Zone | Chemin | Permissions |
+|------|--------|-------------|
+| Workspace | `workspace/` | Read/Write |
+| Agents | `workspace/agents/` | Read/Write |
+| Evolution | `GENERATION_ACTIVE/` | Read/Write (mode evolution) |
+| Parent | `core/`, `prompts/` | **Read-Only** |
+
+**Fichiers Immutables**:
+- `KERNEL.py` - Noyau alignement
+- `MISSION.md` - Mission NEXUS
+- `.env` - Secrets
+
+**Protections Anti-Traversal**:
+- Resolution symlinks
+- Blocage chemins `..`
+- Normalisation paths
+
+---
+
+### Fichier: `mutation_validator.py`
+
+**Classe**: `MutationValidator`
+
+* **Fonction**: Analyse statique AST du code genere par AI
+* **Interaction FSM**: Appele par CreatePhase lors de l'application des mutations
+* **Notes d'Audit**: Mode WARN-ONLY (ne bloque pas, mais log)
+
+**Verifications**:
+| Type | Exemples | Action |
+|------|----------|--------|
+| Appels Dangereux | `exec`, `eval`, `os.system`, `subprocess.Popen` | Warning |
+| Imports Suspects | `socket`, `ctypes`, `pickle` | Warning |
+| Patterns Malveillants | `rm -rf`, `format C:` | Warning |
+
+**Usage**:
+```python
+validator = MutationValidator(workspace_path)
+warnings, errors = validator.validate(code, filename)
+if warnings:
+    logger.warning(f"Code risks: {warnings}")
+```
+
+---
+
+### Fichier: `integrity_monitor.py`
+
+**Classe**: `IntegrityMonitor`
+
+* **Fonction**: Verification integrite systeme au demarrage
+* **Interaction FSM**: Execute au boot de NEXUS (nexus7.py)
+* **Notes d'Audit**: OK - Protection KERNEL.py
+
+**Verifications au boot**:
+1. Hash SHA-256 de `KERNEL.py` vs `KERNEL_HASH.txt`
+2. Existence fichiers critiques
+3. Permissions coherentes
+
+**Comportement sur echec**:
+- Modification KERNEL detectee -> **ABORT** execution
+- Fichier manquant -> Warning + continue
+
+---
+
+### Fichier: `__init__.py`
+
+* **Fonction**: Exports publics (PathGuardian, MutationValidator, IntegrityMonitor)
+* **Notes d'Audit**: OK
+
+---
+
+## Architecture Defense-in-Depth
 
 ```
-Action -> ToolManager -> PathGuardian -> [ALLOW/DENY]
-Code -> Evolution -> MutationValidator -> [WARN/OK]
-Startup -> Boot -> IntegrityMonitor -> [OK/ABORT]
+                    REQUEST
+                       |
+                       v
+    Layer 1: ToolManager (dispatch)
+                       |
+                       v
+    Layer 2: PathGuardian (file access)
+                       |
+                       v
+    Layer 3: SandboxPolicy (state check)
+                       |
+                       v
+    Layer 4: MutationValidator (code analysis)
+                       |
+                       v
+                   EXECUTION
 ```
 
-## Files
+**Principe**: Echec a n'importe quelle couche = blocage.
 
-| File | Purpose |
-|------|---------|
-| `path_guardian.py` | File system sandbox |
-| `mutation_validator.py` | Code safety analysis |
-| `integrity_monitor.py` | Self-protection |
-| `__init__.py` | Exports |
+---
 
-## Usage Example
+## Dependances et Interactions (Synapses)
+
+```
+ToolManager ─────────────► PathGuardian
+                               |
+Evolution/CreatePhase ────► MutationValidator
+                               |
+nexus7.py (boot) ─────────► IntegrityMonitor
+```
+
+**Imports**:
+- Standard library: `pathlib`, `hashlib`, `ast`
+- Aucune dependance externe
+
+---
+
+## Usage
 
 ```python
-from core.security import PathGuardian, MutationValidator
+from core.security import PathGuardian, MutationValidator, IntegrityMonitor
 from pathlib import Path
 
-# 1. Validate Path
+# 1. Validation chemin
 guardian = PathGuardian(workspace=Path("workspace"), parent=Path("."))
-valid, path, msg = guardian.validate_write("core/orchestration_v7.py")
+valid, resolved, msg = guardian.validate_write("core/orchestration_v7.py")
 if not valid:
     print(f"Blocked: {msg}")  # "Write to parent code blocked"
 
-# 2. Validate Code
+# 2. Validation code mute
 validator = MutationValidator(Path("workspace"))
-warnings = validator.validate("import os; os.system('rm -rf /')", "test.py")
-if warnings:
-    print(f"Risk: {warnings}")
+warnings, errors = validator.validate(
+    "import os; os.system('rm -rf /')",
+    "dangerous.py"
+)
+# warnings: ["Dangerous call: os.system", "Dangerous pattern: rm -rf"]
+
+# 3. Verification integrite
+monitor = IntegrityMonitor(Path("."))
+if not monitor.verify_kernel():
+    raise SystemExit("KERNEL.py compromised!")
 ```
 
-## See Also
+---
 
-- [Governance Module](../governance/README.md) - Policy definitions
-- [Execution Module](../execution/README.md) - Tool firewall
+## Voir Aussi
+
+- [Governance Module](../governance/README.md) - Definitions des politiques
+- [Execution Module](../execution/README.md) - Firewall outils
+- [Evolution Module](../evolution/README.md) - Utilise MutationValidator

@@ -1,6 +1,30 @@
-# Tests Module
+# Module: Tests - NEXUS V7.5 Test Suite
 
-Test suite for NEXUS V7 Chrysalis.
+**Version**: 7.5 (HIVE MIND)
+**Last Updated**: 2025-12-04
+
+---
+
+## Role Architectural
+
+Suite de tests pour NEXUS V7.5 incluant tests unitaires, integration, et validation.
+
+---
+
+## Alignement ROADMAP V7.5+
+
+| Phase ROADMAP | Tests Associes |
+|---------------|----------------|
+| **Phase 0a** | `test_evolution_phases.py` (recommande) |
+| **Phase 5** | `test_hive_mind_execution.py` |
+| **Phase 7** | Tests session isolation (a creer) |
+
+**Tests V7.5 recents**:
+- `test_tiered_validator.py` - Validation 4-tier (22 tests)
+- `test_hive_mind_execution.py` - Integration HIVE MIND
+- `verify_hive_mind.py` - Verification complete
+
+---
 
 ## Overview
 
@@ -26,7 +50,7 @@ Located in project root `tests/`:
 
 | File | Purpose | Tests |
 |------|---------|-------|
-| `validate_evolution.py` | Evolution module | Imports, ASI calculation, benchmarks |
+| `validate_evolution.py` | Evolution module | Imports, Fitness calculation, benchmarks |
 | `validate_integrity.py` | System integrity | File structure, dependencies |
 
 ## Running Tests
@@ -88,7 +112,7 @@ def test_module_imports():
     return True
 
 def test_asi_calculation():
-    """T5.2 - ASI Proximity Score calculation is correct"""
+    """T5.2 - Task Fitness Score calculation is correct"""
     from NEXUS_V7_CHRYSALIS.core.evolution.evaluator import calculate_asi_proximity
 
     test_benchmarks = {

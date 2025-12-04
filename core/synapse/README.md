@@ -1,6 +1,32 @@
-# Synapse Module
+# Module: Synapse - Memory & Protocol Layer
 
-Memory management and message protocol schemas for NEXUS V7.
+**Version**: 7.5 (HIVE MIND)
+**Last Updated**: 2025-12-04
+
+---
+
+## Role Architectural
+
+Gestion memoire et schemas de protocole pour la communication inter-agents NEXUS.
+
+---
+
+## Alignement ROADMAP V7.5+
+
+| Phase ROADMAP | Impact sur ce module |
+|---------------|---------------------|
+| **Phase 0c** | RLock ajoute a MemoryManagerV7 (COMPLETE) |
+| **Phase 7: Session Isolation** | `AtomicJsonStore` integre dans MemoryManagerV7 (COMPLETE) |
+| **Phase 7: Session Isolation** | `TaskScopedBlackboard` (PENDING) |
+| **Phase 9: Fast Path** | Compression selective basee sur task type |
+
+**V7.5 Phase 7**: Toutes les écritures JSON utilisent maintenant `AtomicJsonStore`:
+- `save_to_disk()` - Blackboard atomique
+- `save_global_memory()` - Global memory atomique
+- `create_backup()` - Backups atomiques
+- Pattern Write-Replace: temp → fsync → rename
+
+---
 
 ## Overview
 
