@@ -552,13 +552,62 @@ async def execute_parallel(agents, task):
   {"name": "gemini", "command": "python", "args": ["core/mcp/gemini_bridge.py"]}
   ```
 
-**Outils MCP exposés**:
-| MCP Server | Outil | Description |
-|------------|-------|-------------|
-| `claude_bridge` | `claude_analyze` | Analyse approfondie |
-| `claude_bridge` | `claude_code` | Génération/review code |
-| `gemini_bridge` | `gemini_research` | Recherche web Google |
-| `gemini_bridge` | `gemini_brainstorm` | Idéation créative |
+**Architecture Bidirectionnelle**:
+
+| Direction | Méthode | Raison |
+|-----------|---------|--------|
+| **Claude → Gemini** | MCP Server | Claude supporte `--mcp-config` natif |
+| **Gemini → Claude** | Tool Registry | Gemini utilise tools Python classiques |
+
+**Implémentation Claude → Gemini** (via MCP):
+```python
+# core/mcp/gemini_bridge.py
+@mcp_tool("gemini_research")
+def research(query: str) -> str:
+    return gemini_driver.call(prompt=query, session_mode="SWARM_TASK")
+
+@mcp_tool("gemini_brainstorm")
+def brainstorm(topic: str) -> str:
+    return gemini_driver.call(prompt=f"Brainstorm sur: {topic}")
+```
+
+**Implémentation Gemini → Claude** (via Tool Registry):
+```python
+# core/execution/tools/claude_tool.py
+def ask_claude(prompt: str, context_files: List[str] = None) -> str:
+    """Tool pour que Gemini invoque Claude comme sous-processeur"""
+    file_args = []
+    if context_files:
+        for f in context_files:
+            file_args.extend(["--add-dir", f])
+
+    return claude_driver.call(
+        prompt=prompt,
+        extra_args=file_args,
+        session_mode="SWARM_TASK"
+    )
+
+# Enregistrement dans tool_manager.py
+GEMINI_TOOLS["ask_claude"] = ask_claude
+```
+
+**Architecture Fractale** (Gemini research 2025-12-04):
+```
+NEXUS →
+  └── Gemini (Chef de projet, 1M tokens)
+        ├── Analyse 100 fichiers (son point fort)
+        ├── ask_claude("Refactor file_1.py") → Code expert
+        ├── ask_claude("Refactor file_2.py") → Code expert
+        ├── ask_claude("Write tests") → Tests
+        └── Synthèse finale (Gemini)
+```
+→ Gemini garde la main, Claude est "sous-processeur expert"
+
+**Outils exposés (récapitulatif)**:
+| Agent | Peut appeler | Via | Outils |
+|-------|--------------|-----|--------|
+| Claude | Gemini | MCP | `gemini_research`, `gemini_brainstorm` |
+| Gemini | Claude | Tool | `ask_claude`, `claude_code_review` |
 
 **Sélection dynamique du Lead**:
 ```python
