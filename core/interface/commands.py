@@ -36,6 +36,9 @@ SLASH_COMMANDS = {
     "/workspace new [name]": "Create new workspace, archive current",
     "/workspace list": "List all workspaces (active and archived)",
     "/workspace switch <name>": "Switch to another workspace (hot-swap)",
+    "/telemetry": "Show telemetry report (last 7 days)",
+    "/telemetry status": "Show detailed telemetry stats",
+    "/telemetry export [days]": "Export telemetry to CSV file",
     "/help": "Show this help message",
     "exit": "Exit NEXUS V7.0 Chrysalis"
 }

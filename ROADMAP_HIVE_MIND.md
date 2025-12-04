@@ -1484,21 +1484,33 @@ manager.switch_workspace("old-project")
 - Suggestions fuzzy (typo correction)
 - Serialization metadata
 
-#### Phase 13c: Telemetry Export
+#### Phase 13c: Telemetry Export ✅ COMPLETED (2025-12-04)
 
-**Découverte** (`config.py`):
-```python
-self.telemetry_enabled: bool = os.getenv("TELEMETRY_ENABLED", "True")
-self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
-```
+**Implementation**:
+- `core/telemetry/exporter.py` - TelemetryExporter class
+- `/telemetry` - Show performance report (last 7 days)
+- `/telemetry status` - Show detailed telemetry stats
+- `/telemetry export [days]` - Export to CSV for external analysis
 
-**Potentiel**: Export vers observabilité externe (Jaeger, Prometheus).
+**Features Implemented**:
+- [x] JSONL parsing with TelemetryEvent dataclass
+- [x] CSV export with configurable date range
+- [x] Performance report generation (success rate, tokens, latency by mode)
+- [x] Console formatting with Rich tables
+- [x] Graceful handling of empty/missing telemetry files
+- [x] 31 tests in `tests/test_telemetry_export.py`
 
-**Réactivation**:
-- [ ] Vérifier que `telemetry.jsonl` est bien alimenté
-- [ ] Format OpenTelemetry compatible pour export
-- [ ] `/telemetry export` - Export vers Jaeger/Grafana
-- [ ] Métriques: Latence par mode, success rate par agent, tokens consommés
+**Métriques Disponibles**:
+- Success rate per operation type
+- Latence moyenne par mode swarm
+- Token usage (input/output totals and averages)
+- Provider distribution (Gemini vs Claude)
+- Tool usage statistics
+- Error count and types
+
+**Future Enhancements** (deferred):
+- [ ] OpenTelemetry/OTLP export for Jaeger/Grafana integration
+- [ ] Real-time streaming to observability platforms
 
 #### Phase 13d: AutoMemory ↔ ModeSelector Connection
 

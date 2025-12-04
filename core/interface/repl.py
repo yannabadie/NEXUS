@@ -330,6 +330,9 @@ class InteractiveNexusV7:
         elif cmd == "/workspace":
             self.handle_workspace_command(args)
 
+        elif cmd == "/telemetry":
+            self.handle_telemetry_command(args)
+
         elif cmd == "/help":
             self.console.print_help(get_help_message())
 
@@ -926,6 +929,129 @@ class InteractiveNexusV7:
             self.workspace_manager = WorkspaceManager(self.nexus_root)
 
     # ==================== END WORKSPACE MANAGEMENT ====================
+
+    # ==================== TELEMETRY MANAGEMENT (Phase 13c) ====================
+
+    def handle_telemetry_command(self, args: str):
+        """
+        Handle /telemetry commands (Phase 13c).
+
+        Subcommands:
+            /telemetry           - Show performance report (last 7 days)
+            /telemetry status    - Show detailed telemetry stats
+            /telemetry export [days] - Export telemetry to CSV file
+        """
+        from core.telemetry import TelemetryExporter
+
+        exporter = TelemetryExporter(self.workspace_path)
+
+        parts = args.strip().split(maxsplit=1)
+        subcommand = parts[0].lower() if parts else ""
+        sub_args = parts[1] if len(parts) > 1 else ""
+
+        if not subcommand:
+            # /telemetry - Show default report (7 days)
+            self._telemetry_show_report(exporter, days=7)
+
+        elif subcommand == "status":
+            # /telemetry status - Show detailed stats
+            self._telemetry_show_status(exporter)
+
+        elif subcommand == "export":
+            # /telemetry export [days]
+            days = None
+            if sub_args:
+                try:
+                    days = int(sub_args)
+                except ValueError:
+                    self.console.print_error(f"Invalid number of days: {sub_args}")
+                    return
+            self._telemetry_export(exporter, days=days)
+
+        else:
+            self.console.print_error(f"Unknown subcommand: {subcommand}")
+            self.console.print("Usage: /telemetry [status|export [days]]")
+
+    def _telemetry_show_report(self, exporter, days: int = 7):
+        """Display telemetry performance report."""
+        event_count = exporter.get_event_count()
+
+        if event_count == 0:
+            self.console.print("\n📊 [bold]Telemetry Report[/bold]\n")
+            self.console.print("[dim]No telemetry data available yet.[/dim]")
+            self.console.print("[dim]Telemetry is recorded when you use /swarm, API calls, etc.[/dim]\n")
+            return
+
+        report = exporter.generate_report(days=days)
+        formatted = exporter.format_report_for_console(report)
+        self.console.console.print(formatted)
+
+    def _telemetry_show_status(self, exporter):
+        """Display detailed telemetry status."""
+        from rich.panel import Panel
+
+        event_count = exporter.get_event_count()
+        file_exists = exporter.telemetry_file.exists()
+        file_size = exporter.telemetry_file.stat().st_size if file_exists else 0
+
+        # Format file size
+        if file_size < 1024:
+            size_str = f"{file_size} B"
+        elif file_size < 1024 * 1024:
+            size_str = f"{file_size / 1024:.1f} KB"
+        else:
+            size_str = f"{file_size / (1024*1024):.1f} MB"
+
+        status_lines = [
+            f"📁 File: {exporter.telemetry_file}",
+            f"   Exists: {'✓' if file_exists else '✗'}",
+            f"   Size: {size_str}",
+            f"   Events: {event_count:,}",
+            "",
+            "📈 Config:",
+            f"   Enabled: {self.config.telemetry_enabled}",
+            f"   File: {self.config.telemetry_file}",
+        ]
+
+        if event_count > 0:
+            report = exporter.generate_report(days=7)
+            status_lines.extend([
+                "",
+                "📊 Last 7 Days:",
+                f"   API Calls: {report['api_calls']:,}",
+                f"   Success Rate: {report['success_rate']}%",
+                f"   Total Tokens: {report['total_tokens']['total']:,}",
+            ])
+
+        panel = Panel(
+            "\n".join(status_lines),
+            title="[bold]Telemetry Status[/bold]",
+            border_style="blue"
+        )
+        self.console.console.print(panel)
+
+    def _telemetry_export(self, exporter, days: int = None):
+        """Export telemetry to CSV file."""
+        event_count = exporter.get_event_count()
+
+        if event_count == 0:
+            self.console.print("\n[yellow]No telemetry data to export.[/yellow]")
+            self.console.print("[dim]Start using /swarm to generate telemetry data.[/dim]\n")
+            return
+
+        try:
+            csv_path = exporter.export_to_csv(days=days)
+            period = f" (last {days} days)" if days else " (all time)"
+
+            self.console.print(f"\n✅ [bold green]Telemetry exported successfully[/bold green]{period}")
+            self.console.print(f"   📄 File: {csv_path}")
+            self.console.print(f"   📊 Events: {event_count:,}")
+            self.console.print(f"\n[dim]Import in Excel, Grafana, or analyze with pandas.[/dim]\n")
+
+        except (IOError, OSError) as e:
+            self.console.print_error(f"Export failed: {e}")
+
+    # ==================== END TELEMETRY MANAGEMENT ====================
 
     # V7.5 Phase 0a: brainstorm_children_with_ais() REMOVED
     # Logic moved to core/evolution/phases/brainstorm.py (BrainstormPhase)
