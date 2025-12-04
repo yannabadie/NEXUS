@@ -1496,22 +1496,36 @@ from core.reasoning.graph_of_thought import GraphOfThought  # DEAD IMPORT
 - [ ] Permettre `swarm_mode: GOT` pour raisonnement complexe
 - [ ] Tests: Tâche mathématique multi-étapes avec GoT vs sans GoT
 
-#### Phase 13b: /workspace Commands Reactivation
+#### Phase 13b: /workspace Commands Reactivation ✅ COMPLETED
 
-**Découverte** (`repl.py`):
+**Commit**: `1a3138f` (2025-12-04)
+
+**Module Créé** (`core/workspace/`):
 ```python
-# Commandes /workspace commentées ou incomplètes
-# /workspace init, /workspace status, /workspace clean
+from core.workspace import WorkspaceManager, WorkspaceInfo, WorkspaceMetrics
+manager = WorkspaceManager(nexus_root)
+current = manager.get_current()
+manager.create_workspace("my-project")
+manager.switch_workspace("old-project")
 ```
 
-**Potentiel**: Gestion multi-projet native, chaque workspace isolé.
+**Commandes Activées**:
+- [x] `/workspace` - Afficher workspace actuel
+- [x] `/workspace new [name]` - Créer nouveau workspace (archive l'actuel)
+- [x] `/workspace list` - Lister tous les workspaces (actif + archivés)
+- [x] `/workspace switch <name>` - Basculer vers un workspace archivé
 
-**Réactivation**:
-- [ ] `/workspace init` - Créer workspace/.nexus/ avec structure complète
-- [ ] `/workspace status` - Afficher état (sessions actives, agents, métriques)
-- [ ] `/workspace clean` - Nettoyer sessions/cold storage > N jours
-- [ ] `/workspace switch <path>` - Changer de workspace actif
-- [ ] Documentation: Ajouter à COMMANDS.md
+**Composants**:
+- `manager.py` - WorkspaceManager (orchestrateur)
+- `models.py` - WorkspaceInfo, WorkspaceMetrics (dataclasses)
+- `exceptions.py` - WorkspaceError, WorkspaceNotFoundError, WorkspaceExistsError
+- `README.md` - Documentation module
+
+**Tests**: `tests/test_workspace_manager.py` (33 tests)
+- Création, archivage, switch
+- Listing (current + archived)
+- Suggestions fuzzy (typo correction)
+- Serialization metadata
 
 #### Phase 13c: Telemetry Export
 
