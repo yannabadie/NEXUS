@@ -192,30 +192,89 @@ gemini --list-sessions →
 **Stratégie d'isolation VALIDÉE** (collaboration Gemini+Claude 2025-12-04):
 
 **Option B: UUID-Based Resume (RECOMMANDÉE) ✅**
+
+**Architecture Session Registry** (Gemini proposal 2025-12-04):
+```json
+// workspace/.nexus/session_registry.json
+{
+  "tasks": {
+    "task_fibonacci_abc123": {
+      "status": "active",
+      "created_at": "2025-12-04T10:30:00Z",
+      "swarm_mode": "LEAD_SUPPORT",
+      "roles": {
+        "lead_developer": {
+          "agent_id": "gemini_pro",
+          "session_uuid": "uuid-aaa-bbb-ccc",
+          "context_summary": "Lead dev implementing Fibonacci"
+        },
+        "reviewer": {
+          "agent_id": "claude_sonnet",
+          "session_uuid": "uuid-ddd-eee-fff",
+          "context_summary": "Code reviewer for Fibonacci"
+        }
+      }
+    }
+  }
+}
+```
+
+**Mapping clé**: `Task + Role → UUID` (pas juste `Task → UUID`)
+
 ```python
 class SwarmSessionManager:
-    """Stratégie: Chaque tâche Swarm = UUID persisté, resume direct par UUID"""
+    """Gestionnaire de sessions structuré par Tâche + Rôle"""
 
     def __init__(self, workspace: Path):
-        self.registry = workspace / ".nexus" / "session_registry.json"
-        self._task_sessions: Dict[str, str] = {}  # task_id → session_uuid
+        self.registry_path = workspace / ".nexus" / "session_registry.json"
+        self._registry: Dict = {"tasks": {}}
+        self._load_registry()
 
-    def create_session(self, task_id: str) -> str:
-        """Crée une nouvelle session pour cette tâche"""
-        session_uuid = str(uuid.uuid4())
-        self._task_sessions[task_id] = session_uuid
+    def get_or_create_session(
+        self, task_id: str, role: str, agent_id: str
+    ) -> str:
+        """Récupère session existante ou en crée une nouvelle pour ce rôle"""
+        if task_id not in self._registry["tasks"]:
+            self._registry["tasks"][task_id] = {
+                "status": "active",
+                "roles": {}
+            }
+
+        roles = self._registry["tasks"][task_id]["roles"]
+        if role not in roles:
+            roles[role] = {
+                "agent_id": agent_id,
+                "session_uuid": str(uuid.uuid4()),
+                "context_summary": f"{role} for task {task_id}"
+            }
+            self._persist_registry()
+
+        return roles[role]["session_uuid"]
+
+    def context_handover(
+        self, task_id: str, from_role: str, to_role: str, summary: str
+    ) -> None:
+        """Passage de témoin entre rôles (quand architecture change)"""
+        # Stocke le résumé du contexte pour injection dans le nouveau rôle
+        task = self._registry["tasks"][task_id]
+        task["handovers"] = task.get("handovers", [])
+        task["handovers"].append({
+            "from": from_role,
+            "to": to_role,
+            "summary": summary,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         self._persist_registry()
-        return session_uuid
-
-    def get_resume_args(self, task_id: str) -> List[str]:
-        """Retourne les args pour reprendre une session existante"""
-        if task_id in self._task_sessions:
-            return ["--resume", self._task_sessions[task_id]]
-        return []  # Nouvelle session
 ```
-→ Avantage: Isolation parfaite + Continuité multi-tour par tâche
-→ Avantage: Pas de race conditions (UUID unique par tâche)
-→ Avantage: Agents parallèles avec mémoire persistante isolée
+
+**Risques évités** (Gemini analysis):
+- ❌ **Amnésie**: On recrée un cerveau vide alors qu'on avait besoin du contexte
+- ❌ **Schizophrénie**: On réutilise le cerveau du "chercheur" pour du "codage"
+- ✅ **Solution**: Mapping `Task + Role → UUID` + Context Handover
+
+→ Avantage: Isolation parfaite + Continuité multi-tour par rôle
+→ Avantage: Changement d'architecture sans perte de contexte
+→ Avantage: Agents parallèles avec "cerveau" persistant isolé par rôle
 
 **Option A: FRESH Mode (Fallback simple)**
 ```python
@@ -308,25 +367,35 @@ async def execute_parallel(agents, task):
 
    → Sauvegarder état session avant fallback de mode
 
-5. **Ordre d'implémentation (Option B - UUID-Based)**:
+5. **Ordre d'implémentation (Option B - UUID-Based + Role Mapping)**:
    ```
    Étape 1: Créer SwarmSessionManager (core/swarm/session_manager.py) [NOUVEAU]
-           → create_session(), get_resume_args(), _persist_registry()
+           → get_or_create_session(task_id, role, agent_id)
+           → context_handover(task_id, from_role, to_role, summary)
+           → _persist_registry() vers session_registry.json
+
    Étape 2: Modifier GeminiDriverV7._build_command()
            → Ajouter session_uuid param
            → Utiliser -p pour mode non-interactif (CRITIQUE!)
+
    Étape 3: Modifier HybridSwarmEngine.process_task()
            → Générer task_id unique au début
-           → Créer session via SwarmSessionManager
-   Étape 4: Intégrer dans mode_executors.py pour PARALLEL
-           → Chaque agent reçoit son propre session_uuid
+           → Passer (task_id, role) au SessionManager
+
+   Étape 4: Modifier mode_executors.py
+           → PARALLEL: chaque agent = rôle distinct = UUID distinct
+           → LEAD_SUPPORT: lead + support = 2 UUIDs par rôle
+           → Mode change: appeler context_handover()
+
    Étape 5: Tests d'isolation
-           → 2 tâches consécutives = 2 sessions distinctes
-           → PARALLEL avec 2 agents = 2 UUIDs isolés
-   Étape 6: Commands /session list|clear
+           → 2 tâches consécutives = 2 task_ids distincts
+           → Même tâche, 2 rôles = 2 UUIDs isolés
+           → Changement de mode = handover fonctionne
+
+   Étape 6: Commands /session list|clear|handover
    ```
 
-   **Effort**: 2-3 jours
+   **Effort**: 3-4 jours (architecture plus robuste)
 
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
