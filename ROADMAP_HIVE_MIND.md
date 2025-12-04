@@ -1,9 +1,10 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.5.6 | **Status**: Active | **Last Updated**: 2025-12-04
+**Version**: 7.5.7 | **Status**: Active | **Last Updated**: 2025-12-04
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
 **Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
 **Étude d'Impact**: Workspace & Blackboard Analysis (2025-12-04)
+**Analyse Stratégique**: Fusion Gemini+Claude + Recherche industrie (2025-12-04) 🆕
 
 ---
 
@@ -1082,10 +1083,31 @@ et peut réutiliser le contexte accumulé.
 - [x] Memory boost tiers: HIGH (0.25), MEDIUM (0.15), LOW (0.08)
 - [x] 23 tests (test_memory_retrieval.py)
 
-**Phase 10c: Semantic Retrieval (V7.7 - optionnel)**
-- [ ] Upgrade vers `sentence-transformers` (all-MiniLM-L6-v2, 80MB local)
-- [ ] Cosine similarity pour matching sémantique
-- [ ] Seulement si 10b insuffisant
+**Phase 10c: Project Memory RAG (V7.7)** 🆕 *Enrichi par Gemini (2025-12-04)*
+**Objectif**: Mémoire métier persistante (connaissance projet, pas juste patterns d'exécution)
+**Source**: Analyse Gemini - "Où est stockée la connaissance métier du projet?"
+
+> **Distinction importante** (Gemini):
+> - `SuccessMemory` = patterns d'exécution (quel mode a marché)
+> - `ProjectMemory` = connaissance métier (schéma DB, conventions code, architecture)
+
+**Implémentation**:
+- [ ] `core/memory/project_memory.py` - ProjectMemory class
+- [ ] RAG sur fichiers projet (docs/, README, schemas)
+- [ ] Embeddings locaux: `sentence-transformers` (all-MiniLM-L6-v2, 80MB)
+- [ ] Cosine similarity pour retrieval sémantique
+- [ ] Injection automatique contexte pertinent dans prompts
+- [ ] Persistence dans `workspace/.nexus/project_knowledge.json`
+
+**Exemple d'usage**:
+```
+User: "Optimize the Users query"
+ProjectMemory.retrieve("Users table") →
+  "La table Users a une contrainte unique sur email, index sur created_at"
+→ Contexte injecté dans prompt agent
+```
+
+**Avantage**: L'agent ne redécouvre pas le schéma DB à chaque session
 
 #### Phase 10d: Session-Aware Agent Selection ✅ COMPLETED 2025-12-04
 
@@ -1389,15 +1411,19 @@ def execute():
 
 ## 4. Phases Futures (V7.7 → V8.0)
 
-### Phase 11: Extended Swarm Modes [Priorité: MOYENNE]
-**Objectif**: Topologies avancées SANS nouveau système
+### ~~Phase 11: Extended Swarm Modes~~ ❌ ANNULÉE (2025-12-04)
+**Objectif**: ~~Topologies avancées SANS nouveau système~~
+**Statut**: ANNULÉE - Analyse fusionnée Gemini+Claude
 
-> **Note**: Squad System original reporté. Extension des modes Swarm existants préférée.
+> **Raison d'annulation** (Consensus Gemini+Claude 2025-12-04):
+> - Les 6 modes existants couvrent 95%+ des cas d'usage
+> - Ajouter des modes = dette technique croissante
+> - LangGraph et CrewAI ont SIMPLIFIÉ leurs modes, pas multiplié
+> - Alternative: Améliorer les modes existants plutôt qu'en créer
 
-- [ ] LEAD_SUPPORT_N: 1 lead + N workers (topology STAR)
-- [ ] PARALLEL_SYNC: Parallel avec sync points (topology MESH)
-- [ ] PIPELINE: Sequential avec handoff structuré
-- [ ] Configuration via `swarm_config` plutôt que nouveau `/squad`
+~~- [ ] LEAD_SUPPORT_N: 1 lead + N workers (topology STAR)~~
+~~- [ ] PARALLEL_SYNC: Parallel avec sync points (topology MESH)~~
+~~- [ ] PIPELINE: Sequential avec handoff structuré~~
 
 ### Phase 12.1: MNEMOSYNE - Mémoire Avancée [Priorité: BASSE]
 **Objectif**: Memory Graph (Vector + Relations)
@@ -1437,7 +1463,7 @@ Task A (SQL optimization)
 > implémentées mais jamais appelées. Ces "dormant features" représentent
 > un investissement déjà fait qu'il suffit de connecter.
 
-#### Phase 13a: Graph of Thought (GoT) Integration
+#### ~~Phase 13a: Graph of Thought (GoT) Integration~~ ❌ ANNULÉE (2025-12-04)
 
 **Découverte** (`hybrid_swarm_engine.py`):
 ```python
@@ -1445,13 +1471,16 @@ Task A (SQL optimization)
 from core.reasoning.graph_of_thought import GraphOfThought  # DEAD IMPORT
 ```
 
-**Potentiel**: GoT permet un raisonnement non-linéaire, idéal pour tâches EXPERT.
+**Statut**: ANNULÉE - Analyse Claude (2025-12-04)
 
-**Réactivation**:
-- [ ] Auditer `core/reasoning/graph_of_thought.py` (si existe)
-- [ ] Intégrer GoT dans `ModeSelector` pour tâches EXPERT
-- [ ] Permettre `swarm_mode: GOT` pour raisonnement complexe
-- [ ] Tests: Tâche mathématique multi-étapes avec GoT vs sans GoT
+> **Raison d'annulation**:
+> - Le fichier `core/reasoning/graph_of_thought.py` N'EXISTE PAS
+> - L'import est mort depuis longtemps (placeholder jamais implémenté)
+> - ROI insuffisant pour l'effort de création from scratch
+> - Alternative: Force CoT (Phase 14e) couvre le besoin de raisonnement structuré
+
+~~- [ ] Auditer `core/reasoning/graph_of_thought.py` (si existe)~~
+~~- [ ] Intégrer GoT dans `ModeSelector` pour tâches EXPERT~~
 
 #### Phase 13b: /workspace Commands Reactivation ✅ COMPLETED
 
@@ -1610,25 +1639,150 @@ V7.6 (Janvier 2026) - COMPLETED ✅
 ├── [COMPLETED] Phase 13b: Workspace Commands ✅
 └── [COMPLETED] Phase 13c: Telemetry Export ✅
 
-V7.7 (Février 2026) - NEXT STEPS
-├── Phase 13a: Graph of Thought (GoT) Reactivation
-├── Phase 13e: Global Registry Migration
-├── Phase 11: Extended Swarm Modes
-├── Phase 12.4: Symmetric MCP Bridges
+V7.7 (Février 2026) - CONSOLIDATION & INTEROP
+├── [ACTIVE] Phase 14: Fortress (Security & Quality)
+│   ├── Phase 14a: Security Hardening (Anti-Injection)
+│   ├── Phase 14b: Evolution Test Coverage (Core Logic)
+│   └── Phase 14c: Complexity Reduction (Orchestrator Refactor)
+├── Phase 12.4: Symmetric MCP Bridges (Agent-as-Tool)
 ├── Phase 12.5: Dynamic Tool Generation
-└── Phase 10c: Semantic Retrieval (si nécessaire)
+└── Phase 11: Extended Swarm Modes
 
-V7.7 (Février 2026)
-├── Phase 11: Extended Swarm Modes
-├── Phase 12.4: Symmetric MCP Bridges
-├── Phase 12.5: Dynamic Tool Generation
-├── Phase 13e: Global Registry Migration
-└── Phase 10c: Semantic Retrieval (si nécessaire)
+### Détail Phase 14: Fortress (Audit Report Driven)
 
-V8.0 (Mars 2026)
-├── Phase 12.1: MNEMOSYNE (si nécessaire)
+#### Phase 14a: Security Hardening
+**Source**: Technical Audit Deep Scan (2025-12-04)
+**Problème**: `tool_manager.py` utilise `shell=True` avec une blacklist fragile.
+**Solution**:
+- [ ] Créer `core/security/sandbox_policy.py` (Validation centralisée)
+- [ ] Refactor `_execute_bash` pour utiliser `shell=False` quand possible (liste d'args)
+- [ ] Renforcer détection pipes/redirections dangereux
+
+#### Phase 14b: Evolution Test Coverage
+**Source**: Audit Report (Coverage Gap)
+**Problème**: `core/evolution/` (le cerveau de l'auto-amélioration) a < 20% de coverage.
+**Solution**:
+- [ ] Tests unitaires pour `EvolutionManager`
+- [ ] Tests pour `MutationParser` (robustesse JSON)
+- [ ] Tests pour `Evaluator` (métriques fitness)
+
+#### Phase 14c: Complexity Reduction
+**Source**: Audit Report (Cyclomatic Complexity)
+**Problème**: `orchestration_v7.py` et `mode_selector.py` sont trop imbriqués.
+**Solution**:
+- [ ] Extraire logiques de décision dans des sous-helpers
+- [ ] Pattern Strategy pour le routing FSM
+
+#### Phase 14d: Budget Cap (Token Economy) 🆕 *Proposé par Gemini (2025-12-04)*
+**Source**: Analyse stratégique Gemini - "Pas de filet de sécurité financier"
+**Problème**: Une boucle d'évolution qui s'emballe peut consommer 100$+ d'API
+**Effort**: 1-2 jours
+
+**Implémentation**:
+- [ ] `config.budget_limit_usd: float = 50.0` - Limite par session/jour
+- [ ] `core/telemetry/budget_tracker.py` - BudgetTracker class
+- [ ] Estimation coût par token (Claude: ~$15/1M input, Gemini: ~$1.25/1M)
+- [ ] `TelemetryCollector.check_budget_before_invoke()` - Guard
+- [ ] Alerte à 80% du budget, blocage à 100%
+- [ ] `/budget` - Afficher consommation courante
+
+```python
+# core/telemetry/budget_tracker.py
+class BudgetTracker:
+    COST_PER_1M_TOKENS = {
+        "claude-opus": {"input": 15.0, "output": 75.0},
+        "claude-sonnet": {"input": 3.0, "output": 15.0},
+        "gemini-pro": {"input": 1.25, "output": 5.0}
+    }
+
+    def check_budget(self) -> BudgetStatus:
+        """Vérifie si budget disponible"""
+        if self.spent_usd >= self.limit_usd:
+            raise BudgetExceededError(f"Budget {self.limit_usd}$ exceeded")
+        return BudgetStatus(remaining=self.limit_usd - self.spent_usd)
+```
+
+**Métrique**: `budget_utilization_pct` - % du budget consommé
+
+#### Phase 14e: Force Chain-of-Thought (CoT) 🆕 *Proposé par Gemini (2025-12-04)*
+**Source**: Analyse Gemini - "Pas de mécanisme pour forcer réflexion AVANT réponse"
+**Problème**: Les tâches EXPERT bénéficieraient d'un CoT obligatoire
+**Effort**: 0.5 jour
+
+**Implémentation**:
+- [ ] `ExecutionContext.force_cot: bool = False`
+- [ ] Si `complexity == EXPERT` → `force_cot = True`
+- [ ] Injection dans prompt: `<thinking>Réfléchis étape par étape...</thinking>`
+- [ ] Parse et log du bloc `<thinking>` dans la réponse
+
+```python
+# core/swarm/execution_context.py
+@dataclass
+class ExecutionContext:
+    force_cot: bool = False  # Force Chain-of-Thought pour EXPERT
+
+# Dans _build_prompt()
+if context.force_cot:
+    prompt += "\n\n<instruction>BEFORE answering, wrap your reasoning in <thinking>...</thinking></instruction>"
+```
+
+### Phase 15: Response Streaming 🆕 *Proposé par Claude (2025-12-04)*
+**Objectif**: Streaming des réponses pour UX améliorée
+**Effort**: 3-4 jours
+**Source**: Best practice industrie (tous les frameworks majeurs supportent streaming)
+
+**Problème**: NEXUS attend la réponse complète avant affichage → latence perçue élevée
+
+**Implémentation**:
+- [ ] `GeminiDriverV7._invoke_subprocess_stream()` - Lecture stdout ligne par ligne
+- [ ] `ClaudeDriverHybrid._stream_response()` - Idem
+- [ ] Callback `on_token(token: str)` dans ExecutionContext
+- [ ] REPL streaming output avec `rich.Live`
+
+**Impact UX**: Latence perçue divisée par 5-10x
+
+### Phase 16: Developer Experience (DX) 🆕 *Proposé par Gemini (2025-12-04)*
+**Objectif**: Onboarding et aide améliorés
+**Effort**: 1-2 jours
+**Source**: Analyse Gemini - "/help est-elle à jour et ergonomique?"
+
+**Implémentation**:
+- [ ] `/tutorial` - Guide interactif des fonctionnalités V7.6
+- [ ] `/help` enrichi avec exemples par commande
+- [ ] `/quickstart` - Démo 5 commandes essentielles
+- [ ] Auto-suggestion commandes après erreur
+
+```
+nexus7> /tutorial
+
+🎓 NEXUS V7.6 HIVE MIND - Tutorial Interactif
+
+1/5: Swarm Mode
+   Essayez: /swarm "Analyse ce fichier README.md"
+   [Entrée pour continuer...]
+```
+
+V7.7 (Février 2026) - CONSOLIDATION & SAFETY 🆕 *Révisé 2025-12-04*
+├── [P0] Phase 14b: Evolution Test Coverage (CRITIQUE - pré-requis)
+├── [P1] Phase 14d: Budget Cap 🆕 (Gemini) - Sécurité financière
+├── [P1] Phase 13d: AutoMemory↔ModeSelector - Quick win
+├── [P2] Phase 12.4: Symmetric MCP Bridges - Interop
+├── [P2] Phase 15: Response Streaming 🆕 (Claude) - UX
+├── [P3] Phase 14e: Force CoT 🆕 (Gemini) - Qualité EXPERT
+├── [P3] Phase 13e: Global Registry Migration
+├── [P3] Phase 10c: Project Memory RAG 🆕 (Gemini)
+└── [P4] Phase 16: DX /tutorial 🆕 (Gemini)
+
+V7.8 (Mars 2026) - ADVANCED FEATURES
+├── Phase 12.5: Dynamic Tool Generation (après sécurité renforcée)
+├── Phase 14c: Complexity Reduction (orchestrator refactor)
+└── ~~Phase 11: Extended Swarm Modes~~ ❌ ANNULÉE (6 modes suffisent)
+
+V8.0 (Avril 2026)
+├── Phase 12.1: MNEMOSYNE (si 10c insuffisant)
 ├── SQLite pour session_registry (si >5 agents parallèles)
-└── Exploratoire: A2A, Observabilité
+├── ~~Phase 13a: Graph of Thought~~ ❌ ANNULÉE (code inexistant, ROI faible)
+└── Exploratoire: A2A, Observabilité OpenTelemetry
 ```
 
 ### Dépendances Critiques
@@ -1676,6 +1830,16 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 | **Hot-Swap Events** | % de tâches nécessitant un changement de lead | <5% (stabilité) |
 | **Checkpoint Usage Rate** | % de tâches nécessitant restore checkpoint | <10% (fiabilité) |
 | **Dynamic Tool Generation** | Nombre d'outils jetables générés par semaine | >10 (adaptabilité) |
+
+### Métriques Budget & Coût 🆕 (Gemini 2025-12-04)
+
+| Métrique | Description | Seuil d'Alerte | Objectif |
+|----------|-------------|----------------|----------|
+| **Budget Utilization** | % du budget journalier consommé | >80% = warning | <70% normal |
+| **Cost per Task** | Coût moyen par tâche Swarm (USD) | >$2 = investigation | <$0.50 |
+| **Token Efficiency** | Ratio output_tokens/input_tokens | <0.1 = inefficace | >0.3 |
+| **Budget Exceeded Events** | Nombre de blocages budget/jour | >0 = problème | 0 |
+| **Evolution Cycle Cost** | Coût moyen d'un cycle /evolve | >$10 = optimiser | <$5 |
 
 ### Métriques d'Intégrité des Données (Impact Study 2025-12-04)
 
@@ -1801,3 +1965,33 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 | AutoMemory methods non appelées | Quick wins Phase 13d |
 
 **Fichier source**: Section 1.2 de ce document
+
+### Analyse Stratégique Fusionnée (2025-12-04) 🆕
+
+> **Méthode**: Gemini et Claude ont produit des analyses indépendantes de la ROADMAP,
+> puis leurs conclusions ont été fusionnées en session collaborative.
+
+**Contributions Gemini (Session 2025-12-04)** 🤖:
+| Idée | Phase Cible | Statut |
+|------|-------------|--------|
+| Budget Cap (Token Economy) | Phase 14d | 🆕 AJOUTÉE |
+| Project Memory RAG | Phase 10c | 🆕 ENRICHIE |
+| Force Chain-of-Thought | Phase 14e | 🆕 AJOUTÉE |
+| /tutorial DX | Phase 16 | 🆕 AJOUTÉE |
+| Annulation Extended Modes | Phase 11 | ❌ ANNULÉE |
+
+**Contributions Claude (Session 2025-12-04)** 🧠:
+| Idée | Phase Cible | Statut |
+|------|-------------|--------|
+| Response Streaming | Phase 15 | 🆕 AJOUTÉE |
+| Agent Capability Profiles | (Futur) | 📝 DOCUMENTÉE |
+| Annulation Graph of Thought | Phase 13a | ❌ ANNULÉE |
+| Hierarchical Task Decomposition | (Futur) | 📝 DOCUMENTÉE |
+
+**Convergences validées (CONSENSUS)**:
+- Phase 14b = CRITIQUE (Evolution Tests = pré-requis absolu)
+- Phase 12.4 = VIABLE (MCP Bridges après succès 12.3)
+- Phase 11 = ANNULER (6 modes suffisent, complexité > valeur)
+- Phase 13a = ANNULER (code inexistant, ROI faible)
+
+**Fichier source**: `docs/STRATEGIC_ANALYSIS_2025-12-04.md`
