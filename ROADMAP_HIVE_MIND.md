@@ -1066,16 +1066,21 @@ et peut réutiliser le contexte accumulé.
 **Effort**: 1 semaine
 **Enrichi**: Claude proposal (2025-12-04) - Session Metrics pour DyLAN
 
-**Phase 10a: Storage (V7.5.2)**
-- [ ] `workspace/memory/successes.jsonl` - Log des méthodes efficaces
-- [ ] `workspace/memory/failures.jsonl` - Log des échecs à éviter
-- [ ] Schema: `{task_hash, description, swarm_mode, agents_used, duration, success}`
-- [ ] Auto-logging après chaque tâche complétée
+**Phase 10a: Storage (V7.5.2)** ✅ COMPLETED 2025-12-04
+- [x] `core/memory/success_memory.py` - SuccessMemory class
+- [x] SuccessEntry dataclass avec quality_score estimation
+- [x] AtomicJsonStore pour persistence thread-safe
+- [x] FIFO eviction (max_entries=500)
+- [x] Auto-logging dans HybridSwarmEngine.process_task()
+- [x] 23 tests (test_success_memory.py)
 
-**Phase 10b: Retrieval Simple (V7.6)**
-- [ ] Recherche par TF-IDF (pas de dépendance externe)
-- [ ] Consultation mémoire avant délibération
-- [ ] "J'ai résolu un problème similaire avec PING_PONG, je réutilise"
+**Phase 10b: Retrieval Simple (V7.6)** ✅ COMPLETED 2025-12-04
+- [x] Recherche par Jaccard Similarity (zero-dependency tokenization)
+- [x] `find_similar_tasks()` avec EN/FR stop words
+- [x] `get_best_mode_for_similar()` helper
+- [x] ModeSelector integration avec `_apply_memory_boost()`
+- [x] Memory boost tiers: HIGH (0.25), MEDIUM (0.15), LOW (0.08)
+- [x] 23 tests (test_memory_retrieval.py)
 
 **Phase 10c: Semantic Retrieval (V7.7 - optionnel)**
 - [ ] Upgrade vers `sentence-transformers` (all-MiniLM-L6-v2, 80MB local)
@@ -1610,11 +1615,14 @@ V7.5.6 (Décembre 2025) ← CURRENT
     └── Bypass FSM pour requêtes triviales ✅ COMPLETED
 
 V7.6 (Janvier 2026) - STARTED
-├── [ACTIVE] Phase 10a: Auto-Memory Storage
-│   ├── SuccessMemory class
-│   ├── AtomicJsonStore integration
-│   └── HybridSwarmEngine hook
-├── Phase 10b: Memory-Augmented Mode Selection
+├── [COMPLETED] Phase 10a: Auto-Memory Storage
+│   ├── SuccessMemory class ✅
+│   ├── AtomicJsonStore integration ✅
+│   └── HybridSwarmEngine hook ✅
+├── [COMPLETED] Phase 10b: Memory-Augmented Mode Selection
+│   ├── Jaccard Similarity Search ✅
+│   ├── ModeSelector Integration ✅
+│   └── Memory Boost (HIGH/MEDIUM/LOW tiers) ✅
 ├── Phase 10d: Session Metrics pour DyLAN
 ├── Phase 12.3: MCP Client (CORTEX)
 └── Phase 13a-d: Dormant Features (GoT, /workspace, Telemetry, AutoMemory link)
