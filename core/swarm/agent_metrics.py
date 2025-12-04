@@ -373,6 +373,138 @@ class AgentPool:
                     except Exception:
                         pass  # Silently fail to not interrupt execution
 
+    # =========================================================================
+    # Phase 10d: Session-Aware Agent Selection
+    # =========================================================================
+
+    # Session bonus constants (configurable)
+    SESSION_BONUS_HIGH = 0.08      # High quality session (>0.8)
+    SESSION_BONUS_MEDIUM = 0.05    # Medium quality session (>0.6)
+    SESSION_BONUS_LOW = 0.02       # Low quality session (>0.4)
+    SESSION_MIN_QUALITY = 0.4      # Minimum quality to apply any bonus
+
+    def update_from_session_metrics(
+        self,
+        task_id: str,
+        agents_used: list,
+        quality_score: float,
+        domains: list,
+        task_type: str = "session"
+    ) -> Dict[str, float]:
+        """
+        Update agent scores based on completed session metrics.
+
+        Phase 10d: Session-Aware Agent Selection.
+
+        Rewards agents that participated in successful sessions with a bonus
+        to their DyLAN importance score. This creates a feedback loop where
+        agents performing well in complete tasks are favored.
+
+        Args:
+            task_id: Unique task identifier.
+            agents_used: List of agent IDs that participated.
+            quality_score: Session quality score (0.0-1.0).
+            domains: List of task domains (for domain-specific boost).
+            task_type: Task type for categorization.
+
+        Returns:
+            Dictionary mapping agent_id to bonus applied.
+        """
+        bonuses_applied: Dict[str, float] = {}
+
+        # Skip if quality too low
+        if quality_score < self.SESSION_MIN_QUALITY:
+            return bonuses_applied
+
+        # Calculate bonus based on quality tier
+        if quality_score > 0.8:
+            bonus = self.SESSION_BONUS_HIGH
+        elif quality_score > 0.6:
+            bonus = self.SESSION_BONUS_MEDIUM
+        else:
+            bonus = self.SESSION_BONUS_LOW
+
+        # Apply bonus to each participating agent
+        for agent_id in agents_used:
+            if agent_id not in self.agents:
+                continue
+
+            agent = self.agents[agent_id]
+
+            # Create a synthetic invocation result to boost the score
+            # This gives agents credit for successful session participation
+            synthetic_result = AgentInvocationResult(
+                agent_id=agent_id,
+                task_type=task_type,
+                success=True,
+                quality_score=min(1.0, 0.5 + bonus),  # Base + bonus
+                tokens_used=0,  # No actual token usage
+                time_seconds=0.1  # Minimal time for good importance score
+            )
+
+            agent.record_invocation(synthetic_result)
+            bonuses_applied[agent_id] = bonus
+
+            # Also record for primary domain if specified
+            if domains:
+                domain_result = AgentInvocationResult(
+                    agent_id=agent_id,
+                    task_type=domains[0].lower(),  # Use primary domain
+                    success=True,
+                    quality_score=min(1.0, 0.5 + bonus),
+                    tokens_used=0,
+                    time_seconds=0.1
+                )
+                agent.record_invocation(domain_result)
+
+        return bonuses_applied
+
+    def get_session_aware_score(
+        self,
+        agent_id: str,
+        task_type: str,
+        success_memory: "SuccessMemory" = None,
+        dylan_weight: float = 0.7
+    ) -> float:
+        """
+        Get combined score using DyLAN and session success rate.
+
+        Phase 10d: Hybrid scoring formula.
+
+        Formula: Score = (DyLAN_score * dylan_weight) + (Session_rate * (1-dylan_weight))
+
+        Args:
+            agent_id: Agent identifier.
+            task_type: Task type / domain for scoring.
+            success_memory: SuccessMemory instance for session metrics.
+            dylan_weight: Weight for DyLAN score (default 0.7 = 70%).
+
+        Returns:
+            Combined score between 0.0 and 1.0.
+        """
+        if agent_id not in self.agents:
+            return 0.5  # Neutral for unknown agents
+
+        agent = self.agents[agent_id]
+
+        # Get DyLAN importance score
+        dylan_score = agent.get_task_importance(task_type)
+
+        # Get session success rate if available
+        session_rate = 0.5  # Neutral default
+        if success_memory:
+            session_rate, sample_count = success_memory.get_agent_success_rate(
+                agent_id, domain=task_type
+            )
+            # If not enough samples for domain, try global
+            if sample_count < 3:
+                session_rate, _ = success_memory.get_agent_success_rate(agent_id)
+
+        # Combined formula
+        combined = (dylan_score * dylan_weight) + (session_rate * (1 - dylan_weight))
+
+        return min(1.0, max(0.0, combined))
+
     def get_pool_stats(self) -> Dict:
         """Get aggregate statistics for the pool"""
         active = self.get_active_agents()

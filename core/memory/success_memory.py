@@ -590,6 +590,128 @@ class SuccessMemory:
         task_id, best_similarity = mode_best_match[best_mode]
         return (best_mode, task_id, best_similarity)
 
+    # =========================================================================
+    # Phase 10d: Session-Aware Agent Selection
+    # =========================================================================
+
+    def get_agent_success_rate(
+        self,
+        agent_id: str,
+        domain: Optional[str] = None
+    ) -> Tuple[float, int]:
+        """
+        Calculate success rate for an agent based on session history.
+
+        Phase 10d: Session-Aware Agent Selection.
+
+        Computes: (successful tasks with agent) / (total tasks with agent)
+        Quality-weighted: tasks with quality_score > 0.6 count as success.
+
+        Args:
+            agent_id: Agent identifier to lookup.
+            domain: Optional domain filter (e.g., "coding", "research").
+
+        Returns:
+            Tuple of (success_rate, sample_count).
+            success_rate is 0.5 (neutral) if sample_count < 3.
+        """
+        entries = self.get_all()
+
+        # Filter by domain if specified
+        if domain:
+            entries = [
+                e for e in entries
+                if domain.lower() in [d.lower() for d in e.domains]
+            ]
+
+        # Filter entries where this agent participated
+        agent_entries = [
+            e for e in entries
+            if agent_id in e.agents_used
+        ]
+
+        sample_count = len(agent_entries)
+
+        # Minimum sample threshold to avoid bias
+        if sample_count < 3:
+            return 0.5, sample_count  # Neutral score
+
+        # Count successes (quality_score > 0.6 = success)
+        successes = sum(
+            1 for e in agent_entries
+            if e.quality_score > 0.6
+        )
+
+        success_rate = successes / sample_count
+        return success_rate, sample_count
+
+    def get_agent_session_stats(
+        self,
+        agent_id: str
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive session statistics for an agent.
+
+        Phase 10d: Detailed metrics for DyLAN integration.
+
+        Args:
+            agent_id: Agent identifier.
+
+        Returns:
+            Dictionary with success rates by domain, avg quality, etc.
+        """
+        entries = self.get_all()
+
+        # Filter entries where this agent participated
+        agent_entries = [
+            e for e in entries
+            if agent_id in e.agents_used
+        ]
+
+        if not agent_entries:
+            return {
+                "agent_id": agent_id,
+                "total_sessions": 0,
+                "global_success_rate": 0.5,
+                "avg_quality_score": 0.5,
+                "domain_success_rates": {},
+                "modes_participated": {}
+            }
+
+        # Global metrics
+        total = len(agent_entries)
+        successes = sum(1 for e in agent_entries if e.quality_score > 0.6)
+        avg_quality = sum(e.quality_score for e in agent_entries) / total
+
+        # By domain
+        domain_stats: Dict[str, List[float]] = {}
+        for entry in agent_entries:
+            for domain in entry.domains:
+                if domain not in domain_stats:
+                    domain_stats[domain] = []
+                domain_stats[domain].append(entry.quality_score)
+
+        domain_success_rates = {
+            domain: sum(1 for q in scores if q > 0.6) / len(scores)
+            for domain, scores in domain_stats.items()
+            if len(scores) >= 2  # Min samples
+        }
+
+        # By mode
+        mode_counts: Dict[str, int] = {}
+        for entry in agent_entries:
+            mode = entry.swarm_mode
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
+
+        return {
+            "agent_id": agent_id,
+            "total_sessions": total,
+            "global_success_rate": round(successes / total, 3),
+            "avg_quality_score": round(avg_quality, 3),
+            "domain_success_rates": domain_success_rates,
+            "modes_participated": mode_counts
+        }
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get statistics about stored successes.

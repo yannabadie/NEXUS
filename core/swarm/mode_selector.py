@@ -96,6 +96,10 @@ class ModeSelector:
     MEMORY_BOOST_LOW = 0.08     # Low similarity (>0.2)
     MEMORY_MIN_SIMILARITY = 0.2  # Minimum similarity to apply boost
 
+    # V7.6 Phase 10d: Session-aware scoring weights
+    DYLAN_WEIGHT = 0.7          # DyLAN importance weight (70%)
+    SESSION_WEIGHT = 0.3        # Session success rate weight (30%)
+
     def __init__(
         self,
         agent_pool: Optional[AgentPool] = None,
@@ -292,7 +296,12 @@ class ModeSelector:
         analysis: TaskAnalysis,
         agents: List[AgentProfile]
     ) -> float:
-        """Score using DyLAN importance scores from agent history"""
+        """
+        Score using DyLAN importance scores from agent history.
+
+        V7.6 Phase 10d: Now uses session-aware scoring when SuccessMemory
+        is available, combining DyLAN scores with session success rates.
+        """
         if not agents:
             return 0.5
 
@@ -300,8 +309,19 @@ class ModeSelector:
         scores = []
 
         for agent in agents:
-            importance = agent.get_task_importance(primary_domain)
-            scores.append(importance)
+            # V7.6 Phase 10d: Use session-aware score if pool supports it
+            if self.agent_pool and self.success_memory:
+                score = self.agent_pool.get_session_aware_score(
+                    agent_id=agent.agent_id,
+                    task_type=primary_domain,
+                    success_memory=self.success_memory,
+                    dylan_weight=self.DYLAN_WEIGHT
+                )
+            else:
+                # Fallback to pure DyLAN
+                score = agent.get_task_importance(primary_domain)
+
+            scores.append(score)
 
         if not scores:
             return 0.5
@@ -369,12 +389,27 @@ class ModeSelector:
         primary_domain = analysis.primary_domain.value
 
         # V7.5 Phase 5b: Get ranked agents by capability for this domain
-        # Uses AgentPool.select_agents_by_capability if pool is available
+        # V7.6 Phase 10d: Now uses session-aware scoring when available
         if self.agent_pool:
-            ranked_agents = self.agent_pool.select_agents_by_capability(
-                domain=primary_domain,
-                count=len(agents)
-            )
+            # Use session-aware ranking if success_memory available
+            if self.success_memory:
+                # Rank by hybrid score (DyLAN + session success)
+                ranked_agents = sorted(
+                    agents,
+                    key=lambda a: self.agent_pool.get_session_aware_score(
+                        agent_id=a.agent_id,
+                        task_type=primary_domain,
+                        success_memory=self.success_memory,
+                        dylan_weight=self.DYLAN_WEIGHT
+                    ),
+                    reverse=True
+                )
+            else:
+                # Fallback to capability-based selection
+                ranked_agents = self.agent_pool.select_agents_by_capability(
+                    domain=primary_domain,
+                    count=len(agents)
+                )
         else:
             # Fallback: rank by DyLAN importance for the domain
             ranked_agents = sorted(

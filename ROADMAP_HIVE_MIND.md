@@ -1087,93 +1087,50 @@ et peut réutiliser le contexte accumulé.
 - [ ] Cosine similarity pour matching sémantique
 - [ ] Seulement si 10b insuffisant
 
-#### Phase 10d: Session Metrics pour DyLAN (Claude proposal 2025-12-04)
+#### Phase 10d: Session-Aware Agent Selection ✅ COMPLETED 2025-12-04
 
-> **Concept**: Tracker quelles sessions (et quels modes) mènent aux succès.
-> DyLAN peut alors apprendre "ce type de session réussit mieux avec Gemini lead".
+**Proposal**: Gemini (2025-12-04)
+**Implementation**: Claude (2025-12-04)
 
-**Extension du schema de succès**:
-```json
-{
-  "task_hash": "abc123",
-  "description": "Optimize SQL query",
-  "swarm_mode": "SPECIALIST",
-  "agents_used": ["sql_expert"],
-  "duration_seconds": 45.2,
-  "success": true,
-  "session_metrics": {
-    "session_uuid": "uuid-xxx-yyy",
-    "session_mode": "FRESH",
-    "lead_agent": "sql_expert",
-    "context_reuse": false,
-    "total_turns": 3,
-    "stagnation_events": 0,
-    "hot_swaps": 0,
-    "checkpoints_used": 0
-  }
-}
+> **Concept**: Les agents qui participent à des tâches réussies méritent d'être promus,
+> même si leurs invocations individuelles étaient moyennes.
+
+**Formule Hybride**:
+```
+Score Final = (DyLAN Score × 0.7) + (Session Success Rate × 0.3)
 ```
 
-**Intégration avec DyLAN**:
-```python
-class SessionAwareDyLAN:
-    """Extension DyLAN avec métriques de session"""
+**Fichiers modifiés**:
+- [x] `core/memory/success_memory.py`
+  - `get_agent_success_rate(agent_id, domain)` → (rate, count)
+  - `get_agent_session_stats(agent_id)` → Dict avec métriques détaillées
+- [x] `core/swarm/agent_metrics.py`
+  - `update_from_session_metrics(task_id, agents_used, quality_score, domains)`
+  - `get_session_aware_score(agent_id, task_type, success_memory, dylan_weight)`
+- [x] `core/swarm/mode_selector.py`
+  - `_score_dylan_fit()` utilise session-aware scoring
+  - `_assign_agents()` rank par hybrid score
 
-    def update_importance(self, invocation: AgentInvocationResult, session_metrics: dict):
-        """Met à jour les scores en tenant compte du contexte de session"""
+**Tests**: `tests/test_session_metrics.py` (19 tests)
+- TestGetAgentSuccessRate (5 tests)
+- TestGetAgentSessionStats (2 tests)
+- TestUpdateFromSessionMetrics (5 tests)
+- TestGetSessionAwareScore (3 tests)
+- TestModeSelectorSessionAware (3 tests)
+- TestSessionHistoryInfluence (1 test)
 
-        # 1. Score de base (existing DyLAN)
-        base_importance = self._calculate_base_importance(invocation)
-
-        # 2. Bonus/Malus session
-        session_factor = 1.0
-
-        if session_metrics.get("context_reuse"):
-            # L'agent a réutilisé un contexte existant → bonus
-            session_factor *= 1.1
-
-        if session_metrics.get("hot_swaps", 0) > 0:
-            # L'agent a été hot-swappé → malus pour le lead original
-            session_factor *= 0.9
-
-        if session_metrics.get("checkpoints_used", 0) > 0:
-            # Fallback utilisé → mode initial moins fiable
-            session_factor *= 0.95
-
-        # 3. Score final
-        return base_importance * session_factor
-
-    def get_recommendation_with_session(self, task_type: str) -> dict:
-        """Recommande mode + lead en tenant compte de l'historique des sessions"""
-        past_successes = self.memory.query_successes(task_type, limit=10)
-
-        # Analyser les patterns de succès
-        mode_stats = {}
-        for success in past_successes:
-            mode = success.get("swarm_mode")
-            lead = success.get("session_metrics", {}).get("lead_agent")
-            key = f"{mode}:{lead}"
-
-            if key not in mode_stats:
-                mode_stats[key] = {"count": 0, "avg_duration": 0}
-            mode_stats[key]["count"] += 1
-            mode_stats[key]["avg_duration"] += success.get("duration_seconds", 0)
-
-        # Trouver le meilleur pattern
-        best_pattern = max(mode_stats.items(), key=lambda x: x[1]["count"])
-
-        return {
-            "suggested_mode": best_pattern[0].split(":")[0],
-            "suggested_lead": best_pattern[0].split(":")[1],
-            "confidence": best_pattern[1]["count"] / len(past_successes),
-            "avg_duration": best_pattern[1]["avg_duration"] / best_pattern[1]["count"]
-        }
+**Feedback Loop créé**:
 ```
-
-**Avantages**:
-- DyLAN apprend des patterns de session, pas juste des invocations individuelles
-- Hot-Swap devient un signal d'apprentissage
-- Les checkpoints/fallbacks informent les futures décisions de mode
+Tâche réussie → SuccessMemory.record_success()
+            ↓
+     AgentPool.update_from_session_metrics()
+            ↓
+     Bonus DyLAN pour agents participants
+            ↓
+     ModeSelector favorise ces agents
+            ↓
+     Meilleure sélection pour futures tâches ✓
+```
 
 ### Phase 12.3: CORTEX - MCP Client [Priorité: HAUTE] ✅ COMPLETED 2025-12-04
 **Objectif**: Standardisation des outils via Model Context Protocol
@@ -1647,7 +1604,7 @@ V7.6 (Janvier 2026) - STARTED
 │   ├── core/mcp/client.py - MCPClient (stdio) ✅
 │   ├── core/mcp/registry.py - ServerConfig loader ✅
 │   └── ToolManager integration (mcp_{server}_{tool}) ✅
-├── Phase 10d: Session Metrics pour DyLAN
+├── [COMPLETED] Phase 10d: Session-Aware Agent Selection
 └── Phase 13a-d: Dormant Features (GoT, /workspace, Telemetry, AutoMemory link)
 
 V7.7 (Février 2026)
