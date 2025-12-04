@@ -192,6 +192,10 @@ class Config:
         # Use /swarm <task> for explicit swarm mode, or disable with SWARM_AUTO_ROUTE=False
         self.swarm_auto_route: bool = os.getenv("SWARM_AUTO_ROUTE", "True").lower() == "true"
 
+        # V7.5 Phase 9: Fast Path for trivial conversational inputs
+        # Bypasses FSM entirely for greetings, thanks, etc. Target: <2s response
+        self.fast_path_enabled: bool = os.getenv("FAST_PATH_ENABLED", "True").lower() == "true"
+
         # ====================================================================
         # GEMINI PTY MODE (V7 Sprint 13) - DISABLED
         # ====================================================================

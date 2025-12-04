@@ -247,13 +247,13 @@ class TestSwarmFeedbackEmojis:
 # =============================================================================
 
 class TestSwarmAutoRouteConfig:
-    """Tests pour la correction Config: swarm_auto_route=False."""
+    """Tests pour la config swarm_auto_route (V7.5: True par défaut)."""
 
-    def test_swarm_auto_route_default_is_false(self):
+    def test_swarm_auto_route_default_is_true(self):
         """
-        swarm_auto_route doit être False par défaut.
+        V7.5 HIVE MIND: swarm_auto_route est True par défaut.
 
-        Cela signifie que BRAINSTORMING est le mode principal.
+        Le Swarm est maintenant le mode principal pour les tâches MODERATE+.
         """
         from core.config import Config
         import os
@@ -263,8 +263,8 @@ class TestSwarmAutoRouteConfig:
 
         try:
             cfg = Config()
-            assert cfg.swarm_auto_route is False, \
-                f"swarm_auto_route should default to False, got {cfg.swarm_auto_route}"
+            assert cfg.swarm_auto_route is True, \
+                f"swarm_auto_route should default to True (V7.5), got {cfg.swarm_auto_route}"
         finally:
             # Restore env var if it was set
             if old_value is not None:

@@ -685,9 +685,21 @@ Path: {self.workspace_path}
 
             # Step 2: Route based on complexity
 
-            # TRIVIAL: Static greeting responses
+            # ================================================================
+            # V7.5 Phase 9: TRIVIAL → Fast Path (unified with complexity routing)
+            # ================================================================
+            # Uses TaskAnalyzer's existing TRIVIAL detection.
+            # If fast_path_enabled: dynamic Gemini response
+            # Else: static fallback responses
+            # ================================================================
             if complexity == TaskComplexity.TRIVIAL:
-                self.logger.debug("TRIVIAL task - static response", {"input": user_input})
+                # Fast Path: Use Gemini driver for dynamic response
+                if getattr(self.config, 'fast_path_enabled', True):
+                    self.logger.debug("TRIVIAL task - Fast Path enabled", {"input": user_input})
+                    return self._handle_fast_path(user_input)
+
+                # Fallback: Static responses (when Fast Path disabled)
+                self.logger.debug("TRIVIAL task - static fallback", {"input": user_input})
                 greeting_responses = {
                     "hello": "Hello! How can I help you today?",
                     "hi": "Hi! What would you like to work on?",
@@ -1544,6 +1556,64 @@ Execute efficiently. You are the sole agent for this task.
             self._current_task_start = 0
 
         return result
+
+    def _handle_fast_path(self, user_input: str) -> Dict:
+        """
+        V7.5 Phase 9: Fast Path for trivial conversational inputs.
+
+        Bypasses FSM entirely for greetings, thanks, etc.
+        Target: <2s response time.
+
+        Args:
+            user_input: Trivial conversational input (greeting, thanks, etc.)
+
+        Returns:
+            Standard result dict with FINISHED status
+        """
+        self.logger.debug("Fast Path triggered", {"input": user_input[:50]})
+
+        # Use Gemini driver for fast response (cheaper/faster than Opus)
+        fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
+
+        try:
+            # Direct Gemini call with minimal context
+            context = {
+                "prompt": fast_prompt,
+                "task_type": "simple",
+                "max_tokens": 150,  # Keep responses short
+            }
+            response = self.gemini_driver.invoke(context)
+
+            # Extract content from response
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
+            self.logger.debug("Fast Path response", {"length": len(content)})
+
+            return {
+                "sender": "Gemini",
+                "action_type": "TALK",
+                "content": content,
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True  # Mark as Fast Path response
+            }
+
+        except Exception as e:
+            self.logger.warning("Fast Path failed, falling back to static", {"error": str(e)})
+            # Fallback to static response if Gemini fails
+            return {
+                "sender": "NEXUS",
+                "action_type": "TALK",
+                "content": f"Hello! How can I help you today?",
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True
+            }
 
     def _detect_mutation_complete(self, content: str) -> bool:
         """
