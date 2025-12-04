@@ -340,6 +340,50 @@ claude --resume {parent_uuid} --fork-session -p "{prompt}"
 | `CONTINUE` | Resume session existante | Brainstorm multi-tour |
 | `BRANCH` | Fork depuis session parent | Agent spawned parallèle |
 
+#### Protocoles de Handover Cross-Agent (Gemini ↔ Claude)
+
+**Protocole 1: Context Summarization Injection** (Phase 7 - Baseline)
+```python
+# Gemini → Claude
+claude_prompt = f"""
+## Contexte (Handover de Gemini)
+{gemini_result['summary']}
+
+## Fichier de référence
+{artifact_path}
+
+## Ta mission
+{next_task}
+"""
+```
+
+**Protocole 2: Shared Memory File** (Phase 7 - Recommandé)
+```
+workspace/.nexus/shared_memory/
+├── task_abc123/
+│   ├── gemini_research.md      ← Gemini écrit ici
+│   ├── claude_analysis.md      ← Claude écrit ici
+│   └── handover_summary.json   ← Résumé structuré
+```
+→ Persistant, debuggable, asynchrone
+
+**Protocole 3: Agent-as-MCP-Tool** (Phase 12.4 - Futur)
+```python
+# Claude appelle Gemini comme outil MCP
+result = mcp__gemini__research("query")
+
+# Gemini appelle Claude comme outil MCP
+result = mcp__claude__analyze("context")
+```
+→ Orchestration dynamique pilotée par LLM
+
+**Sélection du protocole**:
+| Complexité | Protocole | Raison |
+|------------|-----------|--------|
+| Simple | 1 (Injection) | Rapide, suffisant |
+| Multi-step | 2 (Shared Memory) | Persistance, debug |
+| Dynamic | 3 (MCP) | LLM décide quand appeler |
+
 **Parallel Execution Isolation**:
 ```python
 # PARALLEL mode: chaque agent a sa propre session
@@ -477,6 +521,74 @@ async def execute_parallel(agents, task):
   ]
 }
 ```
+
+### Phase 12.4: Symmetric MCP Bridges - Agent-as-Tool [Priorité: HAUTE]
+**Objectif**: Permettre à chaque agent d'appeler l'autre via MCP
+**Effort**: 1 semaine
+**Source**: Analyse collaboration Gemini+Claude (2025-12-04)
+
+> **Philosophie HIVE MIND**: Ni Gemini ni Claude n'est le "super-orchestrateur" permanent.
+> Le lead est décidé dynamiquement par: Task Analysis, Swarm Mode, DyLAN Scores, Consensus.
+
+**Architecture Symétrique**:
+```
+┌─────────────┐      MCP Protocol      ┌─────────────┐
+│   GEMINI    │◄──────────────────────►│   CLAUDE    │
+│             │                         │             │
+│ Peut appeler│                         │ Peut appeler│
+│ claude_mcp  │                         │ gemini_mcp  │
+└─────────────┘                         └─────────────┘
+```
+
+**Implémentation**:
+- [ ] `core/mcp/claude_bridge.py` - Claude exposé comme MCP Server pour Gemini
+- [ ] `core/mcp/gemini_bridge.py` - Gemini exposé comme MCP Server pour Claude
+- [ ] Configuration symétrique:
+  ```bash
+  # Gemini peut appeler Claude
+  gemini mcp add claude python core/mcp/claude_bridge.py
+
+  # Claude peut appeler Gemini (via mcp_servers.json)
+  {"name": "gemini", "command": "python", "args": ["core/mcp/gemini_bridge.py"]}
+  ```
+
+**Outils MCP exposés**:
+| MCP Server | Outil | Description |
+|------------|-------|-------------|
+| `claude_bridge` | `claude_analyze` | Analyse approfondie |
+| `claude_bridge` | `claude_code` | Génération/review code |
+| `gemini_bridge` | `gemini_research` | Recherche web Google |
+| `gemini_bridge` | `gemini_brainstorm` | Idéation créative |
+
+**Sélection dynamique du Lead**:
+```python
+def select_lead_agent(task_analysis: TaskAnalysis) -> str:
+    """Décide qui mène basé sur le contexte"""
+
+    # 1. Expertise domaine
+    if task_analysis.primary_domain == Domain.WEB_RESEARCH:
+        return "gemini"  # Google Search natif
+    elif task_analysis.primary_domain == Domain.CODING:
+        return "claude"  # Meilleur en code
+
+    # 2. DyLAN scores historiques
+    gemini_score = agent_pool.get_importance("gemini", task_analysis.primary_domain)
+    claude_score = agent_pool.get_importance("claude", task_analysis.primary_domain)
+
+    if abs(gemini_score - claude_score) > 0.2:
+        return "gemini" if gemini_score > claude_score else "claude"
+
+    # 3. Consensus (égalité → négociation)
+    return "negotiate"
+```
+
+**Scénarios d'utilisation**:
+| Scénario | Lead | Support | Raison |
+|----------|------|---------|--------|
+| Recherche web intensive | Gemini | Claude | Google Search natif |
+| Refactoring code complexe | Claude | Gemini | Meilleur code generation |
+| Audit sécurité | Gemini (red team) | Claude (blue team) | Adversarial |
+| Architecture design | Négocié | Négocié | Expertise égale |
 
 ---
 
