@@ -23,6 +23,14 @@ from .collaboration_modes import (
 from .task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 from .agent_metrics import AgentPool, AgentProfile
 
+# V7.6 Phase 10b: Memory-Augmented Mode Selection (lazy import)
+_SUCCESS_MEMORY_AVAILABLE = False
+try:
+    from ..memory.success_memory import SuccessMemory
+    _SUCCESS_MEMORY_AVAILABLE = True
+except ImportError:
+    SuccessMemory = None
+
 
 @dataclass
 class AgentAssignment:
@@ -77,12 +85,22 @@ class ModeSelector:
 
     Combines task analysis with agent performance history
     to recommend the best collaboration mode.
+
+    V7.6 Phase 10b: Supports memory-augmented selection using
+    SuccessMemory to boost modes that worked for similar tasks.
     """
+
+    # V7.6 Phase 10b: Memory boost constants
+    MEMORY_BOOST_HIGH = 0.25    # High similarity (>0.5)
+    MEMORY_BOOST_MEDIUM = 0.15  # Medium similarity (>0.3)
+    MEMORY_BOOST_LOW = 0.08     # Low similarity (>0.2)
+    MEMORY_MIN_SIMILARITY = 0.2  # Minimum similarity to apply boost
 
     def __init__(
         self,
         agent_pool: Optional[AgentPool] = None,
-        history_weight: float = 0.3
+        history_weight: float = 0.3,
+        success_memory: Optional["SuccessMemory"] = None
     ):
         """
         Initialize ModeSelector.
@@ -90,10 +108,15 @@ class ModeSelector:
         Args:
             agent_pool: AgentPool with performance history
             history_weight: Weight given to historical performance (0-1)
+            success_memory: V7.6 Phase 10b - SuccessMemory for memory-augmented selection
         """
         self.agent_pool = agent_pool
         self.history_weight = history_weight
+        self.success_memory = success_memory
         self.selection_history: List[Dict] = []
+
+        # V7.6 Phase 10b: Track memory-influenced selections
+        self._last_memory_match: Optional[Dict] = None
 
     def select_mode(
         self,
@@ -103,6 +126,9 @@ class ModeSelector:
         """
         Select optimal collaboration mode for a task.
 
+        V7.6 Phase 10b: Consults SuccessMemory to boost modes that
+        worked for similar tasks.
+
         Args:
             task_analysis: Analysis of the task
             available_agents: Override agents (uses pool if None)
@@ -110,6 +136,9 @@ class ModeSelector:
         Returns:
             ModeProposal with recommended mode and assignments
         """
+        # Reset memory match tracker
+        self._last_memory_match = None
+
         # Get agents
         if available_agents is None and self.agent_pool:
             available_agents = self.agent_pool.get_active_agents()
@@ -123,6 +152,14 @@ class ModeSelector:
         for mode in CollaborationMode:
             score = self._score_mode(mode, task_analysis, available_agents)
             mode_scores[mode] = score
+
+        # V7.6 Phase 10b: Memory-Augmented Selection
+        memory_boost_mode = None
+        memory_boost_info = None
+        if self.success_memory:
+            memory_boost_mode, memory_boost_info = self._apply_memory_boost(
+                task_analysis, mode_scores
+            )
 
         # Select best mode
         best_mode = max(mode_scores, key=mode_scores.get)
@@ -141,9 +178,9 @@ class ModeSelector:
             best_mode, task_analysis, available_agents
         )
 
-        # Generate reasoning
+        # Generate reasoning (V7.6: include memory influence)
         reasoning = self._generate_reasoning(
-            best_mode, task_analysis, mode_scores
+            best_mode, task_analysis, mode_scores, memory_boost_info
         )
 
         proposal = ModeProposal(
@@ -467,20 +504,105 @@ class ModeSelector:
 
         return assignments
 
+    # =========================================================================
+    # V7.6 Phase 10b: Memory-Augmented Selection
+    # =========================================================================
+
+    def _apply_memory_boost(
+        self,
+        analysis: TaskAnalysis,
+        mode_scores: Dict[CollaborationMode, float]
+    ) -> Tuple[Optional[CollaborationMode], Optional[Dict]]:
+        """
+        Apply memory boost to mode scores based on similar tasks.
+
+        V7.6 Phase 10b: Consults SuccessMemory to find similar tasks
+        and boosts the mode that worked for them.
+
+        Args:
+            analysis: TaskAnalysis with raw_input description.
+            mode_scores: Dictionary of mode scores (modified in-place).
+
+        Returns:
+            Tuple of (boosted_mode, boost_info) or (None, None).
+        """
+        if not self.success_memory:
+            return None, None
+
+        # Get task description
+        description = getattr(analysis, "raw_input", "")
+        if not description:
+            return None, None
+
+        # Find similar tasks
+        result = self.success_memory.get_best_mode_for_similar(
+            query=description,
+            min_similarity=self.MEMORY_MIN_SIMILARITY
+        )
+
+        if not result:
+            return None, None
+
+        recommended_mode, similar_task_id, similarity = result
+
+        # Map mode string to enum
+        boosted_mode = None
+        for mode in CollaborationMode:
+            if mode.value.lower() == recommended_mode.lower():
+                boosted_mode = mode
+                break
+
+        if not boosted_mode or boosted_mode not in mode_scores:
+            return None, None
+
+        # Calculate boost based on similarity level
+        if similarity > 0.5:
+            boost = self.MEMORY_BOOST_HIGH
+        elif similarity > 0.3:
+            boost = self.MEMORY_BOOST_MEDIUM
+        else:
+            boost = self.MEMORY_BOOST_LOW
+
+        # Apply boost
+        original_score = mode_scores[boosted_mode]
+        mode_scores[boosted_mode] = min(1.0, original_score + boost)
+
+        # Store match info
+        boost_info = {
+            "mode": boosted_mode.value,
+            "similar_task_id": similar_task_id,
+            "similarity": round(similarity, 3),
+            "boost_applied": boost,
+            "original_score": round(original_score, 3),
+            "new_score": round(mode_scores[boosted_mode], 3)
+        }
+
+        self._last_memory_match = boost_info
+
+        return boosted_mode, boost_info
+
     def _generate_reasoning(
         self,
         mode: CollaborationMode,
         analysis: TaskAnalysis,
-        scores: Dict[CollaborationMode, float]
+        scores: Dict[CollaborationMode, float],
+        memory_boost_info: Optional[Dict] = None
     ) -> str:
         """
         Generate human-readable reasoning for mode selection.
 
         V7.5 Phase 5b: Agent-agnostic reasoning.
+        V7.6 Phase 10b: Includes memory influence if applicable.
         """
         char = get_mode_characteristics(mode)
 
         reasons = []
+
+        # V7.6 Phase 10b: Memory-augmented selection
+        if memory_boost_info and memory_boost_info.get("mode") == mode.value:
+            task_id = memory_boost_info.get("similar_task_id", "unknown")[:12]
+            similarity = memory_boost_info.get("similarity", 0)
+            reasons.append(f"Boosted by memory (similar to {task_id}, {similarity:.0%})")
 
         # Complexity reason
         complexity_name = analysis.complexity.name.lower()

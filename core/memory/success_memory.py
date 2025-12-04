@@ -32,7 +32,7 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..utils.atomic_store import AtomicJsonStore
 
@@ -426,6 +426,169 @@ class SuccessMemory:
             e for e in self.get_all()
             if domain.lower() in [d.lower() for d in e.domains]
         ]
+
+    # =========================================================================
+    # Phase 10b: Similarity Search
+    # =========================================================================
+
+    # Basic English stop words for tokenization
+    _STOP_WORDS = frozenset({
+        "a", "an", "the", "is", "it", "to", "of", "in", "for", "on", "with",
+        "and", "or", "but", "this", "that", "be", "are", "was", "were", "been",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "can", "may", "might", "must", "shall", "i", "you", "he",
+        "she", "we", "they", "me", "him", "her", "us", "them", "my", "your",
+        "his", "its", "our", "their", "what", "which", "who", "whom", "when",
+        "where", "why", "how", "all", "each", "every", "both", "few", "more",
+        "most", "other", "some", "such", "no", "not", "only", "same", "so",
+        "than", "too", "very", "just", "also", "now", "here", "there", "then",
+        # French common words
+        "le", "la", "les", "un", "une", "des", "de", "du", "et", "est", "en",
+        "que", "qui", "dans", "pour", "sur", "avec", "ce", "cette", "ces",
+        "je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "mon", "ton",
+        "son", "notre", "votre", "leur", "ne", "pas", "plus", "moins"
+    })
+
+    def _tokenize(self, text: str) -> set:
+        """
+        Tokenize text for similarity comparison.
+
+        Normalizes case, removes punctuation, filters stop words.
+
+        Args:
+            text: Input text to tokenize.
+
+        Returns:
+            Set of normalized tokens.
+        """
+        # Lowercase and split on whitespace/punctuation
+        import re
+        tokens = re.findall(r'\b\w+\b', text.lower())
+
+        # Filter stop words and short tokens
+        return {
+            t for t in tokens
+            if t not in self._STOP_WORDS and len(t) > 2
+        }
+
+    def _jaccard_similarity(self, set1: set, set2: set) -> float:
+        """
+        Compute Jaccard similarity between two sets.
+
+        Jaccard = |intersection| / |union|
+
+        Args:
+            set1: First set of tokens.
+            set2: Second set of tokens.
+
+        Returns:
+            Similarity score between 0.0 and 1.0.
+        """
+        if not set1 or not set2:
+            return 0.0
+
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+
+        return intersection / union if union > 0 else 0.0
+
+    def find_similar_tasks(
+        self,
+        query: str,
+        limit: int = 3,
+        min_score: float = 0.1
+    ) -> List[Tuple[SuccessEntry, float]]:
+        """
+        Find tasks similar to the query using Jaccard similarity.
+
+        Phase 10b: Memory-Augmented Mode Selection.
+
+        Uses simple tokenization and Jaccard similarity to find
+        previously successful tasks that match the query.
+
+        Args:
+            query: Task description to match against.
+            limit: Maximum number of results to return.
+            min_score: Minimum similarity score (0.0-1.0).
+
+        Returns:
+            List of (SuccessEntry, similarity_score) tuples,
+            sorted by similarity descending.
+        """
+        entries = self.get_all()
+        if not entries:
+            return []
+
+        # Tokenize query
+        query_tokens = self._tokenize(query)
+        if not query_tokens:
+            return []
+
+        # Score all entries
+        scored: List[Tuple[SuccessEntry, float]] = []
+        for entry in entries:
+            entry_tokens = self._tokenize(entry.description)
+            score = self._jaccard_similarity(query_tokens, entry_tokens)
+
+            if score >= min_score:
+                scored.append((entry, score))
+
+        # Sort by score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        return scored[:limit]
+
+    def get_best_mode_for_similar(
+        self,
+        query: str,
+        min_similarity: float = 0.2
+    ) -> Optional[Tuple[str, str, float]]:
+        """
+        Get the best mode based on similar successful tasks.
+
+        Phase 10b: Memory-augmented mode selection helper.
+
+        Args:
+            query: Task description to match.
+            min_similarity: Minimum Jaccard score to consider.
+
+        Returns:
+            Tuple of (swarm_mode, task_id, similarity_score) or None.
+        """
+        similar = self.find_similar_tasks(query, limit=5, min_score=min_similarity)
+        if not similar:
+            return None
+
+        # Find the mode with highest average quality from similar tasks
+        mode_scores: Dict[str, List[float]] = {}
+        mode_best_match: Dict[str, Tuple[str, float]] = {}
+
+        for entry, similarity in similar:
+            mode = entry.swarm_mode
+            # Weight by both similarity and quality
+            weighted_score = similarity * entry.quality_score
+
+            if mode not in mode_scores:
+                mode_scores[mode] = []
+                mode_best_match[mode] = (entry.task_id, similarity)
+
+            mode_scores[mode].append(weighted_score)
+
+            # Track best matching task per mode
+            if similarity > mode_best_match[mode][1]:
+                mode_best_match[mode] = (entry.task_id, similarity)
+
+        if not mode_scores:
+            return None
+
+        # Find mode with highest average weighted score
+        best_mode = max(
+            mode_scores.keys(),
+            key=lambda m: sum(mode_scores[m]) / len(mode_scores[m])
+        )
+
+        task_id, best_similarity = mode_best_match[best_mode]
+        return (best_mode, task_id, best_similarity)
 
     def get_stats(self) -> Dict[str, Any]:
         """

@@ -159,7 +159,11 @@ class HybridSwarmEngine:
 
         # Components
         self.task_analyzer = TaskAnalyzer()
-        self.mode_selector = ModeSelector(agent_pool=self.agent_pool)
+        # V7.6 Phase 10b: Pass SuccessMemory to ModeSelector
+        self.mode_selector = ModeSelector(
+            agent_pool=self.agent_pool,
+            success_memory=self.success_memory
+        )
         self.negotiation = NegotiationProtocol(
             max_turns=self._get_config("swarm_negotiation_max_turns", 4),
             skip_trivial=self._get_config("swarm_skip_trivial", True)
