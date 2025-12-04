@@ -27,6 +27,7 @@ from typing import Dict, Any, List, Tuple, Optional, Callable
 
 # Security imports
 from core.security import PathGuardian
+from core.security.execution_policy import ExecutionPolicy, CommandType
 
 # V7.6 Phase 12.3: MCP Client imports (optional)
 try:
@@ -40,29 +41,9 @@ except ImportError:
 
 
 # ============================================================================
-# BASH BLACKLIST - Permissive mode (allow all EXCEPT dangerous patterns)
+# LEGACY: Bash blacklist patterns moved to SandboxPolicy (Phase 14a)
+# See: core/security/sandbox_policy.py for centralized security policy
 # ============================================================================
-BASH_BLACKLIST_PATTERNS: List[Tuple[str, str]] = [
-    # Deep path traversal (3+ levels up)
-    (r"\.\.\/\.\.\/\.\.", "Deep path traversal (../../../)"),
-    (r";\s*cd\s+\.\.", "cd to parent after command"),
-    (r"&&\s*cd\s+\.\.", "cd to parent chained"),
-    # Destructive commands on parent (with word boundary)
-    (r"\brm\s+(-[rf]+\s+)*\.\.", "rm on parent directory"),
-    (r"\brm\s+-rf?\s+/", "rm on root"),
-    (r"\brmdir\s+\.\.", "rmdir on parent"),
-    # Redirections to parent
-    (r">\s*\.\.\/", "Redirect output to parent"),
-    (r">>\s*\.\.\/", "Append output to parent"),
-    # Git write operations
-    (r"\bgit\s+(push|commit|add|reset|checkout\s+-)", "Git write operation via bash"),
-    # Code execution targeting parent
-    (r"\b(python|python3|py)\s+\.\.\/", "Python exec in parent"),
-    (r"\b(bash|sh|cmd)\s+\.\.\/", "Shell exec in parent"),
-    # File modifications in parent
-    (r"\bmv\s+[^\s]+\s+\.\.\/", "Move file to parent"),
-    (r"\bcp\s+[^\s]+\s+\.\.\/", "Copy file to parent"),
-]
 
 
 class ToolResult:
@@ -105,6 +86,9 @@ class ToolManager:
             parent_path=self.parent_path,
             generation_active=self.generation_active
         )
+
+        # Initialize ExecutionPolicy (security layer 1 - Phase 14a)
+        self.execution_policy = ExecutionPolicy(workspace_path)
 
         # Dispatch to appropriate handler
         self.tools = {
@@ -182,31 +166,72 @@ class ToolManager:
             )
 
     def _execute_bash(self, args: Dict) -> ToolResult:
-        """Execute bash command with security blacklist."""
+        """
+        Execute bash command with security hardening (Phase 14a).
+
+        Security layers:
+        1. SandboxPolicy validation (patterns, executables)
+        2. Command analysis (SIMPLE vs COMPLEX)
+        3. Prefer shell=False for simple commands
+        4. Strict validation for complex commands
+        """
         command = args.get("command", "")
 
-        # SECURITY LAYER 1: Check against blacklist
-        import re as regex_module
-        for pattern, description in BASH_BLACKLIST_PATTERNS:
-            if regex_module.search(pattern, command, regex_module.IGNORECASE):
-                return ToolResult(
-                    tool_name="bash",
-                    status="BLOCKED",
-                    output="",
-                    error=f"[SECURITY] Command blocked: {description}. Command: {command[:80]}..."
-                )
+        if not command or not command.strip():
+            return ToolResult(
+                tool_name="bash",
+                status="ERROR",
+                output="",
+                error="Empty command"
+            )
+
+        # SECURITY LAYER 1: ExecutionPolicy validation
+        is_valid, error = self.execution_policy.validate_command(command)
+        if not is_valid:
+            return ToolResult(
+                tool_name="bash",
+                status="BLOCKED",
+                output="",
+                error=f"{error}. Command: {command[:80]}..."
+            )
+
+        # SECURITY LAYER 2: Analyze command for safe execution
+        analysis = self.execution_policy.analyze_command(command)
+
+        if analysis.command_type == CommandType.BLOCKED:
+            return ToolResult(
+                tool_name="bash",
+                status="BLOCKED",
+                output="",
+                error=f"[SECURITY] {analysis.blocked_reason}. Command: {command[:80]}..."
+            )
 
         try:
-            result = subprocess.run(
-                command,
-                shell=True,
-                cwd=str(self.workspace_path),
-                capture_output=True,
-                text=True,
-                timeout=60,
-                encoding='utf-8',
-                errors='replace'
-            )
+            if analysis.command_type == CommandType.SIMPLE:
+                # SAFE: Use shell=False with parsed arguments
+                exec_args = [analysis.executable] + analysis.arguments
+                result = subprocess.run(
+                    exec_args,
+                    shell=False,  # Phase 14a: Secure execution
+                    cwd=str(self.workspace_path),
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    encoding='utf-8',
+                    errors='replace'
+                )
+            else:
+                # COMPLEX: Requires shell=True but was validated
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=str(self.workspace_path),
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    encoding='utf-8',
+                    errors='replace'
+                )
 
             if result.returncode == 0:
                 return ToolResult(
@@ -223,6 +248,13 @@ class ToolManager:
                     error=result.stderr
                 )
 
+        except FileNotFoundError:
+            return ToolResult(
+                tool_name="bash",
+                status="ERROR",
+                output="",
+                error=f"Command not found: {analysis.executable}"
+            )
         except subprocess.TimeoutExpired:
             return ToolResult(
                 tool_name="bash",

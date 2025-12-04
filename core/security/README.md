@@ -27,6 +27,53 @@ Implementation des mecanismes de defense actifs qui enforecent les politiques de
 
 ## Composants Cles
 
+### Fichier: `execution_policy.py` (Phase 14a)
+
+**Classe**: `ExecutionPolicy`
+
+* **Fonction**: Validation securisee des commandes bash
+* **Interaction FSM**: Consulte par ToolManager._execute_bash()
+* **Notes d'Audit**: Phase 14a Security Hardening
+
+**Defense Layers**:
+1. Blocked pattern detection (fork bombs, password files, etc.)
+2. Dangerous executable blocking (sudo, nc, curl, wget, etc.)
+3. Command analysis (SIMPLE vs COMPLEX)
+4. shell=False pour commandes simples, shell=True pour grep/cat avec pipe
+
+**Commandes Bloquees**:
+| Type | Exemples | Raison |
+|------|----------|--------|
+| Privilege Escalation | `sudo`, `su`, `pkexec` | Elevation privileges |
+| Network Exfiltration | `nc`, `curl`, `wget` | Transfert donnees |
+| Destructive | `rm -rf /`, `dd`, `mkfs` | Destruction systeme |
+| Code Execution | `perl`, `php`, `powershell` | Payload execution |
+
+**Patterns Bloques**:
+- `/etc/passwd`, `/etc/shadow` - Fichiers sensibles
+- `$(...)`, `` `...` `` - Command substitution
+- `:(){:|:&};:` - Fork bombs
+- `while true` - Boucles infinies
+
+**Usage**:
+```python
+from core.security.execution_policy import ExecutionPolicy, CommandType
+
+policy = ExecutionPolicy(workspace_path)
+
+# Validate command
+is_valid, error = policy.validate_command("ls -la")
+if not is_valid:
+    print(f"Blocked: {error}")
+
+# Analyze for shell execution
+analysis = policy.analyze_command("ls -la")
+if analysis.command_type == CommandType.SIMPLE:
+    subprocess.run(["ls", "-la"], shell=False)  # SECURE
+```
+
+---
+
 ### Fichier: `path_guardian.py`
 
 **Classe**: `PathGuardian`
@@ -112,22 +159,34 @@ if warnings:
                     REQUEST
                        |
                        v
-    Layer 1: ToolManager (dispatch)
+    Layer 1: ExecutionPolicy (command validation - Phase 14a)
+              - Blocked executables (sudo, nc, curl)
+              - Dangerous patterns (fork bomb, /etc/passwd)
+              - Command analysis (SIMPLE vs COMPLEX)
                        |
                        v
     Layer 2: PathGuardian (file access)
+              - Workspace containment
+              - Immutable file protection
                        |
                        v
-    Layer 3: SandboxPolicy (state check)
+    Layer 3: SandboxPolicy (FSM state check - governance/)
+              - Tool permissions during brainstorming
+              - SAFE vs BLOCKED tools
                        |
                        v
     Layer 4: MutationValidator (code analysis)
+              - AST inspection
+              - Dangerous call detection
                        |
                        v
                    EXECUTION
+              (shell=False preferred)
 ```
 
 **Principe**: Echec a n'importe quelle couche = blocage.
+
+**Phase 14a**: Tool manager now uses `shell=False` for simple commands.
 
 ---
 
