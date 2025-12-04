@@ -36,6 +36,34 @@ class CollaborationMode(Enum):
                 return mode
         raise ValueError(f"Unknown collaboration mode: {value}")
 
+    @property
+    def fallback_mode(self) -> Optional["CollaborationMode"]:
+        """
+        Get the fallback mode for graceful degradation.
+
+        V7.5 Phase 8: Self-Healing Swarm - Graceful Degradation
+
+        Fallback chain:
+        - PARALLEL -> SEQUENTIAL (simplify parallelism)
+        - RED_BLUE -> LEAD_SUPPORT (remove adversarial)
+        - LEAD_SUPPORT -> SPECIALIST (simplify to single agent)
+        - PING_PONG -> SEQUENTIAL (simplify alternation)
+        - SPECIALIST -> None (terminal, no further fallback)
+        - SEQUENTIAL -> SPECIALIST (last resort)
+
+        Returns:
+            CollaborationMode for fallback, or None if no fallback exists
+        """
+        fallback_map = {
+            CollaborationMode.PARALLEL: CollaborationMode.SEQUENTIAL,
+            CollaborationMode.RED_BLUE: CollaborationMode.LEAD_SUPPORT,
+            CollaborationMode.LEAD_SUPPORT: CollaborationMode.SPECIALIST,
+            CollaborationMode.PING_PONG: CollaborationMode.SEQUENTIAL,
+            CollaborationMode.SEQUENTIAL: CollaborationMode.SPECIALIST,
+            CollaborationMode.SPECIALIST: None,  # Terminal - no fallback
+        }
+        return fallback_map.get(self)
+
 
 @dataclass
 class ModeCharacteristics:

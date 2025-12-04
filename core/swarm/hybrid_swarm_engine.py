@@ -22,9 +22,11 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Callable, Any, List
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 from .agent_metrics import AgentPool, AgentInvocationResult, create_default_pool
 from .collaboration_modes import CollaborationMode
+from .session_manager import SwarmSessionManager, generate_task_id
 from .task_analyzer import TaskAnalyzer, TaskAnalysis
 from .mode_selector import ModeSelector, ModeProposal
 from .negotiation_protocol import (
@@ -116,7 +118,8 @@ class HybridSwarmEngine:
         agent_pool: Optional[AgentPool] = None,
         model_router: Optional[Any] = None,
         config: Optional[Any] = None,
-        invoke_agent: Optional[Callable] = None
+        invoke_agent: Optional[Callable] = None,
+        workspace_path: Optional[Path] = None
     ):
         """
         Initialize Hybrid Swarm Engine.
@@ -126,11 +129,19 @@ class HybridSwarmEngine:
             model_router: ModelRouter for agent selection
             config: Configuration object
             invoke_agent: Callable to invoke agents
+            workspace_path: Path to workspace for session persistence (Phase 7)
         """
         self.agent_pool = agent_pool or create_default_pool()
         self.model_router = model_router
         self.config = config
         self.invoke_agent = invoke_agent
+        self.workspace_path = workspace_path
+
+        # V7.5 Phase 7: Session isolation manager
+        if workspace_path:
+            self.session_manager = SwarmSessionManager(workspace_path)
+        else:
+            self.session_manager = None
 
         # Components
         self.task_analyzer = TaskAnalyzer()
@@ -145,6 +156,7 @@ class HybridSwarmEngine:
         self._current_analysis: Optional[TaskAnalysis] = None
         self._current_proposal: Optional[ModeProposal] = None
         self._negotiation_result: Optional[NegotiationResult] = None
+        self._current_task_id: Optional[str] = None  # Phase 7: Current task ID
 
         # GoT state
         self._got_engine: Optional[Any] = None
@@ -172,6 +184,8 @@ class HybridSwarmEngine:
         """
         Process a task through the full Hybrid Swarm pipeline.
 
+        V7.5 Phase 7: Session isolation for parallel task execution.
+
         Args:
             task_input: User's task description
             blackboard: Shared state dictionary
@@ -185,6 +199,10 @@ class HybridSwarmEngine:
         """
         start_time = datetime.now()
         blackboard = blackboard or {}
+
+        # V7.5 Phase 7: Generate unique task ID and create session
+        task_id = generate_task_id(prefix="swarm")
+        self._current_task_id = task_id
 
         try:
             # Phase 1: Analyze task
@@ -222,6 +240,10 @@ class HybridSwarmEngine:
                 final_mode = proposal.mode
                 agent_assignments = proposal.agent_assignments
 
+            # V7.5 Phase 7: Create isolated session for this task
+            if self.session_manager:
+                self.session_manager.create_task(task_id, final_mode.value)
+
             # Phase 4: Execute
             self.current_phase = SwarmPhase.EXECUTING
             execution_context = ExecutionContext(
@@ -230,11 +252,23 @@ class HybridSwarmEngine:
                 blackboard=blackboard,
                 max_rounds=self._get_config("swarm_max_rounds", 6),
                 invoke_agent=self._wrap_invoke_agent(),
-                on_round=on_execution_round  # V7.5: Streaming callback
+                on_round=on_execution_round,  # V7.5: Streaming callback
+                # V7.5 Phase 7: Session isolation
+                task_id=task_id,
+                session_manager=self.session_manager
             )
 
             executor = get_executor(final_mode)
-            execution_result = executor.execute(execution_context)
+
+            # V7.5 Phase 8: Self-Healing Swarm - execute with fallback
+            use_self_healing = self._get_config("swarm_self_healing", True)
+            if use_self_healing:
+                execution_result = executor.execute_with_fallback(
+                    execution_context,
+                    max_fallbacks=self._get_config("swarm_max_fallbacks", 2)
+                )
+            else:
+                execution_result = executor.execute(execution_context)
 
             # Phase 5: Update metrics
             self._update_metrics(analysis, execution_result)
@@ -256,6 +290,11 @@ class HybridSwarmEngine:
 
             # Record history
             self._record_processing(result)
+
+            # V7.5 Phase 7: Mark task as completed
+            if self.session_manager:
+                from .session_manager import SessionStatus
+                self.session_manager.complete_task(task_id, SessionStatus.COMPLETED)
 
             return result
 
@@ -292,6 +331,20 @@ class HybridSwarmEngine:
                 ),
                 total_time_seconds=total_time
             )
+
+        finally:
+            # V7.5 Phase 7: Ensure task is marked as completed (even on error)
+            if self.session_manager and self._current_task_id:
+                try:
+                    task = self.session_manager.get_task(self._current_task_id)
+                    if task and task.status.value == "active":
+                        from .session_manager import SessionStatus
+                        status = SessionStatus.COMPLETED if self.current_phase == SwarmPhase.COMPLETED else SessionStatus.FAILED
+                        self.session_manager.complete_task(self._current_task_id, status)
+                except Exception:
+                    pass  # Don't fail the main task due to cleanup error
+                finally:
+                    self._current_task_id = None
 
     def _create_forced_proposal(
         self,

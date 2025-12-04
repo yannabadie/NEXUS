@@ -270,6 +270,94 @@ class AgentPool:
 
         return [agent for agent, _ in scored[:top_k]]
 
+    def select_agents_by_capability(
+        self,
+        domain: str,
+        count: int = 1,
+        include_spawned: bool = True
+    ) -> List[AgentProfile]:
+        """
+        Select top agents by capability/DyLAN score for a domain.
+
+        V7.5 Phase 5b: N-Agent Agnosticism - selects agents based on
+        capability matching and performance history, not hardcoded names.
+
+        Selection priority:
+        1. Agents with explicit capability matching the domain
+        2. Agents with high DyLAN importance score for the domain
+        3. Agents with general high performance
+
+        Args:
+            domain: Task domain (e.g., "CODING", "RESEARCH", "DATABASE")
+            count: Number of agents to return
+            include_spawned: Whether to include spawned agents (default True)
+
+        Returns:
+            List of top agents sorted by domain fitness
+        """
+        active = self.get_active_agents()
+        if not active:
+            return []
+
+        # Filter by spawned preference
+        if not include_spawned:
+            active = [a for a in active if a.provider != "spawned"]
+
+        domain_lower = domain.lower()
+        scored: List[tuple] = []
+
+        for agent in active:
+            score = 0.0
+
+            # 1. Direct capability match (highest weight)
+            capabilities_lower = [c.lower() for c in agent.capabilities]
+            if domain_lower in capabilities_lower:
+                score += 1.0  # Full bonus for direct match
+            elif any(domain_lower in cap for cap in capabilities_lower):
+                score += 0.7  # Partial bonus for substring match
+
+            # 2. DyLAN importance score (0.0-1.0 typically, scaled)
+            dylan_score = agent.get_task_importance(domain_lower)
+            score += dylan_score * 0.5  # Weight DyLAN contribution
+
+            # 3. Overall success rate as tiebreaker
+            score += agent.success_rate * 0.1
+
+            scored.append((agent, score))
+
+        # Sort by score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        return [agent for agent, _ in scored[:count]]
+
+    def get_best_for_role(
+        self,
+        role: str,
+        domain: str,
+        exclude_agents: Optional[List[str]] = None
+    ) -> Optional[AgentProfile]:
+        """
+        Get the best single agent for a specific role in a domain.
+
+        V7.5 Phase 5b: Helper for ModeSelector agent assignment.
+
+        Args:
+            role: Role name (for logging, not used in selection)
+            domain: Task domain to match against
+            exclude_agents: Agent IDs to exclude (already assigned)
+
+        Returns:
+            Best matching AgentProfile or None
+        """
+        exclude = set(exclude_agents or [])
+        candidates = self.select_agents_by_capability(domain, count=10)
+
+        for agent in candidates:
+            if agent.agent_id not in exclude:
+                return agent
+
+        return None
+
     def record_invocation(self, result: AgentInvocationResult):
         """Record invocation result to appropriate agent with auto-persistence"""
         if result.agent_id in self.agents:

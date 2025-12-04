@@ -211,22 +211,41 @@ class ModeSelector:
         analysis: TaskAnalysis,
         agents: List[AgentProfile]
     ) -> float:
-        """Score how well agent strengths match task domains"""
-        # Find Gemini and Claude agents
-        gemini = next((a for a in agents if "gemini" in a.agent_id.lower()), None)
-        claude = next((a for a in agents if "claude" in a.agent_id.lower()), None)
+        """
+        Score how well agent strengths match task domains.
 
-        if not gemini or not claude:
-            return 0.5  # Neutral if agents not found
+        V7.5 Phase 5b: Agent-agnostic scoring based on capabilities
+        and DyLAN scores, not hardcoded agent names.
+        """
+        if not agents:
+            return 0.5  # Neutral if no agents
 
+        primary_domain = analysis.primary_domain.value.lower()
         score = 0.0
-        primary_domain = analysis.primary_domain.value
 
-        # Check if mode's strength fits match task domains
-        if primary_domain in char.gemini_strength_fit:
-            score += 0.5
-        if primary_domain in char.claude_strength_fit:
-            score += 0.5
+        # Score based on how well available agents match the domain
+        for agent in agents:
+            capabilities_lower = [c.lower() for c in agent.capabilities]
+
+            # Direct capability match
+            if primary_domain in capabilities_lower:
+                score += 0.4
+            # Substring match (e.g., "coding" in "python_coding")
+            elif any(primary_domain in cap for cap in capabilities_lower):
+                score += 0.25
+
+            # DyLAN importance for this domain
+            dylan_score = agent.get_task_importance(primary_domain)
+            score += dylan_score * 0.2
+
+        # Normalize by agent count (max ~0.6 per agent contribution)
+        score = score / max(len(agents), 1)
+
+        # Legacy compatibility: check mode strength fits (still useful for mode characteristics)
+        if hasattr(char, 'gemini_strength_fit') and primary_domain in char.gemini_strength_fit:
+            score += 0.1
+        if hasattr(char, 'claude_strength_fit') and primary_domain in char.claude_strength_fit:
+            score += 0.1
 
         return min(1.0, score)
 
@@ -300,137 +319,151 @@ class ModeSelector:
         analysis: TaskAnalysis,
         agents: List[AgentProfile]
     ) -> List[AgentAssignment]:
-        """Assign agents to roles based on mode and task"""
-        gemini = next((a for a in agents if "gemini" in a.agent_id.lower()), None)
-        claude = next((a for a in agents if "claude" in a.agent_id.lower()), None)
+        """
+        Assign agents to roles based on mode and task.
 
-        # V7.5 HIVE MIND: Get spawned agents for specialist consideration
-        spawned_agents = [a for a in agents if a.provider == "spawned"]
+        V7.5 Phase 5b: Agent-agnostic assignment using capability-based
+        selection. Agents are ranked by DyLAN scores and capabilities,
+        not by hardcoded names (Gemini/Claude).
+        """
+        if not agents:
+            return []
 
-        if not gemini or not claude:
-            # Fallback: if spawned agents exist, try to use them
-            if spawned_agents:
-                return self._assign_spawned_specialist(spawned_agents, analysis)
+        primary_domain = analysis.primary_domain.value
+
+        # V7.5 Phase 5b: Get ranked agents by capability for this domain
+        # Uses AgentPool.select_agents_by_capability if pool is available
+        if self.agent_pool:
+            ranked_agents = self.agent_pool.select_agents_by_capability(
+                domain=primary_domain,
+                count=len(agents)
+            )
+        else:
+            # Fallback: rank by DyLAN importance for the domain
+            ranked_agents = sorted(
+                agents,
+                key=lambda a: a.get_task_importance(primary_domain),
+                reverse=True
+            )
+
+        # Need at least 2 agents for most modes
+        if len(ranked_agents) < 2 and mode not in [CollaborationMode.SPECIALIST]:
+            # Try to use what we have
+            if ranked_agents:
+                return [AgentAssignment(
+                    agent_id=ranked_agents[0].agent_id,
+                    role="specialist",
+                    confidence=0.6
+                )]
             return []
 
         assignments = []
+        assigned_ids = set()
+
+        def get_next_best(exclude: set) -> Optional[AgentProfile]:
+            """Get next best agent not already assigned."""
+            for agent in ranked_agents:
+                if agent.agent_id not in exclude:
+                    return agent
+            return None
 
         if mode == CollaborationMode.PARALLEL:
-            # Assign based on domain strengths
-            if analysis.requires_web:
+            # Top 2 agents work in parallel
+            for idx in range(min(2, len(ranked_agents))):
+                agent = ranked_agents[idx]
+                subtask = "research_and_web" if idx == 0 and analysis.requires_web else f"subtask_{idx+1}"
                 assignments.append(AgentAssignment(
-                    agent_id=gemini.agent_id,
+                    agent_id=agent.agent_id,
                     role="equal",
-                    subtask="research_and_web",
-                    confidence=0.8
+                    subtask=subtask,
+                    confidence=0.8 - (idx * 0.1)  # Slightly lower for second agent
                 ))
-                assignments.append(AgentAssignment(
-                    agent_id=claude.agent_id,
-                    role="equal",
-                    subtask="implementation",
-                    confidence=0.8
-                ))
-            else:
-                assignments.append(AgentAssignment(
-                    agent_id=gemini.agent_id,
-                    role="equal",
-                    subtask="subtask_1"
-                ))
-                assignments.append(AgentAssignment(
-                    agent_id=claude.agent_id,
-                    role="equal",
-                    subtask="subtask_2"
-                ))
+                assigned_ids.add(agent.agent_id)
 
         elif mode == CollaborationMode.SEQUENTIAL:
-            # Gemini first (research), Claude second (implementation)
-            if TaskDomain.RESEARCH in analysis.domains:
-                first, second = gemini, claude
-            else:
-                first, second = claude, gemini
+            # Best agent first, second-best agent second
+            first = ranked_agents[0] if ranked_agents else None
+            second = get_next_best({first.agent_id} if first else set())
 
-            assignments.append(AgentAssignment(
-                agent_id=first.agent_id,
-                role="first",
-                confidence=0.7
-            ))
-            assignments.append(AgentAssignment(
-                agent_id=second.agent_id,
-                role="second",
-                confidence=0.7
-            ))
+            if first:
+                assignments.append(AgentAssignment(
+                    agent_id=first.agent_id,
+                    role="first",
+                    confidence=0.8
+                ))
+            if second:
+                assignments.append(AgentAssignment(
+                    agent_id=second.agent_id,
+                    role="second",
+                    confidence=0.7
+                ))
 
         elif mode == CollaborationMode.LEAD_SUPPORT:
-            # Assign lead based on domain fit
-            if analysis.claude_fit_score > analysis.gemini_fit_score:
-                lead, support = claude, gemini
-            else:
-                lead, support = gemini, claude
+            # Best agent is lead, second-best is support
+            lead = ranked_agents[0] if ranked_agents else None
+            support = get_next_best({lead.agent_id} if lead else set())
 
-            assignments.append(AgentAssignment(
-                agent_id=lead.agent_id,
-                role="lead",
-                confidence=max(analysis.gemini_fit_score, analysis.claude_fit_score)
-            ))
-            assignments.append(AgentAssignment(
-                agent_id=support.agent_id,
-                role="support",
-                confidence=0.6
-            ))
+            if lead:
+                # Calculate confidence based on agent's domain fit
+                lead_importance = lead.get_task_importance(primary_domain)
+                assignments.append(AgentAssignment(
+                    agent_id=lead.agent_id,
+                    role="lead",
+                    confidence=min(0.95, 0.6 + lead_importance * 0.35)
+                ))
+            if support:
+                assignments.append(AgentAssignment(
+                    agent_id=support.agent_id,
+                    role="support",
+                    confidence=0.6
+                ))
 
         elif mode == CollaborationMode.PING_PONG:
-            # Both equal, alternating
-            assignments.append(AgentAssignment(
-                agent_id=gemini.agent_id,
-                role="equal",
-                confidence=0.7
-            ))
-            assignments.append(AgentAssignment(
-                agent_id=claude.agent_id,
-                role="equal",
-                confidence=0.7
-            ))
+            # Top 2 agents alternate
+            for idx in range(min(2, len(ranked_agents))):
+                agent = ranked_agents[idx]
+                assignments.append(AgentAssignment(
+                    agent_id=agent.agent_id,
+                    role="equal",
+                    confidence=0.7
+                ))
 
         elif mode == CollaborationMode.SPECIALIST:
-            # V7.5 HIVE MIND: Check spawned agents first for domain match
-            best_spawned = self._find_best_spawned_specialist(
-                spawned_agents, analysis
-            )
-            if best_spawned:
-                assignments.append(AgentAssignment(
-                    agent_id=best_spawned.agent_id,
-                    role="specialist",
-                    confidence=0.9  # High confidence for domain-matched spawned agent
-                ))
-            else:
-                # Fallback to internal agents
-                if analysis.claude_fit_score > analysis.gemini_fit_score:
-                    specialist = claude
-                else:
-                    specialist = gemini
+            # Single best agent for the domain
+            specialist = ranked_agents[0] if ranked_agents else None
+            if specialist:
+                importance = specialist.get_task_importance(primary_domain)
+                # Higher confidence if agent has explicit capability match
+                capabilities_lower = [c.lower() for c in specialist.capabilities]
+                has_capability = primary_domain.lower() in capabilities_lower
+                confidence = 0.9 if has_capability else min(0.85, 0.5 + importance * 0.35)
 
                 assignments.append(AgentAssignment(
                     agent_id=specialist.agent_id,
                     role="specialist",
-                    confidence=max(analysis.gemini_fit_score, analysis.claude_fit_score)
+                    confidence=confidence
                 ))
 
         elif mode == CollaborationMode.RED_BLUE:
-            # Assign red/blue roles
-            # Claude as Blue (proposer) - better at architecture
-            # Gemini as Red (attacker) - good at finding edge cases
-            assignments.append(AgentAssignment(
-                agent_id=claude.agent_id,
-                role="blue",
-                subtask="propose_and_defend",
-                confidence=0.8
-            ))
-            assignments.append(AgentAssignment(
-                agent_id=gemini.agent_id,
-                role="red",
-                subtask="attack_and_verify",
-                confidence=0.8
-            ))
+            # Best agent is blue (proposer), second is red (attacker)
+            # In adversarial mode, the top agent proposes, second attacks
+            blue = ranked_agents[0] if ranked_agents else None
+            red = get_next_best({blue.agent_id} if blue else set())
+
+            if blue:
+                assignments.append(AgentAssignment(
+                    agent_id=blue.agent_id,
+                    role="blue",
+                    subtask="propose_and_defend",
+                    confidence=0.8
+                ))
+            if red:
+                assignments.append(AgentAssignment(
+                    agent_id=red.agent_id,
+                    role="red",
+                    subtask="attack_and_verify",
+                    confidence=0.8
+                ))
 
         return assignments
 
@@ -440,7 +473,11 @@ class ModeSelector:
         analysis: TaskAnalysis,
         scores: Dict[CollaborationMode, float]
     ) -> str:
-        """Generate human-readable reasoning for mode selection"""
+        """
+        Generate human-readable reasoning for mode selection.
+
+        V7.5 Phase 5b: Agent-agnostic reasoning.
+        """
         char = get_mode_characteristics(mode)
 
         reasons = []
@@ -453,13 +490,11 @@ class ModeSelector:
         domain_str = ", ".join(d.value for d in analysis.domains[:2])
         reasons.append(f"Domains: {domain_str}")
 
-        # Agent fit reason
-        if analysis.recommended_lead == "claude":
-            reasons.append("Claude has higher fit score (coding expertise)")
-        elif analysis.recommended_lead == "gemini":
-            reasons.append("Gemini has higher fit score (research/web)")
+        # Agent fit reason - V7.5 Phase 5b: Use generic message
+        if analysis.recommended_lead:
+            reasons.append(f"Recommended lead: {analysis.recommended_lead}")
         else:
-            reasons.append("Balanced agent fit (collaborative mode)")
+            reasons.append("Agent selection based on capability scores")
 
         # Mode-specific reason
         reasons.append(char.when_to_use)
