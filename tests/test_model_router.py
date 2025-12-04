@@ -142,16 +142,18 @@ class TestGeminiModelSelection:
         assert "pro" in model.lower()
 
     def test_simple_routes_to_flash(self):
-        """Simple tasks should use Gemini Flash"""
+        """Simple tasks should use Gemini Flash (V7.5+: Unified Model uses Pro for all)"""
         router = ModelRouter()
         model = router.select_gemini_model(TaskType.SIMPLE)
-        assert "flash" in model.lower()
+        # V7.5+: gemini_flash_model = gemini-3-pro-preview (Unified Model)
+        assert "pro" in model.lower() or "flash" in model.lower()
 
     def test_format_routes_to_flash(self):
-        """Formatting tasks should use Gemini Flash"""
+        """Formatting tasks should use Gemini Flash (V7.5+: Unified Model uses Pro for all)"""
         router = ModelRouter()
         model = router.select_gemini_model(TaskType.FORMAT)
-        assert "flash" in model.lower()
+        # V7.5+: gemini_flash_model = gemini-3-pro-preview (Unified Model)
+        assert "pro" in model.lower() or "flash" in model.lower()
 
 
 class TestRoutingDecision:
@@ -210,10 +212,11 @@ class TestStringBasedSelection:
         assert "pro" in model.lower()
 
     def test_gemini_string_simple(self):
-        """String 'simple' should route to Gemini Flash"""
+        """String 'simple' should route to Gemini Flash (V7.5+: Unified Model uses Pro for all)"""
         router = ModelRouter()
         model = router.select_gemini_model_str("simple")
-        assert "flash" in model.lower()
+        # V7.5+: gemini_flash_model = gemini-3-pro-preview (Unified Model)
+        assert "pro" in model.lower() or "flash" in model.lower()
 
 
 class TestHelperMethods:
