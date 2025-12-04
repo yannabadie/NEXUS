@@ -1175,28 +1175,33 @@ class SessionAwareDyLAN:
 - Hot-Swap devient un signal d'apprentissage
 - Les checkpoints/fallbacks informent les futures décisions de mode
 
-### Phase 12.3: CORTEX - MCP Client [Priorité: HAUTE]
+### Phase 12.3: CORTEX - MCP Client [Priorité: HAUTE] ✅ COMPLETED 2025-12-04
 **Objectif**: Standardisation des outils via Model Context Protocol
 **Effort**: 1-2 semaines
 
 > **Contexte Décembre 2025**: MCP fête son 1 an. Adopté par OpenAI, Google, Anthropic.
 > Standard de facto pour l'interopérabilité des outils AI.
 
-- [ ] Intégration `mcp-python` SDK
-- [ ] `core/mcp/client.py` - Client MCP générique
-- [ ] Découverte dynamique des capacités (tools, resources, prompts)
-- [ ] Migration progressive des outils hardcodés:
-  - [ ] `git` → MCP server git
-  - [ ] `web_fetch` → MCP server fetch
-  - [ ] `bash` → MCP server shell (sandboxed)
-- [ ] Configuration via `mcp_servers.json`
+**Implémentation Zero-Dep** (pas de SDK externe):
+- [x] `core/mcp/protocol.py` - Types JSON-RPC 2.0 natifs
+- [x] `core/mcp/client.py` - Client MCP (subprocess stdio)
+- [x] `core/mcp/registry.py` - Chargement config serveurs
+- [x] Découverte dynamique des tools (tools/list)
+- [x] Intégration ToolManager (outils `mcp_{server}_{tool}`)
+- [x] Configuration via `workspace/.nexus/mcp_servers.json`
+- [x] 36 tests (tests/test_mcp_client.py)
+
+**Migration outils hardcodés**: Reportée à V7.7 (Phase 12.4)
 
 ```json
 {
-  "servers": [
-    {"name": "filesystem", "command": "mcp-server-filesystem", "args": ["--root", "."]},
-    {"name": "github", "command": "mcp-server-github"}
-  ]
+  "servers": {
+    "filesystem": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem"],
+      "args": ["/tmp"],
+      "enabled": true
+    }
+  }
 }
 ```
 
@@ -1623,8 +1628,12 @@ V7.6 (Janvier 2026) - STARTED
 │   ├── Jaccard Similarity Search ✅
 │   ├── ModeSelector Integration ✅
 │   └── Memory Boost (HIGH/MEDIUM/LOW tiers) ✅
+├── [COMPLETED] Phase 12.3: MCP Client (CORTEX)
+│   ├── core/mcp/protocol.py - JSON-RPC 2.0 types ✅
+│   ├── core/mcp/client.py - MCPClient (stdio) ✅
+│   ├── core/mcp/registry.py - ServerConfig loader ✅
+│   └── ToolManager integration (mcp_{server}_{tool}) ✅
 ├── Phase 10d: Session Metrics pour DyLAN
-├── Phase 12.3: MCP Client (CORTEX)
 └── Phase 13a-d: Dormant Features (GoT, /workspace, Telemetry, AutoMemory link)
 
 V7.7 (Février 2026)

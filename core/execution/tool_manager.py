@@ -13,6 +13,7 @@ Outils disponibles (TOUS accessibles par Gemini ET Claude):
 - glob: File pattern matching (find files by pattern)
 - grep: Search code for keywords/patterns
 - todo_write: Task/plan management
+- mcp_*: Dynamic MCP tools from configured servers (V7.6 CORTEX)
 """
 import subprocess
 import urllib.request
@@ -20,11 +21,22 @@ import urllib.parse
 import json
 import re
 import fnmatch
+import logging
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional, Callable
 
 # Security imports
 from core.security import PathGuardian
+
+# V7.6 Phase 12.3: MCP Client imports (optional)
+try:
+    from core.mcp import MCPRegistry, MCPClient, MCPTool
+    from core.mcp.client import MCPClientError, MCPServerError
+    _MCP_AVAILABLE = True
+except ImportError:
+    _MCP_AVAILABLE = False
+    MCPRegistry = None
+    MCPClient = None
 
 
 # ============================================================================
@@ -108,6 +120,14 @@ class ToolManager:
             "grep": self._execute_grep,
             "todo_write": self._execute_todo_write
         }
+
+        # V7.6 Phase 12.3: MCP Registry and dynamic tools
+        self._mcp_registry: Optional["MCPRegistry"] = None
+        self._mcp_tools: Dict[str, Tuple[str, str]] = {}  # tool_name -> (server_name, mcp_tool_name)
+        self._logger = logging.getLogger("nexus.tools")
+
+        if _MCP_AVAILABLE:
+            self._init_mcp_tools()
 
     # Tool name aliases (Gemini CLI names -> NEXUS names)
     TOOL_ALIASES = {
@@ -1161,3 +1181,204 @@ class ToolManager:
         except ValueError:
             # Path not under GENERATION_ACTIVE
             return False
+
+    # =========================================================================
+    # V7.6 Phase 12.3: MCP Tool Integration (CORTEX)
+    # =========================================================================
+
+    def _init_mcp_tools(self) -> None:
+        """
+        Initialize MCP registry and register dynamic tools from configured servers.
+
+        Called during __init__ if MCP is available.
+        """
+        try:
+            self._mcp_registry = MCPRegistry(self.workspace_path)
+            servers = self._mcp_registry.get_servers()
+
+            if not servers:
+                self._logger.debug("No MCP servers configured")
+                return
+
+            self._logger.info(f"Loading tools from {len(servers)} MCP server(s)")
+
+            for server_config in servers:
+                if not server_config.enabled:
+                    continue
+
+                try:
+                    self._register_mcp_server_tools(server_config.name)
+                except Exception as e:
+                    self._logger.warning(
+                        f"Failed to load tools from MCP server '{server_config.name}': {e}"
+                    )
+
+        except Exception as e:
+            self._logger.error(f"Failed to initialize MCP registry: {e}")
+
+    def _register_mcp_server_tools(self, server_name: str) -> None:
+        """
+        Register tools from a specific MCP server.
+
+        Tools are registered with prefix: mcp_{server}_{tool}
+
+        Args:
+            server_name: Name of the MCP server
+        """
+        if self._mcp_registry is None:
+            return
+
+        try:
+            client = self._mcp_registry.get_client(server_name)
+            if client is None:
+                self._logger.warning(f"Could not connect to MCP server: {server_name}")
+                return
+
+            tools = client.list_tools()
+            self._logger.info(f"MCP server '{server_name}' provides {len(tools)} tool(s)")
+
+            for tool in tools:
+                # Create prefixed tool name
+                nexus_tool_name = f"mcp_{server_name}_{tool.name}"
+
+                # Store mapping
+                self._mcp_tools[nexus_tool_name] = (server_name, tool.name)
+
+                # Register dynamic handler
+                self.tools[nexus_tool_name] = self._create_mcp_tool_handler(
+                    server_name, tool.name
+                )
+
+                self._logger.debug(f"Registered MCP tool: {nexus_tool_name}")
+
+        except Exception as e:
+            self._logger.error(f"Error registering tools from {server_name}: {e}")
+            raise
+
+    def _create_mcp_tool_handler(
+        self, server_name: str, tool_name: str
+    ) -> Callable[[Dict], "ToolResult"]:
+        """
+        Create a handler function for an MCP tool.
+
+        Args:
+            server_name: Name of the MCP server
+            tool_name: Name of the tool on the server
+
+        Returns:
+            Handler function that executes the MCP tool
+        """
+        def handler(args: Dict) -> ToolResult:
+            return self._execute_mcp_tool(server_name, tool_name, args)
+        return handler
+
+    def _execute_mcp_tool(
+        self, server_name: str, tool_name: str, args: Dict
+    ) -> "ToolResult":
+        """
+        Execute an MCP tool.
+
+        Args:
+            server_name: Name of the MCP server
+            tool_name: Name of the tool
+            args: Tool arguments
+
+        Returns:
+            ToolResult with execution output
+        """
+        nexus_tool_name = f"mcp_{server_name}_{tool_name}"
+
+        if self._mcp_registry is None:
+            return ToolResult(
+                tool_name=nexus_tool_name,
+                status="ERROR",
+                output="",
+                error="MCP registry not initialized"
+            )
+
+        try:
+            client = self._mcp_registry.get_client(server_name)
+            if client is None:
+                return ToolResult(
+                    tool_name=nexus_tool_name,
+                    status="ERROR",
+                    output="",
+                    error=f"Failed to connect to MCP server: {server_name}"
+                )
+
+            # Call the tool
+            result = client.call_tool(tool_name, args)
+
+            if result.isError:
+                return ToolResult(
+                    tool_name=nexus_tool_name,
+                    status="FAILURE",
+                    output="",
+                    error=result.text
+                )
+
+            return ToolResult(
+                tool_name=nexus_tool_name,
+                status="SUCCESS",
+                output=result.text
+            )
+
+        except MCPServerError as e:
+            return ToolResult(
+                tool_name=nexus_tool_name,
+                status="FAILURE",
+                output="",
+                error=f"MCP server error: {e.error.message}"
+            )
+        except MCPClientError as e:
+            return ToolResult(
+                tool_name=nexus_tool_name,
+                status="ERROR",
+                output="",
+                error=f"MCP client error: {str(e)}"
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name=nexus_tool_name,
+                status="ERROR",
+                output="",
+                error=f"Unexpected error: {str(e)}"
+            )
+
+    def get_mcp_tools(self) -> List[str]:
+        """
+        Get list of available MCP tools.
+
+        Returns:
+            List of MCP tool names (mcp_{server}_{tool} format)
+        """
+        return list(self._mcp_tools.keys())
+
+    def reload_mcp_tools(self) -> int:
+        """
+        Reload MCP tools from all configured servers.
+
+        Returns:
+            Number of tools loaded
+        """
+        # Clear existing MCP tools
+        for tool_name in list(self._mcp_tools.keys()):
+            if tool_name in self.tools:
+                del self.tools[tool_name]
+        self._mcp_tools.clear()
+
+        # Close all clients
+        if self._mcp_registry:
+            self._mcp_registry.close_all()
+            self._mcp_registry.reload()
+
+        # Reinitialize
+        if _MCP_AVAILABLE:
+            self._init_mcp_tools()
+
+        return len(self._mcp_tools)
+
+    def close_mcp(self) -> None:
+        """Close all MCP connections."""
+        if self._mcp_registry:
+            self._mcp_registry.close_all()
