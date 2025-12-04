@@ -292,15 +292,45 @@ def get_resume_args(self, context: str) -> List[str]:
 - Continuité multi-tour préservée
 - Agents parallèles avec "cerveau" persistant isolé
 
+#### Architecture Asymétrique Claude vs Gemini (Gemini research 2025-12-04)
+
+| Fonctionnalité | Gemini CLI | Claude Code CLI | Verdict |
+|----------------|------------|-----------------|---------|
+| Session ID | UUID généré par CLI | `--session-id <uuid>` imposable | Claude 🏆 |
+| Forking | Non natif | `--fork-session` (branche!) | Claude 🏆 |
+| Multi-Agent | Non natif | `--agents <json>` (expérimental) | Claude 🏆 |
+| Headless | `-p` | `-p` ou `--print` | Égalité |
+| Output JSON | `-o json` | `--output-format json` | Égalité |
+
 **Implémentation** (`core/drivers/gemini_driver_v7.py`):
 - [ ] Ajouter paramètre `session_uuid: Optional[str] = None`
 - [ ] Si `session_uuid` fourni → `--resume {session_uuid} -p "{prompt}"`
 - [ ] Si non fourni + brainstorm → `--resume latest`
 - [ ] **IMPORTANT**: Toujours utiliser `-p` pour mode non-interactif
+- [ ] Context handover = réinjection manuelle du résumé
+
+**Implémentation** (`core/drivers/claude_driver_v7.py`) [NOUVEAU]:
+- [ ] Ajouter paramètre `session_uuid: Optional[str] = None`
+- [ ] NEXUS génère l'UUID → `--session-id {uuid}` (imposé!)
+- [ ] Fork natif: `--resume {parent_uuid} --fork-session`
+- [ ] Mode BRANCH = fork depuis parent (isolation parfaite)
+- [ ] `-p` pour mode non-interactif
+
+**Stratégie par Driver**:
+```python
+# GEMINI: UUID généré par CLI, stocké par NEXUS
+gemini --resume {cli_generated_uuid} -p "{prompt}"
+
+# CLAUDE: UUID imposé par NEXUS, fork natif
+claude --session-id {nexus_generated_uuid} -p "{prompt}"
+# OU pour fork:
+claude --resume {parent_uuid} --fork-session -p "{prompt}"
+```
 
 **Implémentation** (`core/swarm/hybrid_swarm_engine.py`):
 - [ ] Générer `task_id` unique au début de `process_task()`
-- [ ] Passer `task_id` au driver pour isolation session
+- [ ] Passer `task_id` + `role` au SessionManager
+- [ ] Adapter appel selon driver (Gemini vs Claude)
 - [ ] `reset()` nettoie aussi le session manager
 
 **Modes de session**:
@@ -367,35 +397,41 @@ async def execute_parallel(agents, task):
 
    → Sauvegarder état session avant fallback de mode
 
-5. **Ordre d'implémentation (Option B - UUID-Based + Role Mapping)**:
+5. **Ordre d'implémentation (Option B - UUID-Based + Role Mapping + Asymétrique)**:
    ```
    Étape 1: Créer SwarmSessionManager (core/swarm/session_manager.py) [NOUVEAU]
            → get_or_create_session(task_id, role, agent_id)
            → context_handover(task_id, from_role, to_role, summary)
            → _persist_registry() vers session_registry.json
 
-   Étape 2: Modifier GeminiDriverV7._build_command()
+   Étape 2a: Modifier GeminiDriverV7._build_command()
            → Ajouter session_uuid param
-           → Utiliser -p pour mode non-interactif (CRITIQUE!)
+           → --resume {uuid} -p "{prompt}" (UUID généré par CLI)
+
+   Étape 2b: Créer ClaudeDriverV7 (core/drivers/claude_driver_v7.py) [NOUVEAU]
+           → --session-id {uuid} (UUID imposé par NEXUS)
+           → --fork-session pour mode BRANCH (natif!)
+           → -p pour mode non-interactif
 
    Étape 3: Modifier HybridSwarmEngine.process_task()
            → Générer task_id unique au début
            → Passer (task_id, role) au SessionManager
+           → Adapter appel selon driver type
 
    Étape 4: Modifier mode_executors.py
            → PARALLEL: chaque agent = rôle distinct = UUID distinct
            → LEAD_SUPPORT: lead + support = 2 UUIDs par rôle
-           → Mode change: appeler context_handover()
+           → Mode change: context_handover() (Gemini) ou --fork-session (Claude)
 
    Étape 5: Tests d'isolation
-           → 2 tâches consécutives = 2 task_ids distincts
-           → Même tâche, 2 rôles = 2 UUIDs isolés
-           → Changement de mode = handover fonctionne
+           → Gemini: 2 tâches = 2 UUIDs distincts
+           → Claude: fork natif = isolation parfaite
+           → Changement de mode = handover/fork fonctionne
 
-   Étape 6: Commands /session list|clear|handover
+   Étape 6: Commands /session list|clear|fork
    ```
 
-   **Effort**: 3-4 jours (architecture plus robuste)
+   **Effort**: 4-5 jours (architecture asymétrique complète)
 
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
