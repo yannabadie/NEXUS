@@ -1,8 +1,9 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.5.5 | **Status**: Active | **Last Updated**: 2025-12-04
+**Version**: 7.5.6 | **Status**: Active | **Last Updated**: 2025-12-04
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
 **Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
+**Étude d'Impact**: Workspace & Blackboard Analysis (2025-12-04)
 
 ---
 
@@ -78,6 +79,138 @@ class SessionMode(Enum):
     BRANCH = "branch"         # Fork depuis parent (Claude --fork-session)
     EPHEMERAL = "ephemeral"   # ⬅️ GEMINI: One-shot, PAS de persistence
 ```
+
+---
+
+## 1.2 Étude d'Impact: Workspace & Blackboard (2025-12-04)
+
+> **Méthode**: Analyse approfondie des modules `memory_v7.py`, `auto_memory.py`, `blackboard.json`
+> par Gemini et Claude indépendamment, puis fusion des découvertes critiques.
+
+### Fragilités Identifiées
+
+| Problème | Fichier | Ligne(s) | Impact | Priorité |
+|----------|---------|----------|--------|----------|
+| **Race Condition** | `memory_v7.py` | 149-153 | PARALLEL mode = corruption | 🔴 CRITIQUE |
+| **Single Blackboard** | `orchestration_v7.py` | - | Context bleeding inter-tâches | 🔴 CRITIQUE |
+| **Non-Atomic Writes** | `memory_v7.py` | 166-172 | Corruption JSON si crash | 🟠 HAUTE |
+| **Schema Outdated** | `blackboard.json` | - | Version 6.0.0 vs 7.5 | 🟡 MOYENNE |
+| **Magic Numbers** | `memory_v7.py` | - | Hardcodés, non configurables | 🟡 MOYENNE |
+| **Compression CLI** | `memory_v7.py` | 200+ | Dépend Claude CLI externe | 🟡 MOYENNE |
+
+### Détail: Race Condition (CRITIQUE)
+
+**Code problématique** (`memory_v7.py:149-153`):
+```python
+def add_to_history(self, message: Dict):
+    self.blackboard["recent_history"].append(message)  # ❌ Non thread-safe
+    if len(self.blackboard["recent_history"]) > 50:
+        self.blackboard["recent_history"] = self.blackboard["recent_history"][-50:]
+```
+
+**Scénario de corruption**:
+```
+Thread 1 (Gemini):  read len() = 49 → append → len = 50
+Thread 2 (Claude):  read len() = 49 → append → len = 50
+                    ❌ Deux appends simultanés = 51 éléments
+                    ❌ Ou pire: list modification during iteration
+```
+
+**Solution**: `threading.RLock()` autour des opérations blackboard
+```python
+from threading import RLock
+
+class MemoryManagerV7:
+    def __init__(self):
+        self._lock = RLock()
+        # ...
+
+    def add_to_history(self, message: Dict):
+        with self._lock:
+            self.blackboard["recent_history"].append(message)
+            if len(self.blackboard["recent_history"]) > 50:
+                self.blackboard["recent_history"] = self.blackboard["recent_history"][-50:]
+```
+
+### Détail: Atomic Writes (Gemini Pattern)
+
+**Problème**: Un crash pendant `json.dump()` = fichier corrompu
+
+**Solution Write-Replace** (Gemini proposal):
+```python
+def save_atomic(filepath: Path, data: dict) -> None:
+    """Écriture atomique: write temp → fsync → rename"""
+    temp_path = filepath.with_suffix('.tmp')
+
+    with open(temp_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())  # Force write to disk
+
+    os.replace(temp_path, filepath)  # Atomic on POSIX & Windows
+```
+
+**Intégration**: Wrapper `AtomicJsonStore` pour tous les fichiers JSON critiques
+
+### Détail: TaskScopedBlackboard (Claude Pattern)
+
+**Problème**: Un seul blackboard partagé = context bleeding
+
+**Solution**: Wrapper par tâche avec isolation
+```python
+class TaskScopedBlackboard:
+    """Blackboard isolé par tâche Swarm"""
+
+    def __init__(self, parent: 'MemoryManagerV7', task_id: str):
+        self.task_id = task_id
+        self._parent = parent
+        self._lock = RLock()
+        self._state = {
+            "objective": "",
+            "history": [],
+            "iteration": 0,
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+    def add_to_history(self, message: Dict):
+        with self._lock:
+            self._state["history"].append(message)
+            # Pas de limite: la tâche a sa propre histoire isolée
+
+    def merge_to_parent(self, summary: str):
+        """Merge résumé vers blackboard global après complétion"""
+        self._parent.add_task_summary(self.task_id, summary)
+```
+
+### Bonnes Pratiques Découvertes
+
+| Pattern | Source | Description | Adoption |
+|---------|--------|-------------|----------|
+| **JSONL Append-Only** | `auto_memory.py` | Logs événements sans réécriture | ✅ Existant |
+| **Backup System** | `memory_v7.py` | Backup avant modification | ✅ Existant |
+| **Tiktoken Counting** | `auto_memory.py` | Comptage tokens précis | ✅ Existant |
+| **Global Memory** | `auto_memory.py` | Partage cross-session | ⚠️ Pas intégré blackboard |
+
+### Fonctionnalités Dormantes Découvertes (Gemini)
+
+| Feature | Fichier | État | Potentiel |
+|---------|---------|------|-----------|
+| **Graph of Thought (GoT)** | `hybrid_swarm_engine.py` | Import mort | Phase 13 |
+| **/workspace commands** | `repl.py` | Commenté | Réactivation facile |
+| **Telemetry Hooks** | `config.py` | Config existe | Export externe |
+| **suggest_mode()** | `auto_memory.py` | Implémenté | Pas appelé |
+| **suggest_lead()** | `auto_memory.py` | Implémenté | Pas appelé |
+
+### Décisions Architecturales
+
+| Décision | Choix | Raison |
+|----------|-------|--------|
+| **Concurrence** | `RLock()` | Plus simple que SQLite, suffisant pour 2-5 agents |
+| **Atomic Writes** | Write-Replace | Standard industrie, cross-platform |
+| **Isolation** | TaskScopedBlackboard | Évite refactoring massif de MemoryManagerV7 |
+| **Schema Migration** | Auto-upgrade | Lire 6.0.0 → écrire 7.5.0 automatiquement |
+| **Cold Storage** | Avant compression | Garder raw history pour debug/audit |
+| **Global Registry** | `~/.nexus/` | Cross-workspace, pattern Google ADK |
 
 ---
 
@@ -271,6 +404,143 @@ def hot_swap_lead(self, context: ExecutionContext) -> None:
 
     logger.info(f"[HOT-SWAP] Lead changé: {context.support_agent.id} → {context.lead_agent.id}")
 ```
+
+#### Panic → Recovery Transformation (Impact Study 2025-12-04)
+
+> **Découverte**: L'état PANIC actuel est un "cul-de-sac" - l'utilisateur doit
+> redémarrer manuellement. Avec les nouveaux patterns de data integrity,
+> PANIC peut devenir un état de récupération automatique.
+
+**État actuel du FSM**:
+```
+ERROR → (manual reset) → IDLE
+PANIC → (restart required) → IDLE
+```
+
+**État cible**:
+```
+ERROR → (auto-recovery) → IDLE
+PANIC → (cold restart + checkpoint restore) → IDLE
+```
+
+**Implémentation Recovery Manager**:
+```python
+# core/fsm/recovery_manager.py
+class RecoveryManager:
+    """Gère la récupération automatique des états d'erreur"""
+
+    def __init__(self, memory: MemoryManagerV7, session_manager: SwarmSessionManager):
+        self.memory = memory
+        self.session_manager = session_manager
+
+    def attempt_recovery(self, error_state: FSMState, exception: Exception) -> RecoveryResult:
+        """Tente une récupération automatique"""
+
+        if error_state == FSMState.ERROR:
+            # Erreur légère: reset blackboard de tâche
+            return self._recover_from_error(exception)
+
+        elif error_state == FSMState.PANIC:
+            # Erreur grave: cold restart avec checkpoint
+            return self._recover_from_panic(exception)
+
+    def _recover_from_error(self, exception: Exception) -> RecoveryResult:
+        """Récupération d'erreur légère"""
+        # 1. Sauvegarder l'état actuel pour debug
+        self.memory.save_error_snapshot(exception)
+
+        # 2. Clear le blackboard de la tâche en cours
+        current_task = self.memory.get_current_task_id()
+        if current_task:
+            self.memory.clear_task_blackboard(current_task)
+
+        # 3. Retourner à IDLE
+        return RecoveryResult(
+            success=True,
+            new_state=FSMState.IDLE,
+            message="Recovered from error, task blackboard cleared"
+        )
+
+    def _recover_from_panic(self, exception: Exception) -> RecoveryResult:
+        """Récupération d'erreur grave (PANIC)"""
+        # 1. Sauvegarder tout pour analyse
+        self.memory.save_panic_snapshot(exception)
+
+        # 2. Chercher le dernier checkpoint valide
+        checkpoint = self.session_manager.get_latest_valid_checkpoint()
+
+        if checkpoint:
+            # 3a. Restore depuis checkpoint
+            self.session_manager.restore_checkpoint(checkpoint)
+            return RecoveryResult(
+                success=True,
+                new_state=FSMState.IDLE,
+                message=f"Recovered from panic via checkpoint {checkpoint}"
+            )
+        else:
+            # 3b. Cold restart: clear everything
+            self.memory.cold_restart()
+            return RecoveryResult(
+                success=True,
+                new_state=FSMState.IDLE,
+                message="Recovered from panic via cold restart"
+            )
+```
+
+**Intégration FSM**:
+```python
+# core/orchestration_v7.py
+def handle_state_transition(self, from_state: FSMState, to_state: FSMState):
+    if to_state in [FSMState.ERROR, FSMState.PANIC]:
+        recovery_result = self.recovery_manager.attempt_recovery(to_state, self.last_exception)
+        if recovery_result.success:
+            logger.info(f"[RECOVERY] {recovery_result.message}")
+            return recovery_result.new_state
+    return to_state
+```
+
+#### Cold Storage avant Compression (Impact Study 2025-12-04)
+
+> **Découverte**: La compression actuelle est IRRÉVERSIBLE. L'historique brut
+> est perdu. Pour debug/audit, il faut un "cold storage" avant compression.
+
+**Pattern Journal + Snapshot** (Gemini proposal):
+```
+workspace/.nexus/
+├── blackboard.json           ← État courant (hot)
+├── events.jsonl              ← Journal append-only (warm)
+└── cold_storage/             ← Archives brutes (cold)
+    ├── 2025-12-04_pre_compress.json
+    └── 2025-12-03_pre_compress.json
+```
+
+**Implémentation**:
+```python
+# core/synapse/memory_v7.py
+def compress_history(self) -> None:
+    """Compresse l'historique avec cold storage préalable"""
+
+    # 1. COLD STORAGE: Sauvegarder raw history AVANT compression
+    cold_path = self.cold_storage_dir / f"{date.today()}_pre_compress.json"
+    self._save_atomic(cold_path, {
+        "raw_history": self.blackboard["recent_history"],
+        "compressed_at": datetime.utcnow().isoformat(),
+        "token_count": self._count_tokens(self.blackboard["recent_history"])
+    })
+
+    # 2. Compression (existing logic)
+    summary = self._compress_with_llm(self.blackboard["recent_history"])
+    self.blackboard["compressed_history_summary"] = summary
+    self.blackboard["recent_history"] = []
+
+    # 3. Cleanup old cold storage (> 7 days)
+    self._cleanup_cold_storage(retention_days=7)
+```
+
+**Avantages**:
+- Debug: "Qu'est-ce que l'agent a vraiment dit avant compression?"
+- Audit: Traçabilité complète des décisions
+- Recovery: Reconstruire état depuis cold storage si nécessaire
 
 ### Phase 9: Fast Path (UX) ⚡ [Priorité: HAUTE]
 **Objectif**: Réponses instantanées pour requêtes triviales
@@ -706,6 +976,88 @@ et peut réutiliser le contexte accumulé.
 
    **Effort**: 4-5 jours (architecture asymétrique complète)
 
+#### Data Integrity Layer (Impact Study 2025-12-04)
+
+> **Découverte**: L'analyse workspace/blackboard a révélé des fragilités critiques
+> qui doivent être corrigées EN MÊME TEMPS que Session Isolation pour éviter
+> corruption des données en mode PARALLEL.
+
+**Tâches supplémentaires Phase 7**:
+
+- [ ] **AtomicJsonStore** - Wrapper pour toutes écritures JSON critiques
+  ```python
+  # core/utils/atomic_store.py
+  class AtomicJsonStore:
+      def save(self, data: dict) -> None:
+          temp_path = self.path.with_suffix('.tmp')
+          with open(temp_path, 'w') as f:
+              json.dump(data, f, indent=2)
+              f.flush()
+              os.fsync(f.fileno())
+          os.replace(temp_path, self.path)  # Atomic rename
+  ```
+  Fichiers ciblés: `session_registry.json`, `blackboard.json`, `successes.jsonl`
+
+- [ ] **Threading Locks** - Protection des accès concurrents
+  ```python
+  # core/synapse/memory_v7.py
+  from threading import RLock
+
+  class MemoryManagerV7:
+      def __init__(self):
+          self._lock = RLock()  # Protège blackboard
+
+      def add_to_history(self, message: Dict):
+          with self._lock:
+              # ... safe operations
+  ```
+  Impact: Obligatoire pour PARALLEL mode avec 2+ agents
+
+- [ ] **TaskScopedBlackboard** - Isolation par tâche
+  ```python
+  # core/synapse/task_blackboard.py
+  class TaskScopedBlackboard:
+      def __init__(self, parent: MemoryManagerV7, task_id: str):
+          self.task_id = task_id
+          self._lock = RLock()
+          self._state = {"objective": "", "history": [], "iteration": 0}
+  ```
+  Avantage: Chaque tâche Swarm a son blackboard isolé
+
+- [ ] **Schema Migration** - Upgrade 6.0.0 → 7.5.0
+  ```python
+  def _migrate_schema(self, data: dict) -> dict:
+      version = data.get("metadata", {}).get("version", "1.0.0")
+      if version == "6.0.0":
+          data["task_scoped_blackboards"] = {}
+          data["metadata"]["version"] = "7.5.0"
+      return data
+  ```
+
+- [ ] **SQLite Consideration** - Pour session_registry à haute concurrence
+  ```python
+  # Si > 5 agents parallèles, considérer SQLite
+  # Avantages: ACID, WAL mode, concurrent reads
+  # Inconvénients: Complexité, dépendance
+  # Décision: JSON + RLock pour V7.5, SQLite optionnel V8.0
+  ```
+
+**Ordre d'implémentation révisé**:
+```
+Étape 0: AtomicJsonStore + Threading (PREREQUIS)  ← NOUVEAU
+         → Corrige race conditions AVANT d'ajouter Session Manager
+
+Étape 1: SwarmSessionManager avec AtomicJsonStore
+Étape 2a: GeminiDriverV7 + session_uuid
+Étape 2b: ClaudeDriverV7 + session_uuid
+Étape 3: HybridSwarmEngine + task_id + TaskScopedBlackboard
+Étape 4: mode_executors.py + isolation
+Étape 5: Tests d'isolation + intégrité données
+Étape 6: Commands /session
+```
+
+**Effort révisé**: 5-6 jours (inclut Data Integrity Layer)
+
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
 **Effort**: 1 semaine
@@ -1106,6 +1458,113 @@ Task A (SQL optimization)
 > - Exécution sandboxée immédiate
 > - Pas de processus background
 
+### Phase 13: Dormant Features Activation [Priorité: MOYENNE]
+**Objectif**: Réactiver les fonctionnalités existantes mais non utilisées
+**Effort**: 1 semaine
+**Source**: Impact Study Gemini (2025-12-04) - Découverte de code dormant
+
+> **Contexte**: L'analyse de la codebase a révélé plusieurs fonctionnalités
+> implémentées mais jamais appelées. Ces "dormant features" représentent
+> un investissement déjà fait qu'il suffit de connecter.
+
+#### Phase 13a: Graph of Thought (GoT) Integration
+
+**Découverte** (`hybrid_swarm_engine.py`):
+```python
+# Ligne ~50: Import présent mais jamais utilisé
+from core.reasoning.graph_of_thought import GraphOfThought  # DEAD IMPORT
+```
+
+**Potentiel**: GoT permet un raisonnement non-linéaire, idéal pour tâches EXPERT.
+
+**Réactivation**:
+- [ ] Auditer `core/reasoning/graph_of_thought.py` (si existe)
+- [ ] Intégrer GoT dans `ModeSelector` pour tâches EXPERT
+- [ ] Permettre `swarm_mode: GOT` pour raisonnement complexe
+- [ ] Tests: Tâche mathématique multi-étapes avec GoT vs sans GoT
+
+#### Phase 13b: /workspace Commands Reactivation
+
+**Découverte** (`repl.py`):
+```python
+# Commandes /workspace commentées ou incomplètes
+# /workspace init, /workspace status, /workspace clean
+```
+
+**Potentiel**: Gestion multi-projet native, chaque workspace isolé.
+
+**Réactivation**:
+- [ ] `/workspace init` - Créer workspace/.nexus/ avec structure complète
+- [ ] `/workspace status` - Afficher état (sessions actives, agents, métriques)
+- [ ] `/workspace clean` - Nettoyer sessions/cold storage > N jours
+- [ ] `/workspace switch <path>` - Changer de workspace actif
+- [ ] Documentation: Ajouter à COMMANDS.md
+
+#### Phase 13c: Telemetry Export
+
+**Découverte** (`config.py`):
+```python
+self.telemetry_enabled: bool = os.getenv("TELEMETRY_ENABLED", "True")
+self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
+```
+
+**Potentiel**: Export vers observabilité externe (Jaeger, Prometheus).
+
+**Réactivation**:
+- [ ] Vérifier que `telemetry.jsonl` est bien alimenté
+- [ ] Format OpenTelemetry compatible pour export
+- [ ] `/telemetry export` - Export vers Jaeger/Grafana
+- [ ] Métriques: Latence par mode, success rate par agent, tokens consommés
+
+#### Phase 13d: AutoMemory ↔ ModeSelector Connection
+
+**Découverte** (`auto_memory.py`):
+```python
+def suggest_mode(self, task_hash: str) -> Optional[str]:
+    """Suggère un mode basé sur l'historique"""
+    # ✅ IMPLÉMENTÉ mais PAS APPELÉ!
+
+def suggest_lead(self, task_hash: str) -> Optional[str]:
+    """Suggère un lead agent basé sur l'historique"""
+    # ✅ IMPLÉMENTÉ mais PAS APPELÉ!
+```
+
+**Potentiel**: Memory-augmented decision making déjà codé!
+
+**Réactivation**:
+- [ ] Appeler `suggest_mode()` dans `ModeSelector._select_mode()`
+- [ ] Appeler `suggest_lead()` dans agent assignment
+- [ ] Fallback sur DyLAN si memory n'a pas de suggestion
+- [ ] Tests: Après 5 tâches similaires, memory suggère le bon mode
+
+#### Phase 13e: Global Registry Migration
+
+**Découverte** (Impact Study):
+- Sessions Gemini stockées dans `~/.gemini/tmp/<hash>/chats/`
+- NEXUS devrait avoir son propre espace global
+
+**Architecture cible**:
+```
+~/.nexus/                     ← NOUVEAU: Global NEXUS home
+├── config.json               ← Settings globaux
+├── agent_registry.json       ← Agents persistants cross-workspace
+├── session_registry.json     ← Sessions globales (Option)
+└── cache/                    ← Cache embeddings, etc.
+
+workspace/.nexus/             ← Local au projet
+├── blackboard.json           ← État session courante
+├── task_blackboards/         ← Isolation par tâche
+└── cold_storage/             ← Archives
+```
+
+**Avantage**: Agent spawné dans projet A réutilisable dans projet B.
+
+**Implémentation**:
+- [ ] `core/config.py`: `NEXUS_HOME = Path.home() / ".nexus"`
+- [ ] Migration gracieuse: Si `~/.nexus/` n'existe pas, le créer
+- [ ] `/agent list --global` - Lister agents cross-workspace
+- [ ] `/agent import <workspace>` - Importer agent d'un autre projet
+
 ---
 
 ## 5. Idées Exploratoires (V8.0+)
@@ -1124,28 +1583,60 @@ Pattern Anthropic "Code Execution with MCP" - réduction 98.7% tokens. L'agent g
 ## 6. Timeline Révisée
 
 ```
-V7.5.3 (Décembre 2025) ← CURRENT
-├── Phase 7: Session Isolation [CRITIQUE - Bug Fix]
-│   └── Corrige context bleeding entre tâches Swarm
-├── Phase 5b: N-Agent Agnosticism Complet [CRITIQUE]
+V7.5.6 (Décembre 2025) ← CURRENT
+│
+├─[CRITIQUE] Phase 7: Session Isolation + Data Integrity Layer
+│   ├── AtomicJsonStore (PREREQUIS)
+│   ├── Threading Locks (PREREQUIS)
+│   ├── TaskScopedBlackboard
+│   ├── SwarmSessionManager
+│   └── Schema Migration 6.0→7.5
+│
+├─[CRITIQUE] Phase 5b: N-Agent Agnosticism Complet
 │   └── Spawned agents dans tous les 6 modes
-├── Phase 8: Self-Healing Swarm
-│   └── Fallback automatique de MODE
-└── Phase 9: Fast Path ⚡
+│
+├─[HAUTE] Phase 8: Self-Healing Swarm + Recovery
+│   ├── Mode Fallback Matrix
+│   ├── Checkpointing
+│   ├── Cold Storage avant Compression
+│   ├── Panic → Recovery Transformation
+│   └── Hot-Swap Lead Agent
+│
+└─[HAUTE] Phase 9: Fast Path ⚡
     └── Bypass FSM pour requêtes triviales
 
 V7.6 (Janvier 2026)
 ├── Phase 10a: Auto-Memory Storage
 ├── Phase 10b: Memory-Augmented Mode Selection
-└── Phase 12.3: MCP Client (CORTEX)
+├── Phase 10d: Session Metrics pour DyLAN
+├── Phase 12.3: MCP Client (CORTEX)
+└── Phase 13a-d: Dormant Features (GoT, /workspace, Telemetry, AutoMemory link)
 
 V7.7 (Février 2026)
 ├── Phase 11: Extended Swarm Modes
+├── Phase 12.4: Symmetric MCP Bridges
+├── Phase 12.5: Dynamic Tool Generation
+├── Phase 13e: Global Registry Migration
 └── Phase 10c: Semantic Retrieval (si nécessaire)
 
 V8.0 (Mars 2026)
 ├── Phase 12.1: MNEMOSYNE (si nécessaire)
+├── SQLite pour session_registry (si >5 agents parallèles)
 └── Exploratoire: A2A, Observabilité
+```
+
+### Dépendances Critiques
+
+```
+AtomicJsonStore ─────────────┐
+                             ├──► SwarmSessionManager ──► Session Isolation
+Threading Locks ─────────────┘
+
+TaskScopedBlackboard ────────► Context Bleeding Fix
+
+Cold Storage ────────────────► Panic → Recovery
+
+AutoMemory link ─────────────► Memory-Augmented Mode Selection
 ```
 
 ---
@@ -1179,6 +1670,28 @@ V8.0 (Mars 2026)
 | **Hot-Swap Events** | % de tâches nécessitant un changement de lead | <5% (stabilité) |
 | **Checkpoint Usage Rate** | % de tâches nécessitant restore checkpoint | <10% (fiabilité) |
 | **Dynamic Tool Generation** | Nombre d'outils jetables générés par semaine | >10 (adaptabilité) |
+
+### Métriques d'Intégrité des Données (Impact Study 2025-12-04)
+
+| Métrique | Description | Objectif V7.6 | Objectif V8.0 |
+|----------|-------------|---------------|---------------|
+| **JSON Corruption Events** | Fichiers JSON corrompus détectés | 0 | 0 |
+| **Atomic Write Success Rate** | % d'écritures atomiques réussies | >99.9% | 100% |
+| **Race Condition Incidents** | Conflits threading détectés en PARALLEL | 0 | 0 |
+| **Cold Storage Coverage** | % de compressions avec backup préalable | 100% | 100% |
+| **Schema Migration Success** | Upgrades 6.0→7.5 sans perte de données | 100% | 100% |
+| **Recovery Success Rate** | Récupérations auto depuis ERROR/PANIC | >90% | >99% |
+| **Dormant Feature Activation** | Features réactivées (sur 5 identifiées) | 3/5 | 5/5 |
+| **Memory Suggestion Accuracy** | Précision des suggestions AutoMemory | N/A | >70% |
+
+### Métriques de Santé Workspace
+
+| Métrique | Description | Seuil d'Alerte |
+|----------|-------------|----------------|
+| **Session Count** | Nombre de sessions actives | >50 = cleanup recommandé |
+| **Cold Storage Size** | Taille du cold storage | >100MB = cleanup |
+| **Task Blackboard Count** | Blackboards de tâches orphelins | >20 = investigation |
+| **Stale Sessions** | Sessions > 24h sans activité | >10 = auto-cleanup |
 
 ---
 
@@ -1248,3 +1761,37 @@ V8.0 (Mars 2026)
 - Cleanup automatique des sessions
 
 **Fichier source**: Analyse croisée documentée dans ce même fichier (section 1.1)
+
+### Étude d'Impact Workspace & Blackboard (2025-12-04)
+
+> **Méthode**: Analyse approfondie des modules `memory_v7.py`, `auto_memory.py`,
+> `blackboard.json`, `mode_executors.py` par Gemini et Claude.
+
+**Fragilités critiques découvertes**:
+| Problème | Impact | Solution |
+|----------|--------|----------|
+| Race Condition (PARALLEL) | Corruption données | `threading.RLock()` |
+| Single Blackboard | Context bleeding | `TaskScopedBlackboard` |
+| Non-Atomic Writes | JSON corruption si crash | `AtomicJsonStore` |
+| Compression irréversible | Perte historique | Cold Storage |
+| Code dormant | Investissement gaspillé | Phase 13 |
+
+**Contributions Gemini** 🤖:
+| Découverte | Impact |
+|------------|--------|
+| Atomic Write-Replace pattern | Prévient corruption |
+| Journal + Snapshot | Reconstruction état possible |
+| Dormant features (GoT, /workspace, Telemetry) | Phase 13 créée |
+| Global Registry ~/.nexus/ | Cross-workspace agents |
+| SQLite consideration | Future-proof concurrency |
+
+**Contributions Claude** 🧠:
+| Découverte | Impact |
+|------------|--------|
+| Race condition code exact (ligne 149-153) | Fix ciblé |
+| TaskScopedBlackboard pattern | Isolation sans refactoring massif |
+| Panic→Recovery transformation | Auto-healing FSM |
+| Schema migration 6.0→7.5 | Backward compatibility |
+| AutoMemory methods non appelées | Quick wins Phase 13d |
+
+**Fichier source**: Section 1.2 de ce document
