@@ -19,10 +19,8 @@ V7.5 Phase 7: Session Isolation via session_uuid
 - When session_uuid is provided, uses --resume {uuid} for isolation
 - Enables parallel task execution without context bleeding
 
-V7 Sprint 13: PTY Mode (DEPRECATED)
-- PTY mode disabled by default - Gemini TUI doesn't accept PTY stdin input
-- The --prompt-interactive flag only works for initial prompt
-- For multi-turn: use subprocess mode with --resume latest
+Note: PTY mode was removed in V7.6 cleanup (never worked, gemini_pty_mode=False).
+      Archived to: docs/archive/pty_mode_v7_archived.py
 """
 import subprocess
 import json
@@ -40,10 +38,7 @@ from core.utils.json_extractor import extract_json_safe as robust_extract_json
 _active_processes = []
 _persistent_process = None  # Singleton persistent process
 
-# PTY mode removed in V7 cleanup (was never used, gemini_pty_mode=False by default)
-# Session persistence now uses --resume latest instead
-PTY_AVAILABLE = False
-PersistentGeminiPTY = None
+# PTY mode removed in V7.6 cleanup - see docs/archive/pty_mode_v7_archived.py
 
 
 def _cleanup_processes():
@@ -90,8 +85,7 @@ class GeminiDriverV7:
         workspace_path: Path,
         model: Optional[str] = None,
         agent_id: Optional[str] = None,
-        persistent: Optional[bool] = None,
-        pty_mode: Optional[bool] = None
+        persistent: Optional[bool] = None
     ):
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
@@ -114,13 +108,6 @@ class GeminiDriverV7:
         self.persistent = False  # Disabled: -i with stdin doesn't work
         self._persistent_process = None
 
-        # V7 Sprint 13: PTY PERSISTENT mode
-        # Uses winpty to maintain a persistent Gemini session (~2s latency vs ~15s subprocess)
-        # The PTY is kept alive between invocations for maximum performance
-        self.pty_mode = pty_mode if pty_mode is not None else getattr(config, 'gemini_pty_mode', False)
-        self.pty_available = PTY_AVAILABLE
-        self._pty_instance: Optional[Any] = None  # Persistent PTY instance
-
     def _init_persistent(self):
         """Legacy method - persistent mode removed in V7 cleanup.
 
@@ -133,19 +120,16 @@ class GeminiDriverV7:
     def invoke(
         self,
         context: str,
-        use_pty: Optional[bool] = None,
         session_uuid: Optional[str] = None
     ) -> Dict:
         """
         Invoke Gemini CLI avec contexte markdown.
 
-        V7 Sprint 12: Uses persistent mode if available, with automatic fallback.
-        V7 Sprint 13: PTY single-shot mode for one-off operations.
+        V7 Sprint 12: Uses session resume for context persistence.
         V7.5 Phase 7: Session isolation via session_uuid parameter.
 
         Args:
             context: Contexte markdown avec system prompt
-            use_pty: Override PTY mode for this invocation (None = use default)
             session_uuid: Optional session UUID for isolation (Phase 7).
                          When provided, uses --resume {uuid} instead of --resume latest.
                          This enables parallel task execution without context bleeding.
@@ -158,129 +142,10 @@ class GeminiDriverV7:
             TimeoutError: Si timeout dépassé
             ValueError: Si session_uuid invalide (resume failed)
         """
-        # Determine if we should try PTY mode
-        try_pty = use_pty if use_pty is not None else self.pty_mode
-
-        # V7 Sprint 13: Try PTY PERSISTENT mode if enabled and available
-        if try_pty and self.pty_available:
-            try:
-                return self._invoke_pty_persistent(context)
-            except Exception as e:
-                print(f"[WARNING] PTY mode failed: {e}, falling back to subprocess", file=sys.stderr)
-                # Kill failed PTY and fall through to subprocess
-                self._close_pty()
-
-        # V7 Sprint 12: Try persistent mode if available (legacy)
-        if self.persistent and self._persistent_process and self._persistent_process.is_alive():
-            try:
-                return self._invoke_persistent(context)
-            except Exception as e:
-                print(f"[WARNING] Persistent mode failed: {e}, falling back to subprocess", file=sys.stderr)
-                # Fall through to subprocess mode
-
         return self._invoke_subprocess(context, session_uuid=session_uuid)
 
-    def _ensure_pty_started(self) -> bool:
-        """
-        Ensure the persistent PTY is started and alive.
-
-        Returns:
-            True if PTY is ready for use
-        """
-        # Check if PTY is already running
-        if self._pty_instance and self._pty_instance.is_alive():
-            return True
-
-        # Calculate nexus_root for include_directories
-        resolved_workspace = self.workspace_path.resolve()
-        parent_dir = resolved_workspace.parent
-        grandparent = parent_dir.parent
-        if grandparent.name == "GENERATION_ACTIVE":
-            nexus_root = grandparent.parent
-        else:
-            nexus_root = grandparent
-
-        # Create new PTY instance
-        print(f"[DEBUG] Starting persistent PTY for Gemini: {self.model}", file=sys.stderr)
-        self._pty_instance = PersistentGeminiPTY(
-            config=self.config,
-            workspace_path=self.workspace_path,
-            model=self.model,
-            include_directories=[nexus_root]
-        )
-
-        # Start with a simple prompt that generates a direct response (not tool use)
-        initial = "Say OK"
-        if not self._pty_instance.start(initial_prompt=initial):
-            print(f"[ERROR] Failed to start PTY process", file=sys.stderr)
-            self._pty_instance = None
-            return False
-
-        print(f"[DEBUG] Persistent PTY started (PID: {self._pty_instance.process.pid})", file=sys.stderr)
-        return True
-
-    def _close_pty(self):
-        """Close the persistent PTY if running."""
-        if self._pty_instance:
-            try:
-                self._pty_instance.close()
-            except Exception:
-                pass
-            self._pty_instance = None
-
-    def _invoke_pty_persistent(self, context: str) -> Dict:
-        """
-        Invoke Gemini using persistent PTY mode.
-
-        Maintains a single PTY session across multiple invocations.
-        ~2s latency vs ~15-20s for subprocess mode.
-
-        Args:
-            context: Context markdown
-
-        Returns:
-            Dict structured NEXUS response
-        """
-        # Ensure PTY is started
-        if not self._ensure_pty_started():
-            raise RuntimeError("Failed to start persistent PTY")
-
-        start_time = time.time()
-        print(f"[DEBUG] Invoking Gemini (PTY persistent): {self.model}", file=sys.stderr)
-
-        try:
-            # Send prompt via PTY and wait for response
-            raw_response = self._pty_instance.send_prompt(context, timeout=self.timeout)
-
-            elapsed = time.time() - start_time
-            print(f"[DEBUG] PTY response received in {elapsed:.1f}s", file=sys.stderr)
-
-            # Extract JSON from response
-            return self._extract_json(raw_response)
-
-        except Exception as e:
-            # PTY might have died, close it for next retry
-            print(f"[WARNING] PTY invocation failed: {e}", file=sys.stderr)
-            self._close_pty()
-            raise
-
-    def _invoke_persistent(self, context: str) -> Dict:
-        """
-        Invoke Gemini using persistent process (legacy).
-
-        Args:
-            context: Context markdown
-
-        Returns:
-            Dict structured NEXUS response
-        """
-        print(f"[DEBUG] Invoking Gemini (persistent): {self.model}", file=sys.stderr)
-
-        # Send prompt and get response (with retry)
-        raw_response = self._persistent_process.send_prompt_safe(context)
-
-        # Extract JSON from response
-        return self._extract_json(raw_response)
+    # NOTE: PTY and legacy persistent methods removed in V7.6 cleanup
+    # See: docs/archive/pty_mode_v7_archived.py
 
     def _invoke_subprocess(
         self,

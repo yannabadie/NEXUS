@@ -67,16 +67,15 @@ class OrchestratorState(Enum):
     """
 
     # ====================================================================
-    # HYBRID SWARM STATES (Sprint 9) - RESERVED FOR FUTURE USE
+    # HYBRID SWARM STATES (Sprint 9) - ACTIVE
     # ====================================================================
-    # NOTE V7.5: Ces états existent mais ne sont PAS utilisés dans le flux actuel.
-    # Le swarm fonctionne via process_with_swarm() qui bypasse le FSM.
-    # Ces états sont conservés pour une future intégration FSM complète.
-    # Pour utiliser le swarm: /swarm <task> ou SWARM_AUTO_ROUTE=True
+    # V7.6: Ces états sont ACTIFS et utilisés par /swarm et /swarm-fsm.
+    # Transitions définies dans TRANSITION_MATRIX.
+    # Usage: /swarm <task> ou SWARM_AUTO_ROUTE=True dans .env
 
     SWARM_ANALYZING = auto()
     """
-    [RESERVED] Swarm Engine analyse la tâche utilisateur:
+    [ACTIVE] Swarm Engine analyse la tâche utilisateur:
     - Déterminer la complexité (TRIVIAL → EXPERT)
     - Identifier les domaines (CODING, RESEARCH, etc.)
     - Calculer les scores de fit Gemini/Claude
@@ -84,7 +83,7 @@ class OrchestratorState(Enum):
 
     SWARM_NEGOTIATING = auto()
     """
-    [RESERVED] Agents négocient le mode de collaboration optimal:
+    [ACTIVE] Agents négocient le mode de collaboration optimal:
     - Débat en langage naturel avec <negotiate> JSON
     - Maximum 4 tours de négociation
     - Consensus ou fallback vers mode initial
@@ -92,7 +91,7 @@ class OrchestratorState(Enum):
 
     SWARM_EXECUTING = auto()
     """
-    [RESERVED] Exécution du mode de collaboration négocié:
+    [ACTIVE] Exécution du mode de collaboration négocié:
     - PARALLEL: Travail simultané
     - SEQUENTIAL: Enchaînement ordonné
     - LEAD_SUPPORT: Lead + Support

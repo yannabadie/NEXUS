@@ -160,12 +160,7 @@ class MockConfig(Config):
         # Fast Path
         self.fast_path_enabled = True
 
-        # Gemini persistence
-        self.gemini_pty_mode = False
-        self.gemini_pty_startup_timeout = 60
-        self.gemini_pty_timeout = 300
-        self.gemini_pty_idle_timeout = 5
-        self.gemini_pty_max_restarts = 3
+        # Gemini persistence (PTY removed in V7.6)
         self.gemini_persistent_mode = True
         self.gemini_approval_mode = "yolo"
         self.gemini_stream_json = True

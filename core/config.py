@@ -196,22 +196,8 @@ class Config:
         # Bypasses FSM entirely for greetings, thanks, etc. Target: <2s response
         self.fast_path_enabled: bool = os.getenv("FAST_PATH_ENABLED", "True").lower() == "true"
 
-        # ====================================================================
-        # GEMINI PTY MODE (V7 Sprint 13) - DISABLED
-        # ====================================================================
-        # PTY mode is DISABLED because Gemini's TUI doesn't accept input via PTY stdin.
-        # The --prompt-interactive flag works for initial prompt only.
-        # For multi-turn conversations, use subprocess mode with --resume latest instead.
-        #
-        # - False (DEFAULT): Use subprocess mode with --resume latest (~5s latency)
-        # - True: Attempt PTY mode (experimental, single-turn only)
-        self.gemini_pty_mode: bool = os.getenv("GEMINI_PTY_MODE", "False").lower() == "true"
-
-        # PTY timeouts (seconds)
-        self.gemini_pty_startup_timeout: float = float(os.getenv("GEMINI_PTY_STARTUP_TIMEOUT", "60"))
-        self.gemini_pty_timeout: float = float(os.getenv("GEMINI_PTY_TIMEOUT", "300"))
-        self.gemini_pty_idle_timeout: float = float(os.getenv("GEMINI_PTY_IDLE_TIMEOUT", "5"))
-        self.gemini_pty_max_restarts: int = int(os.getenv("GEMINI_PTY_MAX_RESTARTS", "3"))
+        # NOTE: PTY mode removed in V7.6 (never worked)
+        # See: docs/archive/pty_mode_v7_archived.py
 
         # ====================================================================
         # TELEMETRY (V7 Sprint 10)

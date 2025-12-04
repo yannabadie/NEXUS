@@ -1983,12 +1983,12 @@ User objective: {objective}
         return f"[Tool: {result.tool_name}] {result.status} - {result.output[:100]}"
 
     def _validate_message(self, response: Dict, expect_heavy: bool = False) -> Dict:
-        """Validate and parse message with Pydantic"""
+        """Validate and parse message with Pydantic V2"""
         try:
             if expect_heavy or response.get("action_type") == "TOOL_USE":
-                return HeavyMessageV7(**response).dict()
+                return HeavyMessageV7(**response).model_dump()
             else:
-                return LightMessageV7(**response).dict()
+                return LightMessageV7(**response).model_dump()
         except ValidationError as e:
             raise ValueError(f"Invalid message schema: {e}")
 

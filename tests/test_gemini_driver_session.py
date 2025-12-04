@@ -33,7 +33,6 @@ class MockConfig:
         self.timeout = 30
         self.gemini_default_model = "gemini-3-pro-preview"
         self.gemini_persistent_mode = True
-        self.gemini_pty_mode = False
 
 
 class TestGeminiDriverSessionUUID(TestCase):
