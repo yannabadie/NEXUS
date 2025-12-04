@@ -1,6 +1,6 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.5.3 | **Status**: Active | **Last Updated**: 2025-12-03
+**Version**: 7.5.4 | **Status**: Active | **Last Updated**: 2025-12-04
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
 
 ---
@@ -164,34 +164,81 @@ def process_turn(self, user_input: str):
 > **Contexte industrie**: "Independent Branches: Sub-agents operate in isolated execution
 > paths with no automatic sharing of conversation history" (Google ADK)
 
+#### Résultats Tests CLI (2025-12-04)
+
+| Méthode | Commande | Résultat |
+|---------|----------|----------|
+| `--resume latest` | `gemini --resume latest` | ✅ Fonctionne (mais context bleeding) |
+| `--resume <index>` | `gemini --resume 1` | ✅ Fonctionne - session resumée |
+| `--resume <UUID>` | `gemini --resume cc74e0e6-...` | ❌ **NE FONCTIONNE PAS** - Hang |
+
+> **IMPORTANT**: Gemini CLI ne supporte **PAS** le resume par UUID direct.
+> Seuls `latest` et les **index numériques** (1, 2, 3...) fonctionnent.
+
 **Architecture Session Management**:
 ```
 ~/.gemini/tmp/<project_hash>/chats/
 ├── <session-uuid-1>.json  ← Task: "Analyse core/swarm"
 ├── <session-uuid-2>.json  ← Task: "Fibonacci function"
 └── <session-uuid-3>.json  ← Agent: sql_expert parallel work
+
+gemini --list-sessions →
+  1. Session Title [uuid-1]  ← Index = 1
+  2. Session Title [uuid-2]  ← Index = 2
 ```
 
-**Stratégie d'isolation**:
+**Stratégie d'isolation RÉVISÉE** (basée sur tests 2025-12-04):
+
+**Option A: FRESH Mode (Recommandée - Simple)**
 ```python
-# Chaque tâche Swarm = nouvelle session UUID
 class SwarmSessionManager:
-    def create_session(self, task_id: str) -> str:
-        """Génère un UUID unique pour cette tâche"""
-        return f"swarm_{task_id}_{uuid.uuid4().hex[:8]}"
+    """Stratégie: Nouvelles sessions sans resume pour chaque tâche Swarm"""
 
-    def get_resume_flag(self, session_id: str) -> str:
-        """Retourne --resume <session> ou '' pour nouvelle session"""
-        if self._session_exists(session_id):
-            return f"--resume {self._get_session_index(session_id)}"
-        return ""  # Fresh session
+    def get_resume_flag(self, context: str) -> str:
+        if context == "BRAINSTORM":
+            return "--resume latest"  # Continuité conversation
+        elif context == "SWARM_TASK":
+            return ""  # PAS de resume = nouvelle session isolée
+        return ""
 ```
+→ Avantage: Simple, isolation garantie
+→ Inconvénient: Pas de continuité intra-tâche
+
+**Option B: Index-Based Resume (Complexe)**
+```python
+class SwarmSessionManager:
+    """Stratégie: Mapping UUID → Index via parsing --list-sessions"""
+
+    def __init__(self, workspace: Path):
+        self.registry = workspace / ".nexus" / "session_registry.json"
+        self._session_index_cache = {}
+
+    def register_session(self, task_id: str) -> int:
+        """Parse --list-sessions, trouve le dernier index pour ce task_id"""
+        output = subprocess.run(["gemini", "--list-sessions"], capture_output=True)
+        # Parse: "1. Task description [uuid-xxx]" → extract index
+        new_index = self._find_latest_index(output.stdout)
+        self._session_index_cache[task_id] = new_index
+        return new_index
+
+    def get_resume_flag(self, task_id: str) -> str:
+        if task_id in self._session_index_cache:
+            return f"--resume {self._session_index_cache[task_id]}"
+        return ""
+```
+→ Avantage: Permet continuité multi-tour par tâche
+→ Inconvénient: Race conditions si plusieurs sessions en parallèle
+
+**Décision: Option A (FRESH Mode) pour V7.5.3**
+- Simple et fiable
+- Isolation 100% garantie
+- Option B explorée pour V7.6 si besoin de continuité
 
 **Implémentation** (`core/drivers/gemini_driver_v7.py`):
-- [ ] `SwarmSessionManager` - Gestionnaire de sessions par tâche
-- [ ] `session_registry.json` - Mapping task_id → session_uuid
-- [ ] Modifier `_build_command()` pour utiliser session spécifique
-- [ ] Ne PAS utiliser `--resume latest` pour Swarm (seulement brainstorm continu)
+- [ ] Ajouter paramètre `session_mode: Literal["BRAINSTORM", "SWARM_TASK"]`
+- [ ] `BRAINSTORM` → `--resume latest` (comportement actuel)
+- [ ] `SWARM_TASK` → Pas de `--resume` (nouvelle session isolée)
+- [ ] Ne PAS utiliser `--resume latest` pour Swarm
 
 **Implémentation** (`core/swarm/hybrid_swarm_engine.py`):
 - [ ] Générer `task_id` unique au début de `process_task()`
@@ -262,15 +309,18 @@ async def execute_parallel(agents, task):
 
    → Sauvegarder état session avant fallback de mode
 
-5. **Ordre d'implémentation**:
+5. **Ordre d'implémentation (Option A - FRESH Mode)**:
    ```
-   Étape 1: SwarmSessionManager (core/swarm/session_manager.py) [NOUVEAU]
-   Étape 2: Modifier GeminiDriverV7._build_command() pour session_id
-   Étape 3: Modifier HybridSwarmEngine.process_task() pour générer task_id
-   Étape 4: Intégrer dans mode_executors.py pour PARALLEL
-   Étape 5: Tests d'isolation
-   Étape 6: Commands /session list|clear
+   Étape 1: Ajouter session_mode param à GeminiDriverV7._build_command() [SIMPLE]
+           → if session_mode == "SWARM_TASK": remove --resume flag
+   Étape 2: Modifier HybridSwarmEngine.process_task() pour passer session_mode
+           → driver.call(prompt, session_mode="SWARM_TASK")
+   Étape 3: Modifier mode_executors.py pour PARALLEL (chaque agent = SWARM_TASK)
+   Étape 4: Tests d'isolation (2 tâches séquentielles sans context bleeding)
+   Étape 5: [V7.6] Option B si continuité intra-tâche nécessaire
    ```
+
+   **Effort révisé**: 1-2 jours (au lieu de 3-4)
 
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
@@ -452,3 +502,4 @@ V8.0 (Mars 2026)
 ### Contributions Internes
 - **Phase 5b & Phase 8**: Propositions architecturales Gemini (2025-12-03)
 - **Phase 5 Implémentation**: Claude (2025-12-03) - SpawnedAgentLoader, SPECIALIST support
+- **Phase 7 Tests CLI**: Claude (2025-12-04) - Découverte UUID non supporté, stratégie FRESH Mode
