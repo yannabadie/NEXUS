@@ -1602,22 +1602,21 @@ V7.5.6 (Décembre 2025) ← CURRENT
 └─[COMPLETED] Phase 9: Fast Path ⚡
     └── Bypass FSM pour requêtes triviales ✅ COMPLETED
 
-V7.6 (Janvier 2026) - STARTED
-├── [COMPLETED] Phase 10a: Auto-Memory Storage
-│   ├── SuccessMemory class ✅
-│   ├── AtomicJsonStore integration ✅
-│   └── HybridSwarmEngine hook ✅
-├── [COMPLETED] Phase 10b: Memory-Augmented Mode Selection
-│   ├── Jaccard Similarity Search ✅
-│   ├── ModeSelector Integration ✅
-│   └── Memory Boost (HIGH/MEDIUM/LOW tiers) ✅
-├── [COMPLETED] Phase 12.3: MCP Client (CORTEX)
-│   ├── core/mcp/protocol.py - JSON-RPC 2.0 types ✅
-│   ├── core/mcp/client.py - MCPClient (stdio) ✅
-│   ├── core/mcp/registry.py - ServerConfig loader ✅
-│   └── ToolManager integration (mcp_{server}_{tool}) ✅
-├── [COMPLETED] Phase 10d: Session-Aware Agent Selection
-└── Phase 13a-d: Dormant Features (GoT, /workspace, Telemetry, AutoMemory link)
+V7.6 (Janvier 2026) - COMPLETED ✅
+├── [COMPLETED] Phase 10a: Auto-Memory Storage ✅
+├── [COMPLETED] Phase 10b: Memory-Augmented Mode Selection ✅
+├── [COMPLETED] Phase 12.3: MCP Client (CORTEX) ✅
+├── [COMPLETED] Phase 10d: Session-Aware Agent Selection ✅
+├── [COMPLETED] Phase 13b: Workspace Commands ✅
+└── [COMPLETED] Phase 13c: Telemetry Export ✅
+
+V7.7 (Février 2026) - NEXT STEPS
+├── Phase 13a: Graph of Thought (GoT) Reactivation
+├── Phase 13e: Global Registry Migration
+├── Phase 11: Extended Swarm Modes
+├── Phase 12.4: Symmetric MCP Bridges
+├── Phase 12.5: Dynamic Tool Generation
+└── Phase 10c: Semantic Retrieval (si nécessaire)
 
 V7.7 (Février 2026)
 ├── Phase 11: Extended Swarm Modes
