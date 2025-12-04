@@ -29,6 +29,14 @@ from .collaboration_modes import CollaborationMode
 from .session_manager import SwarmSessionManager, generate_task_id
 from .task_analyzer import TaskAnalyzer, TaskAnalysis
 from .mode_selector import ModeSelector, ModeProposal
+
+# V7.6 Phase 10a: Success Memory (lazy import to avoid circular deps)
+_SUCCESS_MEMORY_AVAILABLE = False
+try:
+    from ..memory.success_memory import SuccessMemory
+    _SUCCESS_MEMORY_AVAILABLE = True
+except ImportError:
+    SuccessMemory = None
 from .negotiation_protocol import (
     NegotiationProtocol,
     NegotiationResult,
@@ -142,6 +150,12 @@ class HybridSwarmEngine:
             self.session_manager = SwarmSessionManager(workspace_path)
         else:
             self.session_manager = None
+
+        # V7.6 Phase 10a: Success Memory
+        if workspace_path and _SUCCESS_MEMORY_AVAILABLE and SuccessMemory:
+            self.success_memory = SuccessMemory(workspace_path)
+        else:
+            self.success_memory = None
 
         # Components
         self.task_analyzer = TaskAnalyzer()
@@ -290,6 +304,18 @@ class HybridSwarmEngine:
 
             # Record history
             self._record_processing(result)
+
+            # V7.6 Phase 10a: Record success to memory
+            if self.success_memory and execution_result.status == ExecutionStatus.COMPLETED:
+                try:
+                    self.success_memory.record_success(
+                        task_id=task_id,
+                        analysis=analysis,
+                        result=result
+                    )
+                except Exception as mem_err:
+                    # Don't fail the task due to memory recording error
+                    pass
 
             # V7.5 Phase 7: Mark task as completed
             if self.session_manager:

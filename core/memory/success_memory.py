@@ -1,0 +1,513 @@
+"""
+SuccessMemory - Phase 10a: Auto-Memory Storage
+
+NEXUS V7.6 HIVE MIND - Learning from successful task executions.
+
+This module provides persistent storage for successful Swarm task executions,
+enabling NEXUS to remember what worked and apply similar strategies to future tasks.
+
+Storage:
+    Uses AtomicJsonStore for thread-safe persistence to workspace/memory/successes.json
+    (V7.6 decision: JSON list instead of JSONL for simplicity and thread-safety)
+
+Schema per entry:
+    - task_id: Unique task identifier
+    - task_hash: Hash of task description (for similarity matching in Phase 10b)
+    - description: Original task description (for semantic search)
+    - swarm_mode: CollaborationMode used
+    - agents_used: List of agent IDs that participated
+    - duration_seconds: Total execution time
+    - complexity: TaskComplexity level
+    - domains: List of detected task domains
+    - quality_score: Execution quality (0.0-1.0, if available)
+    - timestamp: ISO timestamp of completion
+
+Author: Claude (NEXUS V7.6)
+Date: 2025-12-04
+"""
+
+from __future__ import annotations
+
+import hashlib
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from ..utils.atomic_store import AtomicJsonStore
+
+
+@dataclass
+class SuccessEntry:
+    """
+    A single success record in memory.
+
+    Contains all metadata about a successfully completed Swarm task.
+    """
+    task_id: str
+    task_hash: str
+    description: str
+    swarm_mode: str
+    agents_used: List[str]
+    duration_seconds: float
+    complexity: str
+    domains: List[str]
+    quality_score: float
+    timestamp: str
+
+    # Optional extended metadata
+    primary_domain: Optional[str] = None
+    negotiation_turns: Optional[int] = None
+    execution_rounds: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON storage."""
+        return {
+            "task_id": self.task_id,
+            "task_hash": self.task_hash,
+            "description": self.description,
+            "swarm_mode": self.swarm_mode,
+            "agents_used": self.agents_used,
+            "duration_seconds": round(self.duration_seconds, 2),
+            "complexity": self.complexity,
+            "domains": self.domains,
+            "quality_score": round(self.quality_score, 3),
+            "timestamp": self.timestamp,
+            "primary_domain": self.primary_domain,
+            "negotiation_turns": self.negotiation_turns,
+            "execution_rounds": self.execution_rounds
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SuccessEntry":
+        """Create from dictionary."""
+        return cls(
+            task_id=data.get("task_id", ""),
+            task_hash=data.get("task_hash", ""),
+            description=data.get("description", ""),
+            swarm_mode=data.get("swarm_mode", ""),
+            agents_used=data.get("agents_used", []),
+            duration_seconds=data.get("duration_seconds", 0.0),
+            complexity=data.get("complexity", "UNKNOWN"),
+            domains=data.get("domains", []),
+            quality_score=data.get("quality_score", 0.0),
+            timestamp=data.get("timestamp", ""),
+            primary_domain=data.get("primary_domain"),
+            negotiation_turns=data.get("negotiation_turns"),
+            execution_rounds=data.get("execution_rounds")
+        )
+
+
+class SuccessMemory:
+    """
+    Thread-safe storage for successful Swarm task executions.
+
+    Uses AtomicJsonStore to persist success records for future retrieval.
+    Phase 10b will add TF-IDF search over this data.
+    Phase 10c will add semantic retrieval with embeddings.
+
+    Attributes:
+        filepath: Path to the JSON storage file.
+        max_entries: Maximum entries to keep (FIFO eviction).
+
+    Example:
+        >>> memory = SuccessMemory(workspace_path=Path("workspace"))
+        >>> memory.record_success(task_id, analysis, result)
+        >>> entries = memory.get_all()
+    """
+
+    DEFAULT_MAX_ENTRIES = 10000
+
+    def __init__(
+        self,
+        workspace_path: Path,
+        max_entries: int = DEFAULT_MAX_ENTRIES
+    ) -> None:
+        """
+        Initialize SuccessMemory.
+
+        Args:
+            workspace_path: Path to workspace root.
+            max_entries: Maximum entries to store (oldest evicted first).
+        """
+        self.workspace_path = Path(workspace_path)
+        self.max_entries = max_entries
+
+        # Ensure memory directory exists
+        memory_dir = self.workspace_path / "memory"
+        memory_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize atomic store
+        self._store = AtomicJsonStore(memory_dir / "successes.json")
+
+    @property
+    def filepath(self) -> Path:
+        """Return the path to the storage file."""
+        return self._store.filepath
+
+    def _compute_task_hash(self, description: str) -> str:
+        """
+        Compute a hash of the task description.
+
+        Used for quick similarity matching in Phase 10b.
+        Normalizes whitespace and case for better matching.
+
+        Args:
+            description: Task description text.
+
+        Returns:
+            SHA-256 hash (first 16 characters).
+        """
+        normalized = " ".join(description.lower().split())
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+    def record_success(
+        self,
+        task_id: str,
+        analysis: Any,  # TaskAnalysis
+        result: Any,    # ExecutionResult or SwarmResult
+        quality_score: Optional[float] = None
+    ) -> SuccessEntry:
+        """
+        Record a successful task execution.
+
+        Extracts metadata from TaskAnalysis and ExecutionResult,
+        then persists to storage.
+
+        Args:
+            task_id: Unique task identifier.
+            analysis: TaskAnalysis from the Swarm Engine.
+            result: ExecutionResult or SwarmResult from execution.
+            quality_score: Optional quality score (0.0-1.0).
+                          If not provided, estimated from result.
+
+        Returns:
+            The created SuccessEntry.
+        """
+        # Extract task description
+        description = getattr(analysis, "raw_input", str(analysis))
+        if hasattr(analysis, "raw_input") and analysis.raw_input:
+            description = analysis.raw_input
+
+        # Extract complexity
+        complexity = "UNKNOWN"
+        if hasattr(analysis, "complexity"):
+            complexity = (
+                analysis.complexity.name
+                if hasattr(analysis.complexity, "name")
+                else str(analysis.complexity)
+            )
+
+        # Extract domains
+        domains = []
+        if hasattr(analysis, "domains"):
+            domains = [
+                d.value if hasattr(d, "value") else str(d)
+                for d in analysis.domains
+            ]
+
+        # Extract primary domain
+        primary_domain = None
+        if hasattr(analysis, "primary_domain") and analysis.primary_domain:
+            primary_domain = (
+                analysis.primary_domain.value
+                if hasattr(analysis.primary_domain, "value")
+                else str(analysis.primary_domain)
+            )
+
+        # Extract mode from result
+        swarm_mode = "UNKNOWN"
+        if hasattr(result, "selected_mode"):
+            # SwarmResult
+            swarm_mode = (
+                result.selected_mode.value
+                if hasattr(result.selected_mode, "value")
+                else str(result.selected_mode)
+            )
+        elif hasattr(result, "mode"):
+            # ExecutionResult
+            swarm_mode = (
+                result.mode.value
+                if hasattr(result.mode, "value")
+                else str(result.mode)
+            )
+
+        # Extract agents used
+        agents_used = []
+        if hasattr(result, "execution_result") and hasattr(result.execution_result, "agent_outputs"):
+            # SwarmResult
+            agents_used = list(set(
+                ao.agent_id for ao in result.execution_result.agent_outputs
+            ))
+        elif hasattr(result, "agent_outputs"):
+            # ExecutionResult
+            agents_used = list(set(
+                ao.agent_id for ao in result.agent_outputs
+            ))
+
+        # Extract duration
+        duration = 0.0
+        if hasattr(result, "total_time_seconds"):
+            duration = result.total_time_seconds
+
+        # Extract execution rounds
+        execution_rounds = None
+        if hasattr(result, "execution_result") and hasattr(result.execution_result, "total_rounds"):
+            execution_rounds = result.execution_result.total_rounds
+        elif hasattr(result, "total_rounds"):
+            execution_rounds = result.total_rounds
+
+        # Extract negotiation turns
+        negotiation_turns = None
+        if hasattr(result, "negotiation_result") and result.negotiation_result:
+            if hasattr(result.negotiation_result, "total_turns"):
+                negotiation_turns = result.negotiation_result.total_turns
+
+        # Estimate quality score if not provided
+        if quality_score is None:
+            quality_score = self._estimate_quality(result)
+
+        # Create entry
+        entry = SuccessEntry(
+            task_id=task_id,
+            task_hash=self._compute_task_hash(description),
+            description=description[:500],  # Truncate very long descriptions
+            swarm_mode=swarm_mode,
+            agents_used=agents_used,
+            duration_seconds=duration,
+            complexity=complexity,
+            domains=domains,
+            quality_score=quality_score,
+            timestamp=datetime.now().isoformat(),
+            primary_domain=primary_domain,
+            negotiation_turns=negotiation_turns,
+            execution_rounds=execution_rounds
+        )
+
+        # Persist
+        self._append_entry(entry)
+
+        return entry
+
+    def _estimate_quality(self, result: Any) -> float:
+        """
+        Estimate quality score from result.
+
+        Heuristics:
+        - COMPLETED status = base 0.7
+        - Fewer rounds = higher quality (efficient)
+        - No errors = +0.1
+        - Agent completion signals = +0.1
+        """
+        score = 0.5  # Base
+
+        # Check status
+        status = None
+        if hasattr(result, "status"):
+            status = (
+                result.status.value
+                if hasattr(result.status, "value")
+                else str(result.status)
+            )
+
+        if status in ("completed", "COMPLETED", "converged", "CONVERGED"):
+            score = 0.7
+
+        # Bonus for efficiency (fewer rounds = better)
+        rounds = None
+        if hasattr(result, "execution_result") and hasattr(result.execution_result, "total_rounds"):
+            rounds = result.execution_result.total_rounds
+        elif hasattr(result, "total_rounds"):
+            rounds = result.total_rounds
+
+        if rounds is not None:
+            if rounds <= 2:
+                score += 0.15
+            elif rounds <= 4:
+                score += 0.1
+            elif rounds <= 6:
+                score += 0.05
+
+        # Check for errors in agent outputs
+        agent_outputs = []
+        if hasattr(result, "execution_result") and hasattr(result.execution_result, "agent_outputs"):
+            agent_outputs = result.execution_result.agent_outputs
+        elif hasattr(result, "agent_outputs"):
+            agent_outputs = result.agent_outputs
+
+        has_errors = any(
+            getattr(ao, "error", None) or getattr(ao, "status", "") == "error"
+            for ao in agent_outputs
+        )
+
+        if not has_errors and agent_outputs:
+            score += 0.1
+
+        return min(1.0, score)
+
+    def _append_entry(self, entry: SuccessEntry) -> None:
+        """
+        Append entry to storage with FIFO eviction.
+
+        Thread-safe via AtomicJsonStore.
+        """
+        data = self._store.load_safe({"entries": []})
+        entries = data.get("entries", [])
+
+        # Append new entry
+        entries.append(entry.to_dict())
+
+        # FIFO eviction if over limit
+        if len(entries) > self.max_entries:
+            entries = entries[-self.max_entries:]
+
+        # Update metadata
+        data["entries"] = entries
+        data["_meta"] = {
+            "count": len(entries),
+            "last_updated": datetime.now().isoformat(),
+            "version": "10a"
+        }
+
+        self._store.save(data)
+
+    def get_all(self) -> List[SuccessEntry]:
+        """
+        Get all success entries.
+
+        Returns:
+            List of SuccessEntry objects, oldest first.
+        """
+        data = self._store.load_safe({"entries": []})
+        return [
+            SuccessEntry.from_dict(e)
+            for e in data.get("entries", [])
+        ]
+
+    def get_recent(self, limit: int = 10) -> List[SuccessEntry]:
+        """
+        Get most recent success entries.
+
+        Args:
+            limit: Maximum entries to return.
+
+        Returns:
+            List of SuccessEntry objects, most recent first.
+        """
+        entries = self.get_all()
+        return list(reversed(entries[-limit:]))
+
+    def get_by_mode(self, mode: str) -> List[SuccessEntry]:
+        """
+        Get entries filtered by Swarm mode.
+
+        Args:
+            mode: CollaborationMode value (e.g., "ping_pong").
+
+        Returns:
+            List of matching SuccessEntry objects.
+        """
+        return [
+            e for e in self.get_all()
+            if e.swarm_mode.lower() == mode.lower()
+        ]
+
+    def get_by_domain(self, domain: str) -> List[SuccessEntry]:
+        """
+        Get entries filtered by task domain.
+
+        Args:
+            domain: TaskDomain value (e.g., "coding").
+
+        Returns:
+            List of matching SuccessEntry objects.
+        """
+        return [
+            e for e in self.get_all()
+            if domain.lower() in [d.lower() for d in e.domains]
+        ]
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about stored successes.
+
+        Returns:
+            Dictionary with counts, mode distribution, etc.
+        """
+        entries = self.get_all()
+
+        if not entries:
+            return {
+                "total_entries": 0,
+                "mode_distribution": {},
+                "domain_distribution": {},
+                "avg_duration_seconds": 0.0,
+                "avg_quality_score": 0.0
+            }
+
+        # Mode distribution
+        mode_counts: Dict[str, int] = {}
+        for e in entries:
+            mode_counts[e.swarm_mode] = mode_counts.get(e.swarm_mode, 0) + 1
+
+        # Domain distribution
+        domain_counts: Dict[str, int] = {}
+        for e in entries:
+            for d in e.domains:
+                domain_counts[d] = domain_counts.get(d, 0) + 1
+
+        # Averages
+        avg_duration = sum(e.duration_seconds for e in entries) / len(entries)
+        avg_quality = sum(e.quality_score for e in entries) / len(entries)
+
+        return {
+            "total_entries": len(entries),
+            "mode_distribution": mode_counts,
+            "domain_distribution": domain_counts,
+            "avg_duration_seconds": round(avg_duration, 2),
+            "avg_quality_score": round(avg_quality, 3)
+        }
+
+    def clear(self) -> int:
+        """
+        Clear all entries.
+
+        Returns:
+            Number of entries cleared.
+        """
+        data = self._store.load_safe({"entries": []})
+        count = len(data.get("entries", []))
+
+        self._store.save({
+            "entries": [],
+            "_meta": {
+                "count": 0,
+                "last_updated": datetime.now().isoformat(),
+                "version": "10a",
+                "cleared": True
+            }
+        })
+
+        return count
+
+
+# Module-level singleton for convenience
+_default_memory: Optional[SuccessMemory] = None
+
+
+def get_success_memory(workspace_path: Optional[Path] = None) -> Optional[SuccessMemory]:
+    """
+    Get the default SuccessMemory instance.
+
+    Args:
+        workspace_path: Required on first call to initialize.
+
+    Returns:
+        SuccessMemory instance, or None if not initialized.
+    """
+    global _default_memory
+
+    if _default_memory is None and workspace_path is not None:
+        _default_memory = SuccessMemory(workspace_path)
+
+    return _default_memory
