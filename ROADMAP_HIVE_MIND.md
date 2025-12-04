@@ -1,7 +1,8 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.5.4 | **Status**: Active | **Last Updated**: 2025-12-04
+**Version**: 7.5.5 | **Status**: Active | **Last Updated**: 2025-12-04
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
+**Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
 
 ---
 
@@ -27,6 +28,55 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
                     │
             SPAWNED AGENTS
      Spécialistes générés et orchestrés
+```
+
+---
+
+## 1.1 Analyse Croisée Gemini + Claude (2025-12-04)
+
+> **Méthode**: Gemini et Claude ont analysé indépendamment la roadmap et la codebase,
+> puis leurs conclusions ont été fusionnées. Cette section documente les convergences
+> et les idées uniques de chaque agent.
+
+### Convergences Validées (Consensus)
+
+| Point | Gemini | Claude | Statut |
+|-------|--------|--------|--------|
+| Phase 7 = CRITIQUE (Priorité #1) | ✅ "Socle de tout le reste" | ✅ "Priorité #1" | **CONSENSUS** |
+| Mapping Task+Role→UUID | ✅ "Registry Intelligent" | ✅ Proposé identique | **CONSENSUS** |
+| Phase 5b = Bloquant | ✅ "Agent Factory bloquée" | ✅ "Hardcoded lookups" | **CONSENSUS** |
+| Shared Memory Files | ✅ "Fichiers > JSON prompt" | ✅ "Protocole 2" | **CONSENSUS** |
+| Agent-as-Tool | ✅ "Architecture Fractale" | ✅ "Phase 12.4" | **CONSENSUS** |
+| Cleanup Sessions | ✅ "Saturation ~/.gemini/tmp" | ✅ "session_retention_hours" | **CONSENSUS** |
+
+### Idées Uniques Gemini 🤖
+
+| Idée | Description | Phase Cible |
+|------|-------------|-------------|
+| **Mode EPHEMERAL** | Sessions one-shot sans persistence pour tâches triviales | Phase 7 |
+| **Checkpointing** | Snapshot état avant exécution pour retry propre | Phase 8 |
+| **Dynamic Tool Generation** | Scripts Python jetables générés à la volée | Phase 12.5 |
+| **Économie de Tokens** | Fichiers Markdown > JSON dans prompt système | Phase 7 |
+| **Debuggabilité Humaine** | Shared Memory lisible par humain | Phase 7 |
+
+### Idées Uniques Claude 🧠
+
+| Idée | Description | Phase Cible |
+|------|-------------|-------------|
+| **Spawned Agent Session Persistence** | UUID persistant dans BIRTH_CERTIFICATE.json | Phase 7 |
+| **Session Metrics pour DyLAN** | Tracker succès par type de session | Phase 10 |
+| **Hot-Swap Lead Agent** | Handover mid-execution si stagnation détectée | Phase 8 |
+| **Session Branching PARALLEL** | `--fork-session` Claude pour branches isolées | Phase 7 |
+
+### Fusion des Idées → SessionMode Enrichi
+
+```python
+class SessionMode(Enum):
+    """Modes de session unifiés (Gemini + Claude analysis)"""
+    FRESH = "fresh"           # Nouvelle session, pas de resume
+    CONTINUE = "continue"     # Resume session existante (brainstorm)
+    BRANCH = "branch"         # Fork depuis parent (Claude --fork-session)
+    EPHEMERAL = "ephemeral"   # ⬅️ GEMINI: One-shot, PAS de persistence
 ```
 
 ---
@@ -103,6 +153,7 @@ claude = next((a for a in agents if "claude" in a.agent_id.lower()), None)
 **Objectif**: Fallback automatique de MODE en cas d'échec
 **Effort**: 3-4 jours
 **Source**: Analyse architecturale Gemini (2025-12-03) + [AWS Strands Patterns](https://aws.amazon.com/blogs/machine-learning/multi-agent-collaboration-patterns-with-strands-agents-and-amazon-nova/)
+**Enrichi**: Gemini+Claude collab (2025-12-04) - Checkpointing + Hot-Swap
 
 > **Contexte industrie**: "Graceful degradation from complex to simple patterns" est un
 > best practice validé (AWS, IEEE). NEXUS a un failover AGENT mais pas de failover MODE.
@@ -121,6 +172,105 @@ claude = next((a for a in agents if "claude" in a.agent_id.lower()), None)
 - [ ] Métadonnées de bascule dans `ExecutionResult`
 - [ ] Log: "Mode PARALLEL échoué, fallback SEQUENTIAL... Succès"
 - [ ] Config: `swarm_fallback_enabled=True` (désactivable)
+
+#### Checkpointing avant Fallback (Gemini proposal 2025-12-04)
+
+> **Problème identifié par Gemini**: Si l'état est corrompu au moment du fallback,
+> le retry échouera aussi. Solution: Checkpoint AVANT exécution.
+
+**Extension SwarmSessionManager**:
+```python
+class SwarmSessionManager:
+    # ... existing methods ...
+
+    def create_checkpoint(self, task_id: str) -> str:
+        """Snapshot état avant exécution risquée"""
+        checkpoint_id = f"checkpoint_{task_id}_{int(time.time())}"
+        task = self._registry["tasks"].get(task_id, {})
+        self._registry["checkpoints"][checkpoint_id] = {
+            "task_state": copy.deepcopy(task),
+            "created_at": datetime.utcnow().isoformat()
+        }
+        self._persist_registry()
+        return checkpoint_id
+
+    def restore_checkpoint(self, checkpoint_id: str) -> bool:
+        """Restore état depuis checkpoint (pour retry propre)"""
+        checkpoint = self._registry["checkpoints"].get(checkpoint_id)
+        if checkpoint:
+            task_id = checkpoint["task_state"].get("task_id")
+            self._registry["tasks"][task_id] = checkpoint["task_state"]
+            self._persist_registry()
+            return True
+        return False
+```
+
+**Utilisation dans ModeExecutor**:
+```python
+def execute_with_fallback(self, context: ExecutionContext) -> ExecutionResult:
+    # CHECKPOINT avant exécution (Gemini proposal)
+    checkpoint = self.session_manager.create_checkpoint(context.task_id)
+
+    try:
+        return self.execute(context)
+    except ExecutionError as e:
+        # RESTORE checkpoint avant fallback (état propre)
+        self.session_manager.restore_checkpoint(checkpoint)
+
+        fallback_mode = self.get_fallback_mode()
+        if fallback_mode:
+            fallback_executor = get_executor(fallback_mode)
+            result = fallback_executor.execute(context)
+            result.status = ExecutionStatus.RECOVERED
+            result.recovery_metadata = {
+                "original_mode": self.mode.value,
+                "fallback_mode": fallback_mode.value,
+                "checkpoint_used": checkpoint
+            }
+            return result
+        raise
+```
+
+#### Hot-Swap Lead Agent (Claude proposal 2025-12-04)
+
+> **Concept**: Si le lead agent stagne, handover dynamique au support
+> qui devient le nouveau lead avec le contexte accumulé.
+
+**Détection de stagnation mid-execution**:
+```python
+def check_lead_stagnation(self, context: ExecutionContext) -> bool:
+    """Détecte si le lead agent est bloqué"""
+    recent_outputs = context.get_recent_outputs(limit=3)
+
+    # Heuristiques de stagnation
+    if len(recent_outputs) >= 3:
+        # 1. Répétition du même contenu
+        if all(o.content == recent_outputs[0].content for o in recent_outputs):
+            return True
+        # 2. Outputs vides ou erreurs consécutives
+        if all(o.status == "error" for o in recent_outputs):
+            return True
+
+    return False
+
+def hot_swap_lead(self, context: ExecutionContext) -> None:
+    """Échange lead/support avec handover de contexte"""
+    # 1. Résumer le contexte du lead actuel
+    summary = self.summarize_context(context.lead_outputs)
+
+    # 2. Handover vers le nouveau lead
+    self.session_manager.context_handover(
+        task_id=context.task_id,
+        from_role="lead",
+        to_role="lead",  # Le support devient lead
+        summary=summary
+    )
+
+    # 3. Swap les agents
+    context.lead_agent, context.support_agent = context.support_agent, context.lead_agent
+
+    logger.info(f"[HOT-SWAP] Lead changé: {context.support_agent.id} → {context.lead_agent.id}")
+```
 
 ### Phase 9: Fast Path (UX) ⚡ [Priorité: HAUTE]
 **Objectif**: Réponses instantanées pour requêtes triviales
@@ -333,12 +483,27 @@ claude --resume {parent_uuid} --fork-session -p "{prompt}"
 - [ ] Adapter appel selon driver (Gemini vs Claude)
 - [ ] `reset()` nettoie aussi le session manager
 
-**Modes de session**:
-| Mode | Comportement | Use Case |
-|------|--------------|----------|
-| `FRESH` | Nouvelle session, pas de resume | Swarm task isolée |
-| `CONTINUE` | Resume session existante | Brainstorm multi-tour |
-| `BRANCH` | Fork depuis session parent | Agent spawned parallèle |
+**Modes de session** (enrichi Gemini+Claude 2025-12-04):
+| Mode | Comportement | Use Case | Source |
+|------|--------------|----------|--------|
+| `FRESH` | Nouvelle session, pas de resume | Swarm task isolée | Original |
+| `CONTINUE` | Resume session existante | Brainstorm multi-tour | Original |
+| `BRANCH` | Fork depuis session parent | Agent spawned parallèle | Claude |
+| `EPHEMERAL` | One-shot, PAS de persistence | Tâches TRIVIAL/SIMPLE | Gemini |
+
+> **EPHEMERAL Mode** (Gemini proposal): Pour éviter la saturation de `~/.gemini/tmp`,
+> les tâches triviales ne créent PAS de session persistante. Gain de performance + propreté.
+
+```python
+def get_session_mode(complexity: TaskComplexity, is_parallel: bool) -> SessionMode:
+    """Sélection automatique du mode de session"""
+    if complexity in [TaskComplexity.TRIVIAL, TaskComplexity.SIMPLE]:
+        return SessionMode.EPHEMERAL  # ⬅️ GEMINI: No persistence
+    elif is_parallel:
+        return SessionMode.BRANCH     # ⬅️ CLAUDE: Fork isolation
+    else:
+        return SessionMode.FRESH      # Default: nouvelle session isolée
+```
 
 #### Protocoles de Handover Cross-Agent (Gemini ↔ Claude)
 
@@ -404,7 +569,71 @@ async def execute_parallel(agents, task):
     return merge_results(results)
 ```
 
-**Cleanup & Lifecycle**:
+#### Session Branching pour PARALLEL Mode (Claude proposal 2025-12-04)
+
+> **Concept**: Utiliser `--fork-session` de Claude pour créer des branches isolées
+> qui peuvent être mergées après exécution parallèle.
+
+```
+Claude --fork-session architecture:
+  Task A ─┬─ Branch 1 (Agent 1) ──┬─ Merge
+          │   session_uuid_1      │
+          └─ Branch 2 (Agent 2) ──┘
+              session_uuid_2
+```
+
+**Implémentation PARALLEL avec fork**:
+```python
+async def execute_parallel_with_branching(task: Task, agents: List[Agent]):
+    # 1. Session parent (contexte initial)
+    parent_session = session_manager.create_session(task.id, "parent", "orchestrator")
+
+    # 2. Fork pour chaque agent (Claude natif, Gemini simulé)
+    branches = {}
+    for agent in agents:
+        if agent.type == "claude":
+            # Claude: fork natif via --fork-session
+            branch_uuid = session_manager.fork_session(parent_session, agent.id)
+        else:
+            # Gemini: fork simulé (nouvelle session + context injection)
+            branch_uuid = session_manager.create_branch(parent_session, agent.id)
+        branches[agent.id] = branch_uuid
+
+    # 3. Exécution parallèle avec branches isolées
+    results = await asyncio.gather(*[
+        invoke_agent(agent, branches[agent.id])
+        for agent in agents
+    ])
+
+    # 4. Merge results
+    return merge_results(results)
+```
+
+#### Spawned Agent Session Persistence (Claude proposal 2025-12-04)
+
+> **Concept**: Les agents spawned peuvent avoir leur propre UUID persistant
+> dans `BIRTH_CERTIFICATE.json`, leur donnant une "mémoire de personnalité".
+
+**Extension BIRTH_CERTIFICATE.json**:
+```json
+{
+  "agent_id": "sql_expert_abc123",
+  "role": "SQL Query Optimization Expert",
+  "birth_date": "2025-12-04T10:30:00Z",
+  "parent_id": "nexus_v7.5",
+  "session_persistence": {
+    "enabled": true,
+    "persistent_uuid": "spawned-sql-expert-uuid",
+    "session_retention_days": 7,
+    "context_summary": "Expert SQL spécialisé en optimisation de requêtes PostgreSQL"
+  }
+}
+```
+
+**Avantage**: L'agent SQL Expert "se souvient" de ses tâches précédentes
+et peut réutiliser le contexte accumulé.
+
+**Cleanup & Lifecycle** (enrichi Gemini+Claude):
 - [ ] Auto-cleanup sessions > 24h
 - [ ] `/session list` - Lister sessions actives
 - [ ] `/session clear` - Nettoyer toutes les sessions Swarm
@@ -480,6 +709,7 @@ async def execute_parallel(agents, task):
 ### Phase 10: Auto-Mémoire des Succès [Priorité: HAUTE]
 **Objectif**: NEXUS se souvient de ce qui a fonctionné
 **Effort**: 1 semaine
+**Enrichi**: Claude proposal (2025-12-04) - Session Metrics pour DyLAN
 
 **Phase 10a: Storage (V7.5.2)**
 - [ ] `workspace/memory/successes.jsonl` - Log des méthodes efficaces
@@ -496,6 +726,94 @@ async def execute_parallel(agents, task):
 - [ ] Upgrade vers `sentence-transformers` (all-MiniLM-L6-v2, 80MB local)
 - [ ] Cosine similarity pour matching sémantique
 - [ ] Seulement si 10b insuffisant
+
+#### Phase 10d: Session Metrics pour DyLAN (Claude proposal 2025-12-04)
+
+> **Concept**: Tracker quelles sessions (et quels modes) mènent aux succès.
+> DyLAN peut alors apprendre "ce type de session réussit mieux avec Gemini lead".
+
+**Extension du schema de succès**:
+```json
+{
+  "task_hash": "abc123",
+  "description": "Optimize SQL query",
+  "swarm_mode": "SPECIALIST",
+  "agents_used": ["sql_expert"],
+  "duration_seconds": 45.2,
+  "success": true,
+  "session_metrics": {
+    "session_uuid": "uuid-xxx-yyy",
+    "session_mode": "FRESH",
+    "lead_agent": "sql_expert",
+    "context_reuse": false,
+    "total_turns": 3,
+    "stagnation_events": 0,
+    "hot_swaps": 0,
+    "checkpoints_used": 0
+  }
+}
+```
+
+**Intégration avec DyLAN**:
+```python
+class SessionAwareDyLAN:
+    """Extension DyLAN avec métriques de session"""
+
+    def update_importance(self, invocation: AgentInvocationResult, session_metrics: dict):
+        """Met à jour les scores en tenant compte du contexte de session"""
+
+        # 1. Score de base (existing DyLAN)
+        base_importance = self._calculate_base_importance(invocation)
+
+        # 2. Bonus/Malus session
+        session_factor = 1.0
+
+        if session_metrics.get("context_reuse"):
+            # L'agent a réutilisé un contexte existant → bonus
+            session_factor *= 1.1
+
+        if session_metrics.get("hot_swaps", 0) > 0:
+            # L'agent a été hot-swappé → malus pour le lead original
+            session_factor *= 0.9
+
+        if session_metrics.get("checkpoints_used", 0) > 0:
+            # Fallback utilisé → mode initial moins fiable
+            session_factor *= 0.95
+
+        # 3. Score final
+        return base_importance * session_factor
+
+    def get_recommendation_with_session(self, task_type: str) -> dict:
+        """Recommande mode + lead en tenant compte de l'historique des sessions"""
+        past_successes = self.memory.query_successes(task_type, limit=10)
+
+        # Analyser les patterns de succès
+        mode_stats = {}
+        for success in past_successes:
+            mode = success.get("swarm_mode")
+            lead = success.get("session_metrics", {}).get("lead_agent")
+            key = f"{mode}:{lead}"
+
+            if key not in mode_stats:
+                mode_stats[key] = {"count": 0, "avg_duration": 0}
+            mode_stats[key]["count"] += 1
+            mode_stats[key]["avg_duration"] += success.get("duration_seconds", 0)
+
+        # Trouver le meilleur pattern
+        best_pattern = max(mode_stats.items(), key=lambda x: x[1]["count"])
+
+        return {
+            "suggested_mode": best_pattern[0].split(":")[0],
+            "suggested_lead": best_pattern[0].split(":")[1],
+            "confidence": best_pattern[1]["count"] / len(past_successes),
+            "avg_duration": best_pattern[1]["avg_duration"] / best_pattern[1]["count"]
+        }
+```
+
+**Avantages**:
+- DyLAN apprend des patterns de session, pas juste des invocations individuelles
+- Hot-Swap devient un signal d'apprentissage
+- Les checkpoints/fallbacks informent les futures décisions de mode
 
 ### Phase 12.3: CORTEX - MCP Client [Priorité: HAUTE]
 **Objectif**: Standardisation des outils via Model Context Protocol
@@ -639,6 +957,112 @@ def select_lead_agent(task_analysis: TaskAnalysis) -> str:
 | Audit sécurité | Gemini (red team) | Claude (blue team) | Adversarial |
 | Architecture design | Négocié | Négocié | Expertise égale |
 
+### Phase 12.5: Dynamic Tool Generation [Priorité: MOYENNE]
+**Objectif**: Génération de scripts Python jetables pour tâches spécifiques
+**Effort**: 1 semaine
+**Source**: Analyse Gemini (2025-12-04) + Anthropic "Code Execution with MCP" pattern
+
+> **Concept Gemini**: NEXUS peut déjà modifier son propre code. Il pourrait générer
+> des outils jetables pour une tâche spécifique, les utiliser, puis les supprimer.
+
+**Pattern "Metaprogramming for Tools"**:
+```python
+class DynamicToolGenerator:
+    """Génère des outils Python jetables pour tâches spécifiques"""
+
+    def __init__(self, workspace: Path):
+        self.tools_dir = workspace / "tools" / "generated"
+        self.tools_dir.mkdir(parents=True, exist_ok=True)
+
+    def generate_tool(self, task_description: str, code: str) -> str:
+        """
+        Génère un script Python jetable et l'enregistre comme outil.
+
+        Args:
+            task_description: Description de la tâche
+            code: Code Python généré par l'agent
+
+        Returns:
+            Nom de l'outil généré
+        """
+        tool_id = f"temp_tool_{uuid.uuid4().hex[:8]}"
+        tool_path = self.tools_dir / f"{tool_id}.py"
+
+        # Wrapper sécurisé pour le code généré
+        wrapper = f'''
+"""
+Generated Tool: {tool_id}
+Task: {task_description}
+Generated: {datetime.utcnow().isoformat()}
+Lifecycle: EPHEMERAL (auto-delete after use)
+"""
+import sys
+from pathlib import Path
+
+def execute(*args, **kwargs):
+    """Execute the generated code in sandboxed context"""
+{textwrap.indent(code, "    ")}
+
+if __name__ == "__main__":
+    result = execute()
+    print(result)
+'''
+        tool_path.write_text(wrapper)
+
+        # Enregistrer dans ToolManager (temporaire)
+        self.tool_manager.register_temp_tool(tool_id, tool_path)
+
+        return tool_id
+
+    def cleanup_tool(self, tool_id: str) -> None:
+        """Supprime l'outil jetable après utilisation"""
+        tool_path = self.tools_dir / f"{tool_id}.py"
+        if tool_path.exists():
+            tool_path.unlink()
+        self.tool_manager.unregister_tool(tool_id)
+```
+
+**Exemple d'utilisation**:
+```
+User: "Analyse les 50 fichiers CSV dans data/ et génère un rapport"
+
+Agent (Gemini): Je vais créer un outil spécialisé pour cette tâche.
+
+<generate_tool name="csv_analyzer">
+import pandas as pd
+from pathlib import Path
+
+def execute():
+    results = []
+    for csv_file in Path("data").glob("*.csv"):
+        df = pd.read_csv(csv_file)
+        results.append({
+            "file": csv_file.name,
+            "rows": len(df),
+            "columns": list(df.columns)
+        })
+    return results
+</generate_tool>
+
+<tool_use name="csv_analyzer"/>
+
+[Résultat: 50 fichiers analysés...]
+
+[Outil csv_analyzer supprimé automatiquement]
+```
+
+**Avantages**:
+- Capacité d'adaptation infinie aux tâches complexes
+- Économie de tokens (code exécuté vs décrit)
+- Réutilisation du pattern Anthropic "Code Execution with MCP"
+
+**Garde-fous**:
+- [ ] Sandbox obligatoire (SandboxPolicy)
+- [ ] Timeout d'exécution (30s max)
+- [ ] Auto-cleanup après exécution
+- [ ] Pas d'accès réseau sauf autorisation explicite
+- [ ] Log de tous les outils générés
+
 ---
 
 ## 4. Phases Futures (V7.7 → V8.0)
@@ -728,18 +1152,33 @@ V8.0 (Mars 2026)
 
 ## 7. Métriques de Succès HIVE MIND
 
-| Métrique | Objectif V7.6 | Objectif V8.0 |
-|----------|---------------|---------------|
-| Swarm Task Success Rate | >85% | >95% |
-| Agent Spawn Success | >95% | >99% |
-| JSON Parse Errors | <1% | <0.1% |
-| User Latency (trivial) | <2s | <1s |
-| User Latency (complex) | <30s | <20s |
-| Test Coverage | >70% | >80% |
-| Memory Hit Rate | N/A | >60% |
-| **Spawned Agent Lead Rate** | >20% | >40% |
-| **Self-Healing Recovery Rate** | >50% | >80% |
-| **Context Isolation Rate** | 100% | 100% |
+| Métrique | Objectif V7.6 | Objectif V8.0 | Source |
+|----------|---------------|---------------|--------|
+| Swarm Task Success Rate | >85% | >95% | Original |
+| Agent Spawn Success | >95% | >99% | Original |
+| JSON Parse Errors | <1% | <0.1% | Original |
+| User Latency (trivial) | <2s | <1s | Original |
+| User Latency (complex) | <30s | <20s | Original |
+| Test Coverage | >70% | >80% | Original |
+| Memory Hit Rate | N/A | >60% | Original |
+| **Spawned Agent Lead Rate** | >20% | >40% | Gemini |
+| **Self-Healing Recovery Rate** | >50% | >80% | Gemini |
+| **Context Isolation Rate** | 100% | 100% | Original |
+| **Ephemeral Session Usage** | >30% | >50% | Gemini (2025-12-04) |
+| **Session Reuse Rate** | >40% | >60% | Claude (2025-12-04) |
+| **Hot-Swap Events** | <10% | <5% | Claude (2025-12-04) |
+| **Checkpoint Usage Rate** | <20% | <10% | Gemini (2025-12-04) |
+| **Dynamic Tool Generation** | N/A | >10 tools/week | Gemini (2025-12-04) |
+
+### Nouvelles Métriques (Gemini + Claude 2025-12-04)
+
+| Métrique | Description | Objectif |
+|----------|-------------|----------|
+| **Ephemeral Session Usage** | % de tâches triviales utilisant mode EPHEMERAL | >50% (économie stockage) |
+| **Session Reuse Rate** | % de sessions qui réutilisent du contexte existant | >60% (efficacité) |
+| **Hot-Swap Events** | % de tâches nécessitant un changement de lead | <5% (stabilité) |
+| **Checkpoint Usage Rate** | % de tâches nécessitant restore checkpoint | <10% (fiabilité) |
+| **Dynamic Tool Generation** | Nombre d'outils jetables générés par semaine | >10 (adaptabilité) |
 
 ---
 
@@ -778,3 +1217,34 @@ V8.0 (Mars 2026)
   - Claude: Test initial (faux négatif avec pipe)
   - Gemini: Correction avec `-p` flag (mode non-interactif)
   - Résultat: UUID-Based Resume **VALIDÉ** ✅
+
+### Analyse Croisée Gemini + Claude (2025-12-04)
+
+> **Méthode**: Analyse indépendante de la roadmap et de la codebase par chaque agent,
+> puis fusion des résultats en session collaborative.
+
+**Contributions Gemini** 🤖:
+| Idée | Phase Cible | Impact |
+|------|-------------|--------|
+| Mode EPHEMERAL | Phase 7 | Économie stockage, performance |
+| Checkpointing | Phase 8 | Retry propre, Self-Healing fiable |
+| Dynamic Tool Generation | Phase 12.5 | Adaptabilité infinie |
+| Cleanup Lifecycle | Phase 7 | Évite saturation ~/.gemini/tmp |
+| Économie de Tokens | Phase 7 | Fichiers > JSON dans prompt |
+
+**Contributions Claude** 🧠:
+| Idée | Phase Cible | Impact |
+|------|-------------|--------|
+| Spawned Agent Session Persistence | Phase 7 | Mémoire de personnalité |
+| Session Metrics pour DyLAN | Phase 10d | Apprentissage contextuel |
+| Hot-Swap Lead Agent | Phase 8 | Récupération dynamique |
+| Session Branching PARALLEL | Phase 7 | Isolation parfaite avec fork |
+
+**Convergences validées (CONSENSUS)**:
+- Phase 7 = Priorité CRITIQUE #1
+- Mapping Task+Role→UUID
+- Shared Memory Files > JSON injection
+- Architecture Agent-as-Tool symétrique
+- Cleanup automatique des sessions
+
+**Fichier source**: Analyse croisée documentée dans ce même fichier (section 1.1)
