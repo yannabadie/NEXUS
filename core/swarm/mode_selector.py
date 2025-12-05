@@ -31,6 +31,18 @@ try:
 except ImportError:
     SuccessMemory = None
 
+# V7.6 Phase 13d: AutoMemory Integration (lazy import)
+_AUTO_MEMORY_AVAILABLE = False
+try:
+    from ..memory.auto_memory import AutoMemory, get_auto_memory
+    _AUTO_MEMORY_AVAILABLE = True
+except ImportError:
+    AutoMemory = None
+    get_auto_memory = None
+
+import logging
+_logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AgentAssignment:
@@ -90,7 +102,7 @@ class ModeSelector:
     SuccessMemory to boost modes that worked for similar tasks.
     """
 
-    # V7.6 Phase 10b: Memory boost constants
+    # V7.6 Phase 10b: Memory boost constants (SuccessMemory - semantic similarity)
     MEMORY_BOOST_HIGH = 0.25    # High similarity (>0.5)
     MEMORY_BOOST_MEDIUM = 0.15  # Medium similarity (>0.3)
     MEMORY_BOOST_LOW = 0.08     # Low similarity (>0.2)
@@ -100,11 +112,20 @@ class ModeSelector:
     DYLAN_WEIGHT = 0.7          # DyLAN importance weight (70%)
     SESSION_WEIGHT = 0.3        # Session success rate weight (30%)
 
+    # V7.6 Phase 13d: AutoMemory gradient confidence constants
+    # AutoMemory uses task_type lookup (not semantic similarity)
+    AUTO_MEMORY_BOOST_VERY_HIGH = 0.30   # Confidence >= 0.8
+    AUTO_MEMORY_BOOST_HIGH = 0.25        # Confidence >= 0.7
+    AUTO_MEMORY_BOOST_LOW = 0.10         # Confidence >= 0.5
+    AUTO_MEMORY_MIN_CONFIDENCE = 0.5     # Below this, ignore AutoMemory
+    AUTO_MEMORY_LEAD_BONUS = 0.20        # Bonus for suggested lead (confidence > 0.7)
+
     def __init__(
         self,
         agent_pool: Optional[AgentPool] = None,
         history_weight: float = 0.3,
-        success_memory: Optional["SuccessMemory"] = None
+        success_memory: Optional["SuccessMemory"] = None,
+        auto_memory: Optional["AutoMemory"] = None
     ):
         """
         Initialize ModeSelector.
@@ -113,6 +134,7 @@ class ModeSelector:
             agent_pool: AgentPool with performance history
             history_weight: Weight given to historical performance (0-1)
             success_memory: V7.6 Phase 10b - SuccessMemory for memory-augmented selection
+            auto_memory: V7.6 Phase 13d - AutoMemory for task_type-based mode/lead suggestions
         """
         self.agent_pool = agent_pool
         self.history_weight = history_weight
@@ -121,6 +143,21 @@ class ModeSelector:
 
         # V7.6 Phase 10b: Track memory-influenced selections
         self._last_memory_match: Optional[Dict] = None
+
+        # V7.6 Phase 13d: AutoMemory integration (lazy singleton fallback)
+        if auto_memory is not None:
+            self.auto_memory = auto_memory
+        elif _AUTO_MEMORY_AVAILABLE and get_auto_memory is not None:
+            try:
+                self.auto_memory = get_auto_memory()
+            except Exception as e:
+                _logger.warning(f"Failed to get AutoMemory singleton: {e}")
+                self.auto_memory = None
+        else:
+            self.auto_memory = None
+
+        # V7.6 Phase 13d: Track auto-memory suggestions
+        self._last_auto_memory_suggestion: Optional[Dict] = None
 
     def select_mode(
         self,
@@ -140,8 +177,9 @@ class ModeSelector:
         Returns:
             ModeProposal with recommended mode and assignments
         """
-        # Reset memory match tracker
+        # Reset memory match trackers
         self._last_memory_match = None
+        self._last_auto_memory_suggestion = None
 
         # Get agents
         if available_agents is None and self.agent_pool:
@@ -157,11 +195,19 @@ class ModeSelector:
             score = self._score_mode(mode, task_analysis, available_agents)
             mode_scores[mode] = score
 
-        # V7.6 Phase 10b: Memory-Augmented Selection
+        # V7.6 Phase 10b: Memory-Augmented Selection (SuccessMemory - semantic similarity)
         memory_boost_mode = None
         memory_boost_info = None
         if self.success_memory:
             memory_boost_mode, memory_boost_info = self._apply_memory_boost(
+                task_analysis, mode_scores
+            )
+
+        # V7.6 Phase 13d: AutoMemory Integration (task_type lookup with gradient confidence)
+        auto_memory_info = None
+        auto_memory_lead = None
+        if self.auto_memory:
+            auto_memory_info, auto_memory_lead = self._apply_auto_memory_boost(
                 task_analysis, mode_scores
             )
 
@@ -177,14 +223,14 @@ class ModeSelector:
         )
         alternatives = [(m, s) for m, s in sorted_modes if m != best_mode]
 
-        # Assign agents
+        # Assign agents (V7.6 Phase 13d: pass auto_memory_lead for lead bonus)
         assignments = self._assign_agents(
-            best_mode, task_analysis, available_agents
+            best_mode, task_analysis, available_agents, auto_memory_lead
         )
 
         # Generate reasoning (V7.6: include memory influence)
         reasoning = self._generate_reasoning(
-            best_mode, task_analysis, mode_scores, memory_boost_info
+            best_mode, task_analysis, mode_scores, memory_boost_info, auto_memory_info
         )
 
         proposal = ModeProposal(
@@ -374,7 +420,8 @@ class ModeSelector:
         self,
         mode: CollaborationMode,
         analysis: TaskAnalysis,
-        agents: List[AgentProfile]
+        agents: List[AgentProfile],
+        auto_memory_lead: Optional[str] = None
     ) -> List[AgentAssignment]:
         """
         Assign agents to roles based on mode and task.
@@ -382,6 +429,9 @@ class ModeSelector:
         V7.5 Phase 5b: Agent-agnostic assignment using capability-based
         selection. Agents are ranked by DyLAN scores and capabilities,
         not by hardcoded names (Gemini/Claude).
+
+        V7.6 Phase 13d: If auto_memory_lead is provided (confidence > 0.7),
+        apply +0.20 bonus to the suggested lead agent.
         """
         if not agents:
             return []
@@ -417,6 +467,24 @@ class ModeSelector:
                 key=lambda a: a.get_task_importance(primary_domain),
                 reverse=True
             )
+
+        # V7.6 Phase 13d: Apply AutoMemory lead bonus (+0.20)
+        # If AutoMemory suggests a lead with high confidence (>0.7),
+        # boost that agent's ranking by promoting them to the front
+        if auto_memory_lead and ranked_agents:
+            suggested_lead_lower = auto_memory_lead.lower()
+            for i, agent in enumerate(ranked_agents):
+                agent_id_lower = agent.agent_id.lower()
+                # Match by agent_id or provider name (e.g., "gemini", "claude")
+                if suggested_lead_lower in agent_id_lower or agent_id_lower.startswith(suggested_lead_lower):
+                    if i > 0:
+                        # Move suggested lead to front (apply bonus effect)
+                        boosted_agent = ranked_agents.pop(i)
+                        ranked_agents.insert(0, boosted_agent)
+                        _logger.debug(
+                            f"AutoMemory lead bonus: promoted {agent.agent_id} from position {i} to 0"
+                        )
+                    break
 
         # Need at least 2 agents for most modes
         if len(ranked_agents) < 2 and mode not in [CollaborationMode.SPECIALIST]:
@@ -616,28 +684,141 @@ class ModeSelector:
 
         return boosted_mode, boost_info
 
+    def _apply_auto_memory_boost(
+        self,
+        analysis: TaskAnalysis,
+        mode_scores: Dict[CollaborationMode, float]
+    ) -> Tuple[Optional[Dict], Optional[str]]:
+        """
+        Apply AutoMemory boost using gradient confidence.
+
+        V7.6 Phase 13d: Uses task_type lookup (not semantic similarity)
+        to suggest optimal mode and lead agent.
+
+        Gradient Confidence:
+        - >= 0.8: +0.30 boost (VERY_HIGH)
+        - >= 0.7: +0.25 boost (HIGH)
+        - >= 0.5: +0.10 boost (LOW)
+        - < 0.5: ignore suggestion
+
+        Args:
+            analysis: TaskAnalysis with primary_domain.
+            mode_scores: Dictionary of mode scores (modified in-place).
+
+        Returns:
+            Tuple of (auto_memory_info, suggested_lead) or (None, None).
+        """
+        if not self.auto_memory:
+            return None, None
+
+        # Get task type from primary domain
+        task_type = analysis.primary_domain.value.lower()
+
+        # Get recommendation from AutoMemory
+        try:
+            recommendation = self.auto_memory.get_recommendation(task_type)
+        except Exception as e:
+            _logger.warning(f"AutoMemory.get_recommendation failed: {e}")
+            return None, None
+
+        if not recommendation:
+            return None, None
+
+        suggested_mode = recommendation.get("mode")
+        suggested_lead = recommendation.get("lead")
+        confidence = recommendation.get("confidence", 0.0)
+        modes_to_avoid = recommendation.get("modes_to_avoid", [])
+
+        # Check minimum confidence threshold
+        if confidence < self.AUTO_MEMORY_MIN_CONFIDENCE:
+            _logger.debug(f"AutoMemory confidence {confidence:.2f} below threshold {self.AUTO_MEMORY_MIN_CONFIDENCE}")
+            return None, None
+
+        # Calculate boost based on gradient confidence
+        if confidence >= 0.8:
+            boost = self.AUTO_MEMORY_BOOST_VERY_HIGH
+        elif confidence >= 0.7:
+            boost = self.AUTO_MEMORY_BOOST_HIGH
+        else:  # >= 0.5
+            boost = self.AUTO_MEMORY_BOOST_LOW
+
+        # Apply boost to suggested mode
+        boosted_mode = None
+        original_score = None
+        if suggested_mode:
+            for mode in CollaborationMode:
+                if mode.value.lower() == suggested_mode.lower():
+                    boosted_mode = mode
+                    break
+
+            if boosted_mode and boosted_mode in mode_scores:
+                original_score = mode_scores[boosted_mode]
+                mode_scores[boosted_mode] = min(1.0, original_score + boost)
+                _logger.debug(
+                    f"AutoMemory boosted {boosted_mode.value}: "
+                    f"{original_score:.3f} -> {mode_scores[boosted_mode]:.3f} "
+                    f"(confidence={confidence:.2f})"
+                )
+
+        # Apply penalty to modes to avoid
+        for mode_name in modes_to_avoid:
+            for mode in CollaborationMode:
+                if mode.value.lower() == mode_name.lower():
+                    if mode in mode_scores:
+                        mode_scores[mode] = max(0.0, mode_scores[mode] - 0.15)
+                    break
+
+        # Store suggestion info
+        auto_memory_info = {
+            "task_type": task_type,
+            "suggested_mode": suggested_mode,
+            "suggested_lead": suggested_lead,
+            "confidence": round(confidence, 3),
+            "boost_applied": boost,
+            "original_score": round(original_score, 3) if original_score is not None else None,
+            "new_score": round(mode_scores[boosted_mode], 3) if boosted_mode else None,
+            "modes_to_avoid": modes_to_avoid
+        }
+
+        self._last_auto_memory_suggestion = auto_memory_info
+
+        # Return lead only if confidence > 0.7 (for lead bonus in _assign_agents)
+        return_lead = suggested_lead if confidence > 0.7 else None
+
+        return auto_memory_info, return_lead
+
     def _generate_reasoning(
         self,
         mode: CollaborationMode,
         analysis: TaskAnalysis,
         scores: Dict[CollaborationMode, float],
-        memory_boost_info: Optional[Dict] = None
+        memory_boost_info: Optional[Dict] = None,
+        auto_memory_info: Optional[Dict] = None
     ) -> str:
         """
         Generate human-readable reasoning for mode selection.
 
         V7.5 Phase 5b: Agent-agnostic reasoning.
         V7.6 Phase 10b: Includes memory influence if applicable.
+        V7.6 Phase 13d: Includes AutoMemory influence if applicable.
         """
         char = get_mode_characteristics(mode)
 
         reasons = []
 
-        # V7.6 Phase 10b: Memory-augmented selection
+        # V7.6 Phase 10b: Memory-augmented selection (SuccessMemory)
         if memory_boost_info and memory_boost_info.get("mode") == mode.value:
             task_id = memory_boost_info.get("similar_task_id", "unknown")[:12]
             similarity = memory_boost_info.get("similarity", 0)
-            reasons.append(f"Boosted by memory (similar to {task_id}, {similarity:.0%})")
+            reasons.append(f"Boosted by SuccessMemory (similar to {task_id}, {similarity:.0%})")
+
+        # V7.6 Phase 13d: AutoMemory influence
+        if auto_memory_info and auto_memory_info.get("suggested_mode"):
+            suggested = auto_memory_info.get("suggested_mode", "")
+            if suggested.lower() == mode.value.lower():
+                confidence = auto_memory_info.get("confidence", 0)
+                boost = auto_memory_info.get("boost_applied", 0)
+                reasons.append(f"AutoMemory: {suggested} (conf={confidence:.0%}, +{boost:.0%})")
 
         # Complexity reason
         complexity_name = analysis.complexity.name.lower()
