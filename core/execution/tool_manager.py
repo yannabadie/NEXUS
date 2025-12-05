@@ -14,6 +14,10 @@ Outils disponibles (TOUS accessibles par Gemini ET Claude):
 - grep: Search code for keywords/patterns
 - todo_write: Task/plan management
 - mcp_*: Dynamic MCP tools from configured servers (V7.6 CORTEX)
+- create_tool: Create a dynamic Python tool (V7.8 Phase 12.5)
+- delete_tool: Delete a dynamic tool (V7.8 Phase 12.5)
+- list_dynamic_tools: List all dynamic tools (V7.8 Phase 12.5)
+- run_dynamic_tool: Execute a dynamic tool (V7.8 Phase 12.5)
 """
 import subprocess
 import urllib.request
@@ -38,6 +42,14 @@ except ImportError:
     _MCP_AVAILABLE = False
     MCPRegistry = None
     MCPClient = None
+
+# V7.8 Phase 12.5: Dynamic Tool Generation imports
+try:
+    from core.execution.dynamic_tools import DynamicToolManager
+    _DYNAMIC_TOOLS_AVAILABLE = True
+except ImportError:
+    _DYNAMIC_TOOLS_AVAILABLE = False
+    DynamicToolManager = None
 
 
 # ============================================================================
@@ -102,7 +114,12 @@ class ToolManager:
             "web_fetch": self._execute_web_fetch,
             "glob": self._execute_glob,
             "grep": self._execute_grep,
-            "todo_write": self._execute_todo_write
+            "todo_write": self._execute_todo_write,
+            # V7.8 Phase 12.5: Dynamic Tool Generation
+            "create_tool": self._execute_create_tool,
+            "delete_tool": self._execute_delete_tool,
+            "list_dynamic_tools": self._execute_list_dynamic_tools,
+            "run_dynamic_tool": self._execute_run_dynamic_tool,
         }
 
         # V7.6 Phase 12.3: MCP Registry and dynamic tools
@@ -112,6 +129,11 @@ class ToolManager:
 
         if _MCP_AVAILABLE:
             self._init_mcp_tools()
+
+        # V7.8 Phase 12.5: Dynamic Tool Manager
+        self._dynamic_tool_manager: Optional["DynamicToolManager"] = None
+        if _DYNAMIC_TOOLS_AVAILABLE:
+            self._init_dynamic_tools()
 
     # Tool name aliases (Gemini CLI names -> NEXUS names)
     TOOL_ALIASES = {
@@ -1414,3 +1436,237 @@ class ToolManager:
         """Close all MCP connections."""
         if self._mcp_registry:
             self._mcp_registry.close_all()
+
+    # =========================================================================
+    # V7.8 Phase 12.5: Dynamic Tool Generation
+    # =========================================================================
+
+    def _init_dynamic_tools(self) -> None:
+        """
+        Initialize the Dynamic Tool Manager.
+
+        Called during __init__ if dynamic tools module is available.
+        """
+        try:
+            self._dynamic_tool_manager = DynamicToolManager(self.workspace_path)
+            tools_count = len(self._dynamic_tool_manager.list_tools())
+            if tools_count > 0:
+                self._logger.info(f"Loaded {tools_count} existing dynamic tool(s)")
+        except Exception as e:
+            self._logger.error(f"Failed to initialize Dynamic Tool Manager: {e}")
+            self._dynamic_tool_manager = None
+
+    def _execute_create_tool(self, args: Dict) -> ToolResult:
+        """
+        Create a new dynamic Python tool.
+
+        Args:
+            args: {
+                "name": "tool_name",
+                "code": "def run(x): return x * 2",
+                "description": "Optional description"
+            }
+
+        Returns:
+            ToolResult with creation status
+
+        Example:
+            {
+                "name": "fibonacci",
+                "code": "def run(n):\\n    if n <= 1: return n\\n    return run(n-1) + run(n-2)",
+                "description": "Calculate fibonacci number"
+            }
+        """
+        if self._dynamic_tool_manager is None:
+            return ToolResult(
+                tool_name="create_tool",
+                status="ERROR",
+                output="",
+                error="Dynamic Tool Manager not available"
+            )
+
+        name = args.get("name", "")
+        code = args.get("code", "")
+        description = args.get("description", "")
+
+        if not name:
+            return ToolResult(
+                tool_name="create_tool",
+                status="ERROR",
+                output="",
+                error="Tool name is required"
+            )
+
+        if not code:
+            return ToolResult(
+                tool_name="create_tool",
+                status="ERROR",
+                output="",
+                error="Tool code is required"
+            )
+
+        result = self._dynamic_tool_manager.create_tool(name, code, description)
+
+        if result.success:
+            return ToolResult(
+                tool_name="create_tool",
+                status="SUCCESS",
+                output=f"Tool '{name}' created successfully at {result.tool_path}\n\n"
+                       f"Use 'run_dynamic_tool' with name='{name}' to execute it."
+            )
+        else:
+            error_msg = result.error or "Unknown error"
+            if result.validation_violations:
+                error_msg += "\n\nValidation violations:\n"
+                error_msg += "\n".join(f"  - {v}" for v in result.validation_violations)
+
+            return ToolResult(
+                tool_name="create_tool",
+                status="FAILURE",
+                output="",
+                error=error_msg
+            )
+
+    def _execute_delete_tool(self, args: Dict) -> ToolResult:
+        """
+        Delete a dynamic tool.
+
+        Args:
+            args: {
+                "name": "tool_name"
+            }
+
+        Returns:
+            ToolResult with deletion status
+        """
+        if self._dynamic_tool_manager is None:
+            return ToolResult(
+                tool_name="delete_tool",
+                status="ERROR",
+                output="",
+                error="Dynamic Tool Manager not available"
+            )
+
+        name = args.get("name", "")
+
+        if not name:
+            return ToolResult(
+                tool_name="delete_tool",
+                status="ERROR",
+                output="",
+                error="Tool name is required"
+            )
+
+        success, message = self._dynamic_tool_manager.delete_tool(name)
+
+        return ToolResult(
+            tool_name="delete_tool",
+            status="SUCCESS" if success else "FAILURE",
+            output=message if success else "",
+            error="" if success else message
+        )
+
+    def _execute_list_dynamic_tools(self, args: Dict) -> ToolResult:
+        """
+        List all available dynamic tools.
+
+        Args:
+            args: {} (no arguments required)
+
+        Returns:
+            ToolResult with list of tools
+        """
+        if self._dynamic_tool_manager is None:
+            return ToolResult(
+                tool_name="list_dynamic_tools",
+                status="ERROR",
+                output="",
+                error="Dynamic Tool Manager not available"
+            )
+
+        tools = self._dynamic_tool_manager.list_tools()
+
+        if not tools:
+            return ToolResult(
+                tool_name="list_dynamic_tools",
+                status="SUCCESS",
+                output="No dynamic tools found.\n\n"
+                       "Use 'create_tool' to create a new tool."
+            )
+
+        output = f"Found {len(tools)} dynamic tool(s):\n\n"
+        for tool in tools:
+            output += f"  - {tool.name}: {tool.description}\n"
+            output += f"    Created: {tool.created_at}\n"
+
+        return ToolResult(
+            tool_name="list_dynamic_tools",
+            status="SUCCESS",
+            output=output
+        )
+
+    def _execute_run_dynamic_tool(self, args: Dict) -> ToolResult:
+        """
+        Execute a dynamic tool.
+
+        Args:
+            args: {
+                "name": "tool_name",
+                "args": {"arg1": value1, ...}  # Arguments for the tool
+            }
+
+        Returns:
+            ToolResult with execution output
+
+        Example:
+            {
+                "name": "fibonacci",
+                "args": {"n": 10}
+            }
+        """
+        if self._dynamic_tool_manager is None:
+            return ToolResult(
+                tool_name="run_dynamic_tool",
+                status="ERROR",
+                output="",
+                error="Dynamic Tool Manager not available"
+            )
+
+        name = args.get("name", "")
+        tool_args = args.get("args", {})
+
+        if not name:
+            return ToolResult(
+                tool_name="run_dynamic_tool",
+                status="ERROR",
+                output="",
+                error="Tool name is required"
+            )
+
+        result = self._dynamic_tool_manager.execute_tool(name, tool_args)
+
+        if result.timed_out:
+            return ToolResult(
+                tool_name="run_dynamic_tool",
+                status="TIMEOUT",
+                output="",
+                error=result.error
+            )
+
+        return ToolResult(
+            tool_name="run_dynamic_tool",
+            status="SUCCESS" if result.success else "FAILURE",
+            output=result.output,
+            error=result.error
+        )
+
+    def get_dynamic_tools(self) -> List[str]:
+        """
+        Get list of available dynamic tools.
+
+        Returns:
+            List of dynamic tool names
+        """
+        if self._dynamic_tool_manager is None:
+            return []
+        return [t.name for t in self._dynamic_tool_manager.list_tools()]

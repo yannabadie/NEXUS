@@ -1,7 +1,7 @@
 # Module: Execution - Tool Dispatch Layer
 
-**Version**: 7.5 (HIVE MIND)
-**Last Updated**: 2025-12-04
+**Version**: 7.8 (ADAPTIVE EVOLUTION)
+**Last Updated**: 2025-12-05
 
 ---
 
@@ -20,6 +20,7 @@ Couche d'execution centralisee des outils NEXUS avec enforcement des politiques 
 | **Phase 5: Agent Factory** | Outils accessibles aux agents spawnes |
 | **Phase 7: Session Isolation** | Outils executes dans contexte isole |
 | **Phase 9: Fast Path** | Bypass ToolManager pour outils read-only |
+| **Phase 12.5: Dynamic Tools** ✅ | Agents peuvent creer leurs propres outils |
 
 ---
 
@@ -29,7 +30,7 @@ Couche d'execution centralisee des outils NEXUS avec enforcement des politiques 
 
 **Classe**: `ToolManager`
 
-* **Fonction**: Dispatcher central pour les 11 outils NEXUS
+* **Fonction**: Dispatcher central pour les 15 outils NEXUS (11 core + 4 dynamic)
 * **Interaction FSM**: Verifie l'etat avant execution (certains outils bloques en BRAINSTORMING)
 * **Protocoles Utilises**: `ToolUse` de core.synapse.protocol_v7
 * **Notes d'Audit**: OK - Integration avec PathGuardian
@@ -49,6 +50,10 @@ Couche d'execution centralisee des outils NEXUS avec enforcement des politiques 
 | `web_search` | Recherche Google (via Gemini) | Toujours autorise |
 | `web_fetch` | Recuperation contenu URL | Toujours autorise |
 | `todo_write` | Gestion liste taches | Workspace only |
+| `create_tool` | Creer outil dynamique (V7.8) | Workspace only |
+| `delete_tool` | Supprimer outil dynamique | Workspace only |
+| `list_dynamic_tools` | Lister outils crees | Toujours autorise |
+| `run_dynamic_tool` | Executer outil dynamique | Workspace only |
 
 ---
 
@@ -56,6 +61,51 @@ Couche d'execution centralisee des outils NEXUS avec enforcement des politiques 
 
 * **Fonction**: Exports publics (ToolManager)
 * **Notes d'Audit**: OK
+
+### Fichier: `dynamic_tools.py` (V7.8 Phase 12.5)
+
+**Classe**: `DynamicToolManager`
+
+* **Fonction**: Permet aux agents de creer des outils Python a la volee
+* **Securite**: Code valide via AST + execution subprocess isolee
+* **Notes d'Audit**: OK - 52 tests (30 securite + 22 fonctionnels)
+
+**Outils Dynamiques (4 nouveaux outils)**:
+
+| Outil | Description | Permissions |
+|-------|-------------|-------------|
+| `create_tool` | Cree un outil Python avec code valide | Workspace only |
+| `delete_tool` | Supprime un outil dynamique | Workspace only |
+| `list_dynamic_tools` | Liste les outils crees | Toujours autorise |
+| `run_dynamic_tool` | Execute un outil dynamique | Workspace only |
+
+**Workflow de creation d'outil**:
+```
+Agent Request: create_tool(name, code, description)
+     |
+     v
+CodeValidator.validate_code() [AST Analysis]
+     |
+     +--[UNSAFE]--> ValidationError (violations listees)
+     |
+     +--[SAFE]--> Tool File Created (workspace/tools/generated/{name}.py)
+                  Metadata Saved ({name}.meta.json)
+                  Tool Registered
+```
+
+**Workflow d'execution**:
+```
+Agent Request: run_dynamic_tool(name, args)
+     |
+     v
+subprocess.run(python, tool.py, json.dumps(args))
+     |
+     +--[TIMEOUT 30s]--> TimeoutError
+     |
+     +--[SUCCESS]--> JSON Output parsed
+     |
+     +--[ERROR]--> Error captured from stderr
+```
 
 ---
 
@@ -144,3 +194,16 @@ result = manager.execute("write", {"file_path": "GENERATION_ACTIVE/child/file.py
 - `test_read_always_allowed()`
 - `test_write_blocked_in_parent()`
 - `test_evolution_mode_enables_write()`
+
+**Fichier**: `tests/test_dynamic_tools.py` (V7.8)
+
+52 tests couvrant:
+- **TestCodeValidatorSecurity** (30 tests): AST validation, patterns bloques
+- **TestDynamicToolManager** (15 tests): CRUD outils, execution, timeout
+- **TestDynamicToolsIntegration** (3 tests): End-to-end lifecycle
+- **TestEdgeCases** (4 tests): Unicode, erreurs, noms invalides
+
+```bash
+# Executer les tests
+python -m pytest tests/test_dynamic_tools.py -v
+```

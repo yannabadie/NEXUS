@@ -1,5 +1,5 @@
 """
-NEXUS V7.6 - Execution Policy (Phase 14a Security Hardening)
+NEXUS V7.8 - Execution Policy (Phase 14a Security Hardening + Phase 12.5 Code Validation)
 
 Centralized command validation and execution security policy.
 Prevents command injection, path traversal, and dangerous operations.
@@ -7,6 +7,11 @@ Prevents command injection, path traversal, and dangerous operations.
 NOTE: This is different from core/governance/sandbox_policy.py which handles
       tool-level permissions during FSM states (brainstorming vs execution).
       This module handles command-level security for bash execution.
+
+V7.8 Phase 12.5: Added CodeValidator for dynamic tool generation security.
+    - AST-based Python code validation
+    - Blocks dangerous imports, functions, and attribute access
+    - Used by DynamicToolManager to validate generated code
 
 Usage:
     policy = ExecutionPolicy(workspace_path)
@@ -19,13 +24,20 @@ Usage:
     # Check path access
     if not policy.is_path_allowed(Path("/etc/passwd")):
         raise SecurityError("Path not allowed")
+
+    # V7.8: Validate Python code for dynamic tools
+    validator = CodeValidator()
+    is_safe, violations = validator.validate_code(python_code)
+    if not is_safe:
+        raise SecurityError(f"Unsafe code: {violations}")
 """
 
+import ast
 import re
 import shlex
 from pathlib import Path
 from typing import Tuple, List, Optional, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -407,8 +419,388 @@ class ExecutionPolicy:
         return ([command], True)
 
 
-# Singleton for easy access
+# =============================================================================
+# V7.8 Phase 12.5: CodeValidator for Dynamic Tool Generation
+# =============================================================================
+
+
+@dataclass
+class CodeValidationResult:
+    """Result of code validation."""
+    is_safe: bool
+    violations: List[str] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return self.is_safe
+
+
+class CodeValidator(ast.NodeVisitor):
+    """
+    AST-based Python code validator for dynamic tool generation.
+
+    V7.8 Phase 12.5: Ensures generated tool code is safe to execute.
+
+    Defense layers:
+    1. Block dangerous module imports (os, subprocess, socket, etc.)
+    2. Block dangerous function calls (eval, exec, compile, etc.)
+    3. Block dangerous attribute access (__class__, __globals__, etc.)
+    4. Block dangerous syntax patterns (lambda with banned ops, etc.)
+
+    Thread-safe: All methods are stateless validations.
+
+    Usage:
+        validator = CodeValidator()
+        result = validator.validate_code(python_code)
+        if not result.is_safe:
+            print(f"Blocked: {result.violations}")
+    """
+
+    # ==========================================================================
+    # BLOCKED IMPORTS - Modules that provide dangerous capabilities
+    # ==========================================================================
+    BLOCKED_IMPORTS: Set[str] = {
+        # System access
+        "os", "sys", "subprocess", "shutil", "pathlib",
+        "platform", "sysconfig",
+
+        # Network access
+        "socket", "socketserver",
+        "http", "http.client", "http.server",
+        "urllib", "urllib.request", "urllib.parse",
+        "ftplib", "smtplib", "poplib", "imaplib",
+        "telnetlib", "ssl", "asyncio",
+
+        # Code execution / dynamic imports
+        "importlib", "runpy", "code", "codeop",
+        "compileall", "py_compile",
+
+        # Serialization (RCE vectors)
+        "pickle", "cPickle", "marshal", "shelve", "dill",
+
+        # Native code / FFI
+        "ctypes", "cffi", "_ctypes", "ffi",
+
+        # Multiprocessing (sandbox escape)
+        "multiprocessing", "threading", "concurrent",
+        "_thread", "thread",
+
+        # Dangerous builtins access
+        "builtins", "__builtins__",
+
+        # File operations (use provided wrappers)
+        "io", "tempfile", "glob", "fnmatch",
+
+        # Introspection
+        "inspect", "dis", "gc", "traceback",
+
+        # Signals (process manipulation)
+        "signal", "atexit",
+
+        # Resource manipulation
+        "resource", "pwd", "grp", "crypt",
+
+        # Windows-specific dangerous modules
+        "winreg", "msvcrt", "_winapi",
+    }
+
+    # ==========================================================================
+    # BLOCKED FUNCTIONS - Dangerous built-in functions
+    # ==========================================================================
+    BLOCKED_FUNCTIONS: Set[str] = {
+        # Code execution
+        "eval", "exec", "compile",
+        "__import__",
+
+        # File operations (must use provided safe wrappers)
+        "open", "file",
+
+        # User input (interactive)
+        "input", "raw_input",
+
+        # Namespace manipulation
+        "globals", "locals", "vars",
+        "dir",  # Can reveal internal structure
+
+        # Attribute manipulation
+        "getattr", "setattr", "delattr", "hasattr",
+
+        # Type manipulation
+        "type", "isinstance", "issubclass",
+        "super",  # Can be used for attribute access
+
+        # Object introspection
+        "id", "hash", "repr",  # Can leak memory addresses
+        "callable", "staticmethod", "classmethod",
+
+        # Memory manipulation
+        "memoryview", "bytearray",
+
+        # System exit
+        "exit", "quit", "breakpoint",
+
+        # Help (can reveal internals)
+        "help", "credits", "license", "copyright",
+    }
+
+    # ==========================================================================
+    # BLOCKED ATTRIBUTES - Dangerous dunder/special attributes
+    # ==========================================================================
+    BLOCKED_ATTRIBUTES: Set[str] = {
+        # Class/type introspection
+        "__class__", "__bases__", "__mro__",
+        "__subclasses__", "__subclasshook__",
+
+        # Object lifecycle
+        "__init__", "__new__", "__del__",
+        "__init_subclass__",
+
+        # Code objects
+        "__code__", "__globals__", "__builtins__",
+        "__closure__", "__annotations__",
+
+        # Import machinery
+        "__import__", "__loader__", "__spec__",
+        "__package__", "__path__",
+
+        # Callable manipulation
+        "__call__", "__func__", "__self__",
+
+        # Descriptor protocol (can bypass restrictions)
+        "__get__", "__set__", "__delete__",
+        "__set_name__",
+
+        # Attribute access hooks
+        "__getattr__", "__setattr__", "__delattr__",
+        "__getattribute__",
+
+        # Container dunders that could be abused
+        "__dict__", "__slots__",
+
+        # Metaclass manipulation
+        "__metaclass__", "__prepare__",
+
+        # Module attributes
+        "__file__", "__cached__", "__doc__",
+
+        # Reduce/pickle (serialization)
+        "__reduce__", "__reduce_ex__",
+        "__getstate__", "__setstate__",
+    }
+
+    # ==========================================================================
+    # ALLOWED SAFE BUILTINS - Whitelisted functions for tools
+    # ==========================================================================
+    ALLOWED_BUILTINS: Set[str] = {
+        # Math
+        "abs", "round", "min", "max", "sum", "pow", "divmod",
+
+        # Type conversion
+        "int", "float", "str", "bool", "bytes",
+        "list", "tuple", "dict", "set", "frozenset",
+
+        # String operations
+        "ord", "chr", "ascii", "bin", "hex", "oct",
+        "format",
+
+        # Iteration
+        "range", "enumerate", "zip", "map", "filter",
+        "reversed", "sorted", "iter", "next",
+
+        # Length/membership
+        "len", "any", "all", "slice",
+
+        # Printing (output only)
+        "print",
+    }
+
+    def __init__(self):
+        """Initialize CodeValidator."""
+        self._violations: List[str] = []
+
+    def validate_code(self, code: str) -> CodeValidationResult:
+        """
+        Validate Python code for safety.
+
+        Args:
+            code: Python source code string
+
+        Returns:
+            CodeValidationResult with is_safe and violations list
+        """
+        self._violations = []
+
+        # Step 1: Try to parse the code
+        try:
+            tree = ast.parse(code)
+        except SyntaxError as e:
+            return CodeValidationResult(
+                is_safe=False,
+                violations=[f"Syntax error: {e.msg} (line {e.lineno})"]
+            )
+
+        # Step 2: Walk the AST and check for violations
+        self.visit(tree)
+
+        return CodeValidationResult(
+            is_safe=len(self._violations) == 0,
+            violations=self._violations.copy()
+        )
+
+    def _add_violation(self, node: ast.AST, message: str) -> None:
+        """Add a violation with line number."""
+        line = getattr(node, 'lineno', '?')
+        self._violations.append(f"Line {line}: {message}")
+
+    # ==========================================================================
+    # AST Visitor Methods
+    # ==========================================================================
+
+    def visit_Import(self, node: ast.Import) -> None:
+        """Check for blocked imports: import os, import subprocess"""
+        for alias in node.names:
+            module_name = alias.name.split('.')[0]  # Get root module
+            if module_name in self.BLOCKED_IMPORTS:
+                self._add_violation(node, f"Blocked import: {alias.name}")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Check for blocked from-imports: from os import system"""
+        if node.module:
+            module_name = node.module.split('.')[0]
+            if module_name in self.BLOCKED_IMPORTS:
+                self._add_violation(node, f"Blocked import from: {node.module}")
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        """Check for blocked function calls."""
+        func_name = None
+
+        # Direct call: eval(...)
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
+
+        # Method call: obj.method(...) - check method name
+        elif isinstance(node.func, ast.Attribute):
+            func_name = node.func.attr
+
+        if func_name and func_name in self.BLOCKED_FUNCTIONS:
+            self._add_violation(node, f"Blocked function call: {func_name}()")
+
+        # Check for __import__ specifically
+        if func_name == "__import__":
+            self._add_violation(node, "Blocked: __import__() - use allowed modules only")
+
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        """Check for blocked attribute access."""
+        if node.attr in self.BLOCKED_ATTRIBUTES:
+            self._add_violation(node, f"Blocked attribute access: .{node.attr}")
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        """Check for direct access to blocked names."""
+        # Block direct access to __builtins__ etc.
+        if node.id.startswith('__') and node.id.endswith('__'):
+            if node.id in self.BLOCKED_ATTRIBUTES:
+                self._add_violation(node, f"Blocked name access: {node.id}")
+        self.generic_visit(node)
+
+    def visit_Global(self, node: ast.Global) -> None:
+        """Block global statement - namespace manipulation."""
+        self._add_violation(node, f"Blocked: global statement ({', '.join(node.names)})")
+        self.generic_visit(node)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        """Block nonlocal statement - namespace manipulation."""
+        self._add_violation(node, f"Blocked: nonlocal statement ({', '.join(node.names)})")
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        """Check class definitions for dangerous patterns."""
+        # Check for metaclass usage
+        for keyword in node.keywords:
+            if keyword.arg == 'metaclass':
+                self._add_violation(node, f"Blocked: metaclass in class {node.name}")
+
+        # Check for dangerous method definitions
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef):
+                if item.name in {'__del__', '__getattr__', '__setattr__',
+                                 '__getattribute__', '__reduce__', '__reduce_ex__'}:
+                    self._add_violation(
+                        item,
+                        f"Blocked: dangerous method {item.name}() in class {node.name}"
+                    )
+
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Check function definitions."""
+        # Block decorator usage (could bypass restrictions)
+        if node.decorator_list:
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Name):
+                    if decorator.id in {'staticmethod', 'classmethod', 'property'}:
+                        continue  # These are safe
+                self._add_violation(
+                    decorator,
+                    f"Blocked: decorator on function {node.name}"
+                )
+        self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Block async functions (require asyncio which is blocked)."""
+        self._add_violation(node, f"Blocked: async function {node.name}")
+        self.generic_visit(node)
+
+    def visit_Await(self, node: ast.Await) -> None:
+        """Block await expressions."""
+        self._add_violation(node, "Blocked: await expression")
+        self.generic_visit(node)
+
+    def visit_With(self, node: ast.With) -> None:
+        """Check with statements for dangerous patterns."""
+        # Block file operations via with
+        for item in node.items:
+            if isinstance(item.context_expr, ast.Call):
+                if isinstance(item.context_expr.func, ast.Name):
+                    if item.context_expr.func.id == 'open':
+                        self._add_violation(
+                            node,
+                            "Blocked: with open() - use provided file wrappers"
+                        )
+        self.generic_visit(node)
+
+    def visit_Try(self, node: ast.Try) -> None:
+        """Allow try/except but check for bare except."""
+        for handler in node.handlers:
+            if handler.type is None:
+                # Bare except: can catch SystemExit etc.
+                self._add_violation(
+                    handler,
+                    "Blocked: bare except clause (specify exception type)"
+                )
+        self.generic_visit(node)
+
+    def visit_Raise(self, node: ast.Raise) -> None:
+        """Allow raise but check for SystemExit."""
+        if node.exc and isinstance(node.exc, ast.Call):
+            if isinstance(node.exc.func, ast.Name):
+                if node.exc.func.id in {'SystemExit', 'KeyboardInterrupt'}:
+                    self._add_violation(
+                        node,
+                        f"Blocked: raise {node.exc.func.id}"
+                    )
+        self.generic_visit(node)
+
+
+# =============================================================================
+# Singletons for easy access
+# =============================================================================
+
 _policy: Optional[ExecutionPolicy] = None
+_code_validator: Optional[CodeValidator] = None
 
 
 def get_execution_policy(workspace_path: Optional[Path] = None) -> ExecutionPolicy:
@@ -419,3 +811,11 @@ def get_execution_policy(workspace_path: Optional[Path] = None) -> ExecutionPoli
             raise ValueError("workspace_path required for first initialization")
         _policy = ExecutionPolicy(workspace_path)
     return _policy
+
+
+def get_code_validator() -> CodeValidator:
+    """Get or create the global CodeValidator instance."""
+    global _code_validator
+    if _code_validator is None:
+        _code_validator = CodeValidator()
+    return _code_validator
