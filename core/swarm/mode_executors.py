@@ -71,6 +71,7 @@ class ExecutionContext:
     """Context for mode execution.
 
     V7.5 Phase 7: Added task_id and session_manager for session isolation.
+    V7.7 Phase 14e: Added force_cot for Chain-of-Thought enforcement.
     """
     task_input: str
     agent_assignments: List[AgentAssignment]
@@ -81,6 +82,8 @@ class ExecutionContext:
     # V7.5 Phase 7: Session isolation
     task_id: Optional[str] = None
     session_manager: Optional[Any] = None  # SwarmSessionManager (avoid circular import)
+    # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT complexity
+    force_cot: bool = False
 
     def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
         """Get agent assignment by role"""

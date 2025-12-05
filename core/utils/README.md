@@ -1,13 +1,13 @@
-# Module: Utils - NEXUS V7.5 Utilities
+# Module: Utils - NEXUS V7.7 Utilities
 
-**Version**: 7.5 (HIVE MIND)
-**Last Updated**: 2025-12-04
+**Version**: 7.7 (HIVE MIND)
+**Last Updated**: 2025-12-05
 
 ---
 
 ## Role Architectural
 
-Utilitaires partagés pour NEXUS V7.5, incluant extraction JSON, vérification d'artefacts, et persistance atomique.
+Utilitaires partagés pour NEXUS V7.7, incluant extraction JSON, parsing de streams, vérification d'artefacts, et persistance atomique.
 
 ---
 
@@ -17,6 +17,7 @@ Utilitaires partagés pour NEXUS V7.5, incluant extraction JSON, vérification d
 |---------------|---------------------|
 | **Phase 6** | `json_extractor.py` - Extraction JSON robuste (COMPLETE) |
 | **Phase 7: Session Isolation** | `atomic_store.py` - Persistance atomique thread-safe (COMPLETE) |
+| **Phase 15: Response Streaming** | `stream_parser.py` - Parsing JSONL pour streaming (COMPLETE) |
 
 ---
 
@@ -75,7 +76,34 @@ if data:
     print(data['key'])  # "value"
 ```
 
-### 3. Artifact Verifier (`artifact_verifier.py`)
+### 3. Stream Parser (`stream_parser.py`) - NEW Phase 15
+
+**Unified JSONL parser** for Gemini and Claude CLI stream-json outputs.
+
+**Problem Solved**: Les deux CLI ont des formats stream-json différents. Ce parser unifie l'extraction de texte streaming.
+
+```python
+from core.utils import parse_stream_chunk, is_result_message, extract_stats
+
+# Parse JSONL line from either CLI
+text_chunk, metadata = parse_stream_chunk(line, "gemini")  # or "claude"
+
+if text_chunk:
+    # Text delta - display immediately
+    print(text_chunk, end="", flush=True)
+
+if is_result_message(metadata, "gemini"):
+    stats = extract_stats(metadata, "gemini")
+    print(f"\n[Tokens: {stats.get('total_tokens')}]")
+```
+
+**Formats supportés**:
+- **Gemini**: `{"type":"message", "role":"assistant", "content":"...", "delta":true}`
+- **Claude**: `{"type":"stream_event", "event":{"type":"content_block_delta", "delta":{"type":"text_delta", "text":"..."}}}`
+
+**See also**: `docs/STREAM_FORMAT_ANALYSIS.md`
+
+### 4. Artifact Verifier (`artifact_verifier.py`)
 
 Ensures downloaded or generated files meet integrity checks (checksums, size limits).
 
@@ -94,6 +122,7 @@ is_valid = verifier.verify(artifact_path)
 |------|---------|-------------|
 | `atomic_store.py` | Atomic JSON persistence | `AtomicJsonStore`, `get_store` |
 | `json_extractor.py` | Robust JSON parsing | `extract_json`, `extract_json_safe` |
+| `stream_parser.py` | JSONL stream parsing | `parse_stream_chunk`, `is_result_message`, `extract_stats` |
 | `artifact_verifier.py` | File integrity | `ArtifactVerifier` |
 | `__init__.py` | Module exports | All public APIs |
 
@@ -107,6 +136,15 @@ pytest tests/test_atomic_store.py -v
 
 # Concurrency tests only
 pytest tests/test_atomic_store.py::TestAtomicJsonStoreConcurrency -v
+
+# Stream Parser tests (23 tests)
+pytest tests/test_stream_parser.py -v
+
+# Gemini format tests
+pytest tests/test_stream_parser.py::TestGeminiStreamParser -v
+
+# Claude format tests
+pytest tests/test_stream_parser.py::TestClaudeStreamParser -v
 ```
 
 ---

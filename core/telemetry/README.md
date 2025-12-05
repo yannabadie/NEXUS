@@ -1,6 +1,6 @@
-# Telemetry Module - NEXUS V7.6 "HIVE MIND"
+# Telemetry Module - NEXUS V7.7 "HIVE MIND"
 
-System observability and metrics collection for NEXUS operations.
+System observability, metrics collection, and budget management for NEXUS operations.
 
 ## Role in Architecture
 
@@ -10,6 +10,8 @@ The Telemetry module provides **operational observability** at the system level:
 - **Tool Executions**: Duration, success/failure rates
 - **Errors**: Exception types, context
 - **Evolution**: Generation counts, mutation success rates
+- **Budget Tracking**: API costs, daily limits, warnings (Phase 14d)
+- **Telemetry Export**: CSV export for external analysis (Phase 13c)
 
 Unlike `core.logging` (technical events) and `core.memory` (functional outcomes), Telemetry focuses on **aggregate metrics** for system health monitoring.
 
@@ -39,18 +41,22 @@ Unlike `core.logging` (technical events) and `core.memory` (functional outcomes)
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Phase Status (V7.6)
+## Phase Status (V7.7)
 
 | Phase | Feature | Status |
 |-------|---------|--------|
-| **Phase 13c** | Telemetry Export (`/export-telemetry`) | ✅ COMPLETE |
+| **Phase 13c** | Telemetry Export (`/telemetry export`) | ✅ COMPLETE |
+| **Phase 14d** | Budget Cap (BudgetTracker) | ✅ COMPLETE |
+| **Phase 16a** | `/budget` command | ✅ COMPLETE |
 
 ## Files
 
 | File | Purpose | Key Classes |
 |------|---------|-------------|
-| `metrics.py` | Main implementation | `TelemetryCollector`, `MetricType` |
-| `__init__.py` | Module exports | `get_telemetry()` |
+| `metrics.py` | Main metrics collection | `TelemetryCollector`, `MetricType` |
+| `budget_tracker.py` | API cost tracking | `BudgetTracker`, `BudgetState` |
+| `exporter.py` | CSV export & reports | `TelemetryExporter`, `TelemetryEvent` |
+| `__init__.py` | Module exports | `get_telemetry()`, `BudgetTracker`, `TelemetryExporter` |
 
 ## Key Classes
 
@@ -253,19 +259,81 @@ telemetry.record_swarm_task(
 )
 ```
 
-### Export Command (Phase 13c)
+### Export Commands (Phase 13c)
 
 ```bash
-nexus> /export-telemetry
-# Exports workspace/telemetry.jsonl to timestamped file
+nexus> /telemetry           # Show report (last 7 days)
+nexus> /telemetry status    # Detailed stats
+nexus> /telemetry export    # Export to CSV (all time)
+nexus> /telemetry export 7  # Export last 7 days
+```
+
+### BudgetTracker (budget_tracker.py) - Phase 14d
+
+Thread-safe API cost tracking with daily limits and warnings.
+
+```python
+from core.telemetry import BudgetTracker
+
+tracker = BudgetTracker(workspace_path=Path("workspace"))
+
+# Record API cost
+tracker.record_cost(
+    provider="claude",
+    model="claude-opus-4-5",
+    tokens_in=1000,
+    tokens_out=500
+)
+
+# Get budget status
+stats = tracker.get_stats()
+# {'spent_today_usd': 0.05, 'limit_usd': 50.0, 'remaining_usd': 49.95, ...}
+
+# Warning levels
+warning = tracker.get_warning_level()
+# None (< 80%), "warning" (80-90%), "critical" (> 90%)
+
+# Emergency operations
+tracker.add_credit(25.0)   # Add $25 to limit
+tracker.reset_daily()      # Reset counters
+```
+
+### Budget Command (Phase 16a)
+
+```bash
+nexus> /budget              # Show status with progress bar
+nexus> /budget reset        # Reset daily counter (with confirmation)
+nexus> /budget add 10       # Add $10 emergency credit
+nexus> /budget history      # Show recent API calls (24h)
+```
+
+**Budget Display Example**:
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    💰 BUDGET STATUS                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+  [████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 25.0%
+
+  💸 Spent Today:    $12.5000
+  📊 Daily Limit:    $50.00
+  💰 Remaining:      $37.5000
+
+  📞 API Calls:      45
+  📅 Reset Date:     2025-12-05
 ```
 
 ## Configuration
 
 ```bash
 # In config or .env
-TELEMETRY_ENABLED=True  # Default: True
+TELEMETRY_ENABLED=True      # Default: True
 TELEMETRY_FILE=workspace/telemetry.jsonl  # Default path
+
+# Budget settings
+DAILY_BUDGET_LIMIT=50.0     # Default: $50/day
+BUDGET_WARNING_THRESHOLD=0.80   # 80% = warning
+BUDGET_CRITICAL_THRESHOLD=0.90  # 90% = critical
 ```
 
 ## Singleton Access
@@ -299,6 +367,7 @@ telemetry = get_telemetry()  # Same collector
 
 ## See Also
 
+- [Interface Module](../interface/README.md) - `/budget` and `/telemetry` commands
 - [Logging Module](../logging/README.md) - Technical event logging
 - [Memory Module](../memory/README.md) - Functional outcome tracking
 - [Swarm Module](../swarm/README.md) - Swarm task metrics source

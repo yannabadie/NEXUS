@@ -233,6 +233,16 @@ class Config:
             "GEMINI_STREAM_JSON", "True"
         ).lower() == "true"
 
+        # ====================================================================
+        # RESPONSE STREAMING (V7.7 Phase 15)
+        # ====================================================================
+        # Enable real-time token streaming during agent responses
+        # When True, responses stream character-by-character to the REPL
+        # When False, responses appear only after completion (default V7.6 behavior)
+        self.streaming_enabled: bool = os.getenv(
+            "STREAMING_ENABLED", "True"
+        ).lower() == "true"
+
         # Session timeout (seconds)
         self.gemini_persistent_timeout: float = float(
             os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")

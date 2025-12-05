@@ -95,6 +95,11 @@ class InteractiveNexusV7:
         # Abort flag for graceful shutdown of long-running operations
         self._abort_requested = False
 
+        # V7.7 Phase 15: Set up streaming callback if enabled
+        self._streaming_active = False  # Track if we're currently streaming
+        if getattr(self.config, 'streaming_enabled', False):
+            self.orchestrator.on_token = self._stream_token
+
     def _get_input(self, prompt: str = "nexus7> ") -> str:
         """Get user input with fallback for non-interactive terminals."""
         if self._use_simple_input:
@@ -113,6 +118,17 @@ class InteractiveNexusV7:
         filled = int(bar_width * progress)
         bar = "█" * filled + "░" * (bar_width - filled)
         self.console.print(f"[dim][{bar}] {progress_pct}%[/dim] {message}")
+
+    def _stream_token(self, token: str) -> None:
+        """
+        Callback for streaming tokens to console (V7.7 Phase 15).
+
+        Called by orchestrator's invoke_stream for each text chunk.
+        Prints tokens in real-time without newline, then flushes.
+        """
+        if token:
+            print(token, end="", flush=True)
+            self._streaming_active = True
 
     def run(self):
         """Main REPL loop"""
@@ -332,6 +348,18 @@ class InteractiveNexusV7:
 
         elif cmd == "/telemetry":
             self.handle_telemetry_command(args)
+
+        elif cmd == "/budget":
+            self.handle_budget_command(args)
+
+        elif cmd == "/tutorial":
+            self.run_tutorial()
+
+        elif cmd == "/quickstart":
+            self.show_quickstart()
+
+        elif cmd == "/chat":
+            self.toggle_chat_mode()
 
         elif cmd == "/help":
             self.console.print_help(get_help_message())
@@ -1052,6 +1080,207 @@ class InteractiveNexusV7:
             self.console.print_error(f"Export failed: {e}")
 
     # ==================== END TELEMETRY MANAGEMENT ====================
+
+    # ==================== PHASE 16: DEVELOPER EXPERIENCE ====================
+
+    def handle_budget_command(self, args: str):
+        """
+        Handle /budget commands (Phase 16a).
+
+        Subcommands:
+            /budget           - Show budget status (spent, limit, remaining)
+            /budget reset     - Reset daily budget counter (with confirmation)
+            /budget add <n>   - Add emergency credit to budget
+            /budget history   - Show recent API costs
+        """
+        from core.telemetry import BudgetTracker
+
+        tracker = BudgetTracker(self.workspace_path)
+
+        parts = args.strip().split(maxsplit=1)
+        subcommand = parts[0].lower() if parts else ""
+        sub_args = parts[1] if len(parts) > 1 else ""
+
+        if not subcommand:
+            # /budget - Show budget status
+            self._budget_show_status(tracker)
+
+        elif subcommand == "reset":
+            # /budget reset - Reset with confirmation
+            self._budget_reset(tracker)
+
+        elif subcommand == "add":
+            # /budget add <amount>
+            if not sub_args:
+                self.console.print_error("Usage: /budget add <amount_usd>")
+                return
+            try:
+                amount = float(sub_args)
+                if amount <= 0:
+                    self.console.print_error("Amount must be positive")
+                    return
+                self._budget_add_credit(tracker, amount)
+            except ValueError:
+                self.console.print_error(f"Invalid amount: {sub_args}")
+
+        elif subcommand == "history":
+            # /budget history - Show recent API costs
+            self._budget_show_history()
+
+        else:
+            self.console.print_error(f"Unknown subcommand: {subcommand}")
+            self.console.print("Usage: /budget [reset|add <amount>|history]")
+
+    def _budget_show_status(self, tracker):
+        """Display current budget status."""
+        stats = tracker.get_stats()
+        warning = tracker.get_warning_level()
+
+        # Build status display
+        lines = [
+            "",
+            "╔══════════════════════════════════════════════════════════════╗",
+            "║                    💰 BUDGET STATUS                          ║",
+            "╚══════════════════════════════════════════════════════════════╝",
+            "",
+        ]
+
+        # Progress bar
+        pct = stats["percentage_used"]
+        bar_width = 40
+        filled = int(bar_width * pct / 100)
+        bar = "█" * filled + "░" * (bar_width - filled)
+
+        if warning == "critical":
+            color = "[bold red]"
+        elif warning == "warning":
+            color = "[yellow]"
+        else:
+            color = "[green]"
+
+        lines.append(f"  {color}[{bar}] {pct:.1f}%[/{color.split('[')[1]}")
+        lines.append("")
+        lines.append(f"  💸 Spent Today:    ${stats['spent_today_usd']:.4f}")
+        lines.append(f"  📊 Daily Limit:    ${stats['limit_usd']:.2f}")
+        lines.append(f"  💰 Remaining:      ${stats['remaining_usd']:.4f}")
+        lines.append("")
+        lines.append(f"  📞 API Calls:      {stats['api_calls_today']}")
+        lines.append(f"  📅 Reset Date:     {stats['reset_date']}")
+
+        if warning:
+            lines.append("")
+            if warning == "critical":
+                lines.append("  ⚠️  [bold red]CRITICAL: Budget at 90%+! Consider /budget add[/bold red]")
+            else:
+                lines.append("  ⚠️  [yellow]WARNING: Budget at 80%+[/yellow]")
+
+        lines.append("")
+        lines.append("─" * 64)
+        lines.append("  /budget reset     Reset counter (emergency)")
+        lines.append("  /budget add <n>   Add credit ($)")
+        lines.append("  /budget history   Show recent costs")
+        lines.append("")
+
+        for line in lines:
+            self.console.console.print(line)
+
+    def _budget_reset(self, tracker):
+        """Reset daily budget counter with confirmation."""
+        # Ask for confirmation
+        self.console.print("\n⚠️  [yellow]This will reset your daily budget counter.[/yellow]")
+        self.console.print("    Current spent amount will be set to $0.00.")
+        try:
+            confirm = input("\n    Type 'yes' to confirm: ").strip().lower()
+            if confirm == "yes":
+                tracker.reset_daily()
+                self.console.print("\n✅ [green]Budget counter reset successfully.[/green]")
+                self.console.print("   Daily spent: $0.00\n")
+            else:
+                self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
+        except (EOFError, KeyboardInterrupt):
+            self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
+
+    def _budget_add_credit(self, tracker, amount: float):
+        """Add emergency credit to budget."""
+        old_limit = tracker.limit_usd
+        tracker.add_credit(amount)
+        new_limit = tracker.limit_usd
+
+        self.console.print(f"\n✅ [green]Added ${amount:.2f} to daily budget.[/green]")
+        self.console.print(f"   Previous limit: ${old_limit:.2f}")
+        self.console.print(f"   New limit:      ${new_limit:.2f}")
+        self.console.print(f"   Remaining:      ${tracker.get_remaining():.4f}\n")
+
+    def _budget_show_history(self):
+        """Show recent API costs from telemetry."""
+        from core.telemetry import TelemetryExporter
+
+        exporter = TelemetryExporter(self.workspace_path)
+        events = exporter.read_events(days=1)
+
+        # Filter api_call events
+        api_calls = [e for e in events if e.event_type == "api_call"]
+
+        if not api_calls:
+            self.console.print("\n📊 [bold]Recent API Costs[/bold]\n")
+            self.console.print("[dim]No API calls recorded in the last 24 hours.[/dim]\n")
+            return
+
+        lines = [
+            "",
+            "╔══════════════════════════════════════════════════════════════╗",
+            "║                  📊 RECENT API COSTS (24h)                   ║",
+            "╚══════════════════════════════════════════════════════════════╝",
+            "",
+            "  Time          Provider    Model              Tokens (I/O)",
+            "  ─────────────────────────────────────────────────────────────",
+        ]
+
+        # Show last 10 calls
+        for event in api_calls[-10:]:
+            data = event.data
+            time_str = event.timestamp.strftime("%H:%M:%S")
+            provider = data.get("provider", "?")[:10]
+            model = data.get("model", "?")[:18]
+            tokens_in = data.get("tokens_in", 0)
+            tokens_out = data.get("tokens_out", 0)
+            lines.append(f"  {time_str}    {provider:<10} {model:<18} {tokens_in:>6}/{tokens_out:<6}")
+
+        lines.append("")
+        lines.append(f"  Total calls (24h): {len(api_calls)}")
+        lines.append("")
+
+        for line in lines:
+            self.console.console.print(line)
+
+    def run_tutorial(self):
+        """Run interactive tutorial (/tutorial command)."""
+        from core.interface.tutorial import InteractiveTutorial
+
+        tutorial = InteractiveTutorial()
+        tutorial.run(self.console.console.print)
+
+    def show_quickstart(self):
+        """Show quick start guide (/quickstart command)."""
+        from core.interface.tutorial import InteractiveTutorial
+
+        tutorial = InteractiveTutorial()
+        self.console.console.print(tutorial.get_quick_start())
+
+    def toggle_chat_mode(self):
+        """Toggle chat-only mode (/chat command)."""
+        current = self.orchestrator.blackboard.get("chat_mode", False)
+        new_mode = not current
+        self.orchestrator.blackboard["chat_mode"] = new_mode
+
+        if new_mode:
+            self.console.print("\n💬 [cyan]Chat mode ENABLED[/cyan]")
+            self.console.print("   Tools are disabled. Use /chat to re-enable.\n")
+        else:
+            self.console.print("\n🔧 [green]Chat mode DISABLED[/green]")
+            self.console.print("   Full agent capabilities restored.\n")
+
+    # ==================== END PHASE 16 ====================
 
     # V7.5 Phase 0a: brainstorm_children_with_ais() REMOVED
     # Logic moved to core/evolution/phases/brainstorm.py (BrainstormPhase)

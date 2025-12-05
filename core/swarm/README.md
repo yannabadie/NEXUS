@@ -1,4 +1,4 @@
-# Swarm Module - NEXUS V7.6 "HIVE MIND"
+# Swarm Module - NEXUS V7.7 "HIVE MIND"
 
 Hybrid Swarm Engine for dynamic multi-agent collaboration.
 
@@ -58,7 +58,7 @@ SPECIALIST  → None (terminal)
 
 When a mode fails, the engine automatically degrades to the fallback mode.
 
-## Phase Status (V7.6)
+## Phase Status (V7.7)
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -68,6 +68,7 @@ When a mode fails, the engine automatically degrades to the fallback mode.
 | **Phase 10b** | Memory-Augmented Mode Selection | ✅ COMPLETE |
 | **Phase 10d** | Session-Aware Agent Selection | ✅ COMPLETE |
 | **Phase 5b** | N-Agent Agnosticism (Spawned Agents) | ✅ COMPLETE |
+| **Phase 14e** | Force Chain-of-Thought (EXPERT tasks) | ✅ COMPLETE |
 
 ## Files
 
@@ -172,13 +173,28 @@ claude_uuid = manager.get_or_create_session(task_id, "support", "claude")
 
 ### Complexity Levels
 
-| Level | Value | Description | Negotiation |
-|-------|-------|-------------|-------------|
-| `TRIVIAL` | 1 | Single-step tasks | Skip |
-| `SIMPLE` | 2 | Basic operations | Minimal |
-| `MODERATE` | 3 | Standard tasks | Full |
-| `COMPLEX` | 4 | Multi-step planning | Extended |
-| `EXPERT` | 5 | Critical decisions | RED_BLUE |
+| Level | Value | Description | Negotiation | CoT Forced |
+|-------|-------|-------------|-------------|------------|
+| `TRIVIAL` | 1 | Single-step tasks | Skip | No |
+| `SIMPLE` | 2 | Basic operations | Minimal | No |
+| `MODERATE` | 3 | Standard tasks | Full | No |
+| `COMPLEX` | 4 | Multi-step planning | Extended | No |
+| `EXPERT` | 5 | Critical decisions | RED_BLUE | **Yes** |
+
+### Force Chain-of-Thought (Phase 14e)
+
+For EXPERT complexity tasks, the system injects a CoT instruction requiring explicit reasoning:
+
+```xml
+<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>
+```
+
+**Implementation**:
+- `ExecutionContext.force_cot: bool` - Flag set when complexity == EXPERT
+- `_wrap_invoke_agent()` - Injects CoT instruction into context
+- `_build_context()` (Orchestrator path) - Also injects CoT for EXPERT
+
+See [PHASE_14E_COT_ENFORCEMENT.md](../../docs/PHASE_14E_COT_ENFORCEMENT.md) for full documentation.
 
 ### Task Domains
 
@@ -344,3 +360,4 @@ result = engine.process_task(
 - [Memory Module](../memory/README.md) - SuccessMemory for session scoring
 - [Drivers Module](../drivers/README.md) - Session UUID passing
 - [Synapse Module](../synapse/README.md) - Message schemas
+- [Phase 14e: CoT Enforcement](../../docs/PHASE_14E_COT_ENFORCEMENT.md) - Force Chain-of-Thought for EXPERT tasks

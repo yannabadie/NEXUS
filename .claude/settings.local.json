@@ -30,7 +30,13 @@
       "Bash(do [ -d \"core/$mod\" ])",
       "Bash({ [ -f \"core/$mod/README.md\" ])",
       "Bash(echo:*)",
-      "Bash(})"
+      "Bash(})",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(cat:*)",
+      "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\docs\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\docs\")",
+      "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\docs\\archive\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\docs\\archive\")",
+      "Bash(claude:*)"
     ],
     "deny": [],
     "ask": []

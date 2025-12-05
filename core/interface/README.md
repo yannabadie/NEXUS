@@ -1,53 +1,218 @@
-# Interface Module
+# Module: Interface - NEXUS V7.7 User Interaction Layer
 
-User interaction layer for NEXUS V7.
+**Version**: 7.7 (HIVE MIND)
+**Last Updated**: 2025-12-05
+**Phase 16**: Developer Experience (DX) - COMPLETE
 
-## Overview
+---
 
-The Interface module provides:
-- **REPL**: Interactive command loop
-- **Slash commands**: System commands (`/status`, `/evolve`, etc.)
-- **Mode management**: Normal, Chat, Evolution modes
+## Role Architectural
+
+User interaction layer for NEXUS V7.7. Provides REPL, categorized slash commands, interactive tutorial, and budget management.
+
+---
+
+## Alignement ROADMAP V7.5+
+
+| Phase ROADMAP | Impact sur ce module |
+|---------------|---------------------|
+| **Phase 13c** | Telemetry commands (`/telemetry`, `/telemetry export`) |
+| **Phase 10d** | Workspace commands (`/workspace new`, `/workspace switch`) |
+| **Phase 16a** | `/budget` command with subcommands (COMPLETE) |
+| **Phase 16b** | Categorized help with 5 categories (COMPLETE) |
+| **Phase 16c** | Interactive tutorial `/tutorial` + `/quickstart` (COMPLETE) |
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         USER                                │
-│                           │                                 │
-│                           ▼                                 │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │                      REPL                            │   │
-│   │  ┌──────────────┐   ┌──────────────────────────┐    │   │
-│   │  │ Input Parser │──▶│   Command Router          │    │   │
-│   │  └──────────────┘   │  • Slash commands         │    │   │
-│   │                     │  • Exit commands          │    │   │
-│   │                     │  • Agent input            │    │   │
-│   │                     └──────────────────────────┘    │   │
-│   │                                │                     │   │
-│   │         ┌──────────────────────┼──────────────┐      │   │
-│   │         ▼                      ▼              ▼      │   │
-│   │   ┌──────────┐          ┌──────────┐   ┌──────────┐  │   │
-│   │   │ Commands │          │Orchestrat│   │  Console │  │   │
-│   │   │ Handler  │          │   or     │   │  Output  │  │   │
-│   │   └──────────┘          └──────────┘   └──────────┘  │   │
-│   └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                           USER                                   │
+│                             │                                    │
+│                             ▼                                    │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │                        REPL                              │   │
+│   │  ┌──────────────┐   ┌────────────────────────────────┐  │   │
+│   │  │ Input Parser │──▶│      Command Router            │  │   │
+│   │  └──────────────┘   │  • COMMAND_CATEGORIES (5)      │  │   │
+│   │                     │  • Slash commands (25+)        │  │   │
+│   │                     │  • Exit commands               │  │   │
+│   │                     └────────────────────────────────┘  │   │
+│   │                                │                         │   │
+│   │    ┌───────────┬───────────────┼───────────┬──────────┐ │   │
+│   │    ▼           ▼               ▼           ▼          ▼ │   │
+│   │ ┌───────┐ ┌─────────┐ ┌────────────┐ ┌────────┐ ┌─────┐│   │
+│   │ │Budget │ │Tutorial │ │Orchestrator│ │Telemetry│ │Swarm││   │
+│   │ │Handler│ │ Runner  │ │            │ │ Export │ │Tasks││   │
+│   │ └───────┘ └─────────┘ └────────────┘ └────────┘ └─────┘│   │
+│   └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Components
+
+### 1. Command Categories (`commands.py`) - Phase 16b
+
+**Categorized command structure** replacing flat SLASH_COMMANDS.
+
+```python
+from core.interface.commands import COMMAND_CATEGORIES, get_help_message
+
+# 5 categories
+COMMAND_CATEGORIES = {
+    "🐝 Collaboration": {"/swarm", "/swarm-status", "/pool-stats", ...},
+    "🧬 Evolution": {"/evolve", "/spawn", "/agents", "/specialize", ...},
+    "📊 Monitoring": {"/budget", "/telemetry", "/status", ...},
+    "📁 Workspace": {"/workspace", "/bootstrap", ...},
+    "⚙️ System": {"/help", "/tutorial", "/chat", "/doctor", ...},
+}
+
+# Get formatted help
+help_text = get_help_message()  # ASCII-art categorized help
+```
+
+**Key Functions**:
+
+| Function | Purpose |
+|----------|---------|
+| `get_help_message()` | Generate categorized ASCII help |
+| `get_category_for_command(cmd)` | Find category for command |
+| `is_slash_command(input)` | Check if input starts with `/` |
+| `is_exit_command(input)` | Check for exit/quit/q |
+| `parse_command(input)` | Split into (command, args) |
+
+### 2. Interactive Tutorial (`tutorial.py`) - Phase 16c
+
+**5-step interactive guide** for new users.
+
+```python
+from core.interface.tutorial import InteractiveTutorial, TUTORIAL_STEPS
+
+# Run full tutorial
+tutorial = InteractiveTutorial()
+completed = tutorial.run(print_fn=console.print)
+
+# Quick start (non-interactive)
+quickstart = tutorial.get_quick_start()
+```
+
+**Tutorial Steps**:
+
+| Step | Title | Suggested Command |
+|------|-------|-------------------|
+| 1 | Bienvenue HIVE MIND | - |
+| 2 | Mode Swarm | `/swarm "Analyse ce projet"` |
+| 3 | Budget & Télémétrie | `/budget` |
+| 4 | Workspace | `/workspace` |
+| 5 | Evolution | `/evolve-status` |
+
+**TutorialStep Dataclass**:
+```python
+@dataclass
+class TutorialStep:
+    title: str
+    explanation: str
+    suggested_command: Optional[str] = None
+    tip: Optional[str] = None
+```
+
+### 3. REPL (`repl.py`)
+
+**Main interaction loop** with Phase 16 handlers.
+
+**New Phase 16 Methods**:
+
+| Method | Command | Description |
+|--------|---------|-------------|
+| `handle_budget_command(args)` | `/budget` | Budget management |
+| `_budget_show_status(tracker)` | `/budget` | Display progress bar |
+| `_budget_reset(tracker)` | `/budget reset` | Reset with confirmation |
+| `_budget_add_credit(tracker, amount)` | `/budget add <n>` | Add emergency credit |
+| `_budget_show_history()` | `/budget history` | Show recent API calls |
+| `run_tutorial()` | `/tutorial` | Launch interactive tutorial |
+| `show_quickstart()` | `/quickstart` | Show quick start guide |
+| `toggle_chat_mode()` | `/chat` | Toggle chat-only mode |
+
+---
+
+## Commands Reference
+
+### 🐝 Collaboration
+
+| Command | Description |
+|---------|-------------|
+| `/swarm <task>` | Route task through Hybrid Swarm Engine (6 modes) |
+| `/swarm-status` | Show current swarm mode and DyLAN metrics |
+| `/swarm-fsm <task>` | Route task via FSM states (debug mode) |
+| `/pool-stats` | Show agent pool DyLAN importance scores |
+
+### 🧬 Evolution
+
+| Command | Description |
+|---------|-------------|
+| `/evolve [count]` | Create and evaluate child generations (default: 3) |
+| `/evolve-status` | Show evolution stats and stagnation counter |
+| `/review` | Review and evaluate pending children |
+| `/specialize <mission>` | Create specialized NEXUS spinoff |
+| `/spawn <role>` | Create specialized agent (e.g., `/spawn SQL Expert`) |
+| `/agents` | List all spawned agents |
+
+### 📊 Monitoring
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Show orchestrator state, agent, iteration |
+| `/telemetry` | Show telemetry report (last 7 days) |
+| `/telemetry status` | Show detailed telemetry stats |
+| `/telemetry export [days]` | Export telemetry to CSV |
+| `/budget` | Show budget status (spent, limit, remaining) |
+| `/budget reset` | Reset daily budget counter (with confirmation) |
+| `/budget add <amount>` | Add emergency credit to budget |
+| `/budget history` | Show recent API costs (last 10 calls) |
+
+### 📁 Workspace
+
+| Command | Description |
+|---------|-------------|
+| `/workspace` | Show current workspace info |
+| `/workspace new [name]` | Create new workspace, archive current |
+| `/workspace list` | List all workspaces |
+| `/workspace switch <name>` | Switch to another workspace |
+| `/bootstrap [path]` | Analyze project and generate NEXUS.md |
+
+### ⚙️ System
+
+| Command | Description |
+|---------|-------------|
+| `/clear` | Clear terminal screen |
+| `/reset` | Reset orchestrator to IDLE state |
+| `/doctor` | Run system diagnostics |
+| `/mode <name>` | Change mode (Normal, InProjectImprovement) |
+| `/chat` | Enter chat-only mode (no tools) |
+| `/help` | Show categorized help message |
+| `/tutorial` | Interactive guide for new users (5 steps) |
+| `/quickstart` | Quick start summary (5 min read) |
+| `exit` | Exit NEXUS |
+
+---
 
 ## Files
 
-| File | Purpose | Key Classes |
+| File | Purpose | Key Exports |
 |------|---------|-------------|
 | `repl.py` | Main REPL loop | `REPL`, `run_repl()` |
-| `commands.py` | Slash commands | `SLASH_COMMANDS`, `parse_command()` |
-| `__init__.py` | Module exports | - |
+| `commands.py` | Categorized commands | `COMMAND_CATEGORIES`, `get_help_message()` |
+| `tutorial.py` | Interactive tutorial | `InteractiveTutorial`, `TUTORIAL_STEPS` |
+| `__init__.py` | Module exports | All public APIs |
 
-## Key Functions
+---
 
-### REPL
+## Usage Examples
 
-Main interaction loop.
+### Basic REPL
 
 ```python
 from core.interface import run_repl
@@ -57,166 +222,88 @@ config = Config()
 run_repl(config)  # Starts interactive session
 ```
 
-### Slash Commands
-
-Available commands:
-
-| Command | Description |
-|---------|-------------|
-| `/help` | Show help message |
-| `/status` | Show orchestrator state |
-| `/doctor` | Run system diagnostics |
-| `/reset` | Reset to IDLE state |
-| `/clear` | Clear terminal |
-| `/mode <name>` | Change mode |
-| `/chat` | Enter chat-only mode |
-| `/evolve [count]` | Create child generations |
-| `/evolve-status` | Show evolution stats |
-| `/pool-stats` | Show DyLAN metrics |
-| `/review` | Review pending children |
-| `/specialize <mission>` | Create specialized spinoff |
-| `exit` | Exit NEXUS |
-
 ### Command Parsing
 
 ```python
 from core.interface.commands import (
     is_slash_command,
-    is_exit_command,
     parse_command,
-    get_help_message
+    get_category_for_command,
+    COMMAND_CATEGORIES
 )
 
-user_input = "/evolve 5"
+# Parse command
+cmd, args = parse_command("/budget add 10")
+# cmd = "/budget", args = "add 10"
 
-if is_slash_command(user_input):
-    cmd, args = parse_command(user_input)
-    # cmd = "/evolve", args = ["5"]
+# Find category
+category = get_category_for_command("/budget")
+# "📊 Monitoring"
 
-if is_exit_command("quit"):
-    # True - exits the REPL
-    pass
-
-help_text = get_help_message()
-# "Available commands:\n  /help..."
+# List all categories
+for cat, commands in COMMAND_CATEGORIES.items():
+    print(f"{cat}: {len(commands)} commands")
 ```
 
-## REPL Flow
-
-```
-1. Show banner and help
-2. Loop:
-   a. Read user input
-   b. Check if slash command → execute
-   c. Check if exit → break
-   d. Pass to orchestrator
-   e. Display response
-   f. Continue until FINISHED or error
-3. Save state and exit
-```
-
-## Modes
-
-### Normal Mode
-- Default operation
-- Full agent collaboration
-- Tool execution enabled
-
-### Chat Mode (`/chat`)
-- Conversation only
-- No tool execution
-- Quick Q&A
-
-### Evolution Mode (`/evolve`)
-- Child creation enabled
-- GENERATION_ACTIVE writes permitted
-- Extended brainstorming
-
-## Evolution Commands
-
-### `/evolve [count]`
-
-Create and evaluate child generations.
-
-```bash
-nexus> /evolve 3
-Creating 3 children...
-Child 1: NEXUS_V7.5_CHILD_001 (Fitness: 0.78)
-Child 2: NEXUS_V7.5_CHILD_002 (Fitness: 0.81)
-Child 3: NEXUS_V7.5_CHILD_003 (Fitness: 0.79)
-
-Winner: CHILD_002 (+3.8% improvement)
-Review pending at PENDING_REVIEW.md
-```
-
-### `/evolve-status`
-
-Show evolution statistics.
-
-```bash
-nexus> /evolve-status
-Generation: 7.0
-Stagnation Counter: 0/3
-Last Evolution: 2025-11-26 14:30
-Children Created: 12
-Children Promoted: 3
-```
-
-### `/review`
-
-Review pending children.
-
-```bash
-nexus> /review
-=== PENDING REVIEW ===
-Child: NEXUS_V7.0_CHILD_002
-Fitness Score: 0.81 (+3.8%)
-Changes: 5 files, 120 lines
-
-[a]pprove / [r]eject / [d]etails?
-```
-
-## Configuration
-
-Environment variables:
-```bash
-UI_VERBOSE=True      # Detailed output
-LOG_LEVEL=DEBUG      # Logging verbosity
-```
-
-## Usage Example
+### Tutorial Integration
 
 ```python
-from core.interface import run_repl
-from core.interface.commands import (
-    is_slash_command,
-    parse_command,
-    SLASH_COMMANDS
+from core.interface.tutorial import InteractiveTutorial
+
+# Full interactive tutorial
+tutorial = InteractiveTutorial()
+completed = tutorial.run(
+    print_fn=print,
+    input_fn=input  # Optional, defaults to input()
 )
-from core.config import Config
 
-# Check available commands
-for cmd, desc in SLASH_COMMANDS.items():
-    print(f"{cmd}: {desc}")
+if completed:
+    print("Tutorial completed!")
+else:
+    print("Tutorial interrupted")
 
-# Run REPL
-config = Config()
-run_repl(config)
+# Quick start only
+print(tutorial.get_quick_start())
 ```
+
+---
+
+## Tests
+
+```bash
+# Phase 16 tests (21 tests)
+pytest tests/test_phase16_dx.py -v
+
+# Command categories tests
+pytest tests/test_phase16_dx.py::TestCommandCategories -v
+
+# Tutorial tests
+pytest tests/test_phase16_dx.py::TestInteractiveTutorial -v
+
+# Budget command tests
+pytest tests/test_phase16_dx.py::TestBudgetCommand -v
+```
+
+---
 
 ## Dependencies
 
 ### Internal
 - `core.orchestration_v7` - FSM orchestrator
 - `core.config` - Configuration
-- `core.ui` - Console output
-- `core.evolution` - For `/evolve`
+- `core.ui` - Console output (Rich)
+- `core.evolution` - For `/evolve` commands
+- `core.telemetry` - For `/budget` and `/telemetry`
 
 ### External
-- Standard library only
+- `rich` - Console formatting
+- Standard library only for core
+
+---
 
 ## See Also
 
 - [Core README](../README.md) - Architecture overview
 - [Evolution Module](../evolution/README.md) - Evolution commands
-- [UI Module](../ui/README.md) - Console display
+- [Telemetry Module](../telemetry/README.md) - Budget tracking
+- [Swarm Module](../swarm/README.md) - Swarm commands

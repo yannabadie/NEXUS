@@ -13,6 +13,14 @@ from .json_extractor import (
     extract_code_block,
     wrap_json,
 )
+from .stream_parser import (
+    parse_stream_chunk,
+    is_result_message,
+    extract_final_result,
+    extract_stats,
+    is_tool_message,
+    extract_tool_info,
+)
 
 __all__ = [
     "ArtifactVerifier",
@@ -23,4 +31,10 @@ __all__ = [
     "extract_json_safe",
     "extract_code_block",
     "wrap_json",
+    "parse_stream_chunk",
+    "is_result_message",
+    "extract_final_result",
+    "extract_stats",
+    "is_tool_message",
+    "extract_tool_info",
 ]

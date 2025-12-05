@@ -1,6 +1,7 @@
-# Drivers Module - NEXUS V7.6 "HIVE MIND"
+# Drivers Module - NEXUS V7.7 "HIVE MIND"
 
 AI model interface drivers for Claude and Gemini CLI communication.
+Supports both blocking and streaming invocation modes.
 
 ## Overview
 
@@ -59,6 +60,7 @@ The Drivers module handles communication with Claude and Gemini via their respec
 | **Session Persistence** | `--resume latest/{uuid}` | None (stateless) |
 | **Model Routing** | `gemini-3-pro-preview` (unified) | Opus (brainstorm) / Sonnet (tools) |
 | **Approval Mode** | YOLO with allowed-tools | `--dangerously-skip-permissions` |
+| **Streaming (V7.7)** | `-o stream-json` | `--output-format stream-json --verbose` |
 | **Timeout Default** | 300s | 120s |
 | **Process Cleanup** | `atexit` handler | `atexit` handler |
 
@@ -277,6 +279,107 @@ model = router.select_claude_model(TaskType.VALIDATION)
 # Returns: claude-sonnet-4-5-20250929
 ```
 
+## Phase 15: Response Streaming (V7.7)
+
+Real-time token streaming for improved UX. Both drivers support `invoke_stream()`.
+
+### Architecture
+
+```
+User Input → Orchestrator
+                │
+                ▼ (if streaming_enabled && on_token set)
+        ┌───────┴───────┐
+        │               │
+  GeminiDriverV7    ClaudeDriverHybrid
+  invoke_stream()   invoke_stream()
+        │               │
+        ▼               ▼
+  -o stream-json    --output-format stream-json
+                    --verbose --include-partial-messages
+        │               │
+        └───────┬───────┘
+                ▼
+        parse_stream_chunk(line, source)
+                │
+                ▼
+        on_token(text_chunk)
+                │
+                ▼
+        print(token, end="", flush=True)
+```
+
+### Gemini Streaming
+
+```python
+# Invoke with streaming
+def on_token(chunk: str):
+    print(chunk, end="", flush=True)
+
+response = driver.invoke_stream(context, on_token, session_uuid=session_uuid)
+
+# CLI flags used:
+# gemini -m {model} --approval-mode yolo --allowed-tools {...}
+#        --include-directories {root} --resume {uuid}
+#        -p @{file} -o stream-json
+```
+
+**Stream-JSON Format (Gemini)**:
+```jsonl
+{"type":"init","timestamp":"...","session_id":"uuid","model":"auto"}
+{"type":"message","role":"user","content":"..."}
+{"type":"message","role":"assistant","content":"chunk","delta":true}  ← TEXT
+{"type":"result","status":"success","stats":{...}}
+```
+
+### Claude Streaming
+
+```python
+response = driver.invoke_stream(context, on_token)
+
+# CLI flags used:
+# claude -p @{file} --dangerously-skip-permissions
+#        --verbose --output-format stream-json --include-partial-messages
+```
+
+**Stream-JSON Format (Claude)**:
+```jsonl
+{"type":"system","subtype":"init","session_id":"uuid","model":"..."}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"chunk"}}}  ← TEXT
+{"type":"result","subtype":"success","total_cost_usd":0.06,"result":"..."}
+```
+
+### Configuration
+
+```python
+# config.py
+config.streaming_enabled = True   # Enable streaming (default: True)
+
+# orchestration_v7.py
+orchestrator.on_token = lambda chunk: print(chunk, end="", flush=True)
+```
+
+### Stream Parser (core/utils/stream_parser.py)
+
+Unified parser for both CLI formats:
+
+```python
+from core.utils.stream_parser import parse_stream_chunk, is_result_message
+
+# Parse a line from either CLI
+text_chunk, metadata = parse_stream_chunk(line, "gemini")  # or "claude"
+
+if text_chunk:
+    # This is a text delta - display it
+    print(text_chunk, end="", flush=True)
+
+if is_result_message(metadata, "gemini"):
+    # Final statistics available
+    stats = extract_stats(metadata, "gemini")
+```
+
+**See also**: `docs/STREAM_FORMAT_ANALYSIS.md` for full format documentation.
+
 ## Phase 7: Session Isolation
 
 Enables parallel Swarm execution without context bleeding.
@@ -418,8 +521,9 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
 ## Dependencies
 
 ### Internal
-- `core.config` - CLI paths, timeouts, model names
+- `core.config` - CLI paths, timeouts, model names, streaming_enabled
 - `core.utils.json_extractor` - Robust JSON parsing (Gemini)
+- `core.utils.stream_parser` - JSONL stream parsing (Phase 15)
 - `core.swarm.session_manager` - Session UUID generation (Phase 7)
 
 ### External

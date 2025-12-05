@@ -128,8 +128,15 @@ class OrchestratorV7:
         self.json_parse_failures = 0
         self.max_parse_failures = 3
 
+        # V7.7 Phase 15: Streaming callback
+        # Set by REPL to receive real-time tokens during agent invocations
+        self.on_token: Optional[Callable[[str], None]] = None
+
         # Stalemate counter
         self.stalemate_counter = 0
+
+        # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT tasks
+        self._current_complexity: Optional[TaskComplexity] = None
 
         # Metrics
         self.gemini_info = gemini_info
@@ -315,10 +322,20 @@ class OrchestratorV7:
                 "status": "ERROR"
             }
 
+        # V7.7 Phase 15: Use streaming if enabled and callback is set
+        use_streaming = (
+            getattr(self.config, 'streaming_enabled', False) and
+            self.on_token is not None
+        )
+
         if self.active_agent == "Claude":
             driver = self._get_claude_driver(task_type)
+            if use_streaming:
+                return driver.invoke_stream(context, self.on_token)
             return driver.invoke(context)
         else:
+            if use_streaming:
+                return self.gemini_driver.invoke_stream(context, self.on_token)
             return self.gemini_driver.invoke(context)
 
     def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
@@ -476,10 +493,20 @@ class OrchestratorV7:
                 "status": "ERROR"
             }
 
+        # V7.7 Phase 15: Use streaming if enabled and callback is set
+        use_streaming = (
+            getattr(self.config, 'streaming_enabled', False) and
+            self.on_token is not None
+        )
+
         if target_agent == "Claude":
             driver = self._get_claude_driver(task_type)
+            if use_streaming:
+                return driver.invoke_stream(context, self.on_token)
             return driver.invoke(context)
         else:
+            if use_streaming:
+                return self.gemini_driver.invoke_stream(context, self.on_token)
             return self.gemini_driver.invoke(context)
 
     def _build_swarm_context(self, task_context: str, task_type: str, target_agent: str = None) -> str:
@@ -690,6 +717,9 @@ Path: {self.workspace_path}
             # Step 1: Analyze task complexity
             task_analysis = self.task_analyzer.analyze(user_input)
             complexity = task_analysis.complexity
+
+            # V7.7 Phase 14e: Store complexity for CoT enforcement
+            self._current_complexity = complexity
 
             # V7.5 HIVE MIND: Track task for Auto-Memory
             self._current_task_start = time.time()
@@ -1948,6 +1978,10 @@ Execute efficiently. You are the sole agent for this task.
             sender = msg.get("sender", "Unknown")
             content = msg.get("content", "")
             context += f"\n**{sender}:** {content}\n"
+
+        # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT complexity tasks
+        if self._current_complexity == TaskComplexity.EXPERT:
+            context += "\n\n<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
 
         return context
 

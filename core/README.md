@@ -1,6 +1,8 @@
 # NEXUS V7 Core Module
 
-The `core/` module is the heart of NEXUS V7.5 "HIVE MIND" - a collaborative multi-agent orchestration system that generates specialized agents to solve complex problems.
+The `core/` module is the heart of NEXUS V7.7 "HIVE MIND" - a collaborative multi-agent orchestration system that generates specialized agents to solve complex problems.
+
+**Version**: 7.7 | **Last Updated**: 2025-12-05
 
 ## Overview
 
@@ -11,6 +13,7 @@ The core module implements a **Finite State Machine (FSM)** that orchestrates co
 - **Persistent memory** and state management
 - **Dynamic model routing** (Opus/Sonnet/Pro/Flash)
 - **Hybrid Swarm Engine** for adaptive collaboration modes
+- **Force Chain-of-Thought** for EXPERT complexity tasks (Phase 14e)
 
 ## Architecture
 
@@ -54,7 +57,8 @@ The core module implements a **Finite State Machine (FSM)** that orchestrates co
 | [`evolution/`](evolution/README.md) | Self-modification engine | `lineage.py`, `evaluator.py`, `tiered_validator.py` |
 | [`routing/`](routing/README.md) | Dynamic model selection | `model_router.py` |
 | [`execution/`](execution/README.md) | Tool execution layer | `tool_manager.py` |
-| [`interface/`](interface/README.md) | User interaction | `repl.py`, `commands.py` |
+| [`interface/`](interface/README.md) | User interaction | `repl.py`, `commands.py`, `tutorial.py` |
+| [`telemetry/`](telemetry/README.md) | Metrics & budget | `metrics.py`, `budget_tracker.py`, `exporter.py` |
 | [`logging/`](logging/README.md) | Structured logging | `logger_v7.py` |
 | [`notifications/`](notifications/README.md) | Alert system | `email_notifier.py`, `file_notifier.py` |
 | [`ui/`](ui/README.md) | Console display | `console_v7.py` |

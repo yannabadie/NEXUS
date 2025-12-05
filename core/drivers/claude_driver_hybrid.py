@@ -39,7 +39,10 @@ import sys
 import time
 import atexit
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
+
+# V7.7 Phase 15: Stream parser for real-time response display
+from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats, extract_final_result
 
 
 # Global reference for cleanup at exit
@@ -221,6 +224,117 @@ class ClaudeDriverHybrid:
 
             # Parse hybrid response
             return self._parse_hybrid_response(raw_response)
+
+        except TimeoutError:
+            raise
+
+    def invoke_stream(
+        self,
+        context: str,
+        on_token: Callable[[str], None]
+    ) -> Dict:
+        """
+        Invoke Claude CLI with streaming output (V7.7 Phase 15).
+
+        Uses --output-format stream-json for JSONL streaming,
+        parses each line, and calls on_token for text deltas.
+
+        Args:
+            context: Contexte markdown avec system prompt
+            on_token: Callback called with each text chunk
+
+        Returns:
+            Dict structuré NEXUS (content, action_type, tool_use, etc.)
+
+        Raises:
+            RuntimeError: Si Claude CLI échoue
+            TimeoutError: Si timeout dépassé
+        """
+        # Write context to file
+        context_file = self.io_buffer / "claude_context_in.md"
+        context_file.write_text(context, encoding="utf-8")
+
+        # Claude streaming requires: --verbose --output-format stream-json --include-partial-messages
+        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --verbose --output-format stream-json --include-partial-messages'
+
+        try:
+            print(f"[DEBUG] Invoking Claude (streaming)", file=sys.stderr)
+
+            proc = subprocess.Popen(
+                command,
+                cwd=str(self.workspace_path),
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            _active_claude_processes.append(proc)
+
+            try:
+                accumulated_text = []
+                final_stats = {}
+                final_result_text = None
+                start_time = time.time()
+
+                # Read JSONL lines from stdout in real-time
+                for line in iter(proc.stdout.readline, ''):
+                    if not line:
+                        break
+
+                    # Check timeout
+                    elapsed = time.time() - start_time
+                    if elapsed > self.timeout:
+                        proc.kill()
+                        proc.wait()
+                        raise TimeoutError(f"Claude CLI timed out after {self.timeout}s")
+
+                    # Parse stream chunk
+                    text_chunk, data = parse_stream_chunk(line, "claude")
+
+                    if text_chunk is not None:
+                        accumulated_text.append(text_chunk)
+                        on_token(text_chunk)  # Stream to UI
+
+                    if data and is_result_message(data, "claude"):
+                        final_stats = extract_stats(data, "claude")
+                        final_result_text = extract_final_result(data, "claude")
+
+                # Wait for process to complete
+                proc.wait(timeout=5)
+
+                # Read any remaining stderr
+                stderr = proc.stderr.read()
+
+                if proc.returncode != 0:
+                    error_msg = stderr or "Unknown error"
+                    raise RuntimeError(f"Claude CLI failed (code {proc.returncode}): {error_msg}")
+
+                # Final newline after streaming
+                on_token("\n")
+
+                # Build response from accumulated text or final result
+                full_response = "".join(accumulated_text) if accumulated_text else (final_result_text or "")
+
+                # Parse hybrid response (handles XML tool_use blocks)
+                parsed_response = self._parse_hybrid_response(full_response)
+
+                # Attach streaming stats if available
+                if final_stats:
+                    parsed_response["_stream_stats"] = final_stats
+
+                return parsed_response
+
+            except KeyboardInterrupt:
+                print("\n[DEBUG] Interrupt received, killing Claude process...", file=sys.stderr)
+                proc.kill()
+                proc.wait()
+                raise
+            finally:
+                if proc in _active_claude_processes:
+                    _active_claude_processes.remove(proc)
 
         except TimeoutError:
             raise

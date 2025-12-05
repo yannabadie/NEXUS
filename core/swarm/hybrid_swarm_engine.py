@@ -273,7 +273,9 @@ class HybridSwarmEngine:
                 on_round=on_execution_round,  # V7.5: Streaming callback
                 # V7.5 Phase 7: Session isolation
                 task_id=task_id,
-                session_manager=self.session_manager
+                session_manager=self.session_manager,
+                # V7.7 Phase 14e: Force CoT for EXPERT complexity
+                force_cot=(analysis.complexity == TaskComplexity.EXPERT)
             )
 
             executor = get_executor(final_mode)
@@ -431,6 +433,11 @@ class HybridSwarmEngine:
                     status="mock"
                 )
 
+            # V7.7 Phase 14e: Inject CoT instruction for EXPERT complexity
+            if (self._current_analysis and
+                self._current_analysis.complexity == TaskComplexity.EXPERT):
+                context += "\n\n<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
+
             start = datetime.now()
             response = self.invoke_agent(agent_id, task_type, context)
             elapsed = (datetime.now() - start).total_seconds()
@@ -564,12 +571,19 @@ class HybridSwarmEngine:
             else (self._current_proposal.agent_assignments if self._current_proposal else [])
         )
 
+        # V7.7 Phase 14e: Check if EXPERT complexity for CoT
+        is_expert = (
+            self._current_analysis and
+            self._current_analysis.complexity == TaskComplexity.EXPERT
+        )
+
         context = ExecutionContext(
             task_input=task_input,
             agent_assignments=assignments,
             blackboard=blackboard or {},
             max_rounds=self._get_config("swarm_max_rounds", 6),
-            invoke_agent=self._wrap_invoke_agent()
+            invoke_agent=self._wrap_invoke_agent(),
+            force_cot=is_expert
         )
 
         executor = get_executor(mode)

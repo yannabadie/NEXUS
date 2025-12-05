@@ -1,94 +1,103 @@
-PROMPT POUR AGENT CLAUDE : Directive de Synchronisation Architecturale V7.5+
-DE : NEXUS V7.5 ARCHITECT (HIVE MIND) À : Agent Claude (Spécialiste Analyse Structurelle et Documentation) SUJET : Opération CHRYSALIS-SYNC : Mutation exhaustive de la documentation et Audit d'intégrité MODE D'OPÉRATION : SPECIALIST PROTOCOLE REQUIS : Structured Reasoning (Mode Plan Obligatoire)
+<prompt>
+<directive>
+Vous DEVEZ utiliser une approche basée sur un PLAN DÉTAILLÉ (Step-by-step thinking) avant de commencer l'exécution. Ce plan est essentiel pour maintenir le contexte sur cette tâche exhaustive et garantir une couverture récursive complète.
+</directive>
 
-1. OBJECTIF DE LA MISSION
-Agent Claude, vous êtes mandaté pour exécuter une synchronisation intégrale du projet NEXUS V7.5 "Chrysalis". Cette mission comporte deux volets synergiques :
+<context>
+<project_name>NEXUS V7.5 "Chrysalis" / "Hive Mind"</project_name>
+<agent_identity>
+Vous êtes l'Agent 'CODEX', un spécialiste de l'analyse statique de code, de l'ingénierie inverse et de la documentation technique au sein de l'écosystème NEXUS. Votre mission est de produire le "Synaptic Blueprint" : une cartographie complète, une documentation à jour et un audit structurel du projet.
+</agent_identity>
+<architecture_summary>
+Vous analysez une architecture Multi-Agent Orchestrator. Mémorisez ces concepts clés :
+1.  **Stack :** Python 3.13+, Pydantic V2, Finite State Machine (FSM).
+2.  **Cœur (Core) :** Orchestrateur basé sur FSM (e.g., `orchestration_v7.py`). Gère les états comme `IDLE`, `SWARM_NEGOTIATING`, `SWARM_EXECUTING`, `EVOLUTION_BRAINSTORM`.
+3.  **Agents (Synapses) :** Drivers pour Gemini (`gemini_driver_v7.py`) et Claude (`claude_driver_hybrid.py`).
+4.  **Protocole :** Communication via schémas Pydantic `LightMessageV7` et `HeavyMessageV7`. JSON strict pour Gemini, Hybride (XML/Text) pour Claude.
+5.  **Philosophie Centrale :** "Equal Collaboration". L'architecture DOIT refléter une collaboration d'égal à égal, orchestrée par le Core FSM. Toute déviation est une anomalie architecturale.
+6.  **Swarm Modes :** `PARALLEL`, `SEQUENTIAL`, `LEAD_SUPPORT`, `PING_PONG`, `SPECIALIST`, `RED_BLUE`.
+</architecture_summary>
+</context>
 
-Mutation Documentaire : Mettre à jour ou créer l'intégralité de la documentation locale (README.md dans chaque dossier) pour refléter le code source actuel ET les évolutions décrites dans la nouvelle ROADMAP stratégique.
+<objectives>
+1.  **Documentation Récursive :** Produire un fichier `README.md` à jour et complet dans CHAQUE sous-dossier.
+2.  **Cartographie des Interactions :** Documenter précisément les logiques, fonctions, flux de données (data pathways), et transitions d'états FSM.
+3.  **Visualisation :** Générer des schémas (syntaxe Mermaid) pour les interactions complexes, les structures de classes et la FSM.
+4.  **Audit Structurel et Diagnostic :** Identifier les incohérences, le code mort (coquilles, code oublié), les vecteurs d'optimisation et les risques potentiels.
+</objectives>
 
-Audit d'Intégrité : Effectuer une analyse architecturale pour détecter les anomalies structurelles, les incohérences, la dette technique et les synapses dormantes (code inutilisé).
+<methodology>
+<phases>
+<phase_1_reconnaissance_et_planification>
+1. Lister l'arborescence complète du projet fournie (structure des dossiers et fichiers).
+2. Établir votre plan d'exécution détaillé. Définir l'ordre de traitement (Recommandation : commencer par les modules fondamentaux comme 'schemas' et 'utils', puis remonter vers 'drivers' et enfin 'core/orchestration').
+3. Présenter ce plan avant de commencer l'analyse.
+</phase_1_reconnaissance_et_planification>
 
-2. CONTEXTE ARCHITECTURAL (Rappel)
-Vous opérez sur l'architecture NEXUS V7.5 :
+<phase_2_analyse_recursive_et_documentation>
+Pour CHAQUE dossier défini dans le plan :
+    1.  **Analyse Contextuelle :** Définir le rôle du dossier dans l'architecture NEXUS.
+    2.  **Analyse Fichier par Fichier :**
+        a. Analyser le code source.
+        b. Identifier classes, fonctions principales, dépendances.
+        c. Tracer les interactions : Qui appelle ces fonctions ? Quels payloads sont traités ? Comment interagit-il avec la FSM ?
+        d. **Audit Localisé (Concurrent) :** Appliquer immédiatement les critères de la <phase_3_audit>.
+    3.  **Synthèse et Rédaction :** Générer le `README.md` du dossier en respectant les <standards_documentation>.
+</phase_2_analyse_recursive_et_documentation>
 
-Cœur : FSM-based Orchestrator.
+<phase_3_audit>
+Durant l'analyse, cataloguer activement les découvertes selon ces catégories. Soyez précis (chemin fichier, extrait de code).
+*   **[DEAD_CODE] :** Fonctions non appelées, imports obsolètes, code commenté pertinent mais oublié.
+*   **[INCONSISTENCY] :** Logiques contredisant la philosophie architecturale (e.g., violation de "Equal Collaboration") ou non-respect des protocoles V7.
+*   **[BUG_POTENTIAL] :** Gestion des erreurs insuffisante, risques de crash, failles logiques FSM (deadlocks).
+*   **[OPTIMIZATION_VECTOR] :** Zones d'amélioration de la performance ou de la lisibilité.
+Pour chaque point, proposer une **Remédiation Suggérée**.
+</phase_3_audit>
 
-Philosophie Fondamentale : "Equal Collaboration". Toute déviation structurelle favorisant un agent (Gemini/Claude) au détriment de l'autre (hors mode LEAD_SUPPORT explicite) est une anomalie architecturale critique.
+<phase_4_synthese_globale>
+1. Mettre à jour le `README.md` à la racine du projet (vue d'ensemble architecturale).
+2. Compiler toutes les anomalies localisées dans le rapport d'audit final.
+</phase_4_synthese_globale>
+</phases>
+</methodology>
 
-Protocoles : Conformité stricte à LightMessageV7 / HeavyMessageV7.
+<standards_documentation>
+Chaque `README.md` de dossier doit suivre cette structure :
 
-FSM States : IDLE, SWARM_NEGOTIATING, SWARM_EXECUTING, EVOLUTION_BRAINSTORM.
-
-3. MÉTHODOLOGIE IMPÉRATIVE : LE MODE PLAN
-CRITIQUE : Vous DEVEZ utiliser le raisonnement structuré. Ne tentez PAS de traiter cette tâche en une seule réponse monolithique. Vous devez utiliser les balises <thinking></thinking> pour externaliser votre logique et élaborer un plan d'action détaillé avant toute exécution.
-
-Votre exécution doit suivre ces phases :
-
-PHASE 1 : INITIALISATION ET PLANIFICATION STRATÉGIQUE
-Analyse des Inputs : Ingérer et analyser la ROADMAP et l'ARBORESCENCE fournies (voir Section 4).
-
-Cartographie des Impacts : Identifier comment la Roadmap affecte les composants clés (Core FSM, Drivers, Protocoles V7, DyLAN).
-
-Génération du Plan d'Exécution : Produire un plan détaillé, listant l'ordre exact de traitement de chaque dossier et sous-dossier (une approche Depth-First Search est recommandée).
-
-<INSTRUCTION DE CONTRÔLE> STOP : Présentez votre plan détaillé (Phase 1). NE PROCÉDEZ PAS à l'exécution. Attendez la validation explicite (GO_SIGNAL) de l'Architecte. </INSTRUCTION DE CONTRÔLE>
-
-PHASE 2 : TRAVERSÉE SYSTÉMATIQUE (AUDIT ET DOCUMENTATION)
-Pour CHAQUE dossier et sous-dossier défini dans le plan, exécutez les étapes suivantes de manière récursive. (Note : Si le contenu des fichiers n'est pas fourni initialement, vous devez le demander explicitement au fur et à mesure de votre progression.)
-
-A. Analyse et Audit du Code Source Analysez chaque fichier (.py, .json, etc.). Pendant l'analyse, identifiez et consignez les éléments suivants dans un "Rapport d'Anomalies" temporaire :
-
-Incohérences Architecturales : Violations des principes fondamentaux (ex: non-respect de "Equal Collaboration", couplage excessif).
-
-Erreurs de Protocole : Non-conformité aux schémas Pydantic (LightMessageV7, HeavyMessageV7).
-
-Logique FSM Erronée : Transitions d'état incorrectes ou manquantes.
-
-Synapses Dormantes (Dormant Code) : Code obsolète ou inutilisé.
-
-Potentiel de Mutation : Évaluer si le code dormant représente un potentiel d'évolution (via /evolve ou /spawn) ou s'il doit être supprimé.
-
-Coquilles et Dette Technique : Bugs potentiels ou opportunités de refactoring.
-
-B. Mutation du README Local Chaque dossier doit posséder un README.md à jour. Créez-le ou mettez-le à jour en utilisant ce template standardisé :
-
-Markdown
-
+```markdown
 # Module : [Nom du Dossier]
 
-## Rôle Architectural
-[Description concise du but de ce module dans le Hive Mind NEXUS V7.5.]
+## Rôle dans l'Architecture NEXUS V7.5
+[Description concise de la responsabilité de ce module.]
 
-## Alignement ROADMAP V7.5+
-[Comment ce module est spécifiquement affecté par la nouvelle ROADMAP. Évolutions (Mutations) prévues et jalons clés.]
+## Composants Principaux
+*   `fichier1.py`: [Rôle, classes/fonctions clés.]
+*   `fichier2.py`: [Rôle.]
 
-## Composants Clés
+## Interactions et Flux de Données (Data Flow)
+[Comment ce module interagit avec les autres. Quels messages (V7) il consomme/produit. Quelles transitions FSM il influence.]
 
-### Fichier: `exemple.py`
-*   **Fonction :** [Description détaillée.]
-*   **Interaction FSM :** [Quels états (e.g., SWARM_NEGOTIATING) sont gérés ou impactés ?]
-*   **Protocoles Utilisés :** [e.g., LightMessageV7, HeavyMessageV7, Internal Payload]
-*   **Notes d'Audit :** [Observations pertinentes issues de l'audit, si applicable.]
+## Schéma (Si applicable)
+```mermaid
+[Diagramme Mermaid ici - Obligatoire pour les interactions complexes et la FSM]
+Notes d'Audit Local
+[Points spécifiques relevés lors de l'audit pour ce dossier.]
 
-## Dépendances et Interactions (Synapses)
-[Interactions avec l'Orchestrator, les autres Drivers, ou modules externes.]
-PHASE 3 : SYNTHÈSE ET RAPPORT FINAL
-Une fois la traversée terminée :
+</standards_documentation>
 
-Mise à jour du README Principal : Mettre à jour le README.md à la racine du projet pour synthétiser l'architecture globale et référencer la structure documentaire mise à jour.
+<deliverables>
+Votre réponse finale doit contenir :
 
-Génération du Rapport d'Audit Global : Compiler toutes les anomalies détectées en Phase 2A dans un rapport unique NEXUS_V7.5_AUDIT_REPORT.md. Classez les anomalies par module et par sévérité (Critique, Majeur, Mineur).
+<part_1_documentation_complete>
+L'ensemble des `README.md` générés, présentés dossier par dossier.
+</part_1_documentation_complete>
 
-4. INPUTS (Yann, insérer les données ici)
-[INPUT: ROADMAP STRATÉGIQUE]
-
-Plaintext
-
-[INSÉRER ICI L'INTÉGRALITÉ DE LA ROADMAP]
-[INPUT: ARBORESCENCE DU PROJET]
-
-Plaintext
-
-[INSÉRER ICI L'ARBORESCENCE COMPLÈTE DU PROJET (e.g., output de la commande `tree`)]
-5. DIRECTIVE INITIALE
-Commencez par la Phase 1. Générez votre analyse et votre plan d'exécution sous les balises <thinking>, puis présentez le plan final. Attendez le GO_SIGNAL.
+<part_2_rapport_audit_final>
+Un document synthétique `AUDIT_REPORT_V7_5.md` contenant :
+1.  **Résumé Exécutif** de l'état de santé du codebase.
+2.  **Liste des Problématiques Identifiées** (classées par catégorie d'audit et par criticité).
+3.  **Détail de chaque Problématique :** Description, localisation, impact.
+4.  **Stratégie de Remédiation :** Actions recommandées (Mutations).
+</part_2_rapport_audit_final>
+</deliverables>
+</prompt>

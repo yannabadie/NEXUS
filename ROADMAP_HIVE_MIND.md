@@ -1,6 +1,6 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.5.7 | **Status**: Active | **Last Updated**: 2025-12-04
+**Version**: 7.7.0 | **Status**: Active | **Last Updated**: 2025-12-05
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
 **Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
 **Étude d'Impact**: Workspace & Blackboard Analysis (2025-12-04)
@@ -1704,74 +1704,92 @@ class BudgetTracker:
 
 **Métrique**: `budget_utilization_pct` - % du budget consommé
 
-#### Phase 14e: Force Chain-of-Thought (CoT) 🆕 *Proposé par Gemini (2025-12-04)*
+#### Phase 14e: Force Chain-of-Thought (CoT) ✅ COMPLETED *Proposé par Gemini (2025-12-04), Implémenté par Claude (2025-12-05)*
 **Source**: Analyse Gemini - "Pas de mécanisme pour forcer réflexion AVANT réponse"
 **Problème**: Les tâches EXPERT bénéficieraient d'un CoT obligatoire
 **Effort**: 0.5 jour
 
 **Implémentation**:
-- [ ] `ExecutionContext.force_cot: bool = False`
-- [ ] Si `complexity == EXPERT` → `force_cot = True`
-- [ ] Injection dans prompt: `<thinking>Réfléchis étape par étape...</thinking>`
-- [ ] Parse et log du bloc `<thinking>` dans la réponse
+- [x] `ExecutionContext.force_cot: bool = False` → `core/swarm/mode_executors.py`
+- [x] Si `complexity == EXPERT` → `force_cot = True` dans `hybrid_swarm_engine.py`
+- [x] `_current_complexity` stockée sur OrchestratorV7 pour accès dans `_build_context()`
+- [x] Injection CoT dans 2 chemins: Orchestrator (`_build_context()`) + Swarm (`_wrap_invoke_agent()`)
+
+**Fichiers modifiés**:
+| Fichier | Modification |
+|---------|--------------|
+| `core/orchestration_v7.py` | `_current_complexity` + injection CoT dans `_build_context()` |
+| `core/swarm/mode_executors.py` | `ExecutionContext.force_cot: bool = False` |
+| `core/swarm/hybrid_swarm_engine.py` | Set `force_cot` + injection dans `_wrap_invoke_agent()` |
+
+**Tests**: 16 tests - `pytest tests/test_cot_enforcement.py -v`
 
 ```python
-# core/swarm/execution_context.py
-@dataclass
-class ExecutionContext:
-    force_cot: bool = False  # Force Chain-of-Thought pour EXPERT
-
-# Dans _build_prompt()
-if context.force_cot:
-    prompt += "\n\n<instruction>BEFORE answering, wrap your reasoning in <thinking>...</thinking></instruction>"
+# Instruction injectée pour tâches EXPERT
+COT_INSTRUCTION = "<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
 ```
 
-### Phase 15: Response Streaming 🆕 *Proposé par Claude (2025-12-04)*
+### Phase 15: Response Streaming ✅ *Proposé par Claude (2025-12-04), Implémenté (2025-12-05)*
 **Objectif**: Streaming des réponses pour UX améliorée
-**Effort**: 3-4 jours
+**Effort**: 3-4 jours → **RÉALISÉ EN 1 SESSION**
 **Source**: Best practice industrie (tous les frameworks majeurs supportent streaming)
 
 **Problème**: NEXUS attend la réponse complète avant affichage → latence perçue élevée
 
-**Implémentation**:
-- [ ] `GeminiDriverV7._invoke_subprocess_stream()` - Lecture stdout ligne par ligne
-- [ ] `ClaudeDriverHybrid._stream_response()` - Idem
-- [ ] Callback `on_token(token: str)` dans ExecutionContext
-- [ ] REPL streaming output avec `rich.Live`
+**Implémentation V7.7**:
+- [x] `core/utils/stream_parser.py` - Parseur unifié Gemini/Claude stream-json
+- [x] `GeminiDriverV7.invoke_stream()` - `-o stream-json` avec callback
+- [x] `ClaudeDriverHybrid.invoke_stream()` - `--output-format stream-json --verbose --include-partial-messages`
+- [x] `config.streaming_enabled` - Toggle global (défaut: True)
+- [x] `orchestration_v7.on_token` - Callback propagé aux drivers
+- [x] `repl._stream_token()` - Affichage temps réel
+- [x] Tests complets (23 tests stream_parser)
+
+**Documentation technique**: `docs/STREAM_FORMAT_ANALYSIS.md`
 
 **Impact UX**: Latence perçue divisée par 5-10x
 
-### Phase 16: Developer Experience (DX) 🆕 *Proposé par Gemini (2025-12-04)*
+### Phase 16: Developer Experience (DX) ✅ *Proposé par Gemini (2025-12-04), Implémenté (2025-12-05)*
 **Objectif**: Onboarding et aide améliorés
-**Effort**: 1-2 jours
-**Source**: Analyse Gemini - "/help est-elle à jour et ergonomique?"
+**Effort**: 1 session → **RÉALISÉ**
+**Source**: Analyse Gemini - "/help est-elle à jour et ergonomique?" + Claude micro-suggestions
 
 **Implémentation**:
-- [ ] `/tutorial` - Guide interactif des fonctionnalités V7.6
-- [ ] `/help` enrichi avec exemples par commande
-- [ ] `/quickstart` - Démo 5 commandes essentielles
-- [ ] Auto-suggestion commandes après erreur
+- [x] **Phase 16a**: `/budget` - Gestion budget API (status, reset avec confirmation, add, history)
+- [x] **Phase 16b**: Help catégorisé - 5 catégories (Collaboration, Evolution, Monitoring, Workspace, System)
+- [x] **Phase 16c**: `/tutorial` - Guide interactif 5 étapes + `/quickstart`
+- [x] `/chat` - Mode chat-only (sans tools)
+- [ ] Auto-suggestion commandes après erreur (reporté)
 
-```
-nexus7> /tutorial
+**Fichiers créés**:
+- `core/interface/commands.py` - COMMAND_CATEGORIES structure
+- `core/interface/tutorial.py` - InteractiveTutorial class
+- `tests/test_phase16_dx.py` - 21 tests (ALL GREEN)
 
-🎓 NEXUS V7.6 HIVE MIND - Tutorial Interactif
+**Commandes ajoutées**:
+| Commande | Description |
+|----------|-------------|
+| `/budget` | Affiche status budget (progress bar, spent, remaining) |
+| `/budget reset` | Reset compteur journalier (avec confirmation) |
+| `/budget add <n>` | Ajoute crédit d'urgence |
+| `/budget history` | Derniers 10 appels API (24h) |
+| `/tutorial` | Guide interactif 5 étapes |
+| `/quickstart` | Résumé quick start (5 min) |
+| `/chat` | Toggle mode chat-only |
 
-1/5: Swarm Mode
-   Essayez: /swarm "Analyse ce fichier README.md"
-   [Entrée pour continuer...]
-```
+**Tests**: 21 tests - `pytest tests/test_phase16_dx.py -v`
 
-V7.7 (Février 2026) - CONSOLIDATION & SAFETY 🆕 *Révisé 2025-12-04*
-├── [P0] Phase 14b: Evolution Test Coverage (CRITIQUE - pré-requis)
-├── [P1] Phase 14d: Budget Cap 🆕 (Gemini) - Sécurité financière
-├── [P1] Phase 13d: AutoMemory↔ModeSelector - Quick win
-├── [P2] Phase 12.4: Symmetric MCP Bridges - Interop
-├── [P2] Phase 15: Response Streaming 🆕 (Claude) - UX
-├── [P3] Phase 14e: Force CoT 🆕 (Gemini) - Qualité EXPERT
+V7.7 (Février 2026) - CONSOLIDATION & SAFETY
+├── [COMPLETED] Phase 14b: Evolution Test Coverage ✅ (CRITIQUE)
+├── [COMPLETED] Phase 14d: Budget Cap ✅ (Gemini) - Sécurité financière
+├── [COMPLETED] Phase 13d: AutoMemory↔ModeSelector ✅ - Quick win
+├── [COMPLETED] Phase 15: Response Streaming ✅ (Claude) - UX temps réel
+├── [COMPLETED] Phase 16: DX /tutorial ✅ (Gemini) - Onboarding amélioré
+├── [SKIPPED] Phase 12.4: Symmetric MCP Bridges - REDUNDANT (infra MCP existante)
+│   └── core/mcp/ already has full MCP client + mock server
+├── [COMPLETED] Phase 14e: Force CoT ✅ (Gemini+Claude) - Qualité EXPERT
 ├── [P3] Phase 13e: Global Registry Migration
-├── [P3] Phase 10c: Project Memory RAG 🆕 (Gemini)
-└── [P4] Phase 16: DX /tutorial 🆕 (Gemini)
+└── [P3] Phase 10c: Project Memory RAG 🆕 (Gemini)
 
 V7.8 (Mars 2026) - ADVANCED FEATURES
 ├── Phase 12.5: Dynamic Tool Generation (après sécurité renforcée)
@@ -1974,10 +1992,10 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 **Contributions Gemini (Session 2025-12-04)** 🤖:
 | Idée | Phase Cible | Statut |
 |------|-------------|--------|
-| Budget Cap (Token Economy) | Phase 14d | 🆕 AJOUTÉE |
+| Budget Cap (Token Economy) | Phase 14d | ✅ COMPLÉTÉE |
 | Project Memory RAG | Phase 10c | 🆕 ENRICHIE |
-| Force Chain-of-Thought | Phase 14e | 🆕 AJOUTÉE |
-| /tutorial DX | Phase 16 | 🆕 AJOUTÉE |
+| Force Chain-of-Thought | Phase 14e | ✅ COMPLÉTÉE (2025-12-05) |
+| /tutorial DX | Phase 16 | ✅ COMPLÉTÉE (2025-12-05) |
 | Annulation Extended Modes | Phase 11 | ❌ ANNULÉE |
 
 **Contributions Claude (Session 2025-12-04)** 🧠:

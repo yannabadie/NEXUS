@@ -28,10 +28,12 @@ import sys
 import time
 import atexit
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
 
 # V7.5 HIVE MIND: Centralized JSON extraction
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
+# V7.7 Phase 15: Stream parser for real-time response display
+from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats
 
 
 # Global reference for cleanup at exit
@@ -143,6 +145,32 @@ class GeminiDriverV7:
             ValueError: Si session_uuid invalide (resume failed)
         """
         return self._invoke_subprocess(context, session_uuid=session_uuid)
+
+    def invoke_stream(
+        self,
+        context: str,
+        on_token: Callable[[str], None],
+        session_uuid: Optional[str] = None
+    ) -> Dict:
+        """
+        Invoke Gemini CLI with streaming output (V7.7 Phase 15).
+
+        Streams text tokens in real-time via callback, then returns
+        the full parsed JSON response.
+
+        Args:
+            context: Contexte markdown avec system prompt
+            on_token: Callback called with each text chunk
+            session_uuid: Optional session UUID for isolation (Phase 7)
+
+        Returns:
+            Dict structuré NEXUS (JSON parsé)
+
+        Raises:
+            RuntimeError: Si Gemini CLI échoue
+            TimeoutError: Si timeout dépassé
+        """
+        return self._invoke_subprocess_stream(context, on_token, session_uuid=session_uuid)
 
     # NOTE: PTY and legacy persistent methods removed in V7.6 cleanup
     # See: docs/archive/pty_mode_v7_archived.py
@@ -442,3 +470,155 @@ class GeminiDriverV7:
             }
         else:
             raise ValueError(f"Could not extract JSON from Gemini response: {text[:500]}...")
+
+    def _invoke_subprocess_stream(
+        self,
+        context: str,
+        on_token: Callable[[str], None],
+        session_uuid: Optional[str] = None
+    ) -> Dict:
+        """
+        Invoke Gemini with streaming output (V7.7 Phase 15).
+
+        Uses -o stream-json for JSONL streaming, parses each line,
+        and calls on_token for text deltas.
+
+        Args:
+            context: Context markdown
+            on_token: Callback for each text chunk
+            session_uuid: Optional session UUID for isolation
+
+        Returns:
+            Dict structured NEXUS response
+        """
+        import shutil
+        import platform
+
+        # Write context to file
+        context_file = self.io_buffer / "gemini_context_in.md"
+        context_file.write_text(context, encoding="utf-8")
+        context_file_relative = Path("_IO_BUFFER") / "gemini_context_in.md"
+
+        # Find CLI executable
+        cli_executable = shutil.which(str(self.cli_path))
+        if not cli_executable:
+            cli_executable = str(self.cli_path)
+
+        use_shell = platform.system() == "Windows"
+
+        # Calculate nexus_root for --include-directories
+        resolved_workspace = self.workspace_path.resolve()
+        parent_dir = resolved_workspace.parent
+        grandparent = parent_dir.parent
+        if grandparent.name == "GENERATION_ACTIVE":
+            nexus_root = grandparent.parent
+        else:
+            nexus_root = grandparent
+
+        allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
+
+        # Build resume flag
+        if session_uuid:
+            resume_flag = f"--resume {session_uuid}"
+        elif self.use_session_resume and self._session_active:
+            resume_flag = "--resume latest"
+        else:
+            resume_flag = ""
+
+        approval_mode = "--approval-mode yolo"
+
+        # Build command with -o stream-json (CRITICAL: different from -o json)
+        if use_shell:
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o stream-json'
+        else:
+            cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
+            if session_uuid:
+                cmd_parts.extend(["--resume", session_uuid])
+            elif self.use_session_resume and self._session_active:
+                cmd_parts.extend(["--resume", "latest"])
+            cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "stream-json"])
+            command = cmd_parts
+
+        try:
+            print(f"[DEBUG] Invoking Gemini (streaming): {self.model}", file=sys.stderr)
+
+            proc = subprocess.Popen(
+                command,
+                cwd=str(self.workspace_path),
+                shell=use_shell,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            _active_processes.append(proc)
+
+            try:
+                accumulated_text = []
+                final_stats = {}
+                start_time = time.time()
+
+                # Read JSONL lines from stdout in real-time
+                for line in iter(proc.stdout.readline, ''):
+                    if not line:
+                        break
+
+                    # Check timeout
+                    elapsed = time.time() - start_time
+                    if elapsed > self.timeout:
+                        proc.kill()
+                        proc.wait()
+                        raise TimeoutError(f"Gemini CLI timed out after {self.timeout}s")
+
+                    # Parse stream chunk
+                    text_chunk, data = parse_stream_chunk(line, "gemini")
+
+                    if text_chunk is not None:
+                        accumulated_text.append(text_chunk)
+                        on_token(text_chunk)  # Stream to UI
+
+                    if data and is_result_message(data, "gemini"):
+                        final_stats = extract_stats(data, "gemini")
+
+                # Wait for process to complete
+                proc.wait(timeout=5)
+
+                # Read any remaining stderr
+                stderr = proc.stderr.read()
+
+                if proc.returncode != 0:
+                    error_msg = stderr or "Unknown error"
+                    raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {error_msg}")
+
+                # Mark session active for future resume
+                if self.use_session_resume:
+                    self._session_active = True
+
+                # Final newline after streaming
+                on_token("\n")
+
+                # Build NEXUS response from accumulated text
+                full_response = "".join(accumulated_text)
+
+                # Try to extract JSON from accumulated response
+                extracted_data = self._extract_json(full_response, fallback_to_error=True)
+
+                # Attach streaming stats if available
+                if final_stats:
+                    extracted_data["_stream_stats"] = final_stats
+
+                return extracted_data
+
+            except KeyboardInterrupt:
+                print("\n[DEBUG] Interrupt received, killing Gemini process...", file=sys.stderr)
+                proc.kill()
+                proc.wait()
+                raise
+            finally:
+                if proc in _active_processes:
+                    _active_processes.remove(proc)
+
+        except TimeoutError:
+            raise
