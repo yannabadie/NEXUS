@@ -1,8 +1,35 @@
-# NEXUS V7.6 "HIVE MIND"
+<p align="center">
+  <img src="docs/commercialisation/imgs/NEXUS_BANNER.jpg" alt="NEXUS HIVE MIND Banner" width="100%"/>
+</p>
 
-**A Collaborative Intelligence Core for Specialized Agent Generation**
+<h1 align="center">
+  <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
+  NEXUS V7.8 "HIVE MIND"
+</h1>
 
-NEXUS is a multi-agent orchestration platform that combines Claude and Gemini to create a **collaborative intelligence** capable of generating and coordinating specialized agents for complex tasks.
+<p align="center">
+  <strong>A Collaborative Intelligence Core for Specialized Agent Generation</strong>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#commands">Commands</a> •
+  <a href="ROADMAP_HIVE_MIND.md">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-7.8.0-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
+  <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
+  <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>
+  <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
+</p>
+
+---
+
+NEXUS is a multi-agent orchestration platform that combines **Claude** and **Gemini** to create a **collaborative intelligence** capable of generating and coordinating specialized agents for complex tasks.
 
 ## Vision
 
@@ -12,6 +39,7 @@ NEXUS is a **deployable collaborative intelligence** that:
 3. **Orchestrates** their collaboration via Hybrid Swarm
 4. **Evolves** by selecting the best configurations
 
+<a name="quick-start"></a>
 ## Quick Start
 
 ```bash
@@ -41,7 +69,8 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
            FALLBACK CHAIN ON FAILURE
 ```
 
-## V7.6 Features
+<a name="features"></a>
+## V7.8 Features
 
 ### Phase Highlights
 
@@ -54,8 +83,10 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
 | **Phase 10b** | Memory-Augmented Mode Selection | ✅ COMPLETE |
 | **Phase 10d** | Session-Aware Agent Selection | ✅ COMPLETE |
 | **Phase 12.3** | Workspace File Management | ✅ COMPLETE |
+| **Phase 12.5** | Dynamic Tool Generation | ✅ COMPLETE |
 | **Phase 13b** | Workspace Commands Activation | ✅ COMPLETE |
 | **Phase 13c** | Telemetry Export | ✅ COMPLETE |
+| **Phase 14e** | Force Chain-of-Thought (EXPERT) | ✅ COMPLETE |
 
 ### Hybrid Swarm Engine
 Dynamic collaboration modes negotiated by agents:
@@ -94,11 +125,12 @@ nexus> /evolve-status  # Show evolution stats
 nexus> /review         # Review pending children
 ```
 
-## Architecture (V7.6)
+<a name="architecture"></a>
+## Architecture (V7.8)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        NEXUS V7.6 HIVE MIND                          │
+│                        NEXUS V7.8 HIVE MIND                          │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   USER INPUT                                                         │
@@ -139,6 +171,7 @@ nexus> /review         # Review pending children
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
+<a name="commands"></a>
 ## Commands
 
 | Command | Description |
