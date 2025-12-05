@@ -1688,12 +1688,34 @@ V7.7 (Février 2026) - CONSOLIDATION & INTEROP
 - [ ] Tests pour `MutationParser` (robustesse JSON)
 - [ ] Tests pour `Evaluator` (métriques fitness)
 
-#### Phase 14c: Complexity Reduction
-**Source**: Audit Report (Cyclomatic Complexity)
-**Problème**: `orchestration_v7.py` et `mode_selector.py` sont trop imbriqués.
-**Solution**:
-- [ ] Extraire logiques de décision dans des sous-helpers
-- [ ] Pattern Strategy pour le routing FSM
+#### Phase 14c: Complexity Reduction ✅ COMPLETED 2025-12-05
+**Source**: Audit Report (Cyclomatic Complexity) + Gemini Proposal (2025-12-05)
+**Problème**: `orchestration_v7.py` (2223 lignes, 36 méthodes) était un "God Object"
+**Solution**: Découpage incrémental en package modulaire
+
+**Implémentation** (Gemini proposal, Claude implementation):
+- [x] Créer `core/orchestration/` package
+- [x] Extraire `context_builder.py` (4 méthodes, ~200 lignes)
+- [x] Extraire `detectors.py` (mutation detection, ~150 lignes)
+- [x] Extraire `agent_invoker.py` (7 méthodes, ~300 lignes)
+- [x] Extraire `swarm_bridge.py` (swarm integration, ~100 lignes)
+- [x] Extraire `fsm_handlers.py` (11 state handlers, ~600 lignes)
+- [x] `__init__.py` avec exports pour compatibilité
+
+**Structure créée**:
+```
+core/orchestration/
+├── __init__.py          # Exports publics
+├── context_builder.py   # Construction contextes agents
+├── detectors.py         # Détection formats mutations
+├── agent_invoker.py     # Invocation agents (Claude/Gemini/Spawned)
+├── swarm_bridge.py      # Intégration HybridSwarmEngine
+├── fsm_handlers.py      # Handlers par état FSM
+└── README.md            # Documentation module
+```
+
+**Pattern**: Composition - OrchestratorV7 utilise les modules extraits
+**API**: Inchangée - imports existants fonctionnent toujours
 
 #### Phase 14d: Budget Cap (Token Economy) 🆕 *Proposé par Gemini (2025-12-04)*
 **Source**: Analyse stratégique Gemini - "Pas de filet de sécurité financier"
@@ -1815,7 +1837,7 @@ V7.7 (Février 2026) - CONSOLIDATION & SAFETY
 
 V7.8 (Mars 2026) - ADVANCED FEATURES
 ├── Phase 12.5: Dynamic Tool Generation (après sécurité renforcée)
-├── Phase 14c: Complexity Reduction (orchestrator refactor)
+├── [COMPLETED] Phase 14c: Complexity Reduction ✅ (orchestrator refactor)
 └── ~~Phase 11: Extended Swarm Modes~~ ❌ ANNULÉE (6 modes suffisent)
 
 V8.0 (Avril 2026)
