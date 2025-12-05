@@ -26,13 +26,14 @@ class TestCommandCategories:
         from core.interface.commands import COMMAND_CATEGORIES
 
         assert isinstance(COMMAND_CATEGORIES, dict)
-        assert len(COMMAND_CATEGORIES) == 5
+        assert len(COMMAND_CATEGORIES) == 6  # V7.8: Added Memory category
 
         expected_categories = [
             "Collaboration",
             "Evolution",
             "Monitoring",
             "Workspace",
+            "Memory",  # V7.8 Phase 10c
             "System"
         ]
 

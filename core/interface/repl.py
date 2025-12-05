@@ -361,6 +361,16 @@ class InteractiveNexusV7:
         elif cmd == "/chat":
             self.toggle_chat_mode()
 
+        # V7.8 Phase 10c: Project Memory commands
+        elif cmd == "/learn":
+            self.handle_learn_command(args)
+
+        elif cmd == "/forget":
+            self.handle_forget_command(args)
+
+        elif cmd == "/memory-status":
+            self.show_memory_status()
+
         elif cmd == "/help":
             self.console.print_help(get_help_message())
 
@@ -1248,6 +1258,128 @@ class InteractiveNexusV7:
 
         lines.append("")
         lines.append(f"  Total calls (24h): {len(api_calls)}")
+        lines.append("")
+
+        for line in lines:
+            self.console.console.print(line)
+
+    # =========================================================================
+    # Project Memory Commands (V7.8 Phase 10c)
+    # =========================================================================
+
+    def handle_learn_command(self, args: str):
+        """
+        Handle /learn command - Index file or directory into project memory.
+
+        Args:
+            args: Path to file or directory (relative to project root)
+        """
+        if not hasattr(self.orchestrator, 'project_memory'):
+            self.console.print_error("Project memory not initialized")
+            return
+
+        if not args:
+            # Default: index core/ directory
+            args = "core"
+            self.console.print(f"[dim]No path specified, indexing default: {args}[/dim]")
+
+        from pathlib import Path
+        path = Path(args)
+
+        # Resolve relative to project root
+        if not path.is_absolute():
+            path = self.orchestrator.project_memory.nexus_root / path
+
+        if not path.exists():
+            self.console.print_error(f"Path not found: {args}")
+            return
+
+        self.console.print(f"\n🧠 [bold]Indexing into Project Memory[/bold]")
+        self.console.print(f"   Path: {path}")
+
+        try:
+            if path.is_file():
+                chunks = self.orchestrator.project_memory.index_file(path)
+                self.console.print(f"   ✓ Indexed 1 file → {chunks} chunks")
+            else:
+                chunks = self.orchestrator.project_memory.index_directory(path)
+                self.console.print(f"   ✓ Indexed directory → {chunks} chunks")
+
+            # Show updated stats
+            stats = self.orchestrator.project_memory.get_stats()
+            self.console.print(f"\n   📊 Total: {stats.total_files} files, {stats.total_chunks} chunks")
+            self.console.print(f"   💾 Saved to: {stats.storage_path}\n")
+
+        except Exception as e:
+            self.console.print_error(f"Indexing failed: {e}")
+
+    def handle_forget_command(self, args: str):
+        """
+        Handle /forget command - Remove file or directory from project memory.
+
+        Args:
+            args: Path to file or directory to forget
+        """
+        if not hasattr(self.orchestrator, 'project_memory'):
+            self.console.print_error("Project memory not initialized")
+            return
+
+        if not args:
+            self.console.print_error("Usage: /forget <path>")
+            return
+
+        from pathlib import Path
+        path = Path(args)
+
+        # Resolve relative to project root
+        if not path.is_absolute():
+            path = self.orchestrator.project_memory.nexus_root / path
+
+        try:
+            removed = self.orchestrator.project_memory.forget(path)
+            if removed > 0:
+                self.console.print(f"\n🧠 [bold]Removed from Project Memory[/bold]")
+                self.console.print(f"   Path: {args}")
+                self.console.print(f"   ✓ Removed {removed} chunks\n")
+            else:
+                self.console.print(f"[dim]Path not in memory: {args}[/dim]")
+
+        except Exception as e:
+            self.console.print_error(f"Forget failed: {e}")
+
+    def show_memory_status(self):
+        """
+        Handle /memory-status command - Show project memory statistics.
+        """
+        if not hasattr(self.orchestrator, 'project_memory'):
+            self.console.print_error("Project memory not initialized")
+            return
+
+        stats = self.orchestrator.project_memory.get_stats()
+        indexed_files = sorted(self.orchestrator.project_memory.indexed_files)
+
+        lines = [
+            "",
+            "╔══════════════════════════════════════════════════════════════╗",
+            "║                   🧠 PROJECT MEMORY STATUS                   ║",
+            "╚══════════════════════════════════════════════════════════════╝",
+            "",
+            f"  📁 Indexed Files:    {stats.total_files}",
+            f"  📦 Total Chunks:     {stats.total_chunks}",
+            f"  🔤 Unique Terms:     {stats.total_terms}",
+            f"  💾 Storage:          {stats.storage_path}",
+            "",
+        ]
+
+        if indexed_files:
+            lines.append("  📋 Files in memory:")
+            for f in indexed_files[:15]:  # Limit display
+                lines.append(f"     • {f}")
+            if len(indexed_files) > 15:
+                lines.append(f"     ... and {len(indexed_files) - 15} more")
+        else:
+            lines.append("  [dim]No files indexed yet. Use /learn <path> to add files.[/dim]")
+
         lines.append("")
 
         for line in lines:

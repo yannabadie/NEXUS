@@ -45,6 +45,11 @@ COMMAND_CATEGORIES = {
         "/workspace switch <name>": "Switch to another workspace",
         "/bootstrap [path]": "Analyze project and generate NEXUS.md",
     },
+    "🧠 Memory": {
+        "/learn [path]": "Index file/directory into project memory",
+        "/forget [path]": "Remove file/directory from project memory",
+        "/memory-status": "Show indexed files, chunks, and storage location",
+    },
     "⚙️ System": {
         "/clear": "Clear terminal screen",
         "/reset": "Reset orchestrator to IDLE state",

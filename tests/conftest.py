@@ -239,6 +239,10 @@ def orchestrator_with_mocks(tmp_path):
     # This is needed because _get_claude_driver() creates a NEW driver each time
     orch._get_claude_driver = lambda *args, **kwargs: mock_claude
 
+    # V7.8 Phase 14c.2: Also patch agent_invoker.get_claude_driver since _get_claude_driver now delegates
+    if hasattr(orch, 'agent_invoker'):
+        orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
+
     # Store drivers in a dict for easy access in tests
     orch.drivers = {
         "Gemini": mock_gemini,
@@ -285,6 +289,10 @@ def orchestrator_with_swarm(tmp_path):
 
     # CRITICAL: Patch _get_claude_driver to return our mock
     orch._get_claude_driver = lambda *args, **kwargs: mock_claude
+
+    # V7.8 Phase 14c.2: Also patch agent_invoker.get_claude_driver since _get_claude_driver now delegates
+    if hasattr(orch, 'agent_invoker'):
+        orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
 
     orch.drivers = {
         "Gemini": mock_gemini,

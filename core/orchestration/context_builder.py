@@ -101,7 +101,13 @@ class ContextBuilder:
 {json.dumps(tools_list, indent=2, ensure_ascii=False)}
 
 ---
+"""
+        # V7.8 Phase 10c: Inject relevant project knowledge for MODERATE+ tasks
+        project_knowledge = self._get_project_knowledge()
+        if project_knowledge:
+            context += f"\n{project_knowledge}\n---\n"
 
+        context += """
 ## HISTORIQUE RÉCENT
 """
         # Add compressed history summary if available (preserves long-term context)
@@ -339,3 +345,43 @@ Complete the task efficiently. No need for extensive debate.
 
 Execute efficiently. You are the sole agent for this task.
 """
+
+    # =========================================================================
+    # Private Helpers
+    # =========================================================================
+
+    def _get_project_knowledge(self) -> str:
+        """
+        Retrieve relevant project knowledge for MODERATE+ complexity tasks.
+
+        V7.8 Phase 10c: Project Memory RAG integration.
+
+        Returns:
+            Formatted markdown string with relevant chunks, or empty string.
+        """
+        # Only inject for MODERATE+ complexity tasks
+        complexity = getattr(self._orch, '_current_complexity', None)
+        if not complexity or complexity.value < TaskComplexity.MODERATE.value:
+            return ""
+
+        # Check if project_memory is available
+        if not hasattr(self._orch, 'project_memory'):
+            return ""
+
+        # Get objective for query
+        objective = self._orch.blackboard.get("objective", "")
+        if not objective:
+            return ""
+
+        try:
+            # Retrieve relevant chunks
+            chunks = self._orch.project_memory.retrieve(objective, limit=3, min_score=0.05)
+            if not chunks:
+                return ""
+
+            # Format for context
+            return self._orch.project_memory.format_chunks_for_context(chunks, max_chars=2000)
+
+        except Exception:
+            # Silently fail - don't break context building
+            return ""
