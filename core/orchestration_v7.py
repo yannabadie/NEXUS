@@ -34,7 +34,7 @@ from core.swarm import (
     TaskAnalyzer,  # V7 FIX: For trivial input detection
     TaskComplexity  # V7 FIX: For complexity-based routing
 )
-from core.telemetry import TelemetryCollector
+from core.telemetry import TelemetryCollector, BudgetExceededError
 from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory  # V7.5 HIVE MIND
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
@@ -297,8 +297,24 @@ class OrchestratorV7:
         Invoke the active agent with task-aware model selection.
 
         V7 Sprint 8: Routes Claude to Opus/Sonnet based on task type.
+        V7.6 Phase 14d: Budget enforcement before invocation.
         Gemini always uses the same driver.
         """
+        # Phase 14d: Enforce budget limit before API call
+        try:
+            if self.telemetry:
+                self.telemetry.enforce_budget()
+        except BudgetExceededError as e:
+            self.logger.error(f"Budget exceeded: {e}")
+            # Transition to ERROR state with budget message
+            self._transition_to(OrchestratorState.ERROR)
+            return {
+                "sender": "System",
+                "action_type": "ERROR",
+                "content": f"BUDGET EXCEEDED: Daily limit of ${e.limit:.2f} reached (spent: ${e.spent:.2f}). Use /budget reset to unlock.",
+                "status": "ERROR"
+            }
+
         if self.active_agent == "Claude":
             driver = self._get_claude_driver(task_type)
             return driver.invoke(context)
@@ -437,6 +453,7 @@ class OrchestratorV7:
         Invoke a specific agent directly without using shared state.
 
         Thread-safe version for parallel execution.
+        V7.6 Phase 14d: Budget enforcement before invocation.
 
         Args:
             task_type: Type of task for model routing
@@ -446,6 +463,19 @@ class OrchestratorV7:
         Returns:
             Response dict with content
         """
+        # Phase 14d: Enforce budget limit before API call
+        try:
+            if self.telemetry:
+                self.telemetry.enforce_budget()
+        except BudgetExceededError as e:
+            self.logger.error(f"Budget exceeded in swarm: {e}")
+            return {
+                "sender": "System",
+                "action_type": "ERROR",
+                "content": f"BUDGET EXCEEDED: ${e.spent:.2f}/${e.limit:.2f}",
+                "status": "ERROR"
+            }
+
         if target_agent == "Claude":
             driver = self._get_claude_driver(task_type)
             return driver.invoke(context)

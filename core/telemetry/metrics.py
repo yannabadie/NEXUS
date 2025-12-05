@@ -22,6 +22,12 @@ from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Any
 from threading import Lock
 
+from core.telemetry.budget_tracker import (
+    BudgetTracker,
+    BudgetExceededError,
+    get_budget_tracker,
+)
+
 
 class MetricType(Enum):
     """Types of metrics tracked"""
@@ -88,6 +94,7 @@ class TelemetryCollector:
             output_file: Override output file path
         """
         self.enabled = True
+        self.config = config
         if config:
             self.enabled = getattr(config, 'telemetry_enabled', True)
             default_file = getattr(config, 'telemetry_file', 'workspace/telemetry.jsonl')
@@ -102,9 +109,19 @@ class TelemetryCollector:
         # In-memory counters for session summary
         self._api_calls = 0
         self._total_tokens = 0
+        self._total_cost_usd = 0.0
         self._errors = 0
         self._swarm_tasks = 0
         self._tool_executions = 0
+
+        # Budget tracking (Phase 14d)
+        workspace_path = getattr(config, 'workspace_path', None) if config else None
+        self._budget_tracker: Optional[BudgetTracker] = None
+        if self.enabled:
+            try:
+                self._budget_tracker = BudgetTracker(config, workspace_path)
+            except Exception as e:
+                print(f"[Telemetry] Budget tracker init error: {e}")
 
         # Ensure output directory exists
         if self.enabled:
@@ -138,25 +155,44 @@ class TelemetryCollector:
         latency_seconds: float = 0.0,
         success: bool = True,
         task_type: Optional[str] = None,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        input_text: Optional[str] = None,
+        output_text: Optional[str] = None,
     ):
         """
-        Record an API call metric.
+        Record an API call metric and track cost.
 
         Args:
             provider: "gemini" or "claude"
             model: Model name (e.g., "gemini-3-pro-preview")
-            tokens_in: Input tokens
-            tokens_out: Output tokens
+            tokens_in: Input tokens (0 to estimate from input_text)
+            tokens_out: Output tokens (0 to estimate from output_text)
             latency_seconds: Call duration
             success: Whether call succeeded
             task_type: Optional task type (brainstorm, tool, etc.)
             error: Error message if failed
+            input_text: Input text for token estimation
+            output_text: Output text for token estimation
         """
         self._api_calls += 1
         self._total_tokens += tokens_in + tokens_out
         if not success:
             self._errors += 1
+
+        # Track cost via budget tracker (Phase 14d)
+        cost_usd = 0.0
+        if self._budget_tracker:
+            try:
+                cost_usd = self._budget_tracker.track_cost(
+                    model=model,
+                    input_tokens=tokens_in,
+                    output_tokens=tokens_out,
+                    input_text=input_text,
+                    output_text=output_text,
+                )
+                self._total_cost_usd += cost_usd
+            except Exception as e:
+                print(f"[Telemetry] Cost tracking error: {e}")
 
         metric = APICallMetric(
             timestamp=datetime.utcnow().isoformat() + "Z",
@@ -170,7 +206,11 @@ class TelemetryCollector:
             error=error
         )
 
-        self._write_event(MetricType.API_CALL, asdict(metric))
+        # Add cost to metric data
+        metric_data = asdict(metric)
+        metric_data["cost_usd"] = round(cost_usd, 6)
+
+        self._write_event(MetricType.API_CALL, metric_data)
 
     def record_swarm_task(
         self,
@@ -287,10 +327,54 @@ class TelemetryCollector:
         print(f"Duration: {summary.duration_seconds:.1f}s")
         print(f"API Calls: {summary.total_api_calls}")
         print(f"Total Tokens: {summary.total_tokens:,}")
+        print(f"Session Cost: ${self._total_cost_usd:.4f}")
         print(f"Swarm Tasks: {summary.swarm_tasks}")
         print(f"Tool Executions: {summary.tool_executions}")
         print(f"Errors: {summary.total_errors}")
+        if self._budget_tracker:
+            stats = self._budget_tracker.get_stats()
+            print(f"Budget: ${stats['spent_today_usd']:.2f} / ${stats['limit_usd']:.2f} ({stats['percentage_used']:.1f}%)")
         print(f"{'='*50}\n")
+
+    # =========================================================================
+    # Budget Enforcement (Phase 14d)
+    # =========================================================================
+
+    def enforce_budget(self) -> bool:
+        """
+        Check and enforce budget limit.
+
+        Returns:
+            True if within budget
+
+        Raises:
+            BudgetExceededError: If daily budget limit exceeded
+        """
+        if not self._budget_tracker:
+            return True
+        return self._budget_tracker.check_budget()
+
+    def get_budget_stats(self) -> Optional[Dict]:
+        """
+        Get current budget statistics.
+
+        Returns:
+            Dict with budget stats or None if tracker not available
+        """
+        if not self._budget_tracker:
+            return None
+        return self._budget_tracker.get_stats()
+
+    def get_budget_warning_level(self) -> Optional[str]:
+        """
+        Get current budget warning level.
+
+        Returns:
+            "warning" at 80%, "critical" at 90%, None otherwise
+        """
+        if not self._budget_tracker:
+            return None
+        return self._budget_tracker.get_warning_level()
 
 
 # Singleton instance for easy access

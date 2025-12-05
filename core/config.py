@@ -200,11 +200,18 @@ class Config:
         # See: docs/archive/pty_mode_v7_archived.py
 
         # ====================================================================
-        # TELEMETRY (V7 Sprint 10)
+        # TELEMETRY (V7 Sprint 10) & BUDGET CAP (Phase 14d)
         # ====================================================================
 
         self.telemetry_enabled: bool = os.getenv("TELEMETRY_ENABLED", "True").lower() == "true"
         self.telemetry_file: str = os.getenv("TELEMETRY_FILE", "workspace/telemetry.jsonl")
+
+        # Phase 14d: Budget Cap - Daily spending limit in USD
+        # Prevents runaway costs in Evolution/Swarm intensive modes
+        # Set to 0 to disable budget enforcement
+        self.budget_limit_usd: float = float(os.getenv("BUDGET_LIMIT_USD", "50.0"))
+        self.budget_warning_threshold: float = float(os.getenv("BUDGET_WARNING_PCT", "0.80"))
+        self.budget_critical_threshold: float = float(os.getenv("BUDGET_CRITICAL_PCT", "0.90"))
 
         # ====================================================================
         # GEMINI SESSION PERSISTENCE (V7 Sprint 12)
