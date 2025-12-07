@@ -117,7 +117,7 @@ class FSMHandlers:
                 "input": user_input,
                 "lead": task_analysis.recommended_lead
             })
-            return self._orch._execute_simple_task(user_input, task_analysis)
+            return self._execute_simple_task(user_input, task_analysis)
 
         # MODERATE/COMPLEX/EXPERT → Swarm or Brainstorming
         return self._handle_moderate_plus(user_input, task_analysis)
@@ -580,7 +580,7 @@ class FSMHandlers:
         """Handle TRIVIAL complexity tasks."""
         if getattr(self._orch.config, 'fast_path_enabled', True):
             self._logger.debug("TRIVIAL task - Fast Path enabled", {"input": user_input})
-            return self._orch._handle_fast_path(user_input)
+            return self._handle_fast_path(user_input)
 
         # Static fallback responses
         self._logger.debug("TRIVIAL task - static fallback", {"input": user_input})
@@ -739,3 +739,194 @@ class FSMHandlers:
         if hasattr(self._orch, 'mutation_detector'):
             return self._orch.mutation_detector.detect_mutation_complete(content)
         return self._orch._detect_mutation_complete(content)
+
+    # =========================================================================
+    # V7.8 Phase 14c: Extracted from OrchestratorV7
+    # =========================================================================
+
+    def _execute_simple_task(self, user_input: str, task_analysis) -> Dict:
+        """
+        Execute SIMPLE tasks with a single agent (no CFL, no alternation).
+
+        As per MISSION.md: "Tâche Simple → NEXUS parent résout directement"
+
+        This mode:
+        - Uses ONE agent (selected by fit score)
+        - Executes tools directly without CFL validation
+        - Returns result immediately when agent finishes
+        - No brainstorming debate, no alternation
+
+        Args:
+            user_input: User's task description
+            task_analysis: Pre-computed task analysis
+
+        Returns:
+            Result dict with agent output
+        """
+        from core.routing.model_router import TaskType
+
+        # Select best agent based on fit scores
+        if task_analysis.recommended_lead == "gemini":
+            agent = "Gemini"
+        elif task_analysis.recommended_lead == "claude":
+            agent = "Claude"
+        else:
+            # Equal fit - use Gemini by default (faster)
+            agent = "Gemini"
+
+        self._logger.info(f"[SIMPLE MODE] Single agent: {agent}", {
+            "task": user_input[:80],
+            "gemini_fit": f"{task_analysis.gemini_fit_score:.2f}",
+            "claude_fit": f"{task_analysis.claude_fit_score:.2f}"
+        })
+
+        # Set objective for context
+        self._orch.blackboard["objective"] = user_input
+        self._orch.blackboard["mode"] = "SIMPLE"
+        self._orch.active_agent = agent
+
+        # Build context (lighter than brainstorming)
+        context = self._orch.context_builder.build_simple_context(user_input, task_analysis)
+
+        # Invoke agent
+        invoke_start = time.time()
+        max_tool_iterations = 5  # Safety limit for tool loops
+
+        for iteration in range(max_tool_iterations):
+            try:
+                if agent == "Claude":
+                    driver = self._get_claude_driver(TaskType.SIMPLE)
+                    response = driver.invoke(context)
+                else:
+                    response = self._orch.gemini_driver.invoke(context)
+
+                invoke_duration = time.time() - invoke_start
+                message = self._validate_message(response)
+
+                # Record invocation
+                self._record_invocation(
+                    agent, "simple", True, invoke_duration,
+                    self._calculate_quality_score(message, True, False)
+                )
+
+            except Exception as e:
+                self._logger.error(f"[SIMPLE MODE] Agent error: {e}")
+                return self._make_result(
+                    "ERROR",
+                    f"Agent {agent} failed: {e}",
+                    agent,
+                    True,
+                    error=str(e)
+                )
+
+            # Check action type
+            action_type = message.get("action_type")
+            content = message.get("content", "")
+
+            if action_type == "TOOL_USE":
+                # Execute tool directly (NO CFL validation for simple tasks)
+                tool_use = message.get("tool_use", {})
+                tool_name = tool_use.get("tool_name", "unknown")
+
+                self._logger.debug(f"[SIMPLE MODE] Executing tool: {tool_name}")
+
+                try:
+                    tool_request = ToolUse(**tool_use)
+                    result = self._orch.tool_manager.execute(tool_request)
+
+                    # Add tool result to context for next iteration
+                    if result.status.lower() == "success":
+                        tool_output = result.output[:2000] if len(result.output) > 2000 else result.output
+                        context += f"\n\n## Tool Result [{tool_name}]\n✓ SUCCESS:\n```\n{tool_output}\n```\n"
+                    else:
+                        context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {result.error}\n"
+
+                    # Check if agent is done after tool
+                    if message.get("status") == "FINISHED":
+                        return self._make_result("FINISHED", content, agent, True)
+
+                    # Continue to next iteration (agent will see tool result)
+
+                except Exception as e:
+                    self._logger.error(f"[SIMPLE MODE] Tool error: {e}")
+                    context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {e}\n"
+
+            elif message.get("status") == "FINISHED" or action_type == "FINISHED":
+                # Task complete
+                return self._make_result("FINISHED", content, agent, True)
+
+            else:
+                # TALK without tool - check if done
+                finish_keywords = ["done", "complete", "finished", "terminé", "fini"]
+                if any(kw in content.lower() for kw in finish_keywords):
+                    return self._make_result("FINISHED", content, agent, True)
+
+                # Not done but no tool - return what we have
+                return self._make_result("WAITING_USER", content, agent, True)
+
+        # Max iterations reached
+        self._logger.warning("[SIMPLE MODE] Max tool iterations reached")
+        return self._make_result(
+            "FINISHED",
+            f"{content}\n\n[Max iterations reached]",
+            agent,
+            True
+        )
+
+    def _handle_fast_path(self, user_input: str) -> Dict:
+        """
+        V7.5 Phase 9: Fast Path for trivial conversational inputs.
+
+        Bypasses FSM entirely for greetings, thanks, etc.
+        Target: <2s response time.
+
+        Args:
+            user_input: Trivial conversational input (greeting, thanks, etc.)
+
+        Returns:
+            Standard result dict with FINISHED status
+        """
+        self._logger.debug("Fast Path triggered", {"input": user_input[:50]})
+
+        # Use Gemini driver for fast response (cheaper/faster than Opus)
+        fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
+
+        try:
+            # Direct Gemini call with minimal context
+            context = {
+                "prompt": fast_prompt,
+                "task_type": "simple",
+                "max_tokens": 150,  # Keep responses short
+            }
+            response = self._orch.gemini_driver.invoke(context)
+
+            # Extract content from response
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
+            self._logger.debug("Fast Path response", {"length": len(content)})
+
+            return {
+                "sender": "Gemini",
+                "action_type": "TALK",
+                "content": content,
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True  # Mark as Fast Path response
+            }
+
+        except Exception as e:
+            self._logger.warning("Fast Path failed, falling back to static", {"error": str(e)})
+            # Fallback to static response if Gemini fails
+            return {
+                "sender": "NEXUS",
+                "action_type": "TALK",
+                "content": "Hello! How can I help you today?",
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True
+            }
