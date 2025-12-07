@@ -1,10 +1,9 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.8.0 | **Status**: Active | **Last Updated**: 2025-12-05
+**Version**: 7.8.1 | **Status**: Active | **Last Updated**: 2025-12-07
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
+**Validation**: Stress Test "Torture Protocol" (2025-12-07) - 92.3% Robustesse
 **Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
-**Étude d'Impact**: Workspace & Blackboard Analysis (2025-12-04)
-**Analyse Stratégique**: Fusion Gemini+Claude + Recherche industrie (2025-12-04) 🆕
 
 ---
 
@@ -28,8 +27,8 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
      PARALLEL │ SEQUENTIAL │ LEAD_SUPPORT
      PING_PONG │ SPECIALIST │ RED_BLUE
                     │
-            SPAWNED AGENTS
-     Spécialistes générés et orchestrés
+            SPAWNED AGENTS (FRACTAL)
+     Agents appelés comme Outils (Agent-as-Tool)
 ```
 
 ---
@@ -1840,20 +1839,27 @@ V7.7 (Février 2026) - CONSOLIDATION & SAFETY
 ├── [COMPLETED] Phase 15: Response Streaming ✅ (Claude) - UX temps réel
 ├── [COMPLETED] Phase 16: DX /tutorial ✅ (Gemini) - Onboarding amélioré
 ├── [SKIPPED] Phase 12.4: Symmetric MCP Bridges - REDUNDANT (infra MCP existante)
-│   └── core/mcp/ already has full MCP client + mock server
 ├── [COMPLETED] Phase 14e: Force CoT ✅ (Gemini+Claude) - Qualité EXPERT
 ├── [P3] Phase 13e: Global Registry Migration
 └── [P3] Phase 10c: Project Memory RAG 🆕 (Gemini)
 
-V7.8 (Mars 2026) - ADVANCED FEATURES
-├── Phase 12.5: Dynamic Tool Generation ✅ (après sécurité renforcée)
-├── [PARTIAL] Phase 14c: Complexity Reduction ⚠️ (câblage modules en attente)
-└── ~~Phase 11: Extended Swarm Modes~~ ❌ ANNULÉE (6 modes suffisent)
+V7.8 (Mars 2026) - STABILIZATION & CLEANUP
+├── [COMPLETED] Phase 7: Session Isolation ✅ (Validated by Stress Test)
+├── [COMPLETED] Phase 13a: Graph of Thought CLEANUP ✅ (Dead code removed)
+├── [PARTIAL] Phase 14c: Orchestrator Refactoring ⚠️ (Stage 1 done: -185 lines)
+└── [COMPLETED] Stress Test "Torture Protocol" ✅ (No context bleeding)
 
-V8.0 (Avril 2026)
+V7.9 (Avril 2026) - FRACTAL ARCHITECTURE (Agent-as-Tool)
+├── [PRIORITY] Phase B1: Agent-as-Tool Registry 🚀
+│   ├── Scanner workspace/agents/
+│   ├── Générer Tool definitions dynamiques
+│   └── Execution dans session isolée
+├── [PRIORITY] Phase 12.5: Dynamic Tool Generation ✅ (Ready for integration)
+└── Phase B2: Hot-Swap Lead Agent (Resilience)
+
+V8.0 (Mai 2026) - APEX
 ├── Phase 12.1: MNEMOSYNE (si 10c insuffisant)
 ├── SQLite pour session_registry (si >5 agents parallèles)
-├── ~~Phase 13a: Graph of Thought~~ ❌ ANNULÉE (code inexistant, ROI faible)
 └── Exploratoire: A2A, Observabilité OpenTelemetry
 ```
 
@@ -2067,3 +2073,85 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 - Phase 13a = ANNULER (code inexistant, ROI faible)
 
 **Fichier source**: `docs/STRATEGIC_ANALYSIS_2025-12-04.md`
+
+
+# ROADMAP NEXUS V8.0 "SINGULARITY" - From Framework to Living System
+
+**Vision** : Transformer NEXUS d'un orchestrateur CLI local en un OS distribué, observable et auto-optimisant.
+**Focus** : Scalabilité (DB), Visibilité (UI) et Interopérabilité (API).
+
+---
+
+## 🏗️ PILIER 1 : LIQUID CORE (Scalabilité & Persistence)
+*Objectif : Sortir du système de fichiers pour permettre la concurrence massive.*
+
+### Phase 17 : "Ironclad Memory" (Migration SQLite)
+**Problème** : Les `RLock` sur fichiers JSON limitent la concurrence et le RAG complexe.
+- [ ] **Action** : Remplacer `AtomicJsonStore` par une couche d'abstraction DB (**SQLite** avec mode WAL).
+    - `sessions.db` : États FSM, registres UUID, Métriques DyLAN.
+    - `knowledge.db` : Vecteurs (via extension `sqlite-vec`) pour la mémoire projet.
+- **Gain** : Fin des Race Conditions, requêtes SQL analytiques ("Quels agents échouent le mardi ?"), support du "Resurrection Protocol" (reprise après crash).
+
+### Phase 18 : "Native Neural Link" (API Drivers)
+**Problème** : Les wrappers CLI sont fragiles et lents.
+- [ ] **Action** : Implémenter des drivers natifs (`GeminiNativeDriver`, `ClaudeNativeDriver`) utilisant les SDKs officiels / gRPC.
+- [ ] **Feature** : Support du **Prompt Caching** (Anthropic) natif pour réduire les coûts et la latence de 90% sur les contextes lourds.
+- **Gain** : Latence divisée par 10, typage fort des retours.
+
+### Phase 19 : "Containment Protocol" (Docker Sandbox)
+**Problème** : `ExecutionPolicy` (AST) ne suffit pas contre un agent malin ou buggé.
+- [ ] **Action** : Exécution des outils dynamiques (Phase 12.5) dans des conteneurs Docker éphémères ou via API Sandbox (ex: E2B).
+- **Gain** : Sécurité totale. Un agent peut faire `rm -rf /` dans son sandbox sans risque pour l'hôte.
+
+---
+
+## 🧠 PILIER 2 : COGNITION & ÉVOLUTION (The Brain)
+*Objectif : Rendre l'évolution intelligente plutôt qu'aléatoire.*
+
+### Phase 20 : "Synaptic Graph" (GraphRAG)
+**Problème** : La recherche vectorielle trouve des similarités, mais pas des causalités.
+- [ ] **Action** : Construire un Knowledge Graph du projet.
+    - Noeuds : `Fichier`, `Fonction`, `Agent`, `Erreur`.
+    - Arêtes : `DEPENDS_ON`, `CREATED_BY`, `CAUSED_ERROR`.
+- **Gain** : Si un agent modifie `api.py`, NEXUS sait via le graphe qu'il doit tester `test_api.py` sans deviner.
+
+### Phase 21 : "Sedimentation" (Skill Crystallization)
+**Problème** : Les outils dynamiques sont éphémères. L'apprentissage est perdu.
+- [ ] **Action** : Un processus de fond analyse les outils générés.
+    - Si un outil est utilisé > 5 fois avec succès ➔ Il est **promu** dans la "Standard Library".
+    - Il est réécrit, testé et optimisé par Claude Opus pour devenir permanent.
+- **Gain** : NEXUS se construit sa propre boîte à outils optimisée au fil du temps.
+
+---
+
+## 👁️ PILIER 3 : OBSERVABILITÉ & INTERFACE (The Face)
+*Objectif : Rendre la "Ruche" visible pour gagner la confiance.*
+
+### Phase 22 : "NEXUS CEREBRO" (Web Dashboard)
+**Problème** : Le CLI est puissant mais opaque pour le debugging complexe.
+- [ ] **Action** : Serveur Web léger (FastAPI + React Flow).
+    - **Swarm View** : Visualisation temps réel des nœuds qui discutent.
+    - **Lineage Tree** : Arbre généalogique interactif des agents spawnés.
+    - **Time Travel** : Rejouer une session pas-à-pas pour déboguer le FSM.
+
+### Phase 23 : "Open Telemetry" (OTLP Standard)
+- [ ] **Action** : Exporter les traces d'exécution au format standard OTLP (Jaeger/Grafana).
+- **Gain** : Visualisation "Waterfall" pour voir exactement où le temps est perdu (Latence API vs Réflexion vs Tool).
+
+---
+
+## 🤝 PILIER 4 : ÉCOSYSTÈME (The Network)
+
+### Phase 24 : NEXUS as a Server (Inversion de Contrôle)
+**Problème** : NEXUS est un client. Il doit être un serveur.
+- [ ] **Action** : Exposer NEXUS comme un **Serveur MCP**.
+- **Use Case** : Un utilisateur dans **Claude Desktop** ou **VS Code** peut taper `@nexus "Refactorise ce module"`. NEXUS lance son swarm en background et renvoie le diff.
+- **Gain** : NEXUS devient le "backend d'intelligence" pour d'autres applications.
+
+---
+
+## 📅 PLAN D'ATTAQUE SUGGÉRÉ
+
+1.  **Mois 1 (Fondations)** : Migration SQLite (Phase 17) + Drivers Natifs (Phase 18). Vital pour la stabilité.
+2.  **Mois 2 (Expansion)** : Serveur API/MCP (Phase 24). Vital pour l'adoption et l'intégration IDE.
+3.  **Mois 3 (Visibilité)** : Dashboard Web "Cerebro" (Phase 22). Vital pour comprendre l'émergence.
