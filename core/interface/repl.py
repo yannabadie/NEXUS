@@ -2027,6 +2027,22 @@ Creator: Yann Abadie
             self.console.print(f"   Path: {agent_dir}")
             self.console.print(f"   Config: BIRTH_CERTIFICATE.json")
             self.console.print(f"   Prompt: system_prompt.md")
+
+            # V7.8 Phase 15: Register as Agent-as-Tool
+            # Re-discover spawned agents and refresh tool registry
+            from core.bootstrap import discover_and_register_spawned_agents
+            if self.orchestrator.agent_pool:
+                discover_and_register_spawned_agents(
+                    workspace_path=self.workspace_path,
+                    agent_pool=self.orchestrator.agent_pool
+                )
+            if hasattr(self.orchestrator, 'agent_tool_registry'):
+                tool_count = self.orchestrator.agent_tool_registry.refresh()
+                self.orchestrator.agent_tool_registry.register_with_tool_manager(
+                    self.orchestrator.tool_manager
+                )
+                self.console.print(f"   Registered as tool: agent_{role_slug}")
+
             self.console.print("\nUse /agents to list all agents")
 
         except Exception as e:

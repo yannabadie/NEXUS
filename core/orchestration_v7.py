@@ -23,6 +23,7 @@ from core.routing.model_router import ModelRouter, TaskType
 from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
 from core.synapse.memory_v7 import MemoryManagerV7
 from core.execution.tool_manager import ToolManager
+from core.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
 from core.logging import init_logger, get_logger
 from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
 from core.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
@@ -223,6 +224,24 @@ class OrchestratorV7:
         # Stored at NEXUS_ROOT/.nexus/ (persists across /workspace new)
         nexus_root = workspace_path.parent if workspace_path.name == "workspace" else workspace_path
         self.project_memory = ProjectMemory(nexus_root)
+
+        # V7.8 Phase 15: Agent-as-Tool Registry (Vision Fractale)
+        # Exposes spawned agents as callable tools for fractal invocation
+        self.agent_tool_registry = AgentToolRegistry(
+            workspace_path=self.workspace_path,
+            agent_pool=self.agent_pool,
+            agent_invoker=self.agent_invoker,
+            agent_loader=self.spawned_agent_loader
+        )
+        # Refresh to discover existing spawned agents
+        agent_tools_count = self.agent_tool_registry.refresh()
+        if agent_tools_count > 0:
+            # Register agent tools with ToolManager
+            self.agent_tool_registry.register_with_tool_manager(self.tool_manager)
+            self.logger.info("Agent-as-Tool enabled", {
+                "agent_tools": agent_tools_count,
+                "tools": [t.tool_name for t in self.agent_tool_registry.list_agent_tools()]
+            })
 
         self.logger.debug("OrchestratorV7 initialized", {
             "gemini_model": gemini_info.get("model"),
