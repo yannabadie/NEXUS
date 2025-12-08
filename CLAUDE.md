@@ -436,6 +436,26 @@ Agents build performance history used for intelligent routing:
 **Design Docs**: `archives/brainstorming-history/`
 **Planning**: `archives/planning/`
 
+### Anti-Hallucination Reference (V8.0)
+
+**CRITICAL**: Before making claims about NEXUS internals, consult these docs:
+
+| Document | Purpose |
+|----------|---------|
+| `CODEBASE_SNAPSHOT.md` | Full codebase reference, what exists/doesn't |
+| `docs/DATACLASS_FIELDS.md` | Exact field definitions for all dataclasses |
+| `docs/DRIVER_INTERNALS.md` | How LLM drivers actually work |
+| `docs/ASYNC_MAP.md` | Async vs sync function mapping |
+| `docs/ARCHITECTURE_DECISIONS.md` | 10 ADRs documenting design choices |
+| `ROADMAP.md` | Current roadmap with implementation status |
+
+**Common Hallucinations to Avoid**:
+- `TaskAnalysis.reasoning` → Does NOT exist (use `ModeProposal.reasoning`)
+- `ModeProposal.recommended_mode` → Use `.mode`
+- `AnalysisPhaseResult.payload` → Use `.gemini_analysis`
+- `HiveMindState.HIVE_COMPLETE` → Use `HIVE_SUCCESS`
+- `invoke(task_type=)` → Use `invoke(session_uuid=)`
+
 ---
 
 ## 🎨 Response Format (Hybrid)
