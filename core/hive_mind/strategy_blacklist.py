@@ -46,6 +46,7 @@ class FailureCategory(Enum):
     TOOL_ERROR = "tool_error"
     RESOURCE_EXCEEDED = "resource_exceeded"
     LOGIC_ERROR = "logic_error"
+    STAGNATION = "stagnation"  # V8.0: From StagnationDetector
     UNKNOWN = "unknown"
 
 
@@ -337,6 +338,13 @@ class StrategyBlacklist:
                 "Use chain-of-thought prompting",
                 "Break down complex logic into simpler parts",
                 "Add validation at each step"
+            ],
+            FailureCategory.STAGNATION: [
+                "Stop discussing and take a concrete action",
+                "Use a tool immediately without further deliberation",
+                "Switch to a different agent or perspective",
+                "Force a decision: pick the simplest viable option",
+                "Break the impasse by reading a specific file"
             ],
             FailureCategory.UNKNOWN: [
                 "Try a completely different approach",

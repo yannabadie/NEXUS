@@ -395,43 +395,61 @@ class StrategyBlacklist:
 
 ## 5. PLAN D'IMPLÉMENTATION RÉVISÉ
 
-### Phase 0: Infrastructure (Pré-requis)
-- [ ] Agent Registry
-- [ ] Cost Estimator
-- [ ] Context Manager
-- [ ] Strategy Blacklist
-- [ ] FSM States Extension
+### Phase 0: Infrastructure (Pré-requis) ✅ COMPLETE
+- [x] Agent Registry (`core/hive_mind/agent_registry.py`)
+- [x] Cost Estimator (`core/hive_mind/cost_estimator.py`)
+- [x] Context Manager (`core/hive_mind/context_manager.py`)
+- [x] Strategy Blacklist (`core/hive_mind/strategy_blacklist.py`)
+- [x] FSM States Extension (`core/hive_mind/types.py`)
+- [x] Adaptive Debate Config (`core/hive_mind/adaptive_debate.py`)
+- [x] User Interaction Handler (`core/hive_mind/user_interaction.py`)
 
-### Phase 1: Gating + Fast Path
-- [ ] Complexity gating dans orchestration_v7.py
-- [ ] Route TRIVIAL/SIMPLE vers V7.9
-- [ ] Route COMPLEX/EXPERT vers V8.0
+### Phase 1: Gating + Fast Path ✅ COMPLETE
+- [x] Complexity gating dans `core/orchestration/fsm_handlers.py`
+- [x] Route TRIVIAL/SIMPLE vers V7.9 (preserved)
+- [x] Route COMPLEX/EXPERT vers V8.0 Hive Mind
+- [x] Route MODERATE configurable (`hive_mind_moderate` setting)
 
-### Phase 2: Independent Analysis
-- [ ] HIVE_ANALYZING_GEMINI state
-- [ ] HIVE_ANALYZING_CLAUDE state
-- [ ] HIVE_COMPARING_ANALYSES state
+### Phase 2: Independent Analysis ✅ COMPLETE
+- [x] `IndependentAnalysisPhase` (`core/hive_mind/phases/phase_analysis.py`)
+- [x] Parallel Gemini/Claude analysis
+- [x] Analysis comparison with disagreement detection
+- [x] Agreement score threshold (85% to skip debate)
 
-### Phase 3: Strategic Debate
-- [ ] HIVE_DEBATING state
-- [ ] HIVE_CHECKING_CONSENSUS state
-- [ ] Timeout + forced vote
+### Phase 3: Strategic Debate ✅ COMPLETE
+- [x] `StrategicDebatePhase` (`core/hive_mind/phases/phase_debate.py`)
+- [x] Adaptive turns (3-10) based on complexity
+- [x] Structured debate with SUPPORT/OPPOSE/CONCEDE positions
+- [x] Timeout + forced vote
 
-### Phase 4: Architecture Generation
-- [ ] HIVE_ARCHITECTING state
-- [ ] HIVE_CHECKING_REGISTRY state
-- [ ] HIVE_SPAWNING state
+### Phase 4: Architecture Generation ✅ COMPLETE
+- [x] `ArchitectureGenerationPhase` (`core/hive_mind/phases/phase_architecture.py`)
+- [x] Agent topology generation
+- [x] Registry check for duplicates
+- [x] User breakpoint BEFORE_SPAWN
 
-### Phase 5: Monitored Execution
-- [ ] HIVE_EXECUTING state
-- [ ] HIVE_MONITORING state
-- [ ] Issue detection
+### Phase 5: Monitored Execution ✅ COMPLETE
+- [x] `MonitoredExecutionPhase` (`core/hive_mind/phases/phase_execution.py`)
+- [x] Step-by-step execution with monitoring
+- [x] Hallucination and error pattern detection
+- [x] Artifact verification
 
-### Phase 6: Failure Analysis + Retry
-- [ ] HIVE_DIAGNOSING state
-- [ ] Cross-agent diagnosis
-- [ ] HIVE_DECIDING_RETRY state
-- [ ] Strategy blacklist integration
+### Phase 6: Failure Analysis + Retry ✅ COMPLETE
+- [x] `FailureDiagnosisPhase` (`core/hive_mind/phases/phase_diagnosis.py`)
+- [x] Cross-agent diagnosis (parallel Gemini + Claude)
+- [x] `AdaptiveRetryPhase` (`core/hive_mind/phases/phase_retry.py`)
+- [x] Strategy blacklist integration
+
+### Phase 7: Knowledge Consolidation ✅ COMPLETE (User Decision Q4)
+- [x] `KnowledgeConsolidationPhase` (`core/hive_mind/phases/phase_consolidation.py`)
+- [x] Post-task reflection by both agents
+- [x] Knowledge archival to RAG (ProjectMemory)
+- [x] Agent retention decisions
+
+### V8.0 Integrations ✅ COMPLETE
+- [x] **fsm_handlers → TrueHiveMind**: Gating hook in `_handle_moderate_plus()`
+- [x] **CostEstimator → BudgetTracker**: USD budget chain (tokens → USD conversion)
+- [x] **StagnationDetector → StrategyBlacklist**: STAGNATION category + auto-report
 
 ---
 

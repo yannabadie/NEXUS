@@ -9,9 +9,17 @@ Méthode:
 2. Compare la similarité pairwise (difflib.SequenceMatcher)
 3. Si 2+ paires sont similaires (> 0.8) → stagnation détectée
 4. Injecte warning système pour forcer décision
+
+V8.0 Integration: Feeds into StrategyBlacklist
+- When stagnation detected, can report to blacklist
+- Blacklist uses STAGNATION category
+- Helps prevent same conversation loops across retries
 """
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 from difflib import SequenceMatcher
+
+if TYPE_CHECKING:
+    from core.hive_mind.strategy_blacklist import StrategyBlacklist
 
 
 class StagnationDetector:
@@ -27,7 +35,12 @@ class StagnationDetector:
             # Force decision
     """
 
-    def __init__(self, similarity_threshold: float = 0.8, window_size: int = 3):
+    def __init__(
+        self,
+        similarity_threshold: float = 0.8,
+        window_size: int = 3,
+        strategy_blacklist: Optional["StrategyBlacklist"] = None
+    ):
         """
         Initialize detector
 
@@ -35,10 +48,24 @@ class StagnationDetector:
             similarity_threshold: Seuil de similarité (0.0 - 1.0)
                                 0.8 = 80% similaire
             window_size: Nombre de messages à comparer (3 = derniers 3 messages)
+            strategy_blacklist: V8.0 - Optional blacklist for stagnation reporting
         """
         self.similarity_threshold = similarity_threshold
         self.window_size = window_size
         self.message_history: List[str] = []
+        self._stagnation_count = 0  # V8.0: Track stagnation occurrences
+
+        # V8.0: StrategyBlacklist integration
+        self._strategy_blacklist: Optional["StrategyBlacklist"] = strategy_blacklist
+
+    def set_strategy_blacklist(self, blacklist: "StrategyBlacklist"):
+        """
+        V8.0: Set the StrategyBlacklist for stagnation reporting.
+
+        Args:
+            blacklist: StrategyBlacklist instance
+        """
+        self._strategy_blacklist = blacklist
 
     def add_message(self, content: str):
         """
@@ -107,6 +134,7 @@ class StagnationDetector:
     def reset(self):
         """Reset détecteur (appelé après switch agent ou action)"""
         self.message_history.clear()
+        self._stagnation_count = 0
 
     def get_stagnation_message(self) -> str:
         """
@@ -162,5 +190,113 @@ class StagnationDetector:
             "message_count": len(self.message_history),
             "recent_messages": recent,
             "similarity_scores": similarities,
-            "is_stagnant": self.is_stagnant()
+            "is_stagnant": self.is_stagnant(),
+            "stagnation_count": self._stagnation_count
         }
+
+    # =========================================================================
+    # V8.0: StrategyBlacklist Integration
+    # =========================================================================
+
+    def extract_stagnant_strategy(self) -> str:
+        """
+        V8.0: Extract the strategy being stagnated on.
+
+        Analyzes recent messages to find common themes/words
+        that represent what agents are stuck discussing.
+
+        Returns:
+            A description of the stagnant strategy
+        """
+        if len(self.message_history) < 2:
+            return "Unknown discussion topic"
+
+        recent = self.message_history[-self.window_size:]
+
+        # Find common words across messages
+        word_sets = [set(msg.split()) for msg in recent]
+        if not word_sets:
+            return "Circular discussion without clear topic"
+
+        # Find intersection (words in ALL messages)
+        common_words = word_sets[0]
+        for ws in word_sets[1:]:
+            common_words &= ws
+
+        # Remove stop words
+        stop_words = {
+            "je", "tu", "il", "nous", "vous", "ils",
+            "le", "la", "les", "un", "une", "des",
+            "de", "du", "à", "au", "aux", "en",
+            "et", "ou", "mais", "donc", "car", "ni",
+            "que", "qui", "quoi", "dont", "où",
+            "the", "a", "an", "to", "for", "of", "in", "on",
+            "is", "are", "was", "were", "be", "been",
+            "i", "you", "he", "she", "we", "they",
+            "this", "that", "it", "my", "your", "his", "her"
+        }
+        meaningful_words = [w for w in common_words if w not in stop_words and len(w) > 2]
+
+        if meaningful_words:
+            return f"Discussion stagnante sur: {', '.join(meaningful_words[:5])}"
+        else:
+            # Use first message as fallback
+            return f"Discussion répétitive: {recent[0][:100]}..."
+
+    def report_to_blacklist(self, task_context: str = "") -> bool:
+        """
+        V8.0: Report stagnation to StrategyBlacklist.
+
+        Called when stagnation is detected to prevent
+        the same circular discussion in future retries.
+
+        Args:
+            task_context: Optional context about the current task
+
+        Returns:
+            True if reported successfully, False if no blacklist set
+        """
+        if not self._strategy_blacklist:
+            return False
+
+        if not self.is_stagnant():
+            return False
+
+        self._stagnation_count += 1
+
+        # Import here to avoid circular imports
+        try:
+            from core.hive_mind.strategy_blacklist import FailureCategory
+        except ImportError:
+            return False
+
+        strategy = self.extract_stagnant_strategy()
+        diagnosis = (
+            f"Detected {self._stagnation_count} stagnation(s). "
+            f"Messages: {self.message_history[-self.window_size:]}"
+        )
+
+        self._strategy_blacklist.add_failed_strategy(
+            strategy=strategy,
+            failure_reason="Agents stuck in circular discussion without action",
+            diagnosis=diagnosis,
+            failure_category=FailureCategory.STAGNATION,
+            tags=["stagnation", "circular", f"count_{self._stagnation_count}"]
+        )
+
+        return True
+
+    def check_and_report(self, task_context: str = "") -> bool:
+        """
+        V8.0: Convenience method - check stagnation AND report if detected.
+
+        Args:
+            task_context: Optional context about the current task
+
+        Returns:
+            True if stagnation was detected (and possibly reported)
+        """
+        if self.is_stagnant():
+            self.report_to_blacklist(task_context)
+            return True
+        return False

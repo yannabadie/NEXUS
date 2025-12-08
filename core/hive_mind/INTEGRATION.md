@@ -171,3 +171,138 @@ def _handle_moderate_plus(self, user_input: str, task_analysis) -> Dict:
 2. **Phase B**: Enable for COMPLEX/EXPERT only (safe)
 3. **Phase C**: Enable for MODERATE (user decision implemented)
 4. **Phase D**: Deprecate V7 Swarm for complex tasks (future)
+
+---
+
+## V8.0 Integration Implementation Details
+
+### Integration 1: fsm_handlers -> TrueHiveMind
+
+**File**: `core/orchestration/fsm_handlers.py`
+
+**Methods Added**:
+- `_should_use_hive_mind(complexity)`: Gating logic
+  - Returns `True` for COMPLEX/EXPERT
+  - Returns `True` for MODERATE if `hive_mind_moderate=True`
+  - Returns `False` otherwise (routes to V7 Swarm)
+
+- `_route_to_hive_mind(user_input, task_analysis)`: Entry point
+  - Initializes `TrueHiveMind` with workspace, config, drivers
+  - Runs async pipeline via `asyncio.run()`
+  - Returns result in FSM-compatible format
+  - Falls back to Swarm on error
+
+- `_fallback_to_swarm_or_brainstorm()`: Error recovery
+  - Logs warning and routes to existing V7 path
+
+**Code Flow**:
+```
+_handle_moderate_plus()
+    |
+    +-> _should_use_hive_mind(complexity)
+    |       |
+    |       +-> True: _route_to_hive_mind()
+    |       |           |
+    |       |           +-> TrueHiveMind.process_task()
+    |       |           +-> Return result
+    |       |
+    |       +-> False: Existing V7 Swarm code
+```
+
+### Integration 2: CostEstimator -> BudgetTracker
+
+**File**: `core/hive_mind/cost_estimator.py`
+
+**Methods Added**:
+- `set_budget_tracker(tracker)`: Link to BudgetTracker
+- `tokens_to_usd(tokens)`: Convert tokens to USD (~$3/1M tokens)
+- `check_usd_budget(tokens)`: Check USD budget via BudgetTracker
+
+**Modified Methods**:
+- `can_afford(operation, count)`: Now checks BOTH token AND USD budgets
+- `can_afford_multiple(operations)`: Now checks BOTH budgets
+- `get_stats()`: Now includes USD integration stats
+
+**Chain Logic**:
+```
+can_afford("spawn_agent")
+    |
+    +-> Check token budget (self.spent + cost <= self.budget_limit)
+    |       |
+    |       +-> False: Return False (token limit exceeded)
+    |
+    +-> check_usd_budget(cost)
+            |
+            +-> tokens_to_usd(cost)
+            +-> BudgetTracker.get_remaining()
+            +-> Return (estimated_usd <= remaining_usd)
+```
+
+### Integration 3: StagnationDetector -> StrategyBlacklist
+
+**File**: `core/fsm/stagnation_detector.py`
+
+**Methods Added**:
+- `set_strategy_blacklist(blacklist)`: Link to StrategyBlacklist
+- `extract_stagnant_strategy()`: Extract discussion topic from repeated messages
+- `report_to_blacklist(task_context)`: Report stagnation to blacklist
+- `check_and_report(task_context)`: Combined check + report
+
+**File**: `core/hive_mind/strategy_blacklist.py`
+
+**Additions**:
+- `FailureCategory.STAGNATION`: New failure category
+- Suggestions for STAGNATION in `suggest_alternatives()`:
+  - "Stop discussing and take a concrete action"
+  - "Use a tool immediately without further deliberation"
+  - "Switch to a different agent or perspective"
+  - "Force a decision: pick the simplest viable option"
+  - "Break the impasse by reading a specific file"
+
+**Chain Logic**:
+```
+StagnationDetector.add_message(msg)
+    |
+    +-> is_stagnant()
+            |
+            +-> True: check_and_report()
+                    |
+                    +-> extract_stagnant_strategy()
+                    +-> StrategyBlacklist.add_failed_strategy(
+                            strategy,
+                            reason="Agents stuck in circular discussion",
+                            category=FailureCategory.STAGNATION
+                        )
+```
+
+---
+
+## Testing the Integrations
+
+```python
+# Test CostEstimator -> BudgetTracker
+from core.hive_mind.cost_estimator import CostEstimator
+from core.telemetry.budget_tracker import BudgetTracker
+
+tracker = BudgetTracker(config)
+estimator = CostEstimator(budget_limit=50000)
+estimator.set_budget_tracker(tracker)
+
+# Now can_afford() checks both token AND USD budgets
+estimator.can_afford("spawn_agent")  # Checks both
+
+# Test StagnationDetector -> StrategyBlacklist
+from core.fsm.stagnation_detector import StagnationDetector
+from core.hive_mind.strategy_blacklist import StrategyBlacklist
+
+blacklist = StrategyBlacklist()
+detector = StagnationDetector()
+detector.set_strategy_blacklist(blacklist)
+
+detector.add_message("let's read auth.py")
+detector.add_message("yes, read auth.py first")
+detector.add_message("ok, reading auth.py")
+
+if detector.check_and_report():
+    print("Stagnation reported to blacklist")
+```

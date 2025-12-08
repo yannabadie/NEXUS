@@ -28,6 +28,15 @@ from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
 
+# V8.0 TRUE HIVE MIND
+try:
+    from core.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
+    HIVE_MIND_AVAILABLE = True
+except ImportError:
+    HIVE_MIND_AVAILABLE = False
+    TrueHiveMind = None
+    HiveComplexity = None
+
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
 
@@ -602,6 +611,12 @@ class FSMHandlers:
 
     def _handle_moderate_plus(self, user_input: str, task_analysis) -> Dict:
         """Handle MODERATE/COMPLEX/EXPERT tasks."""
+        complexity = task_analysis.complexity
+
+        # V8.0 TRUE HIVE MIND: Check if should route to Hive Mind
+        if self._should_use_hive_mind(complexity):
+            return self._route_to_hive_mind(user_input, task_analysis)
+
         # Try Swarm first if enabled
         if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
             self._logger.debug("MODERATE+ task - Swarm mode", {"input": user_input[:100]})
@@ -647,6 +662,150 @@ class FSMHandlers:
 
         self._orch._transition_to(OrchestratorState.BRAINSTORMING)
         return self._make_result("BRAINSTORMING", f"[Task Started] {user_input}", "Gemini", False)
+
+    # =========================================================================
+    # V8.0 TRUE HIVE MIND Integration
+    # =========================================================================
+
+    def _should_use_hive_mind(self, complexity: TaskComplexity) -> bool:
+        """
+        Determine if task should be routed to V8 Hive Mind.
+
+        Gating logic (per user decision Q1):
+        - COMPLEX/EXPERT: Always use Hive Mind
+        - MODERATE: Use Hive Mind if hive_mind_moderate=True (default)
+        - TRIVIAL/SIMPLE: Never use Hive Mind (handled elsewhere)
+
+        Returns:
+            True if should use Hive Mind
+        """
+        if not HIVE_MIND_AVAILABLE:
+            return False
+
+        # Check if Hive Mind is enabled
+        if not getattr(self._orch.config, 'hive_mind_enabled', True):
+            return False
+
+        # COMPLEX/EXPERT: Always use Hive Mind
+        if complexity in (TaskComplexity.COMPLEX, TaskComplexity.EXPERT):
+            self._logger.info(f"Routing to Hive Mind (complexity: {complexity.name})")
+            return True
+
+        # MODERATE: Check config flag
+        if complexity == TaskComplexity.MODERATE:
+            use_for_moderate = getattr(self._orch.config, 'hive_mind_moderate', True)
+            if use_for_moderate:
+                self._logger.info("Routing MODERATE task to Hive Mind (hive_mind_moderate=True)")
+                return True
+
+        return False
+
+    def _route_to_hive_mind(self, user_input: str, task_analysis) -> Dict:
+        """
+        Route task to V8 TRUE HIVE MIND pipeline.
+
+        Initializes TrueHiveMind if needed and processes task through 7 phases.
+
+        Args:
+            user_input: User's task description
+            task_analysis: Task analysis result
+
+        Returns:
+            Result dict compatible with FSM
+        """
+        import asyncio
+
+        self._logger.info("🐝 Starting TRUE HIVE MIND V8.0 pipeline")
+
+        try:
+            # Initialize Hive Mind if not exists
+            if not hasattr(self._orch, '_hive_mind') or self._orch._hive_mind is None:
+                self._orch._hive_mind = TrueHiveMind(
+                    workspace_path=self._orch.workspace_path,
+                    config=self._orch.config,
+                    gemini_driver=self._orch.gemini_driver,
+                    claude_driver=self._orch._get_claude_driver(TaskType.BRAINSTORM),
+                    agent_pool=self._orch.agent_pool,
+                    budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
+                    project_memory=self._orch.project_memory,
+                    auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True)
+                )
+
+            # Map TaskComplexity to HiveComplexity
+            complexity_map = {
+                TaskComplexity.TRIVIAL: HiveComplexity.TRIVIAL,
+                TaskComplexity.SIMPLE: HiveComplexity.TRIVIAL,  # Map SIMPLE to TRIVIAL for Hive
+                TaskComplexity.MODERATE: HiveComplexity.MODERATE,
+                TaskComplexity.COMPLEX: HiveComplexity.COMPLEX,
+                TaskComplexity.EXPERT: HiveComplexity.EXPERT,
+            }
+            hive_complexity = complexity_map.get(task_analysis.complexity, HiveComplexity.MODERATE)
+
+            # Run Hive Mind (async in sync context)
+            hive_start = time.time()
+
+            # Get or create event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            result = loop.run_until_complete(
+                self._orch._hive_mind.process_task(user_input, hive_complexity)
+            )
+
+            hive_duration = time.time() - hive_start
+
+            # Record telemetry
+            if self._orch.telemetry:
+                self._orch.telemetry.record_swarm_task(
+                    mode="hive_mind_v8",
+                    rounds=len(result.phases_completed),
+                    duration_seconds=hive_duration,
+                    success=result.success,
+                    agents_used=result.agents_used + result.agents_spawned
+                )
+
+            # Format result
+            if result.success:
+                output = f"🐝 [Hive Mind V8.0] Task completed\n\n{result.output}"
+                self._orch._transition_to(OrchestratorState.WAITING_USER)
+                return self._make_result("FINISHED", output, "HiveMind", True)
+            else:
+                output = f"🐝 [Hive Mind V8.0] Task failed: {result.error}\n\nPhases completed: {', '.join(result.phases_completed)}"
+                if result.state.value == "hive_escalate":
+                    # User requested escalation
+                    return self._make_result("WAITING_USER", output, "HiveMind", True)
+                else:
+                    # Error occurred
+                    return self._make_result("ERROR", output, "HiveMind", False, error=result.error)
+
+        except Exception as e:
+            self._logger.error(f"Hive Mind error: {e}", exc_info=True)
+            if self._orch.telemetry:
+                self._orch.telemetry.record_error("HIVE_MIND_ERROR", str(e))
+
+            # Fallback to Swarm/Brainstorming
+            self._logger.warn("Falling back to Swarm/Brainstorming after Hive Mind error")
+            return self._fallback_to_swarm_or_brainstorm(user_input, task_analysis)
+
+    def _fallback_to_swarm_or_brainstorm(self, user_input: str, task_analysis) -> Dict:
+        """Fallback when Hive Mind fails."""
+        # Try Swarm
+        if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
+            try:
+                swarm_result = self._orch.process_with_swarm(user_input)
+                if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
+                    return self._format_swarm_result(swarm_result)
+            except Exception:
+                pass
+
+        # Fallback to Brainstorming
+        self._orch.blackboard["objective"] = user_input
+        self._orch.active_agent = "Gemini"
+        self._orch._transition_to(OrchestratorState.BRAINSTORMING)
+        return self._make_result("BRAINSTORMING", f"[Task Started - Fallback] {user_input}", "Gemini", False)
 
     def _format_swarm_result(self, swarm_result: Dict) -> Dict:
         """Format successful swarm result."""

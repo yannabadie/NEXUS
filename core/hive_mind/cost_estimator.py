@@ -4,8 +4,15 @@ NEXUS V8.0 - Cost Estimator
 Budget control before expensive decisions.
 Prevents runaway costs by estimating token usage before operations.
 
+V8.0 Integration: Chains with BudgetTracker for USD limits.
+- CostEstimator: Token-level budget (fast, pre-check)
+- BudgetTracker: USD-level budget (daily limits, persistence)
+
 Usage:
     estimator = CostEstimator(budget_limit=50000)
+
+    # With BudgetTracker integration
+    estimator.set_budget_tracker(budget_tracker)
 
     if estimator.can_afford("spawn_agent"):
         spawn_agent()
@@ -17,11 +24,19 @@ Usage:
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 
+if TYPE_CHECKING:
+    from core.telemetry.budget_tracker import BudgetTracker
+
 logger = logging.getLogger(__name__)
+
+# Token-to-USD conversion (approximate)
+# Based on Gemini 3 Pro pricing as baseline: $1.25/1M input, $5/1M output
+# Average: ~$3/1M tokens
+DEFAULT_USD_PER_MILLION_TOKENS = 3.0
 
 
 class CostCategory(Enum):
@@ -121,17 +136,77 @@ class CostEstimator:
         "rag_injection": CostCategory.RAG,
     }
 
-    def __init__(self, budget_limit: int = 50000):
+    def __init__(
+        self,
+        budget_limit: int = 50000,
+        budget_tracker: Optional["BudgetTracker"] = None,
+        usd_per_million_tokens: float = None
+    ):
         """
         Initialize cost estimator.
 
         Args:
             budget_limit: Maximum tokens to spend (default: 50000)
+            budget_tracker: Optional BudgetTracker for USD limit chain
+            usd_per_million_tokens: USD per million tokens for conversion
         """
         self.budget_limit = budget_limit
         self.spent = 0
         self.records: List[CostRecord] = []
         self._task_start_spent = 0
+
+        # V8.0: BudgetTracker integration
+        self._budget_tracker: Optional["BudgetTracker"] = budget_tracker
+        self._usd_per_million = usd_per_million_tokens or DEFAULT_USD_PER_MILLION_TOKENS
+
+    def set_budget_tracker(self, tracker: "BudgetTracker"):
+        """
+        Set the BudgetTracker for USD limit checking.
+
+        Args:
+            tracker: BudgetTracker instance
+        """
+        self._budget_tracker = tracker
+        logger.info("CostEstimator linked to BudgetTracker")
+
+    def tokens_to_usd(self, tokens: int) -> float:
+        """
+        Convert tokens to estimated USD cost.
+
+        Args:
+            tokens: Number of tokens
+
+        Returns:
+            Estimated cost in USD
+        """
+        return (tokens / 1_000_000) * self._usd_per_million
+
+    def check_usd_budget(self, tokens: int) -> bool:
+        """
+        Check if tokens would exceed USD budget.
+
+        V8.0 Integration: Chains CostEstimator → BudgetTracker
+
+        Args:
+            tokens: Tokens to spend
+
+        Returns:
+            True if within USD budget (or no tracker set)
+        """
+        if not self._budget_tracker:
+            return True  # No USD tracking, allow
+
+        estimated_usd = self.tokens_to_usd(tokens)
+        remaining_usd = self._budget_tracker.get_remaining()
+
+        if estimated_usd > remaining_usd:
+            logger.warning(
+                f"USD budget check failed: "
+                f"need ${estimated_usd:.4f}, have ${remaining_usd:.4f}"
+            )
+            return False
+
+        return True
 
     def start_task(self):
         """Mark the start of a new task for per-task tracking."""
@@ -165,39 +240,62 @@ class CostEstimator:
         """
         Check if operation is affordable.
 
+        V8.0: Now checks both token budget AND USD budget (via BudgetTracker).
+
         Args:
             operation: Operation name
             count: Number of times to perform
 
         Returns:
-            True if affordable
+            True if affordable in both token and USD budgets
         """
         cost = self.estimate_operation(operation, count)
-        affordable = (self.spent + cost) <= self.budget_limit
 
-        if not affordable:
+        # Check token budget
+        token_affordable = (self.spent + cost) <= self.budget_limit
+        if not token_affordable:
             logger.warning(
                 f"Cannot afford {operation} x{count} "
-                f"(need {cost}, have {self.budget_remaining})"
+                f"(need {cost} tokens, have {self.budget_remaining})"
             )
+            return False
 
-        return affordable
+        # V8.0: Also check USD budget if tracker is set
+        if not self.check_usd_budget(cost):
+            logger.warning(
+                f"Cannot afford {operation} x{count} "
+                f"(USD budget exceeded)"
+            )
+            return False
+
+        return True
 
     def can_afford_multiple(self, operations: Dict[str, int]) -> bool:
         """
         Check if multiple operations are affordable.
 
+        V8.0: Now checks both token budget AND USD budget.
+
         Args:
             operations: Dict of {operation: count}
 
         Returns:
-            True if all affordable
+            True if all affordable in both token and USD budgets
         """
         total_cost = sum(
             self.estimate_operation(op, count)
             for op, count in operations.items()
         )
-        return (self.spent + total_cost) <= self.budget_limit
+
+        # Check token budget
+        if (self.spent + total_cost) > self.budget_limit:
+            return False
+
+        # V8.0: Also check USD budget
+        if not self.check_usd_budget(total_cost):
+            return False
+
+        return True
 
     def record_cost(
         self,
@@ -346,10 +444,10 @@ class CostEstimator:
         return breakdown
 
     def get_stats(self) -> Dict:
-        """Get cost statistics."""
+        """Get cost statistics including USD integration."""
         breakdown = self.get_category_breakdown()
 
-        return {
+        stats = {
             "budget_limit": self.budget_limit,
             "total_spent": self.spent,
             "budget_remaining": self.budget_remaining,
@@ -362,6 +460,21 @@ class CostEstimator:
                 if self.records else 0
             )
         }
+
+        # V8.0: Add USD stats if tracker is linked
+        if self._budget_tracker:
+            usd_stats = self._budget_tracker.get_stats()
+            stats["usd_integration"] = {
+                "linked": True,
+                "estimated_usd_spent": round(self.tokens_to_usd(self.spent), 4),
+                "budget_tracker_spent_today": usd_stats.get("spent_today_usd", 0),
+                "budget_tracker_remaining": usd_stats.get("remaining_usd", 0),
+                "budget_tracker_warning": usd_stats.get("warning_level"),
+            }
+        else:
+            stats["usd_integration"] = {"linked": False}
+
+        return stats
 
     def reset_for_new_session(self):
         """Reset for a new session (keeps records for analysis)."""
