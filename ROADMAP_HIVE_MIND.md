@@ -1,6 +1,6 @@
 # ROADMAP NEXUS V7.5 "HIVE MIND"
 
-**Version**: 7.8.1 | **Status**: Active | **Last Updated**: 2025-12-07
+**Version**: 7.8.1 | **Status**: Active | **Last Updated**: 2025-12-08
 **Vision**: Cœur d'Intelligence Collaborative Générant des Agents Spécialisés
 **Validation**: Stress Test "Torture Protocol" (2025-12-07) - 92.3% Robustesse
 **Analyse Croisée**: Gemini + Claude collaboration (2025-12-04)
@@ -1082,7 +1082,7 @@ et peut réutiliser le contexte accumulé.
 - [x] Memory boost tiers: HIGH (0.25), MEDIUM (0.15), LOW (0.08)
 - [x] 23 tests (test_memory_retrieval.py)
 
-**Phase 10c: Project Memory RAG (V7.7)** 🆕 *Enrichi par Gemini (2025-12-04)*
+**Phase 10c: Project Memory RAG (V7.8)** ✅ COMPLETED 2025-12-08
 **Objectif**: Mémoire métier persistante (connaissance projet, pas juste patterns d'exécution)
 **Source**: Analyse Gemini - "Où est stockée la connaissance métier du projet?"
 
@@ -1090,13 +1090,14 @@ et peut réutiliser le contexte accumulé.
 > - `SuccessMemory` = patterns d'exécution (quel mode a marché)
 > - `ProjectMemory` = connaissance métier (schéma DB, conventions code, architecture)
 
-**Implémentation**:
-- [ ] `core/memory/project_memory.py` - ProjectMemory class
-- [ ] RAG sur fichiers projet (docs/, README, schemas)
-- [ ] Embeddings locaux: `sentence-transformers` (all-MiniLM-L6-v2, 80MB)
-- [ ] Cosine similarity pour retrieval sémantique
-- [ ] Injection automatique contexte pertinent dans prompts
-- [ ] Persistence dans `workspace/.nexus/project_knowledge.json`
+**Implémentation V7.8** (TF-IDF Zero-Dependency):
+- [x] `core/memory/project_memory.py` - ProjectMemory class (685 lignes)
+- [x] RAG sur fichiers projet avec chunking intelligent (.py → fonctions, .md → sections)
+- [x] Scoring TF-IDF Weighted Jaccard (zero-dependency)
+- [x] Injection automatique contexte pour MODERATE+ tasks via ContextBuilder
+- [x] Persistence dans `.nexus/project_knowledge.json` (survit `/workspace new`)
+- [x] Commandes REPL: `/learn`, `/forget`, `/memory-status`
+- [x] 50 tests unitaires
 
 **Exemple d'usage**:
 ```
@@ -1107,6 +1108,221 @@ ProjectMemory.retrieve("Users table") →
 ```
 
 **Avantage**: L'agent ne redécouvre pas le schéma DB à chaque session
+
+---
+
+#### Phase 10e: BM25S Sparse Retrieval [Priorité: HAUTE] ⏳ PLANNED V7.8.2
+
+**Objectif**: Améliorer qualité retrieval (+15%) sans nouvelle dépendance lourde
+**Source**: Audit Claude (2025-12-08) - "TF-IDF Jaccard sous-optimal vs BM25"
+**Effort**: 2-3 heures
+
+> **Pourquoi BM25S?**
+> - [BM25S](https://github.com/xhluca/bm25s) = 500x plus rapide que rank-bm25
+> - Pure Python + Scipy (déjà dans l'écosystème)
+> - Meilleur ranking que TF-IDF pour retrieval documentaire
+> - Zero nouvelle dépendance lourde
+
+**Implémentation**:
+- [ ] Ajouter `bm25s` dans requirements.txt (~2MB)
+- [ ] `core/memory/backends/bm25_backend.py` - BM25SBackend class
+- [ ] Remplacer `_score_chunk()` TF-IDF par BM25S scoring
+- [ ] Backward compatible: fallback TF-IDF si bm25s non installé
+- [ ] Tests: adapter `test_project_memory.py`
+
+**API inchangée**:
+```python
+# Avant (TF-IDF)
+chunks = memory.retrieve("FSM state handling", limit=5)
+
+# Après (BM25S) - même API
+chunks = memory.retrieve("FSM state handling", limit=5)
+```
+
+**Métriques attendues**:
+| Métrique | TF-IDF (actuel) | BM25S (cible) |
+|----------|-----------------|---------------|
+| Recall@5 | ~70% | ~80% |
+| Latency | <1ms | <2ms |
+| Dependencies | 0 | +scipy (déjà présent) |
+
+---
+
+#### Phase 10f: Memory Backend Abstraction [Priorité: MOYENNE] ⏳ PLANNED V7.9
+
+**Objectif**: Préparer l'architecture pour embeddings sans casser l'existant
+**Source**: Audit Claude (2025-12-08) - "Migration progressive recommandée"
+**Effort**: 4-6 heures
+
+> **Pattern Strategy**:
+> Permettre le swap entre backends (TF-IDF, BM25, Dense) sans changer l'API publique
+
+**Implémentation**:
+```python
+# core/memory/backends/__init__.py
+class MemoryBackend(ABC):
+    """Abstract base class for retrieval backends."""
+
+    @abstractmethod
+    def index(self, chunks: List[Chunk]) -> None:
+        """Index chunks for retrieval."""
+        pass
+
+    @abstractmethod
+    def retrieve(self, query: str, limit: int) -> List[Tuple[float, Chunk]]:
+        """Retrieve relevant chunks with scores."""
+        pass
+
+    @abstractmethod
+    def clear(self) -> None:
+        """Clear all indexed data."""
+        pass
+
+# Implémentations
+class TFIDFBackend(MemoryBackend):     # Actuel
+class BM25SBackend(MemoryBackend):     # Phase 10e
+class DenseBackend(MemoryBackend):     # Phase 10g
+class HybridBackend(MemoryBackend):    # Phase 10h
+```
+
+**Structure fichiers**:
+```
+core/memory/
+├── project_memory.py      # Façade (inchangée)
+├── backends/
+│   ├── __init__.py        # ABC + factory
+│   ├── tfidf_backend.py   # Actuel extrait
+│   ├── bm25_backend.py    # Phase 10e
+│   ├── dense_backend.py   # Phase 10g
+│   └── hybrid_backend.py  # Phase 10h
+└── ...
+```
+
+**Configuration**:
+```bash
+# .env
+PROJECT_MEMORY_BACKEND=hybrid  # tfidf|bm25|dense|hybrid
+```
+
+---
+
+#### Phase 10g: Dense Embeddings (LanceDB + MiniLM) [Priorité: MOYENNE] ⏳ PLANNED V7.9
+
+**Objectif**: Recherche sémantique ("auth" ≈ "authentication")
+**Source**: Recherche Claude (2025-12-08) - [Best Embedding Models 2025](https://elephas.app/blog/best-embedding-models)
+**Effort**: 1-2 jours
+
+> **Stack Recommandée (100% Local)**:
+> - **[LanceDB](https://lancedb.com/)**: Vector DB embedded, serverless, hybrid search
+> - **[all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers)**: 22MB, 384 dim, ~5k sent/sec CPU
+
+**Pourquoi LanceDB vs ChromaDB?**
+| Aspect | LanceDB | ChromaDB |
+|--------|---------|----------|
+| Storage | Columnar (Lance) | SQLite |
+| Hybrid Search | Native FTS + Vector | Plugin |
+| Python Native | ✅ Pure Python | ✅ |
+| Disk Format | Efficient | JSON-like |
+| Active Dev | ✅ 2025 | ✅ |
+
+**Implémentation**:
+- [ ] Ajouter dans requirements.txt:
+  ```
+  lancedb>=0.4.0           # ~2MB
+  sentence-transformers>=2.2.0  # ~50MB (model downloaded separately)
+  ```
+- [ ] `core/memory/backends/dense_backend.py`:
+  ```python
+  class DenseBackend(MemoryBackend):
+      def __init__(self, storage_path: Path):
+          self.db = lancedb.connect(storage_path / "lance_db")
+          self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
+
+      def index(self, chunks: List[Chunk]) -> None:
+          embeddings = self.embedder.encode([c.content for c in chunks])
+          self.db.create_table("chunks", data=[
+              {"id": i, "content": c.content, "vector": emb, "metadata": c.to_dict()}
+              for i, (c, emb) in enumerate(zip(chunks, embeddings))
+          ])
+
+      def retrieve(self, query: str, limit: int) -> List[Tuple[float, Chunk]]:
+          query_vec = self.embedder.encode(query)
+          results = self.db.open_table("chunks").search(query_vec).limit(limit).to_list()
+          return [(r["_distance"], Chunk.from_dict(r["metadata"])) for r in results]
+  ```
+- [ ] Lazy loading du modèle (3s cold start acceptable)
+- [ ] Tests: `test_dense_backend.py`
+
+**Métriques attendues**:
+| Métrique | BM25S | Dense | Amélioration |
+|----------|-------|-------|--------------|
+| Recall@5 | ~80% | ~88% | +10% |
+| Semantic | ❌ | ✅ | Oui |
+| Latency | <2ms | <10ms | Trade-off |
+| Cold Start | 0s | ~3s | Trade-off |
+| Disk | ~5MB | ~100MB | Trade-off |
+
+---
+
+#### Phase 10h: Hybrid RAG (Sparse + Dense) [Priorité: BASSE] ⏳ PLANNED V7.9+
+
+**Objectif**: Best of both worlds - précision lexicale + compréhension sémantique
+**Source**: [Rethinking RAG - Unstructured](https://unstructured.io/blog/rethinking-rag-without-embeddings)
+**Effort**: 4-6 heures (après Phase 10f/10g)
+
+> **Formule Hybride**:
+> ```
+> Final_Score = α × BM25_Score + (1-α) × Dense_Score
+> α = 0.4 (tunable via config)
+> ```
+
+**Implémentation**:
+```python
+class HybridBackend(MemoryBackend):
+    def __init__(self, storage_path: Path, alpha: float = 0.4):
+        self.sparse = BM25SBackend(storage_path)
+        self.dense = DenseBackend(storage_path)
+        self.alpha = alpha
+
+    def retrieve(self, query: str, limit: int) -> List[Tuple[float, Chunk]]:
+        sparse_results = self.sparse.retrieve(query, limit * 2)
+        dense_results = self.dense.retrieve(query, limit * 2)
+
+        # Reciprocal Rank Fusion (RRF)
+        return self._rrf_merge(sparse_results, dense_results, limit)
+```
+
+**Avantages du Hybrid**:
+- "FSM state" → BM25 trouve les matches exacts
+- "state machine handling" → Dense comprend la sémantique
+- Fusion RRF = meilleur des deux
+
+**Métriques cibles**:
+| Métrique | Dense seul | Hybrid |
+|----------|------------|--------|
+| Recall@5 | ~88% | ~92% |
+| Precision | Variable | Plus stable |
+
+---
+
+#### Résumé Évolution RAG (Phase 10)
+
+```
+Phase 10c (V7.8)     Phase 10e (V7.8.2)    Phase 10f/g (V7.9)    Phase 10h (V7.9+)
+    │                      │                      │                      │
+    ▼                      ▼                      ▼                      ▼
+┌─────────┐          ┌─────────┐          ┌─────────────────┐    ┌─────────────┐
+│ TF-IDF  │ ──────▶ │  BM25S  │ ──────▶ │ Backend Abstract│───▶│   HYBRID    │
+│ Jaccard │          │ Sparse  │          │ + LanceDB Dense │    │ BM25+Dense  │
+└─────────┘          └─────────┘          └─────────────────┘    └─────────────┘
+  ~70%                 ~80%                     ~88%                  ~92%
+  0 deps              +scipy                  +75MB                 Combined
+```
+
+**Timeline recommandée**:
+1. **V7.8.2**: Phase 10e (BM25S) - Quick win, 2h
+2. **V7.9**: Phase 10f + 10g (Abstraction + LanceDB) - 2 jours
+3. **V7.9.1+**: Phase 10h (Hybrid) - Optionnel, si besoin prouvé
 
 #### Phase 10d: Session-Aware Agent Selection ✅ COMPLETED 2025-12-04
 
@@ -1446,22 +1662,30 @@ def execute():
 ~~- [ ] PARALLEL_SYNC: Parallel avec sync points (topology MESH)~~
 ~~- [ ] PIPELINE: Sequential avec handoff structuré~~
 
-### Phase 12.1: MNEMOSYNE - Mémoire Avancée [Priorité: BASSE]
+### Phase 12.1: MNEMOSYNE - Mémoire Avancée [Priorité: BASSE] 🔄 REFACTORISÉE
+
 **Objectif**: Memory Graph (Vector + Relations)
+**Status**: Refactorisée → Phases 10e/f/g/h (2025-12-08)
 
-> **Contexte**: Vector DB seul insuffisant pour mémoire long-terme (2025 research).
-> Nécessite combinaison Vector + Graph pour relations entre tâches.
+> **Mise à jour 2025-12-08**: Cette phase a été décomposée en sous-phases progressives
+> dans la Phase 10 (RAG Evolution). Voir:
+> - Phase 10e: BM25S Sparse (V7.8.2)
+> - Phase 10f: Backend Abstraction (V7.9)
+> - Phase 10g: LanceDB + Dense Embeddings (V7.9)
+> - Phase 10h: Hybrid RAG (V7.9+)
+>
+> Le Memory Graph (relations causales) reste prévu pour V8.0+ (Phase 20: Synaptic Graph)
 
-- [ ] Seulement si Phase 10c insuffisante
-- [ ] Option A: ChromaDB local (si >10k entrées)
-- [ ] Option B: SQLite + embeddings (plus simple)
-- [ ] Memory Graph: tâches liées par similarité ET relations causales
+**Original Plan** (conservé pour référence):
+- [ ] Option A: ~~ChromaDB~~ → LanceDB (meilleur hybrid search)
+- [ ] Option B: ~~SQLite + embeddings~~ → Couvert par Phase 10g
+- [ ] Memory Graph: → Phase 20 "Synaptic Graph"
 
 ```
 Task A (SQL optimization)
     ├── used_mode: SPECIALIST
     ├── solved_by: sql_expert_agent
-    └── SIMILAR_TO → Task B (Query performance)
+    └── SIMILAR_TO → Task B (Query performance)  # Phase 20
 ```
 
 ### ~~Phase 12.2: OUROBOROS~~ [ANNULÉE]
@@ -1843,22 +2067,34 @@ V7.7 (Février 2026) - CONSOLIDATION & SAFETY
 ├── [P3] Phase 13e: Global Registry Migration
 └── [P3] Phase 10c: Project Memory RAG 🆕 (Gemini)
 
-V7.8 (Mars 2026) - STABILIZATION & CLEANUP
-├── [COMPLETED] Phase 7: Session Isolation ✅ (Validated by Stress Test)
-├── [COMPLETED] Phase 13a: Graph of Thought CLEANUP ✅ (Dead code removed)
-├── [PARTIAL] Phase 14c: Orchestrator Refactoring ⚠️ (Stage 1 done: -185 lines)
-└── [COMPLETED] Stress Test "Torture Protocol" ✅ (No context bleeding)
+V7.8 (Décembre 2025) - STABILIZATION & REFACTORING ✅ CURRENT
+├── [COMPLETED] Phase 14c: Orchestrator Refactoring ✅ (2223→783 lignes = -65%)
+├── [COMPLETED] Phase 10c: Project Memory RAG ✅ (TF-IDF, 685 lignes)
+├── [COMPLETED] Phase 15: Agent-as-Tool ✅ (AgentToolRegistry)
+├── [COMPLETED] Phase 12.5: Dynamic Tool Generation ✅
+├── [COMPLETED] GoT Code Cleanup ✅ (-206 lignes)
+└── [COMPLETED] V7.8.1 Fixes ✅ (IC-003, OV-001, Tests cleanup)
 
-V7.9 (Avril 2026) - FRACTAL ARCHITECTURE (Agent-as-Tool)
-├── [PRIORITY] Phase B1: Agent-as-Tool Registry 🚀
-│   ├── Scanner workspace/agents/
-│   ├── Générer Tool definitions dynamiques
-│   └── Execution dans session isolée
-├── [PRIORITY] Phase 12.5: Dynamic Tool Generation ✅ (Ready for integration)
-└── Phase B2: Hot-Swap Lead Agent (Resilience)
+V7.8.2 (Janvier 2026) - RAG QUICK WIN
+├── [PLANNED] Phase 10e: BM25S Sparse Retrieval 🚀 (2-3h effort)
+│   ├── Remplacer TF-IDF par BM25S
+│   ├── +10% Recall@5 (70%→80%)
+│   └── Zero nouvelle dépendance lourde
+└── Bug fixes & stabilization
 
-V8.0 (Mai 2026) - APEX
-├── Phase 12.1: MNEMOSYNE (si 10c insuffisant)
+V7.9 (Février 2026) - SEMANTIC MEMORY
+├── [PLANNED] Phase 10f: Memory Backend Abstraction 🏗️
+│   ├── ABC MemoryBackend interface
+│   ├── Strategy pattern pour swap backends
+│   └── Configuration via PROJECT_MEMORY_BACKEND
+├── [PLANNED] Phase 10g: LanceDB + Dense Embeddings 🧠
+│   ├── all-MiniLM-L6-v2 (22MB, local)
+│   ├── LanceDB vector store (embedded)
+│   └── +8% Recall@5 (80%→88%)
+└── [OPTIONAL] Phase 10h: Hybrid RAG (Sparse+Dense)
+
+V8.0 (Mars 2026) - APEX
+├── Phase 20: Synaptic Graph (GraphRAG) - Relations causales
 ├── SQLite pour session_registry (si >5 agents parallèles)
 └── Exploratoire: A2A, Observabilité OpenTelemetry
 ```
@@ -1881,7 +2117,7 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 
 ## 7. Métriques de Succès HIVE MIND
 
-| Métrique | Objectif V7.6 | Objectif V8.0 | Source |
+| Métrique | Objectif V7.8 | Objectif V8.0 | Source |
 |----------|---------------|---------------|--------|
 | Swarm Task Success Rate | >85% | >95% | Original |
 | Agent Spawn Success | >95% | >99% | Original |
@@ -1892,6 +2128,8 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 | Memory Hit Rate | N/A | >60% | Original |
 | **Spawned Agent Lead Rate** | >20% | >40% | Gemini |
 | **Self-Healing Recovery Rate** | >50% | >80% | Gemini |
+| **RAG Recall@5** | >70% (TF-IDF) | >90% (Hybrid) | Claude (2025-12-08) |
+| **RAG Query Latency** | <5ms | <15ms | Claude (2025-12-08) |
 | **Context Isolation Rate** | 100% | 100% | Original |
 | **Ephemeral Session Usage** | >30% | >50% | Gemini (2025-12-04) |
 | **Session Reuse Rate** | >40% | >60% | Claude (2025-12-04) |
