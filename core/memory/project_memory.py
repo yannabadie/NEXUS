@@ -40,10 +40,16 @@ from collections import defaultdict
 # Configuration
 # =============================================================================
 
+import os
+
 DEFAULT_EXTENSIONS = [".py", ".md", ".txt", ".yaml", ".yml", ".json", ".toml"]
 EXCLUDED_DIRS = ["__pycache__", ".git", "node_modules", ".venv", "venv",
                  "workspace", "workspace_archive", ".pytest_cache", "dist", "build"]
-MAX_CHUNKS = 5000  # Global limit to prevent memory explosion
+
+# V7.8.1 OV-001: MAX_CHUNKS now configurable via environment
+# Default: 5000 chunks, Max allowed: 50000 (memory safety)
+_max_chunks_env = int(os.getenv("PROJECT_MEMORY_MAX_CHUNKS", "5000"))
+MAX_CHUNKS = min(_max_chunks_env, 50000)  # Cap at 50k to prevent OOM
 MAX_CHUNK_SIZE = 2000  # Characters per chunk
 MIN_CHUNK_SIZE = 50  # Minimum characters to index
 LINES_PER_CHUNK = 50  # For line-based chunking

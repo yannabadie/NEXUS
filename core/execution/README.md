@@ -1,99 +1,96 @@
 # Module: Execution - Tool Dispatch Layer
 
-**Version**: 7.8 (ADAPTIVE EVOLUTION)
-**Last Updated**: 2025-12-05
+**Version**: 7.8 HIVE MIND
+**Last Updated**: 2025-12-08
 
 ---
 
-## Role Architectural
+## Rôle dans l'Architecture NEXUS V7.8
 
-Couche d'execution centralisee des outils NEXUS avec enforcement des politiques de securite.
+Couche d'exécution centralisée des outils NEXUS avec enforcement des politiques de sécurité.
 
-**Principe**: Tous les outils passent par `ToolManager` qui verifie les permissions avant execution.
+**Principe**: Tous les outils passent par `ToolManager` qui vérifie les permissions avant exécution.
 
----
-
-## Alignement ROADMAP V7.5+
-
-| Phase ROADMAP | Impact sur ce module |
-|---------------|---------------------|
-| **Phase 5: Agent Factory** | Outils accessibles aux agents spawnes |
-| **Phase 7: Session Isolation** | Outils executes dans contexte isole |
-| **Phase 9: Fast Path** | Bypass ToolManager pour outils read-only |
-| **Phase 12.5: Dynamic Tools** ✅ | Agents peuvent creer leurs propres outils |
+**Nouveauté V7.8**: Phase 15 "Vision Fractale" - Agents invocables comme outils.
 
 ---
 
-## Composants Cles
+## Alignement ROADMAP
 
-### Fichier: `tool_manager.py`
+| Phase | Impact sur ce module | Status |
+|-------|---------------------|--------|
+| **Phase 5: Agent Factory** | Outils accessibles aux agents spawnés | ✅ |
+| **Phase 7: Session Isolation** | Outils exécutés dans contexte isolé | ✅ |
+| **Phase 9: Fast Path** | Bypass ToolManager pour outils read-only | ✅ |
+| **Phase 12.5: Dynamic Tools** | Agents peuvent créer leurs propres outils | ✅ |
+| **Phase 15: Agent-as-Tool** | **[NOUVEAU]** Agents spawnés invocables comme outils | ✅ |
+
+---
+
+## Composants Principaux
+
+| Fichier | Rôle | Classes/Fonctions clés |
+|---------|------|------------------------|
+| `tool_manager.py` | Dispatcher central 15 outils | `ToolManager` |
+| `dynamic_tools.py` | Création outils à la volée | `DynamicToolManager`, `CodeValidator` |
+| `agent_tools.py` | **[V7.8]** Agents comme outils | `AgentToolRegistry`, `AgentToolDefinition` |
+| `__init__.py` | Exports publics | `ToolManager` |
+
+---
+
+## 1. ToolManager (tool_manager.py)
 
 **Classe**: `ToolManager`
 
-* **Fonction**: Dispatcher central pour les 15 outils NEXUS (11 core + 4 dynamic)
-* **Interaction FSM**: Verifie l'etat avant execution (certains outils bloques en BRAINSTORMING)
-* **Protocoles Utilises**: `ToolUse` de core.synapse.protocol_v7
-* **Notes d'Audit**: OK - Integration avec PathGuardian
+Dispatcher central pour les 15 outils NEXUS (11 core + 4 dynamic).
 
-**Outils Disponibles (11)**:
+### Outils Disponibles
 
 | Outil | Description | Permissions |
 |-------|-------------|-------------|
-| `read`, `read_file` | Lecture fichier | Toujours autorise |
-| `write`, `write_file` | Ecriture fichier | Workspace + Evolution |
+| `read`, `read_file` | Lecture fichier | Toujours autorisé |
+| `write`, `write_file` | Écriture fichier | Workspace + Evolution |
 | `edit` | Search/Replace texte | Workspace + Evolution |
-| `list_dir` | Liste repertoire | Toujours autorise |
-| `glob` | Recherche fichiers par pattern | Toujours autorise |
-| `grep` | Recherche code par regex | Toujours autorise |
+| `list_dir` | Liste répertoire | Toujours autorisé |
+| `glob` | Recherche fichiers par pattern | Toujours autorisé |
+| `grep` | Recherche code par regex | Toujours autorisé |
 | `bash`, `run_shell_command` | Commandes shell | Restreint (sandbox) |
 | `git` | Operations Git (status/diff/log) | Read-only |
-| `web_search` | Recherche Google (via Gemini) | Toujours autorise |
-| `web_fetch` | Recuperation contenu URL | Toujours autorise |
-| `todo_write` | Gestion liste taches | Workspace only |
-| `create_tool` | Creer outil dynamique (V7.8) | Workspace only |
+| `web_search` | Recherche Google (via Gemini) | Toujours autorisé |
+| `web_fetch` | Récupération contenu URL | Toujours autorisé |
+| `todo_write` | Gestion liste tâches | Workspace only |
+| `create_tool` | Créer outil dynamique | Workspace only |
 | `delete_tool` | Supprimer outil dynamique | Workspace only |
-| `list_dynamic_tools` | Lister outils crees | Toujours autorise |
-| `run_dynamic_tool` | Executer outil dynamique | Workspace only |
+| `list_dynamic_tools` | Lister outils créés | Toujours autorisé |
+| `run_dynamic_tool` | Exécuter outil dynamique | Workspace only |
 
 ---
 
-### Fichier: `__init__.py`
+## 2. DynamicToolManager (dynamic_tools.py) - Phase 12.5
 
-* **Fonction**: Exports publics (ToolManager)
-* **Notes d'Audit**: OK
+Permet aux agents de créer des outils Python à la volée.
 
-### Fichier: `dynamic_tools.py` (V7.8 Phase 12.5)
+### Sécurité
+- Code validé via AST analysis
+- Exécution subprocess isolée
+- Timeout 30 secondes
 
-**Classe**: `DynamicToolManager`
+### Workflow Création
 
-* **Fonction**: Permet aux agents de creer des outils Python a la volee
-* **Securite**: Code valide via AST + execution subprocess isolee
-* **Notes d'Audit**: OK - 52 tests (30 securite + 22 fonctionnels)
-
-**Outils Dynamiques (4 nouveaux outils)**:
-
-| Outil | Description | Permissions |
-|-------|-------------|-------------|
-| `create_tool` | Cree un outil Python avec code valide | Workspace only |
-| `delete_tool` | Supprime un outil dynamique | Workspace only |
-| `list_dynamic_tools` | Liste les outils crees | Toujours autorise |
-| `run_dynamic_tool` | Execute un outil dynamique | Workspace only |
-
-**Workflow de creation d'outil**:
 ```
 Agent Request: create_tool(name, code, description)
      |
      v
 CodeValidator.validate_code() [AST Analysis]
      |
-     +--[UNSAFE]--> ValidationError (violations listees)
+     +--[UNSAFE]--> ValidationError
      |
-     +--[SAFE]--> Tool File Created (workspace/tools/generated/{name}.py)
-                  Metadata Saved ({name}.meta.json)
-                  Tool Registered
+     +--[SAFE]--> workspace/tools/generated/{name}.py
+                  {name}.meta.json
 ```
 
-**Workflow d'execution**:
+### Workflow Exécution
+
 ```
 Agent Request: run_dynamic_tool(name, args)
      |
@@ -102,14 +99,93 @@ subprocess.run(python, tool.py, json.dumps(args))
      |
      +--[TIMEOUT 30s]--> TimeoutError
      |
-     +--[SUCCESS]--> JSON Output parsed
-     |
-     +--[ERROR]--> Error captured from stderr
+     +--[SUCCESS]--> JSON Output
 ```
 
 ---
 
-## Integration Securite
+## 3. AgentToolRegistry (agent_tools.py) - Phase 15 **[NOUVEAU V7.8]**
+
+**Vision Fractale**: Expose les agents spawnés comme outils invocables.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Swarm Engine                                                 │
+│  ┌─────────────────┐    ┌─────────────────────────────────┐ │
+│  │ Task: "Analyze  │───>│ AgentToolRegistry               │ │
+│  │ security vulns" │    │ ┌───────────────────────────┐   │ │
+│  └─────────────────┘    │ │ agent_security_expert     │   │ │
+│                         │ │ agent_code_reviewer       │   │ │
+│                         │ │ agent_test_writer         │   │ │
+│                         │ └───────────────────────────┘   │ │
+│                         └────────────────┬────────────────┘ │
+│                                          │                   │
+│                                          ▼                   │
+│                         ┌─────────────────────────────────┐ │
+│                         │ AgentInvoker.invoke_spawned()   │ │
+│                         └─────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Classes
+
+**AgentToolDefinition**
+```python
+@dataclass
+class AgentToolDefinition:
+    tool_name: str      # "agent_security_expert"
+    agent_id: str       # "security_expert"
+    description: str
+    capabilities: List[str]
+    domains: List[str]
+```
+
+**AgentToolRegistry**
+```python
+class AgentToolRegistry:
+    def refresh(self) -> int:
+        """Scan workspace/agents/ et enregistre comme outils"""
+
+    def list_agent_tools(self, domain: str = None) -> List[AgentToolDefinition]:
+        """Liste les agents disponibles (filtrable par domaine)"""
+
+    def execute_agent_tool(self, agent_id: str, args: Dict) -> Dict:
+        """Invoque un agent spawnné avec une tâche"""
+```
+
+### Usage
+
+```python
+from core.execution.agent_tools import AgentToolRegistry
+
+registry = AgentToolRegistry(workspace_path, agent_pool, invoker)
+registry.refresh()  # Découvre agents dans workspace/agents/
+
+# Lister les agents-outils disponibles
+tools = registry.list_agent_tools()
+# [AgentToolDefinition(tool_name="agent_security_expert", ...)]
+
+# Invoquer un agent comme outil
+result = registry.execute_agent_tool("security_expert", {
+    "task": "Analyze this code for SQL injection",
+    "context": "SELECT * FROM users WHERE id = '" + user_input + "'"
+})
+```
+
+### Intégration REPL
+
+Lors du `/spawn`, l'agent est automatiquement enregistré:
+
+```python
+# Dans repl.py
+self.orchestrator.agent_tool_registry.refresh()
+```
+
+---
+
+## Intégration Sécurité
 
 ```
 Agent Request
@@ -128,82 +204,85 @@ PathGuardian.validate_{read|write}()
 **Zones de permissions**:
 - **Workspace**: `workspace/` - Read/Write
 - **Agents**: `workspace/agents/` - Read/Write
-- **Evolution**: `GENERATION_ACTIVE/` - Read/Write (mode evolution)
+- **Evolution**: `GENERATION_ACTIVE/` - Read/Write (mode évolution)
 - **Parent**: `core/`, `prompts/` - Read-Only
+
+---
+
+## Interactions et Flux de Données
+
+```mermaid
+graph TB
+    subgraph "Execution Layer"
+        TM[ToolManager]
+        DTM[DynamicToolManager]
+        ATR[AgentToolRegistry]
+    end
+
+    subgraph "Security"
+        PG[PathGuardian]
+        SP[SandboxPolicy]
+    end
+
+    subgraph "Consumers"
+        O[OrchestratorV7]
+        HSE[HybridSwarmEngine]
+        AI[AgentInvoker]
+    end
+
+    O -->|execute| TM
+    TM -->|validate| PG
+    TM -->|check state| SP
+    TM -->|dynamic| DTM
+
+    HSE -->|agent tools| ATR
+    ATR -->|invoke| AI
+```
 
 ---
 
 ## Mode Evolution
 
-Quand `set_evolution_mode(True)` est appele:
-- Write autorise vers `GENERATION_ACTIVE/`
-- Permet la creation d'enfants avec mutations
-- Desactive apres le cycle evolution
-
 ```python
 tool_manager.set_evolution_mode(True)
-# ... creation enfants ...
+# Write autorisé vers GENERATION_ACTIVE/
+# Création d'enfants avec mutations
 tool_manager.set_evolution_mode(False)
-```
-
----
-
-## Dependances et Interactions (Synapses)
-
-```
-                    OrchestratorV7
-                         |
-                         v
-                    ToolManager
-                         |
-          +--------------+--------------+
-          |              |              |
-          v              v              v
-    PathGuardian    SandboxPolicy   Tool Impls
-    (file access)   (state check)   (actual exec)
-```
-
-**Imports**:
-- `core.security.PathGuardian`
-- `core.governance.SandboxPolicy`
-- `core.synapse.protocol_v7.ToolUse`
-
----
-
-## Usage
-
-```python
-from core.execution import ToolManager
-
-manager = ToolManager(workspace_path, parent_path)
-
-# Execute un outil
-result = manager.execute("read", {"file_path": "src/auth.py"})
-
-# Mode evolution
-manager.set_evolution_mode(True)
-result = manager.execute("write", {"file_path": "GENERATION_ACTIVE/child/file.py", "content": "..."})
 ```
 
 ---
 
 ## Tests
 
-**Fichier**: `tests/test_tool_manager.py` (recommande)
-
-- `test_read_always_allowed()`
-- `test_write_blocked_in_parent()`
-- `test_evolution_mode_enables_write()`
-
-**Fichier**: `tests/test_dynamic_tools.py` (V7.8)
-
-52 tests couvrant:
-- **TestCodeValidatorSecurity** (30 tests): AST validation, patterns bloques
-- **TestDynamicToolManager** (15 tests): CRUD outils, execution, timeout
-- **TestDynamicToolsIntegration** (3 tests): End-to-end lifecycle
-- **TestEdgeCases** (4 tests): Unicode, erreurs, noms invalides
+| Fichier | Tests | Couverture |
+|---------|-------|------------|
+| `test_tool_manager.py` | 20+ | Permissions, execution |
+| `test_dynamic_tools.py` | 52 | AST validation, CRUD, timeout |
+| `test_agent_as_tool.py` | 26 | Registry, invocation, concurrence |
 
 ```bash
-# Executer les tests
-python -m pytest tests/test_dynamic_tools.py -v
+python -m pytest tests/test_tool_manager.py tests/test_dynamic_tools.py tests/test_agent_as_tool.py -v
 ```
+
+---
+
+## Notes d'Audit Local
+
+### [V7.8] Nouveautés Phase 15
+- `agent_tools.py` ajouté (510 lignes)
+- `AgentToolRegistry` pour exposition agents comme outils
+- Intégration automatique sur `/spawn`
+- 26 tests unitaires
+
+### Points d'attention
+- **AGENT_TOOL_PREFIX = "agent_"** : Naming convention
+- **DEFAULT_TIMEOUT = 120s** : Timeout invocation agent
+- **Thread-safe** : Concurrent execution supportée
+
+---
+
+## Voir Aussi
+
+- [core/orchestration/README.md](../orchestration/README.md) - Intègre AgentToolRegistry
+- [core/swarm/README.md](../swarm/README.md) - Utilise agents comme outils
+- [core/security/README.md](../security/README.md) - PathGuardian & policies

@@ -1,300 +1,251 @@
-# Memory Module - NEXUS V7.6 "HIVE MIND"
+# Module : Memory - NEXUS V7.8 "HIVE MIND"
 
-The "Cortex" of NEXUS - Learning from operational history (Phase 10).
+Le "Cortex" de NEXUS - Apprentissage opérationnel + Connaissance projet (Phase 10).
 
-## Role in Architecture
+## Rôle dans l'Architecture NEXUS V7.8
 
-The Memory module implements **Auto-Memory**, a system that allows NEXUS to learn from its own operational history:
-- **Record** success/failure patterns with context
-- **Recognize** which Swarm modes work best for task types
-- **Recommend** optimal configurations based on history
-- **Avoid** repeating failed approaches
+Le module Memory implémente **deux systèmes de mémoire complémentaires** :
 
-Unlike session memory (RAM via Blackboard), Auto-Memory **persists across restarts**.
-
-## Architecture
+| Système | Phase | Fonction | Persistance |
+|---------|-------|----------|-------------|
+| **AutoMemory** | 10a/10b | Apprentissage des succès/échecs Swarm | `workspace/memory/` |
+| **ProjectMemory** | 10c | RAG sur le codebase projet | `.nexus/project_knowledge.json` |
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AUTO-MEMORY SYSTEM                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │                    AutoMemory                          │    │
-│   │                                                        │    │
-│   │  RECORD              ANALYZE              RECOMMEND    │    │
-│   │  ┌──────────┐       ┌──────────┐        ┌──────────┐  │    │
-│   │  │ Success  │       │ Patterns │        │ Best Mode│  │    │
-│   │  │ Failure  │  ───▶ │ Fitness  │  ───▶  │ Best Lead│  │    │
-│   │  │ Context  │       │ Avoids   │        │ Confidence│ │    │
-│   │  └──────────┘       └──────────┘        └──────────┘  │    │
-│   └────────────────────────────────────────────────────────┘    │
-│                              │                                   │
-│                              ▼                                   │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │               workspace/memory/                         │    │
-│   │  successes.jsonl │ failures.jsonl │ fitness_scores.json │    │
-│   └────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        MEMORY MODULE V7.8                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   ┌──────────────────────────┐    ┌──────────────────────────┐         │
+│   │      AUTO-MEMORY         │    │    PROJECT MEMORY        │         │
+│   │      (Phase 10a/b)       │    │      (Phase 10c)         │         │
+│   ├──────────────────────────┤    ├──────────────────────────┤         │
+│   │ • Success patterns       │    │ • TF-IDF RAG indexing    │         │
+│   │ • Failure avoidance      │    │ • Code chunking          │         │
+│   │ • Mode recommendations   │    │ • Context injection      │         │
+│   │ • Agent fitness scores   │    │ • /learn, /forget cmds   │         │
+│   └───────────┬──────────────┘    └───────────┬──────────────┘         │
+│               │                               │                         │
+│               ▼                               ▼                         │
+│   ┌──────────────────────────┐    ┌──────────────────────────┐         │
+│   │  workspace/memory/       │    │  .nexus/                 │         │
+│   │  ├─ successes.jsonl      │    │  └─ project_knowledge.json│        │
+│   │  ├─ failures.jsonl       │    │     (survit /workspace new)│       │
+│   │  └─ fitness_scores.json  │    └──────────────────────────┘         │
+│   └──────────────────────────┘                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Phase Status (V7.6)
+## Composants Principaux
 
-| Phase | Feature | Status |
-|-------|---------|--------|
-| **Phase 10a** | Success Memory | ✅ COMPLETE |
-| **Phase 10b** | Memory-Augmented Mode Selection | ✅ COMPLETE |
+| Fichier | Rôle | Classes/Fonctions clés |
+|---------|------|------------------------|
+| `auto_memory.py` | Apprentissage opérationnel | `AutoMemory`, `MemoryEntry`, `get_auto_memory()` |
+| `success_memory.py` | Stockage patterns de succès | `SuccessMemory`, `SuccessEntry` |
+| `project_memory.py` | **[V7.8]** RAG TF-IDF sur codebase | `ProjectMemory`, `Chunk`, `IndexStats` |
+| `__init__.py` | Exports module | `get_auto_memory()`, `ProjectMemory`, `Chunk` |
 
-## Files
+## Phase Status
 
-| File | Purpose | Key Classes |
-|------|---------|-------------|
-| `auto_memory.py` | Main implementation | `AutoMemory`, `MemoryEntry` |
-| `success_memory.py` | Success pattern storage | `SuccessMemory` |
-| `__init__.py` | Module exports | `get_auto_memory()` |
+| Phase | Feature | Status | Version |
+|-------|---------|--------|---------|
+| **10a** | Success Memory | COMPLETE | V7.5 |
+| **10b** | Memory-Augmented Mode Selection | COMPLETE | V7.6 |
+| **10c** | Project Memory RAG | COMPLETE | V7.8 |
 
-## Key Classes
+---
 
-### AutoMemory (auto_memory.py:41-330)
+## 1. AutoMemory (Phase 10a/10b)
 
-Main memory system with recording, analysis, and recommendation.
+Système d'apprentissage des patterns opérationnels.
+
+### Fonctionnement
 
 ```python
 from core.memory import get_auto_memory
 
 memory = get_auto_memory()
 
-# 1. Record success
+# 1. Enregistrer un succès
 memory.record_success(
     task_type="code_review",
-    task_description="Review auth module security",
+    task_description="Review auth module",
     swarm_mode="PING_PONG",
     lead_agent="claude",
     duration_seconds=45.0,
-    score=0.9  # Quality score 0-1
+    score=0.9
 )
 
-# 2. Record failure
-memory.record_failure(
-    task_type="security_audit",
-    task_description="Full codebase audit",
-    swarm_mode="PARALLEL",
-    lead_agent="gemini",
-    duration_seconds=120.0,
-    reason="timeout - task too complex for parallel"
-)
-
-# 3. Get recommendation
+# 2. Obtenir une recommandation
 rec = memory.get_recommendation(task_type="code_review")
-# Returns:
-# {
-#     "suggested_mode": "PING_PONG",
-#     "suggested_lead": "claude",
-#     "modes_to_avoid": ["PARALLEL"],
-#     "confidence": 0.8,
-#     "based_on_samples": 12
-# }
+# {"suggested_mode": "PING_PONG", "confidence": 0.8, "modes_to_avoid": ["PARALLEL"]}
 
-# 4. Check if mode should be avoided
+# 3. Vérifier les modes à éviter
 should_avoid = memory.should_avoid("security_audit", "PARALLEL")  # True
 ```
 
-### MemoryEntry (auto_memory.py:27-38)
+### Stockage (workspace/memory/)
 
-Dataclass for a single memory record.
+| Fichier | Format | Contenu |
+|---------|--------|---------|
+| `successes.jsonl` | JSONL | Patterns de tâches réussies |
+| `failures.jsonl` | JSONL | Anti-patterns (échecs) |
+| `fitness_scores.json` | JSON | Scores fitness par agent/type |
+
+---
+
+## 2. ProjectMemory (Phase 10c) **[NOUVEAU V7.8]**
+
+Système RAG (Retrieval-Augmented Generation) zero-dependency pour indexer et récupérer des connaissances projet.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ProjectMemory RAG                            │
+├─────────────────────────────────────────────────────────────────┤
+│  Indexing:                                                      │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│  │  File    │ -> │  Chunk   │ -> │  Terms   │ -> │  Store   │  │
+│  │  Read    │    │  Split   │    │  Extract │    │  JSON    │  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│                                                                 │
+│  Retrieval:                                                     │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│  │  Query   │ -> │  Terms   │ -> │ TF-IDF   │ -> │  Top K   │  │
+│  │  Input   │    │  Extract │    │  Score   │    │  Chunks  │  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Stratégies de Chunking
+
+| Type fichier | Stratégie | Description |
+|--------------|-----------|-------------|
+| `.py` | Function/Class | Split sur `def`, `class`, `async def` |
+| `.md` | Section | Split sur headers (`#`, `##`, etc.) |
+| Autres | Lines | 50 lignes avec 10 lignes overlap |
+
+### Scoring : TF-IDF Weighted Jaccard
+
+```
+Score = Σ(IDF[term] for term ∈ query ∩ chunk) / Σ(IDF[term] for term ∈ query)
+
+IDF(term) = log(N / (1 + df(term)))
+```
+
+### Utilisation
 
 ```python
-@dataclass
-class MemoryEntry:
-    timestamp: str
-    task_type: str
-    task_description: str
-    swarm_mode: str
-    lead_agent: str
-    duration_seconds: float
-    outcome: str  # "success" or "failure"
-    reason: Optional[str] = None  # For failures
-    score: Optional[float] = None  # Quality score 0-1
-```
+from core.memory import ProjectMemory
 
-## Data Storage
+# Initialisation (stockage à NEXUS_ROOT/.nexus/)
+memory = ProjectMemory(nexus_root=Path("/path/to/project"))
 
-All data persisted in `workspace/memory/`:
+# Indexer des fichiers
+memory.index_file(Path("core/orchestration_v7.py"))
+memory.index_directory(Path("core/"), extensions=[".py", ".md"])
 
-| File | Format | Content |
-|------|--------|---------|
-| `successes.jsonl` | JSONL | Successful task patterns |
-| `failures.jsonl` | JSONL | Failed approaches (anti-patterns) |
-| `fitness_scores.json` | JSON | Agent fitness by task type |
+# Récupérer des chunks pertinents
+chunks = memory.retrieve("FSM state handling", limit=5)
 
-### Success Entry Example
+# Formater pour contexte agent
+context = memory.format_chunks_for_context(chunks, max_chars=3000)
 
-```json
-{
-  "timestamp": "2025-12-04T10:30:22",
-  "task_type": "code_review",
-  "task_description": "Review auth module security",
-  "swarm_mode": "PING_PONG",
-  "lead_agent": "claude",
-  "duration_seconds": 45.0,
-  "outcome": "success",
-  "score": 0.9
-}
-```
+# Oublier un fichier
+memory.forget(Path("core/deprecated.py"))
 
-### Fitness Scores Structure
-
-```json
-{
-  "claude": {
-    "tasks": {
-      "code_review": {"scores": [0.9, 0.85, 0.95], "avg": 0.9},
-      "debugging": {"scores": [0.8, 0.9], "avg": 0.85}
-    },
-    "overall": 0.875
-  },
-  "gemini": {
-    "tasks": {
-      "research": {"scores": [0.95, 0.9], "avg": 0.925},
-      "code_review": {"scores": [0.7, 0.8], "avg": 0.75}
-    },
-    "overall": 0.84
-  }
-}
-```
-
-## Recommendation Algorithm
-
-### Mode Suggestion (auto_memory.py:192-220)
-
-```python
-# For each mode used for this task type:
-# 1. Sum weighted scores
-# 2. Calculate average per mode
-# 3. Return mode with highest average
-
-mode_scores = defaultdict(float)
-for entry in successes:
-    mode = entry["swarm_mode"]
-    score = entry["score"]
-    mode_scores[mode] += score
-# Return max(mode_avg)
-```
-
-### Avoidance Detection (auto_memory.py:249-265)
-
-```python
-# Mode is avoided if:
-# - At least 3 samples
-# - Failure rate > 50%
-
-failure_rate = failures / (failures + successes)
-return failure_rate > 0.5 and total >= 3
-```
-
-### Confidence Calculation
-
-```python
-# Confidence scales with sample count
-# 10+ samples = full confidence
-confidence = min(1.0, total_samples / 10)
-```
-
-## Integration with Swarm
-
-The Memory module is integrated into ModeSelector (Phase 10b):
-
-```python
-# In mode_selector.py
-recommendation = memory.get_recommendation(task_type)
-
-if recommendation["confidence"] > 0.5:
-    # Use memory-suggested mode
-    selected_mode = recommendation["suggested_mode"]
-
-    # Avoid known bad modes
-    for mode in recommendation["modes_to_avoid"]:
-        mode_scores[mode] *= 0.5  # Penalize
-```
-
-## Usage Example
-
-### Full Workflow
-
-```python
-from core.memory import get_auto_memory
-from core.swarm import HybridSwarmEngine
-
-memory = get_auto_memory()
-
-# Before task: Get recommendation
-rec = memory.get_recommendation(task_type="debugging")
-print(f"Suggested mode: {rec['suggested_mode']}")
-print(f"Confidence: {rec['confidence']}")
-
-# Execute task
-result = engine.process_task(
-    "Fix the auth bug",
-    forced_mode=rec["suggested_mode"] if rec["confidence"] > 0.7 else None
-)
-
-# After task: Record outcome
-if result.success:
-    memory.record_success(
-        task_type="debugging",
-        task_description="Fix the auth bug",
-        swarm_mode=result.mode,
-        lead_agent=result.lead_agent,
-        duration_seconds=result.duration
-    )
-else:
-    memory.record_failure(
-        task_type="debugging",
-        task_description="Fix the auth bug",
-        swarm_mode=result.mode,
-        lead_agent=result.lead_agent,
-        duration_seconds=result.duration,
-        reason=result.error_message
-    )
-```
-
-### Get Statistics
-
-```python
+# Statistiques
 stats = memory.get_stats()
-# {
-#     "total_successes": 45,
-#     "total_failures": 12,
-#     "success_rate": 0.789,
-#     "task_types_tracked": ["code_review", "debugging", "research"],
-#     "memory_files": {...}
-# }
+# IndexStats(total_files=15, total_chunks=127, total_terms=843)
 ```
 
-## Difference from Logging
+### Commandes REPL
 
-| Aspect | Logging (core.logging) | Memory (core.memory) |
-|--------|------------------------|----------------------|
-| **Tracks** | Technical events | Functional outcomes |
-| **Purpose** | Debugging/Observability | Learning/Optimization |
-| **Persistence** | Log files (rotated) | JSONL (permanent) |
-| **Used by** | Developers | Mode selection |
+| Commande | Description |
+|----------|-------------|
+| `/learn [path]` | Indexer fichier/dossier (défaut: `core/`) |
+| `/forget [path]` | Retirer de l'index |
+| `/memory-status` | Afficher stats mémoire |
 
-## Configuration
+### Persistance
 
-```bash
-# Memory is always enabled (no config flag)
-# Files stored in workspace/memory/
+**Emplacement :** `.nexus/project_knowledge.json` (à NEXUS_ROOT, PAS dans workspace/)
+
+**Pourquoi ?** La mémoire projet survit à `/workspace new` car la connaissance factuelle du codebase est indépendante des sessions de travail.
+
+### Injection Automatique
+
+Pour les tâches de complexité **MODERATE+**, `ContextBuilder` injecte automatiquement les chunks pertinents :
+
+```python
+# Dans context_builder.py
+def _get_project_knowledge(self) -> str:
+    if complexity.value < TaskComplexity.MODERATE.value:
+        return ""  # Pas d'injection pour TRIVIAL/SIMPLE
+
+    chunks = self._orch.project_memory.retrieve(objective, limit=3)
+    return self._orch.project_memory.format_chunks_for_context(chunks)
 ```
 
-## Future Vision (V8)
+---
 
-- **Vector Search**: Semantic retrieval ("How did I fix this error before?")
-- **GraphRAG**: Link memories to code symbols
-- **Cross-project Learning**: Share patterns between NEXUS instances
+## Interactions et Flux de Données
 
-## See Also
+```mermaid
+graph TB
+    subgraph "Memory Module"
+        AM[AutoMemory]
+        PM[ProjectMemory]
+    end
 
-- [Swarm Module](../swarm/README.md) - Uses memory for mode selection
-- [Logging Module](../logging/README.md) - Technical event tracking
-- [Telemetry Module](../telemetry/README.md) - Metrics export
+    subgraph "Consumers"
+        MS[ModeSelector]
+        CB[ContextBuilder]
+        REPL[REPL Commands]
+    end
+
+    subgraph "Storage"
+        WM[workspace/memory/]
+        NX[.nexus/project_knowledge.json]
+    end
+
+    AM -->|recommendations| MS
+    AM -->|save/load| WM
+
+    PM -->|inject context| CB
+    PM -->|save/load| NX
+
+    REPL -->|/learn, /forget| PM
+
+    MS -->|mode selection| HSE[HybridSwarmEngine]
+    CB -->|enriched context| HSE
+```
+
+## Différence Logging vs Memory
+
+| Aspect | Logging | AutoMemory | ProjectMemory |
+|--------|---------|------------|---------------|
+| **Tracks** | Événements techniques | Résultats fonctionnels | Connaissance code |
+| **Purpose** | Debug/Observabilité | Optimisation modes | Contexte RAG |
+| **Persistence** | Logs rotatifs | JSONL permanent | JSON permanent |
+| **Used by** | Développeurs | ModeSelector | ContextBuilder |
+
+## Notes d'Audit Local
+
+### [V7.8] Nouveautés Phase 10c
+- `project_memory.py` ajouté (685 lignes)
+- Exports mis à jour dans `__init__.py`
+- Intégration ContextBuilder pour injection auto
+- 50 tests unitaires (`tests/test_project_memory.py`)
+
+### Points d'attention
+- **MAX_CHUNKS = 5000** : Limite globale pour éviter explosion mémoire
+- **MIN_CHUNK_SIZE = 50** : Fichiers < 50 chars ignorés
+- **Excluded dirs** : `__pycache__`, `.git`, `venv`, `workspace`
+
+## Voir Aussi
+
+- [core/swarm/README.md](../swarm/README.md) - Utilise AutoMemory pour sélection modes
+- [core/orchestration/README.md](../orchestration/README.md) - Intègre ProjectMemory via ContextBuilder
+- [docs/phases/PHASE_10c_PROJECT_MEMORY.md](../../docs/phases/PHASE_10c_PROJECT_MEMORY.md) - Documentation détaillée Phase 10c

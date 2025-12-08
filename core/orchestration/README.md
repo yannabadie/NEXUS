@@ -1,25 +1,31 @@
 # Module: Orchestration Package
 
-**Version**: 7.8 (ADAPTIVE EVOLUTION)
-**Last Updated**: 2025-12-05
-**Phase**: 14c - Orchestrator Refactoring
+**Version**: 7.8 HIVE MIND
+**Last Updated**: 2025-12-08
+**Phase**: 14c - Orchestrator Refactoring COMPLETE
 
 ---
 
-## Role Architectural
+## Rôle dans l'Architecture NEXUS V7.8
 
 Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 
-**Principe**: Découpage du "God Object" OrchestratorV7 (2223 lignes) en modules spécialisés suivant le Single Responsibility Principle.
+**Principe**: Découpage du "God Object" OrchestratorV7 (2223 lignes → 783 lignes) en modules spécialisés suivant le Single Responsibility Principle.
+
+**Résultat V7.8**: Réduction de **65%** du code orchestrateur, testabilité accrue.
 
 ---
 
 ## Alignement ROADMAP V7.8
 
-| Phase | Impact |
-|-------|--------|
-| **Phase 14c** | Refactoring incrémental de l'orchestrateur |
-| **V8.0** | Base pour StateHandler pattern complet |
+| Phase | Impact | Status |
+|-------|--------|--------|
+| **Phase 14c.2a** | Extraction ContextBuilder | ✅ COMPLETE |
+| **Phase 14c.2b** | Extraction AgentInvoker | ✅ COMPLETE |
+| **Phase 14c.2c** | Extraction SwarmBridge | ✅ COMPLETE |
+| **Phase 14c.2d** | Extraction FSMHandlers | ✅ COMPLETE |
+| **Phase 10c** | Integration ProjectMemory via ContextBuilder | ✅ COMPLETE |
+| **V8.0** | Base pour StateHandler pattern complet | FUTUR |
 
 ---
 
@@ -29,39 +35,50 @@ Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 core/orchestration/
 ├── __init__.py          # Exports publics
 ├── README.md            # Cette documentation
-├── context_builder.py   # Construction des contextes agents
+├── context_builder.py   # Construction des contextes agents + RAG
 ├── detectors.py         # Détection de formats (mutations, etc.)
 ├── agent_invoker.py     # Invocation des agents (Claude, Gemini, Spawned)
 ├── swarm_bridge.py      # Intégration HybridSwarmEngine
-└── fsm_handlers.py      # Handlers par état FSM
+└── fsm_handlers.py      # Handlers par état FSM (11 états)
 ```
 
 ---
 
-## Composants
+## Composants Principaux
 
-### `context_builder.py`
+### 1. `context_builder.py`
 
 **Classe**: `ContextBuilder`
 
+Construit les contextes pour les différents modes d'exécution.
+
 | Méthode | Description |
 |---------|-------------|
-| `build_context()` | Contexte complet pour brainstorming |
+| `build_context()` | Contexte complet pour brainstorming + RAG injection |
 | `build_context_with_tool_result()` | Contexte léger pour CFL validation |
 | `build_swarm_context()` | Contexte enrichi pour swarm execution |
 | `build_simple_context()` | Contexte minimal pour tâches simples |
+| `_get_project_knowledge()` | **[V7.8]** Injection RAG pour MODERATE+ |
 
-**Usage**:
+**Intégration ProjectMemory (Phase 10c)**:
 ```python
-builder = ContextBuilder(orchestrator)
-context = builder.build_context()
+def _get_project_knowledge(self) -> str:
+    """Inject relevant project knowledge for MODERATE+ tasks."""
+    complexity = getattr(self._orch, '_current_complexity', None)
+    if not complexity or complexity.value < TaskComplexity.MODERATE.value:
+        return ""
+
+    chunks = self._orch.project_memory.retrieve(objective, limit=3)
+    return self._orch.project_memory.format_chunks_for_context(chunks)
 ```
 
 ---
 
-### `detectors.py`
+### 2. `detectors.py`
 
 **Classes**: `MutationDetector`, `ResponseDetector`
+
+Détection de patterns dans les réponses agents.
 
 | Méthode | Description |
 |---------|-------------|
@@ -71,20 +88,13 @@ context = builder.build_context()
 | `is_finish_signal()` | Détecte signaux de fin de tâche |
 | `has_error_pattern()` | Détecte patterns d'erreur |
 
-**Usage**:
-```python
-from core.orchestration.detectors import get_mutation_detector
-
-detector = get_mutation_detector()
-if detector.detect_mutation_complete(content):
-    # Process mutation
-```
-
 ---
 
-### `agent_invoker.py`
+### 3. `agent_invoker.py`
 
 **Classe**: `AgentInvoker`
+
+Invocation centralisée des agents avec routing intelligent.
 
 | Méthode | Description |
 |---------|-------------|
@@ -94,90 +104,52 @@ if detector.detect_mutation_complete(content):
 | `invoke_spawned_agent()` | Invoque agent spawné avec system prompt |
 | `invoke_agent_direct()` | Invocation thread-safe directe |
 | `record_invocation()` | Enregistre métriques DyLAN |
-| `calculate_quality_score()` | Calcule score qualité |
-
-**Usage**:
-```python
-invoker = AgentInvoker(orchestrator)
-response = invoker.invoke_agent(TaskType.BRAINSTORM, context)
-```
+| `calculate_quality_score()` | Calcule score qualité réponse |
 
 ---
 
-### `swarm_bridge.py`
+### 4. `swarm_bridge.py`
 
 **Classe**: `SwarmBridge`
 
+Pont entre orchestrateur et HybridSwarmEngine.
+
 | Méthode | Description |
 |---------|-------------|
-| `start_swarm_mode()` | Initialise mode swarm |
+| `start_swarm_mode()` | Initialise mode swarm avec force_mode optionnel |
 | `process_with_swarm()` | Exécute pipeline swarm complet |
 | `get_swarm_stats()` | Récupère statistiques swarm |
 
-**Usage**:
-```python
-bridge = SwarmBridge(orchestrator)
-result = bridge.process_with_swarm(task_input, force_mode=CollaborationMode.PARALLEL)
-```
-
 ---
 
-### `fsm_handlers.py`
+### 5. `fsm_handlers.py`
 
 **Classe**: `FSMHandlers`
 
-| Handler | État FSM |
-|---------|----------|
-| `handle_idle()` | IDLE - Routing par complexité |
-| `handle_waiting_user()` | WAITING_USER - Attente nouvelle entrée |
-| `handle_brainstorming()` | BRAINSTORMING - Débat agents |
-| `handle_executing_tool()` | EXECUTING_TOOL - Exécution outil |
-| `handle_validating_cfl()` | VALIDATING_CFL - Validation CFL |
-| `handle_evolution_brainstorm()` | EVOLUTION_BRAINSTORM - Mode évolution |
-| `handle_swarm_analyzing()` | SWARM_ANALYZING - Analyse swarm |
-| `handle_swarm_negotiating()` | SWARM_NEGOTIATING - Négociation mode |
-| `handle_swarm_executing()` | SWARM_EXECUTING - Exécution swarm |
-| `handle_error()` | ERROR - État erreur |
-| `handle_panic()` | PANIC - État panique |
+Handlers pour chaque état FSM (pattern Dispatcher).
 
-**Usage**:
-```python
-handlers = FSMHandlers(orchestrator)
-
-# Dans process_turn():
-if state == OrchestratorState.IDLE:
-    return handlers.handle_idle(user_input)
-elif state == OrchestratorState.BRAINSTORMING:
-    return handlers.handle_brainstorming()
-# ...
-```
-
----
-
-## Migration Strategy
-
-### Phase 14c (Current)
-
-1. **Extraction**: Modules créés avec code extrait
-2. **Composition**: OrchestratorV7 utilise modules via composition
-3. **Compatibilité**: API publique inchangée
-
-### Futur (V8.0)
-
-1. **Dispatcher**: `process_turn()` devient simple dispatcher
-2. **StateHandler**: Pattern State complet avec classes par état
-3. **Tests**: Tests unitaires par module
+| Handler | État FSM | Description |
+|---------|----------|-------------|
+| `handle_idle()` | IDLE | Routing par complexité, fast path |
+| `handle_waiting_user()` | WAITING_USER | Attente nouvelle entrée |
+| `handle_brainstorming()` | BRAINSTORMING | Débat agents |
+| `handle_executing_tool()` | EXECUTING_TOOL | Exécution outil |
+| `handle_validating_cfl()` | VALIDATING_CFL | Validation CFL |
+| `handle_evolution_brainstorm()` | EVOLUTION_BRAINSTORM | Mode évolution |
+| `handle_swarm_analyzing()` | SWARM_ANALYZING | Analyse tâche swarm |
+| `handle_swarm_negotiating()` | SWARM_NEGOTIATING | Négociation mode |
+| `handle_swarm_executing()` | SWARM_EXECUTING | Exécution collaborative |
+| `handle_error()` | ERROR | État erreur récupérable |
+| `handle_panic()` | PANIC | État panique fatal |
 
 ---
 
 ## Intégration avec OrchestratorV7
 
 ```python
-# core/orchestration_v7.py
+# core/orchestration_v7.py (783 lignes)
 class OrchestratorV7:
     def __init__(self, ...):
-        # ... existing init ...
-
         # V7.8 Phase 14c: Extracted modules
         self.context_builder = ContextBuilder(self)
         self.mutation_detector = get_mutation_detector()
@@ -185,14 +157,85 @@ class OrchestratorV7:
         self.swarm_bridge = SwarmBridge(self)
         self.fsm_handlers = FSMHandlers(self)
 
+        # V7.8 Phase 10c: Project Memory
+        self.project_memory = ProjectMemory(nexus_root)
+
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
-        # Dispatcher pattern
-        if self.state == OrchestratorState.IDLE:
-            return self.fsm_handlers.handle_idle(user_input)
-        elif self.state == OrchestratorState.BRAINSTORMING:
-            return self.fsm_handlers.handle_brainstorming()
-        # ...
+        # Dispatcher pattern - minimal logic
+        state_handlers = {
+            OrchestratorState.IDLE: lambda: self.fsm_handlers.handle_idle(user_input),
+            OrchestratorState.BRAINSTORMING: self.fsm_handlers.handle_brainstorming,
+            OrchestratorState.EXECUTING_TOOL: self.fsm_handlers.handle_executing_tool,
+            # ... all 11 states
+        }
+        return state_handlers[self.state]()
 ```
+
+---
+
+## Interactions et Flux de Données
+
+```mermaid
+graph TB
+    subgraph "Orchestration Package"
+        CB[ContextBuilder]
+        AI[AgentInvoker]
+        SB[SwarmBridge]
+        FH[FSMHandlers]
+        DT[Detectors]
+    end
+
+    subgraph "Core Consumers"
+        OV7[OrchestratorV7]
+    end
+
+    subgraph "Dépendances"
+        PM[ProjectMemory]
+        HSE[HybridSwarmEngine]
+        CD[ClaudeDriver]
+        GD[GeminiDriver]
+        MR[ModelRouter]
+    end
+
+    OV7 -->|composition| CB
+    OV7 -->|composition| AI
+    OV7 -->|composition| SB
+    OV7 -->|composition| FH
+
+    CB -->|RAG| PM
+    AI -->|routing| MR
+    AI -->|invoke| CD
+    AI -->|invoke| GD
+    SB -->|delegate| HSE
+
+    FH -->|uses| CB
+    FH -->|uses| AI
+    FH -->|uses| SB
+    FH -->|uses| DT
+```
+
+---
+
+## Métriques Phase 14c FINAL
+
+| Métrique | Avant (V7.6) | Après (V7.8) | Réduction |
+|----------|--------------|--------------|-----------|
+| Lignes `orchestration_v7.py` | 2223 | 783 | **-65%** |
+| Modules créés | 1 | 6 | +5 |
+| Responsabilités par module | ~10 | 1-2 | ✅ |
+| Testabilité | Faible | Élevée | ✅ |
+| Couplage | Fort | Faible | ✅ |
+
+### Progression Phase 14c
+
+| Sprint | Changement | Lignes |
+|--------|------------|--------|
+| 14c.2a | ContextBuilder extraction | 2223 → 1849 |
+| 14c.2b | AgentInvoker extraction | 1849 → 1657 |
+| 14c.2c | SwarmBridge extraction | 1657 → 1322 |
+| 14c.2d | FSMHandlers extraction | 1322 → 785 |
+| 14c cleanup | GoT removal | 785 → 764 |
+| Final | Adjustments | 764 → 783 |
 
 ---
 
@@ -200,43 +243,33 @@ class OrchestratorV7:
 
 ```bash
 # Vérifier que les imports fonctionnent
-python -c "from core.orchestration import ContextBuilder, FSMHandlers; print('OK')"
+python -c "from core.orchestration import ContextBuilder, FSMHandlers, AgentInvoker, SwarmBridge; print('OK')"
 
-# Lancer les tests d'intégration existants
-python -m pytest tests/test_hive_mind_execution.py -v
+# Tests d'intégration
+python -m pytest tests/test_hive_mind_execution.py tests/test_global_integration.py -v
 ```
 
 ---
 
-## Métriques Phase 14c
+## Notes d'Audit Local
 
-| Métrique | Avant | Après |
-|----------|-------|-------|
-| Lignes `orchestration_v7.py` | 2223 | ~1500 (cible) |
-| Modules | 1 | 6 |
-| Responsabilités par module | ~10 | 1-2 |
-| Testabilité | Faible | Moyenne |
+### [V7.8] Refactoring Complete
+- **ContextBuilder**: 387 lignes - Contexte + RAG injection
+- **AgentInvoker**: 330 lignes - Invocation multi-agent
+- **SwarmBridge**: 175 lignes - Pont Swarm
+- **FSMHandlers**: 450 lignes - 11 handlers d'état
+- **Detectors**: 185 lignes - Pattern detection
 
----
-
-## Dépendances
-
-### Internes
-- `core.fsm` - États et transitions
-- `core.drivers` - Drivers Claude/Gemini
-- `core.routing` - Model routing
-- `core.synapse` - Protocole et mémoire
-- `core.swarm` - HybridSwarmEngine
-- `core.telemetry` - Métriques
-
-### Externes
-- `tiktoken` - Token counting
-- `pydantic` - Validation
+### Points d'attention
+- **KERNEL Check**: Préservé dans FSMHandlers.handle_idle()
+- **Thread-safety**: AgentInvoker.invoke_agent_direct() thread-safe
+- **Backward Compatible**: API publique OrchestratorV7 inchangée
 
 ---
 
 ## Voir Aussi
 
 - [core/README.md](../README.md) - Documentation core module
+- [core/fsm/README.md](../fsm/README.md) - FSM states documentation
+- [core/swarm/README.md](../swarm/README.md) - HybridSwarmEngine
 - [ROADMAP_HIVE_MIND.md](../../ROADMAP_HIVE_MIND.md) - Phase 14c details
-- [core/fsm/README.md](../fsm/README.md) - FSM documentation

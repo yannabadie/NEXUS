@@ -31,6 +31,11 @@ from typing import List, Tuple, Optional
 # Skip if no LLM access
 SKIP_LLM = os.environ.get("SKIP_LLM_TESTS", "").lower() in ("1", "true", "yes")
 
+# V7.8.1 IC-003: Auto-skip when no API credentials configured
+# This prevents CI failures when Gemini CLI is installed but not authenticated
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+AUTO_SKIP = SKIP_LLM or not GEMINI_API_KEY
+
 # Import NEXUS components
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -95,12 +100,20 @@ def create_session_id() -> str:
 
 
 # =============================================================================
-# Skip Marker
+# Skip Marker (V7.8.1 IC-003)
 # =============================================================================
 
+# Module-level skip: applies to ALL tests in this file
+# Skip if: SKIP_LLM_TESTS=1, no API key, or Gemini CLI unavailable
+pytestmark = pytest.mark.skipif(
+    AUTO_SKIP or not is_gemini_available(),
+    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)"
+)
+
+# Backward compatible decorator (for explicit use)
 skip_llm = pytest.mark.skipif(
-    SKIP_LLM or not is_gemini_available(),
-    reason="LLM tests skipped (SKIP_LLM_TESTS=1 or Gemini CLI unavailable)"
+    AUTO_SKIP or not is_gemini_available(),
+    reason="LLM tests skipped (no GEMINI_API_KEY/GOOGLE_API_KEY or SKIP_LLM_TESTS=1)"
 )
 
 

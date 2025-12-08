@@ -1,10 +1,12 @@
 """
-Integration Tests - NEXUS V7
+Integration Tests - NEXUS V7.8.1
 
 Tests integration between:
 - AutoBootstrap + Commands (REPL)
-- GoT + HybridSwarmEngine
+- HybridSwarmEngine pipeline
 - Full orchestration pipeline
+
+V7.8.1: GoT (Graph of Thought) tests removed - Phase 14c cleanup
 """
 
 import pytest
@@ -18,12 +20,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.bootstrap import AutoBootstrap
-from core.reasoning import GOT_AVAILABLE
-# GoT imports are optional - module may not be implemented yet
-if GOT_AVAILABLE:
-    from core.reasoning import GraphOfThought, ThoughtGraph, ThoughtNode, ThoughtStatus
-else:
-    GraphOfThought = ThoughtGraph = ThoughtNode = ThoughtStatus = None
+# V7.8.1: GoT imports removed (Phase 14c cleanup)
 from core.swarm import HybridSwarmEngine
 from core.swarm.task_analyzer import TaskComplexity, TaskDomain
 from core.interface.commands import (
@@ -157,139 +154,7 @@ def test_placeholder():
 
 
 # ============================================================================
-# GoT + SwarmEngine Integration
-# ============================================================================
-
-class TestGoTSwarmIntegration:
-    """Test GoT integration with HybridSwarmEngine."""
-
-    @pytest.fixture
-    def engine(self):
-        """Create engine with GoT enabled."""
-        return HybridSwarmEngine()
-
-    def test_got_available_in_engine(self, engine):
-        """GoT should be available in engine stats."""
-        stats = engine.get_stats()
-        assert "got_available" in stats
-        assert "got_enabled" in stats
-
-    def test_should_use_got_for_complex_tasks(self, engine):
-        """Engine should recommend GoT for complex tasks."""
-        # Analyze a complex task
-        analysis = engine.start_analysis(
-            "Refactor the entire authentication module with new JWT-based "
-            "architecture and comprehensive security review"
-        )
-
-        # Should recommend GoT for complex tasks
-        if analysis.complexity >= TaskComplexity.COMPLEX:
-            assert engine.should_use_got(analysis) == True
-
-    def test_should_not_use_got_for_simple_tasks(self, engine):
-        """Engine should not recommend GoT for simple tasks."""
-        # Analyze a simple task
-        analysis = engine.start_analysis("Fix typo in README")
-
-        # Should not use GoT for trivial tasks
-        if analysis.complexity == TaskComplexity.TRIVIAL:
-            assert engine.should_use_got(analysis) == False
-
-    def test_decompose_complex_task(self, engine):
-        """Should decompose complex task into thought graph."""
-        # Analyze task
-        analysis = engine.start_analysis(
-            "Implement a new caching layer with Redis support"
-        )
-
-        # Decompose
-        graph = engine.decompose_with_got(
-            "Implement a new caching layer with Redis support",
-            analysis
-        )
-
-        if graph is not None:  # GoT available
-            assert isinstance(graph, ThoughtGraph)
-            assert len(graph.nodes) > 0
-
-    def test_sub_problems_based_on_domains(self, engine):
-        """Sub-problems should be domain-specific."""
-        # Security task
-        analysis = engine.start_analysis(
-            "Perform security audit of authentication system"
-        )
-
-        sub_problems = engine._generate_sub_problems(
-            "Perform security audit of authentication system",
-            analysis
-        )
-
-        # Should include security-specific step
-        has_security_step = any("security" in p.lower() for p in sub_problems)
-        # Note: may or may not have security depending on domain detection
-        assert len(sub_problems) >= 2  # At minimum: analyze + implement
-
-    def test_coding_task_sub_problems(self, engine):
-        """Coding tasks should have code-related sub-problems."""
-        analysis = engine.start_analysis(
-            "Implement new function to calculate metrics"
-        )
-
-        sub_problems = engine._generate_sub_problems(
-            "Implement new function to calculate metrics",
-            analysis
-        )
-
-        # Should include implementation step
-        has_implement = any("implement" in p.lower() for p in sub_problems)
-        assert has_implement
-
-
-class TestGoTExecution:
-    """Test GoT execution through SwarmEngine."""
-
-    @pytest.fixture
-    def engine(self):
-        """Create engine with mock invoke_agent."""
-        def mock_invoke(agent_id, task_type, context):
-            return f"Mock response from {agent_id} for {task_type}"
-
-        return HybridSwarmEngine(invoke_agent=mock_invoke)
-
-    def test_execute_thought_graph_basic(self, engine):
-        """Should execute thought graph with mock responses."""
-        # Create simple graph
-        graph = engine.decompose_with_got(
-            "Test task",
-            sub_problems=["Step 1", "Step 2"]
-        )
-
-        if graph is not None:
-            # Execute
-            result = engine.execute_thought_graph(graph)
-
-            # Should complete
-            assert result is not None
-            assert result.is_complete()
-
-    def test_got_summary_generation(self, engine):
-        """Should generate summary from completed graph."""
-        # Decompose and execute
-        graph = engine.decompose_with_got(
-            "Test summarization",
-            sub_problems=["Analyze", "Synthesize"]
-        )
-
-        if graph is not None:
-            engine.execute_thought_graph(graph)
-
-            # Get summary
-            summary = engine.get_got_summary()
-            assert summary is not None or engine._current_thought_graph is None
-
-
-# ============================================================================
-# Full Pipeline Integration
+# Full Pipeline Integration (V7.8.1: GoT tests removed - Phase 14c cleanup)
 # ============================================================================
 
 class TestFullPipelineIntegration:
@@ -307,29 +172,8 @@ class TestFullPipelineIntegration:
 
         shutil.rmtree(base, ignore_errors=True)
 
-    def test_swarm_engine_reset_clears_got(self):
-        """Reset should clear GoT state."""
-        engine = HybridSwarmEngine()
-
-        # Start processing
-        engine.start_analysis("Complex task requiring analysis")
-
-        # Reset
-        engine.reset()
-
-        # GoT state should be cleared
-        assert engine._current_thought_graph is None
-        assert engine._current_analysis is None
-
-    def test_swarm_stats_include_got(self):
-        """Stats should include GoT information."""
-        engine = HybridSwarmEngine()
-        stats = engine.get_stats()
-
-        assert "got_enabled" in stats
-        assert "got_available" in stats
-        assert isinstance(stats["got_enabled"], bool)
-        assert isinstance(stats["got_available"], bool)
+    # V7.8.1: test_swarm_engine_reset_clears_got removed (GoT removed in Phase 14c)
+    # V7.8.1: test_swarm_stats_include_got removed (GoT removed in Phase 14c)
 
     def test_process_task_basic_flow(self):
         """Test basic task processing flow."""
@@ -357,18 +201,7 @@ class TestModuleImports:
         from core.bootstrap import AutoBootstrap
         assert AutoBootstrap is not None
 
-    def test_import_reasoning(self):
-        """GoT should be importable (when available)."""
-        from core.reasoning import GOT_AVAILABLE
-        # GoT is optional - test that module imports without error
-        if GOT_AVAILABLE:
-            from core.reasoning import GraphOfThought, ThoughtNode, ThoughtGraph
-            assert GraphOfThought is not None
-            assert ThoughtNode is not None
-            assert ThoughtGraph is not None
-        else:
-            # GoT not implemented yet - this is acceptable
-            pytest.skip("GoT module not implemented yet")
+    # V7.8.1: test_import_reasoning removed (GoT removed in Phase 14c)
 
     def test_import_swarm(self):
         """SwarmEngine should be importable."""
@@ -409,31 +242,8 @@ class TestCrossModuleIntegration:
             assert nexus_md.startswith("#")
             assert len(nexus_md) > 100
 
-    def test_got_integrates_with_task_analysis(self):
-        """GoT should work with TaskAnalysis results."""
-        engine = HybridSwarmEngine()
-
-        # Analyze task
-        analysis = engine.start_analysis(
-            "Complex multi-step refactoring task"
-        )
-
-        # Generate sub-problems using analysis
-        sub_problems = engine._generate_sub_problems(
-            "Complex multi-step refactoring task",
-            analysis
-        )
-
-        # Sub-problems should reflect analysis
-        assert len(sub_problems) > 0
-        assert all(isinstance(p, str) for p in sub_problems)
-
-    def test_swarm_phase_includes_decomposing(self):
-        """SwarmPhase should include DECOMPOSING for GoT."""
-        from core.swarm.hybrid_swarm_engine import SwarmPhase
-
-        phases = [p.value for p in SwarmPhase]
-        assert "decomposing" in phases
+    # V7.8.1: test_got_integrates_with_task_analysis removed (GoT removed in Phase 14c)
+    # V7.8.1: test_swarm_phase_includes_decomposing removed (GoT removed in Phase 14c)
 
 
 if __name__ == "__main__":
