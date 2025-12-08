@@ -300,3 +300,57 @@ class StagnationDetector:
             self.report_to_blacklist(task_context)
             return True
         return False
+
+    # =========================================================================
+    # V8.0.1: Hot-Swap Lead Agent Support
+    # =========================================================================
+
+    def should_swap_lead(self, current_lead: str, failure_count: int = 2) -> bool:
+        """
+        V8.0.1: Determine if lead agent should be swapped due to stagnation.
+
+        Called when stagnation is detected to recommend lead swap instead
+        of just injecting a warning message.
+
+        Args:
+            current_lead: Current lead agent ("gemini" or "claude")
+            failure_count: Number of consecutive failures (default: 2)
+
+        Returns:
+            True if lead should be swapped
+        """
+        # Swap if stagnation detected AND we've seen multiple stagnations
+        return self.is_stagnant() and self._stagnation_count >= failure_count
+
+    def get_swap_recommendation(self, current_lead: str) -> dict:
+        """
+        V8.0.1: Get recommendation for lead agent swap.
+
+        Returns:
+            Dict with swap recommendation and reason
+        """
+        if not self.should_swap_lead(current_lead):
+            return {
+                "should_swap": False,
+                "reason": "No swap needed",
+                "new_lead": None
+            }
+
+        new_lead = "claude" if current_lead.lower() == "gemini" else "gemini"
+
+        return {
+            "should_swap": True,
+            "reason": f"Agent '{current_lead}' stagnated {self._stagnation_count} times. Swapping to '{new_lead}'.",
+            "new_lead": new_lead,
+            "stagnation_count": self._stagnation_count,
+            "stagnant_strategy": self.extract_stagnant_strategy()
+        }
+
+    def record_agent_failure(self, agent_id: str):
+        """
+        V8.0.1: Record a failure for an agent (for swap decision).
+
+        Args:
+            agent_id: Agent that failed
+        """
+        self._stagnation_count += 1

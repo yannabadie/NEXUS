@@ -43,6 +43,9 @@ from .phases import (
     KnowledgeConsolidationPhase,
 )
 
+# V8.0.1: Hot-Swap Lead Agent
+from core.fsm.stagnation_detector import StagnationDetector
+
 if TYPE_CHECKING:
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
@@ -136,6 +139,15 @@ class TrueHiveMind:
         self.agent_registry = AgentRegistry(self.workspace_path)
         self.strategy_blacklist = StrategyBlacklist(self.workspace_path)
         self.debate_config = AdaptiveDebateConfig()
+
+        # V8.0.1: Hot-Swap Lead Agent support
+        self.stagnation_detector = StagnationDetector(
+            similarity_threshold=0.8,
+            window_size=3,
+            strategy_blacklist=self.strategy_blacklist
+        )
+        self._current_lead = "gemini"  # Default lead agent
+        self._lead_swap_count = 0
 
         # User interaction
         self.user_handler = UserInteractionHandler(
@@ -368,6 +380,20 @@ class TrueHiveMind:
                         execution_result=execution_result
                     )
 
+                # =========================================================
+                # V8.0.1: Hot-Swap Lead Agent Check
+                # =========================================================
+                swap_result = self._check_and_swap_lead(
+                    diagnosis_result.diagnosis,
+                    arch_result.architecture
+                )
+                if swap_result["swapped"]:
+                    phases_completed.append(f"lead_swapped_{swap_result['new_lead']}")
+                    logger.info(f"Hot-Swap: Lead changed to {swap_result['new_lead']}")
+                    # Update architecture to use new lead
+                    if hasattr(arch_result.architecture, 'lead_agent'):
+                        arch_result.architecture.lead_agent = swap_result['new_lead']
+
                 # Update architecture for retry
                 if retry_result.modified_architecture:
                     arch_result.architecture = retry_result.modified_architecture
@@ -514,5 +540,114 @@ class TrueHiveMind:
             "context_stats": self.context_manager.get_stats(),
             "registry_stats": self.agent_registry.get_stats(),
             "blacklist_stats": self.strategy_blacklist.get_stats(),
-            "debate_stats": self.debate_config.get_stats()
+            "debate_stats": self.debate_config.get_stats(),
+            "hot_swap_stats": {
+                "current_lead": self._current_lead,
+                "swap_count": self._lead_swap_count,
+                "stagnation": self.stagnation_detector.get_stats()
+            }
         }
+
+    # =========================================================================
+    # V8.0.1: Hot-Swap Lead Agent
+    # =========================================================================
+
+    def _check_and_swap_lead(
+        self,
+        diagnosis: str,
+        architecture: Any
+    ) -> Dict[str, Any]:
+        """
+        V8.0.1: Check if lead agent should be swapped due to repeated failures.
+
+        Called after failure diagnosis to determine if swapping lead might help.
+        Uses StagnationDetector to track failure patterns.
+
+        Args:
+            diagnosis: Diagnosis text from failure analysis
+            architecture: Current task architecture
+
+        Returns:
+            Dict with swap decision:
+            - swapped: bool - Whether swap occurred
+            - new_lead: str - New lead agent (if swapped)
+            - reason: str - Reason for decision
+        """
+        # Record this failure for stagnation tracking
+        self.stagnation_detector.add_message(diagnosis)
+        self.stagnation_detector.record_agent_failure(self._current_lead)
+
+        # Check if swap is recommended
+        recommendation = self.stagnation_detector.get_swap_recommendation(
+            self._current_lead
+        )
+
+        if recommendation["should_swap"]:
+            # Perform the swap
+            old_lead = self._current_lead
+            self._current_lead = recommendation["new_lead"]
+            self._lead_swap_count += 1
+
+            # Report to blacklist for future reference
+            self.stagnation_detector.report_to_blacklist(
+                task_context=f"Task failed with {old_lead} as lead"
+            )
+
+            # Reset stagnation detector for fresh start with new lead
+            self.stagnation_detector.reset()
+
+            logger.info(
+                f"Hot-Swap Lead: {old_lead} -> {self._current_lead} "
+                f"(reason: {recommendation['reason']})"
+            )
+
+            return {
+                "swapped": True,
+                "old_lead": old_lead,
+                "new_lead": self._current_lead,
+                "reason": recommendation["reason"],
+                "swap_count": self._lead_swap_count
+            }
+
+        return {
+            "swapped": False,
+            "new_lead": None,
+            "reason": "No swap needed - stagnation threshold not reached"
+        }
+
+    def force_lead_swap(self, new_lead: str) -> Dict[str, Any]:
+        """
+        V8.0.1: Manually force a lead agent swap.
+
+        Useful for testing or when user wants to try different lead.
+
+        Args:
+            new_lead: New lead agent ("gemini" or "claude")
+
+        Returns:
+            Dict with swap result
+        """
+        if new_lead.lower() not in ("gemini", "claude"):
+            return {
+                "swapped": False,
+                "error": f"Invalid lead agent: {new_lead}. Must be 'gemini' or 'claude'"
+            }
+
+        old_lead = self._current_lead
+        self._current_lead = new_lead.lower()
+        self._lead_swap_count += 1
+        self.stagnation_detector.reset()
+
+        logger.info(f"Manual Lead Swap: {old_lead} -> {self._current_lead}")
+
+        return {
+            "swapped": True,
+            "old_lead": old_lead,
+            "new_lead": self._current_lead,
+            "reason": "Manual swap requested",
+            "swap_count": self._lead_swap_count
+        }
+
+    def get_current_lead(self) -> str:
+        """V8.0.1: Get current lead agent."""
+        return self._current_lead

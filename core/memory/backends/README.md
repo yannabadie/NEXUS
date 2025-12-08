@@ -116,6 +116,19 @@ pip install lancedb sentence-transformers
 - **Stockage**: `.nexus/lancedb/`
 - **GPU**: Accelere si CUDA disponible
 
+> **ATTENTION - Reseaux Corporate (KI-001)**
+>
+> Le modele `all-MiniLM-L6-v2` doit etre telecharge depuis HuggingFace.
+> Les reseaux avec inspection SSL peuvent bloquer ce telechargement.
+>
+> **Workaround**: Pre-telecharger le modele sur un reseau non-restreint:
+> ```bash
+> huggingface-cli download sentence-transformers/all-MiniLM-L6-v2
+> ```
+> Puis copier le cache (`~/.cache/huggingface/hub/`) vers la machine cible.
+>
+> Voir `docs/KNOWN_ISSUES.md` pour details complets.
+
 ## Dependances
 
 ### Utilise
