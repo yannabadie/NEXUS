@@ -1,0 +1,595 @@
+"""
+NEXUS V8.0 - Phase 2: Strategic Debate
+
+Structured debate between agents to resolve disagreements.
+Uses argument/counter-argument format with evidence requirements.
+
+Flow:
+1. Agent A presents argument on disagreement point
+2. Agent B responds (SUPPORT, OPPOSE, or CONCEDE)
+3. Repeat until consensus OR max turns reached
+4. If no consensus, force vote based on confidence
+
+Key Features:
+- Each argument must address specific points
+- Concessions are encouraged (sign of good reasoning)
+- Evidence required for COMPLEX/EXPERT tasks
+- Adaptive turns (3-10) based on context
+"""
+
+import asyncio
+import json
+import logging
+import re
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
+from datetime import datetime
+from dataclasses import dataclass
+
+from ..types import (
+    DebateArgument,
+    DebateResult,
+    AnalysisComparison,
+    Disagreement,
+)
+from ..cost_estimator import CostEstimator
+from ..context_manager import HiveMindContextManager
+from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
+
+if TYPE_CHECKING:
+    from core.drivers.gemini_driver_v7 import GeminiDriverV7
+    from core.drivers.claude_driver_v7 import ClaudeDriverV7
+
+logger = logging.getLogger(__name__)
+
+
+# Debate prompt templates
+DEBATE_OPENER_PROMPT = """You are participating in a NEXUS Hive Mind debate.
+
+TASK: {task}
+
+DISAGREEMENT POINT: {topic}
+- Your position: {your_position}
+- Other agent's position: {other_position}
+
+COMPARISON CONTEXT:
+- Agreement score: {agreement_score:.0%}
+- Your confidence: {your_confidence:.0%}
+
+Present your OPENING ARGUMENT. You must:
+1. State your position clearly
+2. Provide evidence/reasoning for your position
+3. Identify weaknesses in the opposing position
+4. Suggest a path to resolution
+
+Respond in this JSON format:
+{{
+    "position": "SUPPORT" or "OPPOSE",
+    "target_point": "Which aspect of the disagreement you're addressing",
+    "argument": "Your detailed argument (2-4 sentences)",
+    "evidence": ["evidence1", "evidence2", ...],
+    "proposed_modification": "Optional: how to merge positions",
+    "concession": "Optional: what you concede to the other side"
+}}
+"""
+
+DEBATE_RESPONSE_PROMPT = """You are responding in a NEXUS Hive Mind debate.
+
+TASK: {task}
+
+DISAGREEMENT POINT: {topic}
+- Your original position: {your_position}
+- Other agent's position: {other_position}
+
+PREVIOUS ARGUMENT (by {other_agent}):
+{previous_argument}
+
+DEBATE HISTORY:
+{debate_history}
+
+Respond to this argument. You may:
+- SUPPORT: Agree and build on their point
+- OPPOSE: Counter-argue with evidence
+- CONCEDE: Accept their point (partial or full)
+
+Respond in this JSON format:
+{{
+    "position": "SUPPORT" or "OPPOSE" or "CONCEDE",
+    "target_point": "Which point you're addressing",
+    "argument": "Your response (2-4 sentences)",
+    "evidence": ["evidence1", "evidence2", ...],
+    "proposed_modification": "Optional: refined solution",
+    "concession": "Optional: what you now concede"
+}}
+
+IMPORTANT: Good debate involves concessions. If the other agent made a valid point, acknowledge it.
+"""
+
+CONSENSUS_CHECK_PROMPT = """Evaluate if consensus has been reached in this debate.
+
+TASK: {task}
+
+DEBATE HISTORY:
+{debate_history}
+
+ORIGINAL DISAGREEMENT: {topic}
+- Gemini's original position: {gemini_position}
+- Claude's original position: {claude_position}
+
+Analyze and respond in JSON:
+{{
+    "consensus_reached": true or false,
+    "consensus_score": 0.0 to 1.0,
+    "resolved_points": ["point1", "point2", ...],
+    "unresolved_points": ["point1", ...],
+    "final_approach": "The agreed approach if consensus reached",
+    "final_capabilities": ["cap1", "cap2", ...],
+    "gemini_satisfaction": 0.0 to 1.0,
+    "claude_satisfaction": 0.0 to 1.0,
+    "reasoning": "Why consensus was/wasn't reached"
+}}
+"""
+
+
+@dataclass
+class DebatePhaseResult:
+    """Result of Phase 2."""
+    debate_result: DebateResult
+    final_approach: str
+    final_capabilities: List[str]
+    final_mode: str
+    was_skipped: bool = False
+    skip_reason: Optional[str] = None
+
+
+class StrategicDebatePhase:
+    """
+    Phase 2: Strategic Debate
+
+    Agents debate disagreements until consensus or forced vote.
+    """
+
+    def __init__(
+        self,
+        gemini_driver: "GeminiDriverV7",
+        claude_driver: "ClaudeDriverV7",
+        cost_estimator: CostEstimator,
+        context_manager: HiveMindContextManager,
+        debate_config: AdaptiveDebateConfig = None
+    ):
+        """
+        Initialize Phase 2.
+
+        Args:
+            gemini_driver: Gemini driver
+            claude_driver: Claude driver
+            cost_estimator: Cost estimator
+            context_manager: Context manager
+            debate_config: Adaptive debate configuration
+        """
+        self.gemini = gemini_driver
+        self.claude = claude_driver
+        self.cost_estimator = cost_estimator
+        self.context_manager = context_manager
+        self.debate_config = debate_config or AdaptiveDebateConfig()
+
+    async def execute(
+        self,
+        task: str,
+        comparison: AnalysisComparison,
+        complexity: TaskComplexity = TaskComplexity.MODERATE
+    ) -> DebatePhaseResult:
+        """
+        Execute Phase 2: Strategic Debate.
+
+        Args:
+            task: The original task
+            comparison: Analysis comparison from Phase 1
+            complexity: Task complexity for adaptive params
+
+        Returns:
+            DebatePhaseResult with final approach
+        """
+        # Check if debate should be skipped
+        if not comparison.needs_debate:
+            logger.info("Phase 2: Skipping debate (high agreement)")
+            return self._create_skipped_result(comparison)
+
+        logger.info(f"Phase 2: Starting Strategic Debate ({len(comparison.disagreements)} disagreements)")
+
+        # Get adaptive debate parameters
+        params = self.debate_config.get_debate_params(
+            complexity=complexity,
+            initial_disagreement=1 - comparison.agreement_score,
+            error_history=[]  # TODO: Get from session history
+        )
+
+        # Track debate state
+        debate_history: List[DebateArgument] = []
+        consensus_progress: List[float] = [comparison.agreement_score]
+        current_speaker = "gemini"  # Alternates
+        turn_number = 0
+
+        # Debate each significant disagreement
+        primary_disagreement = self._get_primary_disagreement(comparison.disagreements)
+
+        while turn_number < params.max_turns:
+            turn_number += 1
+
+            # Check budget
+            if not self.cost_estimator.can_afford("debate_turn"):
+                logger.warning("Budget exceeded during debate")
+                break
+
+            # Get argument from current speaker
+            argument = await self._get_argument(
+                task=task,
+                speaker=current_speaker,
+                turn_number=turn_number,
+                disagreement=primary_disagreement,
+                comparison=comparison,
+                debate_history=debate_history,
+                params=params
+            )
+
+            debate_history.append(argument)
+            self.context_manager.add_debate_turn(
+                turn_number,
+                current_speaker,
+                argument.argument
+            )
+
+            # Record agent behavior for learning
+            self.debate_config.record_agent_argument(
+                agent_id=current_speaker,
+                made_concession=argument.concession is not None,
+                defended_position=argument.position == "OPPOSE",
+                changed_position=argument.position == "CONCEDE"
+            )
+
+            # Check for consensus after minimum turns
+            if turn_number >= params.min_turns:
+                consensus = await self._check_consensus(
+                    task=task,
+                    debate_history=debate_history,
+                    disagreement=primary_disagreement,
+                    comparison=comparison
+                )
+
+                consensus_progress.append(consensus["consensus_score"])
+
+                if consensus["consensus_reached"]:
+                    logger.info(f"Consensus reached at turn {turn_number}")
+                    return self._create_result(
+                        debate_history=debate_history,
+                        consensus=consensus,
+                        status="CONSENSUS_REACHED"
+                    )
+
+                # Check for early exit on high consensus
+                if consensus["consensus_score"] >= params.early_exit_threshold:
+                    logger.info(f"Early exit: consensus score {consensus['consensus_score']:.0%}")
+                    return self._create_result(
+                        debate_history=debate_history,
+                        consensus=consensus,
+                        status="EARLY_CONSENSUS"
+                    )
+
+                # Check if should force vote
+                if self.debate_config.should_force_vote(
+                    turn_number,
+                    consensus_progress,
+                    params
+                ):
+                    logger.info("Forcing vote due to stalled consensus")
+                    return await self._force_vote(
+                        task=task,
+                        debate_history=debate_history,
+                        comparison=comparison,
+                        params=params
+                    )
+
+            # Switch speaker
+            current_speaker = "claude" if current_speaker == "gemini" else "gemini"
+
+        # Max turns reached without consensus - force vote
+        logger.info(f"Max turns ({params.max_turns}) reached - forcing vote")
+        return await self._force_vote(
+            task=task,
+            debate_history=debate_history,
+            comparison=comparison,
+            params=params
+        )
+
+    def _create_skipped_result(self, comparison: AnalysisComparison) -> DebatePhaseResult:
+        """Create result when debate is skipped."""
+        # Use higher confidence analysis
+        if comparison.gemini_analysis.confidence >= comparison.claude_analysis.confidence:
+            primary = comparison.gemini_analysis
+        else:
+            primary = comparison.claude_analysis
+
+        return DebatePhaseResult(
+            debate_result=DebateResult(
+                status="IMMEDIATE_CONSENSUS",
+                final_approach=primary.proposed_approach,
+                final_capabilities=comparison.merged_capabilities,
+                final_mode="SPECIALIST" if primary.agent_id == "claude" else "SPECIALIST",
+                debate_history=[],
+                total_turns=0,
+                resolved_disagreements=[],
+                unresolved_disagreements=[],
+                consensus_confidence=comparison.agreement_score,
+                gemini_satisfaction=0.8,
+                claude_satisfaction=0.8
+            ),
+            final_approach=primary.proposed_approach,
+            final_capabilities=comparison.merged_capabilities,
+            final_mode="PARALLEL",  # Default mode for skipped debate
+            was_skipped=True,
+            skip_reason=f"High agreement ({comparison.agreement_score:.0%})"
+        )
+
+    def _get_primary_disagreement(self, disagreements: List[Disagreement]) -> Disagreement:
+        """Get the most significant disagreement to debate."""
+        if not disagreements:
+            # Create a default disagreement for the approach
+            return Disagreement(
+                topic="approach",
+                gemini_position="default",
+                claude_position="default",
+                severity=0.5
+            )
+
+        # Sort by severity and return highest
+        sorted_disagreements = sorted(
+            disagreements,
+            key=lambda d: d.severity,
+            reverse=True
+        )
+        return sorted_disagreements[0]
+
+    async def _get_argument(
+        self,
+        task: str,
+        speaker: str,
+        turn_number: int,
+        disagreement: Disagreement,
+        comparison: AnalysisComparison,
+        debate_history: List[DebateArgument],
+        params: DebateParams
+    ) -> DebateArgument:
+        """Get an argument from a speaker."""
+        # Determine positions
+        if speaker == "gemini":
+            your_position = disagreement.gemini_position
+            other_position = disagreement.claude_position
+            your_confidence = comparison.gemini_analysis.confidence
+            driver = self.gemini
+        else:
+            your_position = disagreement.claude_position
+            other_position = disagreement.gemini_position
+            your_confidence = comparison.claude_analysis.confidence
+            driver = self.claude
+
+        # Choose prompt
+        if turn_number == 1 or (turn_number == 2 and speaker == "claude"):
+            # Opening argument
+            prompt = DEBATE_OPENER_PROMPT.format(
+                task=task,
+                topic=disagreement.topic,
+                your_position=your_position,
+                other_position=other_position,
+                agreement_score=comparison.agreement_score,
+                your_confidence=your_confidence
+            )
+        else:
+            # Response to previous argument
+            previous = debate_history[-1]
+            history_text = self._format_debate_history(debate_history)
+
+            prompt = DEBATE_RESPONSE_PROMPT.format(
+                task=task,
+                topic=disagreement.topic,
+                your_position=your_position,
+                other_position=other_position,
+                other_agent="Gemini" if speaker == "claude" else "Claude",
+                previous_argument=previous.argument,
+                debate_history=history_text
+            )
+
+        # Call driver
+        try:
+            response = await driver.send_message_async(prompt)
+            argument_data = self._parse_argument_response(response)
+
+            # Record cost
+            tokens = len(response) // 4
+            self.cost_estimator.record_cost("debate_turn", tokens)
+
+            return DebateArgument(
+                agent_id=speaker,
+                turn_number=turn_number,
+                position=argument_data.get("position", "OPPOSE"),
+                target_point=argument_data.get("target_point", disagreement.topic),
+                argument=argument_data.get("argument", response[:200]),
+                evidence=argument_data.get("evidence", []),
+                proposed_modification=argument_data.get("proposed_modification"),
+                concession=argument_data.get("concession")
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting argument from {speaker}: {e}")
+            return DebateArgument(
+                agent_id=speaker,
+                turn_number=turn_number,
+                position="OPPOSE",
+                target_point=disagreement.topic,
+                argument=f"Error generating argument: {e}",
+                evidence=[]
+            )
+
+    def _parse_argument_response(self, response: str) -> Dict[str, Any]:
+        """Parse argument JSON from response."""
+        json_match = re.search(r'\{[\s\S]*\}', response)
+        if not json_match:
+            return {"argument": response[:300]}
+
+        try:
+            return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            return {"argument": response[:300]}
+
+    def _format_debate_history(self, history: List[DebateArgument]) -> str:
+        """Format debate history for prompts."""
+        lines = []
+        for arg in history[-5:]:  # Last 5 turns
+            speaker = "GEMINI" if arg.agent_id == "gemini" else "CLAUDE"
+            lines.append(f"[Turn {arg.turn_number}] {speaker} ({arg.position}):")
+            lines.append(f"  {arg.argument}")
+            if arg.concession:
+                lines.append(f"  CONCESSION: {arg.concession}")
+        return "\n".join(lines)
+
+    async def _check_consensus(
+        self,
+        task: str,
+        debate_history: List[DebateArgument],
+        disagreement: Disagreement,
+        comparison: AnalysisComparison
+    ) -> Dict[str, Any]:
+        """Check if consensus has been reached."""
+        history_text = self._format_debate_history(debate_history)
+
+        prompt = CONSENSUS_CHECK_PROMPT.format(
+            task=task,
+            debate_history=history_text,
+            topic=disagreement.topic,
+            gemini_position=disagreement.gemini_position,
+            claude_position=disagreement.claude_position
+        )
+
+        # Use Gemini for consensus check (neutral)
+        try:
+            response = await self.gemini.send_message_async(prompt)
+            tokens = len(response) // 4
+            self.cost_estimator.record_cost("check_consensus", tokens)
+
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                return json.loads(json_match.group())
+
+        except Exception as e:
+            logger.error(f"Consensus check failed: {e}")
+
+        # Default: no consensus
+        return {
+            "consensus_reached": False,
+            "consensus_score": comparison.agreement_score,
+            "resolved_points": [],
+            "unresolved_points": [disagreement.topic],
+            "final_approach": "",
+            "final_capabilities": [],
+            "gemini_satisfaction": 0.5,
+            "claude_satisfaction": 0.5,
+            "reasoning": "Consensus check failed"
+        }
+
+    async def _force_vote(
+        self,
+        task: str,
+        debate_history: List[DebateArgument],
+        comparison: AnalysisComparison,
+        params: DebateParams
+    ) -> DebatePhaseResult:
+        """Force a vote when consensus cannot be reached."""
+        # Calculate decision using debate config
+        decision = self.debate_config.calculate_final_decision(
+            gemini_position=comparison.gemini_analysis.proposed_approach,
+            claude_position=comparison.claude_analysis.proposed_approach,
+            gemini_confidence=comparison.gemini_analysis.confidence,
+            claude_confidence=comparison.claude_analysis.confidence,
+            gemini_satisfaction=0.5,  # Neutral for forced vote
+            claude_satisfaction=0.5
+        )
+
+        # Record outcome
+        self.debate_config.record_debate_outcome(
+            task_id=task[:50],
+            complexity=TaskComplexity.MODERATE,  # TODO: Get actual complexity
+            turns_used=len(debate_history),
+            final_consensus=decision["gemini_score"] + decision["claude_score"] / 2,
+            was_forced_vote=True,
+            gemini_satisfaction=decision["gemini_score"],
+            claude_satisfaction=decision["claude_score"],
+            task_success=True  # Will be updated by later phases
+        )
+
+        # Update agent satisfaction
+        winner = decision["winner"]
+        self.debate_config.update_agent_satisfaction(
+            "gemini",
+            decision["gemini_score"],
+            winner == "gemini"
+        )
+        self.debate_config.update_agent_satisfaction(
+            "claude",
+            decision["claude_score"],
+            winner == "claude"
+        )
+
+        return self._create_result(
+            debate_history=debate_history,
+            consensus={
+                "consensus_reached": False,
+                "consensus_score": max(decision["gemini_score"], decision["claude_score"]),
+                "resolved_points": [],
+                "unresolved_points": [d.topic for d in comparison.disagreements],
+                "final_approach": decision["position"],
+                "final_capabilities": comparison.merged_capabilities,
+                "gemini_satisfaction": decision["gemini_score"],
+                "claude_satisfaction": decision["claude_score"],
+                "reasoning": decision["reason"]
+            },
+            status="FORCED_VOTE"
+        )
+
+    def _create_result(
+        self,
+        debate_history: List[DebateArgument],
+        consensus: Dict[str, Any],
+        status: str
+    ) -> DebatePhaseResult:
+        """Create debate phase result."""
+        # Determine mode based on outcome
+        if consensus.get("consensus_reached", False):
+            mode = "PARALLEL"  # Both agents work together
+        elif consensus.get("gemini_satisfaction", 0) > consensus.get("claude_satisfaction", 0):
+            mode = "LEAD_SUPPORT"  # Gemini leads
+        else:
+            mode = "LEAD_SUPPORT"  # Claude leads
+
+        final_caps = consensus.get("final_capabilities", [])
+        if not final_caps:
+            final_caps = ["general"]
+
+        debate_result = DebateResult(
+            status=status,
+            final_approach=consensus.get("final_approach", "Default approach"),
+            final_capabilities=final_caps,
+            final_mode=mode,
+            debate_history=debate_history,
+            total_turns=len(debate_history),
+            resolved_disagreements=consensus.get("resolved_points", []),
+            unresolved_disagreements=consensus.get("unresolved_points", []),
+            consensus_confidence=consensus.get("consensus_score", 0.5),
+            gemini_satisfaction=consensus.get("gemini_satisfaction", 0.5),
+            claude_satisfaction=consensus.get("claude_satisfaction", 0.5)
+        )
+
+        return DebatePhaseResult(
+            debate_result=debate_result,
+            final_approach=debate_result.final_approach,
+            final_capabilities=debate_result.final_capabilities,
+            final_mode=mode,
+            was_skipped=False
+        )
