@@ -70,6 +70,7 @@ from .context_manager import HiveMindContextManager
 from .strategy_blacklist import StrategyBlacklist
 from .user_interaction import UserInteractionHandler
 from .adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
+from .orchestrator import TrueHiveMind, HiveMindResult
 
 __all__ = [
     # Enums
@@ -104,4 +105,8 @@ __all__ = [
     "AdaptiveDebateConfig",
     "DebateParams",
     "TaskComplexity",
+
+    # Orchestrator
+    "TrueHiveMind",
+    "HiveMindResult",
 ]
