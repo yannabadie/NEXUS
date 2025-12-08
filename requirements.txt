@@ -1,0 +1,38 @@
+# NEXUS V7.9 Dependencies
+# Philosophy: Minimal dependencies, maximum value
+
+# =============================================================================
+# Phase 10e: BM25S Sparse Retrieval (Project Memory RAG)
+# =============================================================================
+# BM25S: 500x faster than rank-bm25, pure Python + Scipy sparse matrices
+# Used for: ProjectMemory.retrieve() - better recall than TF-IDF (+15%)
+bm25s>=0.2.0
+
+# PyStemmer: Snowball stemming for better term matching
+# Optional but recommended for +5% recall improvement
+PyStemmer>=2.2.0
+
+# =============================================================================
+# Phase 10g: Dense Embeddings (Semantic Retrieval) [OPTIONAL]
+# =============================================================================
+# LanceDB: Embedded vector database, serverless, hybrid search support
+# Used for: DenseBackend - semantic similarity search
+lancedb>=0.4.0
+
+# Sentence-Transformers: State-of-the-art text embeddings
+# Model: all-MiniLM-L6-v2 (22MB, 384 dim, ~5k sent/sec CPU)
+# Provides ~+10% recall vs BM25S for semantic queries
+sentence-transformers>=2.2.0
+
+# =============================================================================
+# Core Dependencies (already installed via standard library or system)
+# =============================================================================
+# These are NOT in requirements.txt as they're either:
+# - Standard library (json, pathlib, re, etc.)
+# - System tools (gemini CLI, claude CLI)
+
+# =============================================================================
+# Development Dependencies (optional)
+# =============================================================================
+# pytest>=7.0.0  # For running tests
+# rich>=13.0.0   # Already used for console output (optional enhancement)
