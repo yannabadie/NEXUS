@@ -1,18 +1,20 @@
 # Module: Orchestration Package
 
-**Version**: 7.8 HIVE MIND
+**Version**: 8.0 TRUE HIVE MIND
 **Last Updated**: 2025-12-08
-**Phase**: 14c - Orchestrator Refactoring COMPLETE
+**Phase**: 14c Complete + V8.0 Hive Mind Integration
 
 ---
 
-## Rôle dans l'Architecture NEXUS V7.8
+## Role dans l'Architecture NEXUS V8.0
 
 Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 
-**Principe**: Découpage du "God Object" OrchestratorV7 (2223 lignes → 783 lignes) en modules spécialisés suivant le Single Responsibility Principle.
+**Principe**: Decoupage du "God Object" OrchestratorV7 (2223 lignes -> 783 lignes) en modules specialises suivant le Single Responsibility Principle.
 
-**Résultat V7.8**: Réduction de **65%** du code orchestrateur, testabilité accrue.
+**Resultat V7.8**: Reduction de **65%** du code orchestrateur, testabilite accrue.
+
+**V8.0 Integration**: `FSMHandlers` route MODERATE/COMPLEX/EXPERT vers `TrueHiveMind`.
 
 ---
 
@@ -128,19 +130,32 @@ Pont entre orchestrateur et HybridSwarmEngine.
 
 Handlers pour chaque état FSM (pattern Dispatcher).
 
-| Handler | État FSM | Description |
+| Handler | Etat FSM | Description |
 |---------|----------|-------------|
-| `handle_idle()` | IDLE | Routing par complexité, fast path |
-| `handle_waiting_user()` | WAITING_USER | Attente nouvelle entrée |
-| `handle_brainstorming()` | BRAINSTORMING | Débat agents |
-| `handle_executing_tool()` | EXECUTING_TOOL | Exécution outil |
+| `handle_idle()` | IDLE | Routing par complexite, fast path |
+| `handle_waiting_user()` | WAITING_USER | Attente nouvelle entree |
+| `handle_brainstorming()` | BRAINSTORMING | Debat agents |
+| `handle_executing_tool()` | EXECUTING_TOOL | Execution outil |
 | `handle_validating_cfl()` | VALIDATING_CFL | Validation CFL |
-| `handle_evolution_brainstorm()` | EVOLUTION_BRAINSTORM | Mode évolution |
-| `handle_swarm_analyzing()` | SWARM_ANALYZING | Analyse tâche swarm |
-| `handle_swarm_negotiating()` | SWARM_NEGOTIATING | Négociation mode |
-| `handle_swarm_executing()` | SWARM_EXECUTING | Exécution collaborative |
-| `handle_error()` | ERROR | État erreur récupérable |
-| `handle_panic()` | PANIC | État panique fatal |
+| `handle_evolution_brainstorm()` | EVOLUTION_BRAINSTORM | Mode evolution |
+| `handle_swarm_analyzing()` | SWARM_ANALYZING | Analyse tache swarm |
+| `handle_swarm_negotiating()` | SWARM_NEGOTIATING | Negociation mode |
+| `handle_swarm_executing()` | SWARM_EXECUTING | Execution collaborative |
+| `handle_error()` | ERROR | Etat erreur recuperable |
+| `handle_panic()` | PANIC | Etat panique fatal |
+
+**V8.0 Hive Mind Routing** (dans `handle_idle()` et `_route_to_hive_mind()`):
+```python
+def _should_use_hive_mind(self, complexity: TaskComplexity) -> bool:
+    """Determine si la tache doit etre routee vers V8 Hive Mind."""
+    if not HIVE_MIND_AVAILABLE or not self._orch.config.hive_mind_enabled:
+        return False
+    if complexity in (TaskComplexity.COMPLEX, TaskComplexity.EXPERT):
+        return True
+    if complexity == TaskComplexity.MODERATE and self._orch.config.hive_mind_moderate:
+        return True
+    return False
+```
 
 ---
 

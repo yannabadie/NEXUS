@@ -1,17 +1,54 @@
-# FSM Module - NEXUS V7.6 "HIVE MIND"
+# FSM Module - NEXUS V8.0 "TRUE HIVE MIND"
 
-Finite State Machine components for NEXUS V7 orchestration.
+Finite State Machine components for NEXUS V8.0 orchestration.
 
 ## Overview
 
 The FSM module implements the state machine that governs NEXUS operation:
-- **State definitions** and transitions (11 states total)
+- **State definitions** and transitions (11 + 8 V8.0 Hive Mind states)
 - **TRANSITION_MATRIX** - Complete state machine specification
 - **VALIDATING_CFL** - Cognitive Feedback Loop validation
 - **Panic recovery** system for fatal errors
-- **Stagnation detection** for loop prevention
+- **Stagnation detection** for loop prevention (+ V8.0 StrategyBlacklist integration)
 - **Plan health monitoring**
 - **TaskExecutionContext** - Immutable execution context (Phase 0d)
+
+## V8.0 Hive Mind Integration
+
+Les taches MODERATE/COMPLEX/EXPERT sont routees vers le TRUE HIVE MIND (voir `core/hive_mind/`).
+
+| Complexite | Routing | Handler |
+|------------|---------|---------|
+| TRIVIAL | V7 Swarm / Fast Path | `FSMHandlers.handle_idle()` |
+| SIMPLE | V7 Swarm | `FSMHandlers._route_to_swarm()` |
+| MODERATE | V8 Hive Mind | `FSMHandlers._route_to_hive_mind()` |
+| COMPLEX | V8 Hive Mind | `FSMHandlers._route_to_hive_mind()` |
+| EXPERT | V8 Hive Mind | `FSMHandlers._route_to_hive_mind()` |
+
+### V8.0 HiveMindState (8 etats internes)
+
+```python
+class HiveMindState(Enum):
+    HIVE_ANALYZING_GEMINI = "hive_analyzing_gemini"
+    HIVE_ANALYZING_CLAUDE = "hive_analyzing_claude"
+    HIVE_DEBATING = "hive_debating"
+    HIVE_ARCHITECTING = "hive_architecting"
+    HIVE_EXECUTING = "hive_executing"
+    HIVE_DIAGNOSING = "hive_diagnosing"
+    HIVE_RETRYING = "hive_retrying"
+    HIVE_CONSOLIDATING = "hive_consolidating"
+```
+
+### StagnationDetector -> StrategyBlacklist Integration (V8.0)
+
+```python
+# V8.0: StagnationDetector peut reporter vers StrategyBlacklist
+detector = StagnationDetector()
+detector.set_strategy_blacklist(hive_mind.strategy_blacklist)
+
+if detector.is_stagnant():
+    detector.report_to_blacklist()  # Evite retry circulaire
+```
 
 ## State Diagram (from TRANSITION_MATRIX)
 

@@ -1,8 +1,32 @@
-# NEXUS V7.8 Core Module
+# NEXUS V8.0 Core Module
 
-Le module `core/` est le coeur de NEXUS V7.8 "HIVE MIND" - un système d'orchestration multi-agent collaboratif qui génère des agents spécialisés pour résoudre des problèmes complexes.
+Le module `core/` est le coeur de NEXUS V8.0 "TRUE HIVE MIND" - un systeme d'orchestration multi-agent collaboratif qui genere des agents specialises pour resoudre des problemes complexes.
 
-**Version**: 7.8 | **Last Updated**: 2025-12-08
+**Version**: 8.0 | **Last Updated**: 2025-12-08
+
+## V8.0 TRUE HIVE MIND - Nouveaute Majeure
+
+V8.0 introduit le **TRUE HIVE MIND** : un pipeline de collaboration intelligent en 7 phases pour les taches MODERATE, COMPLEX et EXPERT.
+
+```
+V7 Swarm (TRIVIAL/SIMPLE)  vs  V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
+         |                              |
+    Fast execution               7-phase pipeline
+    - PARALLEL                   - Independent Analysis
+    - PING_PONG                  - Strategic Debate
+    - SEQUENTIAL                 - Architecture Generation
+                                 - Monitored Execution
+                                 - Failure Diagnosis
+                                 - Adaptive Retry
+                                 - Knowledge Consolidation
+```
+
+| Composant | Module | Role |
+|-----------|--------|------|
+| **TrueHiveMind** | `hive_mind/orchestrator.py` | Orchestrateur 7 phases |
+| **CostEstimator** | `hive_mind/cost_estimator.py` | Budget tokens + USD |
+| **StrategyBlacklist** | `hive_mind/strategy_blacklist.py` | Anti-retry circulaire |
+| **UserInteractionHandler** | `hive_mind/user_interaction.py` | Breakpoints utilisateur |
 
 ## Vue d'ensemble
 
@@ -51,8 +75,9 @@ Le module core implémente une **Finite State Machine (FSM)** qui orchestre la c
 
 ## Structure des Modules
 
-| Répertoire | Fonction | Fichiers clés |
+| Repertoire | Fonction | Fichiers cles |
 |------------|----------|---------------|
+| [`hive_mind/`](hive_mind/README.md) | **[V8.0]** TRUE HIVE MIND pipeline | `orchestrator.py`, `phases/*.py`, `cost_estimator.py` |
 | [`orchestration/`](orchestration/README.md) | **[V7.8]** Package modulaire extrait | `context_builder.py`, `fsm_handlers.py`, `swarm_bridge.py` |
 | [`drivers/`](drivers/README.md) | Interfaces modèles AI | `claude_driver_hybrid.py`, `gemini_driver_v7.py` |
 | [`fsm/`](fsm/README.md) | Composants FSM | `states.py`, `panic_system.py` |
