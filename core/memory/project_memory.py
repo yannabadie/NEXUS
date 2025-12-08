@@ -1,7 +1,7 @@
 """
-NEXUS V7.8 - Project Memory RAG (Phase 10c)
+NEXUS V7.9 - Project Memory RAG (Phase 10c + 10e + 10f)
 
-Persistent project knowledge base using TF-IDF weighted Jaccard similarity.
+Persistent project knowledge base with pluggable retrieval backends.
 Stores indexed code and documentation for context-aware responses.
 
 Architecture:
@@ -14,33 +14,36 @@ Chunking Strategy:
 - .md files: Split by sections (headers)
 - Other files: Split by lines (50 lines, 10 overlap)
 
-Scoring: TF-IDF weighted Jaccard similarity
-- Precompute terms per chunk (lowercase, alphanumeric)
-- Build IDF from all indexed chunks
-- Score = sum(idf[term] for term in query ∩ chunk) / len(query_terms)
+Backend Architecture (V7.9 Phase 10f):
+- PRIMARY: BM25S sparse retrieval (if installed) - ~15% better recall
+- FALLBACK: TF-IDF weighted Jaccard similarity (built-in, no dependencies)
+- Pluggable: MemoryBackend ABC allows future backends (LanceDB, etc.)
 
 Usage:
     memory = ProjectMemory(nexus_root)
     memory.index_file(Path("core/orchestration_v7.py"))
     chunks = memory.retrieve("FSM state handling", limit=5)
+
+    # Check which backend is active
+    print(memory.get_backend_info())  # {"backend": "bm25s", ...}
 """
 
 import json
 import re
-import math
 import logging
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Set, Optional, Any
-from dataclasses import dataclass, asdict, field
-from collections import defaultdict
+
+# V7.9 Phase 10f: Import from modular types and backends
+from .types import Chunk, IndexStats
+from .backends import MemoryBackend, TfidfBackend, Bm25Backend, BM25S_AVAILABLE, STEMMER_AVAILABLE
 
 
 # =============================================================================
 # Configuration
 # =============================================================================
-
-import os
 
 DEFAULT_EXTENSIONS = [".py", ".md", ".txt", ".yaml", ".yml", ".json", ".toml"]
 EXCLUDED_DIRS = ["__pycache__", ".git", "node_modules", ".venv", "venv",
@@ -57,76 +60,25 @@ LINES_OVERLAP = 10  # Overlap between chunks
 
 
 # =============================================================================
-# Data Classes
-# =============================================================================
-
-@dataclass
-class Chunk:
-    """A single indexed chunk of code or documentation."""
-    file_path: str
-    start_line: int
-    end_line: int
-    content: str
-    terms: Set[str] = field(default_factory=set)
-    chunk_type: str = "lines"  # "function", "class", "section", "lines"
-    name: Optional[str] = None  # Function/class/section name if applicable
-
-    def to_dict(self) -> Dict:
-        """Convert to JSON-serializable dict."""
-        return {
-            "file_path": self.file_path,
-            "start_line": self.start_line,
-            "end_line": self.end_line,
-            "content": self.content,
-            "terms": list(self.terms),
-            "chunk_type": self.chunk_type,
-            "name": self.name
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> 'Chunk':
-        """Create from JSON dict."""
-        return cls(
-            file_path=data["file_path"],
-            start_line=data["start_line"],
-            end_line=data["end_line"],
-            content=data["content"],
-            terms=set(data.get("terms", [])),
-            chunk_type=data.get("chunk_type", "lines"),
-            name=data.get("name")
-        )
-
-
-@dataclass
-class IndexStats:
-    """Statistics about the indexed project."""
-    total_files: int = 0
-    total_chunks: int = 0
-    total_terms: int = 0
-    indexed_at: str = ""
-    storage_path: str = ""
-
-    def to_dict(self) -> Dict:
-        return asdict(self)
-
-
-# =============================================================================
-# ProjectMemory Class
+# ProjectMemory Class (Facade)
 # =============================================================================
 
 class ProjectMemory:
     """
     Persistent project knowledge base for NEXUS.
 
-    Indexes code and documentation using TF-IDF weighted Jaccard similarity
-    for intelligent context retrieval during agent execution.
+    Indexes code and documentation with pluggable retrieval backends:
+    - PRIMARY: BM25S sparse retrieval (if installed) - better recall
+    - FALLBACK: TF-IDF weighted Jaccard similarity (built-in)
 
     Key Design Decisions:
     - Stored at NEXUS_ROOT/.nexus/project_knowledge.json (not in workspace/)
     - Shared by all agents (factual knowledge is universal)
     - Survives /workspace new (memory persists across sessions)
 
-    Phase 10c: V7.8 HIVE MIND
+    Phase 10c: V7.8 HIVE MIND (TF-IDF)
+    Phase 10e: V7.8.2 (BM25S upgrade)
+    Phase 10f: V7.9 (Backend abstraction)
     """
 
     STORAGE_FILE = "project_knowledge.json"
@@ -147,14 +99,34 @@ class ProjectMemory:
 
         # In-memory data
         self.chunks: List[Chunk] = []
-        self.idf: Dict[str, float] = {}  # Inverse Document Frequency
         self.indexed_files: Set[str] = set()
+
+        # V7.9 Phase 10f: Backend abstraction
+        self._backend: MemoryBackend = self._select_backend()
+        self._backend_dirty: bool = True  # Backend index needs rebuild
+
+        # Legacy: Keep idf for backward compatibility with saved data
+        self.idf: Dict[str, float] = {}
 
         # Ensure storage directory exists
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
         # Load existing index
         self._load()
+
+    def _select_backend(self) -> MemoryBackend:
+        """
+        Select the best available backend.
+
+        Returns:
+            MemoryBackend instance (BM25S if available, else TF-IDF)
+        """
+        if Bm25Backend.is_available():
+            self._logger.info("Using BM25S backend (better recall)")
+            return Bm25Backend()
+        else:
+            self._logger.info("Using TF-IDF backend (BM25S not installed)")
+            return TfidfBackend()
 
     # =========================================================================
     # Indexing
@@ -222,6 +194,7 @@ class ProjectMemory:
         # Add chunks and update index
         self.chunks.extend(new_chunks)
         self.indexed_files.add(rel_path)
+        self._backend_dirty = True  # Mark backend index for rebuild
 
         self._logger.info(f"Indexed {rel_path}: {len(new_chunks)} chunks")
         return len(new_chunks)
@@ -275,8 +248,8 @@ class ProjectMemory:
 
             total_chunks += self.index_file(file_path)
 
-        # Rebuild IDF after batch indexing
-        self._rebuild_idf()
+        # Rebuild backend index after batch indexing
+        self._rebuild_backend_index()
         self.save()
 
         return total_chunks
@@ -425,7 +398,7 @@ class ProjectMemory:
         if len(content) > MAX_CHUNK_SIZE:
             content = content[:MAX_CHUNK_SIZE] + "\n... [truncated]"
 
-        # Extract terms for TF-IDF
+        # Extract terms for retrieval
         terms = self._extract_terms(content)
 
         return Chunk(
@@ -461,8 +434,23 @@ class ProjectMemory:
         return {w for w in words if len(w) > 2 and w not in stopwords}
 
     # =========================================================================
-    # Retrieval
+    # Retrieval (V7.9 Phase 10f: Backend Abstraction)
     # =========================================================================
+
+    def _rebuild_backend_index(self):
+        """Rebuild the backend's retrieval index."""
+        if not self.chunks:
+            self._backend.clear()
+            self._backend_dirty = False
+            return
+
+        try:
+            self._backend.build_index(self.chunks)
+            self._backend_dirty = False
+            self._logger.debug(f"Backend index rebuilt: {len(self.chunks)} chunks")
+        except Exception as e:
+            self._logger.warning(f"Backend index build failed: {e}")
+            self._backend_dirty = False
 
     def retrieve(
         self,
@@ -471,7 +459,10 @@ class ProjectMemory:
         min_score: float = 0.05
     ) -> List[Chunk]:
         """
-        Retrieve relevant chunks using TF-IDF weighted Jaccard similarity.
+        Retrieve relevant chunks using the active backend.
+
+        V7.9 Phase 10f: Uses pluggable backend architecture.
+        Primary: BM25S (if installed), Fallback: TF-IDF
 
         Args:
             query: Search query
@@ -484,70 +475,49 @@ class ProjectMemory:
         if not self.chunks:
             return []
 
+        # Lazy rebuild backend index if needed
+        if self._backend_dirty:
+            self._rebuild_backend_index()
+
         # Extract query terms
         query_terms = self._extract_terms(query)
         if not query_terms:
             return []
 
-        # Ensure IDF is built
-        if not self.idf:
-            self._rebuild_idf()
+        # Use backend for retrieval
+        try:
+            results = self._backend.retrieve(
+                list(query_terms),
+                self.chunks,
+                limit,
+                min_score
+            )
 
-        # Score each chunk
-        scored_chunks = []
-        for chunk in self.chunks:
-            score = self._score_chunk(query_terms, chunk.terms)
-            if score >= min_score:
-                scored_chunks.append((score, chunk))
+            # If primary backend returns empty and we have a fallback available
+            if not results and isinstance(self._backend, Bm25Backend):
+                # Fallback to TF-IDF
+                fallback = TfidfBackend()
+                fallback.build_index(self.chunks)
+                results = fallback.retrieve(list(query_terms), self.chunks, limit, min_score)
 
-        # Sort by score descending
-        scored_chunks.sort(key=lambda x: x[0], reverse=True)
+            return results
 
-        # Return top chunks
-        return [chunk for _, chunk in scored_chunks[:limit]]
+        except Exception as e:
+            self._logger.warning(f"Retrieve failed: {e}")
+            return []
 
-    def _score_chunk(self, query_terms: Set[str], chunk_terms: Set[str]) -> float:
+    def get_backend_info(self) -> Dict[str, Any]:
         """
-        Calculate TF-IDF weighted Jaccard similarity.
+        Get information about the active retrieval backend.
 
-        Score = sum(idf[term] for term in intersection) / sum(idf[term] for term in query)
+        Returns:
+            Dict with backend name and status
         """
-        intersection = query_terms & chunk_terms
-        if not intersection:
-            return 0.0
-
-        # TF-IDF weighted score
-        intersection_weight = sum(self.idf.get(term, 1.0) for term in intersection)
-        query_weight = sum(self.idf.get(term, 1.0) for term in query_terms)
-
-        if query_weight == 0:
-            return 0.0
-
-        return intersection_weight / query_weight
-
-    def _rebuild_idf(self):
-        """
-        Rebuild Inverse Document Frequency scores.
-
-        IDF(term) = log(N / (1 + df(term)))
-        where N = total chunks, df = chunks containing term
-        """
-        if not self.chunks:
-            self.idf = {}
-            return
-
-        # Count document frequency for each term
-        df: Dict[str, int] = defaultdict(int)
-        for chunk in self.chunks:
-            for term in chunk.terms:
-                df[term] += 1
-
-        # Calculate IDF
-        n = len(self.chunks)
-        self.idf = {
-            term: math.log(n / (1 + count))
-            for term, count in df.items()
-        }
+        info = self._backend.get_info()
+        info["chunks_indexed"] = len(self.chunks)
+        info["bm25s_available"] = BM25S_AVAILABLE
+        info["stemmer_available"] = STEMMER_AVAILABLE
+        return info
 
     # =========================================================================
     # Management
@@ -579,8 +549,8 @@ class ProjectMemory:
         # Update tracking
         self.indexed_files.discard(rel_path)
 
-        # Rebuild IDF
-        self._rebuild_idf()
+        # Mark backend for rebuild
+        self._backend_dirty = True
         self.save()
 
         self._logger.info(f"Forgot {rel_path}: {removed} chunks removed")
@@ -589,8 +559,10 @@ class ProjectMemory:
     def clear(self):
         """Clear all indexed data."""
         self.chunks = []
-        self.idf = {}
+        self.idf = {}  # Legacy
         self.indexed_files = set()
+        self._backend.clear()
+        self._backend_dirty = False
         self.save()
         self._logger.info("Project memory cleared")
 
@@ -615,11 +587,11 @@ class ProjectMemory:
     def save(self):
         """Save index to disk."""
         data = {
-            "version": "1.0",
+            "version": "1.1",  # V7.9: Bump version for backend abstraction
             "indexed_at": datetime.now().isoformat(),
             "indexed_files": list(self.indexed_files),
             "chunks": [c.to_dict() for c in self.chunks],
-            "idf": self.idf
+            "idf": self.idf  # Legacy: keep for backward compatibility
         }
 
         try:
@@ -642,7 +614,10 @@ class ProjectMemory:
 
             self.indexed_files = set(data.get("indexed_files", []))
             self.chunks = [Chunk.from_dict(c) for c in data.get("chunks", [])]
-            self.idf = data.get("idf", {})
+            self.idf = data.get("idf", {})  # Legacy
+
+            # Mark backend for rebuild after load
+            self._backend_dirty = True
 
             self._logger.info(f"Loaded {len(self.chunks)} chunks from {self.storage_path}")
         except Exception as e:

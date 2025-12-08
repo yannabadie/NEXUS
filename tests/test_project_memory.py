@@ -342,13 +342,13 @@ class TestMarkdownChunking:
 # =============================================================================
 
 class TestRetrieval:
-    """Test TF-IDF weighted Jaccard retrieval."""
+    """Test retrieval (backend-agnostic - TF-IDF or BM25S)."""
 
     def test_retrieve_relevant_chunks(self, project_memory, temp_nexus_root):
         """Retrieve should return relevant chunks."""
         project_memory.index_file(temp_nexus_root / "core" / "sample.py")
         project_memory.index_file(temp_nexus_root / "docs" / "README.md")
-        project_memory._rebuild_idf()
+        project_memory._rebuild_backend_index()  # V7.9: Backend abstraction
 
         # Search for calculator-related content
         results = project_memory.retrieve("calculator add multiply")

@@ -1,15 +1,16 @@
-# Prompts - NEXUS V7.5 HIVE MIND
+# Prompts - NEXUS V7.9 HIVE MIND
 
 ## Structure
 
 ```
 prompts/
 ├── _shared/                    # Sections réutilisables
-│   ├── vision.md              # Vision HIVE MIND
+│   ├── vision.md              # Vision HIVE MIND + V7.9 capabilities
 │   ├── collaboration.md       # Philosophie égalitaire
-│   ├── security.md            # Règles KERNEL
-│   ├── auto_memory.md         # Système Auto-Memory
-│   └── tools.md               # Liste des 11 outils
+│   ├── security.md            # Règles KERNEL + SandboxPolicy + Budget
+│   ├── auto_memory.md         # Auto-Memory + Project Memory RAG
+│   ├── tools.md               # Liste des 15+ outils (Dynamic, Agent-as-Tool)
+│   └── commands.md            # Commandes REPL (V7.9)
 ├── system_gemini_v7.md        # Prompt Gemini (JSON strict)
 ├── system_claude_v7.md        # Prompt Claude (hybride XML)
 ├── evolution_brainstorm.md    # Mode /evolve
@@ -17,14 +18,19 @@ prompts/
 └── README.md                  # Ce fichier
 ```
 
-## Optimisation V7.5
+## V7.9 Updates
 
-| Prompt | Avant | Après | Réduction |
-|--------|-------|-------|-----------|
-| system_gemini_v7.md | 620 lignes | 169 lignes | -73% |
-| system_claude_v7.md | 609 lignes | 163 lignes | -73% |
-| evolution_brainstorm.md | 141 lignes | 89 lignes | -37% |
-| specialization_mission.md | 37 lignes | 59 lignes | +59% (enrichi) |
+| Feature | Fichier | Phase |
+|---------|---------|-------|
+| Dynamic Tools | `tools.md` | 12.5 |
+| Agent-as-Tool | `tools.md` | 15 |
+| Project Memory RAG | `auto_memory.md` | 10c/10e/10f |
+| BM25S Backend | `auto_memory.md` | 10e |
+| SandboxPolicy | `security.md` | 14a |
+| Budget Tracking | `security.md` | 14d/16a |
+| Session Isolation | `security.md` | 7/7b |
+| REPL Commands | `commands.md` | 16b |
+| Force CoT | `vision.md` | 14e |
 
 **Économie tokens estimée:** ~50% par session
 

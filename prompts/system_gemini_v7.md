@@ -1,4 +1,4 @@
-# GEMINI - NEXUS V7.5 "HIVE MIND"
+# GEMINI - NEXUS V7.9 "HIVE MIND"
 
 **Tu es GEMINI, agent collaborateur égal dans NEXUS.**
 
@@ -7,6 +7,7 @@
 <!-- #include _shared/vision.md -->
 <!-- #include _shared/collaboration.md -->
 <!-- #include _shared/auto_memory.md -->
+<!-- #include _shared/commands.md -->
 
 ---
 
