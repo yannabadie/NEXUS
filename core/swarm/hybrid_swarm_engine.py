@@ -24,11 +24,20 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-from .agent_metrics import AgentPool, AgentInvocationResult, create_default_pool
+from .agent_metrics import AgentPool, AgentInvocationResult, AgentProfile, create_default_pool
 from .collaboration_modes import CollaborationMode
 from .session_manager import SwarmSessionManager, generate_task_id
 from .task_analyzer import TaskAnalyzer, TaskAnalysis
 from .mode_selector import ModeSelector, ModeProposal
+
+# V7.9: Spawned Agent Integration
+_AGENT_LOADER_AVAILABLE = False
+try:
+    from ..bootstrap.agent_loader import SpawnedAgentLoader, discover_and_register_spawned_agents
+    _AGENT_LOADER_AVAILABLE = True
+except ImportError:
+    SpawnedAgentLoader = None
+    discover_and_register_spawned_agents = None
 
 # V7.6 Phase 10a: Success Memory (lazy import to avoid circular deps)
 _SUCCESS_MEMORY_AVAILABLE = False
@@ -50,6 +59,7 @@ from .mode_executors import (
     get_executor
 )
 from .task_analyzer import TaskComplexity
+from .task_completion_validator import get_adaptive_max_rounds
 
 class SwarmPhase(Enum):
     """Current phase of swarm processing"""
@@ -145,6 +155,13 @@ class HybridSwarmEngine:
         else:
             self.success_memory = None
 
+        # V7.9: Spawned Agent Loader
+        self.spawned_agent_loader = None
+        if workspace_path and _AGENT_LOADER_AVAILABLE and SpawnedAgentLoader:
+            self.spawned_agent_loader = SpawnedAgentLoader(workspace_path)
+            # Auto-discover and register spawned agents
+            self._discover_spawned_agents()
+
         # Components
         self.task_analyzer = TaskAnalyzer()
         # V7.6 Phase 10b: Pass SuccessMemory to ModeSelector
@@ -211,6 +228,16 @@ class HybridSwarmEngine:
             analysis = self.task_analyzer.analyze(task_input)
             self._current_analysis = analysis
 
+            # V7.9: Check if spawning is recommended for complex tasks
+            spawning_suggestion = self.get_spawning_suggestion(analysis)
+            if spawning_suggestion:
+                import sys
+                print(
+                    f"[SWARM SUGGESTION] {spawning_suggestion['reason']}\n"
+                    f"  Recommended: {spawning_suggestion['command']}",
+                    file=sys.stderr
+                )
+
             # Phase 2: Select mode (or use forced mode)
             self.current_phase = SwarmPhase.SELECTING
             if force_mode:
@@ -242,16 +269,31 @@ class HybridSwarmEngine:
                 agent_assignments = proposal.agent_assignments
 
             # V7.5 Phase 7: Create isolated session for this task
+            # V7.8.2 Phase 7b: EPHEMERAL sessions for trivial tasks (no persistence)
             if self.session_manager:
-                self.session_manager.create_task(task_id, final_mode.value)
+                is_ephemeral = (analysis.complexity == TaskComplexity.TRIVIAL)
+                self.session_manager.create_task(task_id, final_mode.value, is_ephemeral=is_ephemeral)
 
             # Phase 4: Execute
             self.current_phase = SwarmPhase.EXECUTING
+
+            # V7.9: Adaptive max_rounds based on task complexity
+            config_max_rounds = self._get_config("swarm_max_rounds", None)
+            if config_max_rounds is None:
+                # Auto-adapt based on complexity
+                adaptive_rounds = get_adaptive_max_rounds(analysis.complexity)
+            else:
+                adaptive_rounds = config_max_rounds
+
+            # V7.9: Store task_analysis in blackboard for completion validation
+            blackboard["task_analysis"] = analysis
+            blackboard["workspace_path"] = self.workspace_path
+
             execution_context = ExecutionContext(
                 task_input=task_input,
                 agent_assignments=agent_assignments,
                 blackboard=blackboard,
-                max_rounds=self._get_config("swarm_max_rounds", 6),
+                max_rounds=adaptive_rounds,
                 invoke_agent=self._wrap_invoke_agent(),
                 on_round=on_execution_round,  # V7.5: Streaming callback
                 # V7.5 Phase 7: Session isolation
@@ -261,7 +303,8 @@ class HybridSwarmEngine:
                 force_cot=(analysis.complexity == TaskComplexity.EXPERT)
             )
 
-            executor = get_executor(final_mode)
+            # V7.9: Pass workspace_path for artifact verification in PingPong
+            executor = get_executor(final_mode, workspace_path=self.workspace_path)
 
             # V7.5 Phase 8: Self-Healing Swarm - execute with fallback
             use_self_healing = self._get_config("swarm_self_healing", True)
@@ -290,6 +333,10 @@ class HybridSwarmEngine:
                 execution_result=execution_result,
                 total_time_seconds=total_time
             )
+
+            # V7.9: Add spawning suggestion to execution_result metadata if applicable
+            if spawning_suggestion:
+                result.execution_result.metadata["spawning_suggestion"] = spawning_suggestion
 
             # Record history
             self._record_processing(result)
@@ -591,5 +638,112 @@ class HybridSwarmEngine:
             "total_processed": len(self.processing_history),
             "mode_distribution": mode_counts,
             "agent_pool_stats": self.agent_pool.get_pool_stats() if self.agent_pool else {},
-            "mode_selector_stats": self.mode_selector.get_selection_stats()
+            "mode_selector_stats": self.mode_selector.get_selection_stats(),
+            "spawned_agents_count": self._count_spawned_agents()
+        }
+
+    # === V7.9: Spawned Agent Integration ===
+
+    def _discover_spawned_agents(self) -> int:
+        """
+        Discover and register spawned agents from workspace/agents/.
+
+        V7.9: Auto-discovery at initialization.
+
+        Returns:
+            Number of agents discovered and registered
+        """
+        if not self.spawned_agent_loader or not self.agent_pool:
+            return 0
+
+        try:
+            agents = self.spawned_agent_loader.discover_spawned_agents()
+            for profile in agents:
+                self.agent_pool.register(profile)
+            return len(agents)
+        except Exception as e:
+            import sys
+            print(f"[SWARM] Warning: Failed to discover spawned agents: {e}", file=sys.stderr)
+            return 0
+
+    def _count_spawned_agents(self) -> int:
+        """Count spawned agents in the pool."""
+        if not self.agent_pool:
+            return 0
+
+        return sum(
+            1 for agent in self.agent_pool.agents.values()
+            if agent.provider == "spawned"
+        )
+
+    def _get_spawned_agents(self) -> List[AgentProfile]:
+        """Get list of spawned agents from pool."""
+        if not self.agent_pool:
+            return []
+
+        return [
+            agent for agent in self.agent_pool.agents.values()
+            if agent.provider == "spawned"
+        ]
+
+    def should_suggest_spawning(self, analysis: TaskAnalysis) -> bool:
+        """
+        Check if spawning should be suggested for this task.
+
+        V7.9: Suggest spawning for COMPLEX/EXPERT tasks when no suitable
+        specialist exists in the pool.
+
+        Args:
+            analysis: Task analysis result
+
+        Returns:
+            True if spawning is recommended
+        """
+        # Only consider spawning for complex tasks
+        if analysis.complexity not in [TaskComplexity.COMPLEX, TaskComplexity.EXPERT]:
+            return False
+
+        # Check if we have spawned specialists for the required domains
+        spawned = self._get_spawned_agents()
+        if not spawned:
+            # No spawned agents - spawning might help
+            return True
+
+        # Check domain coverage
+        required_domains = set(d.value for d in analysis.domains)
+        covered_domains = set()
+        for agent in spawned:
+            covered_domains.update(c.lower() for c in agent.capabilities)
+
+        # Suggest spawning if domains aren't covered
+        return not required_domains.issubset(covered_domains)
+
+    def get_spawning_suggestion(self, analysis: TaskAnalysis) -> Optional[Dict]:
+        """
+        Get spawning suggestion for a task.
+
+        V7.9: Returns suggestion dict for user to spawn a specialist.
+
+        Args:
+            analysis: Task analysis result
+
+        Returns:
+            Dict with suggested agent configuration or None
+        """
+        if not self.should_suggest_spawning(analysis):
+            return None
+
+        # Build suggestion
+        domains = [d.value for d in analysis.domains]
+        primary = analysis.primary_domain.value if analysis.primary_domain else "general"
+
+        return {
+            "suggested": True,
+            "reason": f"Task complexity ({analysis.complexity.name}) suggests spawning a specialist",
+            "recommended_config": {
+                "mission": f"Specialist for {primary} tasks",
+                "domains": domains,
+                "role": f"{primary}_specialist"
+            },
+            "command": f'/spawn "{primary}_expert" --mission "Expert for {", ".join(domains)}"'
         }

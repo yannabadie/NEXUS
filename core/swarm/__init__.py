@@ -105,6 +105,14 @@ from .session_manager import (
     generate_task_id
 )
 
+# Task Completion Validator (Phase V7.9)
+from .task_completion_validator import (
+    TaskCompletionValidator,
+    CompletionCriteria,
+    ValidationResult,
+    get_adaptive_max_rounds
+)
+
 __all__ = [
     # Agent Metrics
     "AgentInvocationResult",
@@ -168,4 +176,10 @@ __all__ = [
     "TaskSession",
     "SwarmSessionManager",
     "generate_task_id",
+
+    # Task Completion Validator (V7.9)
+    "TaskCompletionValidator",
+    "CompletionCriteria",
+    "ValidationResult",
+    "get_adaptive_max_rounds",
 ]

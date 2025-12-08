@@ -23,6 +23,7 @@ from pathlib import Path
 from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
 from ..utils.artifact_verifier import ArtifactVerifier
+from .task_completion_validator import TaskCompletionValidator, get_adaptive_max_rounds
 
 
 class ExecutionStatus(Enum):
@@ -47,12 +48,37 @@ class AgentResponse:
 
     @property
     def is_finished(self) -> bool:
-        """Check if agent signals completion"""
-        return (
-            "FINISHED" in self.content.upper()
-            or "DONE" in self.content.upper()
+        """
+        Check if agent signals completion.
+
+        V7.9 IMPROVED: More robust detection that avoids false positives.
+        - Checks for completion keywords
+        - Rejects if ongoing work indicators are present
+        """
+        content_upper = self.content.upper()
+
+        # Completion signals
+        completion_signals = (
+            "FINISHED" in content_upper
+            or "DONE" in content_upper
+            or "TASK COMPLETE" in content_upper
             or self.status == "finished"
         )
+
+        if not completion_signals:
+            return False
+
+        # V7.9: Check for ongoing work indicators (false positive prevention)
+        content_lower = self.content.lower()
+        ongoing_indicators = [
+            "will ", "going to", "next step", "todo", "remaining",
+            "need to", "should ", "plan to", "working on", "then we"
+        ]
+
+        has_ongoing = any(indicator in content_lower for indicator in ongoing_indicators)
+
+        # Only consider finished if no ongoing work detected
+        return not has_ongoing
 
     def to_dict(self) -> Dict:
         return {
@@ -667,9 +693,20 @@ class PingPongExecutor(ModeExecutor):
     Rapid alternation until convergence.
 
     Use case: Creative tasks, brainstorming, iterative refinement.
+
+    V7.9: Enhanced with TaskCompletionValidator to prevent premature FINISHED.
     """
 
     mode = CollaborationMode.PING_PONG
+
+    def __init__(self, workspace_path: Optional[Path] = None):
+        """
+        Initialize PingPongExecutor.
+
+        Args:
+            workspace_path: Path to workspace for artifact verification
+        """
+        self._workspace_path = workspace_path
 
     def execute(self, context: ExecutionContext) -> ExecutionResult:
         agents = context.get_all_agents()
@@ -684,28 +721,49 @@ class PingPongExecutor(ModeExecutor):
                 total_time_seconds=0.0
             )
 
+        # V7.9: Initialize completion validator
+        workspace_path = context.blackboard.get("workspace_path") or self._workspace_path
+        completion_validator = TaskCompletionValidator(workspace_path) if workspace_path else None
+
+        # V7.9: Get task analysis for validation (from blackboard if available)
+        task_analysis = context.blackboard.get("task_analysis")
+
         outputs: List[AgentResponse] = []
+        tool_results: List[Dict] = []  # Collect tool results for validation
         total_tokens = 0
         total_time = 0.0
         current_idx = 0
         accumulated_context = context.task_input
+        false_finish_count = 0  # Track rejected FINISHED signals
 
         # V7.5 Phase 7: Alternating roles for session isolation
         for round_num in range(context.max_rounds):
             agent = agents[current_idx % len(agents)]
             role = f"ping_{current_idx % len(agents)}"  # ping_0, ping_1, etc.
 
+            # V7.9: Add context about rejected finishes if any
+            rejection_notice = ""
+            if false_finish_count > 0:
+                rejection_notice = (
+                    f"\n\n[IMPORTANT: {false_finish_count} premature FINISHED signal(s) were rejected. "
+                    "Only say FINISHED when ALL work is truly complete with no remaining tasks.]"
+                )
+
             round_context = (
                 f"PING_PONG MODE - Round {round_num + 1}:\n"
                 f"Original task: {context.task_input}\n\n"
-                f"Conversation so far:\n{accumulated_context}\n\n"
-                "Continue the work. Say 'FINISHED' when task is complete."
+                f"Conversation so far:\n{accumulated_context}{rejection_notice}\n\n"
+                "Continue the work. Say 'FINISHED' ONLY when the task is FULLY complete."
             )
 
             response = self._invoke(context, agent.agent_id, round_context, role=role)
             outputs.append(response)
             total_tokens += response.tokens_used
             total_time += response.time_seconds
+
+            # Collect tool results from response
+            if response.tool_results:
+                tool_results.extend(response.tool_results)
 
             # V7.5: Stream round to callback for real-time display
             if context.on_round:
@@ -714,8 +772,36 @@ class PingPongExecutor(ModeExecutor):
             # Update accumulated context
             accumulated_context += f"\n\n[{agent.agent_id} - Round {round_num + 1}]:\n{response.content}"
 
-            # Check for convergence
+            # V7.9: Enhanced convergence check with validation
             if response.is_finished:
+                # Validate the completion claim
+                is_valid_finish = True
+                validation_reason = "Basic completion check passed"
+
+                if completion_validator and task_analysis:
+                    validation_result = completion_validator.validate_completion(
+                        task_input=context.task_input,
+                        agent_response=response.content,
+                        task_analysis=task_analysis,
+                        tool_results=tool_results
+                    )
+                    is_valid_finish = validation_result.is_valid
+                    validation_reason = validation_result.reason
+
+                    if not is_valid_finish:
+                        # Reject the FINISHED signal
+                        false_finish_count += 1
+                        import sys
+                        print(
+                            f"[COMPLETION VALIDATOR] Rejected FINISHED signal (round {round_num + 1}): "
+                            f"{validation_reason}",
+                            file=sys.stderr
+                        )
+                        # Continue to next round
+                        current_idx += 1
+                        continue
+
+                # Valid completion - return result
                 return ExecutionResult(
                     mode=self.mode,
                     status=ExecutionStatus.CONVERGED,
@@ -724,7 +810,12 @@ class PingPongExecutor(ModeExecutor):
                     total_rounds=round_num + 1,
                     total_tokens=total_tokens,
                     total_time_seconds=total_time,
-                    metadata={"execution_type": "ping_pong", "converged_at": round_num + 1}
+                    metadata={
+                        "execution_type": "ping_pong",
+                        "converged_at": round_num + 1,
+                        "validation_reason": validation_reason,
+                        "false_finish_count": false_finish_count
+                    }
                 )
 
             current_idx += 1
@@ -740,7 +831,11 @@ class PingPongExecutor(ModeExecutor):
             total_rounds=context.max_rounds,
             total_tokens=total_tokens,
             total_time_seconds=total_time,
-            metadata={"execution_type": "ping_pong", "max_rounds_reached": True}
+            metadata={
+                "execution_type": "ping_pong",
+                "max_rounds_reached": True,
+                "false_finish_count": false_finish_count
+            }
         )
 
 
@@ -957,6 +1052,20 @@ EXECUTOR_REGISTRY: Dict[CollaborationMode, ModeExecutor] = {
 }
 
 
-def get_executor(mode: CollaborationMode) -> ModeExecutor:
-    """Get executor for a collaboration mode"""
+def get_executor(mode: CollaborationMode, workspace_path: Optional[Path] = None) -> ModeExecutor:
+    """
+    Get executor for a collaboration mode.
+
+    V7.9: PingPongExecutor now accepts workspace_path for artifact verification.
+
+    Args:
+        mode: Collaboration mode
+        workspace_path: Optional workspace path for artifact verification
+
+    Returns:
+        ModeExecutor instance
+    """
+    if mode == CollaborationMode.PING_PONG:
+        # V7.9: Create new instance with workspace_path for validation
+        return PingPongExecutor(workspace_path=workspace_path)
     return EXECUTOR_REGISTRY[mode]

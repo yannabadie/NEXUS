@@ -43,6 +43,7 @@ class SessionMode(str, Enum):
     FRESH = "fresh"       # New session, no prior context
     CONTINUE = "continue"  # Resume from existing session
     BRANCH = "branch"      # Fork from existing session
+    EPHEMERAL = "ephemeral"  # V7.8.2 Phase 7b: Memory-only, no persistence (for TRIVIAL tasks)
 
 
 @dataclass
@@ -106,6 +107,7 @@ class TaskSession:
         completed_at: ISO timestamp of task completion (if completed)
         roles: Mapping of role names to AgentSession objects
         metadata: Additional task metadata
+        is_ephemeral: V7.8.2 Phase 7b - If True, task is memory-only (no persistence)
     """
     task_id: str
     swarm_mode: str
@@ -114,6 +116,7 @@ class TaskSession:
     completed_at: Optional[str] = None
     roles: Dict[str, AgentSession] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    is_ephemeral: bool = False  # V7.8.2 Phase 7b: Memory-only task (no file persistence)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -209,7 +212,8 @@ class SwarmSessionManager:
         self,
         task_id: str,
         swarm_mode: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        is_ephemeral: bool = False
     ) -> TaskSession:
         """
         Create a new task session.
@@ -218,6 +222,7 @@ class SwarmSessionManager:
             task_id: Unique identifier for the task
             swarm_mode: Collaboration mode (PARALLEL, SEQUENTIAL, etc.)
             metadata: Optional additional metadata
+            is_ephemeral: V7.8.2 Phase 7b - If True, task is memory-only (no file I/O)
 
         Returns:
             The created TaskSession
@@ -233,11 +238,15 @@ class SwarmSessionManager:
                 task_id=task_id,
                 swarm_mode=swarm_mode,
                 status=SessionStatus.ACTIVE,
-                metadata=metadata or {}
+                metadata=metadata or {},
+                is_ephemeral=is_ephemeral
             )
 
             self._tasks[task_id] = task
-            self._save_registry()
+
+            # V7.8.2 Phase 7b: Skip persistence for ephemeral tasks
+            if not is_ephemeral:
+                self._save_registry()
 
             return task
 
@@ -323,7 +332,10 @@ class SwarmSessionManager:
             )
 
             task.roles[role] = session
-            self._save_registry()
+
+            # V7.8.2 Phase 7b: Skip persistence for ephemeral tasks
+            if not task.is_ephemeral:
+                self._save_registry()
 
             return session_uuid
 
