@@ -1,5 +1,24 @@
-# NEXUS V7.9 Dependencies
+# NEXUS V8.0 TRUE HIVE MIND Dependencies
 # Philosophy: Minimal dependencies, maximum value
+
+# =============================================================================
+# Core Dependencies (REQUIRED)
+# =============================================================================
+
+# Configuration management
+python-dotenv>=1.0.0
+
+# Data validation and settings
+pydantic>=2.0.0
+
+# Rich console output (tables, progress, syntax highlighting)
+rich>=13.7.0
+
+# Interactive REPL with history and completion
+prompt-toolkit>=3.0.43
+
+# Token counting for budget tracking
+tiktoken>=0.5.2
 
 # =============================================================================
 # Phase 10e: BM25S Sparse Retrieval (Project Memory RAG)
@@ -25,14 +44,20 @@ lancedb>=0.4.0
 sentence-transformers>=2.2.0
 
 # =============================================================================
-# Core Dependencies (already installed via standard library or system)
+# Development Dependencies (REQUIRED for tests)
 # =============================================================================
-# These are NOT in requirements.txt as they're either:
-# - Standard library (json, pathlib, re, etc.)
-# - System tools (gemini CLI, claude CLI)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-asyncio>=0.21.0
 
 # =============================================================================
-# Development Dependencies (optional)
+# Notes
 # =============================================================================
-# pytest>=7.0.0  # For running tests
-# rich>=13.0.0   # Already used for console output (optional enhancement)
+# Standard library modules used (no install needed):
+# - json, pathlib, re, enum, dataclasses, typing
+# - threading, subprocess, hashlib, uuid
+# - datetime, logging, functools
+#
+# System tools required (install separately):
+# - gemini CLI (Google AI)
+# - claude CLI (Anthropic)

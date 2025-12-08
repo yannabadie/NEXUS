@@ -1,2 +1,2 @@
-"""NEXUS V7.0 Chrysalis Core Module"""
-__version__ = "7.0.0"
+"""NEXUS V8.0 TRUE HIVE MIND Core Module"""
+__version__ = "8.0.0"

@@ -259,7 +259,7 @@ class TaskScopedBlackboard:
 
 ## 3. Phases Prioritaires (V7.5.3 → V7.6)
 
-### Phase 5b: N-Agent Agnosticism Complet [Priorité: CRITIQUE]
+### Phase 5b: N-Agent Agnosticism Complet [Statut: PARTIAL ⚠️]
 **Objectif**: Agents spawned utilisables dans TOUS les 6 modes Swarm
 **Effort**: 2-3 jours
 **Source**: Analyse architecturale Gemini (2025-12-03)
@@ -268,19 +268,31 @@ class TaskScopedBlackboard:
 > Les 5 autres modes (PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, RED_BLUE)
 > utilisent encore des lookups hardcodés `gemini`/`claude`.
 
-**Problème actuel** (`mode_selector.py` lignes 304-305):
-```python
-gemini = next((a for a in agents if "gemini" in a.agent_id.lower()), None)
-claude = next((a for a in agents if "claude" in a.agent_id.lower()), None)
-```
+**État actuel (2025-12-08)**:
+- ✅ Spawned agents fonctionnent dans tous les 6 modes
+- ⚠️ **TECH DEBT**: 20+ hardcoded lookups restent dans l'orchestration core
 
-**Solution**:
+**Hardcoded lookups restants** (audit 2025-12-08):
+| Fichier | Occurrences | Type |
+|---------|-------------|------|
+| `fsm_handlers.py` | 8 | Agent swap (`"Claude" if agent == "Gemini"`) |
+| `agent_invoker.py` | 4 | Driver selection (`if agent == "Claude"`) |
+| `context_builder.py` | 3 | Prompt selection |
+| `orchestration_v7.py` | 1 | Agent ID mapping |
+| `context.py` | 1 | Agent swap |
+| UI/Display | 5 | Low impact |
+
+**Complété**:
+- [x] Spawned agents dans ModeSelector
+- [x] DyLAN default score 0.5 pour nouveaux agents
+- [x] SPECIALIST mode avec spawned agents
+
+**À faire (Phase 5b.1)**:
+- [ ] Créer `AgentRegistry` avec mapping agent_name → config
 - [ ] Refactorer `_assign_agents()` pour utiliser `AgentPool.select_best_for_task(domain)`
-- [ ] Supprimer lookups hardcodés gemini/claude
-- [ ] Sélection basée sur `AgentProfile.capabilities` + scores DyLAN
-- [ ] Permettre spawned agents comme LEAD dans LEAD_SUPPORT
-- [ ] Permettre spawned agents dans PARALLEL (split par compétence)
-- [ ] Tests: spawned agent prend le lead sur tâche de son domaine
+- [ ] Supprimer lookups hardcodés dans fsm_handlers.py (8 occurrences)
+- [ ] Supprimer lookups hardcodés dans agent_invoker.py (4 occurrences)
+- [ ] Tests: vrai N-agent support avec 3+ agents
 
 ### Phase 8: Self-Healing Swarm [Priorité: HAUTE]
 **Objectif**: Fallback automatique de MODE en cas d'échec
@@ -1863,9 +1875,14 @@ V7.5.6 (Décembre 2025) ← CURRENT
 │   ├── SwarmSessionManager ✅ COMPLETED
 │   └── Schema Migration 6.0→7.5 ✅ COMPLETED
 │
-├─[COMPLETED] Phase 5b: N-Agent Agnosticism Complet
+├─[PARTIAL] Phase 5b: N-Agent Agnosticism
 │   └── Spawned agents dans tous les 6 modes ✅ COMPLETED
 │   └── *Note: DyLAN default score is 0.5 for new agents*
+│   └── ⚠️ TECH DEBT: 20+ hardcoded "Claude"/"Gemini" lookups restent
+│       - fsm_handlers.py: 8 occurrences (agent swap logic)
+│       - agent_invoker.py: 4 occurrences (driver selection)
+│       - context_builder.py: 3 occurrences (prompt selection)
+│       - Refactoring requis pour vrai N-Agent support (voir Phase 5b.1)
 │
 ├─[COMPLETED] Phase 8: Self-Healing Swarm + Recovery
 │   ├── Mode Fallback Matrix ✅ COMPLETED
@@ -2451,7 +2468,7 @@ AutoMemory link ─────────────► Memory-Augmented Mode
 ### Validations Effectuées
 
 ```
-✅ Phase 5b: N-Agent Agnosticism - Vérifié (pas de hardcoded lookups)
+⚠️ Phase 5b: N-Agent Agnosticism - PARTIAL (20+ hardcoded lookups restent - voir TECH DEBT)
 ✅ Phase 8: Self-Healing - execute_with_fallback() confirmé
 ✅ Phase 9: Fast Path - fast_path_enabled, _handle_fast_path() confirmés
 ✅ Phase 10c: TF-IDF ProjectMemory - Fonctionnel (685 lignes)
