@@ -1,0 +1,107 @@
+"""
+NEXUS V8.0 - TRUE HIVE MIND Module
+
+Transforms NEXUS from a sequential orchestrator into a true collaborative intelligence.
+
+Architecture:
+- 7 Phases: Analysis → Debate → Architecture → Execution → Diagnosis → Retry → Consolidation
+- 4 User Breakpoints: After debate, before spawn, after diagnosis, consolidation
+- Adaptive debate turns based on complexity and errors
+- Knowledge consolidation post-task
+
+Components:
+- types.py: Core dataclasses and enums
+- agent_registry.py: Anti-duplication with similarity search
+- cost_estimator.py: Budget control before decisions
+- context_manager.py: Sliding window to avoid token explosion
+- strategy_blacklist.py: Anti-circular retry
+- user_interaction.py: Breakpoint handling
+- fsm_states.py: FSM states extension for V8.0
+
+Usage:
+    from core.hive_mind import TrueHiveMind
+
+    hive = TrueHiveMind(workspace_path, config)
+    result = await hive.process_task("Complex task here")
+"""
+
+from .types import (
+    # Enums
+    HiveMindState,
+    UserBreakpoint,
+    RetentionDecision,
+
+    # Analysis
+    IndependentAnalysis,
+    AnalysisComparison,
+    Disagreement,
+
+    # Debate
+    DebateArgument,
+    DebateResult,
+
+    # Architecture
+    AgentSpec,
+    AgentArchitecture,
+
+    # Execution
+    ExecutionIssue,
+    MonitoredStepResult,
+
+    # Diagnosis
+    FailureDiagnosis,
+
+    # Retry
+    RetryDecision,
+
+    # Consolidation
+    KnowledgeConsolidation,
+    AgentRetention,
+
+    # Breakpoints
+    BreakpointOption,
+    BreakpointRequest,
+    BreakpointResponse,
+)
+
+from .agent_registry import AgentRegistry
+from .cost_estimator import CostEstimator
+from .context_manager import HiveMindContextManager
+from .strategy_blacklist import StrategyBlacklist
+from .user_interaction import UserInteractionHandler
+from .adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
+
+__all__ = [
+    # Enums
+    "HiveMindState",
+    "UserBreakpoint",
+    "RetentionDecision",
+
+    # Types
+    "IndependentAnalysis",
+    "AnalysisComparison",
+    "Disagreement",
+    "DebateArgument",
+    "DebateResult",
+    "AgentSpec",
+    "AgentArchitecture",
+    "ExecutionIssue",
+    "MonitoredStepResult",
+    "FailureDiagnosis",
+    "RetryDecision",
+    "KnowledgeConsolidation",
+    "AgentRetention",
+    "BreakpointOption",
+    "BreakpointRequest",
+    "BreakpointResponse",
+
+    # Components
+    "AgentRegistry",
+    "CostEstimator",
+    "HiveMindContextManager",
+    "StrategyBlacklist",
+    "UserInteractionHandler",
+    "AdaptiveDebateConfig",
+    "DebateParams",
+    "TaskComplexity",
+]
