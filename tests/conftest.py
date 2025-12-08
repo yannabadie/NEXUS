@@ -160,6 +160,16 @@ class MockConfig(Config):
         # Fast Path
         self.fast_path_enabled = True
 
+        # V8.0 TRUE HIVE MIND
+        self.hive_mind_enabled = True
+        self.hive_mind_moderate = True
+        self.hive_mind_budget_limit = 50000
+        self.hive_mind_max_debate_turns = 10
+        self.hive_mind_min_debate_turns = 3
+        self.hive_mind_breakpoints_enabled = False  # Disabled for tests
+        self.hive_mind_max_retries = 3
+        self.hive_mind_agreement_threshold = 0.85
+
         # Gemini persistence (PTY removed in V7.6)
         self.gemini_persistent_mode = True
         self.gemini_approval_mode = "yolo"
