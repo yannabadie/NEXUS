@@ -10,7 +10,7 @@ This is the fallback backend when BM25S is not installed.
 import math
 import logging
 from collections import defaultdict
-from typing import List, Dict, Set, Any, TYPE_CHECKING
+from typing import List, Dict, Set, Any, Optional, TYPE_CHECKING
 
 from .base import MemoryBackend
 
@@ -78,7 +78,8 @@ class TfidfBackend(MemoryBackend):
         query_terms: List[str],
         chunks: List['Chunk'],
         limit: int,
-        min_score: float
+        min_score: float,
+        raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
     ) -> List['Chunk']:
         """
         Retrieve chunks using TF-IDF weighted Jaccard similarity.
@@ -88,10 +89,12 @@ class TfidfBackend(MemoryBackend):
             chunks: Full list of chunks to search
             limit: Maximum chunks to return
             min_score: Minimum similarity score threshold
+            raw_query: Ignored (used by dense backends only)
 
         Returns:
             List of relevant chunks, sorted by score descending
         """
+        # Note: raw_query ignored - TF-IDF uses tokenized query_terms
         if not query_terms or not chunks:
             return []
 

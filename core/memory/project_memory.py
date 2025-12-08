@@ -1,5 +1,5 @@
 """
-NEXUS V7.9 - Project Memory RAG (Phase 10c + 10e + 10f)
+NEXUS V7.9 - Project Memory RAG (Phase 10c + 10e + 10f + 10g)
 
 Persistent project knowledge base with pluggable retrieval backends.
 Stores indexed code and documentation for context-aware responses.
@@ -14,10 +14,13 @@ Chunking Strategy:
 - .md files: Split by sections (headers)
 - Other files: Split by lines (50 lines, 10 overlap)
 
-Backend Architecture (V7.9 Phase 10f):
-- PRIMARY: BM25S sparse retrieval (if installed) - ~15% better recall
+Backend Architecture (V7.9 Phase 10f + 10g):
+- SEMANTIC: Dense embeddings (LanceDB + Sentence-Transformers) - ~+10% recall
+- LEXICAL: BM25S sparse retrieval (if installed) - ~15% better than TF-IDF
 - FALLBACK: TF-IDF weighted Jaccard similarity (built-in, no dependencies)
-- Pluggable: MemoryBackend ABC allows future backends (LanceDB, etc.)
+- Pluggable: MemoryBackend ABC allows future backends (Hybrid, etc.)
+
+Environment: PROJECT_MEMORY_BACKEND = "auto" | "dense" | "bm25" | "tfidf"
 
 Usage:
     memory = ProjectMemory(nexus_root)
@@ -25,7 +28,7 @@ Usage:
     chunks = memory.retrieve("FSM state handling", limit=5)
 
     # Check which backend is active
-    print(memory.get_backend_info())  # {"backend": "bm25s", ...}
+    print(memory.get_backend_info())  # {"backend": "dense", ...}
 """
 
 import json
@@ -36,9 +39,12 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Set, Optional, Any
 
-# V7.9 Phase 10f: Import from modular types and backends
+# V7.9 Phase 10f/10g: Import from modular types and backends
 from .types import Chunk, IndexStats
-from .backends import MemoryBackend, TfidfBackend, Bm25Backend, BM25S_AVAILABLE, STEMMER_AVAILABLE
+from .backends import (
+    MemoryBackend, TfidfBackend, Bm25Backend, DenseBackend,
+    BM25S_AVAILABLE, STEMMER_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
+)
 
 
 # =============================================================================
@@ -118,14 +124,48 @@ class ProjectMemory:
         """
         Select the best available backend.
 
+        V7.9 Phase 10g: Supports Dense embeddings backend.
+
+        Environment variable PROJECT_MEMORY_BACKEND controls selection:
+        - "auto" (default): Best available (Dense > BM25S > TF-IDF)
+        - "dense": Force dense embeddings (fallback if unavailable)
+        - "bm25": Force BM25S (fallback if unavailable)
+        - "tfidf": Force TF-IDF (always available)
+
         Returns:
-            MemoryBackend instance (BM25S if available, else TF-IDF)
+            MemoryBackend instance
         """
-        if Bm25Backend.is_available():
-            self._logger.info("Using BM25S backend (better recall)")
+        backend_pref = os.getenv("PROJECT_MEMORY_BACKEND", "auto").lower()
+        lancedb_path = self.storage_dir / "lancedb"
+
+        # Explicit preference
+        if backend_pref == "dense":
+            if DenseBackend.is_available():
+                self._logger.info("Using Dense backend (semantic search)")
+                return DenseBackend(lancedb_path)
+            else:
+                self._logger.warning("Dense backend requested but unavailable, falling back")
+
+        elif backend_pref == "bm25":
+            if Bm25Backend.is_available():
+                self._logger.info("Using BM25S backend (requested)")
+                return Bm25Backend()
+            else:
+                self._logger.warning("BM25S backend requested but unavailable, falling back")
+
+        elif backend_pref == "tfidf":
+            self._logger.info("Using TF-IDF backend (requested)")
+            return TfidfBackend()
+
+        # Auto selection: Dense > BM25S > TF-IDF
+        if DenseBackend.is_available():
+            self._logger.info("Using Dense backend (semantic search, best recall)")
+            return DenseBackend(lancedb_path)
+        elif Bm25Backend.is_available():
+            self._logger.info("Using BM25S backend (lexical, +15% vs TF-IDF)")
             return Bm25Backend()
         else:
-            self._logger.info("Using TF-IDF backend (BM25S not installed)")
+            self._logger.info("Using TF-IDF backend (fallback, stdlib only)")
             return TfidfBackend()
 
     # =========================================================================
@@ -461,11 +501,11 @@ class ProjectMemory:
         """
         Retrieve relevant chunks using the active backend.
 
-        V7.9 Phase 10f: Uses pluggable backend architecture.
-        Primary: BM25S (if installed), Fallback: TF-IDF
+        V7.9 Phase 10f/10g: Uses pluggable backend architecture.
+        Priority: Dense (semantic) > BM25S (lexical) > TF-IDF (fallback)
 
         Args:
-            query: Search query
+            query: Search query (raw string)
             limit: Maximum chunks to return
             min_score: Minimum similarity score threshold
 
@@ -479,26 +519,34 @@ class ProjectMemory:
         if self._backend_dirty:
             self._rebuild_backend_index()
 
-        # Extract query terms
+        # Extract query terms (for sparse backends)
         query_terms = self._extract_terms(query)
-        if not query_terms:
+
+        # Dense backend can work with raw_query even if no terms extracted
+        # Sparse backends need terms
+        if not query_terms and not isinstance(self._backend, DenseBackend):
             return []
 
         # Use backend for retrieval
+        # V7.9 Phase 10g: Pass raw_query for dense backends
         try:
             results = self._backend.retrieve(
-                list(query_terms),
+                list(query_terms) if query_terms else [],
                 self.chunks,
                 limit,
-                min_score
+                min_score,
+                raw_query=query  # For dense/semantic backends
             )
 
-            # If primary backend returns empty and we have a fallback available
-            if not results and isinstance(self._backend, Bm25Backend):
+            # If primary backend returns empty, try fallback
+            if not results and not isinstance(self._backend, TfidfBackend):
                 # Fallback to TF-IDF
-                fallback = TfidfBackend()
-                fallback.build_index(self.chunks)
-                results = fallback.retrieve(list(query_terms), self.chunks, limit, min_score)
+                if query_terms:  # Only if we have terms for sparse search
+                    fallback = TfidfBackend()
+                    fallback.build_index(self.chunks)
+                    results = fallback.retrieve(
+                        list(query_terms), self.chunks, limit, min_score, raw_query=query
+                    )
 
             return results
 

@@ -1,12 +1,15 @@
 """
-NEXUS V7.9 - Memory Backend ABC (Phase 10f)
+NEXUS V7.9 - Memory Backend ABC (Phase 10f + 10g)
 
 Abstract base class for memory retrieval backends.
-Enables swappable backends (TF-IDF, BM25S, future: LanceDB, etc.)
+Enables swappable backends (TF-IDF, BM25S, Dense/LanceDB, Hybrid)
+
+Phase 10f: Initial abstraction (TF-IDF, BM25S)
+Phase 10g: Dense embeddings support (raw_query parameter)
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..types import Chunk
@@ -45,7 +48,8 @@ class MemoryBackend(ABC):
         query_terms: List[str],
         chunks: List['Chunk'],
         limit: int,
-        min_score: float
+        min_score: float,
+        raw_query: Optional[str] = None
     ) -> List['Chunk']:
         """
         Retrieve relevant chunks for a query.
@@ -55,6 +59,8 @@ class MemoryBackend(ABC):
             chunks: Full list of chunks to search within
             limit: Maximum number of chunks to return
             min_score: Minimum relevance score threshold
+            raw_query: Original query string (used by dense backends for embeddings)
+                      Sparse backends (TF-IDF, BM25S) ignore this parameter.
 
         Returns:
             List of relevant Chunk objects, sorted by relevance descending

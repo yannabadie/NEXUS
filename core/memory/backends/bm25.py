@@ -140,7 +140,8 @@ class Bm25Backend(MemoryBackend):
         query_terms: List[str],
         chunks: List['Chunk'],
         limit: int,
-        min_score: float
+        min_score: float,
+        raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
     ) -> List['Chunk']:
         """
         Retrieve chunks using BM25S.
@@ -150,10 +151,12 @@ class Bm25Backend(MemoryBackend):
             chunks: Full list of chunks (for corpus reference)
             limit: Maximum chunks to return
             min_score: Minimum BM25 score threshold
+            raw_query: Ignored (used by dense backends only)
 
         Returns:
             List of relevant chunks, sorted by score descending
         """
+        # Note: raw_query ignored - BM25S uses tokenized query_terms
         if not BM25S_AVAILABLE or self._index is None:
             return []
 
