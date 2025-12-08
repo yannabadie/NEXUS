@@ -24,8 +24,9 @@ prompts/
 |---------|---------|-------|
 | Dynamic Tools | `tools.md` | 12.5 |
 | Agent-as-Tool | `tools.md` | 15 |
-| Project Memory RAG | `auto_memory.md` | 10c/10e/10f |
+| Project Memory RAG | `auto_memory.md` | 10c/10e/10f/10g |
 | BM25S Backend | `auto_memory.md` | 10e |
+| Dense Backend | `auto_memory.md` | 10g |
 | SandboxPolicy | `security.md` | 14a |
 | Budget Tracking | `security.md` | 14d/16a |
 | Session Isolation | `security.md` | 7/7b |

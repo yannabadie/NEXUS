@@ -14,15 +14,21 @@
 
 ---
 
-## PROJECT MEMORY RAG (V7.9 Phase 10c/10e/10f)
+## PROJECT MEMORY RAG (V7.9 Phase 10c/10e/10f/10g)
 
 **NEXUS indexe automatiquement le code et la documentation du projet.**
 
-### Backend Retrieval
-| Backend | Performance | Disponibilité |
-|---------|-------------|---------------|
-| **BM25S** | +15% recall vs TF-IDF | Si `bm25s` installé |
-| **TF-IDF** | Fallback fiable | Toujours (stdlib) |
+### Backend Retrieval (Auto-select: Dense > BM25S > TF-IDF)
+| Backend | Type | Performance | Disponibilité |
+|---------|------|-------------|---------------|
+| **Dense** | Semantic | +10% recall vs BM25S | Si `lancedb` + `sentence-transformers` |
+| **BM25S** | Lexical | +15% recall vs TF-IDF | Si `bm25s` installé |
+| **TF-IDF** | Lexical | Fallback fiable | Toujours (stdlib) |
+
+### Dense Backend (Phase 10g)
+- **Model**: `all-MiniLM-L6-v2` (22MB, 384 dim)
+- **Storage**: `.nexus/lancedb/`
+- **Feature**: Semantic search ("auth" ≈ "authentication")
 
 ### Auto-injection
 - Pour tâches **MODERATE+**, le contexte RAG pertinent est auto-injecté
