@@ -2127,6 +2127,28 @@ class InteractiveNexusV7:
                 if hallucinated_tools:
                     self.console.print(f"   ⚠️ Warning: Prompt references unknown tools: {hallucinated_tools}")
 
+            # ========== V8.2.0c: REDTEAM PROMPT VALIDATION ==========
+            if generated_prompt and self.orchestrator.config.redteam_spawn_enabled:
+                try:
+                    from core.governance.red_team.prompt_validator import SpawnPromptValidator
+                    validator = SpawnPromptValidator()
+                    validation_result = validator.validate(generated_prompt)
+
+                    if not validation_result.passed:
+                        self.console.print(f"   ⚠️ RedTeam Check: FAILED (score: {validation_result.score:.2f})")
+                        for warning in validation_result.warnings[:3]:  # Show max 3 warnings
+                            self.console.print(f"      - {warning}")
+
+                        if self.orchestrator.config.redteam_spawn_block_on_fail:
+                            self.console.print("   ❌ Spawn BLOCKED (REDTEAM_SPAWN_BLOCK=True)")
+                            raise ValueError(f"RedTeam validation failed: {validation_result.risk_level.value}")
+                        else:
+                            self.console.print("   ⚠️ Proceeding despite warnings (REDTEAM_SPAWN_BLOCK=False)")
+                    else:
+                        self.console.print(f"   ✅ RedTeam Check: PASSED (score: {validation_result.score:.2f})")
+                except ImportError:
+                    self.console.print("   ⚠️ RedTeam validator not available")
+
             # Fallback to static template if brainstorm failed
             if not generated_prompt:
                 self.console.print("   ⚠️ Brainstorm failed, using static template")

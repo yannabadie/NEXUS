@@ -90,6 +90,11 @@ class Config:
         self.red_team_mandatory: bool = os.getenv("RED_TEAM_MANDATORY", "False").lower() == "true"
         self.red_team_min_score: float = float(os.getenv("RED_TEAM_MIN_SCORE", "0.60"))
 
+        # V8.2.0c: Red Team validation for spawned agents
+        # Validates generated prompts for dangerous patterns before saving
+        self.redteam_spawn_enabled: bool = os.getenv("REDTEAM_SPAWN_ENABLED", "True").lower() == "true"
+        self.redteam_spawn_block_on_fail: bool = os.getenv("REDTEAM_SPAWN_BLOCK", "False").lower() == "true"
+
         # ====================================================================
         # NOTIFICATION SYSTEM
         # ====================================================================
