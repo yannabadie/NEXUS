@@ -348,49 +348,58 @@ git push origin N7C
 
 ---
 
-## 🧠 FSM States (V7 Architecture)
+## 🧠 Orchestration Architecture (V8.3)
 
-**Core State Flow:**
+**V8.3 introduces two orchestration layers:**
+
+### 1. FSM States (Low-Level Orchestrator)
 ```
 IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
-         ↓
-    WAITING_USER (task finished)
-         ↓
-    ERROR → (reset) → IDLE
-         ↓
-    PANIC (fatal - restart required)
+         ↓                                      ↓
+    WAITING_USER ←─────────────────────── ERROR
+                                              ↓
+                                          PANIC
 ```
-
-**Hybrid Swarm States (Sprint 9):**
-```
-IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATING_CFL
-```
-
-**Evolution State:**
-```
-IDLE → EVOLUTION_BRAINSTORM (max 30 turns) → IDLE
-```
-
-**State Descriptions:**
 
 | State | Description |
 |-------|-------------|
 | `IDLE` | Awaiting user input |
-| `BRAINSTORMING` | Agents exchange TALK messages, align on strategy |
-| `EXECUTING_TOOL` | Nexus Core executes tool (synchronous) |
-| `VALIDATING_CFL` | Agent validates tool result (Cognitive Feedback Loop) |
-| `WAITING_USER` | Task finished, awaiting next input |
-| `ERROR` | Recoverable error (use `/reset` to return to IDLE) |
-| `PANIC` | Fatal error (session restart required) |
-| `SWARM_ANALYZING` | Swarm Engine analyzes task complexity & domains |
-| `SWARM_NEGOTIATING` | Agents negotiate collaboration mode (max 4 turns) |
-| `SWARM_EXECUTING` | Execute negotiated mode (PARALLEL, SEQUENTIAL, etc.) |
-| `EVOLUTION_BRAINSTORM` | Special mode for designing mutations |
+| `BRAINSTORMING` | Agents exchange TALK messages |
+| `EXECUTING_TOOL` | Tool execution (synchronous) |
+| `VALIDATING_CFL` | Cognitive Feedback Loop |
+| `ERROR` | Recoverable (use `/reset`) |
+| `PANIC` | Fatal (restart required) |
+
+### 2. HiveMind Pipeline (High-Level - V8.3)
+```
+Phase 1: ANALYSIS      → Independent analysis by both agents
+Phase 2: DEBATE        → Resolve disagreements (if needed)
+Phase 3: ARCHITECTURE  → Design execution plan
+Phase 4: EXECUTION     → Execute steps (+ SwarmBridge delegation)
+Phase 5: DIAGNOSIS     → Error analysis on failure
+Phase 6: CONSOLIDATION → Merge and summarize results
+Phase 7: COMPLETION    → Final state (HIVE_SUCCESS/HIVE_FAILED)
+```
+
+**24 HiveMind States** (vs 11 FSM states):
+- `HIVE_IDLE`, `ANALYSIS_PENDING`, `ANALYSIS_IN_PROGRESS`, etc.
+- SwarmBridge: Delegation to 6 Swarm modes at any phase (V8.3.0+)
+
+### SwarmBridge (V8.3.0+)
+HiveMind can delegate to Swarm Engine at any phase:
+```python
+# Phase 4 execution step with Swarm delegation:
+ExecutionStep(
+    name="Security Review",
+    agent_id="gemini",
+    swarm_mode="red_blue"  # Delegated to Swarm!
+)
+```
 
 **Important:**
-- Orchestrator is **persistent** (lives in RAM)
+- FSM orchestrator = low-level state machine
+- HiveMind = high-level 7-phase pipeline (for MODERATE+ tasks)
 - State saved to `workspace/.nexus/blackboard.json`
-- No infinite loops - user drives iteration
 
 ---
 
@@ -437,22 +446,36 @@ Agents build performance history used for intelligent routing:
 
 ## 📚 Key Documentation
 
-**V7 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
-**System Prompts**: `NEXUS_V7_CHRYSALIS/prompts/`
-**Design Docs**: `archives/brainstorming-history/`
-**Planning**: `archives/planning/`
+### Core Documents (V8.3)
 
-### Anti-Hallucination Reference (V8.0)
+| Document | Purpose |
+|----------|---------|
+| [MISSION.md](MISSION.md) | HIVE MIND vision & philosophy |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap (V8.x phases) |
+| [README.md](README.md) | Quick start & architecture overview |
+| [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm Engine documentation |
+
+### Module Documentation
+
+| Module | README | Key Features |
+|--------|--------|--------------|
+| `core/hive_mind/` | [HiveMind Pipeline](core/hive_mind/README.md) | 7 phases, SwarmBridge delegation |
+| `core/swarm/` | [Swarm Module](core/swarm/README.md) | 6 modes, Self-Healing, DyLAN |
+| `core/fsm/` | [FSM Module](core/fsm/README.md) | 11 states, TRANSITION_MATRIX |
+| `core/drivers/` | [Drivers Module](core/drivers/README.md) | Gemini JSON, Claude XML |
+| `core/synapse/` | [Synapse Module](core/synapse/README.md) | LightMessageV7/HeavyMessageV7 |
+| `core/memory/` | [Memory Module](core/memory/README.md) | RAG + SuccessMemory |
+
+### Anti-Hallucination Reference
 
 **CRITICAL**: Before making claims about NEXUS internals, consult these docs:
 
 | Document | Purpose |
 |----------|---------|
-| `CODEBASE_SNAPSHOT.md` | Full codebase reference, what exists/doesn't |
 | `docs/DATACLASS_FIELDS.md` | Exact field definitions for all dataclasses |
 | `docs/DRIVER_INTERNALS.md` | How LLM drivers actually work |
 | `docs/ASYNC_MAP.md` | Async vs sync function mapping |
-| `docs/ARCHITECTURE_DECISIONS.md` | 10 ADRs documenting design choices |
+| `docs/ARCHITECTURE_DECISIONS.md` | ADRs documenting design choices |
 | `ROADMAP.md` | Current roadmap with implementation status |
 
 **Common Hallucinations to Avoid**:

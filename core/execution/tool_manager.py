@@ -1772,16 +1772,10 @@ class ToolManager:
                     )
 
             # Execute delegation (async → sync wrapper)
-            import asyncio
+            # V8.3.2 TD-001: Use extracted async_utils.run_sync()
+            from core.utils.async_utils import run_sync
 
-            # Get or create event loop
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            result = loop.run_until_complete(
+            result = run_sync(
                 self.swarm_bridge.delegate(
                     task=task,
                     mode=mode,

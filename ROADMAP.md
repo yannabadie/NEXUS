@@ -1121,7 +1121,7 @@ result = await delegate(..., config={"_swarm_depth": current_depth + 1})
 
 ---
 
-### V8.3.2 - "Closing the Loop" (Audit Corrections) [Priority: P1] (IN PROGRESS)
+### V8.3.2 - "Closing the Loop" (Audit Corrections) [Priority: P1] ✅ COMPLETED
 
 **Objectif** : Finaliser SwarmBridge/SwarmTool avant d'ajouter de la complexité
 
@@ -1131,11 +1131,16 @@ result = await delegate(..., config={"_swarm_depth": current_depth + 1})
 
 | ID | Finding | Sévérité | Fichiers | Status |
 |----|---------|----------|----------|--------|
-| FG-001 | SuccessAdapter non appelé dans SwarmBridge | MEDIUM | `swarm_bridge.py` | PLANNED |
-| TD-001 | Pattern async→sync dupliqué | LOW | `tool_manager.py`, `repl.py` | PLANNED |
-| MT-001 | Tests checkpoint SwarmBridge | LOW | `test_swarm_bridge.py` | PLANNED |
-| C3 | Version 7.0.0 vs 8.3.x | LOW | `core/__init__.py` | PLANNED |
-| H3 | CLAUDE.md structure obsolète | LOW | `CLAUDE.md` | PLANNED |
+| FG-001 | SuccessAdapter non appelé dans SwarmBridge | MEDIUM | `swarm_bridge.py` | ✅ ALREADY IMPL |
+| TD-001 | Pattern async→sync dupliqué | LOW | `tool_manager.py` | ✅ REFACTORED |
+| MT-001 | Tests checkpoint SwarmBridge | LOW | `test_swarm_bridge.py` | ✅ ALREADY IMPL |
+| C3 | Version 7.0.0 vs 8.3.x | LOW | `core/__init__.py` | ✅ ALREADY CORRECT |
+| H3 | CLAUDE.md structure obsolète | LOW | `CLAUDE.md` | ✅ UPDATED |
+
+**Completion Notes** (2025-12-09):
+- FG-001, MT-001, C3: Already implemented from previous sessions
+- TD-001: Refactored `tool_manager.py:1774-1787` to use `async_utils.run_sync()`
+- H3: Updated FSM States → V8.3 Orchestration Architecture + Key Documentation paths
 
 **Ordre d'exécution** (Gemini recommendation):
 1. `core/__init__.py` → version 8.3.2 (cohérence immédiate)
@@ -1364,7 +1369,40 @@ def get_tenant() -> str:
 
 > **Status**: Vision long-terme, post-V8.2 stabilisation
 
-### V8.3.0 - Memory Weaver [Priority: P1]
+### V8.3.4 - Symmetric MCP Bridges [Priority: P1] (FROM ROADMAP_HIVE_MIND)
+
+**Objectif** : Permettre à chaque agent d'appeler l'autre via MCP (Agent-as-Tool)
+
+**Source** : ROADMAP_HIVE_MIND.md Phase 12.4
+
+> **Philosophie HIVE MIND**: Ni Gemini ni Claude n'est le "super-orchestrateur" permanent.
+> Le lead est décidé dynamiquement par: Task Analysis, Swarm Mode, DyLAN Scores, Consensus.
+
+**Architecture Symétrique**:
+```
+┌─────────────┐      MCP Protocol      ┌─────────────┐
+│   GEMINI    │◄──────────────────────►│   CLAUDE    │
+│             │                         │             │
+│ Peut appeler│                         │ Peut appeler│
+│ claude_mcp  │                         │ gemini_mcp  │
+└─────────────┘                         └─────────────┘
+```
+
+| Direction | Méthode | Raison |
+|-----------|---------|--------|
+| Claude → Gemini | MCP Server | Claude supporte `--mcp-config` natif |
+| Gemini → Claude | Tool Registry | Gemini utilise tools Python classiques |
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| `core/mcp/claude_bridge.py` - Claude exposé comme MCP Server | 4h | PLANNED |
+| `core/mcp/gemini_bridge.py` - Gemini exposé comme MCP Server | 4h | PLANNED |
+| Configuration symétrique dans tool_manager | 2h | PLANNED |
+| Tests bidirectionnels | 3h | PLANNED |
+
+---
+
+### V8.3.5 - Memory Weaver [Priority: P1]
 
 **Objectif** : Unifier RAG + SuccessMemory + AutoMemory derrière une façade unique
 
@@ -1583,6 +1621,11 @@ def sync_state(hive_state: HiveMindState) -> OrchestratorState:
 | PARALLEL Intelligent Merge | Claude Opus 4.5 | LLM synthesis vs concat (KI-004) |
 | Disaster Recovery Checkpoints | Claude Opus 4.5 | State checkpoints mid-execution |
 | Context Window Pro-Active Estimation | Claude Opus 4.5 | Estimer tokens avant opération |
+| **File Lock Manager** | Gemini V9.0 (2025-12-09) | **VALIDÉ** - Prevent race conditions PARALLEL mode |
+| **Skill Crystallization (3x)** | Gemini V9.0 (2025-12-09) | **VALIDÉ** - Transform 3x successes → permanent tool (Phase 21 Sedimentation enhancement) |
+| **Watchdog Daemon** | Gemini V9.0 (2025-12-09) | **VALIDÉ** - Background process for night maintenance (V9.1) |
+| AgentRegistry refactor | Gemini V9.0 (2025-12-09) | Merge spawned+builtin agents in single registry |
+| Context Slicing | Gemini V9.0 (2025-12-09) | RAG pre-slice pour longues tâches |
 
 ---
 
@@ -1600,6 +1643,400 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 - Closed-Loop Refinement
 - Auto-Specialization Engine
 - Unified Memory Layer
+
+### V9.0 "Living Repository" (Gemini Analysis 2025-12-09)
+
+> Source: Gemini audit + vision proposals, analysé et filtré par Claude
+
+**Concepts Validés (à implémenter post-V8.3)**:
+
+| Phase | Concept | Description | Prérequis |
+|-------|---------|-------------|-----------|
+| V8.4.1 | **File Lock Manager** | `asyncio.Lock()` per-file, prevent PARALLEL race conditions | V8.3.x stable |
+| Phase 21+ | **Skill Crystallization 3x** | Transform 3x successes → permanent tool (seuil ajusté) | SuccessMemory active |
+| V9.1 | **Watchdog Daemon** | Background process: nightly cleanup, memory optimization | V8.4 Docker |
+
+**Concepts Mappés sur Roadmap Existante**:
+
+| Concept Gemini | Mapping NEXUS | Notes |
+|----------------|---------------|-------|
+| Mission Control WebUI | Phase 22 "NEXUS CEREBRO" | Déjà planifié |
+| GraphRAG | Phase 20 "Synaptic Graph" | Déjà planifié |
+| Skill Crystallization | Phase 21 "Sedimentation" | Seuil ajusté 3x |
+
+**Concepts Non Retenus**:
+
+| Concept | Raison |
+|---------|--------|
+| AgentRegistry merge | Over-engineering, spawned vs builtin ont des lifecycles différents |
+| Context Slicing agressif | Déjà géré par RAG chunking |
+
+**Enterprise Gaps (Post-V8.3)**:
+
+| Gap | Impact | Phase Cible |
+|-----|--------|-------------|
+| Air-Gapped (OllamaDriver) | BLOQUANT Motherson | V8.2.2 |
+| Multi-Tenant (SessionContext) | Équipes multiples | V8.2.1 |
+| Encryption at Rest | Données sensibles | V8.2.1 |
+
+---
+
+### Vision Long-Terme: Phases 17-24 (FROM ROADMAP_HIVE_MIND)
+
+> Source: ROADMAP_HIVE_MIND.md + Analyse codebase Claude Opus 4.5 (2025-12-09)
+> Recherche web: aiosqlite, MCP SDK, GraphRAG Neo4j, E2B/Modal sandbox
+
+---
+
+#### PILIER 1: INFRASTRUCTURE (The Foundation)
+
+##### Phase 17: "Ironclad Memory" (SQLite Migration)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Migration AtomicJsonStore → SQLite WAL mode |
+| **Gain** | Fin race conditions, requêtes analytiques, resurrection protocol |
+| **Effort** | 2-3 semaines |
+| **Prérequis** | Aucun |
+
+**Fichiers Impactés** (analyse codebase):
+- `core/utils/atomic_store.py` (292 lignes) - AtomicJsonStoreManager singleton
+- `core/synapse/memory_v7.py:35` - blackboard.json
+- `core/memory/success_memory.py:56` - successes.json
+- `core/memory/project_memory.py:90` - project_knowledge.json
+
+**Blind Spots Identifiés**:
+1. ❌ Pas de transactions cross-fichiers (si crash entre 2 writes → état incohérent)
+2. ❌ Pas de schema versioning (migration JSON v6 → v7 impossible)
+3. ❌ RLock = process-local (pas de protection multi-process)
+4. ❌ Pas de cleanup AtomicJsonStoreManager sur workspace change
+
+**Implémentation Recommandée** ([aiosqlite](https://github.com/omnilib/aiosqlite)):
+```python
+# workspace/.nexus/nexus.db (single file)
+# PRAGMAs recommandés (source: charlesleifer.com)
+await conn.execute("PRAGMA journal_mode = WAL")
+await conn.execute("PRAGMA synchronous = NORMAL")
+await conn.execute("PRAGMA cache_size = 10000")
+await conn.execute("PRAGMA mmap_size = 268435456")
+
+# Schema versioning
+PRAGMA user_version = 1;
+```
+
+**Tables Proposées**:
+| Table | Source JSON | Index | Query Pattern |
+|-------|-------------|-------|---------------|
+| `blackboard` | blackboard.json | `(active_agent, timestamp)` | State lookup |
+| `successes` | successes.json | `task_hash, domain` | Similarity search |
+| `dylan_scores` | dylan_scores.json | `agent_id, domain` | Top-N ranking |
+| `project_chunks` | project_knowledge.json | `source_file` | RAG retrieval |
+
+**Protocole de Test**:
+- [ ] Test: Transaction rollback sur erreur
+- [ ] Test: Concurrent writes (10 threads)
+- [ ] Test: Migration JSON→SQLite préserve données
+- [ ] Test: WAL checkpoint automatique
+
+---
+
+##### Phase 18: "Native Neural Link" (API Drivers) - ATTENTION CLI-FIRST
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Réduire overhead subprocess, ajouter prompt caching |
+| **⚠️ Contrainte** | NEXUS utilise CLI (gemini/claude), PAS les APIs directes |
+| **Gain** | Latence réduite, prompt caching Anthropic (-90% coûts) |
+| **Effort** | 2 semaines |
+
+**Architecture Actuelle** (analyse codebase):
+- `gemini_driver_v7.py:289` - `subprocess.Popen()` avec JSON-RPC over files
+- `claude_driver_hybrid.py:124` - subprocess similaire, mode hybrid XML
+- `gemini_driver_v7.py:204` - File I/O: `_IO_BUFFER/gemini_context_{uuid}.md`
+
+**Options d'Optimisation (CLI-compatible)**:
+
+| Option | Description | Effort | Gain |
+|--------|-------------|--------|------|
+| **18a** | `asyncio.create_subprocess_exec()` | 4h | True async, pas de thread blocking |
+| **18b** | Session pooling (réutiliser `--resume`) | 2h | Skip init overhead |
+| **18c** | Prompt caching via Claude CLI `--cache-control` | 3h | -90% tokens répétés |
+| **18d** | Native SDK (FUTUR) | 2 sem | Full control, mais perd CLI features |
+
+**Recherche Web - Claude Prompt Caching** ([docs.claude.com](https://docs.claude.com/en/docs/build-with-claude/prompt-caching)):
+- Cache TTL: 5min (default) ou 1h
+- Pricing: Write 1.25x, Read 0.1x base price
+- Latency: >2x faster, costs up to 90% less
+- **Limite**: 4 cache breakpoints par prompt
+
+**Recherche Web - Gemini CLI Async** ([gemini-cli-sdk PyPI](https://pypi.org/project/gemini-cli-sdk/)):
+- SDK qui wrappe CLI en subprocess avec parsing Instructor
+- Issue connue: ACP mode prompt login en subprocess (github #12042)
+
+**Blind Spots**:
+1. ❌ `claude mcp serve` existe mais pas exploité (permet Claude as MCP Server)
+2. ❌ Pas de métriques latence subprocess vs native
+3. ❌ Prompt caching non implémenté (system prompt identique entre calls)
+
+**Protocole de Test**:
+- [ ] Benchmark: subprocess vs asyncio.create_subprocess_exec()
+- [ ] Test: Session reuse avec `--resume` réduit latence
+- [ ] Test: Prompt cache hit rate > 80% sur tâches similaires
+
+---
+
+##### Phase 19: "Containment Protocol" (Docker Sandbox)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Isoler exécution outils dynamiques |
+| **Gain** | Sécurité totale (agent peut `rm -rf /` sans risque hôte) |
+| **Effort** | 1-2 semaines |
+| **Prérequis** | Docker installé |
+
+**Fichiers Impactés** (analyse codebase):
+- `core/execution/tool_manager.py:109-128` - Tool dispatch (bash, dynamic_tool)
+- `core/execution/dynamic_tools.py:289-372` - `subprocess.run()` sans isolation
+- `core/security/execution_policy.py:200+` - AST validation (insuffisant)
+
+**Limites Actuelles**:
+| Protection | Actuel | Avec Docker |
+|------------|--------|-------------|
+| CPU | ❌ Aucune | ✅ `cpu_quota=50000` |
+| Mémoire | ❌ Aucune | ✅ `mem_limit=512m` |
+| Filesystem | ⚠️ PathGuardian | ✅ Volume mount RO/RW |
+| Réseau | ❌ Aucune | ✅ `network_disabled=True` |
+| Timeout | ✅ 30s | ✅ Container timeout |
+
+**Recherche Web - Sandbox Options** ([modal.com/blog](https://modal.com/blog/top-code-agent-sandbox-products)):
+| Solution | Isolation | Boot Time | BYOC |
+|----------|-----------|-----------|------|
+| [E2B](https://e2b.dev/) | Firecracker microVM | ~150ms | Experimental |
+| Modal | gVisor containers | Sub-second | Non |
+| Docker local | Container | ~500ms | Oui |
+| SkyPilot | VM | 2-5s | Oui |
+
+**Recommandation**: Docker local pour V19, E2B pour V19.1 (cloud)
+
+**Implémentation**:
+```python
+# core/execution/docker_sandbox.py
+class DockerSandbox:
+    def execute(self, cmd: str, timeout: int = 30) -> Result:
+        return self.client.containers.run(
+            "nexus-sandbox:alpine-python3.13",
+            cmd,
+            volumes={str(self.workspace): {"bind": "/work", "mode": "rw"}},
+            mem_limit="512m",
+            cpu_quota=50000,
+            network_disabled=True,
+            remove=True,
+            timeout=timeout
+        )
+```
+
+**Blind Spots**:
+1. ❌ Docker non disponible sur tous les environnements (fallback subprocess?)
+2. ❌ Volume mount leak (agent peut lire tout workspace)
+3. ❌ Pas de secrets isolation (env vars visibles)
+
+**Protocole de Test**:
+- [ ] Test: `rm -rf /` dans container = host intact
+- [ ] Test: Fork bomb dans container = container killed, host OK
+- [ ] Test: Network request dans container = blocked
+- [ ] Test: Fallback subprocess si Docker indisponible
+
+---
+
+#### PILIER 2: COGNITION & ÉVOLUTION (The Brain)
+
+##### Phase 20: "Synaptic Graph" (GraphRAG)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Knowledge Graph pour causalités code |
+| **Gain** | "Si agent modifie api.py → tester test_api.py" automatiquement |
+| **Effort** | 3-4 semaines |
+| **Prérequis** | Phase 17 (SQLite) |
+
+**Fichiers Impactés** (analyse codebase):
+- `core/memory/project_memory.py:200-400` - Chunking sans extraction entités
+- `core/memory/backends/dense.py` - Embedding search, pas de graph traversal
+- `core/memory/success_memory.py:20` - task_hash sans semantic graph
+
+**Limites RAG Actuel**:
+| Capability | Actuel | Avec GraphRAG |
+|------------|--------|---------------|
+| Similarity search | ✅ TF-IDF/BM25/Dense | ✅ + Graph traversal |
+| Entity extraction | ❌ | ✅ Functions, Classes, Variables |
+| Causal relationships | ❌ | ✅ "A calls B", "X extends Y" |
+| Error→Cause linking | ❌ | ✅ "Error E caused by module M" |
+
+**Recherche Web - GraphRAG** ([neo4j.com/labs](https://neo4j.com/labs/genai-ecosystem/llamaindex/)):
+- LlamaIndex + Neo4j = GraphRAG pipeline complet
+- Entity extraction via AST (Python) ou LLM (autres langages)
+- Performance: **+40-60% answer relevance** vs vector-only
+- Retrieval: Vector + Graph traversal hybride
+
+**Architecture Proposée**:
+```python
+# core/memory/entity_extractor.py
+@dataclass
+class Entity:
+    type: str  # "function", "class", "variable", "module"
+    name: str
+    source_file: str
+    line_range: Tuple[int, int]
+
+@dataclass
+class Relationship:
+    source: Entity
+    rel_type: str  # "calls", "extends", "modifies", "imports"
+    target: Entity
+    confidence: float
+
+# SQLite tables (Phase 17)
+# CREATE TABLE entities (id, type, name, file, line_start, line_end)
+# CREATE TABLE relationships (source_id, rel_type, target_id, confidence)
+```
+
+**Blind Spots**:
+1. ❌ AST extraction = Python only (JS, Go, Rust need different parsers)
+2. ❌ Graph peut devenir volumineux (10k+ nodes sur gros projets)
+3. ❌ Neo4j = dépendance lourde (SQLite + recursive CTE suffisant?)
+4. ❌ Pas de LLM extraction budget (entity extraction coûteuse)
+
+**Protocole de Test**:
+- [ ] Test: Extract entities from 100-file Python project
+- [ ] Test: Query "functions that call authenticate()" returns correct set
+- [ ] Test: Graph size < 100MB pour projet 50k LOC
+- [ ] Test: Retrieval accuracy +30% vs TF-IDF seul
+
+---
+
+##### Phase 21: "Sedimentation" (Skill Crystallization)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Outils dynamiques réussis 3x → permanents |
+| **Gain** | NEXUS construit sa propre toolbox optimisée |
+| **Effort** | 2 semaines |
+| **Prérequis** | Phase 17 (SQLite pour tracking usage) |
+
+**Seuil Ajusté**: 3x succès (pas 5x comme ROADMAP_HIVE_MIND original)
+- Source: Gemini V9.0 analysis recommande seuil plus bas pour adoption rapide
+
+---
+
+#### PILIER 3: OBSERVABILITÉ & INTERFACE (The Face)
+
+##### Phase 22: "NEXUS CEREBRO" (Web Dashboard)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Visualisation temps réel Swarm + Lineage |
+| **Gain** | Debug visuel, Time Travel, confiance utilisateur |
+| **Effort** | 4 semaines |
+| **Stack** | FastAPI + React Flow |
+
+---
+
+##### Phase 23: "Open Telemetry" (OTLP Standard)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Export traces OTLP (Jaeger/Grafana) |
+| **Gain** | Waterfall visualization, latency analysis |
+| **Effort** | 1 semaine |
+
+---
+
+#### PILIER 4: ÉCOSYSTÈME (The Network)
+
+##### Phase 24: "NEXUS as a Server" (MCP Server)
+
+| Aspect | Détails |
+|--------|---------|
+| **Objectif** | Exposer NEXUS comme MCP Server |
+| **Gain** | `@nexus "Refactorise ce module"` depuis Claude Desktop/VSCode |
+| **Effort** | 2 semaines |
+| **Prérequis** | Aucun (MCP client existe déjà) |
+
+**Fichiers Existants** (analyse codebase):
+- `core/mcp/client.py` (530 lignes) - Client MCP complet
+- `core/mcp/protocol.py` (350 lignes) - JSON-RPC 2.0, MCPTool dataclass
+- `core/mcp/registry.py` (100 lignes) - Config loading
+
+**Ce Qui Manque**:
+- ❌ `core/mcp/server.py` - N'existe pas
+- ❌ Tool schemas (inputSchema JSON) pour exposure
+- ❌ Auth/authz (qui peut appeler quoi?)
+
+**Recherche Web - MCP Server** ([modelcontextprotocol.io](https://modelcontextprotocol.io/quickstart/client)):
+- `claude mcp serve` expose déjà Claude Code comme MCP Server
+- SDK Python officiel: `pip install mcp` (v1.23.2, 20k+ stars)
+- Transport: stdio (sécurisé), SSE (HTTP), WebSocket
+
+**Tools à Exposer**:
+| Tool | Safety | Priority | inputSchema |
+|------|--------|----------|-------------|
+| `nexus_read` | Safe | HIGH | `{file_path: string}` |
+| `nexus_glob` | Safe | HIGH | `{pattern: string}` |
+| `nexus_grep` | Safe | HIGH | `{pattern: string, glob?: string}` |
+| `nexus_swarm` | Medium | HIGH | `{task: string, mode?: string}` |
+| `nexus_spawn` | Medium | MEDIUM | `{role: string}` |
+| `nexus_write` | Dangerous | LOW | Requires explicit permission |
+
+**Implémentation** ([MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)):
+```python
+# core/mcp/server.py
+from mcp.server import Server
+from mcp.types import Tool, TextContent
+
+server = Server("nexus-mcp")
+
+@server.list_tools()
+async def list_tools():
+    return [
+        Tool(name="nexus_read", description="Read file", inputSchema={...}),
+        Tool(name="nexus_swarm", description="Execute via Swarm", inputSchema={...}),
+    ]
+
+@server.call_tool()
+async def call_tool(name: str, arguments: dict):
+    result = tool_manager.execute(name.replace("nexus_", ""), arguments)
+    return [TextContent(type="text", text=result.output)]
+```
+
+**Blind Spots**:
+1. ❌ Pas d'auth MCP (n'importe quel client peut appeler)
+2. ❌ Tool explosion (16+ tools → complex discovery)
+3. ❌ Pas de rate limiting MCP server side
+
+**Protocole de Test**:
+- [ ] Test: Claude Desktop connecte à `nexus mcp serve`
+- [ ] Test: `nexus_read` retourne contenu fichier
+- [ ] Test: `nexus_swarm` exécute tâche PARALLEL
+- [ ] Test: Tools dangereux (write, bash) refusés par défaut
+
+---
+
+**Plan d'Attaque Révisé** (basé sur dépendances):
+```
+Phase 17 (SQLite) ──────────────────┬──→ Phase 20 (GraphRAG)
+                                    └──→ Phase 21 (Sedimentation)
+
+Phase 18 (CLI Optimizations) ──────────→ Standalone
+
+Phase 19 (Docker Sandbox) ─────────────→ Standalone
+
+Phase 24 (MCP Server) ─────────────────→ Quick Win (1-2 sem)
+```
+
+1. **Semaine 1-2**: Phase 24 (MCP Server) - Quick win, unlock IDE integration
+2. **Semaine 3-4**: Phase 17 (SQLite) - Foundation pour GraphRAG
+3. **Semaine 5-6**: Phase 19 (Docker) - Security hardening
+4. **Semaine 7-10**: Phase 20 (GraphRAG) - Cognitive leap
 
 ---
 
@@ -1622,12 +2059,12 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 | 13 | ~~SwarmBridge "Dictator Mode"~~ | V8.3.0 | ~~4h~~ | ✅ Done |
 | 14 | ~~SwarmTool "Swarm as Invocable Tool"~~ | V8.3.1 | ~~3h~~ | ✅ Done |
 | 15 | ~~Depth Guard Anti-Recursion~~ | V8.3.1-hotfix | ~~30min~~ | ✅ Done |
-| 16 | **V8.3.2 "Closing the Loop"** | V8.3.2 | 4h | **IN PROGRESS** |
-| 16a | └─ C3: Version sync | V8.3.2 | 10min | **NEXT** |
-| 16b | └─ TD-001: async_utils.py | V8.3.2 | 30min | PLANNED |
-| 16c | └─ FG-001: SuccessAdapter SwarmBridge | V8.3.2 | 1h | PLANNED |
-| 16d | └─ MT-001: Checkpoint tests | V8.3.2 | 1h | PLANNED |
-| 16e | └─ H3: CLAUDE.md update | V8.3.2 | 1h | PLANNED |
+| 16 | ~~V8.3.2 "Closing the Loop"~~ | V8.3.2 | ~~4h~~ | ✅ Done |
+| 16a | └─ ~~C3: Version sync~~ | V8.3.2 | ~~10min~~ | ✅ Already correct |
+| 16b | └─ ~~TD-001: async_utils.py~~ | V8.3.2 | ~~30min~~ | ✅ Refactored |
+| 16c | └─ ~~FG-001: SuccessAdapter SwarmBridge~~ | V8.3.2 | ~~1h~~ | ✅ Already impl |
+| 16d | └─ ~~MT-001: Checkpoint tests~~ | V8.3.2 | ~~1h~~ | ✅ Already impl |
+| 16e | └─ ~~H3: CLAUDE.md update~~ | V8.3.2 | ~~1h~~ | ✅ Updated |
 | 17 | Parallel Merge Strategy | V8.3.3 | 3h | PLANNED |
 | 18 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
 
@@ -1666,6 +2103,9 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.3.2d | **Deep Implementation Analysis**: Codebase exploration + web research. Added blind spots, file:line references, test protocols for Phases 17-24. Sources: aiosqlite, MCP SDK, GraphRAG Neo4j, E2B/Modal. Plan d'attaque révisé with dependencies |
+| 2025-12-09 | 8.3.2c | **ROADMAP Consolidation**: Merged ROADMAP_HIVE_MIND.md Phases 17-24 into Vision Long-Terme section. Added V8.3.4 Symmetric MCP Bridges. Ideas Backlog enriched with File Lock Manager, Skill Crystallization 3x, Watchdog Daemon |
+| 2025-12-09 | 8.3.2b | **Audit V9.0 Analysis**: Integrated Gemini "Living Repository" proposals - File Lock Manager (V8.4.1), Skill Crystallization 3x, Watchdog Daemon (V9.1). Enterprise gaps documented. Mermaid slash fix in doc_engine.py |
 | 2025-12-09 | 8.3.2 | "Closing the Loop" audit corrections (FG-001, TD-001, MT-001, C3, H3) - Source: Claude+Gemini cross-audit |
 | 2025-12-09 | 8.3.1-hotfix | Depth Guard anti-recursion + V8.3.3 merge_strategy planned (Gemini security analysis) |
 | 2025-12-09 | 8.3.1 | SwarmTool "Swarm as Invocable Tool" - agents can invoke Swarm at any phase |
