@@ -49,6 +49,9 @@ COMMAND_CATEGORIES = {
         "/learn [path]": "Index file/directory into project memory",
         "/forget [path]": "Remove file/directory from project memory",
         "/memory-status": "Show indexed files, chunks, and storage location",
+        "/rag init": "Initialize RAG on workspace/memory/ (session data)",
+        "/rag clear": "Clear all RAG indexed data",
+        "/rag query <text>": "Test RAG retrieval with a query",
     },
     "⚙️ System": {
         "/clear": "Clear terminal screen",

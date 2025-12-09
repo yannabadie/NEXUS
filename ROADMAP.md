@@ -598,7 +598,7 @@ class TaskAnalysis:
 
 ---
 
-### V8.1.8 - Dynamic Spawn Brainstorming [Priority: P1] (IN PROGRESS)
+### V8.1.8 - Dynamic Spawn Brainstorming [Priority: P1] ✅ COMPLETED (2025-12-09)
 
 **Objectif** : Agents spawnés avec vraie spécialisation via brainstorming dynamique
 
@@ -612,16 +612,18 @@ class TaskAnalysis:
 
 | Étape | Tâche | Fichiers | Status |
 |-------|-------|----------|--------|
-| 0 | Pre-flight: budget check + existence check | `repl.py` | PLANNED |
-| 1a | Add `mode` param to BrainstormPhase.run() | `brainstorm.py` | PLANNED |
-| 1b | Add `_extract_generated_prompt()` method | `brainstorm.py` | PLANNED |
-| 1c | Add `generated_prompt` field to BrainstormResult | `models.py` | PLANNED |
-| 2a | Generate UUID for each agent | `repl.py` | PLANNED |
-| 2b | Integrate BrainstormPhase in spawn_agent() | `repl.py` | PLANNED |
-| 2c | Auto-detect domains from role string | `repl.py` | PLANNED |
-| 2d | Post-generation tool validation | `repl.py` | PLANNED |
-| 3 | Add `uuid` field to SpawnedAgentConfig | `agent_loader.py` | PLANNED |
-| 4 | Create spawn_brainstorm.md prompt | `prompts/` | PLANNED |
+| 0 | Pre-flight: budget check + existence check | `repl.py` | ✅ Done |
+| 1a | Add `mode` param to BrainstormPhase.run() | `brainstorm.py` | ✅ Done |
+| 1b | Add `_extract_generated_prompt()` method | `brainstorm.py` | ✅ Done |
+| 1c | Add `generated_prompt` field to BrainstormResult | `models.py` | ✅ Done |
+| 2a | Generate UUID for each agent | `repl.py` | ✅ Done |
+| 2b | Integrate BrainstormPhase in spawn_agent() | `repl.py` | ✅ Done |
+| 2c | Auto-detect domains from role string | `repl.py` | ✅ Done |
+| 2d | Post-generation tool validation | `repl.py` | ✅ Done |
+| 3 | Add `uuid` field to SpawnedAgentConfig | `agent_loader.py` | ✅ Done |
+| 4 | Create spawn_brainstorm.md prompt | `prompts/` | ✅ Done |
+
+**Commit**: `c850e7b feat(V8.1.8): Dynamic Spawn Brainstorming`
 
 **Architecture finale**:
 ```python
@@ -671,6 +673,34 @@ def spawn_agent(self, role: str):
 - `prompts/spawn_brainstorm.md` - NEW
 
 **Source**: Gemini (2025-12-09) - Validé, enrichi et implémenté Claude
+
+---
+
+### V8.1.9 - RAG Commands [Priority: P2] ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Commandes RAG pour indexation ciblée de workspace/memory/
+
+**Commandes ajoutées**:
+
+| Commande | Description |
+|----------|-------------|
+| `/rag init` | Indexe workspace/memory/ (données de session) |
+| `/rag clear` | Efface toutes les données RAG indexées |
+| `/rag query <text>` | Test de retrieval RAG |
+
+**Implémentation**:
+
+| Tâche | Fichier | Status |
+|-------|---------|--------|
+| Ajouter commandes à COMMAND_CATEGORIES | `commands.py` | ✅ Done |
+| Handler /rag dans handle_command() | `repl.py` | ✅ Done |
+| Méthodes _rag_init, _rag_clear, _rag_query | `repl.py` | ✅ Done |
+
+**Fichiers modifiés**:
+- `core/interface/commands.py` - 3 nouvelles commandes RAG
+- `core/interface/repl.py` - handle_rag_command() + helpers
+
+**Source**: Claude (2025-12-09) - Demande utilisateur
 
 ---
 

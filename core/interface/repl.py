@@ -371,6 +371,9 @@ class InteractiveNexusV7:
         elif cmd == "/memory-status":
             self.show_memory_status()
 
+        elif cmd == "/rag":
+            self.handle_rag_command(args)
+
         elif cmd == "/help":
             self.console.print_help(get_help_message())
 
@@ -1384,6 +1387,97 @@ class InteractiveNexusV7:
 
         for line in lines:
             self.console.console.print(line)
+
+    def handle_rag_command(self, args: str):
+        """
+        Handle /rag commands - RAG initialization and queries.
+
+        V8.1.9: RAG commands for workspace/memory/ indexation.
+
+        Args:
+            args: Subcommand (init, clear, query <text>)
+        """
+        if not hasattr(self.orchestrator, 'project_memory'):
+            self.console.print_error("Project memory not initialized")
+            return
+
+        parts = args.split(maxsplit=1)
+        subcmd = parts[0].lower() if parts else ""
+        subargs = parts[1] if len(parts) > 1 else ""
+
+        if subcmd == "init":
+            self._rag_init()
+
+        elif subcmd == "clear":
+            self._rag_clear()
+
+        elif subcmd == "query":
+            if not subargs:
+                self.console.print_error("Usage: /rag query <your question>")
+            else:
+                self._rag_query(subargs)
+
+        else:
+            self.console.print_error("Usage: /rag <init|clear|query>")
+            self.console.print("  /rag init       - Index workspace/memory/")
+            self.console.print("  /rag clear      - Clear all indexed data")
+            self.console.print("  /rag query <q>  - Test retrieval")
+
+    def _rag_init(self):
+        """Initialize RAG on workspace/memory/ directory."""
+        memory_dir = self.workspace_path / "memory"
+
+        if not memory_dir.exists():
+            memory_dir.mkdir(parents=True, exist_ok=True)
+            self.console.print(f"[dim]Created {memory_dir}[/dim]")
+
+        self.console.print("\n[bold cyan]RAG Initialization[/bold cyan]")
+        self.console.print(f"   Target: {memory_dir}")
+
+        # Index workspace/memory/ with all file types
+        extensions = [".json", ".jsonl", ".md", ".txt", ".yaml", ".yml", ".log"]
+        try:
+            chunks = self.orchestrator.project_memory.index_directory(
+                memory_dir,
+                extensions=extensions,
+                recursive=True
+            )
+
+            stats = self.orchestrator.project_memory.get_stats()
+            backend_info = self.orchestrator.project_memory.get_backend_info()
+
+            self.console.print(f"   [green]OK[/green] Indexed {chunks} chunks")
+            self.console.print(f"   Files: {stats.total_files}")
+            self.console.print(f"   Backend: {backend_info.get('backend', 'unknown')}")
+            self.console.print("")
+
+        except Exception as e:
+            self.console.print_error(f"RAG init failed: {e}")
+
+    def _rag_clear(self):
+        """Clear all RAG indexed data."""
+        self.orchestrator.project_memory.clear()
+        self.console.print("[green]OK[/green] RAG memory cleared")
+
+    def _rag_query(self, query: str):
+        """Test RAG retrieval with a query."""
+        chunks = self.orchestrator.project_memory.retrieve(query, limit=5)
+
+        if not chunks:
+            self.console.print("[yellow]No results found[/yellow]")
+            self.console.print("[dim]Try /rag init first, or use different keywords[/dim]")
+            return
+
+        self.console.print(f"\n[bold]RAG Results for:[/bold] {query}")
+        self.console.print(f"[dim]Found {len(chunks)} chunks[/dim]\n")
+
+        for i, chunk in enumerate(chunks, 1):
+            self.console.print(f"[cyan]{i}. {chunk.file_path}[/cyan] (L{chunk.start_line}-{chunk.end_line})")
+            # Show first 150 chars of content
+            preview = chunk.content[:150].replace('\n', ' ')
+            if len(chunk.content) > 150:
+                preview += "..."
+            self.console.print(f"   {preview}\n")
 
     def run_tutorial(self):
         """Run interactive tutorial (/tutorial command)."""
