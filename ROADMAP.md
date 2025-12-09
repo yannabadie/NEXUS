@@ -598,6 +598,86 @@ class TaskAnalysis:
 
 ---
 
+### V8.1.8 - Dynamic Spawn Brainstorming [Priority: P1] (NEW - Gemini Analysis)
+
+**Objectif** : Agents spawnés avec vraie spécialisation via brainstorming dynamique
+
+**Problème découvert** (Gemini 2025-12-09, validé Claude):
+- System prompts actuels = 13 lignes squelettiques (tautologie)
+- `spawn_agent()` docstring PROMET EVOLUTION_BRAINSTORM mais utilise template hardcodé
+- Agents "experts" sans expertise réelle = coquilles vides
+- BIRTH_CERTIFICATE.json avec `domains: []` et `tools_priority: []` vides
+
+**Exemple actuel** (identique pour tous les agents):
+```markdown
+# Python_Expert - Specialized NEXUS Agent
+
+## Mission
+You are a specialized agent created for: **Python_Expert**
+
+## Core Capabilities
+Focus on tasks related to your specialization.  ← TAUTOLOGIE
+```
+
+**Philosophie correcte**:
+- ❌ PAS de templates statiques par domaine (Python, SQL, etc.)
+- ✅ Brainstorming DYNAMIQUE à chaque spawn
+- L'agent doit s'adapter au CONTEXTE, pas être pré-formaté
+- Le rôle demandé guide le brainstorming, mais le prompt final est émergent
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Corriger docstring mensongère spawn_agent() | 5min | PLANNED |
+| Intégrer `BrainstormPhase.run()` dans `/spawn` | 4h | PLANNED |
+| Adapter BrainstormPhase pour génération de prompts (vs mutations) | 3h | PLANNED |
+| Auto-détecter `domains` depuis role string | 2h | PLANNED |
+| Enrichir BIRTH_CERTIFICATE avec résultat brainstorm | 1h | PLANNED |
+| Tests spawn dynamique | 2h | PLANNED |
+
+**Architecture proposée**:
+```python
+# repl.py - spawn_agent() corrigé
+def spawn_agent(self, role: str):
+    # 1. Analyser le rôle demandé
+    role_analysis = self._analyze_spawn_role(role)  # domains, context hints
+
+    # 2. Brainstormer le system prompt (Gemini + Claude)
+    brainstorm_task = f"""
+    Design a specialized agent system prompt for: {role}
+    Context: {role_analysis}
+
+    The prompt should:
+    - Define clear expertise boundaries
+    - Include domain-specific directives
+    - Specify output formats preferred
+    - List security constraints
+    - Be 50-100 lines, actionable
+    """
+
+    # 3. EVOLUTION_BRAINSTORM génère le prompt
+    self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
+    result = self.orchestrator.process_turn(brainstorm_task)
+    generated_prompt = self._extract_prompt_from_brainstorm(result)
+
+    # 4. Créer agent avec prompt brainstormé
+    (agent_dir / "system_prompt.md").write_text(generated_prompt)
+```
+
+**Avantages**:
+- Chaque agent est UNIQUE, adapté à son contexte de création
+- Exploite le potentiel Gemini+Claude du Hive Mind
+- Pas de maintenance de templates statiques
+- L'agent "Python pour projet legacy" ≠ "Python pour microservices"
+
+**Fichiers concernés**:
+- `core/interface/repl.py` - Refactorer spawn_agent()
+- `core/evolution/phases/brainstorm.py` - Adapter pour prompt generation
+- `prompts/spawn_brainstorm.md` - NEW: Prompt pour guider le brainstorming
+
+**Source**: Gemini (2025-12-09) - Validé et enrichi Claude
+
+---
+
 ## Roadmap V8.2 (Hardening)
 
 ### V8.2.0 - Multi-Tenant Basics [Priority: P2]
@@ -749,6 +829,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.1.8 | NEW: Dynamic Spawn Brainstorming (Gemini analysis - spawned agents = coquilles vides) |
 | 2025-12-09 | 8.1.6 | ✅ Thread-Safe Parallel Execution: unique filenames, session_uuid propagation, AsyncDriverAdapter |
 | 2025-12-08 | 8.0.1h | Corrections Gemini v4: session_uuid (pas task_type), .gemini_analysis (pas .payload), HIVE_SUCCESS (pas HIVE_COMPLETE) |
 | 2025-12-08 | 8.0.1g | V8.1.6 Async Drivers (OP-005), V8.1.7 TaskAnalysis.reasoning, corrections Gemini v3 |
