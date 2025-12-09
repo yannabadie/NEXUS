@@ -656,3 +656,4 @@ Before ending any session, verify:
 - N'oublies pas que NEXUS est composé de Gemini + Claude.
 - Tu as a disposition un compte Google AI Ultra et un compte Claude Max Plan. Afin de réduire les coûts n'utilise pas les API par défaut.
 - L'UX doit être la plus simple possible, malgré la complexité de NEXUS. Le schéma idéal est: L'utilisateur déploie NEXUS dans son dossier projet, le lance. NEXUS délibère, planifie la ou les architectures agentiques a utiliser puis résoud de manière autonome le problème de l'utilisateur. De plus il s'auto-controle, il est capable de se rappeler comment il a obtenu les meilleurs résultas avec quelles méthodes par exemple.
+- rappel le dossier prompt est dédié aux prompts utilisé par le systeme NEXUS pas pour les prompts pour le developpement courrant
