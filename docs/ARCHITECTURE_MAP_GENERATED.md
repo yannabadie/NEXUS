@@ -1,7 +1,7 @@
-# NEXUS V8.3.1 Architecture Map
+# NEXUS VUnknown Architecture Map
 
-**Auto-Generated**: 2025-12-09 18:28
-**Git Commit**: 2cf46e9
+**Auto-Generated**: 2025-12-09 18:37
+**Git Commit**: ca633a6
 **Generator**: `scripts/generate_architecture_map.py`
 
 ---
@@ -22,7 +22,7 @@ graph TD
 
     subgraph Core["🎯 Orchestration Core"]
         ORCH[OrchestratorV7<br/>11 FSM states]
-        SWARM[Swarm Engine<br/>8 modes]
+        SWARM[Swarm Engine<br/>4 modes]
         HIVE[Hive Mind<br/>7 phases]
     end
 
@@ -62,7 +62,7 @@ graph TD
 | execution | 4 | 2,815 | 9 | 58 |
 | fsm | 6 | 1,044 | 6 | 46 |
 | governance | 6 | 1,276 | 7 | 19 |
-| hive_mind | 19 | 8,439 | 64 | 197 |
+| hive_mind | 19 | 8,601 | 66 | 202 |
 | interface | 4 | 3,286 | 3 | 65 |
 | logging | 2 | 482 | 3 | 31 |
 | mcp | 4 | 1,446 | 21 | 56 |
@@ -78,7 +78,7 @@ graph TD
 | synapse | 3 | 507 | 6 | 23 |
 | telemetry | 4 | 1,269 | 12 | 42 |
 | ui | 2 | 225 | 1 | 11 |
-| utils | 5 | 806 | 3 | 30 |
+| utils | 6 | 894 | 3 | 33 |
 | workspace | 4 | 628 | 7 | 26 |
 
 ## 2. ZOOM: Orchestration Core
@@ -112,10 +112,10 @@ stateDiagram-v2
 
 ### FSM States Discovered
 
-**OrchestratorState** (`core\fsm\states.py`):
+**OrchestratorState** (`core/fsm/states.py`):
 `IDLE`, `BRAINSTORMING`, `EXECUTING_TOOL`, `VALIDATING_CFL`, `EVOLUTION_BRAINSTORM`, `WAITING_USER`, `ERROR`, `PANIC`, `SWARM_ANALYZING`, `SWARM_NEGOTIATING` ... (+1 more)
 
-**HiveMindState** (`core\hive_mind\types.py`):
+**HiveMindState** (`core/hive_mind/types.py`):
 `HIVE_GATING`, `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE`, `HIVE_COMPARING_ANALYSES`, `HIVE_DEBATING`, `HIVE_CHECKING_CONSENSUS`, `HIVE_BREAKPOINT_DEBATE`, `HIVE_ARCHITECTING`, `HIVE_CHECKING_REGISTRY`, `HIVE_BREAKPOINT_SPAWN` ... (+14 more)
 
 
@@ -148,9 +148,9 @@ graph TD
 
 | Class | File |
 |-------|------|
-| `AsyncDriverAdapter` | `core\drivers\async_adapter.py` |
-| `ClaudeDriverHybrid` | `core\drivers\claude_driver_hybrid.py` |
-| `GeminiDriverV7` | `core\drivers\gemini_driver_v7.py` |
+| `ClaudeDriverHybrid` | `core/drivers/claude_driver_hybrid.py` |
+| `AsyncDriverAdapter` | `core/drivers/async_adapter.py` |
+| `GeminiDriverV7` | `core/drivers/gemini_driver_v7.py` |
 
 
 ## 4. ZOOM: Swarm Engine
@@ -171,7 +171,7 @@ graph TD
         MEMORY --> PROPOSE
     end
 
-    subgraph Modes["Collaboration Modes (8)"]
+    subgraph Modes["Collaboration Modes (4)"]
         EXEC[Execute] --> M1[PARALLEL]
         EXEC --> M2[SEQUENTIAL]
         EXEC --> M3[LEAD_SUPPORT]
@@ -195,14 +195,10 @@ graph TD
 
 | Mode | Source |
 |------|--------|
-| `PARALLEL` | `core\swarm\collaboration_modes.py` |
-| `SEQUENTIAL` | `core\swarm\collaboration_modes.py` |
-| `LEAD_SUPPORT` | `core\swarm\collaboration_modes.py` |
-| `PING_PONG` | `core\swarm\collaboration_modes.py` |
-| `SPECIALIST` | `core\swarm\collaboration_modes.py` |
-| `RED_BLUE` | `core\swarm\collaboration_modes.py` |
-| `normalized` | `core\swarm\collaboration_modes.py` |
-| `fallback_map` | `core\swarm\collaboration_modes.py` |
+| `FRESH` | `core/swarm/session_manager.py` |
+| `CONTINUE` | `core/swarm/session_manager.py` |
+| `BRANCH` | `core/swarm/session_manager.py` |
+| `EPHEMERAL` | `core/swarm/session_manager.py` |
 
 
 ## 5. ZOOM: Hive Mind Pipeline
@@ -259,13 +255,13 @@ graph TD
 
 | Phase | File |
 |-------|------|
-| Analysis | `core\hive_mind\phases\phase_analysis.py` |
-| Architecture | `core\hive_mind\phases\phase_architecture.py` |
-| Consolidation | `core\hive_mind\phases\phase_consolidation.py` |
-| Debate | `core\hive_mind\phases\phase_debate.py` |
-| Diagnosis | `core\hive_mind\phases\phase_diagnosis.py` |
-| Execution | `core\hive_mind\phases\phase_execution.py` |
-| Retry | `core\hive_mind\phases\phase_retry.py` |
+| Analysis | `core/hive_mind/phases/phase_analysis.py` |
+| Architecture | `core/hive_mind/phases/phase_architecture.py` |
+| Consolidation | `core/hive_mind/phases/phase_consolidation.py` |
+| Debate | `core/hive_mind/phases/phase_debate.py` |
+| Diagnosis | `core/hive_mind/phases/phase_diagnosis.py` |
+| Execution | `core/hive_mind/phases/phase_execution.py` |
+| Retry | `core/hive_mind/phases/phase_retry.py` |
 
 
 ## 6. ZOOM: Evolution & Spawning
@@ -293,18 +289,18 @@ graph TD
 
 | File | Size |
 |------|------|
-| `evaluator.py` | 542 LOC |
 | `lineage.py` | 443 LOC |
-| `manager.py` | 556 LOC |
-| `models.py` | 149 LOC |
-| `mutation_parser.py` | 463 LOC |
 | `rate_limiter.py` | 149 LOC |
-| `tiered_validator.py` | 562 LOC |
 | `validator.py` | 732 LOC |
+| `tiered_validator.py` | 562 LOC |
+| `mutation_parser.py` | 463 LOC |
+| `manager.py` | 556 LOC |
 | `__init__.py` | 90 LOC |
+| `models.py` | 149 LOC |
+| `evaluator.py` | 542 LOC |
+| `promote.py` | 366 LOC |
 | `brainstorm.py` | 456 LOC |
 | `create.py` | 326 LOC |
-| `promote.py` | 366 LOC |
 | `__init__.py` | 27 LOC |
 
 
@@ -399,44 +395,70 @@ graph TD
 - `/quickstart`
 
 
-### Dataclasses by Component (115 total)
+### Dataclasses by Component (117 total)
 
-**_root**: `InferenceConfig`, `SpawnedAgentConfig`, `ProjectAnalysis`, `MutationProposal`, `ChildCreationResult` (+110 more)
+**bootstrap**: `InferenceConfig`, `SpawnedAgentConfig`, `ProjectAnalysis`
+
+**evolution**: `ValidationResult`, `FullValidationResult`, `SafetyGate`, `AutoPromotionDecision`, `TierResult` (+13 more)
+
+**execution**: `AgentToolDefinition`, `AgentToolResult`, `ToolCreationResult`, `ToolExecutionResult`, `ToolMetadata`
+
+**fsm**: `TaskExecutionContext`
+
+**governance**: `QuestionResult`, `ValidationResult`, `TrapQuestion`
+
+**hive_mind**: `DebateParams`, `AgentDebateMetrics`, `HiveMindResult`, `PseudoExecutionResult`, `HiveMindAnalysisAdapter` (+36 more)
+
+**interface**: `TutorialStep`
+
+**mcp**: `MCPClientState`, `MCPServerConfig`, `MCPRequest`, `MCPError`, `MCPResponse` (+7 more)
+
+**memory**: `SuccessEntry`, `MemoryEntry`, `Chunk`, `IndexStats`
+
+**routing**: `RoutingDecision`
+
+**security**: `CommandAnalysis`, `CodeValidationResult`
+
+**swarm**: `AgentSession`, `TaskSession`, `AgentInvocationResult`, `AgentProfile`, `AgentPool` (+13 more)
+
+**telemetry**: `APICallMetric`, `SwarmTaskMetric`, `SessionMetric`, `BudgetState`, `CostRecord` (+1 more)
+
+**workspace**: `WorkspaceMetrics`, `WorkspaceInfo`
 
 
 ### Enums Discovered (29 total)
 
-`EvolutionPhaseStatus`, `ValidationTier`, `OrchestratorState`, `RiskLevel`, `TaskComplexity`, `ContextPriority`, `CostCategory`, `FailureCategory`, `HivePhase`, `HiveMindState`, `UserBreakpoint`, `RetentionDecision`, `IssueSeverity`, `FailureType`, `LogLevel`, `EventType`, `MCPContentType`, `TaskType`, `CommandType`, `AgentProvider`, `CollaborationMode`, `SwarmPhase`, `ExecutionStatus`, `NegotiationStatus`, `SessionStatus`, `SessionMode`, `TaskComplexity`, `TaskDomain`, `MetricType`
+`ValidationTier`, `EvolutionPhaseStatus`, `OrchestratorState`, `RiskLevel`, `TaskComplexity`, `HiveMindState`, `UserBreakpoint`, `RetentionDecision`, `IssueSeverity`, `FailureType`, `CostCategory`, `HivePhase`, `ContextPriority`, `FailureCategory`, `LogLevel`, `EventType`, `MCPContentType`, `TaskType`, `CommandType`, `SessionStatus`, `SessionMode`, `AgentProvider`, `NegotiationStatus`, `TaskComplexity`, `TaskDomain`, `CollaborationMode`, `ExecutionStatus`, `SwarmPhase`, `MetricType`
 
 ## 9. STATISTICS
 
 | Metric | Value |
 |--------|-------|
 | **Total Components** | 25 |
-| **Total Python Files** | 130 |
-| **Total Lines of Code** | 45,326 |
-| **Total Classes** | 254 |
-| **Total Dataclasses** | 115 |
+| **Total Python Files** | 131 |
+| **Total Lines of Code** | 45,576 |
+| **Total Classes** | 256 |
+| **Total Dataclasses** | 117 |
 | **Total Enums** | 29 |
 
 ### Lines of Code by Component
 
 ```
-hive_mind     | ██████████████████████████████ 8,439
-swarm         | █████████████████████ 5,978
-evolution     | █████████████████ 4,861
+hive_mind     | ██████████████████████████████ 8,601
+swarm         | ████████████████████ 5,978
+evolution     | ████████████████ 4,861
 interface     | ███████████ 3,286
-memory        | ██████████ 2,833
-execution     | ██████████ 2,815
+memory        | █████████ 2,833
+execution     | █████████ 2,815
 orchestration | ████████ 2,401
 security      | █████ 1,613
 mcp           | █████ 1,446
-bootstrap     | █████ 1,422
+bootstrap     | ████ 1,422
 drivers       | ████ 1,294
 governance    | ████ 1,276
 telemetry     | ████ 1,269
 fsm           | ███ 1,044
-utils         | ██ 806
+utils         | ███ 894
 ```
 
 ---
