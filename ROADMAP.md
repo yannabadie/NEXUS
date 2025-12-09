@@ -706,7 +706,30 @@ def spawn_agent(self, role: str):
 
 ## Roadmap V8.2 (Hardening)
 
-### V8.2.0 - Multi-Tenant Basics [Priority: P2]
+### V8.2.0-pre - Multi-Domain Fixes ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Corrections critiques identifiées par analyse Gemini + validation Claude
+
+**Corrections implémentées**:
+
+| # | Issue | Impact | Fichiers |
+|---|-------|--------|----------|
+| 1 | RAG tools manquants dans spawn_brainstorm.md | Agents amnésiques | `prompts/spawn_brainstorm.md` |
+| 2 | SuccessMemory non appelé dans HiveMind | Pas d'apprentissage | `core/hive_mind/orchestrator.py`, `success_adapter.py` |
+| 3 | UUID non propagé à AgentProfile | Tracking impossible | `core/swarm/agent_metrics.py`, `agent_loader.py` |
+
+**Fichiers modifiés**:
+- `prompts/spawn_brainstorm.md` - Ajout commandes mémoire RAG
+- `core/hive_mind/success_adapter.py` - NEW: Adapters HiveMind -> SuccessMemory
+- `core/hive_mind/orchestrator.py` - Intégration record_success()
+- `core/swarm/agent_metrics.py` - Champ uuid dans AgentProfile
+- `core/bootstrap/agent_loader.py` - Propagation uuid
+
+**Source**: Gemini Deep Think (2025-12-09) + validation/implémentation Claude
+
+---
+
+### V8.2.1 - Multi-Tenant Basics [Priority: P2]
 
 **Objectif** : Isolation par tenant pour usage équipe/entreprise
 

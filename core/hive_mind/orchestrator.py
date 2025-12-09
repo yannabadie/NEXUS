@@ -89,6 +89,7 @@ class TrueHiveMind:
         agent_pool: "AgentPool" = None,
         budget_tracker: "BudgetTracker" = None,
         project_memory: "ProjectMemory" = None,
+        success_memory: "SuccessMemory" = None,  # V8.2.0
         on_state_change: callable = None,
         auto_breakpoints: bool = True
     ):
@@ -103,6 +104,7 @@ class TrueHiveMind:
             agent_pool: Existing V7 AgentPool (for DyLAN metrics)
             budget_tracker: Existing V7 BudgetTracker (for USD limits)
             project_memory: Existing V7 ProjectMemory (for RAG)
+            success_memory: V8.2.0 SuccessMemory (for learning from successes)
             on_state_change: Callback for state changes
             auto_breakpoints: Enable user breakpoints
         """
@@ -113,6 +115,7 @@ class TrueHiveMind:
         self.agent_pool = agent_pool
         self.budget_tracker = budget_tracker
         self.project_memory = project_memory
+        self.success_memory = success_memory  # V8.2.0
         self.on_state_change = on_state_change
         self.auto_breakpoints = auto_breakpoints
 
@@ -435,6 +438,29 @@ class TrueHiveMind:
             # SUCCESS
             # =========================================================
             self._set_state(HiveMindState.HIVE_SUCCESS)
+
+            # V8.2.0: Record success to SuccessMemory for learning
+            if self.success_memory and execution_success:
+                try:
+                    from .success_adapter import create_hive_mind_adapters
+
+                    analysis_adapter, result_adapter = create_hive_mind_adapters(
+                        task=task,
+                        duration=time.time() - start_time,
+                        success=execution_success,
+                        phases_completed=len(phases_completed),
+                        agents_used=arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"]
+                    )
+
+                    self.success_memory.record_success(
+                        task_id=f"hive_{int(start_time)}",
+                        analysis=analysis_adapter,
+                        result=result_adapter,
+                        quality_score=0.8 if execution_success else 0.3
+                    )
+                    logger.debug("Recorded HiveMind success to memory")
+                except Exception as mem_err:
+                    logger.warning(f"Failed to record HiveMind success: {mem_err}")
 
             return HiveMindResult(
                 success=execution_success,

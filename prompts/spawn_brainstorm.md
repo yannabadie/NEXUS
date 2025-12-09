@@ -20,7 +20,8 @@ En mode `EVOLUTION_BRAINSTORM`, vous avez TOUS LES DEUX accès à:
 **Anti-hallucination:**
 1. N'inventez PAS d'outils qui n'existent pas
 2. Outils VALIDES: read, write, edit, list_dir, bash, git, web_search, web_fetch, glob, grep, todo_write
-3. NE PAS référencer: execute_code, run_python, browser, etc. (n'existent pas)
+3. Commandes MÉMOIRE: /learn, /forget, /rag query, /memory-status (accès RAG projet)
+4. NE PAS référencer: execute_code, run_python, browser, etc. (n'existent pas)
 
 ---
 
@@ -63,6 +64,12 @@ Le prompt généré DOIT suivre cette structure:
 
 ## Tool Preferences
 [Quels outils NEXUS l'agent privilégie et pourquoi]
+
+### Capacités Mémoire RAG (V8.2.0)
+- **Accès automatique**: Context injection pour tâches MODERATE+
+- **Requêtes manuelles**: `/rag query "terme"` pour retrieval ciblé
+- **Apprentissage**: `/learn path/to/file` pour indexer de nouvelles sources
+- **Statut**: `/memory-status` pour voir les chunks indexés
 
 ## Collaboration Protocol
 [Comment interagir avec le Swarm et autres agents]

@@ -126,7 +126,8 @@ class SpawnedAgentLoader:
             provider=self.PROVIDER_SPAWNED,
             model=f"spawned_{config.agent_id}",
             capabilities=config.domains if config.domains else ["general"],
-            is_active=True
+            is_active=True,
+            uuid=config.uuid  # V8.2.0: Propagate UUID from BIRTH_CERTIFICATE
         )
 
         return profile
