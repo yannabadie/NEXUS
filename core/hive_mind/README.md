@@ -1,32 +1,42 @@
 # Module : core/hive_mind
 
-## Role dans l'Architecture NEXUS V8.0
+## Rôle dans l'Architecture NEXUS V8.3.x
 
-**TRUE HIVE MIND** - Orchestrateur de collaboration intelligente pour taches complexes.
+**TRUE HIVE MIND** - Orchestrateur de collaboration intelligente pour tâches complexes.
 
-Ce module transforme NEXUS d'un orchestrateur sequentiel en une **intelligence collaborative** ou Gemini et Claude travaillent ensemble a travers un pipeline structure de 7 phases. Il gere les taches de complexite MODERATE, COMPLEX et EXPERT.
+Ce module transforme NEXUS d'un orchestrateur séquentiel en une **intelligence collaborative** où Gemini et Claude travaillent ensemble à travers un pipeline structuré de 7 phases. Il gère les tâches de complexité MODERATE, COMPLEX et EXPERT.
 
 ```
 V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 ```
 
-## Composants Cles
+### Nouveautés V8.3.x
+
+| Version | Feature | Description |
+|---------|---------|-------------|
+| **V8.3.0** | SwarmBridge | HiveMind peut déléguer au Swarm (Dictator Mode) |
+| **V8.3.1** | SwarmTool | Agents peuvent invoquer `swarm_delegate` à n'importe quelle phase |
+| **V8.3.1-hotfix** | Depth Guard | Anti-recursion (MAX_SWARM_DEPTH=2) |
+
+## Composants Clés
 
 ### Orchestration
-| Fichier | Role |
+| Fichier | Rôle |
 |---------|------|
 | `orchestrator.py` | **TrueHiveMind** - Coordinateur principal du pipeline 7 phases |
 | `types.py` | Dataclasses et enums (HiveMindState, IndependentAnalysis, DebateArgument, etc.) |
+| `swarm_bridge.py` | **SwarmBridge** (V8.3.0) - Pont HiveMind → Swarm pour délégation |
 
 ### Infrastructure
-| Fichier | Role |
+| Fichier | Rôle |
 |---------|------|
-| `agent_registry.py` | **AgentRegistry** - Anti-duplication avec recherche par similarite Jaccard |
-| `cost_estimator.py` | **CostEstimator** - Controle budget tokens + integration BudgetTracker (USD) |
-| `context_manager.py` | **HiveMindContextManager** - Fenetre glissante pour eviter explosion tokens |
+| `agent_registry.py` | **AgentRegistry** - Anti-duplication avec recherche par similarité Jaccard |
+| `cost_estimator.py` | **CostEstimator** - Contrôle budget tokens + intégration BudgetTracker (USD) |
+| `context_manager.py` | **HiveMindContextManager** - Fenêtre glissante pour éviter explosion tokens |
 | `strategy_blacklist.py` | **StrategyBlacklist** - Anti-retry circulaire avec suggestions alternatives |
 | `user_interaction.py` | **UserInteractionHandler** - Breakpoints utilisateur avec UI Rich |
-| `adaptive_debate.py` | **AdaptiveDebateConfig** - Parametres debat adaptatifs (3-10 tours) |
+| `adaptive_debate.py` | **AdaptiveDebateConfig** - Paramètres débat adaptatifs (3-10 tours) |
+| `success_adapter.py` | **SuccessAdapter** (V8.2.0) - Feedback loop vers SuccessMemory |
 
 ### Phases
 | Sous-module | Description |
@@ -235,4 +245,116 @@ print(f"Phases completed: {result.phases_completed}")
 ### Limites Connues
 - Breakpoints synchrones (bloquent le pipeline)
 - Pas de parallelisation intra-phase
-- Context limit de 50k tokens par defaut
+- Context limit de 50k tokens par défaut
+
+---
+
+## V8.3 SwarmBridge - Dictator Mode
+
+### Concept
+
+SwarmBridge permet au HiveMind de **déléguer des sous-tâches au Swarm Engine** tout en gardant le contrôle stratégique:
+
+```
+HiveMind (Stratège) → SwarmBridge → Swarm Engine (Tacticien)
+```
+
+### Guardrails: Modes Autorisés par Phase
+
+| Phase | Modes Autorisés |
+|-------|-----------------|
+| ANALYSIS | SPECIALIST |
+| DEBATE | PING_PONG, RED_BLUE |
+| ARCHITECTURE | LEAD_SUPPORT |
+| EXECUTION | PARALLEL, SEQUENTIAL, SPECIALIST |
+| DIAGNOSIS | RED_BLUE |
+| CONSOLIDATION | SPECIALIST |
+
+### Exemple d'Utilisation
+
+```python
+from core.hive_mind.swarm_bridge import SwarmBridge, HivePhase
+from core.swarm.collaboration_modes import CollaborationMode
+
+bridge = SwarmBridge(swarm_engine, context_manager)
+
+result = await bridge.delegate(
+    task="Run security review",
+    mode=CollaborationMode.RED_BLUE,
+    phase=HivePhase.DIAGNOSIS
+)
+
+if result.success:
+    bridge.inject_results_into_context(result)
+```
+
+### Self-Healing (V8.3.1)
+
+SwarmBridge supporte les checkpoints pour restauration sur fallback:
+
+```
+Mode A (échec) → Checkpoint restauré → Mode B (fallback) → Success
+```
+
+---
+
+## V8.3.1 SwarmTool - Swarm comme Outil
+
+### swarm_delegate Tool
+
+Les agents peuvent invoquer le Swarm via l'outil `swarm_delegate`:
+
+```xml
+<tool_use name="swarm_delegate">
+{
+  "task": "Débattre de l'approche d'auth",
+  "mode": "red_blue",
+  "phase": "debate"
+}
+</tool_use>
+```
+
+### Depth Guard (Anti-Recursion)
+
+```
+MAX_SWARM_DEPTH = 2
+```
+
+Prévient la "Inception Trap": Swarm → swarm_delegate → Swarm → ... (infini)
+
+### Diagramme SwarmTool
+
+```mermaid
+graph TB
+    subgraph "HiveMind Phase"
+        A[Agent Claude/Gemini]
+    end
+
+    subgraph "Tool Execution"
+        TM[ToolManager]
+        SD[swarm_delegate]
+    end
+
+    subgraph "SwarmBridge"
+        SB[SwarmBridge.delegate]
+        VAL[validate_mode_for_phase]
+        FB[execute_with_fallback]
+    end
+
+    subgraph "Swarm Engine"
+        HSE[HybridSwarmEngine]
+    end
+
+    A -->|"invoke tool"| TM
+    TM -->|"swarm_delegate"| SD
+    SD -->|"check depth"| SD
+    SD -->|"delegate"| SB
+    SB -->|"validate"| VAL
+    SB -->|"execute"| FB
+    FB -->|"call"| HSE
+    HSE -->|"result"| FB
+    FB -->|"inject"| SB
+    SB -->|"ToolResult"| SD
+    SD -->|"return"| TM
+    TM -->|"response"| A
+```

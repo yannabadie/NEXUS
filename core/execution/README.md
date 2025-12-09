@@ -1,17 +1,17 @@
 # Module: Execution - Tool Dispatch Layer
 
-**Version**: 7.8 HIVE MIND
-**Last Updated**: 2025-12-08
+**Version**: 8.3.x TRUE HIVE MIND
+**Last Updated**: 2025-12-09
 
 ---
 
-## Rôle dans l'Architecture NEXUS V7.8
+## Rôle dans l'Architecture NEXUS V8.3.x
 
 Couche d'exécution centralisée des outils NEXUS avec enforcement des politiques de sécurité.
 
 **Principe**: Tous les outils passent par `ToolManager` qui vérifie les permissions avant exécution.
 
-**Nouveauté V7.8**: Phase 15 "Vision Fractale" - Agents invocables comme outils.
+**Nouveauté V8.3.1**: SwarmTool - Swarm comme outil invocable via `swarm_delegate`.
 
 ---
 
@@ -23,7 +23,8 @@ Couche d'exécution centralisée des outils NEXUS avec enforcement des politique
 | **Phase 7: Session Isolation** | Outils exécutés dans contexte isolé | ✅ |
 | **Phase 9: Fast Path** | Bypass ToolManager pour outils read-only | ✅ |
 | **Phase 12.5: Dynamic Tools** | Agents peuvent créer leurs propres outils | ✅ |
-| **Phase 15: Agent-as-Tool** | **[NOUVEAU]** Agents spawnés invocables comme outils | ✅ |
+| **Phase 15: Agent-as-Tool** | Agents spawnés invocables comme outils | ✅ |
+| **V8.3.1: SwarmTool** | **[NOUVEAU]** `swarm_delegate` pour invocation Swarm | ✅ |
 
 ---
 
@@ -31,9 +32,9 @@ Couche d'exécution centralisée des outils NEXUS avec enforcement des politique
 
 | Fichier | Rôle | Classes/Fonctions clés |
 |---------|------|------------------------|
-| `tool_manager.py` | Dispatcher central 15 outils | `ToolManager` |
+| `tool_manager.py` | Dispatcher central 16+ outils | `ToolManager`, `ToolResult` |
 | `dynamic_tools.py` | Création outils à la volée | `DynamicToolManager`, `CodeValidator` |
-| `agent_tools.py` | **[V7.8]** Agents comme outils | `AgentToolRegistry`, `AgentToolDefinition` |
+| `agent_tools.py` | Agents comme outils | `AgentToolRegistry`, `AgentToolDefinition` |
 | `__init__.py` | Exports publics | `ToolManager` |
 
 ---
@@ -42,7 +43,7 @@ Couche d'exécution centralisée des outils NEXUS avec enforcement des politique
 
 **Classe**: `ToolManager`
 
-Dispatcher central pour les 15 outils NEXUS (11 core + 4 dynamic).
+Dispatcher central pour les 16+ outils NEXUS (11 core + 4 dynamic + 1 swarm).
 
 ### Outils Disponibles
 
@@ -63,6 +64,7 @@ Dispatcher central pour les 15 outils NEXUS (11 core + 4 dynamic).
 | `delete_tool` | Supprimer outil dynamique | Workspace only |
 | `list_dynamic_tools` | Lister outils créés | Toujours autorisé |
 | `run_dynamic_tool` | Exécuter outil dynamique | Workspace only |
+| **`swarm_delegate`** | **[V8.3.1]** Déléguer au Swarm | Depth Guard (max 2) |
 
 ---
 
@@ -281,8 +283,67 @@ python -m pytest tests/test_tool_manager.py tests/test_dynamic_tools.py tests/te
 
 ---
 
+---
+
+## 4. SwarmTool (V8.3.1) - swarm_delegate
+
+**Nouveauté V8.3.1**: Permet aux agents d'invoquer le Swarm Engine à n'importe quelle phase HiveMind.
+
+### Architecture
+
+```
+Agent → ToolManager.execute("swarm_delegate") → SwarmBridge.delegate() → HybridSwarmEngine
+```
+
+### Paramètres
+
+| Paramètre | Type | Description |
+|-----------|------|-------------|
+| `task` | str | Sous-tâche à déléguer (obligatoire) |
+| `mode` | str | Mode de collaboration (parallel, sequential, etc.) |
+| `phase` | str | Phase HiveMind pour validation guardrails (optionnel) |
+| `context_categories` | List[str] | Catégories de contexte à inclure (optionnel) |
+
+### Exemple
+
+```python
+# Via ToolManager
+result = tool_manager.execute(ToolUse(
+    tool_name="swarm_delegate",
+    arguments={
+        "task": "Run security review on auth module",
+        "mode": "red_blue",
+        "phase": "diagnosis"
+    }
+))
+```
+
+### Depth Guard (Anti-Recursion)
+
+Prévient la "Inception Trap":
+
+```
+MAX_SWARM_DEPTH = 2
+
+Swarm → swarm_delegate → Swarm (depth=1)
+                      → swarm_delegate → Swarm (depth=2) ✅
+                                      → swarm_delegate → BLOCKED ❌
+```
+
+### Attribut SwarmBridge
+
+`ToolManager.swarm_bridge` doit être configuré par l'orchestrateur:
+
+```python
+tool_manager = ToolManager(workspace_path)
+tool_manager.swarm_bridge = SwarmBridge(swarm_engine, context_manager)
+```
+
+---
+
 ## Voir Aussi
 
 - [core/orchestration/README.md](../orchestration/README.md) - Intègre AgentToolRegistry
 - [core/swarm/README.md](../swarm/README.md) - Utilise agents comme outils
+- [core/hive_mind/README.md](../hive_mind/README.md) - SwarmBridge documentation
 - [core/security/README.md](../security/README.md) - PathGuardian & policies

@@ -1,12 +1,19 @@
-# Module : Swarm - NEXUS V7.8 "HIVE MIND"
+# Module : Swarm - NEXUS V8.3.x "TRUE HIVE MIND"
 
 Hybrid Swarm Engine pour collaboration multi-agent dynamique.
 
-## Rôle dans l'Architecture NEXUS V7.8
+## Rôle dans l'Architecture NEXUS V8.3.x
 
 Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collaboration** où les agents négocient la manière optimale de travailler ensemble pour chaque tâche.
 
-**Nouveauté V7.8**: Suppression code GoT mort, intégration Phase 15 Agent-as-Tool.
+### Évolution V8.x
+
+| Version | Feature |
+|---------|---------|
+| V7.8 | Suppression code GoT mort, Phase 15 Agent-as-Tool |
+| **V8.3.0** | SwarmBridge - HiveMind peut déléguer au Swarm |
+| **V8.3.1** | SwarmTool - Invocation via `swarm_delegate` tool |
+| **V8.3.1-hotfix** | Depth Guard anti-recursion (MAX_DEPTH=2) |
 
 ## Architecture
 
@@ -71,7 +78,7 @@ SEQUENTIAL  → SPECIALIST
 SPECIALIST  → None (terminal)
 ```
 
-## Phase Status (V7.8)
+## Phase Status (V8.3.x)
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -82,8 +89,11 @@ SPECIALIST  → None (terminal)
 | **Phase 10d** | Session-Aware Agent Selection | ✅ |
 | **Phase 5b** | N-Agent Agnosticism (Spawned Agents) | ✅ |
 | **Phase 14e** | Force Chain-of-Thought (EXPERT) | ✅ |
-| **Phase 14c** | GoT code removal (-206 lignes) | ✅ **[V7.8]** |
-| **Phase 15** | Agent-as-Tool integration | ✅ **[V7.8]** |
+| **Phase 14c** | GoT code removal (-206 lignes) | ✅ |
+| **Phase 15** | Agent-as-Tool integration | ✅ |
+| **V8.3.0** | SwarmBridge (Dictator Mode) | ✅ **[NEW]** |
+| **V8.3.1** | SwarmTool (swarm_delegate) | ✅ **[NEW]** |
+| **V8.3.1-hotfix** | Depth Guard (anti-recursion) | ✅ **[NEW]** |
 
 ---
 
@@ -220,35 +230,43 @@ SWARM_MAX_FALLBACKS=2               # Max tentatives fallback
 
 ---
 
-## Métriques V7.8
+## Métriques V8.3.x
 
-| Fichier | Lignes | Changement V7.8 |
-|---------|--------|-----------------|
-| `hybrid_swarm_engine.py` | 595 | -206 (GoT removal) |
+| Fichier | Lignes | Changement |
+|---------|--------|------------|
+| `hybrid_swarm_engine.py` | 595 | Stable |
 | `mode_executors.py` | 450 | Stable |
 | `mode_selector.py` | 620 | Stable |
 | `session_manager.py` | 380 | Stable |
-| **Total module** | ~3200 | -6% |
+| `collaboration_modes.py` | ~200 | +from_string() method |
+| **Total module** | ~3200 | Stable |
 
 ---
 
 ## Notes d'Audit Local
 
-### [V7.8] Changements
+### [V8.3.x] Changements
 
-**Phase 14c Cleanup:**
-- Code GoT (Graph of Thought) supprimé (801 → 595 lignes)
-- Méthodes retirées: `should_use_got()`, `decompose_with_got()`, `execute_thought_graph()`
-- Flag `_GOT_AVAILABLE` retiré
+**V8.3.0 SwarmBridge:**
+- Nouveau composant `core/hive_mind/swarm_bridge.py`
+- Guardrails: modes autorisés par phase HiveMind
+- Self-healing avec checkpoints (create/restore)
 
-**Phase 15 Integration:**
-- Support `AgentToolRegistry` pour invoquer agents spawnés comme outils
-- Mode executors peuvent appeler agent tools
+**V8.3.1 SwarmTool:**
+- Handler `_execute_swarm_delegate()` dans ToolManager
+- Wrapper async→sync pour intégration
+- Feedback loop: injection résultats dans contexte
+
+**V8.3.1-hotfix Depth Guard:**
+- `MAX_SWARM_DEPTH = 2` (anti-recursion)
+- Paramètre `_swarm_depth` propagé entre appels
+- Erreur explicite si profondeur dépassée
 
 ### Points d'attention
 - **Thread-safety**: `threading.RLock` sur opérations critiques
 - **Session cleanup**: 24h retention par défaut
 - **Fallback chain**: Testé via `test_self_healing.py`
+- **Depth Guard**: Testé via `test_swarm_tool.py`
 
 ---
 
