@@ -98,6 +98,52 @@ class BrainstormPhase:
         # Convert to legacy dict format for compatibility
         return [m.to_dict() for m in mutations]
 
+    def _extract_generated_prompt(self, content: str, min_lines: int = 30) -> Optional[str]:
+        """
+        Extract generated system prompt from brainstorm output.
+
+        V8.1.8: For mode="prompt", extract markdown block starting with #.
+
+        Args:
+            content: Full brainstorm output
+            min_lines: Minimum lines required (default 30)
+
+        Returns:
+            Extracted prompt string or None if not found/too short
+        """
+        import re
+
+        # Strategy 1: Look for markdown code block with system prompt
+        code_block_pattern = r'```(?:markdown)?\s*\n(#[^`]+)```'
+        matches = re.findall(code_block_pattern, content, re.DOTALL)
+
+        for match in matches:
+            lines = match.strip().split('\n')
+            if len(lines) >= min_lines:
+                self._report_progress(f"Found prompt in code block ({len(lines)} lines)", 0.85)
+                return match.strip()
+
+        # Strategy 2: Look for standalone markdown starting with #
+        # Find last substantial markdown section starting with #
+        sections = re.split(r'\n(?=#\s+)', content)
+        for section in reversed(sections):
+            if section.startswith('#'):
+                lines = section.strip().split('\n')
+                if len(lines) >= min_lines:
+                    self._report_progress(f"Found standalone prompt ({len(lines)} lines)", 0.85)
+                    return section.strip()
+
+        # Strategy 3: If nothing found, try to extract any # section with >20 lines
+        for section in reversed(sections):
+            if section.startswith('#'):
+                lines = section.strip().split('\n')
+                if len(lines) >= 20:  # Lower threshold for fallback
+                    self._report_progress(f"Found fallback prompt ({len(lines)} lines)", 0.85)
+                    return section.strip()
+
+        self._report_progress("No valid prompt found in output", 0.85)
+        return None
+
     def _extract_mutations(self, final_content: str, child_count: int) -> Optional[List[Dict]]:
         """
         Extract mutations from brainstorming output.
@@ -180,46 +226,67 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
         parent_path: Path,
         child_count: int = 3,
         focus_areas: Optional[List[str]] = None,
+        mode: str = "mutation",
+        custom_task: Optional[str] = None,
     ) -> BrainstormResult:
         """
         Run brainstorming phase.
+
+        V8.1.8: Added mode="prompt" for system prompt generation.
 
         Args:
             parent_id: Current parent NEXUS ID
             parent_path: Path to parent NEXUS
             child_count: Number of children to propose
             focus_areas: Optional focus areas for mutations
+            mode: "mutation" (default) or "prompt" for system prompt generation
+            custom_task: Optional custom task string (required for mode="prompt")
 
         Returns:
-            BrainstormResult with proposed mutations
+            BrainstormResult with proposed mutations or generated_prompt
         """
         start_time = time.time()
         self._abort_requested = False
 
-        self._report_progress("Starting brainstorming phase...", 0.1)
+        is_prompt_mode = mode == "prompt"
+        mode_label = "prompt generation" if is_prompt_mode else "mutation brainstorming"
+        self._report_progress(f"Starting {mode_label}...", 0.1)
 
         # Clear context and cleanup
         self._clear_context()
         self._cleanup_hallucinations()
 
-        # Load lineage context
-        lineage_context = self._load_lineage_context(parent_path)
+        # V8.1.8: Different max iterations for prompt mode (faster)
+        max_iterations = 10 if is_prompt_mode else 30
 
-        # Load prompt with includes
-        try:
-            brainstorm_task = load_prompt("evolution_brainstorm", {
-                "child_count": child_count,
-                "parent_id": parent_id,
-                "lineage_context": lineage_context[:500]
-            })
-        except FileNotFoundError as e:
-            return BrainstormResult(
-                mutations=[],
-                debate_turns=0,
-                consensus_reached=False,
-                duration_seconds=time.time() - start_time,
-                errors=[f"Missing prompt file: {e}"],
-            )
+        # Load task based on mode
+        if is_prompt_mode:
+            if not custom_task:
+                return BrainstormResult(
+                    mutations=[],
+                    debate_turns=0,
+                    consensus_reached=False,
+                    duration_seconds=time.time() - start_time,
+                    errors=["mode='prompt' requires custom_task parameter"],
+                )
+            brainstorm_task = custom_task
+        else:
+            # Load lineage context for mutation mode
+            lineage_context = self._load_lineage_context(parent_path)
+            try:
+                brainstorm_task = load_prompt("evolution_brainstorm", {
+                    "child_count": child_count,
+                    "parent_id": parent_id,
+                    "lineage_context": lineage_context[:500]
+                })
+            except FileNotFoundError as e:
+                return BrainstormResult(
+                    mutations=[],
+                    debate_turns=0,
+                    consensus_reached=False,
+                    duration_seconds=time.time() - start_time,
+                    errors=[f"Missing prompt file: {e}"],
+                )
 
         # Switch to EVOLUTION_BRAINSTORM mode
         original_state = self.orchestrator.state
@@ -229,10 +296,9 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
         # Start brainstorming
         result = self.orchestrator.process_turn(brainstorm_task)
 
-        # Track outputs for JSON extraction
+        # Track outputs for extraction
         all_outputs = [result.get('output') or '']
         iterations = 0
-        max_iterations = 30
 
         # Continue until FINISHED, IDLE, or max turns
         while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
@@ -262,17 +328,26 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
                 self._report_progress("Consensus reached", 0.75)
                 break
 
-            # Early exit on mutation detection
-            if iterations >= 4:
-                if ('FILE:' in output and '<<<<<<< SEARCH' in output and
-                    '=======' in output and '>>>>>>> REPLACE' in output):
-                    self._report_progress("Mutations detected", 0.75)
-                    break
+            # V8.1.8: Mode-specific early exit detection
+            if is_prompt_mode:
+                # For prompt mode: detect when substantial markdown is generated
+                if iterations >= 3:
+                    combined = '\n'.join(all_outputs)
+                    if combined.count('\n#') >= 3 and len(combined) > 1500:
+                        self._report_progress("System prompt detected", 0.75)
+                        break
+            else:
+                # For mutation mode: detect SEARCH/REPLACE blocks
+                if iterations >= 4:
+                    if ('FILE:' in output and '<<<<<<< SEARCH' in output and
+                        '=======' in output and '>>>>>>> REPLACE' in output):
+                        self._report_progress("Mutations detected", 0.75)
+                        break
 
-                if ('"file"' in output and '"change"' in output and
-                    '"reason"' in output and '"expected_asi_impact"' in output):
-                    self._report_progress("JSON mutations detected", 0.75)
-                    break
+                    if ('"file"' in output and '"change"' in output and
+                        '"reason"' in output and '"expected_asi_impact"' in output):
+                        self._report_progress("JSON mutations detected", 0.75)
+                        break
 
         # Return to original state
         self.orchestrator._transition_to(original_state)
@@ -287,8 +362,34 @@ PRODUCE MUTATION BLOCKS NOW ({child_count} mutations required).""",
                 errors=[f"Brainstorming failed with state: {result['state']}"],
             )
 
-        # Extract mutations
+        # V8.1.8: Mode-specific extraction
         final_content = '\n'.join(all_outputs)
+
+        if is_prompt_mode:
+            # Extract generated system prompt
+            generated_prompt = self._extract_generated_prompt(final_content)
+
+            if generated_prompt is None:
+                return BrainstormResult(
+                    mutations=[],
+                    debate_turns=iterations,
+                    consensus_reached=False,
+                    duration_seconds=time.time() - start_time,
+                    errors=["Failed to extract valid system prompt (min 20 lines required)"],
+                )
+
+            self._report_progress(f"Prompt generation complete", 1.0)
+
+            return BrainstormResult(
+                mutations=[],
+                debate_turns=iterations,
+                consensus_reached=True,
+                duration_seconds=time.time() - start_time,
+                errors=[],
+                generated_prompt=generated_prompt,
+            )
+
+        # Mutation mode: Extract mutations
         proposals = self._extract_mutations(final_content, child_count)
 
         if proposals is None:

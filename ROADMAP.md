@@ -598,7 +598,7 @@ class TaskAnalysis:
 
 ---
 
-### V8.1.8 - Dynamic Spawn Brainstorming [Priority: P1] (NEW - Gemini Analysis)
+### V8.1.8 - Dynamic Spawn Brainstorming [Priority: P1] (IN PROGRESS)
 
 **Objectif** : Agents spawnés avec vraie spécialisation via brainstorming dynamique
 
@@ -606,75 +606,71 @@ class TaskAnalysis:
 - System prompts actuels = 13 lignes squelettiques (tautologie)
 - `spawn_agent()` docstring PROMET EVOLUTION_BRAINSTORM mais utilise template hardcodé
 - Agents "experts" sans expertise réelle = coquilles vides
-- BIRTH_CERTIFICATE.json avec `domains: []` et `tools_priority: []` vides
+- BIRTH_CERTIFICATE.json avec `domains: []`, `tools_priority: []`, pas d'UUID
 
-**Exemple actuel** (identique pour tous les agents):
-```markdown
-# Python_Expert - Specialized NEXUS Agent
+**Implémentation détaillée**:
 
-## Mission
-You are a specialized agent created for: **Python_Expert**
+| Étape | Tâche | Fichiers | Status |
+|-------|-------|----------|--------|
+| 0 | Pre-flight: budget check + existence check | `repl.py` | PLANNED |
+| 1a | Add `mode` param to BrainstormPhase.run() | `brainstorm.py` | PLANNED |
+| 1b | Add `_extract_generated_prompt()` method | `brainstorm.py` | PLANNED |
+| 1c | Add `generated_prompt` field to BrainstormResult | `models.py` | PLANNED |
+| 2a | Generate UUID for each agent | `repl.py` | PLANNED |
+| 2b | Integrate BrainstormPhase in spawn_agent() | `repl.py` | PLANNED |
+| 2c | Auto-detect domains from role string | `repl.py` | PLANNED |
+| 2d | Post-generation tool validation | `repl.py` | PLANNED |
+| 3 | Add `uuid` field to SpawnedAgentConfig | `agent_loader.py` | PLANNED |
+| 4 | Create spawn_brainstorm.md prompt | `prompts/` | PLANNED |
 
-## Core Capabilities
-Focus on tasks related to your specialization.  ← TAUTOLOGIE
-```
-
-**Philosophie correcte**:
-- ❌ PAS de templates statiques par domaine (Python, SQL, etc.)
-- ✅ Brainstorming DYNAMIQUE à chaque spawn
-- L'agent doit s'adapter au CONTEXTE, pas être pré-formaté
-- Le rôle demandé guide le brainstorming, mais le prompt final est émergent
-
-| Tâche | Effort | Status |
-|-------|--------|--------|
-| Corriger docstring mensongère spawn_agent() | 5min | PLANNED |
-| Intégrer `BrainstormPhase.run()` dans `/spawn` | 4h | PLANNED |
-| Adapter BrainstormPhase pour génération de prompts (vs mutations) | 3h | PLANNED |
-| Auto-détecter `domains` depuis role string | 2h | PLANNED |
-| Enrichir BIRTH_CERTIFICATE avec résultat brainstorm | 1h | PLANNED |
-| Tests spawn dynamique | 2h | PLANNED |
-
-**Architecture proposée**:
+**Architecture finale**:
 ```python
-# repl.py - spawn_agent() corrigé
+# Step 0: Pre-flight
+telemetry.enforce_budget()  # Abort if exceeded
+if agent_dir.exists(): ask_user(overwrite/rename/cancel)
+
+# Step 1: BrainstormPhase adaptation
+class BrainstormPhase:
+    def run(self, ..., mode: str = "mutation"):
+        if mode == "prompt":
+            max_iterations = 10  # Not 30
+            # Use _extract_generated_prompt() instead of _extract_mutations()
+
+    def _extract_generated_prompt(self, content: str) -> Optional[str]:
+        # Find markdown block starting with # (>30 lines)
+
+# Step 2: spawn_agent() refactor
 def spawn_agent(self, role: str):
-    # 1. Analyser le rôle demandé
-    role_analysis = self._analyze_spawn_role(role)  # domains, context hints
+    agent_uuid = str(uuid.uuid4())
+    domains = self._detect_domains(role)  # "python" -> ["coding", "python"]
 
-    # 2. Brainstormer le system prompt (Gemini + Claude)
-    brainstorm_task = f"""
-    Design a specialized agent system prompt for: {role}
-    Context: {role_analysis}
+    # Brainstorm via Hive Mind
+    phase = BrainstormPhase(orchestrator, workspace, progress_callback)
+    result = phase.run(..., mode="prompt")
 
-    The prompt should:
-    - Define clear expertise boundaries
-    - Include domain-specific directives
-    - Specify output formats preferred
-    - List security constraints
-    - Be 50-100 lines, actionable
-    """
+    # Validation anti-hallucination
+    valid_tools = self.tool_manager.get_tool_names()
+    self._validate_prompt_tools(result.generated_prompt, valid_tools)
 
-    # 3. EVOLUTION_BRAINSTORM génère le prompt
-    self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-    result = self.orchestrator.process_turn(brainstorm_task)
-    generated_prompt = self._extract_prompt_from_brainstorm(result)
-
-    # 4. Créer agent avec prompt brainstormé
-    (agent_dir / "system_prompt.md").write_text(generated_prompt)
+    # Fallback if brainstorm fails
+    prompt = result.generated_prompt or self._static_template(role, agent_uuid)
 ```
 
-**Avantages**:
-- Chaque agent est UNIQUE, adapté à son contexte de création
-- Exploite le potentiel Gemini+Claude du Hive Mind
-- Pas de maintenance de templates statiques
-- L'agent "Python pour projet legacy" ≠ "Python pour microservices"
+**Contraintes**:
+- Budget vérifié AVANT brainstorm (coûteux: ~$0.50-2.00)
+- Max 10 itérations pour mode "prompt" (vs 30 pour mutations)
+- Minimum 30 lignes pour prompt accepté, sinon fallback
+- UUID v4 obligatoire dans BIRTH_CERTIFICATE
+- Validation des outils référencés (anti-hallucination)
 
 **Fichiers concernés**:
-- `core/interface/repl.py` - Refactorer spawn_agent()
-- `core/evolution/phases/brainstorm.py` - Adapter pour prompt generation
-- `prompts/spawn_brainstorm.md` - NEW: Prompt pour guider le brainstorming
+- `core/interface/repl.py` - spawn_agent() complet
+- `core/evolution/phases/brainstorm.py` - mode="prompt"
+- `core/evolution/models.py` - BrainstormResult.generated_prompt
+- `core/bootstrap/agent_loader.py` - SpawnedAgentConfig.uuid
+- `prompts/spawn_brainstorm.md` - NEW
 
-**Source**: Gemini (2025-12-09) - Validé et enrichi Claude
+**Source**: Gemini (2025-12-09) - Validé, enrichi et implémenté Claude
 
 ---
 

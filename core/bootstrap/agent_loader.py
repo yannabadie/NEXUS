@@ -39,6 +39,8 @@ class SpawnedAgentConfig:
     tools_priority: List[str]
     workspace_path: Path
     system_prompt_path: Optional[Path] = None
+    # V8.1.8: Unique identifier for agent tracking
+    uuid: Optional[str] = None
 
 
 class SpawnedAgentLoader:
@@ -165,7 +167,9 @@ class SpawnedAgentLoader:
             domains=specialization.get("domains", []),
             tools_priority=specialization.get("tools_priority", []),
             workspace_path=agent_dir,
-            system_prompt_path=system_prompt_path
+            system_prompt_path=system_prompt_path,
+            # V8.1.8: Extract UUID if present
+            uuid=cert_data.get("uuid"),
         )
 
     def load_agent_config(self, agent_id: str) -> Optional[SpawnedAgentConfig]:

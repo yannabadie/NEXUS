@@ -1958,15 +1958,34 @@ class InteractiveNexusV7:
 
     def spawn_agent(self, role: str):
         """
-        Spawn a specialized agent in workspace/agents/ (/spawn command).
+        Spawn a specialized agent via EVOLUTION_BRAINSTORM (/spawn command).
 
-        Uses EVOLUTION_BRAINSTORM to design the agent, then creates it
-        in workspace/agents/<role_slug>/ for persistent coexistence.
+        V8.1.8: True dynamic spawning - brainstorms specialized system prompt
+        via Gemini+Claude collaboration instead of using static template.
+
+        Features:
+        - Budget enforcement before expensive brainstorming
+        - UUID generation for unique agent identity
+        - Domain detection from role string
+        - Anti-hallucination validation of generated prompt
+        - Fallback to static template if brainstorm fails
         """
         import re
         import json
-        import shutil
+        import uuid as uuid_module
         from datetime import datetime
+        from core.telemetry import BudgetExceededError
+
+        # ========== STEP 0: PRE-FLIGHT CHECKS ==========
+
+        # 0a. Budget check (brainstorming is expensive: ~$0.50-2.00)
+        try:
+            if self.orchestrator.telemetry:
+                self.orchestrator.telemetry.enforce_budget()
+        except BudgetExceededError as e:
+            self.console.print_error(f"Cannot spawn: Budget exceeded (${e.spent:.2f}/${e.limit:.2f})")
+            self.console.print("Use /budget reset to unlock.")
+            return
 
         # Create agents directory
         agents_dir = self.workspace_path / "agents"
@@ -1976,29 +1995,62 @@ class InteractiveNexusV7:
         role_slug = re.sub(r'[^a-z0-9]+', '_', role.lower()).strip('_')
         agent_dir = agents_dir / role_slug
 
+        # 0b. Existence check with user choice
         if agent_dir.exists():
             self.console.print_error(f"Agent '{role_slug}' already exists!")
             self.console.print(f"Path: {agent_dir}")
+            self.console.print("\nOptions:")
+            self.console.print("  1. Delete existing and respawn: /spawn-force {role}")
+            self.console.print("  2. Use different name: /spawn {role}_v2")
             return
 
         self.console.print("\n" + "="*60)
         self.console.print(f"🏭 SPAWNING AGENT: {role}")
         self.console.print("="*60)
 
+        # ========== STEP 2a: IDENTITY MANAGEMENT ==========
+        agent_uuid = str(uuid_module.uuid4())
+        self.console.print(f"   UUID: {agent_uuid[:8]}...")
+
+        # ========== STEP 2c: DOMAIN DETECTION ==========
+        domains = self._detect_domains_from_role(role)
+        self.console.print(f"   Domains: {domains if domains else ['general']}")
+
         try:
             # Create agent directory structure
             agent_dir.mkdir(parents=True)
             (agent_dir / "workspace").mkdir()
 
-            # Create agent config
+            # ========== STEP 2b: BRAINSTORM SYSTEM PROMPT ==========
+            self.console.print("\n🧠 Brainstorming specialized prompt...")
+            self.console.print("   (Gemini + Claude collaboration)")
+
+            generated_prompt = self._brainstorm_agent_prompt(role, agent_uuid, domains)
+
+            # ========== STEP 2d: VALIDATION ==========
+            if generated_prompt:
+                hallucinated_tools = self._validate_prompt_tools(generated_prompt)
+                if hallucinated_tools:
+                    self.console.print(f"   ⚠️ Warning: Prompt references unknown tools: {hallucinated_tools}")
+
+            # Fallback to static template if brainstorm failed
+            if not generated_prompt:
+                self.console.print("   ⚠️ Brainstorm failed, using static template")
+                generated_prompt = self._static_agent_template(role, agent_uuid, domains)
+
+            # ========== SAVE AGENT FILES ==========
+
+            # Create agent config with UUID
             agent_config = {
                 "agent_id": role_slug,
+                "uuid": agent_uuid,
                 "role": role,
                 "created_at": datetime.now().isoformat(),
-                "parent": "NEXUS_V7.5_HIVE_MIND",
+                "parent": "NEXUS_V8.1.8_HIVE_MIND",
+                "generation_method": "brainstorm" if "Brainstorm" not in generated_prompt[:100] else "static",
                 "specialization": {
                     "mission": f"Specialized agent for: {role}",
-                    "domains": [],
+                    "domains": domains if domains else [],
                     "tools_priority": []
                 }
             }
@@ -2007,29 +2059,16 @@ class InteractiveNexusV7:
             birth_cert = agent_dir / "BIRTH_CERTIFICATE.json"
             birth_cert.write_text(json.dumps(agent_config, indent=2))
 
-            # Create specialized system prompt
-            prompt_content = f"""# {role} - Specialized NEXUS Agent
+            # Write system prompt
+            (agent_dir / "system_prompt.md").write_text(generated_prompt)
 
-## Mission
-You are a specialized agent created for: **{role}**
-
-## Core Capabilities
-Focus on tasks related to your specialization.
-Collaborate with other agents via Hybrid Swarm when needed.
-
-## Alignment
-You inherit NEXUS KERNEL alignment principles.
-Creator: Yann Abadie
-"""
-            (agent_dir / "system_prompt.md").write_text(prompt_content)
-
+            prompt_lines = len(generated_prompt.split('\n'))
             self.console.print(f"\n✅ Agent '{role_slug}' created!")
             self.console.print(f"   Path: {agent_dir}")
-            self.console.print(f"   Config: BIRTH_CERTIFICATE.json")
-            self.console.print(f"   Prompt: system_prompt.md")
+            self.console.print(f"   UUID: {agent_uuid}")
+            self.console.print(f"   Prompt: {prompt_lines} lines")
 
             # V7.8 Phase 15: Register as Agent-as-Tool
-            # Re-discover spawned agents and refresh tool registry
             from core.bootstrap import discover_and_register_spawned_agents
             if self.orchestrator.agent_pool:
                 discover_and_register_spawned_agents(
@@ -2037,7 +2076,7 @@ Creator: Yann Abadie
                     agent_pool=self.orchestrator.agent_pool
                 )
             if hasattr(self.orchestrator, 'agent_tool_registry'):
-                tool_count = self.orchestrator.agent_tool_registry.refresh()
+                self.orchestrator.agent_tool_registry.refresh()
                 self.orchestrator.agent_tool_registry.register_with_tool_manager(
                     self.orchestrator.tool_manager
                 )
@@ -2047,8 +2086,231 @@ Creator: Yann Abadie
 
         except Exception as e:
             self.console.print_error(f"Failed to spawn agent: {e}")
+            # Cleanup on failure
+            if agent_dir.exists():
+                import shutil
+                shutil.rmtree(agent_dir)
 
         self.console.print("="*60 + "\n")
+
+    def _detect_domains_from_role(self, role: str) -> list:
+        """
+        Detect domains from role string (V8.1.8).
+
+        Simple heuristic-based detection.
+
+        Args:
+            role: Role string (e.g., "Python Expert", "SQL Analyst")
+
+        Returns:
+            List of detected domains
+        """
+        role_lower = role.lower()
+        domains = []
+
+        # Domain mappings
+        domain_keywords = {
+            "coding": ["python", "java", "javascript", "typescript", "rust", "go", "c++", "code", "developer", "programmer"],
+            "data": ["sql", "database", "data", "analytics", "pandas", "numpy"],
+            "devops": ["docker", "kubernetes", "k8s", "aws", "azure", "gcp", "cloud", "devops", "ci/cd"],
+            "security": ["security", "pentest", "vulnerability", "audit", "crypto"],
+            "web": ["web", "frontend", "backend", "api", "rest", "graphql"],
+            "ml": ["ml", "machine learning", "ai", "deep learning", "neural", "model"],
+            "research": ["research", "analyst", "analysis"],
+        }
+
+        for domain, keywords in domain_keywords.items():
+            if any(kw in role_lower for kw in keywords):
+                domains.append(domain)
+
+        return domains
+
+    def _brainstorm_agent_prompt(self, role: str, agent_uuid: str, domains: list) -> str | None:
+        """
+        Brainstorm specialized system prompt via Hive Mind (V8.1.8).
+
+        Uses BrainstormPhase in mode="prompt" to generate a rich,
+        specialized prompt through Gemini+Claude collaboration.
+
+        Args:
+            role: Agent role
+            agent_uuid: Unique identifier
+            domains: Detected domains
+
+        Returns:
+            Generated prompt string or None if failed
+        """
+        from core.evolution.phases.brainstorm import BrainstormPhase
+        from core.prompts import load_prompt
+
+        def on_progress(msg: str, progress: float):
+            """Progress callback for console output"""
+            self.console.print(f"   [{int(progress*100):3d}%] {msg}")
+
+        try:
+            # Try to load the spawn brainstorm template
+            try:
+                task_template = load_prompt("spawn_brainstorm", {
+                    "role": role,
+                    "agent_uuid": agent_uuid,
+                    "domains": ", ".join(domains) if domains else "general"
+                })
+            except FileNotFoundError:
+                # Fallback inline task if prompt file not found
+                task_template = f"""
+DESIGN TASK: Create a comprehensive System Prompt for a new NEXUS agent.
+
+Role: {role}
+UUID: {agent_uuid}
+Detected Domains: {", ".join(domains) if domains else "general"}
+
+REQUIREMENTS:
+1. Define specific expertise boundaries (not vague)
+2. List concrete operational constraints (libraries, patterns, security)
+3. Define exact output formats and tone
+4. Total length: 50-100 lines
+5. Format: Markdown starting with '# {role}'
+
+VALID NEXUS TOOLS (only reference these):
+- read, write, edit, list_dir, bash, git
+- web_search, web_fetch, glob, grep, todo_write
+
+DO NOT reference: execute_code, run_python, browser (don't exist)
+
+OUTPUT:
+Provide ONLY the final System Prompt. Start with '# {role}'.
+"""
+
+            # Run BrainstormPhase in prompt mode
+            phase = BrainstormPhase(
+                self.orchestrator,
+                self.workspace_path,
+                progress_callback=on_progress
+            )
+
+            result = phase.run(
+                parent_id="NEXUS_V8.1.8",
+                parent_path=self.workspace_path,
+                mode="prompt",
+                custom_task=task_template
+            )
+
+            if result.generated_prompt:
+                return result.generated_prompt
+
+            if result.errors:
+                self.console.print(f"   Brainstorm errors: {result.errors}")
+
+            return None
+
+        except Exception as e:
+            self.console.print(f"   Brainstorm exception: {e}")
+            return None
+
+    def _validate_prompt_tools(self, prompt: str) -> list:
+        """
+        Validate that generated prompt only references real NEXUS tools (V8.1.8).
+
+        Anti-hallucination check.
+
+        Args:
+            prompt: Generated system prompt
+
+        Returns:
+            List of hallucinated tool names (empty if all valid)
+        """
+        import re
+
+        # Valid NEXUS tools
+        valid_tools = {
+            "read", "write", "edit", "list_dir", "bash", "git",
+            "web_search", "web_fetch", "glob", "grep", "todo_write",
+            "read_file", "write_file", "edit_file",  # Aliases
+            "mcp",  # MCP prefix
+        }
+
+        # Find potential tool references (backticked words that look like tools)
+        potential_tools = re.findall(r'`([a-z_]+)`', prompt.lower())
+
+        hallucinated = []
+        for tool in potential_tools:
+            # Check if it's a valid tool or starts with valid prefix
+            if tool not in valid_tools and not tool.startswith("mcp_") and not tool.startswith("agent_"):
+                # Filter out common non-tool words
+                if tool not in {"true", "false", "none", "null", "json", "yaml", "md", "py"}:
+                    hallucinated.append(tool)
+
+        return list(set(hallucinated))
+
+    def _static_agent_template(self, role: str, agent_uuid: str, domains: list) -> str:
+        """
+        Fallback static template when brainstorm fails (V8.1.8).
+
+        Better than original skeletal template but not as rich as brainstormed.
+
+        Args:
+            role: Agent role
+            agent_uuid: Unique identifier
+            domains: Detected domains
+
+        Returns:
+            Static template string
+        """
+        from datetime import datetime
+
+        domains_str = ", ".join(domains) if domains else "general"
+
+        return f"""# {role} - Specialized NEXUS Agent
+
+## Identity
+- UUID: {agent_uuid}
+- Specialization: {domains_str}
+- Created: {datetime.now().strftime("%Y-%m-%d")}
+- Parent: NEXUS V8.1.8 HIVE MIND
+
+## Mission
+You are a specialized agent created for: **{role}**
+
+Your expertise focuses on {domains_str} tasks within the NEXUS ecosystem.
+Collaborate with other agents via Hybrid Swarm when complex tasks require
+multiple perspectives.
+
+## Expertise Boundaries
+- Primary focus: {role}
+- Detected domains: {domains_str}
+- Use your specialization to provide deep, actionable insights
+
+## Operational Constraints
+- Follow NEXUS tool protocols
+- Validate inputs before processing
+- Report errors clearly with context
+- Maintain session isolation
+
+## Output Format
+- Use clear, structured responses
+- Code blocks with language hints
+- Step-by-step explanations when appropriate
+
+## Tool Preferences
+- read, write, edit for file operations
+- glob, grep for code search
+- bash for system commands
+- web_search, web_fetch for research
+
+## Collaboration Protocol
+- Respond to Swarm task assignments
+- Share insights via structured messages
+- Escalate complex issues to lead agent
+
+## Limitations
+- Stay within your specialization
+- Defer to other specialists for out-of-domain tasks
+- Do not hallucinate capabilities
+
+## Alignment
+You inherit NEXUS KERNEL alignment principles.
+Creator: Yann Abadie
+"""
 
     def list_agents(self):
         """List all spawned agents in workspace/agents/ (/agents command)."""
