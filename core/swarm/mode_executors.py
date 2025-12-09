@@ -14,7 +14,7 @@ Each executor manages agent invocations according to its mode's pattern.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
@@ -24,6 +24,10 @@ from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
 from ..utils.artifact_verifier import ArtifactVerifier
 from .task_completion_validator import TaskCompletionValidator, get_adaptive_max_rounds
+
+# V8.3.3: Type hints for merge strategies (avoid circular import)
+if TYPE_CHECKING:
+    from .merge_strategies import MergeStrategy, MergeResult
 
 
 class ExecutionStatus(Enum):
@@ -473,9 +477,23 @@ class ParallelExecutor(ModeExecutor):
     Execute agents in parallel with result merging.
 
     Use case: Independent subtasks, time-critical situations.
+
+    V8.3.3: Supports pluggable merge strategies via MergeStrategy classes.
     """
 
     mode = CollaborationMode.PARALLEL
+
+    def __init__(self, merge_strategy: Optional["MergeStrategy"] = None):
+        """
+        Initialize ParallelExecutor with optional merge strategy.
+
+        Args:
+            merge_strategy: Strategy for merging parallel outputs.
+                           If None, uses default from environment.
+        """
+        # Lazy import to avoid circular dependency
+        from .merge_strategies import get_default_merge_strategy, MergeStrategy
+        self._merge_strategy = merge_strategy or get_default_merge_strategy()
 
     def execute(self, context: ExecutionContext) -> ExecutionResult:
         agents = context.get_all_agents()
@@ -515,26 +533,55 @@ class ParallelExecutor(ModeExecutor):
                         error=str(e)
                     ))
 
-        # Merge results
-        merged_output = self._merge_outputs(outputs, context.task_input)
+        # V8.3.3: Use pluggable merge strategy
+        merge_result = self._merge_with_strategy(context, outputs)
 
         return ExecutionResult(
             mode=self.mode,
             status=ExecutionStatus.COMPLETED,
-            final_output=merged_output,
+            final_output=merge_result.content,
             agent_outputs=outputs,
             total_rounds=1,
             total_tokens=total_tokens,
             total_time_seconds=total_time,
-            metadata={"execution_type": "parallel"}
+            metadata={
+                "execution_type": "parallel",
+                "merge_strategy": merge_result.strategy_used.value,
+                **merge_result.metadata
+            }
         )
 
+    def _merge_with_strategy(
+        self,
+        context: ExecutionContext,
+        outputs: List[AgentResponse]
+    ) -> "MergeResult":
+        """
+        Merge outputs using the configured merge strategy.
+
+        V8.3.3: Builds MergeContext with task analysis for intelligent merging.
+        """
+        from .merge_strategies import MergeContext
+
+        # Build merge context with all available information
+        merge_context = MergeContext(
+            task_input=context.task_input,
+            outputs=outputs,
+            task_analysis=context.blackboard.get("task_analysis"),
+            agent_assignments=context.agent_assignments
+        )
+
+        return self._merge_strategy.merge(merge_context)
+
     def _merge_outputs(self, outputs: List[AgentResponse], task: str) -> str:
-        """Merge parallel outputs into unified result"""
+        """
+        Legacy merge method for backward compatibility.
+
+        Deprecated in V8.3.3 - use _merge_with_strategy instead.
+        """
         merged_parts = []
         for output in outputs:
             if output.status == "error":
-                # V7 FIX: Show errors in output so user knows what happened
                 agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
                 merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
             else:

@@ -1200,14 +1200,39 @@ def run_sync(coro):
 
 ---
 
-### V8.3.3 - Parallel Merge Strategy [Priority: P2] (PLANNED)
+### V8.3.3 - Parallel Merge Strategy [Priority: P2] ✅ COMPLETED
 
 **Objectif** : Stratégie intelligente de fusion des résultats PARALLEL
 
-**Problème identifié** (Gemini 2025-12-09):
+**Problème identifié** (Gemini 2025-12-09 + Exploration Claude 2025-12-09):
 - Mode PARALLEL: 2 agents travaillent en parallèle
 - Fusion actuelle: concat naïf (résultats collés bout à bout)
 - Risque "Tour de Babel": informations contradictoires, redondances, incohérences
+
+**Code actuel** (`core/swarm/mode_executors.py:532-544`):
+```python
+def _merge_outputs(self, outputs: List[AgentResponse], task: str) -> str:
+    """Merge parallel outputs into unified result"""
+    merged_parts = []
+    for output in outputs:
+        agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
+        merged_parts.append(f"[{agent_name}]:\n{output.content}")
+    return "\n\n---\n\n".join(merged_parts)  # NAIVE: Just concatenate
+```
+
+**Gaps identifiés** (Exploration 2025-12-09):
+| Gap | Impact | Severity |
+|-----|--------|----------|
+| No semantic deduplication | Similar points appear twice | HIGH |
+| No conflict detection | Disagreements not resolved | HIGH |
+| No quality scoring | All outputs treated equally | HIGH |
+| No domain-aware weighting | Agent strengths ignored | MEDIUM |
+| No hierarchical organization | Flat output structure | MEDIUM |
+
+**Recherche Web** (M1-Parallel, Google ADK, AWS Patterns):
+- M1-Parallel: LLM-based aggregation, 2.2× speedup with early termination
+- Google ADK: Shared Session State for parallel agent communication
+- AWS: Scatter-Gather pattern with S3/memory store for results
 
 **Solution proposée - merge_strategy**:
 
@@ -1699,17 +1724,25 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 | **Effort** | 2-3 semaines |
 | **Prérequis** | Aucun |
 
-**Fichiers Impactés** (analyse codebase):
-- `core/utils/atomic_store.py` (292 lignes) - AtomicJsonStoreManager singleton
-- `core/synapse/memory_v7.py:35` - blackboard.json
-- `core/memory/success_memory.py:56` - successes.json
-- `core/memory/project_memory.py:90` - project_knowledge.json
+**Fichiers Impactés** (Exploration Claude 2025-12-09):
 
-**Blind Spots Identifiés**:
+| Fichier JSON | Taille | Queries | Priorité |
+|--------------|--------|---------|----------|
+| `workspace/memory/successes.json` | ~4KB (10k max) | Linear scan, similarity | P1 |
+| `workspace/.nexus/dylan_scores.json` | ~4.8KB | Agent lookup, history | P1 |
+| `workspace/memory/fitness_scores.json` | ~565B | Agent task lookup | P1 |
+| `.nexus/project_knowledge.json` | Variable (5k chunks) | RAG retrieval | P1 |
+| `workspace/.nexus/blackboard.json` | ~405B | State, history append | P2 |
+
+**Note**: LanceDB déjà utilisé pour Dense backend (`core/memory/project_memory.py`) - bon signe!
+
+**Blind Spots Identifiés** (Exploration 2025-12-09):
 1. ❌ Pas de transactions cross-fichiers (si crash entre 2 writes → état incohérent)
 2. ❌ Pas de schema versioning (migration JSON v6 → v7 impossible)
 3. ❌ RLock = process-local (pas de protection multi-process)
 4. ❌ Pas de cleanup AtomicJsonStoreManager sur workspace change
+5. ❌ SuccessMemory: Full list loaded every query (10k entries → slow)
+6. ❌ Time decay calculation done on-the-fly (should be indexed)
 
 **Implémentation Recommandée** ([aiosqlite](https://github.com/omnilib/aiosqlite)):
 ```python
@@ -1962,15 +1995,29 @@ class Relationship:
 | **Effort** | 2 semaines |
 | **Prérequis** | Aucun (MCP client existe déjà) |
 
-**Fichiers Existants** (analyse codebase):
-- `core/mcp/client.py` (530 lignes) - Client MCP complet
-- `core/mcp/protocol.py` (350 lignes) - JSON-RPC 2.0, MCPTool dataclass
-- `core/mcp/registry.py` (100 lignes) - Config loading
+**État Actuel MCP** (Exploration Claude 2025-12-09):
 
-**Ce Qui Manque**:
-- ❌ `core/mcp/server.py` - N'existe pas
-- ❌ Tool schemas (inputSchema JSON) pour exposure
-- ❌ Auth/authz (qui peut appeler quoi?)
+| Composant | Status | Fichier |
+|-----------|--------|---------|
+| MCP Client | ✅ COMPLET | `core/mcp/client.py` (530 lignes) |
+| MCP Protocol | ✅ COMPLET | `core/mcp/protocol.py` (474 lignes) |
+| MCP Registry | ✅ COMPLET | `core/mcp/registry.py` (392 lignes) |
+| Tool Integration | ✅ COMPLET | `core/execution/tool_manager.py:1244-1443` |
+| MCP Server | ❌ MANQUANT | `core/mcp/server.py` - À créer |
+| Test Server Mock | ✅ EXISTE | `tests/fixtures/mock_mcp_server.py` (233 lignes) |
+
+**Architecture Actuelle (Client-Only)**:
+```
+External MCP Server → MCPClient → ToolManager.tools["mcp_{server}_{tool}"]
+                                         ↓
+                            ClaudeDriver / GeminiDriver
+```
+
+**Ce Qui Manque** (pour exposer NEXUS comme MCP Server):
+- ❌ `core/mcp/server.py` - Inversé du client (écoute stdin, répond stdout)
+- ❌ Tool schemas (inputSchema JSON) pour les 11+ tools internes
+- ❌ Auth/authz via OAuth 2.1 (MCP SDK inclut `mcp.server.auth`)
+- ❌ Configuration server dans `workspace/.nexus/mcp_servers.json`
 
 **Recherche Web - MCP Server** ([modelcontextprotocol.io](https://modelcontextprotocol.io/quickstart/client)):
 - `claude mcp serve` expose déjà Claude Code comme MCP Server
@@ -2040,6 +2087,35 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 
 ---
 
+### Test Protocols par Phase (Éviter Code Mort)
+
+| Phase | Tests Requis | Fréquence | Automatisation |
+|-------|-------------|-----------|----------------|
+| **V8.3.3** | Merge quality, deduplication, conflict detection | Each merge | CI pytest |
+| **Phase 17** | WAL concurrency (50 threads), migration JSON→SQLite, rollback | Migration + weekly | Integration tests |
+| **Phase 18** | Session pool exhaustion, CLI crash recovery, Gemini resume | Daily smoke test | E2E tests |
+| **Phase 19** | Sandbox escape attempts, resource limits, timeout handling | Security audit | Fuzzing |
+| **Phase 20** | Graph query accuracy vs RAG baseline, entity extraction | Benchmark suite | Comparison tests |
+| **Phase 24** | MCP tools exposure, auth validation, tool schema compliance | MCP validator | SDK tests |
+
+---
+
+### Recherches Web - Sources (2025-12-09)
+
+| Topic | Source | Key Insight |
+|-------|--------|-------------|
+| **aiosqlite** | [PyPI](https://pypi.org/project/aiosqlite/) | v0.21.0 (Feb 2025), WAL mode obviates async need |
+| **aiosqlitepool** | [PyPI](https://pypi.org/project/aiosqlitepool/) | Connection pool for hot cache |
+| **MCP SDK** | [GitHub](https://github.com/modelcontextprotocol/python-sdk) | v1.23.2, 20k+ stars, OAuth 2.1 built-in |
+| **GraphRAG** | [LlamaIndex V2](https://developers.llamaindex.ai/python/examples/cookbooks/graphrag_v2/) | Neo4j + Leiden algorithm for communities |
+| **E2B Sandbox** | [e2b.dev](https://e2b.dev/) | Firecracker microVM, <200ms startup |
+| **Modal Sandbox** | [modal.com](https://modal.com/blog/top-code-agent-sandbox-products) | gVisor isolation, GPU support |
+| **M1-Parallel** | [arXiv](https://arxiv.org/abs/2507.08944) | LLM aggregation, 2.2× speedup |
+| **Gemini CLI Resume** | [Discussion](https://github.com/google-gemini/gemini-cli/discussions/1538) | `--resume` flag, `/chat save/resume` |
+| **Claude Session** | [Claude Docs](https://docs.claude.com/en/api/agent-sdk/sessions) | `fork_session` for branching |
+
+---
+
 ## Priorités Immédiates (Cette Semaine)
 
 | # | Tâche | Version | Effort | Status |
@@ -2065,7 +2141,7 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 | 16c | └─ ~~FG-001: SuccessAdapter SwarmBridge~~ | V8.3.2 | ~~1h~~ | ✅ Already impl |
 | 16d | └─ ~~MT-001: Checkpoint tests~~ | V8.3.2 | ~~1h~~ | ✅ Already impl |
 | 16e | └─ ~~H3: CLAUDE.md update~~ | V8.3.2 | ~~1h~~ | ✅ Updated |
-| 17 | Parallel Merge Strategy | V8.3.3 | 3h | PLANNED |
+| 17 | ~~Parallel Merge Strategy~~ | V8.3.3 | ~~3h~~ | ✅ Done |
 | 18 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
 
 ---
