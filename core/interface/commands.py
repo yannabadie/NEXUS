@@ -79,9 +79,11 @@ def get_help_message() -> str:
     Returns:
         Formatted help string with categories
     """
+    # Get version from core module
+    from core import __version__, __codename__
     lines = [
         "╔══════════════════════════════════════════════════════════════╗",
-        "║           NEXUS V7.7 HIVE MIND - Command Reference           ║",
+        f"║       NEXUS V{__version__} {__codename__} - Command Reference      ║",
         "╚══════════════════════════════════════════════════════════════╝",
         "",
     ]

@@ -13,11 +13,17 @@ from typing import Optional
 
 
 class Config:
-    """NEXUS V7 Configuration"""
+    """NEXUS Configuration - Single source of truth for version"""
 
     def __init__(self):
         # Load .env if present
         load_dotenv()
+
+        # ====================================================================
+        # VERSION (Single Source of Truth - defined in .env)
+        # ====================================================================
+        self.nexus_version: str = os.getenv("NEXUS_VERSION", "8.3.1")
+        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
 
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")

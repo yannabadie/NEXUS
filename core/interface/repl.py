@@ -138,7 +138,9 @@ class InteractiveNexusV7:
 
         self.console.print_banner(
             gemini_model=self.orchestrator.gemini_info["model"],
-            claude_model=self.orchestrator.claude_info["model"]
+            claude_model=self.orchestrator.claude_info["model"],
+            version=self.config.nexus_version,
+            codename=self.config.nexus_codename
         )
 
         # V7 Sprint 11: Display startup hints (bootstrap, swarm status)

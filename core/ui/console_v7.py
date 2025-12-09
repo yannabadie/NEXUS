@@ -16,7 +16,7 @@ import os
 
 
 class ConsoleV7:
-    """Console UI minimaliste pour NEXUS V7"""
+    """Console UI minimaliste pour NEXUS"""
 
     def __init__(self, verbose: bool = False):
         """
@@ -28,17 +28,23 @@ class ConsoleV7:
         self.console = Console()
         self.verbose = verbose
 
-    def print_banner(self, gemini_model: str, claude_model: str):
+    def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):
         """
-        Print NEXUS V7 banner au démarrage
+        Print NEXUS banner au démarrage
 
         Args:
             gemini_model: Nom du modèle Gemini détecté
             claude_model: Nom du modèle Claude détecté
+            version: Version from config (e.g., "8.3.1")
+            codename: Codename from config (e.g., "TRUE HIVE MIND")
         """
+        # Default values if not provided (backward compatibility)
+        version = version or "8.3.1"
+        codename = codename or "TRUE HIVE MIND"
+
         banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
-║        NEXUS V7.0 "Chrysalis" - OMNISCIENT REPL           ║
+║        NEXUS V{version} "{codename}"           ║
 ║              Persistent FSM Orchestrator                  ║
 ╚═══════════════════════════════════════════════════════════╝
 

@@ -1,8 +1,8 @@
 """
-Interactive Tutorial - NEXUS V7.7 Phase 16
+Interactive Tutorial - NEXUS V8.3.x TRUE HIVE MIND
 
 Guide interactif pour les nouveaux utilisateurs.
-Présente les fonctionnalités clés de NEXUS en 5 étapes.
+Présente les fonctionnalités clés de NEXUS en 6 étapes.
 """
 
 from dataclasses import dataclass
@@ -19,12 +19,12 @@ class TutorialStep:
 
 
 # =============================================================================
-# TUTORIAL CONTENT
+# TUTORIAL CONTENT (V8.3.x)
 # =============================================================================
 
 TUTORIAL_STEPS: List[TutorialStep] = [
     TutorialStep(
-        title="Bienvenue dans NEXUS V7.7 HIVE MIND",
+        title="Bienvenue dans NEXUS TRUE HIVE MIND",
         explanation="""
 NEXUS est une plateforme de collaboration multi-agents.
 
@@ -37,6 +37,8 @@ NEXUS est une plateforme de collaboration multi-agents.
    • Posez des questions ou décrivez des tâches
    • NEXUS choisit automatiquement le meilleur mode
    • Les agents collaborent pour résoudre votre problème
+
+🆕 V8.3: Les agents peuvent maintenant déléguer au Swarm!
 """,
         tip="NEXUS analyse automatiquement la complexité de vos tâches"
     ),
@@ -54,10 +56,60 @@ Le Swarm Engine orchestre la collaboration entre agents.
    • SPECIALIST  - Un seul expert pour les tâches pointues
    • RED_BLUE    - Adversarial (proposer/attaquer/défendre)
 
+🆕 V8.3 SwarmBridge: Le HiveMind peut déléguer des sous-tâches
+   au Swarm pour une exécution tactique optimale!
+
 💡 NEXUS choisit automatiquement le mode optimal!
 """,
         suggested_command='/swarm "Analyse ce projet et suggère des améliorations"',
         tip="Utilisez /swarm-status pour voir le mode actif"
+    ),
+
+    TutorialStep(
+        title="Agents Spécialisés - Génération Dynamique",
+        explanation="""
+NEXUS V8.1.8+ génère des agents vraiment spécialisés.
+
+🧬 DYNAMIC SPAWN (V8.1.8):
+   • Le HiveMind brainstorme le system prompt
+   • Pas de templates statiques - prompts sur mesure
+   • Validation anti-hallucination des outils
+
+🎯 MODEL SELECTION (V8.1.8-B):
+   • Chaque agent choisit son LLM optimal
+   • Gemini Flash pour vitesse, Claude Opus pour raisonnement
+   • Configuration dans BIRTH_CERTIFICATE.json
+
+📝 COMMANDES:
+   • /spawn "SQL Expert"     - Crée un agent spécialisé
+   • /agents                 - Liste vos agents
+   • /invoke sql_expert ...  - Utilise un agent
+
+⚠️ Le spawn utilise le brainstorming - surveiller /budget!
+""",
+        suggested_command='/spawn "Python testing expert"',
+        tip="Les agents spawnés persistent dans workspace/agents/"
+    ),
+
+    TutorialStep(
+        title="Mémoire & RAG - Intelligence Persistante",
+        explanation="""
+NEXUS apprend de vos succès et retient le contexte projet.
+
+📚 PROJECT MEMORY (RAG):
+   • Indexe automatiquement votre codebase
+   • Retrieval sémantique (Dense) + lexical (TF-IDF)
+   • Commandes: /rag init, /rag clear, /rag query
+
+🧠 SUCCESS MEMORY (V8.2.0):
+   • Enregistre les tâches réussies
+   • Réutilise les modes qui ont fonctionné
+   • Decay temporel (préfère expériences récentes)
+
+💡 Plus vous utilisez NEXUS, plus il devient efficace!
+""",
+        suggested_command='/rag init',
+        tip="Utilisez /rag query 'auth' pour tester le retrieval"
     ),
 
     TutorialStep(
@@ -74,51 +126,43 @@ NEXUS surveille vos dépenses API en temps réel.
    • Tokens utilisés par modèle
    • Latence moyenne des appels
    • Historique des 7 derniers jours
+
+🔄 SELF-HEALING (V8.1.3):
+   • Fallback automatique si un mode échoue
+   • PARALLEL → SEQUENTIAL si race condition
+   • Hot-Swap du lead agent si stagnation (V8.0.1)
 """,
         suggested_command='/budget',
         tip="Utilisez /budget reset en cas d'urgence"
     ),
 
     TutorialStep(
-        title="Workspace - Organisation des Projets",
+        title="Architecture Avancée - Pour Aller Plus Loin",
         explanation="""
-Chaque projet peut avoir son propre workspace isolé.
+Fonctionnalités avancées pour utilisateurs expérimentés.
 
-📁 STRUCTURE:
-   workspace/
-   ├── _IO_BUFFER/      # Communication CLI
-   ├── .nexus/          # État persistant
-   ├── agents/          # Agents spécialisés
-   └── logs/            # Journaux d'événements
+🐝 HIVE MIND PIPELINE (7 phases):
+   1. Analysis    - Analyse indépendante
+   2. Debate      - Débat stratégique
+   3. Architecture - Plan d'exécution
+   4. Execution   - Exécution surveillée (+ Swarm V8.3)
+   5. Diagnosis   - Diagnostic des échecs
+   6. Retry       - Nouvelle tentative adaptée
+   7. Consolidation - Apprentissage
 
-🔄 GESTION:
-   • /workspace new "projet-x" - Créer nouveau
-   • /workspace list - Voir tous les workspaces
-   • /workspace switch "ancien" - Changer de contexte
+🔧 SWARM TOOL (V8.3.1):
+   Les agents peuvent invoquer swarm_delegate pour déléguer
+   des sous-tâches au Swarm Engine à n'importe quelle phase!
+
+🛡️ SÉCURITÉ:
+   • SandboxPolicy pour commandes dangereuses
+   • RedTeam validation des agents spawnés (V8.2.0c)
+   • Depth Guard anti-récursion (max 2 niveaux)
+
+📖 Voir ROADMAP.md pour la liste complète des features!
 """,
-        suggested_command='/workspace',
-        tip="Le workspace actif est isolé des autres"
-    ),
-
-    TutorialStep(
-        title="Evolution - Amélioration Continue",
-        explanation="""
-NEXUS peut créer des versions spécialisées de lui-même.
-
-🧬 EVOLUTION:
-   • Génère des "enfants" avec mutations
-   • Évalue leur performance sur des benchmarks
-   • Promeut les meilleurs, archive les autres
-
-🎯 SPÉCIALISATION:
-   • /spawn "SQL Expert" - Crée un agent SQL
-   • /specialize "API REST" - Clone NEXUS spécialisé
-   • /agents - Liste vos agents
-
-⚠️ L'évolution consomme des tokens - surveillez /budget!
-""",
-        suggested_command='/evolve-status',
-        tip="Commencez par /spawn avant /evolve"
+        suggested_command='/status',
+        tip="Consultez docs/ pour la documentation technique"
     ),
 ]
 
@@ -239,12 +283,13 @@ class InteractiveTutorial:
 ╔══════════════════════════════════════════════════════════════╗
 ║                    🎉 TUTORIEL TERMINÉ!                      ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Vous êtes prêt à utiliser NEXUS V7.7 HIVE MIND!             ║
+║  Vous êtes prêt à utiliser NEXUS TRUE HIVE MIND!             ║
 ║                                                              ║
 ║  📚 /help      - Voir toutes les commandes                   ║
 ║  🐝 /swarm     - Lancer une tâche collaborative              ║
 ║  💰 /budget    - Vérifier vos dépenses                       ║
 ║  🧬 /spawn     - Créer un agent spécialisé                   ║
+║  📖 /rag init  - Indexer votre projet                        ║
 ║                                                              ║
 ║  Bonne collaboration! 🤝                                      ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -260,7 +305,7 @@ class InteractiveTutorial:
         """
         return """
 ╔══════════════════════════════════════════════════════════════╗
-║              NEXUS V7.7 - QUICK START (5 min)                ║
+║              NEXUS TRUE HIVE MIND - QUICK START              ║
 ╚══════════════════════════════════════════════════════════════╝
 
 1️⃣  POSEZ UNE QUESTION
@@ -269,14 +314,18 @@ class InteractiveTutorial:
 2️⃣  UTILISEZ LE SWARM POUR LES TÂCHES COMPLEXES
     > /swarm "Refactore le module auth avec tests"
 
-3️⃣  SURVEILLEZ VOS DÉPENSES
-    > /budget
+3️⃣  INDEXEZ VOTRE PROJET (V8.1.9)
+    > /rag init
 
-4️⃣  CRÉEZ DES AGENTS SPÉCIALISÉS
+4️⃣  CRÉEZ DES AGENTS SPÉCIALISÉS (V8.1.8)
     > /spawn SQL Expert
 
-5️⃣  CONSULTEZ L'AIDE
+5️⃣  SURVEILLEZ VOS DÉPENSES
+    > /budget
+
+6️⃣  CONSULTEZ L'AIDE
     > /help
 
 💡 Pour un guide complet: /tutorial
+📖 Pour la doc technique: voir docs/ et ROADMAP.md
 """
