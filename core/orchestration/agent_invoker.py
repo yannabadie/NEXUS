@@ -141,18 +141,21 @@ class AgentInvoker:
                 return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
             return self._orch.gemini_driver.invoke(context)
 
-    def invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
+    def invoke_for_swarm(self, agent_id: str, task_type: str, context: str,
+                         session_uuid: Optional[str] = None) -> str:
         """
         Invoke agent for HybridSwarmEngine.
 
         V7 Sprint 9: Callback for swarm engine to invoke agents.
         V7.5 HIVE MIND: Extended to support spawned agents.
+        V8.1.6: Added session_uuid for thread-safe parallel execution.
         Returns raw content string for negotiation/execution.
 
         Args:
             agent_id: "gemini_primary", "claude_opus", or spawned agent ID
             task_type: Task type string (negotiation, execution, etc.)
             context: Task context from swarm executor (will be enriched)
+            session_uuid: Optional session UUID for file isolation (V8.1.6)
 
         Returns:
             Agent response content as string
@@ -186,7 +189,9 @@ class AgentInvoker:
                 enriched_context = self._orch._build_swarm_context(context, task_type, target_agent)
 
             # V7 FIX: Pass target_agent explicitly to avoid race condition
-            response = self.invoke_agent_direct(task_type_enum, enriched_context, target_agent)
+            # V8.1.6: Pass session_uuid for thread-safe file access
+            response = self.invoke_agent_direct(task_type_enum, enriched_context, target_agent,
+                                                session_uuid=session_uuid)
             return response.get("content", str(response))
 
         except Exception as e:
@@ -280,18 +285,21 @@ class AgentInvoker:
         self,
         task_type: TaskType,
         context: str,
-        target_agent: str
+        target_agent: str,
+        session_uuid: Optional[str] = None
     ) -> Dict:
         """
         Invoke a specific agent directly without using shared state.
 
         Thread-safe version for parallel execution.
         V7.6 Phase 14d: Budget enforcement before invocation.
+        V8.1.6: Added session_uuid for thread-safe file access.
 
         Args:
             task_type: Type of task for model routing
             context: Full context to send
             target_agent: "Claude" or "Gemini"
+            session_uuid: Optional session UUID for file isolation (V8.1.6)
 
         Returns:
             Response dict with content
@@ -318,12 +326,14 @@ class AgentInvoker:
         if target_agent == "Claude":
             driver = self.get_claude_driver(task_type)
             if use_streaming:
-                return driver.invoke_stream(context, self._orch.on_token)
-            return driver.invoke(context)
+                # V8.1.6: Pass session_uuid for thread-safe file access
+                return driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
+            return driver.invoke(context, session_uuid=session_uuid)
         else:
             if use_streaming:
-                return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
-            return self._orch.gemini_driver.invoke(context)
+                # V8.1.6: Pass session_uuid for thread-safe file access
+                return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
+            return self._orch.gemini_driver.invoke(context, session_uuid=session_uuid)
 
     def record_invocation(
         self,

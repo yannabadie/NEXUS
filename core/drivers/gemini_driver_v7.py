@@ -27,6 +27,7 @@ import json
 import sys
 import time
 import atexit
+import uuid as uuid_module
 from pathlib import Path
 from typing import Dict, Optional, Callable
 
@@ -196,17 +197,20 @@ class GeminiDriverV7:
         import sys
         import shutil
 
-        # Write context to file
-        context_file = self.io_buffer / "gemini_context_in.md"
+        # V8.1.6: Generate unique ID for thread-safe file access
+        unique_id = session_uuid or str(uuid_module.uuid4())[:8]
+
+        # Write context to file with unique ID
+        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
 
         # FIX: Use path relative to cwd (workspace) to avoid double-path issue
         # The subprocess runs with cwd=workspace_path, so the path should be relative to that
-        context_file_relative = Path("_IO_BUFFER") / "gemini_context_in.md"
+        context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
-        output_file = self.io_buffer / "gemini_output.json"
+        output_file = self.io_buffer / f"gemini_output_{unique_id}.json"
 
-        # Clear previous output file
+        # Clear previous output file (now unique, so less likely to exist)
         if output_file.exists():
             output_file.unlink()
 
@@ -429,6 +433,14 @@ class GeminiDriverV7:
         except TimeoutError:
             # Re-raise timeout from the inner try block
             raise
+        finally:
+            # V8.1.6: Cleanup unique files
+            for f in [context_file, output_file]:
+                try:
+                    if f.exists():
+                        f.unlink()
+                except Exception:
+                    pass  # Best effort cleanup
 
     def _extract_json(self, text: str, fallback_to_error: bool = True) -> Dict:
         """
@@ -494,10 +506,13 @@ class GeminiDriverV7:
         import shutil
         import platform
 
-        # Write context to file
-        context_file = self.io_buffer / "gemini_context_in.md"
+        # V8.1.6: Generate unique ID for thread-safe file access
+        unique_id = session_uuid or str(uuid_module.uuid4())[:8]
+
+        # Write context to file with unique ID
+        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
-        context_file_relative = Path("_IO_BUFFER") / "gemini_context_in.md"
+        context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
         # Find CLI executable
         cli_executable = shutil.which(str(self.cli_path))
@@ -622,3 +637,10 @@ class GeminiDriverV7:
 
         except TimeoutError:
             raise
+        finally:
+            # V8.1.6: Cleanup unique context file
+            try:
+                if context_file.exists():
+                    context_file.unlink()
+            except Exception:
+                pass  # Best effort cleanup

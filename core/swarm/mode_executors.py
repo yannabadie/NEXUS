@@ -219,11 +219,12 @@ class ModeExecutor(ABC):
         if role:
             session_uuid = context.get_session_uuid(role, agent_id)
             if session_uuid:
-                # Store in blackboard for driver access
+                # Store in blackboard for driver access (legacy, kept for compatibility)
                 context.blackboard[f"_session_uuid_{agent_id}"] = session_uuid
 
         try:
-            response = context.invoke_agent(agent_id, "execution", task_context)
+            # V8.1.6: Pass session_uuid directly to invoke_agent for thread-safe file access
+            response = context.invoke_agent(agent_id, "execution", task_context, session_uuid)
 
             # If response is string, wrap in AgentResponse
             if isinstance(response, str):

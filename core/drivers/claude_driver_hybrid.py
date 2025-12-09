@@ -38,6 +38,7 @@ import subprocess
 import sys
 import time
 import atexit
+import uuid
 from pathlib import Path
 from typing import Dict, Optional, Callable
 
@@ -94,12 +95,13 @@ class ClaudeDriverHybrid:
         self.model = model or getattr(config, 'claude_sonnet_model', None)
         self.agent_id = agent_id or "claude_primary"
 
-    def invoke(self, context: str) -> Dict:
+    def invoke(self, context: str, session_uuid: Optional[str] = None) -> Dict:
         """
         Invoke Claude CLI avec contexte markdown
 
         Args:
             context: Contexte markdown avec system prompt
+            session_uuid: Optional unique ID for file isolation (V8.1.6)
 
         Returns:
             Dict structuré NEXUS (content, action_type, tool_use, etc.)
@@ -108,8 +110,9 @@ class ClaudeDriverHybrid:
             RuntimeError: Si Claude CLI échoue
             TimeoutError: Si timeout dépassé
         """
-        # Write context to file
-        context_file = self.io_buffer / "claude_context_in.md"
+        # V8.1.6: Generate unique ID for thread-safe file access
+        unique_id = session_uuid or str(uuid.uuid4())[:8]
+        context_file = self.io_buffer / f"claude_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
 
         # Invoke Claude (mode naturel, PAS de flag JSON!)
@@ -227,11 +230,19 @@ class ClaudeDriverHybrid:
 
         except TimeoutError:
             raise
+        finally:
+            # V8.1.6: Cleanup unique context file
+            try:
+                if context_file.exists():
+                    context_file.unlink()
+            except Exception:
+                pass  # Best effort cleanup
 
     def invoke_stream(
         self,
         context: str,
-        on_token: Callable[[str], None]
+        on_token: Callable[[str], None],
+        session_uuid: Optional[str] = None
     ) -> Dict:
         """
         Invoke Claude CLI with streaming output (V7.7 Phase 15).
@@ -242,6 +253,7 @@ class ClaudeDriverHybrid:
         Args:
             context: Contexte markdown avec system prompt
             on_token: Callback called with each text chunk
+            session_uuid: Optional unique ID for file isolation (V8.1.6)
 
         Returns:
             Dict structuré NEXUS (content, action_type, tool_use, etc.)
@@ -250,8 +262,9 @@ class ClaudeDriverHybrid:
             RuntimeError: Si Claude CLI échoue
             TimeoutError: Si timeout dépassé
         """
-        # Write context to file
-        context_file = self.io_buffer / "claude_context_in.md"
+        # V8.1.6: Generate unique ID for thread-safe file access
+        unique_id = session_uuid or str(uuid.uuid4())[:8]
+        context_file = self.io_buffer / f"claude_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
 
         # Claude streaming requires: --verbose --output-format stream-json --include-partial-messages
@@ -338,6 +351,13 @@ class ClaudeDriverHybrid:
 
         except TimeoutError:
             raise
+        finally:
+            # V8.1.6: Cleanup unique context file
+            try:
+                if context_file.exists():
+                    context_file.unlink()
+            except Exception:
+                pass  # Best effort cleanup
 
     def _parse_hybrid_response(self, raw_text: str) -> Dict:
         """
