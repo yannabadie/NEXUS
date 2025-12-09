@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NEXUS Documentation Engine V1.0
+NEXUS Documentation Engine V2.0
 
 Unified documentation synchronization system.
 Single source of truth: .env (NEXUS_VERSION, NEXUS_CODENAME)
@@ -29,18 +29,27 @@ Exit Codes:
     0: Success (or dry-run complete)
     1: Issues found (--check mode)
     2: Error during execution
+
+V2.0 Changes:
+    - Complete architecture map with 10 ZOOM sections
+    - Dynamic extraction of commands, dataclasses, enums
+    - Test coverage statistics
+    - Command categories
+    - Dataclass field details
+    - Anti-hallucination validation
 """
 
 import os
 import re
 import sys
 import ast
+import json
 import argparse
 import subprocess
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional, Tuple, Any
 from collections import defaultdict
 
 # Add project root to path for imports
@@ -90,6 +99,7 @@ class ClassInfo:
     bases: List[str] = field(default_factory=list)
     docstring: Optional[str] = None
     methods: List[str] = field(default_factory=list)
+    fields: List[Tuple[str, str]] = field(default_factory=list)  # (name, type)
     is_dataclass: bool = False
     is_enum: bool = False
 
@@ -124,6 +134,23 @@ class ComponentInfo:
     total_functions: int = 0
 
 
+@dataclass
+class CommandInfo:
+    """Information about a slash command."""
+    name: str
+    category: str
+    description: str = ""
+
+
+@dataclass
+class DataclassInfo:
+    """Information about a dataclass with fields."""
+    name: str
+    file_path: str
+    fields: List[Tuple[str, str, str]] = field(default_factory=list)  # (name, type, default)
+    docstring: Optional[str] = None
+
+
 # =============================================================================
 # DOCUMENTATION ENGINE
 # =============================================================================
@@ -143,34 +170,23 @@ class DocEngine:
     # Files to synchronize
     SYNC_FILES = {
         "README.md": [
-            # Title: NEXUS V7.8 "HIVE MIND" -> NEXUS V8.3.2 "TRUE HIVE MIND"
             (r'NEXUS V[\d.]+\s*"[^"]*"', 'NEXUS V{version} "{codename}"'),
-            # Badge: Version-7.8.0-blue -> Version-8.3.2-blue
             (r'Version-[\d.]+-blue', 'Version-{version}-blue'),
-            # Section: ## V7.8 Features -> ## V8.3 Features
             (r'## V[\d.]+ Features', '## V{major_minor} Features'),
-            # Architecture header
             (r'NEXUS V[\d.]+ HIVE MIND', 'NEXUS V{major_minor} {codename}'),
-            # Architecture section title
             (r'## Architecture \(V[\d.]+\)', '## Architecture (V{major_minor})'),
         ],
         "CLAUDE.md": [
-            # Header version
             (r'\*\*Version\*\*: [\d.]+', '**Version**: {version}'),
-            # Title if present
             (r'# NEXUS V[\d.]+', '# NEXUS V{major_minor}'),
         ],
     }
-
-    # Module README patterns (for audit)
-    MODULE_README_VERSION_PATTERN = r'NEXUS V[\d.]+\.?x?'
 
     def __init__(self, project_root: Path):
         self.root = project_root
         self.version = self._read_env_value("NEXUS_VERSION", "0.0.0")
         self.codename = self._read_env_value("NEXUS_CODENAME", "UNKNOWN")
         self.major_minor = ".".join(self.version.split(".")[:2])
-
         self.issues: List[Issue] = []
         self.changes: List[Change] = []
 
@@ -179,12 +195,10 @@ class DocEngine:
         env_path = self.root / ".env"
         if not env_path.exists():
             return default
-
         content = env_path.read_text(encoding="utf-8")
         for line in content.splitlines():
             if line.startswith(f"{key}="):
                 value = line.split("=", 1)[1].strip()
-                # Remove quotes if present
                 if value.startswith('"') and value.endswith('"'):
                     value = value[1:-1]
                 return value
@@ -203,61 +217,40 @@ class DocEngine:
     # =========================================================================
 
     def check(self) -> List[Issue]:
-        """
-        Check documentation consistency (read-only).
-        Returns list of issues found.
-        """
+        """Check documentation consistency (read-only)."""
         self.issues = []
-
         print(f"\n{'='*60}")
         print(f"NEXUS Documentation Check")
         print(f"Source of Truth: .env -> NEXUS_VERSION={self.version}")
         print(f"{'='*60}\n")
 
-        # Check main documentation files
         for filename, patterns in self.SYNC_FILES.items():
             file_path = self.root / filename
             if not file_path.exists():
-                self.issues.append(Issue(
-                    severity="ERROR",
-                    file=filename,
-                    message="File not found"
-                ))
+                self.issues.append(Issue(severity="ERROR", file=filename, message="File not found"))
                 continue
-
             content = file_path.read_text(encoding="utf-8")
-
             for pattern, replacement in patterns:
                 expected = self._format_pattern(replacement)
                 match = re.search(pattern, content)
-
                 if match:
                     current = match.group(0)
-                    # Check if it matches expected
                     expected_pattern = self._format_pattern(replacement)
-                    # Convert replacement to regex for comparison
                     expected_regex = re.escape(expected_pattern)
                     if not re.match(expected_regex.replace(r'\{', '{').replace(r'\}', '}'), current):
                         self.issues.append(Issue(
-                            severity="ERROR",
-                            file=filename,
+                            severity="ERROR", file=filename,
                             message=f"Version mismatch for pattern '{pattern}'",
-                            current=current,
-                            expected=expected_pattern
+                            current=current, expected=expected_pattern
                         ))
                 else:
                     self.issues.append(Issue(
-                        severity="WARNING",
-                        file=filename,
+                        severity="WARNING", file=filename,
                         message=f"Pattern not found: '{pattern}'"
                     ))
 
-        # Check module READMEs
         self._check_module_readmes()
-
-        # Print results
         self._print_check_results()
-
         return self.issues
 
     def _check_module_readmes(self):
@@ -265,13 +258,9 @@ class DocEngine:
         core_path = self.root / "core"
         if not core_path.exists():
             return
-
         for module_dir in sorted(core_path.iterdir()):
-            if not module_dir.is_dir():
+            if not module_dir.is_dir() or module_dir.name.startswith("_"):
                 continue
-            if module_dir.name.startswith("_"):
-                continue
-
             readme_path = module_dir / "README.md"
             if not readme_path.exists():
                 self.issues.append(Issue(
@@ -280,7 +269,6 @@ class DocEngine:
                     message="Missing README.md"
                 ))
             else:
-                # Check if version is outdated
                 content = readme_path.read_text(encoding="utf-8")
                 if "V7." in content and "V8" not in content:
                     self.issues.append(Issue(
@@ -293,21 +281,18 @@ class DocEngine:
         """Print check results."""
         errors = [i for i in self.issues if i.severity == "ERROR"]
         warnings = [i for i in self.issues if i.severity == "WARNING"]
-
         if errors:
             print("[ERRORS]")
             for issue in errors:
                 print(f"  {issue}")
             print()
-
         if warnings:
             print("[WARNINGS]")
             for issue in warnings:
                 print(f"  {issue}")
             print()
-
         if not errors and not warnings:
-            print("[OK] All documentation is in sync with version {self.version}")
+            print(f"[OK] All documentation is in sync with version {self.version}")
         else:
             print(f"\nSummary: {len(errors)} errors, {len(warnings)} warnings")
 
@@ -316,17 +301,8 @@ class DocEngine:
     # =========================================================================
 
     def sync(self, apply: bool = False) -> List[Change]:
-        """
-        Synchronize version patterns in documentation files.
-
-        Args:
-            apply: If True, write changes. If False, dry-run.
-
-        Returns:
-            List of changes (made or would-be-made).
-        """
+        """Synchronize version patterns in documentation files."""
         self.changes = []
-
         print(f"\n{'='*60}")
         print(f"NEXUS Documentation Sync {'(DRY RUN)' if not apply else '(APPLYING)'}")
         print(f"Target Version: {self.version} \"{self.codename}\"")
@@ -337,28 +313,19 @@ class DocEngine:
             if not file_path.exists():
                 print(f"[SKIP] {filename}: File not found")
                 continue
-
             content = file_path.read_text(encoding="utf-8")
             new_content = content
             file_changes = []
 
             for pattern, replacement in patterns:
                 expected = self._format_pattern(replacement)
-
-                def replacer(match):
+                def replacer(match, exp=expected, cont=content, fc=file_changes):
                     old_value = match.group(0)
-                    if old_value != expected:
-                        # Find line number
-                        line_num = content[:match.start()].count('\n') + 1
-                        file_changes.append(Change(
-                            file=filename,
-                            pattern=pattern,
-                            old_value=old_value,
-                            new_value=expected,
-                            line_number=line_num
-                        ))
-                    return expected
-
+                    if old_value != exp:
+                        line_num = cont[:match.start()].count('\n') + 1
+                        fc.append(Change(file=filename, pattern=pattern,
+                                        old_value=old_value, new_value=exp, line_number=line_num))
+                    return exp
                 new_content = re.sub(pattern, replacer, new_content)
 
             if file_changes:
@@ -366,7 +333,6 @@ class DocEngine:
                 for change in file_changes:
                     print(f"  Line {change.line_number}: '{change.old_value}' -> '{change.new_value}'")
                 self.changes.extend(file_changes)
-
                 if apply:
                     file_path.write_text(new_content, encoding="utf-8")
                     print(f"  -> Written!")
@@ -376,7 +342,6 @@ class DocEngine:
         print(f"\nTotal changes: {len(self.changes)}")
         if not apply and self.changes:
             print("(Use --apply to write changes)")
-
         return self.changes
 
     # =========================================================================
@@ -384,32 +349,26 @@ class DocEngine:
     # =========================================================================
 
     def generate_map(self, output_path: Optional[Path] = None, apply: bool = False) -> str:
-        """
-        Generate architecture map document.
-
-        This integrates the functionality from generate_architecture_map.py
-        """
+        """Generate architecture map document."""
         if output_path is None:
             output_path = self.root / "docs" / "ARCHITECTURE_MAP_GENERATED.md"
 
         print(f"\n{'='*60}")
-        print(f"NEXUS Architecture Map Generator")
+        print(f"NEXUS Architecture Map Generator V2")
         print(f"{'='*60}\n")
 
-        # Scan codebase
         scanner = CodebaseScanner(self.root)
         components = scanner.scan()
 
-        # Extract structures
         extractor = StructureExtractor(self.root)
         structures = extractor.extract()
 
-        # Generate document
-        generator = MapGenerator(
+        generator = MapGeneratorV2(
             version=self.version,
             codename=self.codename,
             components=components,
-            structures=structures
+            structures=structures,
+            root=self.root
         )
         content = generator.generate()
 
@@ -417,12 +376,11 @@ class DocEngine:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(content, encoding="utf-8")
             print(f"[OK] Generated: {output_path}")
-            print(f"     {len(content)} bytes, {content.count(chr(10))} lines")
+            print(f"     {len(content):,} bytes, {content.count(chr(10))} lines")
         else:
             print(f"[DRY RUN] Would generate: {output_path}")
-            print(f"          {len(content)} bytes, {content.count(chr(10))} lines")
+            print(f"          {len(content):,} bytes, {content.count(chr(10))} lines")
             print("(Use --apply to write)")
-
         return content
 
     # =========================================================================
@@ -430,12 +388,7 @@ class DocEngine:
     # =========================================================================
 
     def audit(self) -> Dict[str, str]:
-        """
-        Audit module READMEs for existence and currency.
-
-        Returns:
-            Dict mapping module name to status (OK, MISSING, OUTDATED)
-        """
+        """Audit module READMEs for existence and currency."""
         print(f"\n{'='*60}")
         print(f"NEXUS Module README Audit")
         print(f"{'='*60}\n")
@@ -444,11 +397,8 @@ class DocEngine:
         core_path = self.root / "core"
 
         for module_dir in sorted(core_path.iterdir()):
-            if not module_dir.is_dir():
+            if not module_dir.is_dir() or module_dir.name.startswith("_"):
                 continue
-            if module_dir.name.startswith("_"):
-                continue
-
             readme_path = module_dir / "README.md"
             module_name = module_dir.name
 
@@ -457,10 +407,8 @@ class DocEngine:
                 print(f"[MISSING] core/{module_name}/README.md")
             else:
                 content = readme_path.read_text(encoding="utf-8")
-                # Check version references
                 has_v8 = "V8" in content or "v8" in content
                 has_v7_only = ("V7" in content or "v7" in content) and not has_v8
-
                 if has_v7_only:
                     results[module_name] = "OUTDATED"
                     print(f"[OUTDATED] core/{module_name}/README.md (V7 references, no V8)")
@@ -468,13 +416,10 @@ class DocEngine:
                     results[module_name] = "OK"
                     print(f"[OK] core/{module_name}/README.md")
 
-        # Summary
         ok_count = sum(1 for v in results.values() if v == "OK")
         missing_count = sum(1 for v in results.values() if v == "MISSING")
         outdated_count = sum(1 for v in results.values() if v == "OUTDATED")
-
         print(f"\nSummary: {ok_count} OK, {missing_count} missing, {outdated_count} outdated")
-
         return results
 
     # =========================================================================
@@ -482,44 +427,30 @@ class DocEngine:
     # =========================================================================
 
     def full(self, apply: bool = False) -> bool:
-        """
-        Run all modes: check, sync, gen-map, audit.
-
-        Returns:
-            True if all passed, False if issues found.
-        """
+        """Run all modes: check, sync, gen-map, audit."""
         print(f"\n{'#'*60}")
-        print(f"# NEXUS Documentation Engine - FULL RUN")
+        print(f"# NEXUS Documentation Engine V2 - FULL RUN")
         print(f"# Version: {self.version} \"{self.codename}\"")
         print(f"# Apply: {apply}")
         print(f"{'#'*60}")
 
-        # 1. Check
         issues = self.check()
         has_errors = any(i.severity == "ERROR" for i in issues)
-
-        # 2. Sync
         changes = self.sync(apply=apply)
-
-        # 3. Generate map
         self.generate_map(apply=apply)
-
-        # 4. Audit
         audit_results = self.audit()
 
-        # Final summary
         print(f"\n{'='*60}")
         print("FINAL SUMMARY")
         print(f"{'='*60}")
         print(f"  Check:  {len(issues)} issues ({sum(1 for i in issues if i.severity == 'ERROR')} errors)")
         print(f"  Sync:   {len(changes)} changes {'applied' if apply else '(dry run)'}")
         print(f"  Audit:  {sum(1 for v in audit_results.values() if v != 'OK')} modules need attention")
-
         return not has_errors
 
 
 # =============================================================================
-# CODEBASE SCANNER (from generate_architecture_map.py)
+# CODEBASE SCANNER
 # =============================================================================
 
 class CodebaseScanner:
@@ -532,58 +463,42 @@ class CodebaseScanner:
         """Scan core/ directory and return component information."""
         components = []
         core_path = self.root / "core"
-
         if not core_path.exists():
             return components
 
         for component_dir in sorted(core_path.iterdir()):
-            if not component_dir.is_dir():
+            if not component_dir.is_dir() or component_dir.name.startswith("_"):
                 continue
-            if component_dir.name.startswith("_"):
-                continue
-
             component = self._scan_component(component_dir)
             components.append(component)
-
         return components
 
     def _scan_component(self, path: Path) -> ComponentInfo:
         """Scan a single component directory."""
-        component = ComponentInfo(
-            name=path.name,
-            path=str(path.relative_to(self.root))
-        )
-
+        component = ComponentInfo(name=path.name, path=str(path.relative_to(self.root)))
         for py_file in path.rglob("*.py"):
             if py_file.name.startswith("_"):
                 continue
-
             module = self._scan_module(py_file)
             component.modules.append(module)
             component.total_loc += module.lines_of_code
             component.total_classes += len(module.classes)
             component.total_functions += len(module.functions)
-
         return component
 
     def _scan_module(self, path: Path) -> ModuleInfo:
         """Scan a single Python module."""
         module = ModuleInfo(path=str(path.relative_to(self.root)))
-
         try:
             content = path.read_text(encoding="utf-8")
             module.lines_of_code = len(content.splitlines())
-
             tree = ast.parse(content)
             analyzer = CodeAnalyzer(str(path))
             analyzer.visit(tree)
-
             module.classes = analyzer.classes
             module.functions = analyzer.functions
-
-        except Exception as e:
-            pass  # Skip files that can't be parsed
-
+        except Exception:
+            pass
         return module
 
 
@@ -597,28 +512,23 @@ class CodeAnalyzer(ast.NodeVisitor):
 
     def visit_ClassDef(self, node: ast.ClassDef):
         bases = [self._get_name(b) for b in node.bases]
-
-        # Check if dataclass or enum
-        is_dataclass = any(
-            self._get_name(d) == "dataclass"
-            for d in node.decorator_list
-        )
+        is_dataclass = any(self._get_name(d) == "dataclass" for d in node.decorator_list)
         is_enum = "Enum" in bases or "IntEnum" in bases or "StrEnum" in bases
+        methods = [n.name for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
 
-        methods = [
-            n.name for n in node.body
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-        ]
+        # Extract fields for dataclasses
+        fields = []
+        if is_dataclass:
+            for item in node.body:
+                if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                    field_name = item.target.id
+                    field_type = self._get_annotation(item.annotation) if item.annotation else "Any"
+                    fields.append((field_name, field_type))
 
         class_info = ClassInfo(
-            name=node.name,
-            file_path=self.file_path,
-            line_number=node.lineno,
-            bases=bases,
-            docstring=ast.get_docstring(node),
-            methods=methods,
-            is_dataclass=is_dataclass,
-            is_enum=is_enum
+            name=node.name, file_path=self.file_path, line_number=node.lineno,
+            bases=bases, docstring=ast.get_docstring(node), methods=methods,
+            fields=fields, is_dataclass=is_dataclass, is_enum=is_enum
         )
         self.classes.append(class_info)
         self.generic_visit(node)
@@ -626,22 +536,16 @@ class CodeAnalyzer(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef):
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
-                name=node.name,
-                file_path=self.file_path,
-                line_number=node.lineno,
-                is_async=False,
-                docstring=ast.get_docstring(node)
+                name=node.name, file_path=self.file_path, line_number=node.lineno,
+                is_async=False, docstring=ast.get_docstring(node)
             ))
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
-                name=node.name,
-                file_path=self.file_path,
-                line_number=node.lineno,
-                is_async=True,
-                docstring=ast.get_docstring(node)
+                name=node.name, file_path=self.file_path, line_number=node.lineno,
+                is_async=True, docstring=ast.get_docstring(node)
             ))
         self.generic_visit(node)
 
@@ -653,6 +557,23 @@ class CodeAnalyzer(ast.NodeVisitor):
         elif isinstance(node, ast.Call):
             return self._get_name(node.func)
         return ""
+
+    def _get_annotation(self, node) -> str:
+        """Get type annotation as string."""
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Constant):
+            return str(node.value)
+        elif isinstance(node, ast.Subscript):
+            base = self._get_annotation(node.value)
+            if isinstance(node.slice, ast.Tuple):
+                args = ", ".join(self._get_annotation(e) for e in node.slice.elts)
+            else:
+                args = self._get_annotation(node.slice)
+            return f"{base}[{args}]"
+        elif isinstance(node, ast.Attribute):
+            return f"{self._get_annotation(node.value)}.{node.attr}"
+        return "Any"
 
 
 # =============================================================================
@@ -668,57 +589,30 @@ class StructureExtractor:
     def extract(self) -> Dict:
         """Extract all structures."""
         return {
-            "fsm_states": self._extract_fsm_states(),
-            "hive_states": self._extract_hive_states(),
-            "swarm_modes": self._extract_swarm_modes(),
-            "commands": self._extract_commands(),
+            "fsm_states": self._extract_enum_values(
+                self.root / "core" / "fsm" / "states.py", "OrchestratorState"),
+            "hive_states": self._extract_enum_values(
+                self.root / "core" / "hive_mind" / "types.py", "HiveMindState"),
+            "hive_phases": self._extract_enum_values(
+                self.root / "core" / "hive_mind" / "types.py", "HivePhase"),
+            "swarm_modes": self._extract_enum_values(
+                self.root / "core" / "swarm" / "collaboration_modes.py", "CollaborationMode"),
+            "commands": self._extract_commands_detailed(),
             "enums": self._extract_all_enums(),
-            "dataclasses": self._extract_all_dataclasses(),
+            "dataclasses": self._extract_all_dataclasses_detailed(),
+            "test_stats": self._get_test_stats(),
+            "model_routing": self._extract_model_routing(),
+            "fallback_chains": self._extract_fallback_chains(),
+            "mode_characteristics": self._extract_mode_characteristics(),
         }
-
-    def _extract_fsm_states(self) -> List[str]:
-        """Extract FSM states from states.py."""
-        states_file = self.root / "core" / "fsm" / "states.py"
-        return self._extract_enum_values(states_file, "OrchestratorState")
-
-    def _extract_hive_states(self) -> List[str]:
-        """Extract HiveMind states from types.py."""
-        types_file = self.root / "core" / "hive_mind" / "types.py"
-        return self._extract_enum_values(types_file, "HiveMindState")
-
-    def _extract_swarm_modes(self) -> List[str]:
-        """Extract collaboration modes."""
-        modes_file = self.root / "core" / "swarm" / "collaboration_modes.py"
-        return self._extract_enum_values(modes_file, "CollaborationMode")
-
-    def _extract_commands(self) -> List[str]:
-        """Extract slash commands from REPL."""
-        repl_file = self.root / "core" / "interface" / "repl.py"
-        commands = []
-
-        if repl_file.exists():
-            content = repl_file.read_text(encoding="utf-8")
-            # Find command patterns
-            pattern = r'elif\s+command\s*==\s*["\']([^"\']+)["\']'
-            matches = re.findall(pattern, content)
-            commands.extend(matches)
-
-            # Also look for COMMAND_CATEGORIES
-            pattern2 = r'"/([^"]+)"'
-            matches2 = re.findall(pattern2, content)
-            commands.extend(matches2)
-
-        return sorted(set(commands))
 
     def _extract_enum_values(self, file_path: Path, enum_name: str) -> List[str]:
         """Extract values from an enum class."""
         if not file_path.exists():
             return []
-
         try:
             content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content)
-
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef) and node.name == enum_name:
                     values = []
@@ -730,45 +624,227 @@ class StructureExtractor:
                     return values
         except Exception:
             pass
-
         return []
 
-    def _extract_all_enums(self) -> List[str]:
-        """Extract all enum names from codebase."""
+    def _extract_commands_detailed(self) -> Dict[str, List[CommandInfo]]:
+        """Extract slash commands with categories."""
+        categories = {
+            "Collaboration": [],
+            "Evolution": [],
+            "Monitoring": [],
+            "Workspace": [],
+            "Memory": [],
+            "System": [],
+        }
+
+        # Command -> Category mapping
+        cmd_categories = {
+            "swarm": ("Collaboration", "Route task through Hybrid Swarm Engine"),
+            "swarm-status": ("Collaboration", "Show current mode + DyLAN metrics"),
+            "swarm-fsm": ("Collaboration", "Debug: route via FSM states"),
+            "pool-stats": ("Collaboration", "Show agent pool scores"),
+            "spawn": ("Evolution", "Create specialized agent"),
+            "agents": ("Evolution", "List all spawned agents"),
+            "evolve": ("Evolution", "Create child generations"),
+            "evolve-status": ("Evolution", "Show evolution stats"),
+            "review": ("Evolution", "Review pending children"),
+            "specialize": ("Evolution", "Create NEXUS spinoff"),
+            "status": ("Monitoring", "Orchestrator state"),
+            "telemetry": ("Monitoring", "7-day report"),
+            "budget": ("Monitoring", "Budget status"),
+            "doctor": ("Monitoring", "Run diagnostics"),
+            "workspace": ("Workspace", "Current workspace info"),
+            "bootstrap": ("Workspace", "Generate NEXUS.md"),
+            "ws": ("Workspace", "Workspace file commands"),
+            "learn": ("Memory", "Index into RAG"),
+            "forget": ("Memory", "Remove from RAG"),
+            "memory-status": ("Memory", "Index statistics"),
+            "rag": ("Memory", "RAG commands"),
+            "clear": ("System", "Clear terminal"),
+            "reset": ("System", "Reset to IDLE"),
+            "mode": ("System", "Change mode"),
+            "chat": ("System", "Chat-only (no tools)"),
+            "help": ("System", "Help message"),
+            "tutorial": ("System", "Interactive guide"),
+            "quickstart": ("System", "Quick start"),
+            "exit": ("System", "Exit NEXUS"),
+            "export-telemetry": ("Monitoring", "Export session telemetry"),
+        }
+
+        repl_file = self.root / "core" / "interface" / "repl.py"
+        if repl_file.exists():
+            content = repl_file.read_text(encoding="utf-8")
+            # Find all commands
+            pattern = r'elif\s+command\s*==\s*["\']/?([^"\']+)["\']'
+            matches = re.findall(pattern, content)
+
+            for cmd in sorted(set(matches)):
+                if cmd in cmd_categories:
+                    cat, desc = cmd_categories[cmd]
+                else:
+                    cat, desc = "System", ""
+                categories[cat].append(CommandInfo(name=cmd, category=cat, description=desc))
+
+        return categories
+
+    def _extract_all_enums(self) -> List[Tuple[str, str]]:
+        """Extract all enum names with their files."""
         enums = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
                 content = py_file.read_text(encoding="utf-8")
                 tree = ast.parse(content)
-
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
                         bases = [self._get_base_name(b) for b in node.bases]
                         if any(b in ("Enum", "IntEnum", "StrEnum") for b in bases):
-                            enums.append(node.name)
+                            rel_path = str(py_file.relative_to(self.root))
+                            enums.append((node.name, rel_path))
             except Exception:
                 pass
+        return sorted(set(enums), key=lambda x: x[0])
 
-        return sorted(set(enums))
-
-    def _extract_all_dataclasses(self) -> List[str]:
-        """Extract all dataclass names from codebase."""
+    def _extract_all_dataclasses_detailed(self) -> List[DataclassInfo]:
+        """Extract all dataclasses with their fields."""
         dataclasses = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
                 content = py_file.read_text(encoding="utf-8")
                 tree = ast.parse(content)
-
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
                         for decorator in node.decorator_list:
                             if self._get_base_name(decorator) == "dataclass":
-                                dataclasses.append(node.name)
+                                fields = []
+                                for item in node.body:
+                                    if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+                                        field_name = item.target.id
+                                        field_type = self._get_annotation(item.annotation) if item.annotation else "Any"
+                                        default = ""
+                                        if item.value:
+                                            if isinstance(item.value, ast.Constant):
+                                                default = repr(item.value.value)
+                                            elif isinstance(item.value, ast.Call):
+                                                default = "..."
+                                        fields.append((field_name, field_type, default))
+
+                                rel_path = str(py_file.relative_to(self.root))
+                                dataclasses.append(DataclassInfo(
+                                    name=node.name,
+                                    file_path=rel_path,
+                                    fields=fields,
+                                    docstring=ast.get_docstring(node)
+                                ))
                                 break
             except Exception:
                 pass
+        return sorted(dataclasses, key=lambda x: x.name)
 
-        return sorted(set(dataclasses))
+    def _get_test_stats(self) -> Dict[str, int]:
+        """Get test statistics."""
+        stats = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+        tests_dir = self.root / "tests"
+        if tests_dir.exists():
+            # Count test files and functions
+            for py_file in tests_dir.rglob("test_*.py"):
+                try:
+                    content = py_file.read_text(encoding="utf-8")
+                    # Count test functions
+                    test_count = len(re.findall(r'def test_', content))
+                    stats["total"] += test_count
+                except Exception:
+                    pass
+        return stats
+
+    def _extract_model_routing(self) -> Dict[str, Dict[str, str]]:
+        """
+        Extract model routing configuration dynamically from ModelRouter.
+
+        V2.1: Dynamic extraction - adapts automatically to routing changes.
+        """
+        routing = {
+            "claude": {"model": "", "opus_tasks": [], "sonnet_tasks": []},
+            "gemini": {"model": "", "pro_tasks": [], "flash_tasks": []},
+        }
+
+        try:
+            # Try to import and instantiate ModelRouter
+            from core.routing.model_router import ModelRouter, TaskType
+            router = ModelRouter()
+
+            routing["claude"]["model"] = router.opus_model
+            routing["claude"]["sonnet_model"] = router.sonnet_model
+            routing["claude"]["opus_tasks"] = [t.value for t in router.opus_tasks]
+            routing["claude"]["sonnet_tasks"] = [t.value for t in router.sonnet_tasks]
+
+            routing["gemini"]["model"] = router.gemini_pro_model
+            routing["gemini"]["flash_model"] = router.gemini_flash_model
+            routing["gemini"]["pro_tasks"] = [t.value for t in router.gemini_pro_tasks]
+            routing["gemini"]["flash_tasks"] = [t.value for t in router.gemini_flash_tasks]
+
+        except ImportError:
+            # Fallback to static values if import fails
+            routing["claude"]["opus_tasks"] = ["brainstorm", "redteam", "architect", "evolution"]
+            routing["claude"]["sonnet_tasks"] = ["tool", "validation", "simple", "format"]
+            routing["gemini"]["pro_tasks"] = ["reasoning", "research", "analysis"]
+            routing["gemini"]["flash_tasks"] = ["simple", "format", "validation"]
+
+        return routing
+
+    def _extract_fallback_chains(self) -> Dict[str, Optional[str]]:
+        """
+        Extract fallback chains dynamically from CollaborationMode.fallback_mode.
+
+        V2.1: Dynamic extraction - adapts automatically to mode changes.
+        """
+        fallbacks = {}
+
+        try:
+            # Try to import CollaborationMode and extract from fallback_mode property
+            from core.swarm.collaboration_modes import CollaborationMode
+
+            for mode in CollaborationMode:
+                fallback = mode.fallback_mode
+                fallbacks[mode.value.upper()] = fallback.value.upper() if fallback else None
+
+        except ImportError:
+            # Fallback to static values if import fails
+            fallbacks = {
+                "PARALLEL": "SEQUENTIAL",
+                "SEQUENTIAL": "SPECIALIST",
+                "LEAD_SUPPORT": "SPECIALIST",
+                "PING_PONG": "SEQUENTIAL",
+                "RED_BLUE": "LEAD_SUPPORT",
+                "SPECIALIST": None,
+            }
+
+        return fallbacks
+
+    def _extract_mode_characteristics(self) -> Dict[str, Dict]:
+        """
+        Extract mode characteristics dynamically from MODE_CHARACTERISTICS.
+
+        V2.1: Dynamic extraction - adapts automatically to new modes.
+        """
+        characteristics = {}
+
+        try:
+            from core.swarm.collaboration_modes import MODE_CHARACTERISTICS
+
+            for mode, char in MODE_CHARACTERISTICS.items():
+                characteristics[mode.value] = {
+                    "description": char.description,
+                    "when_to_use": char.when_to_use,
+                    "complexity_affinity": char.complexity_affinity,
+                    "parallelism_benefit": char.parallelism_benefit,
+                    "adversarial": char.adversarial,
+                    "typical_rounds": char.typical_rounds,
+                }
+
+        except ImportError:
+            pass  # Will use defaults in generator
+
+        return characteristics
 
     def _get_base_name(self, node) -> str:
         if isinstance(node, ast.Name):
@@ -779,25 +855,37 @@ class StructureExtractor:
             return self._get_base_name(node.func)
         return ""
 
+    def _get_annotation(self, node) -> str:
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Constant):
+            return str(node.value)
+        elif isinstance(node, ast.Subscript):
+            base = self._get_annotation(node.value)
+            if isinstance(node.slice, ast.Tuple):
+                args = ", ".join(self._get_annotation(e) for e in node.slice.elts)
+            else:
+                args = self._get_annotation(node.slice)
+            return f"{base}[{args}]"
+        elif isinstance(node, ast.Attribute):
+            return f"{self._get_annotation(node.value)}.{node.attr}"
+        return "Any"
+
 
 # =============================================================================
-# MAP GENERATOR
+# MAP GENERATOR V2 - ENHANCED
 # =============================================================================
 
-class MapGenerator:
-    """Generates the architecture map document."""
+class MapGeneratorV2:
+    """Generates the complete architecture map document V2."""
 
-    def __init__(
-        self,
-        version: str,
-        codename: str,
-        components: List[ComponentInfo],
-        structures: Dict
-    ):
+    def __init__(self, version: str, codename: str, components: List[ComponentInfo],
+                 structures: Dict, root: Path):
         self.version = version
         self.codename = codename
         self.components = components
         self.structures = structures
+        self.root = root
         self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         self.git_commit = self._get_git_commit()
 
@@ -805,7 +893,7 @@ class MapGenerator:
         try:
             result = subprocess.run(
                 ["git", "rev-parse", "--short", "HEAD"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True, text=True, timeout=5, cwd=self.root
             )
             return result.stdout.strip() if result.returncode == 0 else "unknown"
         except Exception:
@@ -815,14 +903,20 @@ class MapGenerator:
         """Generate the complete architecture map."""
         sections = [
             self._generate_header(),
+            self._generate_toc(),
             self._generate_overview(),
             self._generate_component_summary(),
-            self._generate_fsm_diagram(),
-            self._generate_swarm_diagram(),
-            self._generate_hive_diagram(),
-            self._generate_memory_diagram(),
+            self._generate_orchestration_zoom(),
+            self._generate_llm_drivers_zoom(),
+            self._generate_swarm_zoom(),
+            self._generate_hive_mind_zoom(),
+            self._generate_evolution_zoom(),
+            self._generate_memory_zoom(),
+            self._generate_security_zoom(),
             self._generate_functional_inventory(),
+            self._generate_key_dataclasses(),
             self._generate_statistics(),
+            self._generate_anti_hallucination(),
             self._generate_footer(),
         ]
         return "\n".join(sections)
@@ -832,12 +926,32 @@ class MapGenerator:
 
 **Auto-Generated**: {self.timestamp}
 **Git Commit**: {self.git_commit}
-**Generator**: `scripts/doc_engine.py`
+**Generator**: `scripts/doc_engine.py` V2
+**Codename**: "{self.codename}"
 
 ---
 
 > This document is automatically generated by scanning the codebase.
-> Re-run the generator after significant changes to keep it updated.
+> It provides a complete, verified view of the NEXUS architecture.
+
+---
+"""
+
+    def _generate_toc(self) -> str:
+        return """## Table of Contents
+
+1. [High-Level Overview](#1-high-level-overview)
+2. [ZOOM: Orchestration Core](#2-zoom-orchestration-core)
+3. [ZOOM: LLM Drivers & Routing](#3-zoom-llm-drivers--routing)
+4. [ZOOM: Swarm Engine](#4-zoom-swarm-engine)
+5. [ZOOM: Hive Mind Pipeline](#5-zoom-hive-mind-pipeline)
+6. [ZOOM: Evolution & Spawning](#6-zoom-evolution--spawning)
+7. [ZOOM: Memory Systems](#7-zoom-memory-systems)
+8. [ZOOM: Security & Governance](#8-zoom-security--governance)
+9. [Functional Inventory](#9-functional-inventory)
+10. [Key Dataclasses](#10-key-dataclasses)
+11. [Statistics](#11-statistics)
+12. [Anti-Hallucination Reference](#12-anti-hallucination-reference)
 
 ---
 """
@@ -849,25 +963,25 @@ class MapGenerator:
 graph TD
     subgraph Entry["Entry Layer"]
         USER[User Input]
-        REPL[REPL<br/>Commands]
+        REPL[REPL<br/>40+ commands]
     end
 
     subgraph Core["Orchestration Core"]
-        ORCH[OrchestratorV7<br/>FSM]
+        ORCH[OrchestratorV7<br/>11 FSM states]
         SWARM[Swarm Engine<br/>6 modes]
         HIVE[Hive Mind<br/>7 phases]
     end
 
     subgraph LLM["LLM Drivers"]
-        GEMINI[Gemini Driver]
-        CLAUDE[Claude Driver]
+        GEMINI[Gemini Driver<br/>Persistent Session]
+        CLAUDE[Claude Driver<br/>Hybrid XML]
     end
 
     subgraph Support["Support Systems"]
         MEM[Memory<br/>RAG + Success]
         SEC[Security<br/>KERNEL + Policy]
         EVOL[Evolution<br/>Spawn + Validate]
-        TEL[Telemetry<br/>Budget]
+        TEL[Telemetry<br/>Budget Tracking]
     end
 
     USER --> REPL
@@ -882,218 +996,633 @@ graph TD
     TEL -.->|"limits"| LLM
     EVOL -.->|"spawns"| SWARM
 ```
+
+### Architecture Summary
+
+| Layer | Components | Purpose |
+|-------|------------|---------|
+| **Entry** | REPL, Commands | User interaction |
+| **Orchestration** | FSM, Router | State management, task routing |
+| **Collaboration** | Swarm, Hive Mind | Multi-agent coordination |
+| **LLM** | Gemini, Claude | Model execution |
+| **Support** | Memory, Security, Evolution, Telemetry | Cross-cutting concerns |
+
 """
 
     def _generate_component_summary(self) -> str:
-        lines = ["### Component Summary", "", "| Component | Files | LOC | Classes | Functions |", "|-----------|-------|-----|---------|-----------|"]
+        lines = ["### Component Summary", "",
+                 "| Component | Files | LOC | Classes | Functions |",
+                 "|-----------|-------|-----|---------|-----------|"]
 
-        for comp in sorted(self.components, key=lambda c: c.name):
+        for comp in sorted(self.components, key=lambda c: -c.total_loc):
             lines.append(f"| {comp.name} | {len(comp.modules)} | {comp.total_loc:,} | {comp.total_classes} | {comp.total_functions} |")
 
         return "\n".join(lines) + "\n"
 
-    def _generate_fsm_diagram(self) -> str:
+    def _generate_orchestration_zoom(self) -> str:
         states = self.structures.get("fsm_states", [])
-        states_str = ", ".join(f"`{s}`" for s in states[:10])
-        if len(states) > 10:
-            states_str += f" ... (+{len(states)-10} more)"
+        states_list = "\n".join(f"| `{s}` | - |" for s in states)
 
         return f"""## 2. ZOOM: Orchestration Core
+
+### FSM State Diagram
 
 ```mermaid
 stateDiagram-v2
     [*] --> IDLE
 
     IDLE --> BRAINSTORMING: user_input
-    IDLE --> SWARM_ANALYZING: /swarm
+    IDLE --> SWARM_ANALYZING: /swarm or auto-route
 
     BRAINSTORMING --> EXECUTING_TOOL: tool_call
     BRAINSTORMING --> WAITING_USER: task_done
 
-    EXECUTING_TOOL --> VALIDATING_CFL: result
+    EXECUTING_TOOL --> VALIDATING_CFL: tool_result
     VALIDATING_CFL --> BRAINSTORMING: continue
     VALIDATING_CFL --> WAITING_USER: done
 
-    SWARM_ANALYZING --> SWARM_NEGOTIATING: analyzed
-    SWARM_NEGOTIATING --> SWARM_EXECUTING: agreed
-    SWARM_EXECUTING --> VALIDATING_CFL: executed
+    SWARM_ANALYZING --> SWARM_NEGOTIATING: analysis_done
+    SWARM_NEGOTIATING --> SWARM_EXECUTING: mode_agreed
+    SWARM_EXECUTING --> VALIDATING_CFL: execution_done
 
     WAITING_USER --> IDLE: new_input
 
     BRAINSTORMING --> ERROR: exception
     ERROR --> IDLE: /reset
     ERROR --> PANIC: fatal
-
-    note right of IDLE: States found: {len(states)}
 ```
 
-### FSM States Discovered
+### Decision Points
 
-**OrchestratorState** (`core/fsm/states.py`):
-{states_str}
+```mermaid
+graph TD
+    INPUT[User Input] --> KERNEL{{KERNEL<br/>Alignment?}}
+    KERNEL -->|PASS| ANALYZE{{Task<br/>Complexity?}}
+    KERNEL -->|FAIL| REJECT[Reject]
+
+    ANALYZE -->|TRIVIAL| FAST[Fast Path<br/>Direct Response]
+    ANALYZE -->|SIMPLE| SWARM[Swarm Engine]
+    ANALYZE -->|MODERATE+| GATE{{Hive Mind<br/>Enabled?}}
+
+    GATE -->|Yes| HIVE[Hive Mind Pipeline]
+    GATE -->|No| SWARM
+
+    HIVE --> DELEGATE[Swarm Execution]
+```
+
+### Orchestrator States ({len(states)} total)
+
+| State | Description |
+|-------|-------------|
+{states_list}
+
+**Source**: `core/fsm/states.py`
+
 """
 
-    def _generate_swarm_diagram(self) -> str:
-        modes = self.structures.get("swarm_modes", [])
+    def _generate_llm_drivers_zoom(self) -> str:
+        routing = self.structures.get("model_routing", {})
 
-        return f"""## 3. ZOOM: Swarm Engine
+        # Build dynamic routing table from extracted data
+        claude_routing = routing.get("claude", {})
+        gemini_routing = routing.get("gemini", {})
+
+        opus_tasks = claude_routing.get("opus_tasks", [])
+        sonnet_tasks = claude_routing.get("sonnet_tasks", [])
+        pro_tasks = gemini_routing.get("pro_tasks", [])
+        flash_tasks = gemini_routing.get("flash_tasks", [])
+
+        # Build routing table rows dynamically
+        routing_rows = []
+        for task in opus_tasks:
+            routing_rows.append(f"| {task.upper()} | Claude Opus 4.5 | Complex reasoning, creativity |")
+        for task in sonnet_tasks:
+            routing_rows.append(f"| {task.upper()} | Claude Sonnet 4.5 | Speed, tool use |")
+        for task in pro_tasks:
+            if task not in opus_tasks:  # Avoid duplicates
+                routing_rows.append(f"| {task.upper()} | Gemini 3 Pro | Large context, analysis |")
+        for task in flash_tasks:
+            if task not in sonnet_tasks and task not in pro_tasks:
+                routing_rows.append(f"| {task.upper()} | Gemini 2.5 Flash | Quick responses |")
+        routing_table = "\n".join(routing_rows) if routing_rows else "| DEFAULT | Claude Sonnet | Default routing |"
+
+        return f"""## 3. ZOOM: LLM Drivers & Routing
+
+### Model Selection
+
+```mermaid
+graph TD
+    subgraph Routing["Model Router"]
+        TASK[TaskType] --> ROUTER{{{{Model<br/>Router}}}}
+        ROUTER -->|BRAINSTORM| OPUS[Claude Opus 4.5]
+        ROUTER -->|REASONING| SONNET[Claude Sonnet 4.5]
+        ROUTER -->|TOOL| SONNET
+        ROUTER -->|SIMPLE| HAIKU[Claude Haiku 3.5]
+        ROUTER -->|RESEARCH| PRO[Gemini 3 Pro]
+        ROUTER -->|FAST| FLASH[Gemini 2.5 Flash]
+    end
+
+    subgraph Drivers["LLM Drivers"]
+        OPUS --> CLAUDE_DRV[Claude Driver<br/>Hybrid XML + Tools]
+        SONNET --> CLAUDE_DRV
+        HAIKU --> CLAUDE_DRV
+        PRO --> GEMINI_DRV[Gemini Driver<br/>JSON Protocol]
+        FLASH --> GEMINI_DRV
+    end
+
+    subgraph Session["Session Management"]
+        GEMINI_DRV --> SESS[Session Manager<br/>UUID Isolation]
+        CLAUDE_DRV --> SESS
+        SESS --> PERSIST[(Session State)]
+    end
+```
+
+### Model Routing Table (Dynamic)
+
+| Task Type | Model | Reasoning |
+|-----------|-------|-----------|
+{routing_table}
+
+**Claude Tasks**: Opus → {', '.join(opus_tasks) if opus_tasks else 'N/A'} | Sonnet → {', '.join(sonnet_tasks) if sonnet_tasks else 'N/A'}
+**Gemini Tasks**: Pro → {', '.join(pro_tasks) if pro_tasks else 'N/A'} | Flash → {', '.join(flash_tasks) if flash_tasks else 'N/A'}
+
+### Spawned Agent Provider Selection
+
+```mermaid
+graph TD
+    SPAWN["#47;spawn role"] --> BIRTH[BIRTH_CERTIFICATE.json]
+    BIRTH --> INF{{{{inference.provider}}}}
+    INF -->|gemini| GEMINI_DRV[Gemini Driver]
+    INF -->|claude| CLAUDE_DRV[Claude Driver]
+
+    subgraph Selection["V8.1.8-B Selection Logic"]
+        DOMAIN[Domain Analysis] --> MATCH{{{{Best Match?}}}}
+        MATCH -->|Code/Tools| CLAUDE_DRV
+        MATCH -->|Research| GEMINI_DRV
+        MATCH -->|Creative| CLAUDE_DRV
+    end
+```
+
+**Source**: `core/routing/model_router.py`, `core/drivers/`
+
+"""
+
+    def _generate_swarm_zoom(self) -> str:
+        modes = self.structures.get("swarm_modes", [])
+        fallbacks = self.structures.get("fallback_chains", {})
+        characteristics = self.structures.get("mode_characteristics", {})
+
+        # Build dynamic fallback chain for Mermaid diagram
+        fallback_mermaid = []
+        mode_abbrev = {"PARALLEL": "M1", "SEQUENTIAL": "M2", "LEAD_SUPPORT": "M3",
+                       "PING_PONG": "M4", "SPECIALIST": "M5", "RED_BLUE": "M6"}
+        for mode, fallback in fallbacks.items():
+            if fallback:
+                src = mode_abbrev.get(mode, mode[:2])
+                dst = mode_abbrev.get(fallback, fallback[:2])
+                fallback_mermaid.append(f"        {src} -.->|fail| {dst}")
+        fallback_diagram = "\n".join(fallback_mermaid)
+
+        # Build dynamic mode descriptions from characteristics
+        mode_table_rows = []
+        for mode in modes:
+            mode_lower = mode.lower()
+            mode_upper = mode.upper() if mode != mode.upper() else mode
+            char = characteristics.get(mode_lower, {})
+            desc = char.get("description", "")
+            fallback = fallbacks.get(mode_upper, fallbacks.get(mode, "None"))
+            fallback_str = fallback if fallback else "None (terminal)"
+            mode_table_rows.append(f"| `{mode_upper}` | {desc} | {fallback_str} |")
+        mode_table = "\n".join(mode_table_rows)
+
+        fallback_table = "\n".join(
+            f"| `{m}` | `{fallbacks.get(m, 'None')}` |"
+            for m in [mode.upper() if mode != mode.upper() else mode for mode in modes]
+        )
+
+        return f"""## 4. ZOOM: Swarm Engine
+
+### Task Analysis & Mode Selection
 
 ```mermaid
 graph TD
     subgraph Analysis["Task Analysis"]
         TASK[Task] --> ANALYZER[TaskAnalyzer]
-        ANALYZER --> COMPLEXITY{{Complexity}}
+        ANALYZER --> COMPLEXITY{{{{Complexity}}}}
         COMPLEXITY -->|TRIVIAL| SKIP[Skip Swarm]
         COMPLEXITY -->|SIMPLE+| SELECT[ModeSelector]
     end
 
     subgraph Selection["Mode Selection"]
         SELECT --> DYLAN[DyLAN Scores]
-        SELECT --> MEMORY[SuccessMemory]
+        SELECT --> MEMORY[SuccessMemory<br/>+0-30% boost]
         DYLAN --> PROPOSE[Proposed Mode]
         MEMORY --> PROPOSE
     end
 
-    subgraph Modes["Collaboration Modes ({len(modes)})"]
-        EXEC[Execute] --> M1[PARALLEL]
-        EXEC --> M2[SEQUENTIAL]
-        EXEC --> M3[LEAD_SUPPORT]
-        EXEC --> M4[PING_PONG]
-        EXEC --> M5[SPECIALIST]
-        EXEC --> M6[RED_BLUE]
+    subgraph Negotiation["Negotiation Protocol"]
+        PROPOSE --> NEG{{{{Negotiate?}}}}
+        NEG -->|Yes| DEBATE[Max 4 turns]
+        NEG -->|No| EXEC
+        DEBATE --> AGREED[Agreed Mode]
+        AGREED --> EXEC[Execute]
+    end
+
+    subgraph Modes["{len(modes)} Collaboration Modes"]
+        EXEC --> M1[PARALLEL<br/>Independent work]
+        EXEC --> M2[SEQUENTIAL<br/>Pipeline]
+        EXEC --> M3[LEAD_SUPPORT<br/>80/20 split]
+        EXEC --> M4[PING_PONG<br/>Rapid alternation]
+        EXEC --> M5[SPECIALIST<br/>Single expert]
+        EXEC --> M6[RED_BLUE<br/>Adversarial]
     end
 
     subgraph Fallback["Fallback Chain"]
-        M1 -.->|fail| M2
-        M2 -.->|fail| M5
-        M6 -.->|fail| M3
-        M3 -.->|fail| M5
-        M4 -.->|fail| M2
+{fallback_diagram}
     end
-
-    PROPOSE --> EXEC
 ```
 
-### Collaboration Modes Discovered
+### Collaboration Modes ({len(modes)})
 
-| Mode | Source |
-|------|--------|
-""" + "\n".join(f"| `{m}` | `core/swarm/collaboration_modes.py` |" for m in modes) + "\n"
+| Mode | Description | Fallback |
+|------|-------------|----------|
+{mode_table}
 
-    def _generate_hive_diagram(self) -> str:
+### Fallback Chain
+
+| Mode | Fallback To |
+|------|-------------|
+{fallback_table}
+
+**Source**: `core/swarm/collaboration_modes.py`, `core/swarm/mode_executors.py`
+
+"""
+
+    def _generate_hive_mind_zoom(self) -> str:
         states = self.structures.get("hive_states", [])
-        states_str = ", ".join(f"`{s}`" for s in states[:10])
-        if len(states) > 10:
-            states_str += f" ... (+{len(states)-10} more)"
+        phases = self.structures.get("hive_phases", [])
 
-        return f"""## 4. ZOOM: Hive Mind Pipeline
+        # Group states by phase
+        phase_states = defaultdict(list)
+        for state in states:
+            if "ANALYZING" in state:
+                phase_states["Phase 1: Analysis"].append(state)
+            elif "DEBAT" in state or "CONSENSUS" in state:
+                phase_states["Phase 2: Debate"].append(state)
+            elif "ARCHITECT" in state or "REGISTRY" in state or "SPAWN" in state:
+                phase_states["Phase 3: Architecture"].append(state)
+            elif "EXECUT" in state or "MONITOR" in state:
+                phase_states["Phase 4: Execution"].append(state)
+            elif "DIAGNOS" in state:
+                phase_states["Phase 5: Diagnosis"].append(state)
+            elif "RETRY" in state:
+                phase_states["Phase 6: Retry"].append(state)
+            elif "REFLECT" in state or "RETENTION" in state or "CONSOLIDAT" in state:
+                phase_states["Phase 7: Consolidation"].append(state)
+            elif "SUCCESS" in state or "FAILED" in state or "ESCALATE" in state:
+                phase_states["Terminal"].append(state)
+            else:
+                phase_states["Other"].append(state)
+
+        phase_table = ""
+        for phase, phase_state_list in phase_states.items():
+            if phase_state_list:
+                phase_table += f"| {phase} | {', '.join(f'`{s}`' for s in phase_state_list)} |\n"
+
+        return f"""## 5. ZOOM: Hive Mind Pipeline
+
+### 7-Phase Pipeline
 
 ```mermaid
 graph TD
     subgraph Phase1["Phase 1: Analysis"]
-        P1A[Gemini Analysis] --> P1B[Claude Analysis]
-        P1B --> P1C{{Agreement > 85%?}}
+        P1A[HIVE_ANALYZING_GEMINI] --> P1B[HIVE_ANALYZING_CLAUDE]
+        P1B --> P1C[HIVE_COMPARING_ANALYSES]
+        P1C --> P1D{{Agreement<br/>> 85%?}}
     end
 
     subgraph Phase2["Phase 2: Debate"]
-        P1C -->|No| P2A[Debate 3-10 turns]
-        P2A --> P2B[Check Consensus]
-        P2B --> BP1[BREAKPOINT]
+        P1D -->|No| P2A[HIVE_DEBATING<br/>3-10 turns]
+        P1D -->|Yes| P3A
+        P2A --> P2B[HIVE_CHECKING_CONSENSUS]
+        P2B --> BP1[BREAKPOINT:<br/>AFTER_DEBATE]
     end
 
     subgraph Phase3["Phase 3: Architecture"]
-        P1C -->|Yes| P3A
-        BP1 --> P3A[Generate Plan]
-        P3A --> P3B{{Spawn Needed?}}
-        P3B -->|Yes| BP2[BREAKPOINT]
-        BP2 --> P3C[Spawn Agents]
+        BP1 --> P3A[HIVE_ARCHITECTING]
+        P3A --> P3B[HIVE_CHECKING_REGISTRY]
+        P3B --> P3C{{Spawn<br/>Needed?}}
+        P3C -->|Yes| BP2[BREAKPOINT:<br/>BEFORE_SPAWN]
+        P3C -->|No| P4A
+        BP2 --> P3D[HIVE_SPAWNING]
+        P3D --> P4A
     end
 
     subgraph Phase4["Phase 4: Execution"]
-        P3B -->|No| P4A
-        P3C --> P4A[Execute Steps]
-        P4A --> P4B[Monitor]
+        P4A[HIVE_EXECUTING] --> P4B[HIVE_MONITORING]
         P4B --> P4C{{Success?}}
     end
 
     subgraph Phase5["Phase 5: Diagnosis"]
-        P4C -->|No| P5A[Diagnose Failure]
-        P5A --> BP3[BREAKPOINT]
+        P4C -->|No| P5A[HIVE_DIAGNOSING]
+        P5A --> BP3[BREAKPOINT:<br/>AFTER_DIAGNOSIS]
     end
 
     subgraph Phase6["Phase 6: Retry"]
-        BP3 --> P6A{{Retry? max 3}}
+        BP3 --> P6A{{Retry?<br/>max 3}}
         P6A -->|Yes| P3A
         P6A -->|No| FAIL[HIVE_FAILED]
     end
 
     subgraph Phase7["Phase 7: Consolidation"]
-        P4C -->|Yes| P7A[Reflect]
-        P7A --> P7B[Archive Knowledge]
-        P7B --> SUCCESS[HIVE_SUCCESS]
+        P4C -->|Yes| P7A[HIVE_REFLECTING]
+        P7A --> P7B[HIVE_DECIDING_RETENTION]
+        P7B --> BP4[BREAKPOINT:<br/>CONSOLIDATION]
+        BP4 --> P7C[HIVE_CONSOLIDATING]
+        P7C --> SUCCESS[HIVE_SUCCESS]
     end
 ```
 
-### HiveMind States Discovered
+### HiveMind States ({len(states)} total)
 
-**HiveMindState** (`core/hive_mind/types.py`):
-{states_str}
+| Phase | States |
+|-------|--------|
+{phase_table}
+
+### User Breakpoints
+
+| Breakpoint | Location | Purpose |
+|------------|----------|---------|
+| `AFTER_DEBATE` | After Phase 2 | Review debate consensus |
+| `BEFORE_SPAWN` | Before spawning | Approve agent creation |
+| `AFTER_DIAGNOSIS` | After failure analysis | Review fix strategy |
+| `CONSOLIDATION` | Before knowledge archival | Review learnings |
+
+**Source**: `core/hive_mind/types.py`, `core/hive_mind/phases/`
+
 """
 
-    def _generate_memory_diagram(self) -> str:
-        return """## 5. ZOOM: Memory Systems
+    def _generate_evolution_zoom(self) -> str:
+        return """## 6. ZOOM: Evolution & Spawning
+
+### /spawn Flow
+
+```mermaid
+graph TD
+    subgraph Spawn["/spawn Flow - V8.1.8"]
+        CMD["#47;spawn SQL Expert"] --> BUDGET{{Budget<br/>OK?}}
+        BUDGET -->|No| REJECT[Reject]
+        BUDGET -->|Yes| UUID[Generate UUID]
+        UUID --> DOMAIN[Detect Domains]
+        DOMAIN --> BRAIN[BrainstormPhase<br/>Gemini + Claude]
+        BRAIN --> PROMPT[Generated Prompt]
+        PROMPT --> MODEL[V8.1.8-B:<br/>Select Model]
+        MODEL --> CERT[BIRTH_CERTIFICATE.json]
+        CERT --> POOL[Register AgentPool]
+    end
+
+    subgraph Validation["5-Tier Validation"]
+        CHILD[Child NEXUS] --> T1[Tier 1: Syntax]
+        T1 --> T2[Tier 2: Smoke Test]
+        T2 --> T3[Tier 3: Benchmark]
+        T3 --> T4[Tier 4: Red Team]
+        T4 --> T5[Tier 5: Live Eval]
+        T5 --> PROMOTE{{Auto-Promote?}}
+    end
+
+    subgraph Promotion["Promotion Criteria"]
+        PROMOTE -->|+3% perf| AUTO[Auto-Promote]
+        PROMOTE -->|Manual| REVIEW[Human Review]
+        AUTO --> LINEAGE[Update LINEAGE.json]
+        REVIEW --> LINEAGE
+    end
+```
+
+### BIRTH_CERTIFICATE.json Structure
+
+```json
+{
+  "uuid": "agent-uuid-here",
+  "role": "SQL Expert",
+  "created_at": "2025-12-09T...",
+  "parent_version": "8.3.2",
+  "inference": {
+    "provider": "claude",
+    "model": "claude-sonnet-4-5"
+  },
+  "domains": ["database", "sql", "optimization"],
+  "prompt_hash": "sha256:..."
+}
+```
+
+### Evolution Commands
+
+| Command | Description |
+|---------|-------------|
+| `/spawn <role>` | Create specialized agent |
+| `/agents` | List all spawned agents |
+| `/evolve [count]` | Create child generations |
+| `/evolve-status` | Show evolution stats |
+| `/review` | Review pending children |
+| `/specialize <mission>` | Create NEXUS spinoff |
+
+**Source**: `core/evolution/`, `core/bootstrap/agent_loader.py`
+
+"""
+
+    def _generate_memory_zoom(self) -> str:
+        return """## 7. ZOOM: Memory Systems
+
+### Memory Architecture
 
 ```mermaid
 graph TD
     subgraph RAG["Project Memory - RAG"]
-        LEARN[/learn path] --> INDEX[Index Files]
-        INDEX --> BACKEND{Backend}
-        BACKEND --> DENSE[Dense<br/>LanceDB]
-        BACKEND --> TFIDF[TF-IDF]
-        BACKEND --> BM25[BM25]
-        QUERY[/rag query] --> SEARCH[Semantic Search]
+        LEARN["#47;learn path"] --> INDEX[Index Files]
+        INDEX --> BACKEND{{Backend}}
+        BACKEND --> DENSE[Dense<br/>LanceDB + MiniLM]
+        BACKEND --> TFIDF[TF-IDF<br/>Fallback]
+        BACKEND --> BM25[BM25<br/>Fallback]
+        QUERY["#47;rag query"] --> SEARCH[Semantic Search]
         SEARCH --> CHUNKS[Top-K Chunks]
     end
 
     subgraph Success["Success Memory"]
-        DONE[Task Complete] --> RECORD[record_success]
-        RECORD --> STORE[(successes.json)]
-        NEW[New Task] --> SIMILAR[search_similar]
+        TASK_DONE[Task Complete] --> RECORD[record_success]
+        RECORD --> ENTRY[SuccessEntry<br/>mode, agents, duration]
+        ENTRY --> STORE[(successes.json)]
+
+        NEW_TASK[New Task] --> SIMILAR[search_similar]
         SIMILAR --> STORE
-        SIMILAR --> BOOST[Mode Boost 0-30%]
+        SIMILAR --> BOOST[Mode Boost<br/>0-30%]
     end
 
-    subgraph Integration["Integration"]
+    subgraph Auto["Auto Memory"]
+        SUCCESS[Success] --> AUTO_REC[record_success]
+        FAILURE[Failure] --> AUTO_FAIL[record_failure]
+        AUTO_REC --> JSONL[(successes.jsonl)]
+        AUTO_FAIL --> JSONL_F[(failures.jsonl)]
+
+        SUGGEST[suggest_mode] --> JSONL
+        SUGGEST --> BEST[Best Mode for Type]
+    end
+
+    subgraph Integration["Memory Integration"]
         BOOST --> SELECTOR[ModeSelector]
+        BEST --> SELECTOR
         CHUNKS --> CONTEXT[Context Builder]
     end
 ```
+
+### Memory Commands
+
+| Command | Description |
+|---------|-------------|
+| `/learn [path]` | Index files into RAG |
+| `/forget [path]` | Remove from RAG index |
+| `/memory-status` | Show index statistics |
+| `/rag init` | Index workspace/memory/ |
+| `/rag clear` | Clear RAG data |
+| `/rag query <text>` | Test retrieval |
+
+### RAG Backends
+
+| Backend | Description | When Used |
+|---------|-------------|-----------|
+| **Dense (LanceDB)** | Semantic search with MiniLM embeddings | Default, best quality |
+| **TF-IDF** | Term frequency-based | Fallback if Dense fails |
+| **BM25** | Probabilistic ranking | Alternative fallback |
+
+**Source**: `core/memory/`
+
+"""
+
+    def _generate_security_zoom(self) -> str:
+        return """## 8. ZOOM: Security & Governance
+
+### Security Architecture
+
+```mermaid
+graph TD
+    subgraph Alignment["Alignment Layer"]
+        INPUT[User Input] --> KERNEL[KERNEL.py<br/>Immutable]
+        KERNEL --> CHECK{{Alignment<br/>Check}}
+        CHECK -->|PASS| PROCESS[Continue]
+        CHECK -->|FAIL| REJECT[Reject + Log]
+    end
+
+    subgraph Policy["Sandbox Policy"]
+        PROCESS --> SANDBOX[SandboxPolicy]
+        SANDBOX --> ALLOW{{Allowed?}}
+        ALLOW -->|Yes| TOOL[Tool Execution]
+        ALLOW -->|No| BLOCK[Block + Alert]
+
+        TOOL --> VALIDATE[Output Validation]
+        VALIDATE --> SANITIZE[Sanitize Response]
+    end
+
+    subgraph Governance["Governance"]
+        GOV_CHECK[Governance Rules] --> BUDGET{{Budget<br/>OK?}}
+        BUDGET -->|No| THROTTLE[Throttle]
+        BUDGET -->|Yes| CONTINUE[Continue]
+
+        CONTINUE --> AUDIT[Audit Log]
+    end
+```
+
+### KERNEL.py (Immutable Alignment)
+
+The KERNEL.py file is the **immutable alignment core** that:
+- Cannot be modified by agents
+- Validates all operations against alignment rules
+- Ensures Creator authority (Yann Abadie)
+- Prevents harmful operations
+
+### SandboxPolicy
+
+| Policy | Description |
+|--------|-------------|
+| **File Access** | Restricted to workspace/ |
+| **Network** | Controlled external access |
+| **Execution** | Sandboxed command execution |
+| **Budget** | Token/cost limits |
+
+### Defense-in-Depth
+
+| Layer | Protection |
+|-------|------------|
+| 1. KERNEL | Alignment validation |
+| 2. Sandbox | Operation restrictions |
+| 3. Governance | Budget/rate limits |
+| 4. Audit | Full operation logging |
+
+**Source**: `core/security/`, `KERNEL.py`
+
 """
 
     def _generate_functional_inventory(self) -> str:
-        commands = self.structures.get("commands", [])
-        enums = self.structures.get("enums", [])
+        commands = self.structures.get("commands", {})
+
+        cmd_sections = []
+        for category, cmd_list in commands.items():
+            if cmd_list:
+                cmd_sections.append(f"\n#### {category}\n")
+                cmd_sections.append("| Command | Description |")
+                cmd_sections.append("|---------|-------------|")
+                for cmd in cmd_list:
+                    desc = cmd.description or "-"
+                    cmd_sections.append(f"| `/{cmd.name}` | {desc} |")
+
+        total_cmds = sum(len(cmds) for cmds in commands.values())
+
+        return f"""## 9. FUNCTIONAL INVENTORY
+
+### Slash Commands ({total_cmds} total)
+
+{"".join(cmd_sections)}
+
+"""
+
+    def _generate_key_dataclasses(self) -> str:
         dataclasses = self.structures.get("dataclasses", [])
 
-        # Format commands by category
-        cmd_lines = []
-        for cmd in sorted(set(commands))[:40]:
-            if cmd.startswith("/") or len(cmd) < 20:
-                cmd_lines.append(f"- `/{cmd}`" if not cmd.startswith("/") else f"- `{cmd}`")
+        # Select key dataclasses
+        key_names = [
+            "TaskAnalysis", "ModeProposal", "AgentProfile", "InferenceConfig",
+            "SuccessEntry", "HiveMindResult", "DebateResult", "ExecutionPlan",
+            "FailureDiagnosis", "SwarmDelegationResult", "ToolResult"
+        ]
 
-        return f"""## 6. FUNCTIONAL INVENTORY
+        key_dc = [dc for dc in dataclasses if dc.name in key_names]
 
-### Slash Commands ({len(commands)} discovered)
+        dc_table = ""
+        for dc in key_dc:
+            fields_str = ", ".join(f[0] for f in dc.fields[:5])
+            if len(dc.fields) > 5:
+                fields_str += f" (+{len(dc.fields)-5} more)"
+            dc_table += f"| `{dc.name}` | {fields_str} | `{dc.file_path}` |\n"
 
-{chr(10).join(cmd_lines[:30])}
+        enums = self.structures.get("enums", [])
+        enum_list = ", ".join(f"`{e[0]}`" for e in enums[:25])
+        if len(enums) > 25:
+            enum_list += f" (+{len(enums)-25} more)"
 
-### Enums Discovered ({len(enums)} total)
+        return f"""## 10. KEY DATACLASSES
 
-{', '.join(f'`{e}`' for e in enums[:20])}{"..." if len(enums) > 20 else ""}
+### Core Dataclasses
 
-### Dataclasses Discovered ({len(dataclasses)} total)
+| Dataclass | Key Fields | Source |
+|-----------|------------|--------|
+{dc_table}
 
-{', '.join(f'`{d}`' for d in dataclasses[:20])}{"..." if len(dataclasses) > 20 else ""}
+### All Enums ({len(enums)} total)
+
+{enum_list}
+
+### All Dataclasses ({len(dataclasses)} total)
+
+{", ".join(f"`{dc.name}`" for dc in dataclasses[:30])}{"..." if len(dataclasses) > 30 else ""}
+
 """
 
     def _generate_statistics(self) -> str:
@@ -1103,6 +1632,7 @@ graph TD
         total_functions = sum(c.total_functions for c in self.components)
         total_dataclasses = len(self.structures.get("dataclasses", []))
         total_enums = len(self.structures.get("enums", []))
+        test_stats = self.structures.get("test_stats", {})
 
         # LOC chart
         loc_chart = []
@@ -1112,7 +1642,9 @@ graph TD
             bar = "#" * bar_len
             loc_chart.append(f"{comp.name:<15} | {bar} {comp.total_loc:,}")
 
-        return f"""## 7. STATISTICS
+        return f"""## 11. STATISTICS
+
+### Codebase Metrics
 
 | Metric | Value |
 |--------|-------|
@@ -1120,14 +1652,83 @@ graph TD
 | **Total Python Files** | {total_files} |
 | **Total Lines of Code** | {total_loc:,} |
 | **Total Classes** | {total_classes} |
+| **Total Functions** | {total_functions:,} |
 | **Total Dataclasses** | {total_dataclasses} |
 | **Total Enums** | {total_enums} |
+
+### Test Coverage
+
+| Metric | Value |
+|--------|-------|
+| **Test Functions** | {test_stats.get('total', 'N/A')} |
 
 ### Lines of Code by Component
 
 ```
 {chr(10).join(loc_chart)}
 ```
+
+### Component Distribution
+
+| Component | % of Codebase |
+|-----------|---------------|
+""" + "\n".join(
+            f"| {comp.name} | {comp.total_loc/total_loc*100:.1f}% |"
+            for comp in sorted(self.components, key=lambda c: -c.total_loc)[:10]
+        ) + "\n"
+
+    def _generate_anti_hallucination(self) -> str:
+        fsm_states = self.structures.get("fsm_states", [])
+        hive_states = self.structures.get("hive_states", [])
+        swarm_modes = self.structures.get("swarm_modes", [])
+
+        return f"""## 12. ANTI-HALLUCINATION REFERENCE
+
+### Verified Structures
+
+This section provides **verified** structures for AI agents to reference, preventing hallucination.
+
+#### OrchestratorState (VERIFIED)
+
+```python
+# core/fsm/states.py
+class OrchestratorState(Enum):
+{chr(10).join(f'    {s} = "{s}"' for s in fsm_states)}
+```
+
+#### HiveMindState (VERIFIED - {len(hive_states)} states)
+
+```python
+# core/hive_mind/types.py - First 15 states
+{chr(10).join(f'    {s}' for s in hive_states[:15])}
+    # ... +{len(hive_states)-15} more
+```
+
+#### CollaborationMode (VERIFIED)
+
+```python
+# core/swarm/collaboration_modes.py
+class CollaborationMode(Enum):
+{chr(10).join(f'    {m} = "{m.lower()}"' for m in swarm_modes)}
+```
+
+### Common Hallucination Traps
+
+| Wrong | Correct |
+|-------|---------|
+| `TaskAnalysis.reasoning` | Use `ModeProposal.reasoning` |
+| `ModeProposal.recommended_mode` | Use `.mode` |
+| `HiveMindState.HIVE_COMPLETE` | Use `HIVE_SUCCESS` |
+| `invoke(task_type=)` | Use `invoke(session_uuid=)` |
+
+### Reference Documents
+
+| Document | Purpose |
+|----------|---------|
+| `docs/DATACLASS_FIELDS.md` | Exact field definitions |
+| `docs/DRIVER_INTERNALS.md` | LLM driver implementation |
+| `docs/ASYNC_MAP.md` | Async vs sync functions |
+
 """
 
     def _generate_footer(self) -> str:
@@ -1149,8 +1750,9 @@ python scripts/doc_engine.py --full --apply
 
 ---
 
-*Generated by NEXUS Documentation Engine*
+*Generated by NEXUS Documentation Engine V2*
 *Source: `scripts/doc_engine.py`*
+*Version: {self.version} "{self.codename}"*
 """
 
 
@@ -1160,7 +1762,7 @@ python scripts/doc_engine.py --full --apply
 
 def main():
     parser = argparse.ArgumentParser(
-        description="NEXUS Documentation Engine",
+        description="NEXUS Documentation Engine V2",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
     )
@@ -1182,11 +1784,9 @@ def main():
 
     args = parser.parse_args()
 
-    # Default to --check if no mode specified
     if not any([args.check, args.sync, args.gen_map, args.audit, args.full]):
         args.check = True
 
-    # Find project root
     project_root = Path(__file__).parent.parent
     engine = DocEngine(project_root)
 
@@ -1196,20 +1796,16 @@ def main():
         if args.full:
             success = engine.full(apply=args.apply)
             exit_code = 0 if success else 1
-
         else:
             if args.check:
                 issues = engine.check()
                 if any(i.severity == "ERROR" for i in issues):
                     exit_code = 1
-
             if args.sync:
                 engine.sync(apply=args.apply)
-
             if args.gen_map:
                 output = Path(args.output) if args.output else None
                 engine.generate_map(output_path=output, apply=args.apply)
-
             if args.audit:
                 engine.audit()
 
