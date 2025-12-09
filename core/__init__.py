@@ -6,5 +6,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Version from .env (single source of truth)
-__version__ = os.getenv("NEXUS_VERSION", "8.3.1")
+__version__ = os.getenv("NEXUS_VERSION", "8.3.2")
 __codename__ = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")

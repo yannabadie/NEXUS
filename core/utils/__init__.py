@@ -21,6 +21,11 @@ from .stream_parser import (
     is_tool_message,
     extract_tool_info,
 )
+from .async_utils import (
+    run_sync,
+    get_or_create_event_loop,
+    run_in_thread,
+)
 
 __all__ = [
     "ArtifactVerifier",
@@ -37,4 +42,7 @@ __all__ = [
     "extract_stats",
     "is_tool_message",
     "extract_tool_info",
+    "run_sync",
+    "get_or_create_event_loop",
+    "run_in_thread",
 ]

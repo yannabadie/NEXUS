@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.0.1 | **Status**: Active | **Last Updated**: 2025-12-09
+**Version**: 8.3.2 | **Status**: Active | **Last Updated**: 2025-12-09
 **Maintainer**: Yann Abadie | **Branch**: N8THM
 
 ---
@@ -1121,7 +1121,81 @@ result = await delegate(..., config={"_swarm_depth": current_depth + 1})
 
 ---
 
-### V8.3.2 - Parallel Merge Strategy [Priority: P2] (PLANNED)
+### V8.3.2 - "Closing the Loop" (Audit Corrections) [Priority: P1] (IN PROGRESS)
+
+**Objectif** : Finaliser SwarmBridge/SwarmTool avant d'ajouter de la complexité
+
+**Source** : Audit croisé Claude + Gemini (2025-12-09)
+
+**Philosophie** : *"Finir proprement avant d'innover"* (Gemini)
+
+| ID | Finding | Sévérité | Fichiers | Status |
+|----|---------|----------|----------|--------|
+| FG-001 | SuccessAdapter non appelé dans SwarmBridge | MEDIUM | `swarm_bridge.py` | PLANNED |
+| TD-001 | Pattern async→sync dupliqué | LOW | `tool_manager.py`, `repl.py` | PLANNED |
+| MT-001 | Tests checkpoint SwarmBridge | LOW | `test_swarm_bridge.py` | PLANNED |
+| C3 | Version 7.0.0 vs 8.3.x | LOW | `core/__init__.py` | PLANNED |
+| H3 | CLAUDE.md structure obsolète | LOW | `CLAUDE.md` | PLANNED |
+
+**Ordre d'exécution** (Gemini recommendation):
+1. `core/__init__.py` → version 8.3.2 (cohérence immédiate)
+2. `core/utils/async_utils.py` → run_sync() helper (nettoie le code)
+3. `swarm_bridge.py` → SuccessAdapter integration (feedback loop)
+4. `test_swarm_bridge.py` → checkpoint tests (robustesse)
+5. `CLAUDE.md` → structure réelle (documentation)
+
+#### FG-001: SuccessAdapter dans SwarmBridge
+
+**Problème** : Les succès via SwarmBridge ne sont pas enregistrés dans SuccessMemory
+
+```python
+# core/hive_mind/swarm_bridge.py - Actuellement:
+if result.success:
+    self.inject_results_into_context(result)
+
+# Manquant:
+if result.success and self.success_adapter:
+    self.success_adapter.record_delegation_success(task, mode, result)
+```
+
+**Impact** : Trou dans la boucle d'apprentissage - le système ne mémorise pas quelles délégations fonctionnent.
+
+#### TD-001: Extraction pattern async→sync
+
+**Problème** : Pattern répété dans 2+ fichiers
+
+```python
+# Pattern dupliqué:
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+```
+
+**Solution** :
+```python
+# core/utils/async_utils.py (NOUVEAU)
+def run_sync(coro):
+    """Execute async coroutine in sync context."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+```
+
+#### MT-001: Tests checkpoint SwarmBridge
+
+**Tests manquants** :
+- `test_checkpoint_created_before_execution`
+- `test_checkpoint_restored_on_fallback`
+- `test_checkpoint_not_created_without_session_manager`
+
+---
+
+### V8.3.3 - Parallel Merge Strategy [Priority: P2] (PLANNED)
 
 **Objectif** : Stratégie intelligente de fusion des résultats PARALLEL
 
@@ -1548,8 +1622,14 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 | 13 | ~~SwarmBridge "Dictator Mode"~~ | V8.3.0 | ~~4h~~ | ✅ Done |
 | 14 | ~~SwarmTool "Swarm as Invocable Tool"~~ | V8.3.1 | ~~3h~~ | ✅ Done |
 | 15 | ~~Depth Guard Anti-Recursion~~ | V8.3.1-hotfix | ~~30min~~ | ✅ Done |
-| 16 | Parallel Merge Strategy | V8.3.2 | 3h | **NEXT** |
-| 17 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
+| 16 | **V8.3.2 "Closing the Loop"** | V8.3.2 | 4h | **IN PROGRESS** |
+| 16a | └─ C3: Version sync | V8.3.2 | 10min | **NEXT** |
+| 16b | └─ TD-001: async_utils.py | V8.3.2 | 30min | PLANNED |
+| 16c | └─ FG-001: SuccessAdapter SwarmBridge | V8.3.2 | 1h | PLANNED |
+| 16d | └─ MT-001: Checkpoint tests | V8.3.2 | 1h | PLANNED |
+| 16e | └─ H3: CLAUDE.md update | V8.3.2 | 1h | PLANNED |
+| 17 | Parallel Merge Strategy | V8.3.3 | 3h | PLANNED |
+| 18 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
 
 ---
 
@@ -1586,7 +1666,8 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2025-12-09 | 8.3.1-hotfix | Depth Guard anti-recursion + V8.3.2 merge_strategy planned (Gemini security analysis) |
+| 2025-12-09 | 8.3.2 | "Closing the Loop" audit corrections (FG-001, TD-001, MT-001, C3, H3) - Source: Claude+Gemini cross-audit |
+| 2025-12-09 | 8.3.1-hotfix | Depth Guard anti-recursion + V8.3.3 merge_strategy planned (Gemini security analysis) |
 | 2025-12-09 | 8.3.1 | SwarmTool "Swarm as Invocable Tool" - agents can invoke Swarm at any phase |
 | 2025-12-09 | 8.3.0 | SwarmBridge "Dictator Mode" - HiveMind delegates to Swarm Engine |
 | 2025-12-09 | 8.2.0a | V8.0.2 CI/CD + V8.1.0 Decay + V8.2.0a Adapter implemented. 12/13 priorities done! |

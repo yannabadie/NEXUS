@@ -460,3 +460,214 @@ class TestHivePhaseEnum:
         """Phase values should be lowercase strings."""
         for phase in HivePhase:
             assert phase.value == phase.name.lower()
+
+
+# =============================================================================
+# TEST CLASS: CHECKPOINT SUPPORT (V8.3.2 MT-001)
+# =============================================================================
+
+class TestCheckpointSupport:
+    """V8.3.2 MT-001: Test checkpoint create/restore for self-healing."""
+
+    @pytest.fixture
+    def mock_session_manager(self):
+        """Create a mock session manager with checkpoint support."""
+        manager = MagicMock()
+        manager.create_checkpoint = MagicMock(return_value="checkpoint_123")
+        manager.restore_checkpoint = MagicMock()
+        return manager
+
+    @pytest.fixture
+    def bridge_with_session(self, mock_swarm_engine, mock_context_manager, mock_session_manager):
+        """Create SwarmBridge with session manager for checkpoints."""
+        mock_swarm_engine.session_manager = mock_session_manager
+        return SwarmBridge(
+            swarm_engine=mock_swarm_engine,
+            context_manager=mock_context_manager
+        )
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_created_before_execution(
+        self, bridge_with_session, mock_swarm_engine, mock_session_manager
+    ):
+        """Checkpoint should be created before Swarm execution."""
+        mock_swarm_engine.execute_swarm_mode.return_value = MockSwarmResult(success=True)
+
+        await bridge_with_session.delegate(
+            task="Test task",
+            mode=CollaborationMode.PARALLEL,
+            phase=HivePhase.EXECUTION,
+            task_id="test_task_001"
+        )
+
+        # Verify checkpoint was created
+        mock_session_manager.create_checkpoint.assert_called_once_with("test_task_001")
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_restored_on_fallback(
+        self, bridge_with_session, mock_swarm_engine, mock_session_manager
+    ):
+        """Checkpoint should be restored when falling back to another mode."""
+        # First call fails, second (fallback) succeeds
+        mock_swarm_engine.execute_swarm_mode.side_effect = [
+            Exception("First mode failed"),
+            MockSwarmResult(success=True)
+        ]
+
+        result = await bridge_with_session.delegate(
+            task="Test task",
+            mode=CollaborationMode.PARALLEL,
+            phase=HivePhase.EXECUTION,
+            task_id="test_task_002"
+        )
+
+        # Verify checkpoint was created
+        mock_session_manager.create_checkpoint.assert_called()
+
+        # Verify checkpoint was restored before fallback
+        mock_session_manager.restore_checkpoint.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_not_created_without_session_manager(
+        self, mock_swarm_engine, mock_context_manager
+    ):
+        """No checkpoint operations without session_manager."""
+        # Remove session_manager
+        if hasattr(mock_swarm_engine, 'session_manager'):
+            delattr(mock_swarm_engine, 'session_manager')
+
+        mock_swarm_engine.execute_swarm_mode = AsyncMock(return_value=MockSwarmResult())
+
+        bridge = SwarmBridge(
+            swarm_engine=mock_swarm_engine,
+            context_manager=mock_context_manager
+        )
+
+        # Should not raise even without session_manager
+        result = await bridge.delegate(
+            task="Test task",
+            mode=CollaborationMode.SPECIALIST,
+            phase=HivePhase.ANALYSIS
+        )
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_checkpoint_failure_does_not_block_execution(
+        self, bridge_with_session, mock_swarm_engine, mock_session_manager
+    ):
+        """Checkpoint failure should not prevent delegation."""
+        mock_session_manager.create_checkpoint.side_effect = Exception("Checkpoint failed")
+        mock_swarm_engine.execute_swarm_mode.return_value = MockSwarmResult(success=True)
+
+        # Should succeed despite checkpoint failure
+        result = await bridge_with_session.delegate(
+            task="Test task",
+            mode=CollaborationMode.SPECIALIST,
+            phase=HivePhase.ANALYSIS
+        )
+
+        assert result.success is True
+
+
+# =============================================================================
+# TEST CLASS: SUCCESS MEMORY INTEGRATION (V8.3.2 FG-001)
+# =============================================================================
+
+class TestSuccessMemoryIntegration:
+    """V8.3.2 FG-001: Test SuccessAdapter integration in SwarmBridge."""
+
+    @pytest.fixture
+    def mock_success_memory(self):
+        """Create a mock SuccessMemory."""
+        memory = MagicMock()
+        memory.record_success = MagicMock()
+        return memory
+
+    @pytest.fixture
+    def bridge_with_memory(self, mock_swarm_engine, mock_context_manager, mock_success_memory):
+        """Create SwarmBridge with SuccessMemory."""
+        return SwarmBridge(
+            swarm_engine=mock_swarm_engine,
+            context_manager=mock_context_manager,
+            success_memory=mock_success_memory
+        )
+
+    @pytest.mark.asyncio
+    async def test_success_recorded_on_delegation_success(
+        self, bridge_with_memory, mock_swarm_engine, mock_success_memory
+    ):
+        """Successful delegation should record to SuccessMemory."""
+        mock_swarm_engine.execute_swarm_mode = AsyncMock(
+            return_value=MockSwarmResult(success=True)
+        )
+
+        await bridge_with_memory.delegate(
+            task="Review authentication code",
+            mode=CollaborationMode.RED_BLUE,
+            phase=HivePhase.DIAGNOSIS
+        )
+
+        # Verify record_success was called
+        mock_success_memory.record_success.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_success_not_recorded_on_failure(
+        self, bridge_with_memory, mock_swarm_engine, mock_success_memory
+    ):
+        """Failed delegation should NOT record to SuccessMemory."""
+        mock_swarm_engine.execute_swarm_mode = AsyncMock(
+            return_value=MockSwarmResult(success=False)
+        )
+
+        await bridge_with_memory.delegate(
+            task="Failing task",
+            mode=CollaborationMode.SPECIALIST,
+            phase=HivePhase.ANALYSIS
+        )
+
+        # Verify record_success was NOT called
+        mock_success_memory.record_success.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_memory_failure_does_not_block_delegation(
+        self, bridge_with_memory, mock_swarm_engine, mock_success_memory
+    ):
+        """SuccessMemory failure should not prevent delegation success."""
+        mock_swarm_engine.execute_swarm_mode = AsyncMock(
+            return_value=MockSwarmResult(success=True)
+        )
+        mock_success_memory.record_success.side_effect = Exception("Memory error")
+
+        # Should still succeed
+        result = await bridge_with_memory.delegate(
+            task="Test task",
+            mode=CollaborationMode.PARALLEL,
+            phase=HivePhase.EXECUTION
+        )
+
+        assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_fallback_penalizes_quality_score(
+        self, bridge_with_memory, mock_swarm_engine, mock_success_memory
+    ):
+        """Fallbacks should reduce quality score in recorded success."""
+        # First call fails, second (fallback) succeeds
+        mock_swarm_engine.execute_swarm_mode = AsyncMock(side_effect=[
+            Exception("First failed"),
+            MockSwarmResult(success=True)
+        ])
+
+        await bridge_with_memory.delegate(
+            task="Test task",
+            mode=CollaborationMode.PARALLEL,
+            phase=HivePhase.EXECUTION
+        )
+
+        # Get the quality_score from the call
+        call_args = mock_success_memory.record_success.call_args
+        if call_args:
+            quality = call_args.kwargs.get('quality_score', 1.0)
+            # Quality should be less than 1.0 due to fallback
+            assert quality < 1.0

@@ -109,7 +109,8 @@ class SwarmBridge:
     def __init__(
         self,
         swarm_engine: Any = None,
-        context_manager: Any = None
+        context_manager: Any = None,
+        success_memory: Any = None
     ):
         """
         Initialize SwarmBridge.
@@ -117,9 +118,11 @@ class SwarmBridge:
         Args:
             swarm_engine: HybridSwarmEngine instance (lazy import to avoid circular)
             context_manager: HiveMindContextManager for context transfer
+            success_memory: V8.3.2 - SuccessMemory instance for feedback loop
         """
         self.swarm = swarm_engine
         self.context = context_manager
+        self.success_memory = success_memory  # V8.3.2: FG-001 fix
 
     async def delegate(
         self,
@@ -198,15 +201,27 @@ class SwarmBridge:
 
             # Determine success
             success = self._is_success(result)
+            final_mode = fallback_chain[-1] if fallback_chain else mode
 
-            return SwarmDelegationResult(
+            delegation_result = SwarmDelegationResult(
                 success=success,
                 result=result,
-                mode_used=fallback_chain[-1] if fallback_chain else mode,
+                mode_used=final_mode,
                 fallback_chain=fallback_chain,
                 execution_time=execution_time,
                 summary=self._summarize_result(result)
             )
+
+            # V8.3.2 FG-001: Record successful delegations in SuccessMemory
+            if success and self.success_memory is not None:
+                self._record_delegation_success(
+                    task=task,
+                    mode_used=final_mode,
+                    execution_time=execution_time,
+                    fallback_count=len(fallback_chain) - 1 if fallback_chain else 0
+                )
+
+            return delegation_result
 
         except Exception as e:
             logger.error(f"SwarmBridge delegation failed: {e}")
@@ -398,6 +413,53 @@ class SwarmBridge:
             return result.get('success', False) or result.get('status') == 'success'
         # Non-None result assumed successful
         return True
+
+    def _record_delegation_success(
+        self,
+        task: str,
+        mode_used: CollaborationMode,
+        execution_time: float,
+        fallback_count: int = 0
+    ) -> None:
+        """
+        V8.3.2 FG-001: Record successful delegation in SuccessMemory.
+
+        This closes the feedback loop so the system learns which
+        Swarm modes work best for different types of delegated tasks.
+        """
+        try:
+            from core.hive_mind.success_adapter import create_swarm_delegation_adapters
+
+            analysis, result_adapter = create_swarm_delegation_adapters(
+                task=task,
+                mode_used=mode_used.value,
+                duration=execution_time,
+                success=True,
+                fallback_count=fallback_count
+            )
+
+            # Generate unique task ID for this delegation
+            import uuid
+            task_id = f"delegation_{uuid.uuid4().hex[:8]}"
+
+            # Compute quality score (penalize fallbacks)
+            quality_score = max(0.5, 1.0 - (fallback_count * 0.15))
+
+            self.success_memory.record_success(
+                task_id=task_id,
+                analysis=analysis,
+                result=result_adapter,
+                quality_score=quality_score
+            )
+
+            logger.debug(
+                f"SwarmBridge: Recorded delegation success "
+                f"(mode={mode_used.value}, quality={quality_score:.2f})"
+            )
+
+        except Exception as e:
+            # Don't fail the delegation just because memory recording failed
+            logger.warning(f"SwarmBridge: Failed to record success: {e}")
 
     def _summarize_result(self, result: Any) -> str:
         """Create summary for injection back into HiveMind context."""

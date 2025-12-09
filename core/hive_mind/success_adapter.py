@@ -109,6 +109,106 @@ class HiveMindResultAdapter:
         return self.selected_mode
 
 
+@dataclass
+class SwarmDelegationAnalysisAdapter:
+    """
+    V8.3.2: Adapter for SwarmBridge delegation -> SuccessMemory.
+
+    Records Swarm delegations so the system learns which modes work best.
+    """
+    raw_input: str
+    complexity: Any = None
+    domains: List[str] = field(default_factory=lambda: ["swarm_delegation"])
+    primary_domain: Optional[str] = "swarm_delegation"
+    mode_used: str = ""
+
+    def __post_init__(self):
+        if self.complexity is None:
+            self.complexity = type('Complexity', (), {'name': 'MODERATE', 'value': 3})()
+        if self.domains and isinstance(self.domains[0], str):
+            self.domains = [
+                type('Domain', (), {'value': d, 'name': d.upper()})()
+                for d in self.domains
+            ]
+        if isinstance(self.primary_domain, str):
+            self.primary_domain = type('Domain', (), {
+                'value': self.primary_domain,
+                'name': self.primary_domain.upper()
+            })()
+
+
+@dataclass
+class SwarmDelegationResultAdapter:
+    """
+    V8.3.2: Adapter for SwarmBridge delegation result -> SuccessMemory.
+    """
+    selected_mode: str = "specialist"
+    status: str = "completed"
+    total_time_seconds: float = 0.0
+    execution_result: Any = None
+    agent_outputs: List[Any] = field(default_factory=list)
+    total_rounds: int = 1
+    fallback_count: int = 0
+
+    def __post_init__(self):
+        if self.execution_result is None:
+            self.execution_result = PseudoExecutionResult(
+                total_rounds=self.total_rounds,
+                agent_outputs=self.agent_outputs if self.agent_outputs else None
+            )
+        if not self.agent_outputs:
+            self.agent_outputs = self.execution_result.agent_outputs
+
+    @property
+    def mode(self):
+        return self.selected_mode
+
+
+def create_swarm_delegation_adapters(
+    task: str,
+    mode_used: str,
+    duration: float,
+    success: bool,
+    fallback_count: int = 0,
+    agents_used: List[str] = None
+) -> tuple:
+    """
+    V8.3.2: Create adapters for SwarmBridge delegation.
+
+    Args:
+        task: The delegated task description
+        mode_used: The collaboration mode that was used
+        duration: Execution time in seconds
+        success: Whether delegation succeeded
+        fallback_count: Number of fallbacks used
+        agents_used: List of agent IDs involved
+
+    Returns:
+        Tuple of (SwarmDelegationAnalysisAdapter, SwarmDelegationResultAdapter)
+    """
+    agents_used = agents_used or ["gemini", "claude"]
+
+    analysis = SwarmDelegationAnalysisAdapter(
+        raw_input=task,
+        domains=["swarm_delegation", mode_used],
+        mode_used=mode_used
+    )
+
+    result = SwarmDelegationResultAdapter(
+        selected_mode=mode_used,
+        status="completed" if success else "failed",
+        total_time_seconds=duration,
+        total_rounds=1 + fallback_count,
+        fallback_count=fallback_count,
+        agent_outputs=[
+            type('AgentOutput', (), {'agent_id': aid, 'status': 'success'})()
+            for aid in agents_used
+        ]
+    )
+
+    return analysis, result
+
+
 def create_hive_mind_adapters(
     task: str,
     duration: float,
