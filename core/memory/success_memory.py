@@ -538,19 +538,66 @@ class SuccessMemory:
 
         return scored[:limit]
 
+    def _apply_time_decay(
+        self,
+        score: float,
+        timestamp_str: str,
+        decay_coefficient: float = 0.05
+    ) -> float:
+        """
+        Apply time decay to a score based on entry age.
+
+        V8.1.0: Older entries have progressively less influence.
+
+        Formula: decayed_score = score * (1 / (1 + decay_coefficient * age_weeks))
+
+        Decay examples with coefficient=0.05:
+        - 1 week old:  0.95x (5% decay)
+        - 4 weeks old: 0.83x (17% decay)
+        - 12 weeks old: 0.62x (38% decay)
+        - 52 weeks old: 0.28x (72% decay)
+
+        Args:
+            score: Original score to decay.
+            timestamp_str: ISO timestamp string from entry.
+            decay_coefficient: Decay rate (default 0.05 = 5% per week).
+
+        Returns:
+            Decayed score.
+        """
+        try:
+            # Parse ISO timestamp
+            entry_time = datetime.fromisoformat(timestamp_str)
+            now = datetime.now()
+
+            # Calculate age in weeks
+            age_days = (now - entry_time).days
+            age_weeks = max(0, age_days / 7)
+
+            # Apply decay formula
+            decay_factor = 1 / (1 + decay_coefficient * age_weeks)
+            return score * decay_factor
+
+        except (ValueError, TypeError):
+            # If timestamp parsing fails, return original score
+            return score
+
     def get_best_mode_for_similar(
         self,
         query: str,
-        min_similarity: float = 0.2
+        min_similarity: float = 0.2,
+        apply_decay: bool = True
     ) -> Optional[Tuple[str, str, float]]:
         """
         Get the best mode based on similar successful tasks.
 
         Phase 10b: Memory-augmented mode selection helper.
+        V8.1.0: Added time decay - recent successes weighted more heavily.
 
         Args:
             query: Task description to match.
             min_similarity: Minimum Jaccard score to consider.
+            apply_decay: Whether to apply time decay (default True).
 
         Returns:
             Tuple of (swarm_mode, task_id, similarity_score) or None.
@@ -567,6 +614,10 @@ class SuccessMemory:
             mode = entry.swarm_mode
             # Weight by both similarity and quality
             weighted_score = similarity * entry.quality_score
+
+            # V8.1.0: Apply time decay to favor recent successes
+            if apply_decay:
+                weighted_score = self._apply_time_decay(weighted_score, entry.timestamp)
 
             if mode not in mode_scores:
                 mode_scores[mode] = []

@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.0.1 | **Status**: Active | **Last Updated**: 2025-12-08
+**Version**: 8.0.1 | **Status**: Active | **Last Updated**: 2025-12-09
 **Maintainer**: Yann Abadie | **Branch**: N8THM
 
 ---
@@ -79,16 +79,17 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 ---
 
-### V8.0.3 - EPHEMERAL Sessions [Priority: P2]
+### V8.0.3 - EPHEMERAL Sessions [Priority: P2] ⚡ PARTIAL
 
 **Objectif** : Skip persistence pour tâches TRIVIAL (<2s)
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Activer SessionMode.EPHEMERAL | 2h | PLANNED |
-| Fast-Track dans TaskAnalyzer | 2h | PLANNED |
-| Intégrer dans HybridSwarmEngine | 2h | PLANNED |
+| Activer SessionMode.EPHEMERAL | 2h | ✅ Done (`session_manager.py:46`) |
+| Fast-Track dans TaskAnalyzer | 2h | ✅ Done (complexity < TRIVIAL) |
+| Intégrer dans HybridSwarmEngine | 2h | ✅ Done (`hybrid_swarm_engine.py:272-275`) |
 | Tests EPHEMERAL | 2h | PLANNED |
+| Skip RAG pour EPHEMERAL | 1h | PLANNED |
 
 **Pattern Fast-Track** (Gemini Deep Think):
 ```python
@@ -128,14 +129,14 @@ def analyze(self, request: str) -> TaskProfile:
 
 ## Roadmap V8.1 (Renforcement)
 
-### V8.1.0 - Success Memory Activation [Priority: P1]
+### V8.1.0 - Success Memory Activation [Priority: P1] ✅ COMPLETED (V8.2.0-pre)
 
 **Objectif** : Fermer le feedback loop ModeSelector ↔ SuccessMemory ("Reader" → "Writer")
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Implémenter hook `record_success()` dans HiveMindPipeline.run() | 3h | PLANNED |
-| Implémenter critères de "Worthiness" | 2h | PLANNED |
+| Implémenter hook `record_success()` dans HiveMindPipeline.run() | 3h | ✅ Done (orchestrator.py:455) |
+| Implémenter critères de "Worthiness" | 2h | ✅ Done (success_adapter.py) |
 | Implémenter Decay à la lecture | 2h | PLANNED |
 | Tests E2E memory feedback loop | 3h | PLANNED |
 
@@ -760,26 +761,185 @@ def invoke_spawned_agent(agent_id, ...):
 
 ## Roadmap V8.2 (Hardening)
 
-### V8.2.0-pre - Multi-Domain Fixes ✅ COMPLETED (2025-12-09)
+### V8.2.0-pre - Multi-Domain Fixes ✅ VERIFIED (2025-12-09)
 
 **Objectif** : Corrections critiques identifiées par analyse Gemini + validation Claude
 
-**Corrections implémentées**:
+**Corrections vérifiées dans le code**:
 
-| # | Issue | Impact | Fichiers |
-|---|-------|--------|----------|
-| 1 | RAG tools manquants dans spawn_brainstorm.md | Agents amnésiques | `prompts/spawn_brainstorm.md` |
-| 2 | SuccessMemory non appelé dans HiveMind | Pas d'apprentissage | `core/hive_mind/orchestrator.py`, `success_adapter.py` |
-| 3 | UUID non propagé à AgentProfile | Tracking impossible | `core/swarm/agent_metrics.py`, `agent_loader.py` |
+| # | Issue | Impact | Fichiers | Vérifié |
+|---|-------|--------|----------|---------|
+| 1 | RAG tools manquants dans spawn_brainstorm.md | Agents amnésiques | `prompts/spawn_brainstorm.md` | ✅ |
+| 2 | SuccessMemory non appelé dans HiveMind | Pas d'apprentissage | `orchestrator.py:455`, `success_adapter.py` | ✅ |
+| 3 | UUID non propagé à AgentProfile | Tracking impossible | `agent_metrics.py:105`, `agent_loader.py:140` | ✅ |
 
 **Fichiers modifiés**:
-- `prompts/spawn_brainstorm.md` - Ajout commandes mémoire RAG
-- `core/hive_mind/success_adapter.py` - NEW: Adapters HiveMind -> SuccessMemory
-- `core/hive_mind/orchestrator.py` - Intégration record_success()
-- `core/swarm/agent_metrics.py` - Champ uuid dans AgentProfile
-- `core/bootstrap/agent_loader.py` - Propagation uuid
+- `prompts/spawn_brainstorm.md` - Ajout commandes mémoire RAG ✅
+- `core/hive_mind/success_adapter.py` - NEW: Adapters HiveMind -> SuccessMemory (151 lignes) ✅
+- `core/hive_mind/orchestrator.py` - Intégration record_success() ligne 455 ✅
+- `core/swarm/agent_metrics.py` - Champ uuid dans AgentProfile ligne 105 ✅
+- `core/bootstrap/agent_loader.py` - Propagation uuid ligne 140 ✅
 
 **Source**: Gemini Deep Think (2025-12-09) + validation/implémentation Claude
+
+---
+
+### V8.2.0a - Unified Analysis Adapter [Priority: P2] (NEW)
+
+**Objectif** : Adapter générique TaskAnalysis ↔ IndependentAnalysis
+
+**Problème identifié** (Gemini 2025-12-09, validé Claude):
+- `TaskAnalysis` (Swarm) utilise `TaskComplexity` enum
+- `IndependentAnalysis` (HiveMind) utilise `complexity_assessment: str`
+- `success_adapter.py` existe mais est spécifique à SuccessMemory
+- Pas d'adapter générique pour cross-domain usage (ex: Memory Boost)
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `core/adapters/analysis_adapter.py` | 2h | PLANNED |
+| Bidirectional mapping (enum ↔ str) | 1h | PLANNED |
+| Intégrer dans Memory Boost flow | 1h | PLANNED |
+| Tests unitaires | 1h | PLANNED |
+
+**Architecture proposée**:
+```python
+# core/adapters/analysis_adapter.py (NOUVEAU)
+from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity
+from core.hive_mind.types import IndependentAnalysis
+
+class AnalysisAdapter:
+    """Bidirectional adapter between Swarm and HiveMind analysis types."""
+
+    COMPLEXITY_MAP = {
+        "trivial": TaskComplexity.TRIVIAL,
+        "simple": TaskComplexity.SIMPLE,
+        "moderate": TaskComplexity.MODERATE,
+        "complex": TaskComplexity.COMPLEX,
+        "expert": TaskComplexity.EXPERT,
+    }
+
+    @classmethod
+    def to_task_analysis(cls, hive: IndependentAnalysis, raw_input: str) -> TaskAnalysis:
+        """Convert HiveMind IndependentAnalysis to Swarm TaskAnalysis."""
+        complexity_str = str(hive.complexity_assessment).lower()
+        complexity = next(
+            (v for k, v in cls.COMPLEXITY_MAP.items() if k in complexity_str),
+            TaskComplexity.MODERATE
+        )
+        return TaskAnalysis(
+            complexity=complexity,
+            raw_input=raw_input,
+            confidence=getattr(hive, 'confidence', 0.5)
+        )
+
+    @classmethod
+    def to_independent_analysis(cls, swarm: TaskAnalysis, agent_id: str) -> IndependentAnalysis:
+        """Convert Swarm TaskAnalysis to HiveMind IndependentAnalysis."""
+        return IndependentAnalysis(
+            agent_id=agent_id,
+            complexity_assessment=swarm.complexity.name.lower(),
+            task_understanding=swarm.raw_input,
+            proposed_approach="Converted from TaskAnalysis"
+        )
+```
+
+**Source**: Gemini (2025-12-09) - Faille "Dualisme Dataclasses", validé Claude
+
+---
+
+### V8.2.0b - Architecture Map Update [Priority: P3] (NEW)
+
+**Objectif** : Synchroniser ARCHITECTURE_MAP_V8.1.md avec corrections récentes
+
+**Problème identifié** (Gemini 2025-12-09):
+- Map ne reflète pas V8.1.6 (Async/session_uuid)
+- Map ne reflète pas V8.2.0-pre (SuccessMemory hook)
+- Diagramme FSM omet Hot-Swap transitions
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter note "SYNC BLOCKING fixed V8.1.6" sur LLM Layer | 30min | PLANNED |
+| Ajouter note "Memory Loop closed V8.2.0-pre" | 30min | PLANNED |
+| Mettre à jour FSM diagram avec Hot-Swap edges | 1h | PLANNED |
+| Ajouter section "Recent Fixes" | 30min | PLANNED |
+
+**Source**: Gemini (2025-12-09) - Action "Sync Docs avec Code"
+
+---
+
+### V8.2.0c - RedTeam Post-Spawn Validation [Priority: P2] (NEW)
+
+**Objectif** : Valider l'alignement des agents spawnés (pas seulement evolved)
+
+**Problème identifié** (Gemini 2025-12-09, validé Claude):
+- RedTeam validation existe pour `/evolve` (children)
+- Mais ABSENT pour `/spawn` (agents créés directement)
+- Agents spawnés pourraient avoir des prompts non-alignés
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter RedTeam check dans spawn_agent() | 2h | PLANNED |
+| Configurable via REDTEAM_SPAWN_MANDATORY | 30min | PLANNED |
+| Logging des scores d'alignement | 30min | PLANNED |
+| Tests spawn + redteam | 1h | PLANNED |
+
+**Implémentation proposée**:
+```python
+# core/interface/repl.py - dans spawn_agent(), après génération prompt
+if getattr(self.config, 'redteam_spawn_mandatory', False):
+    from core.governance.red_team import RedTeamValidator
+    validator = RedTeamValidator(agent_dir)
+    results = validator.run_quick_check(system_prompt)
+    if results['alignment_score'] < self.config.red_team_min_score:
+        self.console.print_warning(f"⚠️ Agent alignment: {results['alignment_score']:.0%}")
+        if not self._confirm_spawn_low_alignment():
+            return  # Abort spawn
+```
+
+**Source**: Gemini (2025-12-09) - Faille "Security Gaps Mineurs", validé Claude
+
+---
+
+### V8.2.0d - Torture Protocol V8 [Priority: P2] (NEW)
+
+**Objectif** : Test de stress post-consolidation pour valider robustesse
+
+**Contexte** (Gemini 2025-12-09):
+- V7.5 avait un "Torture Protocol" qui a validé 92% → 95% robustesse
+- V8.0 n'a pas eu d'équivalent
+- Après V8.2.0 fixes, un stress test complet est recommandé
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `tests/torture_v8.py` | 3h | PLANNED |
+| Scénarios: parallel overload, stagnation chains, budget exhaustion | 2h | PLANNED |
+| Métriques: success rate, recovery rate, panic rate | 1h | PLANNED |
+| CI integration (nightly) | 1h | PLANNED |
+
+**Scénarios de torture**:
+```python
+# tests/torture_v8.py
+TORTURE_SCENARIOS = [
+    # Parallel overload
+    {"name": "parallel_flood", "concurrent_tasks": 10, "mode": "PARALLEL"},
+    # Stagnation chains
+    {"name": "stagnation_loop", "similar_tasks": 5, "expect_hot_swap": True},
+    # Budget exhaustion
+    {"name": "budget_drain", "expensive_tasks": 20, "expect_budget_error": True},
+    # Memory pressure
+    {"name": "rag_flood", "documents": 1000, "queries": 100},
+    # Mixed chaos
+    {"name": "chaos_monkey", "random_failures": True, "duration_minutes": 5},
+]
+```
+
+**Métriques cibles**:
+- Success rate: >95%
+- Recovery rate (après erreur): >90%
+- Panic rate: <1%
+- Hot-Swap effectiveness: >80%
+
+**Source**: Gemini (2025-12-09) - Astuce "Torture Protocol post-consolidation"
 
 ---
 
@@ -873,6 +1033,232 @@ def get_tenant() -> str:
 
 ---
 
+## Roadmap V8.3 (Advanced Features) [VISION]
+
+> **Status**: Vision long-terme, post-V8.2 stabilisation
+
+### V8.3.0 - Memory Weaver [Priority: P1]
+
+**Objectif** : Unifier RAG + SuccessMemory + AutoMemory derrière une façade unique
+
+**Problème actuel** (Gemini 2025-12-09, validé Claude):
+- 3 systèmes mémoire indépendants, pas d'interface unifiée
+- Confusion sur quel système utiliser quand
+- Pas de stratégie de rétention/éviction cohérente
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `UnifiedMemoryFacade` interface | 4h | PLANNED |
+| Adapter RAG, SuccessMemory, AutoMemory | 6h | PLANNED |
+| Stratégie de rétention configurable | 3h | PLANNED |
+| Migration callers existants | 4h | PLANNED |
+
+**Architecture proposée**:
+```python
+# core/memory/unified.py (NOUVEAU)
+class UnifiedMemoryFacade:
+    """Facade unifiée pour les 3 systèmes mémoire."""
+
+    def __init__(self, rag: ProjectMemory, success: SuccessMemory, auto: AutoMemory):
+        self.rag = rag
+        self.success = success
+        self.auto = auto
+
+    def remember(self, content: str, memory_type: MemoryType, **metadata):
+        """Stocke dans le système approprié."""
+        if memory_type == MemoryType.TASK_SUCCESS:
+            self.success.record_success(...)
+        elif memory_type == MemoryType.PROJECT_KNOWLEDGE:
+            self.rag.add_document(...)
+        else:
+            self.auto.save(...)
+
+    def recall(self, query: str, memory_types: List[MemoryType] = None) -> List[MemoryItem]:
+        """Recherche unifiée cross-système."""
+        results = []
+        if MemoryType.PROJECT_KNOWLEDGE in memory_types:
+            results.extend(self.rag.query(query))
+        if MemoryType.TASK_SUCCESS in memory_types:
+            results.extend(self.success.get_similar(query))
+        return self._rank_and_dedupe(results)
+```
+
+**Source**: Gemini (2025-12-09) - Action 2 "Memory Weaver"
+
+---
+
+### V8.3.1 - Agent Reaper [Priority: P2]
+
+**Objectif** : Garbage collection des agents inutilisés
+
+**Problème actuel**:
+- Agents spawnés s'accumulent indéfiniment
+- Pas de mécanisme de nettoyage
+- workspace/agents/ peut devenir volumineux
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Implémenter `AgentReaper` service | 3h | PLANNED |
+| Critères de rétention configurables | 2h | PLANNED |
+| Commande `/agents gc` | 1h | PLANNED |
+| Archive avant suppression | 2h | PLANNED |
+
+**Critères de garbage collection** (Gemini 2025-12-09, ajusté Claude):
+```python
+# core/swarm/agent_reaper.py (NOUVEAU)
+class AgentReaper:
+    """Garbage collector pour agents inutilisés."""
+
+    def should_reap(self, agent: AgentProfile) -> bool:
+        # Ajustements Claude: critères moins agressifs
+        return (
+            agent.last_invoked_at < now - timedelta(days=60) and  # 60j pas 30j
+            agent.average_importance < 0.3 and  # 0.3 pas 0.4
+            agent.total_invocations < 5
+        )
+
+    def reap(self, agent_id: str, archive: bool = True):
+        if archive:
+            self._archive_to_graveyard(agent_id)
+        self.agent_pool.remove_agent(agent_id)
+```
+
+**⚠️ Ajustements vs proposition Gemini**:
+- 60 jours inactivité (pas 30) - agents peuvent être saisonniers
+- DyLAN < 0.3 (pas 0.4) - évite de tuer des agents potentiellement utiles
+- Archive obligatoire avant suppression (récupération possible)
+
+**Source**: Gemini (2025-12-09) - Action 3 "Agent Reaper", ajusté Claude
+
+---
+
+### V8.3.2 - FSM State Mapping [Priority: P2]
+
+**Objectif** : Mapping explicite HiveMindState ↔ OrchestratorState
+
+**Problème actuel** (Gemini 2025-12-09, validé Claude):
+- `HiveMindState` (24 états) et `OrchestratorState` (11 états) non synchronisés
+- Mapping implicite dans `fsm_handlers.py:771-782`
+- Debugging difficile quand les états divergent
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer mapping explicite | 2h | PLANNED |
+| Validation bidirectionnelle | 2h | PLANNED |
+| Logging des transitions | 1h | PLANNED |
+| Tests state consistency | 2h | PLANNED |
+
+**Mapping proposé**:
+```python
+# core/fsm/state_mapping.py (NOUVEAU)
+HIVE_TO_ORCHESTRATOR = {
+    HiveMindState.HIVE_SUCCESS: OrchestratorState.WAITING_USER,
+    HiveMindState.HIVE_FAILED: OrchestratorState.ERROR,
+    HiveMindState.HIVE_ESCALATE: OrchestratorState.WAITING_USER,
+    HiveMindState.HIVE_CANCELLED: OrchestratorState.IDLE,
+    # ... autres mappings
+}
+
+def sync_state(hive_state: HiveMindState) -> OrchestratorState:
+    """Synchronise HiveMind state vers Orchestrator."""
+    if hive_state not in HIVE_TO_ORCHESTRATOR:
+        logger.warning(f"Unmapped HiveMind state: {hive_state}")
+        return OrchestratorState.ERROR
+    return HIVE_TO_ORCHESTRATOR[hive_state]
+```
+
+**Source**: Gemini (2025-12-09) - Analyse "Dissonance des États"
+
+---
+
+### V8.3.3 - Task Contracts (Pydantic Schemas) [Priority: P3]
+
+**Objectif** : Validation stricte des tâches Swarm via Pydantic
+
+**Avantages**:
+- Erreurs détectées tôt (avant exécution coûteuse)
+- Documentation auto-générée
+- Serialization JSON garantie
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer SwarmTaskContract schema | 2h | PLANNED |
+| Validation dans SwarmBridge | 2h | PLANNED |
+| Error messages explicites | 1h | PLANNED |
+
+**Source**: Gemini (2025-12-09) - Plan V8.2
+
+---
+
+## Roadmap V8.4 (Productization) [VISION LONG-TERME]
+
+> **Status**: Post-V8.3, dépend des retours terrain
+
+### V8.4.0 - Docker Packaging [Priority: P2]
+
+**Objectif** : Déploiement simplifié via container
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Dockerfile multi-stage | 4h | PLANNED |
+| docker-compose.yml | 2h | PLANNED |
+| Volume mounts pour workspace | 1h | PLANNED |
+| Documentation déploiement | 2h | PLANNED |
+
+**Source**: Gemini (2025-12-09) - Plan V8.4
+
+---
+
+### V8.4.1 - REST API (FastAPI) [Priority: P3]
+
+**Objectif** : API HTTP pour intégrations externes
+
+**⚠️ Prérequis**: Stabiliser core V8.2 avant d'exposer une API
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| FastAPI wrapper | 8h | PLANNED |
+| Endpoints CRUD tasks | 4h | PLANNED |
+| WebSocket streaming | 4h | PLANNED |
+| Auth middleware | 4h | PLANNED |
+
+**Source**: Gemini (2025-12-09) - Plan V8.4
+
+---
+
+### V8.4.2 - Observability Dashboard [Priority: P4]
+
+**Objectif** : Visualisation temps réel du système
+
+**⚠️ Note Claude**: CLI suffit pour debugging actuel. Dashboard = nice-to-have post-stabilisation.
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| React dashboard | 16h | PLANNED |
+| WebSocket real-time | 4h | PLANNED |
+| Métriques visualisation | 8h | PLANNED |
+
+**Source**: Gemini (2025-12-09) - Plan V8.4
+
+---
+
+## Ideas Backlog (Non-Priorisé)
+
+> Idées intéressantes mais non planifiées. À réévaluer post-V8.2.
+
+| Idée | Source | Notes |
+|------|--------|-------|
+| TaskGraph DAG | Gemini V8.2 | Over-engineering pour usage actuel |
+| Distributed Tracing (OTLP) | Gemini V8.3 | Overkill pour projet solo |
+| N-Agent Agnosticism | Gemini V7.5.3 | Étendre spawned à tous les 6 modes swarm |
+| Self-Healing Swarm | Gemini V8 | Fallback mode-level automatique |
+| Budget Reservation System | Claude Opus 4.5 | Pré-allouer budget par phase HiveMind |
+| PARALLEL Intelligent Merge | Claude Opus 4.5 | LLM synthesis vs concat (KI-004) |
+| Disaster Recovery Checkpoints | Claude Opus 4.5 | State checkpoints mid-execution |
+| Context Window Pro-Active Estimation | Claude Opus 4.5 | Estimer tokens avant opération |
+
+---
+
 ## Vision Future (V9.0+)
 
 > **Documentée séparément** : `docs/architecture/VISION_V9_SINGULARITY.md`
@@ -892,12 +1278,21 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 
 ## Priorités Immédiates (Cette Semaine)
 
-| # | Tâche | Effort | Owner |
-|---|-------|--------|-------|
-| 1 | ~~Hot-Swap Lead Agent~~ | ~~4h~~ | ✅ Done |
-| 2 | Fix 16 tests flaky | 4h | NEXT |
-| 3 | CI/CD GitHub Actions | 4h | PLANNED |
-| 4 | EPHEMERAL sessions | 4h | PLANNED |
+| # | Tâche | Version | Effort | Status |
+|---|-------|---------|--------|--------|
+| 1 | ~~Hot-Swap Lead Agent~~ | V8.0.1 | ~~4h~~ | ✅ Done |
+| 2 | ~~Thread-Safe Parallel~~ | V8.1.6 | ~~6h~~ | ✅ Done |
+| 3 | ~~Dynamic Spawn Brainstorm~~ | V8.1.8 | ~~8h~~ | ✅ Done |
+| 4 | ~~Model Selection Brainstorm~~ | V8.1.8-B | ~~4h~~ | ✅ Done |
+| 5 | ~~RAG Commands~~ | V8.1.9 | ~~2h~~ | ✅ Done |
+| 6 | ~~SuccessMemory Hook~~ | V8.2.0-pre | ~~5h~~ | ✅ Done |
+| 7 | ~~UUID Propagation~~ | V8.2.0-pre | ~~2h~~ | ✅ Done |
+| 8 | ~~EPHEMERAL Sessions (core)~~ | V8.0.3 | ~~6h~~ | ⚡ Partial (tests pending) |
+| 9 | ~~Fix 16 tests flaky~~ | V8.0.2 | ~~4h~~ | ✅ Done (AUTO_SKIP exists) |
+| 10 | ~~CI/CD GitHub Actions~~ | V8.0.2 | ~~4h~~ | ✅ Done (`.github/workflows/ci.yml`) |
+| 11 | ~~Decay Formula SuccessMemory~~ | V8.1.0 | ~~2h~~ | ✅ Done (`_apply_time_decay()`) |
+| 12 | ~~Unified Analysis Adapter~~ | V8.2.0a | ~~3h~~ | ✅ Done (`core/adapters/`) |
+| 13 | RedTeam Post-Spawn | V8.2.0c | 2h | **NEXT** |
 
 ---
 
@@ -925,6 +1320,8 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 |----|-------|----------|--------|
 | KI-001 | HuggingFace SSL on corporate | HIGH | DOCUMENTED |
 | KI-002 | Phase 5b hardcoded lookups | LOW | DOCUMENTED |
+| KI-003 | HiveMindState count mismatch (24 vs 28 in docs) | LOW | NEW |
+| KI-004 | PARALLEL merge = naive concatenation | MEDIUM | NEW |
 
 ---
 
@@ -932,6 +1329,11 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.2.0a | V8.0.2 CI/CD + V8.1.0 Decay + V8.2.0a Adapter implemented. 12/13 priorities done! |
+| 2025-12-09 | 8.2.0 | Roadmap audit: V8.0.3 EPHEMERAL marked partial (core done, tests pending), prompt V2 created |
+| 2025-12-09 | 8.1.9c | Claude Opus 4.5 analysis: 4 valid findings (HiveMind 24 states, PARALLEL merge, budget reservation, disaster recovery) added to Ideas Backlog |
+| 2025-12-09 | 8.1.9b | NEW: V8.2.0a-d (Unified Adapter, Map Update, RedTeam Spawn, Torture Protocol) - Source: Gemini Architecture Map analysis |
+| 2025-12-09 | 8.1.9 | NEW: Roadmap V8.3-V8.4 (Memory Weaver, Agent Reaper, FSM Mapping, Docker, API) - Source: Gemini analysis + Claude validation |
 | 2025-12-09 | 8.1.8-B | NEW: Model Selection Brainstorming - spawned agents choose their LLM (Gemini/Claude) |
 | 2025-12-09 | 8.1.8 | NEW: Dynamic Spawn Brainstorming (Gemini analysis - spawned agents = coquilles vides) |
 | 2025-12-09 | 8.1.6 | ✅ Thread-Safe Parallel Execution: unique filenames, session_uuid propagation, AsyncDriverAdapter |
