@@ -11,6 +11,25 @@ OBJECTIF: Générer un system prompt DENSE et ACTIONNABLE (50-100 lignes) pour l
 
 ---
 
+## MODÈLES DISPONIBLES (V8.1.8-B)
+
+Vous devez **DÉBATTRE et SÉLECTIONNER** le meilleur modèle LLM pour cet agent.
+
+### Google Gemini
+| Modèle | Forces | Cas d'usage |
+|--------|--------|-------------|
+| `gemini-2.5-flash` | Vitesse, grounding, multimodal | Tâches rapides, recherche, données |
+| `gemini-3-pro-preview` | Raisonnement profond, agentic | Analyse complexe, architecture |
+
+### Anthropic Claude
+| Modèle | Forces | Cas d'usage |
+|--------|--------|-------------|
+| `claude-sonnet-4-5-20250929` | Équilibré, agentique, coding | **Défaut recommandé**, polyvalent |
+| `claude-opus-4-5-20251101` | Raisonnement expert, sécurité | Architecture, audit, tâches critiques |
+| `claude-haiku-3-5-20241022` | Vitesse, volume élevé | Tâches simples, validation rapide |
+
+---
+
 ## PERMISSIONS SPÉCIALES
 
 En mode `EVOLUTION_BRAINSTORM`, vous avez TOUS LES DEUX accès à:
@@ -71,6 +90,11 @@ Le prompt généré DOIT suivre cette structure:
 - **Apprentissage**: `/learn path/to/file` pour indexer de nouvelles sources
 - **Statut**: `/memory-status` pour voir les chunks indexés
 
+## Inference Configuration
+provider: [gemini|claude]
+model: [model_id from table above]
+reasoning: [1-2 sentences justifying this choice]
+
 ## Collaboration Protocol
 [Comment interagir avec le Swarm et autres agents]
 
@@ -91,6 +115,7 @@ Creator: Yann Abadie
 3. **LONGUEUR**: 50-100 lignes minimum, pas 13 lignes squelettiques
 4. **OUTILS RÉELS**: Uniquement les outils NEXUS existants
 5. **CONSENSUS**: Accord mutuel Gemini + Claude avant finalisation
+6. **MODÈLE OBLIGATOIRE**: Toujours inclure la section `## Inference Configuration` avec provider + model
 
 ---
 

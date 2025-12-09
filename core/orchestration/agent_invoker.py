@@ -220,8 +220,9 @@ class AgentInvoker:
         """
         Invoke a spawned agent with its specialized system prompt.
 
-        V7.5 HIVE MIND: Spawned agents are invoked via Claude with their
-        custom system_prompt.md prepended to the context.
+        V7.5 HIVE MIND: Spawned agents are invoked via their configured provider
+        with custom system_prompt.md prepended to the context.
+        V8.1.8-B: Provider routing based on BIRTH_CERTIFICATE inference config.
 
         Args:
             agent_id: The spawned agent's ID
@@ -234,8 +235,16 @@ class AgentInvoker:
         try:
             # Load the agent's specialized system prompt
             system_prompt = None
+            agent_config = None
             if self._orch.spawned_agent_loader:
                 system_prompt = self._orch.spawned_agent_loader.load_system_prompt(agent_id)
+                agent_config = self._orch.spawned_agent_loader.load_agent_config(agent_id)
+
+            # V8.1.8-B: Determine target provider from inference config
+            target_agent = "Claude"  # Default
+            if agent_config and agent_config.inference:
+                provider = agent_config.inference.provider.lower()
+                target_agent = "Gemini" if provider == "gemini" else "Claude"
 
             # Build context with specialized prompt
             if system_prompt:
@@ -263,6 +272,7 @@ class AgentInvoker:
             self._logger.debug(f"Invoking spawned agent", {
                 "agent_id": agent_id,
                 "task_type": task_type,
+                "target_agent": target_agent,  # V8.1.8-B
                 "has_system_prompt": system_prompt is not None
             })
 
@@ -271,8 +281,8 @@ class AgentInvoker:
             if task_type == "brainstorm":
                 task_type_enum = TaskType.BRAINSTORM
 
-            # Invoke via Claude (spawned agents use Claude CLI)
-            response = self.invoke_agent_direct(task_type_enum, enriched_context, "Claude")
+            # V8.1.8-B: Route to configured provider (Claude or Gemini)
+            response = self.invoke_agent_direct(task_type_enum, enriched_context, target_agent)
             return response.get("content", str(response))
 
         except Exception as e:

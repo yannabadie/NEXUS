@@ -704,6 +704,60 @@ def spawn_agent(self, role: str):
 
 ---
 
+### V8.1.8-B - Model Selection Brainstorming [Priority: P1] ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Lors du spawn d'un agent, brainstormer pour choisir le meilleur modèle LLM (Gemini ou Claude).
+
+**Modèles disponibles**:
+
+| Provider | Modèle | Forces | Cas d'usage |
+|----------|--------|--------|-------------|
+| Gemini | `gemini-2.5-flash` | Vitesse, grounding, multimodal | Tâches rapides, recherche |
+| Gemini | `gemini-3-pro-preview` | Raisonnement profond, agentic | Analyse complexe, architecture |
+| Claude | `claude-sonnet-4-5-20250929` | Équilibré, agentique, coding | **Défaut**, polyvalent |
+| Claude | `claude-opus-4-5-20251101` | Expert, sécurité | Architecture, audit |
+| Claude | `claude-haiku-3-5-20241022` | Vitesse | Tâches simples |
+
+**Implémentation**:
+
+| # | Tâche | Fichier | Status |
+|---|-------|---------|--------|
+| 1 | Ajouter section MODÈLES DISPONIBLES | `spawn_brainstorm.md` | ✅ Done |
+| 2 | Ajouter Inference Configuration output format | `spawn_brainstorm.md` | ✅ Done |
+| 3 | Créer InferenceConfig dataclass | `agent_loader.py` | ✅ Done |
+| 4 | Parser inference section dans spawn_agent | `repl.py` | ✅ Done |
+| 5 | Router vers provider configuré | `agent_invoker.py` | ✅ Done |
+
+**Architecture**:
+```python
+# BIRTH_CERTIFICATE.json
+{
+  "agent_id": "sql_expert",
+  "uuid": "abc-123",
+  "inference": {
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "reasoning": "Fast data queries"
+  }
+}
+
+# agent_invoker.py
+def invoke_spawned_agent(agent_id, ...):
+    config = loader.load_agent_config(agent_id)
+    target_agent = "Gemini" if config.inference.provider == "gemini" else "Claude"
+    return invoke_agent_direct(..., target_agent)
+```
+
+**Fichiers modifiés**:
+- `prompts/spawn_brainstorm.md` - Section modèles + output format
+- `core/bootstrap/agent_loader.py` - InferenceConfig dataclass
+- `core/interface/repl.py` - _extract_inference_config()
+- `core/orchestration/agent_invoker.py` - Provider routing
+
+**Source**: Gemini (2025-12-09) - Proposition, implémenté Claude
+
+---
+
 ## Roadmap V8.2 (Hardening)
 
 ### V8.2.0-pre - Multi-Domain Fixes ✅ COMPLETED (2025-12-09)
@@ -878,6 +932,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.1.8-B | NEW: Model Selection Brainstorming - spawned agents choose their LLM (Gemini/Claude) |
 | 2025-12-09 | 8.1.8 | NEW: Dynamic Spawn Brainstorming (Gemini analysis - spawned agents = coquilles vides) |
 | 2025-12-09 | 8.1.6 | ✅ Thread-Safe Parallel Execution: unique filenames, session_uuid propagation, AsyncDriverAdapter |
 | 2025-12-08 | 8.0.1h | Corrections Gemini v4: session_uuid (pas task_type), .gemini_analysis (pas .payload), HIVE_SUCCESS (pas HIVE_COMPLETE) |

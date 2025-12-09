@@ -28,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class InferenceConfig:
+    """V8.1.8-B: Model inference configuration for spawned agent."""
+    provider: str  # "gemini" or "claude"
+    model: str     # e.g., "gemini-2.5-flash", "claude-sonnet-4-5-20250929"
+    reasoning: Optional[str] = None  # Why this model was chosen
+
+
+@dataclass
 class SpawnedAgentConfig:
     """Configuration loaded from BIRTH_CERTIFICATE.json"""
     agent_id: str
@@ -41,6 +49,8 @@ class SpawnedAgentConfig:
     system_prompt_path: Optional[Path] = None
     # V8.1.8: Unique identifier for agent tracking
     uuid: Optional[str] = None
+    # V8.1.8-B: Model inference configuration
+    inference: Optional[InferenceConfig] = None
 
 
 class SpawnedAgentLoader:
@@ -159,6 +169,16 @@ class SpawnedAgentLoader:
         if not system_prompt_path.exists():
             system_prompt_path = None
 
+        # V8.1.8-B: Parse inference configuration
+        inference_data = cert_data.get("inference")
+        inference_config = None
+        if inference_data and isinstance(inference_data, dict):
+            inference_config = InferenceConfig(
+                provider=inference_data.get("provider", "claude"),
+                model=inference_data.get("model", "claude-sonnet-4-5-20250929"),
+                reasoning=inference_data.get("reasoning")
+            )
+
         return SpawnedAgentConfig(
             agent_id=agent_id,
             role=cert_data.get("role", agent_id),
@@ -171,6 +191,8 @@ class SpawnedAgentLoader:
             system_prompt_path=system_prompt_path,
             # V8.1.8: Extract UUID if present
             uuid=cert_data.get("uuid"),
+            # V8.1.8-B: Model inference configuration
+            inference=inference_config,
         )
 
     def load_agent_config(self, agent_id: str) -> Optional[SpawnedAgentConfig]:

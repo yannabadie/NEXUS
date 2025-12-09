@@ -2132,9 +2132,22 @@ class InteractiveNexusV7:
                 self.console.print("   ⚠️ Brainstorm failed, using static template")
                 generated_prompt = self._static_agent_template(role, agent_uuid, domains)
 
+            # ========== V8.1.8-B: EXTRACT INFERENCE CONFIG ==========
+            inference_config = self._extract_inference_config(generated_prompt)
+            if inference_config:
+                self.console.print(f"   Model: {inference_config['provider']}/{inference_config['model']}")
+            else:
+                # Default to Claude Sonnet if not specified
+                inference_config = {
+                    "provider": "claude",
+                    "model": "claude-sonnet-4-5-20250929",
+                    "reasoning": "Default model (no explicit selection in brainstorm)"
+                }
+                self.console.print("   Model: claude/claude-sonnet-4-5-20250929 (default)")
+
             # ========== SAVE AGENT FILES ==========
 
-            # Create agent config with UUID
+            # Create agent config with UUID and inference
             agent_config = {
                 "agent_id": role_slug,
                 "uuid": agent_uuid,
@@ -2142,6 +2155,7 @@ class InteractiveNexusV7:
                 "created_at": datetime.now().isoformat(),
                 "parent": "NEXUS_V8.1.8_HIVE_MIND",
                 "generation_method": "brainstorm" if "Brainstorm" not in generated_prompt[:100] else "static",
+                "inference": inference_config,  # V8.1.8-B
                 "specialization": {
                     "mission": f"Specialized agent for: {role}",
                     "domains": domains if domains else [],
@@ -2300,6 +2314,52 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
         except Exception as e:
             self.console.print(f"   Brainstorm exception: {e}")
             return None
+
+    def _extract_inference_config(self, prompt: str) -> dict | None:
+        """
+        Extract inference configuration from generated prompt (V8.1.8-B).
+
+        Parses the "## Inference Configuration" section to get provider/model.
+
+        Args:
+            prompt: Generated system prompt
+
+        Returns:
+            Dict with provider, model, reasoning or None if not found
+        """
+        import re
+
+        # Look for the Inference Configuration section
+        # Pattern: ## Inference Configuration followed by provider: and model: lines
+        inference_pattern = r'##\s*Inference\s+Configuration\s*\n' \
+                           r'(?:.*?\n)*?' \
+                           r'provider:\s*(\w+)\s*\n' \
+                           r'(?:.*?\n)*?' \
+                           r'model:\s*([^\n]+)'
+
+        match = re.search(inference_pattern, prompt, re.IGNORECASE)
+
+        if match:
+            provider = match.group(1).lower().strip()
+            model = match.group(2).strip()
+
+            # Extract reasoning if present
+            reasoning_pattern = r'reasoning:\s*([^\n]+)'
+            reasoning_match = re.search(reasoning_pattern, prompt, re.IGNORECASE)
+            reasoning = reasoning_match.group(1).strip() if reasoning_match else None
+
+            # Validate provider
+            if provider not in ["gemini", "claude"]:
+                self.console.print(f"   ⚠️ Invalid provider '{provider}', defaulting to claude")
+                provider = "claude"
+
+            return {
+                "provider": provider,
+                "model": model,
+                "reasoning": reasoning
+            }
+
+        return None
 
     def _validate_prompt_tools(self, prompt: str) -> list:
         """
