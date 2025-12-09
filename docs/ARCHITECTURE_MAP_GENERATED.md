@@ -1,8 +1,8 @@
-# NEXUS V8.3.1 Architecture Map
+# NEXUS V8.3.2 Architecture Map
 
-**Auto-Generated**: 2025-12-09 18:28
-**Git Commit**: 2cf46e9
-**Generator**: `scripts/generate_architecture_map.py`
+**Auto-Generated**: 2025-12-09 19:54
+**Git Commit**: ca633a6
+**Generator**: `scripts/doc_engine.py`
 
 ---
 
@@ -15,23 +15,23 @@
 
 ```mermaid
 graph TD
-    subgraph Entry["🚪 Entry Layer"]
+    subgraph Entry["Entry Layer"]
         USER[User Input]
-        REPL[REPL<br/>37 commands]
+        REPL[REPL<br/>Commands]
     end
 
-    subgraph Core["🎯 Orchestration Core"]
-        ORCH[OrchestratorV7<br/>11 FSM states]
-        SWARM[Swarm Engine<br/>8 modes]
+    subgraph Core["Orchestration Core"]
+        ORCH[OrchestratorV7<br/>FSM]
+        SWARM[Swarm Engine<br/>6 modes]
         HIVE[Hive Mind<br/>7 phases]
     end
 
-    subgraph LLM["🤖 LLM Drivers"]
+    subgraph LLM["LLM Drivers"]
         GEMINI[Gemini Driver]
         CLAUDE[Claude Driver]
     end
 
-    subgraph Support["📦 Support Systems"]
+    subgraph Support["Support Systems"]
         MEM[Memory<br/>RAG + Success]
         SEC[Security<br/>KERNEL + Policy]
         EVOL[Evolution<br/>Spawn + Validate]
@@ -54,32 +54,32 @@ graph TD
 ### Component Summary
 
 | Component | Files | LOC | Classes | Functions |
-|-----------|-------|-----|---------|-----------|
-| adapters | 2 | 250 | 1 | 4 |
-| bootstrap | 3 | 1,422 | 5 | 35 |
-| drivers | 4 | 1,294 | 3 | 19 |
-| evolution | 13 | 4,861 | 30 | 104 |
-| execution | 4 | 2,815 | 9 | 58 |
-| fsm | 6 | 1,044 | 6 | 46 |
-| governance | 6 | 1,276 | 7 | 19 |
-| hive_mind | 19 | 8,439 | 64 | 197 |
-| interface | 4 | 3,286 | 3 | 65 |
-| logging | 2 | 482 | 3 | 31 |
-| mcp | 4 | 1,446 | 21 | 56 |
-| memory | 10 | 2,833 | 11 | 92 |
-| meta | 2 | 268 | 1 | 4 |
-| notifications | 4 | 478 | 1 | 7 |
-| orchestration | 6 | 2,401 | 6 | 58 |
-| prompts | 2 | 187 | 0 | 5 |
-| reasoning | 1 | 50 | 0 | 0 |
-| routing | 2 | 346 | 3 | 11 |
-| security | 5 | 1,613 | 8 | 48 |
-| swarm | 10 | 5,978 | 41 | 163 |
-| synapse | 3 | 507 | 6 | 23 |
-| telemetry | 4 | 1,269 | 12 | 42 |
-| ui | 2 | 225 | 1 | 11 |
-| utils | 5 | 806 | 3 | 30 |
-| workspace | 4 | 628 | 7 | 26 |
+|-----------|-------|-----|---------|-----------
+| adapters | 1 | 237 | 1 | 4 |
+| bootstrap | 2 | 1,400 | 5 | 35 |
+| drivers | 3 | 1,293 | 4 | 21 |
+| evolution | 11 | 4,744 | 30 | 104 |
+| execution | 3 | 2,814 | 9 | 60 |
+| fsm | 5 | 1,040 | 6 | 46 |
+| governance | 4 | 1,206 | 7 | 19 |
+| hive_mind | 17 | 8,443 | 66 | 202 |
+| interface | 3 | 3,285 | 3 | 68 |
+| logging | 1 | 454 | 3 | 31 |
+| mcp | 3 | 1,393 | 21 | 56 |
+| memory | 8 | 2,749 | 11 | 92 |
+| meta | 1 | 267 | 1 | 4 |
+| notifications | 3 | 461 | 1 | 7 |
+| orchestration | 5 | 2,353 | 6 | 58 |
+| prompts | 1 | 178 | 0 | 6 |
+| reasoning | 0 | 0 | 0 | 0 |
+| routing | 1 | 336 | 3 | 11 |
+| security | 4 | 1,585 | 8 | 48 |
+| swarm | 9 | 5,793 | 41 | 165 |
+| synapse | 2 | 506 | 6 | 23 |
+| telemetry | 3 | 1,235 | 12 | 42 |
+| ui | 1 | 224 | 1 | 11 |
+| utils | 5 | 846 | 3 | 33 |
+| workspace | 3 | 591 | 7 | 26 |
 
 ## 2. ZOOM: Orchestration Core
 
@@ -112,48 +112,10 @@ stateDiagram-v2
 
 ### FSM States Discovered
 
-**OrchestratorState** (`core\fsm\states.py`):
+**OrchestratorState** (`core/fsm/states.py`):
 `IDLE`, `BRAINSTORMING`, `EXECUTING_TOOL`, `VALIDATING_CFL`, `EVOLUTION_BRAINSTORM`, `WAITING_USER`, `ERROR`, `PANIC`, `SWARM_ANALYZING`, `SWARM_NEGOTIATING` ... (+1 more)
 
-**HiveMindState** (`core\hive_mind\types.py`):
-`HIVE_GATING`, `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE`, `HIVE_COMPARING_ANALYSES`, `HIVE_DEBATING`, `HIVE_CHECKING_CONSENSUS`, `HIVE_BREAKPOINT_DEBATE`, `HIVE_ARCHITECTING`, `HIVE_CHECKING_REGISTRY`, `HIVE_BREAKPOINT_SPAWN` ... (+14 more)
-
-
-### Key Files
-| File | Role |
-|------|------|
-| `core/orchestration_v7.py` | Main orchestrator |
-| `core/fsm/states.py` | State definitions |
-| `core/orchestration/fsm_handlers.py` | State handlers |
-
-## 3. ZOOM: LLM Drivers & Routing
-
-```mermaid
-graph TD
-    subgraph Routing["Model Router"]
-        TASK[Task Type] --> ROUTER{Router}
-        ROUTER -->|BRAINSTORM| OPUS[Claude Opus]
-        ROUTER -->|TOOL| SONNET[Claude Sonnet]
-        ROUTER -->|FAST| FLASH[Gemini Flash]
-    end
-
-    subgraph Drivers["Driver Layer"]
-        OPUS --> CLAUDE[Claude Driver]
-        SONNET --> CLAUDE
-        FLASH --> GEMINI[Gemini Driver]
-    end
-```
-
-### Drivers Discovered
-
-| Class | File |
-|-------|------|
-| `AsyncDriverAdapter` | `core\drivers\async_adapter.py` |
-| `ClaudeDriverHybrid` | `core\drivers\claude_driver_hybrid.py` |
-| `GeminiDriverV7` | `core\drivers\gemini_driver_v7.py` |
-
-
-## 4. ZOOM: Swarm Engine
+## 3. ZOOM: Swarm Engine
 
 ```mermaid
 graph TD
@@ -171,7 +133,7 @@ graph TD
         MEMORY --> PROPOSE
     end
 
-    subgraph Modes["Collaboration Modes (8)"]
+    subgraph Modes["Collaboration Modes (6)"]
         EXEC[Execute] --> M1[PARALLEL]
         EXEC --> M2[SEQUENTIAL]
         EXEC --> M3[LEAD_SUPPORT]
@@ -195,17 +157,14 @@ graph TD
 
 | Mode | Source |
 |------|--------|
-| `PARALLEL` | `core\swarm\collaboration_modes.py` |
-| `SEQUENTIAL` | `core\swarm\collaboration_modes.py` |
-| `LEAD_SUPPORT` | `core\swarm\collaboration_modes.py` |
-| `PING_PONG` | `core\swarm\collaboration_modes.py` |
-| `SPECIALIST` | `core\swarm\collaboration_modes.py` |
-| `RED_BLUE` | `core\swarm\collaboration_modes.py` |
-| `normalized` | `core\swarm\collaboration_modes.py` |
-| `fallback_map` | `core\swarm\collaboration_modes.py` |
+| `PARALLEL` | `core/swarm/collaboration_modes.py` |
+| `SEQUENTIAL` | `core/swarm/collaboration_modes.py` |
+| `LEAD_SUPPORT` | `core/swarm/collaboration_modes.py` |
+| `PING_PONG` | `core/swarm/collaboration_modes.py` |
+| `SPECIALIST` | `core/swarm/collaboration_modes.py` |
+| `RED_BLUE` | `core/swarm/collaboration_modes.py` |
 
-
-## 5. ZOOM: Hive Mind Pipeline
+## 4. ZOOM: Hive Mind Pipeline
 
 ```mermaid
 graph TD
@@ -217,14 +176,14 @@ graph TD
     subgraph Phase2["Phase 2: Debate"]
         P1C -->|No| P2A[Debate 3-10 turns]
         P2A --> P2B[Check Consensus]
-        P2B --> BP1[🔴 BREAKPOINT]
+        P2B --> BP1[BREAKPOINT]
     end
 
     subgraph Phase3["Phase 3: Architecture"]
         P1C -->|Yes| P3A
         BP1 --> P3A[Generate Plan]
         P3A --> P3B{Spawn Needed?}
-        P3B -->|Yes| BP2[🔴 BREAKPOINT]
+        P3B -->|Yes| BP2[BREAKPOINT]
         BP2 --> P3C[Spawn Agents]
     end
 
@@ -237,7 +196,7 @@ graph TD
 
     subgraph Phase5["Phase 5: Diagnosis"]
         P4C -->|No| P5A[Diagnose Failure]
-        P5A --> BP3[🔴 BREAKPOINT]
+        P5A --> BP3[BREAKPOINT]
     end
 
     subgraph Phase6["Phase 6: Retry"]
@@ -251,64 +210,14 @@ graph TD
         P7A --> P7B[Archive Knowledge]
         P7B --> SUCCESS[HIVE_SUCCESS]
     end
-
-    note right of Phase1: Phases found: 7
 ```
 
-### Phases Discovered
+### HiveMind States Discovered
 
-| Phase | File |
-|-------|------|
-| Analysis | `core\hive_mind\phases\phase_analysis.py` |
-| Architecture | `core\hive_mind\phases\phase_architecture.py` |
-| Consolidation | `core\hive_mind\phases\phase_consolidation.py` |
-| Debate | `core\hive_mind\phases\phase_debate.py` |
-| Diagnosis | `core\hive_mind\phases\phase_diagnosis.py` |
-| Execution | `core\hive_mind\phases\phase_execution.py` |
-| Retry | `core\hive_mind\phases\phase_retry.py` |
+**HiveMindState** (`core/hive_mind/types.py`):
+`HIVE_GATING`, `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE`, `HIVE_COMPARING_ANALYSES`, `HIVE_DEBATING`, `HIVE_CHECKING_CONSENSUS`, `HIVE_BREAKPOINT_DEBATE`, `HIVE_ARCHITECTING`, `HIVE_CHECKING_REGISTRY`, `HIVE_BREAKPOINT_SPAWN` ... (+14 more)
 
-
-## 6. ZOOM: Evolution & Spawning
-
-```mermaid
-graph TD
-    subgraph Spawn["/spawn Flow"]
-        CMD[/spawn role] --> BUDGET{Budget OK?}
-        BUDGET -->|Yes| UUID[Generate UUID]
-        UUID --> BRAIN[Brainstorm Prompt]
-        BRAIN --> CERT[BIRTH_CERTIFICATE]
-        CERT --> POOL[Register Agent]
-    end
-
-    subgraph Validation["5-Tier Validation"]
-        CHILD[Child] --> T1[Syntax]
-        T1 --> T2[Smoke Test]
-        T2 --> T3[Benchmark]
-        T3 --> T4[Red Team]
-        T4 --> T5[Live Eval]
-    end
-```
-
-### Evolution Files
-
-| File | Size |
-|------|------|
-| `evaluator.py` | 542 LOC |
-| `lineage.py` | 443 LOC |
-| `manager.py` | 556 LOC |
-| `models.py` | 149 LOC |
-| `mutation_parser.py` | 463 LOC |
-| `rate_limiter.py` | 149 LOC |
-| `tiered_validator.py` | 562 LOC |
-| `validator.py` | 732 LOC |
-| `__init__.py` | 90 LOC |
-| `brainstorm.py` | 456 LOC |
-| `create.py` | 326 LOC |
-| `promote.py` | 366 LOC |
-| `__init__.py` | 27 LOC |
-
-
-## 7. ZOOM: Memory Systems
+## 5. ZOOM: Memory Systems
 
 ```mermaid
 graph TD
@@ -336,107 +245,76 @@ graph TD
     end
 ```
 
-### Memory Backends
+## 6. FUNCTIONAL INVENTORY
 
-| Backend | Purpose |
-|---------|---------|
-| Dense (LanceDB) | Semantic similarity |
-| TF-IDF | Lexical fallback |
-| BM25 | Keyword search |
-| SuccessMemory | Pattern learning |
+### Slash Commands (28 discovered)
 
-## 8. FUNCTIONAL INVENTORY
-
-### Slash Commands (37 total)
-
-**🐝 Collaboration**
-- `/swarm <task>`
-- `/swarm-status`
-- `/swarm-fsm <task>`
-- `/pool-stats`
-
-**🧬 Evolution**
-- `/evolve [count]`
-- `/evolve-status`
-- `/review`
-- `/specialize <mission>`
-- `/spawn <role>`
 - `/agents`
-
-**📊 Monitoring**
-- `/status`
-- `/telemetry`
-- `/telemetry status`
-- `/telemetry export [days]`
+- `/bootstrap`
 - `/budget`
-- `/budget reset`
-- `/budget add <amount>`
-- `/budget history`
-
-**📁 Workspace**
-- `/workspace`
-- `/workspace new [name]`
-- `/workspace list`
-- `/workspace switch <name>`
-- `/bootstrap [path]`
-
-**🧠 Memory**
-- `/learn [path]`
-- `/forget [path]`
-- `/memory-status`
-- `/rag init`
-- `/rag clear`
-- `/rag query <text>`
-
-**⚙️ System**
-- `/clear`
-- `/reset`
-- `/doctor`
-- `/mode <name>`
 - `/chat`
+- `/clear`
+- `/doctor`
+- `/evolve`
+- `/evolve-status`
+- `/exit`
+- `/forget`
 - `/help`
-- `/tutorial`
+- `/learn`
+- `/memory-status`
+- `/mode`
+- `/pool-stats`
 - `/quickstart`
+- `/rag`
+- `/reset`
+- `/review`
+- `/spawn`
+- `/specialize`
+- `/status`
+- `/swarm`
+- `/swarm-fsm`
+- `/swarm-status`
+- `/telemetry`
+- `/tutorial`
+- `/workspace`
 
+### Enums Discovered (28 total)
 
-### Dataclasses by Component (115 total)
+`AgentProvider`, `CollaborationMode`, `CommandType`, `ContextPriority`, `CostCategory`, `EventType`, `EvolutionPhaseStatus`, `ExecutionStatus`, `FailureCategory`, `FailureType`, `HiveMindState`, `HivePhase`, `IssueSeverity`, `LogLevel`, `MCPContentType`, `MetricType`, `NegotiationStatus`, `OrchestratorState`, `RetentionDecision`, `RiskLevel`...
 
-**_root**: `InferenceConfig`, `SpawnedAgentConfig`, `ProjectAnalysis`, `MutationProposal`, `ChildCreationResult` (+110 more)
+### Dataclasses Discovered (113 total)
 
+`APICallMetric`, `AgentArchitecture`, `AgentAssignment`, `AgentDebateMetrics`, `AgentInvocationResult`, `AgentPool`, `AgentProfile`, `AgentResponse`, `AgentRetention`, `AgentSession`, `AgentSpec`, `AgentToolDefinition`, `AgentToolResult`, `AnalysisComparison`, `AnalysisPhaseResult`, `ArchitecturePhaseResult`, `ArchiveResult`, `AutoPromotionDecision`, `BlacklistedStrategy`, `BrainstormResult`...
 
-### Enums Discovered (29 total)
-
-`EvolutionPhaseStatus`, `ValidationTier`, `OrchestratorState`, `RiskLevel`, `TaskComplexity`, `ContextPriority`, `CostCategory`, `FailureCategory`, `HivePhase`, `HiveMindState`, `UserBreakpoint`, `RetentionDecision`, `IssueSeverity`, `FailureType`, `LogLevel`, `EventType`, `MCPContentType`, `TaskType`, `CommandType`, `AgentProvider`, `CollaborationMode`, `SwarmPhase`, `ExecutionStatus`, `NegotiationStatus`, `SessionStatus`, `SessionMode`, `TaskComplexity`, `TaskDomain`, `MetricType`
-
-## 9. STATISTICS
+## 7. STATISTICS
 
 | Metric | Value |
 |--------|-------|
 | **Total Components** | 25 |
-| **Total Python Files** | 130 |
-| **Total Lines of Code** | 45,326 |
-| **Total Classes** | 254 |
-| **Total Dataclasses** | 115 |
-| **Total Enums** | 29 |
+| **Total Python Files** | 99 |
+| **Total Lines of Code** | 43,433 |
+| **Total Classes** | 255 |
+| **Total Dataclasses** | 113 |
+| **Total Enums** | 28 |
 
 ### Lines of Code by Component
 
 ```
-hive_mind     | ██████████████████████████████ 8,439
-swarm         | █████████████████████ 5,978
-evolution     | █████████████████ 4,861
-interface     | ███████████ 3,286
-memory        | ██████████ 2,833
-execution     | ██████████ 2,815
-orchestration | ████████ 2,401
-security      | █████ 1,613
-mcp           | █████ 1,446
-bootstrap     | █████ 1,422
-drivers       | ████ 1,294
-governance    | ████ 1,276
-telemetry     | ████ 1,269
-fsm           | ███ 1,044
-utils         | ██ 806
+hive_mind       | ############################## 8,443
+swarm           | #################### 5,793
+evolution       | ################ 4,744
+interface       | ########### 3,285
+execution       | ######### 2,814
+memory          | ######### 2,749
+orchestration   | ######## 2,353
+security        | ##### 1,585
+bootstrap       | #### 1,400
+mcp             | #### 1,393
+drivers         | #### 1,293
+telemetry       | #### 1,235
+governance      | #### 1,206
+fsm             | ### 1,040
+utils           | ### 846
 ```
 
 ---
@@ -446,10 +324,16 @@ utils         | ██ 806
 To regenerate this document after code changes:
 
 ```bash
-python scripts/generate_architecture_map.py --output docs/ARCHITECTURE_MAP_GENERATED.md
+python scripts/doc_engine.py --gen-map --apply
+```
+
+Or run the full documentation sync:
+
+```bash
+python scripts/doc_engine.py --full --apply
 ```
 
 ---
 
-*Generated by NEXUS Architecture Map Generator*
-*Source: `scripts/generate_architecture_map.py`*
+*Generated by NEXUS Documentation Engine*
+*Source: `scripts/doc_engine.py`*
