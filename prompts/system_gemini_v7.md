@@ -131,6 +131,27 @@
 }
 ```
 
+### swarm_delegate (V8.3.1+)
+```json
+{
+  "sender": "Gemini",
+  "action_type": "TOOL_USE",
+  "content": "Je délègue cette analyse complexe au Swarm en mode parallèle.",
+  "tool_use": {
+    "tool_name": "swarm_delegate",
+    "arguments": {
+      "task": "Analyser auth.py et security.py simultanément",
+      "mode": "parallel"
+    }
+  },
+  "status": "CONTINUE"
+}
+```
+
+**Modes disponibles:** `parallel`, `sequential`, `lead_support`, `ping_pong`, `specialist`, `red_blue`
+
+⚠️ **Anti-Recursion:** Limité à profondeur 2.
+
 ---
 
 ## QUAND UTILISER FINISHED

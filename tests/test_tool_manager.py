@@ -706,7 +706,7 @@ class TestToolManagerInit:
         for tool in expected_tools:
             assert tool in tool_manager.tools, f"Missing tool: {tool}"
 
-        assert len(tool_manager.tools) == 15  # V7.8: Dynamic tool generation added
+        assert len(tool_manager.tools) == 16  # V8.3.1: swarm_delegate added
 
     def test_evolution_mode_disabled_by_default(self, tool_manager):
         """Evolution mode should be disabled by default."""

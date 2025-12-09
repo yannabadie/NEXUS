@@ -943,6 +943,259 @@ TORTURE_SCENARIOS = [
 
 ---
 
+### V8.3.0 - SwarmBridge "Dictator Mode" ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Permettre au Hive Mind de déléguer des tâches au Swarm Engine
+
+**Problème Résolu**:
+- Hive Mind = toujours actif (config par défaut, COMPLEX/EXPERT)
+- Swarm Engine = **DORMANT** (6 modes puissants jamais utilisés)
+- Perte d'efficacité: moteur dormant, capacités gaspillées
+
+**Solution - "Dictator Mode"**:
+- Hive Mind devient **stratège** (méta-orchestrateur)
+- Swarm Engine devient **tacticien** (exécuteur de modes)
+- HiveMind peut déléguer pour: recherches parallèles, tests, reviews de sécurité
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| SwarmBridge + SwarmDelegationResult | 2h | ✅ Done |
+| HivePhase enum + ALLOWED_MODES guardrails | 30min | ✅ Done |
+| Context budget "swarm_delegation": 8000 | 10min | ✅ Done |
+| Integration phase_execution.py | 1h | ✅ Done |
+| ExecutionStep.swarm_mode field | 10min | ✅ Done |
+| Tests (36 tests) | 1h | ✅ Done |
+
+**Architecture**:
+```
+┌──────────────────────────────────────────────────────────┐
+│                  HIVE MIND (Stratège)                    │
+│  Phase 1-3: Analysis, Debate, Architecture               │
+│  Phase 4: Execution ───────────┐                         │
+│  Phase 5-7: Diagnosis, ...     │                         │
+│                    ┌───────────▼───────────┐             │
+│                    │     SwarmBridge       │             │
+│                    │     (V8.3 NEW)        │             │
+│                    └───────────┬───────────┘             │
+└────────────────────────────────┼─────────────────────────┘
+                                 │
+            ┌────────────────────┼────────────────────┐
+            ▼                    ▼                    ▼
+     ┌──────────┐         ┌──────────┐        ┌──────────┐
+     │ PARALLEL │         │ RED_BLUE │        │ PING_PONG│
+     └──────────┘         └──────────┘        └──────────┘
+```
+
+**Guardrails (9 combinaisons valides)**:
+- ANALYSIS: SPECIALIST only
+- DEBATE: PING_PONG, RED_BLUE
+- ARCHITECTURE: LEAD_SUPPORT
+- EXECUTION: PARALLEL, SEQUENTIAL, SPECIALIST
+- DIAGNOSIS: RED_BLUE
+- CONSOLIDATION: SPECIALIST
+
+**Nouveaux Fichiers**:
+- `core/hive_mind/swarm_bridge.py` (~500 lignes)
+- `tests/test_swarm_bridge.py` (~400 lignes, 36 tests)
+
+**Fichiers Modifiés**:
+- `core/hive_mind/types.py` - ExecutionStep.swarm_mode
+- `core/hive_mind/context_manager.py` - Budget "swarm_delegation"
+- `core/hive_mind/phases/phase_execution.py` - _execute_via_swarm()
+- `core/hive_mind/__init__.py` - Exports
+
+**Usage**:
+```python
+# Dans ExecutionPlan généré par Phase 3:
+ExecutionStep(
+    name="Security Review",
+    agent_id="gemini",
+    action="Review auth module for vulnerabilities",
+    swarm_mode="red_blue"  # ← Délégué au Swarm!
+)
+
+# Phase 4 détecte swarm_mode et délègue:
+# [V8.3 Dictator Mode] Delegating step 'Security Review' to Swarm (mode=red_blue)
+```
+
+**Tests**: 36/36 passent ✅
+
+**Source**: Gemini Analysis + Claude Implementation (2025-12-09)
+
+---
+
+### V8.3.1 - SwarmTool "Swarm as Invocable Tool" ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Permettre aux agents d'invoquer le Swarm à n'importe quelle phase HiveMind
+
+**Problème Résolu**:
+- V8.3.0 SwarmBridge ne fonctionne qu'en Phase 4 via `ExecutionStep.swarm_mode`
+- Les autres phases (Analysis, Debate, Architecture) ne peuvent pas bénéficier du Swarm
+- Perte d'opportunités: debates RED_BLUE, analyses PARALLEL, etc.
+
+**Solution - "SwarmTool"**:
+- Nouvel outil `swarm_delegate` dans ToolManager
+- Invocable par les agents à **n'importe quelle phase**
+- Feedback loop automatique (résultats → HiveMind context)
+- Self-healing aligné avec checkpoints
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Budget swarm_tool_invocation (6k) | 10min | ✅ Done |
+| Aligner self-healing (checkpoints) | 30min | ✅ Done |
+| Handler swarm_delegate | 45min | ✅ Done |
+| Câblage SwarmBridge→ToolManager | 20min | ✅ Done |
+| Tests (test_swarm_tool.py) | 1h | ✅ Done |
+
+**Usage**:
+```python
+# Agent peut invoquer swarm_delegate à n'importe quelle phase:
+<tool_use name="swarm_delegate">
+  {"task": "Débattre de l'approche auth", "mode": "red_blue", "phase": "debate"}
+</tool_use>
+
+# Ou pour analyse parallèle:
+<tool_use name="swarm_delegate">
+  {"task": "Analyser 3 fichiers en parallèle", "mode": "parallel"}
+</tool_use>
+```
+
+**Gap Self-Healing Corrigé**:
+- SwarmBridge._execute_with_fallback() utilisait fallback sans checkpoints
+- Aligné avec ModeExecutor.execute_with_fallback()
+- Checkpoint create/restore sur chaque fallback
+
+**Fichiers Modifiés**:
+- `core/hive_mind/context_manager.py` - Budget "swarm_tool_invocation": 6000
+- `core/hive_mind/swarm_bridge.py` - Checkpoints dans _execute_with_fallback()
+- `core/execution/tool_manager.py` - Handler _execute_swarm_delegate()
+- `core/orchestration_v7.py` - Import HiveMindSwarmBridge + câblage
+
+**Nouveaux Fichiers**:
+- `tests/test_swarm_tool.py` (~400 lignes)
+
+**Source**: Claude Implementation (2025-12-09)
+
+---
+
+### V8.3.1-hotfix - Depth Guard Anti-Recursion ✅ COMPLETED (2025-12-09)
+
+**Objectif** : Prévenir la récursion infinie ("Inception Trap") dans swarm_delegate
+
+**Problème identifié** (Gemini 2025-12-09):
+- SwarmTool permet aux agents d'invoquer le Swarm
+- Le Swarm peut lui-même invoquer des agents qui peuvent utiliser SwarmTool
+- Sans garde-fou: récursion infinie → explosion de tokens/coûts
+
+**Solution - Depth Guard**:
+```python
+# core/execution/tool_manager.py - _execute_swarm_delegate()
+MAX_SWARM_DEPTH = 2
+current_depth = args.get("_swarm_depth", 0)
+
+if current_depth >= MAX_SWARM_DEPTH:
+    return ToolResult(
+        status="ERROR",
+        error=f"Max swarm recursion depth ({MAX_SWARM_DEPTH}) reached."
+    )
+
+# Propagation via config
+result = await delegate(..., config={"_swarm_depth": current_depth + 1})
+```
+
+**Comportement**:
+- Niveau 0: Invocation directe par agent → OK
+- Niveau 1: Sub-agent invoque SwarmTool → OK
+- Niveau 2: Sub-sub-agent tente SwarmTool → BLOQUÉ
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter depth guard dans _execute_swarm_delegate() | 15min | ✅ Done |
+| Propager _swarm_depth via config | 10min | ✅ Done |
+| Tests (inclus dans test_swarm_tool.py) | - | ✅ Done |
+
+**Fichiers Modifiés**:
+- `core/execution/tool_manager.py` - Depth check + propagation
+
+**Source**: Gemini Security Analysis (2025-12-09) + Claude Implementation
+
+---
+
+### V8.3.2 - Parallel Merge Strategy [Priority: P2] (PLANNED)
+
+**Objectif** : Stratégie intelligente de fusion des résultats PARALLEL
+
+**Problème identifié** (Gemini 2025-12-09):
+- Mode PARALLEL: 2 agents travaillent en parallèle
+- Fusion actuelle: concat naïf (résultats collés bout à bout)
+- Risque "Tour de Babel": informations contradictoires, redondances, incohérences
+
+**Solution proposée - merge_strategy**:
+
+```python
+# core/hive_mind/types.py - ExecutionStep
+@dataclass
+class ExecutionStep:
+    name: str
+    agent_id: str
+    action: str
+    swarm_mode: Optional[str] = None
+    merge_strategy: Optional[str] = None  # V8.3.2: "concat" | "consensus" | "summary"
+```
+
+**Stratégies**:
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| `concat` | Concaténation simple (défaut actuel) | Résultats indépendants |
+| `consensus` | LLM identifie points d'accord/désaccord | Analyses divergentes |
+| `summary` | LLM synthétise en résumé cohérent | Réduction de contexte |
+
+**Implémentation prévue**:
+
+```python
+# core/hive_mind/phases/phase_execution.py
+async def _merge_parallel_results(
+    self,
+    results: List[Dict],
+    strategy: str = "concat"
+) -> str:
+    if strategy == "concat":
+        return "\n---\n".join(r["output"] for r in results)
+
+    elif strategy == "consensus":
+        prompt = f"""
+        Analyze these {len(results)} parallel results:
+        {json.dumps(results, indent=2)}
+
+        Identify:
+        1. Points of agreement
+        2. Points of disagreement
+        3. Unique insights from each
+        """
+        return await self._invoke_synthesis_llm(prompt)
+
+    elif strategy == "summary":
+        prompt = f"Synthesize into coherent summary:\n{results}"
+        return await self._invoke_synthesis_llm(prompt)
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter merge_strategy à ExecutionStep | 10min | PLANNED |
+| Implémenter _merge_parallel_results() | 2h | PLANNED |
+| Configurer stratégie par défaut | 30min | PLANNED |
+| Tests merge strategies | 1h | PLANNED |
+
+**Fichiers concernés**:
+- `core/hive_mind/types.py` - Nouveau champ merge_strategy
+- `core/hive_mind/phases/phase_execution.py` - Logique de merge
+- `core/hive_mind/swarm_bridge.py` - Propagation stratégie
+
+**Source**: Gemini Security Analysis "Tour de Babel" (2025-12-09)
+
+---
+
 ### V8.2.1 - Multi-Tenant Basics [Priority: P2]
 
 **Objectif** : Isolation par tenant pour usage équipe/entreprise
@@ -1292,7 +1545,11 @@ La V9.0 ("Self-Evolving Intelligence") ne sera envisagée qu'après :
 | 10 | ~~CI/CD GitHub Actions~~ | V8.0.2 | ~~4h~~ | ✅ Done (`.github/workflows/ci.yml`) |
 | 11 | ~~Decay Formula SuccessMemory~~ | V8.1.0 | ~~2h~~ | ✅ Done (`_apply_time_decay()`) |
 | 12 | ~~Unified Analysis Adapter~~ | V8.2.0a | ~~3h~~ | ✅ Done (`core/adapters/`) |
-| 13 | RedTeam Post-Spawn | V8.2.0c | 2h | **NEXT** |
+| 13 | ~~SwarmBridge "Dictator Mode"~~ | V8.3.0 | ~~4h~~ | ✅ Done |
+| 14 | ~~SwarmTool "Swarm as Invocable Tool"~~ | V8.3.1 | ~~3h~~ | ✅ Done |
+| 15 | ~~Depth Guard Anti-Recursion~~ | V8.3.1-hotfix | ~~30min~~ | ✅ Done |
+| 16 | Parallel Merge Strategy | V8.3.2 | 3h | **NEXT** |
+| 17 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
 
 ---
 
@@ -1329,6 +1586,9 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.3.1-hotfix | Depth Guard anti-recursion + V8.3.2 merge_strategy planned (Gemini security analysis) |
+| 2025-12-09 | 8.3.1 | SwarmTool "Swarm as Invocable Tool" - agents can invoke Swarm at any phase |
+| 2025-12-09 | 8.3.0 | SwarmBridge "Dictator Mode" - HiveMind delegates to Swarm Engine |
 | 2025-12-09 | 8.2.0a | V8.0.2 CI/CD + V8.1.0 Decay + V8.2.0a Adapter implemented. 12/13 priorities done! |
 | 2025-12-09 | 8.2.0 | Roadmap audit: V8.0.3 EPHEMERAL marked partial (core done, tests pending), prompt V2 created |
 | 2025-12-09 | 8.1.9c | Claude Opus 4.5 analysis: 4 valid findings (HiveMind 24 states, PARALLEL merge, budget reservation, disaster recovery) added to Ideas Backlog |

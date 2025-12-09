@@ -87,6 +87,8 @@ class HiveMindContextManager:
         "execution": 5000,      # Execution context
         "diagnosis": 12000,     # Failure diagnosis (needs more context)
         "consolidation": 15000, # Knowledge consolidation
+        "swarm_delegation": 8000,  # V8.3.0: Context for Swarm Bridge delegation
+        "swarm_tool_invocation": 6000,  # V8.3.1: Tool invocation from any phase
         "default": 8000,
     }
 

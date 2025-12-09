@@ -218,6 +218,9 @@ class ExecutionStep:
     expected_duration: float = 30.0  # seconds
     depends_on: List[str] = field(default_factory=list)
     verification_required: bool = False
+    # V8.3: Optional Swarm mode for delegation
+    # If set, step is executed via SwarmBridge instead of direct driver call
+    swarm_mode: Optional[str] = None  # "parallel", "red_blue", etc.
 
 
 @dataclass

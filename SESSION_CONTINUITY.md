@@ -1,8 +1,8 @@
 # SESSION CONTINUITY - NEXUS V8.0 "TRUE HIVE MIND"
 
 **Date**: 2025-12-09
-**Session**: V8.2.0c RedTeam Post-Spawn + V8.0.3 EPHEMERAL Tests
-**Status**: ✅ **V8.2.0c + V8.0.3 COMPLETED**
+**Session**: V8.3.1-hotfix Depth Guard Anti-Recursion
+**Status**: ✅ **V8.3.1-hotfix COMPLETED**
 **Branch**: N8THM
 **Last Commit**: (pending)
 **Operator**: Claude Code (Opus 4.5)
@@ -33,6 +33,9 @@
 | **V8.2.0-pre** | Multi-Domain Fixes | ✅ Complete | 8a961f7 |
 | **V8.2.0c** | RedTeam Post-Spawn Validation | ✅ Complete | (pending) |
 | **V8.0.3** | EPHEMERAL Sessions Tests | ✅ Complete | (pending) |
+| **V8.3.0** | SwarmBridge "Dictator Mode" | ✅ Complete | (pending) |
+| **V8.3.1** | SwarmTool "Swarm as Invocable Tool" | ✅ Complete | (pending) |
+| **V8.3.1-hotfix** | Depth Guard Anti-Recursion | ✅ Complete | (pending) |
 
 ### Documentation Session (2025-12-08/09)
 
@@ -141,6 +144,38 @@ PROJECT_MEMORY_BACKEND=tfidf
 | `core/interface/repl.py` | MODIFIED | Added `handle_rag_command()` + helpers |
 | `ROADMAP.md` | MODIFIED | V8.1.8 COMPLETED, V8.1.9 added |
 
+### V8.3.0 - SwarmBridge "Dictator Mode" (2025-12-09)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `core/hive_mind/swarm_bridge.py` | CREATED | SwarmBridge, SwarmDelegationResult, HivePhase |
+| `core/hive_mind/types.py` | MODIFIED | Added ExecutionStep.swarm_mode field |
+| `core/hive_mind/context_manager.py` | MODIFIED | Added "swarm_delegation": 8000 budget |
+| `core/hive_mind/phases/phase_execution.py` | MODIFIED | Added _execute_via_swarm() method |
+| `core/hive_mind/__init__.py` | MODIFIED | Exported SwarmBridge, HivePhase |
+| `tests/test_swarm_bridge.py` | CREATED | 36 tests for SwarmBridge |
+| `ROADMAP.md` | MODIFIED | Added V8.3.0 section |
+
+### V8.3.1 - SwarmTool "Swarm as Invocable Tool" (2025-12-09)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `core/hive_mind/context_manager.py` | MODIFIED | Added "swarm_tool_invocation": 6000 budget |
+| `core/hive_mind/swarm_bridge.py` | MODIFIED | Aligned self-healing with checkpoints |
+| `core/execution/tool_manager.py` | MODIFIED | Added swarm_delegate handler |
+| `core/orchestration_v7.py` | MODIFIED | Import HiveMindSwarmBridge + câblage |
+| `tests/test_swarm_tool.py` | CREATED | Tests for swarm_delegate tool |
+| `docs/IMPACT_STUDY_V8.3.1_SWARM_TOOL.md` | CREATED | Impact study document |
+| `ROADMAP.md` | MODIFIED | Added V8.3.1 section |
+
+### V8.3.1-hotfix - Depth Guard Anti-Recursion (2025-12-09)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `core/execution/tool_manager.py` | MODIFIED | Added MAX_SWARM_DEPTH=2, depth check, propagation |
+| `ROADMAP.md` | MODIFIED | Added V8.3.1-hotfix + V8.3.2 merge_strategy sections |
+| `SESSION_CONTINUITY.md` | MODIFIED | Updated with hotfix info |
+
 ### Previous Session (Documentation)
 
 | File | Action | Description |
@@ -160,8 +195,8 @@ PROJECT_MEMORY_BACKEND=tfidf
 
 ## ⏭️ Next Steps
 
-1. **V8.1.6** (P1): Implement async driver wrappers for true PARALLEL mode
-2. **V8.1.0** (P2): Integrate SuccessMemory with HiveMind pipeline
+1. **V8.3.2** (P2): Parallel Merge Strategy (concat/consensus/summary)
+2. **V8.2.0c** (P2): RedTeam Post-Spawn Validation
 3. **V8.1.1** (P2): Create LLM Provider Registry abstraction
 
 ---

@@ -102,6 +102,9 @@ class ToolManager:
         # Initialize ExecutionPolicy (security layer 1 - Phase 14a)
         self.execution_policy = ExecutionPolicy(workspace_path)
 
+        # V8.3.1: SwarmBridge for swarm_delegate tool (set externally)
+        self.swarm_bridge: Optional[Any] = None
+
         # Dispatch to appropriate handler
         self.tools = {
             "bash": self._execute_bash,
@@ -120,6 +123,8 @@ class ToolManager:
             "delete_tool": self._execute_delete_tool,
             "list_dynamic_tools": self._execute_list_dynamic_tools,
             "run_dynamic_tool": self._execute_run_dynamic_tool,
+            # V8.3.1: SwarmTool - Swarm as invocable tool
+            "swarm_delegate": self._execute_swarm_delegate,
         }
 
         # V7.6 Phase 12.3: MCP Registry and dynamic tools
@@ -1659,6 +1664,160 @@ class ToolManager:
             output=result.output,
             error=result.error
         )
+
+    # =========================================================================
+    # V8.3.1: SwarmTool - Swarm as Invocable Tool
+    # =========================================================================
+
+    def _execute_swarm_delegate(self, args: Dict) -> ToolResult:
+        """
+        V8.3.1 SwarmTool - Delegate subtask to Swarm Engine.
+
+        Allows agents to invoke Swarm collaboration modes at any HiveMind phase,
+        not just Phase 4 (Execution). Enables debates, parallel analysis, etc.
+
+        Args:
+            args: {
+                "task": "The subtask to delegate",
+                "mode": "parallel|sequential|lead_support|ping_pong|specialist|red_blue",
+                "phase": "analysis|debate|architecture|execution|diagnosis|consolidation" (optional),
+                "context_categories": ["task", "architecture", ...] (optional)
+            }
+
+        Returns:
+            ToolResult with swarm execution output
+
+        Examples:
+            {"task": "Run security review", "mode": "red_blue", "phase": "debate"}
+            {"task": "Analyze files in parallel", "mode": "parallel"}
+            {"task": "Iterative refinement", "mode": "ping_pong", "phase": "architecture"}
+        """
+        # V8.3.1-hotfix: Anti-recursion depth guard ("Inception Trap" prevention)
+        # Prevents: Swarm → swarm_delegate → Swarm → swarm_delegate → ... (infinite)
+        MAX_SWARM_DEPTH = 2
+        current_depth = args.get("_swarm_depth", 0)
+
+        if current_depth >= MAX_SWARM_DEPTH:
+            self._logger.warning(
+                f"swarm_delegate blocked: depth {current_depth} >= max {MAX_SWARM_DEPTH}"
+            )
+            return ToolResult(
+                tool_name="swarm_delegate",
+                status="ERROR",
+                output="",
+                error=f"Max swarm recursion depth ({MAX_SWARM_DEPTH}) reached. "
+                      f"Nested Swarm calls are limited to prevent infinite loops."
+            )
+
+        # Guard: SwarmBridge must be configured
+        if self.swarm_bridge is None:
+            return ToolResult(
+                tool_name="swarm_delegate",
+                status="ERROR",
+                output="",
+                error="SwarmBridge not configured. Cannot delegate to Swarm."
+            )
+
+        task = args.get("task")
+        mode_str = args.get("mode", "specialist")
+        phase_str = args.get("phase")
+        context_categories = args.get("context_categories")
+
+        # V8.3.1-hotfix: Propagate depth to nested calls
+        next_depth = current_depth + 1
+
+        # Validate task
+        if not task:
+            return ToolResult(
+                tool_name="swarm_delegate",
+                status="ERROR",
+                output="",
+                error="Missing 'task' argument. Provide the subtask to delegate."
+            )
+
+        try:
+            # Import locally to avoid circular imports
+            from core.swarm.collaboration_modes import CollaborationMode
+            from core.hive_mind.swarm_bridge import HivePhase
+
+            # Parse mode
+            try:
+                mode = CollaborationMode.from_string(mode_str)
+            except (ValueError, AttributeError):
+                # Fallback: try direct enum access
+                mode_upper = mode_str.upper()
+                if hasattr(CollaborationMode, mode_upper):
+                    mode = CollaborationMode[mode_upper]
+                else:
+                    valid_modes = [m.value for m in CollaborationMode]
+                    return ToolResult(
+                        tool_name="swarm_delegate",
+                        status="ERROR",
+                        output="",
+                        error=f"Invalid mode: '{mode_str}'. Valid modes: {valid_modes}"
+                    )
+
+            # Parse phase (optional)
+            phase = None
+            if phase_str:
+                try:
+                    phase = HivePhase(phase_str.lower())
+                except ValueError:
+                    valid_phases = [p.value for p in HivePhase]
+                    return ToolResult(
+                        tool_name="swarm_delegate",
+                        status="ERROR",
+                        output="",
+                        error=f"Invalid phase: '{phase_str}'. Valid phases: {valid_phases}"
+                    )
+
+            # Execute delegation (async → sync wrapper)
+            import asyncio
+
+            # Get or create event loop
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            result = loop.run_until_complete(
+                self.swarm_bridge.delegate(
+                    task=task,
+                    mode=mode,
+                    phase=phase,
+                    context_categories=context_categories,
+                    # V8.3.1-hotfix: Pass depth for recursion tracking
+                    config={"_swarm_depth": next_depth}
+                )
+            )
+
+            # FEEDBACK LOOP: Inject results into HiveMind context
+            if result.success and hasattr(self.swarm_bridge, 'inject_results_into_context'):
+                self.swarm_bridge.inject_results_into_context(result)
+
+            # Build output with metadata
+            output_parts = [result.summary] if result.summary else []
+            if result.fallback_chain and len(result.fallback_chain) > 1:
+                chain_str = " -> ".join(m.value for m in result.fallback_chain)
+                output_parts.append(f"[Fallback chain: {chain_str}]")
+            output_parts.append(f"[Mode: {result.mode_used.value}, Time: {result.execution_time:.2f}s]")
+
+            return ToolResult(
+                tool_name="swarm_delegate",
+                status="SUCCESS" if result.success else "FAILURE",
+                output="\n".join(output_parts),
+                error="; ".join(result.failure_diagnostics) if not result.success else ""
+            )
+
+        except Exception as e:
+            self._logger.error(f"swarm_delegate failed: {e}")
+            return ToolResult(
+                tool_name="swarm_delegate",
+                status="ERROR",
+                output="",
+                error=f"Swarm delegation error: {str(e)}"
+            )
 
     def get_dynamic_tools(self) -> List[str]:
         """

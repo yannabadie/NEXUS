@@ -71,6 +71,13 @@ from .strategy_blacklist import StrategyBlacklist
 from .user_interaction import UserInteractionHandler
 from .adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from .orchestrator import TrueHiveMind, HiveMindResult
+from .swarm_bridge import (
+    SwarmBridge,
+    SwarmDelegationResult,
+    HivePhase,
+    suggest_mode_for_subtask,
+    create_bridge_for_phase,
+)
 
 __all__ = [
     # Enums
@@ -109,4 +116,11 @@ __all__ = [
     # Orchestrator
     "TrueHiveMind",
     "HiveMindResult",
+
+    # V8.3 SwarmBridge - Hive Mind → Swarm Delegation
+    "SwarmBridge",
+    "SwarmDelegationResult",
+    "HivePhase",
+    "suggest_mode_for_subtask",
+    "create_bridge_for_phase",
 ]

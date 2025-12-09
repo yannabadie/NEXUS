@@ -1,4 +1,4 @@
-## OUTILS DISPONIBLES (15+ outils - TOUS accessibles aux deux agents)
+## OUTILS DISPONIBLES (16+ outils - TOUS accessibles aux deux agents)
 
 ### Fichiers & Code
 | Outil | Description |
@@ -52,3 +52,51 @@
   "arguments": {"task": "Optimize this query for performance"}
 }
 ```
+
+### Swarm Delegation (V8.3.1)
+| Outil | Description |
+|-------|-------------|
+| `swarm_delegate` | Déléguer une sous-tâche au Swarm Engine |
+
+**Modes disponibles:** `parallel`, `sequential`, `lead_support`, `ping_pong`, `specialist`, `red_blue`
+
+**Arguments:**
+- `task` (requis): Description de la sous-tâche
+- `mode` (optionnel, défaut: "specialist"): Mode de collaboration
+- `phase` (optionnel): Phase HiveMind actuelle (pour validation guardrails)
+- `context_categories` (optionnel): Catégories de contexte à inclure
+
+**Exemples:**
+
+```json
+{
+  "tool_name": "swarm_delegate",
+  "arguments": {
+    "task": "Analyser auth.py et security.py en parallèle",
+    "mode": "parallel"
+  }
+}
+```
+
+```json
+{
+  "tool_name": "swarm_delegate",
+  "arguments": {
+    "task": "Débattre de l'approche d'authentification",
+    "mode": "red_blue",
+    "phase": "debate"
+  }
+}
+```
+
+**⚠️ Anti-Recursion:** Limité à `MAX_SWARM_DEPTH = 2` pour éviter les boucles infinies.
+- Niveau 0: Invocation directe → OK
+- Niveau 1: Sub-agent invoque swarm_delegate → OK
+- Niveau 2: Sub-sub-agent tente swarm_delegate → BLOQUÉ
+
+**Quand utiliser:**
+- ✅ Tâches pouvant bénéficier de collaboration multi-agents
+- ✅ Debates adversariaux (red_blue)
+- ✅ Analyses parallèles indépendantes
+- ❌ Tâches simples (overhead inutile)
+- ❌ Depuis un agent déjà spawné par Swarm (risque récursion)

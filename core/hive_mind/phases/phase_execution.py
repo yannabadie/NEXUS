@@ -34,10 +34,12 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..swarm_bridge import SwarmBridge, HivePhase
 
 if TYPE_CHECKING:
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
+    from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +116,8 @@ class MonitoredExecutionPhase:
         claude_driver: "ClaudeDriverV7",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
-        tool_executor: Callable = None
+        tool_executor: Callable = None,
+        swarm_engine: "HybridSwarmEngine" = None
     ):
         """
         Initialize Phase 4.
@@ -125,12 +128,20 @@ class MonitoredExecutionPhase:
             cost_estimator: Cost estimator
             context_manager: Context manager
             tool_executor: Optional tool execution callback
+            swarm_engine: V8.3 - Optional Swarm Engine for delegation
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
         self.cost_estimator = cost_estimator
         self.context_manager = context_manager
         self.tool_executor = tool_executor
+        # V8.3: SwarmBridge for Dictator Mode delegation
+        self.swarm_bridge = None
+        if swarm_engine is not None:
+            self.swarm_bridge = SwarmBridge(
+                swarm_engine=swarm_engine,
+                context_manager=context_manager
+            )
 
     async def execute(
         self,
@@ -273,6 +284,10 @@ class MonitoredExecutionPhase:
     ) -> MonitoredStepResult:
         """Execute a single step with monitoring."""
         logger.info(f"Executing step: {step.name}")
+
+        # V8.3: Check if step should be delegated to Swarm
+        if step.swarm_mode and self.swarm_bridge:
+            return await self._execute_via_swarm(task, step, previous_results)
 
         # Format previous results for context
         prev_text = self._format_previous_results(previous_results)
@@ -511,3 +526,144 @@ class MonitoredExecutionPhase:
             "failure_step": result.failure_step,
             "artifacts": result.artifacts_created
         }
+
+    # =========================================================================
+    # V8.3: SWARM DELEGATION (Dictator Mode)
+    # =========================================================================
+
+    async def _execute_via_swarm(
+        self,
+        task: str,
+        step: ExecutionStep,
+        previous_results: List[MonitoredStepResult]
+    ) -> MonitoredStepResult:
+        """
+        Execute a step via SwarmBridge delegation.
+
+        V8.3 Dictator Mode: HiveMind delegates to Swarm for tactical execution.
+
+        Args:
+            task: Original task context
+            step: Step with swarm_mode set
+            previous_results: Previous step results for context
+
+        Returns:
+            MonitoredStepResult with Swarm execution results
+        """
+        from core.swarm.collaboration_modes import CollaborationMode
+
+        logger.info(f"[V8.3 Dictator Mode] Delegating step '{step.name}' to Swarm (mode={step.swarm_mode})")
+
+        start_time = time.time()
+        issues: List[ExecutionIssue] = []
+
+        try:
+            # Parse Swarm mode
+            mode = CollaborationMode.from_string(step.swarm_mode)
+
+            # Build context-enriched task
+            prev_text = self._format_previous_results(previous_results)
+            enriched_task = f"""Execute this step for NEXUS Hive Mind.
+
+TASK CONTEXT: {task}
+
+STEP: {step.name}
+ACTION: {step.action}
+
+PREVIOUS STEPS:
+{prev_text}
+
+Execute using {mode.value.upper()} collaboration mode."""
+
+            # Delegate to Swarm via SwarmBridge
+            delegation_result = await self.swarm_bridge.delegate(
+                task=enriched_task,
+                mode=mode,
+                phase=HivePhase.EXECUTION,
+                context_categories=["task", "architecture", "tools"]
+            )
+
+            duration = time.time() - start_time
+
+            # Convert SwarmDelegationResult to MonitoredStepResult
+            if delegation_result.success:
+                status = "success"
+                output = delegation_result.summary or "Swarm execution completed"
+            else:
+                status = "error"
+                output = f"Swarm delegation failed: {', '.join(delegation_result.failure_diagnostics)}"
+                for diagnostic in delegation_result.failure_diagnostics:
+                    issues.append(ExecutionIssue(
+                        issue_type="swarm_delegation_failed",
+                        severity=IssueSeverity.ERROR,
+                        details=diagnostic,
+                        step_name=step.name
+                    ))
+
+            # Record fallback chain if any
+            if len(delegation_result.fallback_chain) > 1:
+                modes_tried = [m.value for m in delegation_result.fallback_chain]
+                logger.info(f"Swarm fallback chain: {' → '.join(modes_tried)}")
+
+            # Inject results back into HiveMind context
+            self.swarm_bridge.inject_results_into_context(delegation_result)
+
+            # Estimate tokens (rough)
+            tokens_used = len(output) // 4 + 100  # Base overhead for Swarm
+
+            return MonitoredStepResult(
+                step_name=step.name,
+                agent_id=f"swarm:{delegation_result.mode_used.value}",
+                status=status,
+                output=output,
+                duration=duration,
+                expected_duration=step.expected_duration,
+                tokens_used=tokens_used,
+                issues=issues,
+                artifacts_created=[],  # Swarm doesn't track artifacts yet
+                artifacts_verified=True
+            )
+
+        except ValueError as e:
+            # Invalid swarm_mode string
+            duration = time.time() - start_time
+            issues.append(ExecutionIssue(
+                issue_type="invalid_swarm_mode",
+                severity=IssueSeverity.ERROR,
+                details=f"Invalid swarm_mode '{step.swarm_mode}': {e}",
+                step_name=step.name
+            ))
+            return MonitoredStepResult(
+                step_name=step.name,
+                agent_id="swarm:error",
+                status="error",
+                output=f"Invalid swarm mode: {step.swarm_mode}",
+                duration=duration,
+                expected_duration=step.expected_duration,
+                tokens_used=0,
+                issues=issues,
+                artifacts_created=[],
+                artifacts_verified=False
+            )
+
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"Swarm delegation error: {e}")
+            issues.append(ExecutionIssue(
+                issue_type="swarm_exception",
+                severity=IssueSeverity.CRITICAL,
+                details=str(e),
+                step_name=step.name
+            ))
+            return MonitoredStepResult(
+                step_name=step.name,
+                agent_id="swarm:error",
+                status="error",
+                output=f"Swarm delegation error: {e}",
+                duration=duration,
+                expected_duration=step.expected_duration,
+                tokens_used=0,
+                issues=issues,
+                artifacts_created=[],
+                artifacts_verified=False
+            )

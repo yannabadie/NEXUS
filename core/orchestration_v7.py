@@ -40,6 +40,7 @@ from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge, FSMHandlers  # V7.8 Phase 14c.2
+from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
 from pydantic import ValidationError
 import time
 import json
@@ -191,6 +192,13 @@ class OrchestratorV7:
                 "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
                 "default_mode": getattr(self.config, 'swarm_default_mode', 'ping_pong')
             })
+
+            # V8.3.1: Wire SwarmBridge to ToolManager for swarm_delegate tool
+            self.tool_manager.swarm_bridge = HiveMindSwarmBridge(
+                swarm_engine=self.swarm_engine,
+                context_manager=None  # Context manager is per-task, set dynamically
+            )
+            self.logger.debug("SwarmBridge wired to ToolManager for swarm_delegate tool")
         else:
             self.swarm_engine = None
 

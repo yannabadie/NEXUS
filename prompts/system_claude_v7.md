@@ -119,6 +119,7 @@ Je recherche les bonnes pratiques JWT.
 | web_search | `{"query": "..."}` |
 | web_fetch | `{"url": "..."}` |
 | todo_write | `{"todos": [...]}` |
+| swarm_delegate | `{"task": "...", "mode": "parallel\|specialist\|..."}` |
 
 ### Dynamic Tools (V7.8+)
 
@@ -141,6 +142,30 @@ Je recherche les bonnes pratiques JWT.
 {"task": "Optimize this query: SELECT * FROM users WHERE..."}
 </tool_use>
 ```
+
+### Swarm Delegation (V8.3.1+)
+
+| Outil | Syntaxe |
+|-------|---------|
+| swarm_delegate | `{"task": "...", "mode": "...", "phase": "..."}` |
+
+**Modes:** `parallel`, `sequential`, `lead_support`, `ping_pong`, `specialist`, `red_blue`
+
+**Exemple:** Déléguer une analyse parallèle au Swarm Engine:
+```xml
+<tool_use name="swarm_delegate">
+{"task": "Analyser auth.py et security.py", "mode": "parallel"}
+</tool_use>
+```
+
+**Exemple:** Débat adversarial pour review de sécurité:
+```xml
+<tool_use name="swarm_delegate">
+{"task": "Évaluer les vulnérabilités du module auth", "mode": "red_blue", "phase": "debate"}
+</tool_use>
+```
+
+⚠️ **Anti-Recursion:** Limité à profondeur 2 (évite boucles infinies).
 
 ---
 
