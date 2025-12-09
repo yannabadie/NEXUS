@@ -885,7 +885,7 @@ graph TD
 """
 
     def _generate_component_summary(self) -> str:
-        lines = ["### Component Summary", "", "| Component | Files | LOC | Classes | Functions |", "|-----------|-------|-----|---------|-----------"]
+        lines = ["### Component Summary", "", "| Component | Files | LOC | Classes | Functions |", "|-----------|-------|-----|---------|-----------|"]
 
         for comp in sorted(self.components, key=lambda c: c.name):
             lines.append(f"| {comp.name} | {len(comp.modules)} | {comp.total_loc:,} | {comp.total_classes} | {comp.total_functions} |")

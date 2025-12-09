@@ -1,7 +1,7 @@
 # NEXUS V8.3.2 Architecture Map
 
-**Auto-Generated**: 2025-12-09 19:54
-**Git Commit**: ca633a6
+**Auto-Generated**: 2025-12-09 20:33
+**Git Commit**: 4b96d93
 **Generator**: `scripts/doc_engine.py`
 
 ---
@@ -54,7 +54,7 @@ graph TD
 ### Component Summary
 
 | Component | Files | LOC | Classes | Functions |
-|-----------|-------|-----|---------|-----------
+|-----------|-------|-----|---------|-----------|
 | adapters | 1 | 237 | 1 | 4 |
 | bootstrap | 2 | 1,400 | 5 | 35 |
 | drivers | 3 | 1,293 | 4 | 21 |
