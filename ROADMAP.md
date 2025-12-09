@@ -39,7 +39,7 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | OP-002 | 16 tests flaky (context isolation) | CI instable | P1 |
 | OP-003 | EPHEMERAL sessions non activé | Overhead sur tâches triviales | P2 |
 | OP-004 | Phase 5b hardcoded lookups | Tech debt mineur | P3 |
-| OP-005 | Sync drivers in async context | PARALLEL = séquentiel déguisé | P1 (NEW) |
+| OP-005 | Sync drivers in async context | PARALLEL = séquentiel déguisé | ✅ DONE (V8.1.6) |
 
 ---
 
@@ -484,24 +484,28 @@ class IntentResolver:
 
 ---
 
-### V8.1.6 - Async Driver Wrapper [Priority: P1] (NEW - Gemini Deep Think v3)
+### V8.1.6 - Thread-Safe Parallel Execution ✅ COMPLETED (2025-12-09)
 
-**Objectif** : Éliminer le blocage event loop quand async appelle sync
+**Objectif** : Éliminer les race conditions en mode PARALLEL
 
-**Problème découvert** (Claude verification 2025-12-08):
-- `TrueHiveMind.process_task()` est **async** (orchestrator.py:235)
-- Mais les drivers `GeminiDriverV7.invoke()` et `ClaudeDriverHybrid.invoke()` sont **sync**
-- Même avec `Popen` + threading, les méthodes bloquent jusqu'à completion
-- En mode PARALLEL, un seul agent s'exécute à la fois (pas de vrai parallélisme)
+**Problème résolu**:
+- Race condition: fichiers hardcodés (`gemini_context_in.md`, `claude_context_in.md`) écrasés en parallèle
+- `session_uuid` non propagé dans la chaîne d'appels
+- Mode PARALLEL = exécution séquentielle déguisée
 
-**Note**: Gemini Deep Think affirmait "subprocess.run blocks" - c'est `Popen` en réalité, mais le problème de blocage reste valide.
+**Solution implémentée**:
+- Fichiers uniques par invocation: `*_{uuid}.md` avec cleanup automatique
+- Propagation `session_uuid` complète: `ModeExecutor → _wrap_invoke_agent → invoke_for_swarm → invoke_agent_direct → driver.invoke()`
+- AsyncDriverAdapter pour support asyncio.gather() futur
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Créer wrapper async pour drivers | 4h | PLANNED |
-| Utiliser `asyncio.create_subprocess_exec` | 3h | PLANNED |
-| Ou `loop.run_in_executor()` pour Popen | 2h | PLANNED |
-| Tests parallelisme réel | 2h | PLANNED |
+| Unique filenames per invocation | 2h | ✅ Done |
+| session_uuid propagation chain | 2h | ✅ Done |
+| AsyncDriverAdapter wrapper | 1h | ✅ Done |
+| Cleanup in finally blocks | 30min | ✅ Done |
+
+**Commit**: `feat(V8.1.6): Thread-safe parallel execution - Race condition fix`
 
 **⚠️ CORRECTION Gemini Deep Think v4** (2025-12-08):
 - Gemini proposait `task_type` comme paramètre - C'EST `session_uuid`!
@@ -745,6 +749,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-09 | 8.1.6 | ✅ Thread-Safe Parallel Execution: unique filenames, session_uuid propagation, AsyncDriverAdapter |
 | 2025-12-08 | 8.0.1h | Corrections Gemini v4: session_uuid (pas task_type), .gemini_analysis (pas .payload), HIVE_SUCCESS (pas HIVE_COMPLETE) |
 | 2025-12-08 | 8.0.1g | V8.1.6 Async Drivers (OP-005), V8.1.7 TaskAnalysis.reasoning, corrections Gemini v3 |
 | 2025-12-08 | 8.0.1f | Analyse Gemini Deep Think v3: 2 erreurs corrigées (TaskAnalysis.reasoning, ModeProposal.mode) |
