@@ -19,6 +19,8 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from pathlib import Path
+from threading import Lock
+import re
 
 from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
@@ -28,6 +30,16 @@ from .task_completion_validator import TaskCompletionValidator, get_adaptive_max
 # V8.3.3: Type hints for merge strategies (avoid circular import)
 if TYPE_CHECKING:
     from .merge_strategies import MergeStrategy, MergeResult
+
+# V8.3.4: Thread-safe blackboard access lock for PARALLEL mode
+_blackboard_lock = Lock()
+
+# V8.3.4 FL-002: Regex pattern for completion detection (word boundaries)
+# Avoids false positives like "I'm not DONE yet" matching "DONE"
+COMPLETION_PATTERN = re.compile(
+    r'\b(FINISHED|TASK\s+COMPLETE|COMPLETED|ALL\s+DONE)\b',
+    re.IGNORECASE
+)
 
 
 class ExecutionStatus(Enum):
@@ -55,17 +67,14 @@ class AgentResponse:
         """
         Check if agent signals completion.
 
-        V7.9 IMPROVED: More robust detection that avoids false positives.
-        - Checks for completion keywords
+        V8.3.4 FL-002: Fixed false positive detection using word boundaries.
+        - Uses regex with \b word boundaries (not substring matching)
+        - "I'm not DONE yet" no longer triggers completion
         - Rejects if ongoing work indicators are present
         """
-        content_upper = self.content.upper()
-
-        # Completion signals
+        # V8.3.4: Use regex pattern with word boundaries
         completion_signals = (
-            "FINISHED" in content_upper
-            or "DONE" in content_upper
-            or "TASK COMPLETE" in content_upper
+            COMPLETION_PATTERN.search(self.content) is not None
             or self.status == "finished"
         )
 
@@ -223,8 +232,10 @@ class ModeExecutor(ABC):
         if role:
             session_uuid = context.get_session_uuid(role, agent_id)
             if session_uuid:
-                # Store in blackboard for driver access (legacy, kept for compatibility)
-                context.blackboard[f"_session_uuid_{agent_id}"] = session_uuid
+                # V8.3.4 FL-001: Thread-safe blackboard access for PARALLEL mode
+                with _blackboard_lock:
+                    # Store in blackboard for driver access (legacy, kept for compatibility)
+                    context.blackboard[f"_session_uuid_{agent_id}"] = session_uuid
 
         try:
             # V8.1.6: Pass session_uuid directly to invoke_agent for thread-safe file access

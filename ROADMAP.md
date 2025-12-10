@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.3.2 | **Status**: Active | **Last Updated**: 2025-12-09
+**Version**: 8.3.4 | **Status**: Active | **Last Updated**: 2025-12-10
 **Maintainer**: Yann Abadie | **Branch**: N8THM
 
 ---
@@ -13,15 +13,33 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 ---
 
-## État Actuel (2025-12-08)
+## État Actuel (2025-12-10)
 
 | Métrique | Valeur |
 |----------|--------|
 | Modules core/ | 24 |
-| Fichiers Python | 124 |
-| Lignes de code | 42,831 |
-| Tests | 1,094 (16 flaky) |
-| Phases complétées | 15 |
+| Fichiers Python | 126 |
+| Lignes de code | 43,500+ |
+| Tests | 1,126+ |
+| Phases complétées | 16 (V8.3.3) |
+
+### Audit Gemini (2025-12-10)
+
+**Source**: `audit/CLAUDE_audit10122025.md`
+
+| Faille | Sévérité | Status | Cible |
+|--------|----------|--------|-------|
+| FL-001: Race Condition ThreadPoolExecutor | P0 | ✅ **DONE** | V8.3.4 |
+| FL-002: False Positives "DONE" detection | P1 | ✅ **DONE** | V8.3.4 |
+| FL-004: Exception Swallowing (390x) | P1 | **PLANNED** | V8.5.3 |
+| FL-005: Hardcoded Agent Lookups (20+) | P1 | **PLANNED** | V8.5.0 |
+| FL-006: DyLAN Score Non-Normalisé | P2 | **BACKLOG** | - |
+| P1-3: print(stderr) → structured logger | P1 | **DEFERRED** | V8.4 |
+
+**Rejetés de l'audit**:
+- SDK native drivers par défaut (CLI intentionnel pour coût 0)
+- Dependency Injection container externe (over-engineering)
+- REST API / Docker K8s (hors scope CLI tool)
 
 ### Composants Stables ✅
 
@@ -1200,103 +1218,120 @@ def run_sync(coro):
 
 ---
 
-### V8.3.3 - Parallel Merge Strategy [Priority: P2] ✅ COMPLETED
+### V8.3.3 - Parallel Merge Strategy ✅ COMPLETED (2025-12-09)
 
 **Objectif** : Stratégie intelligente de fusion des résultats PARALLEL
 
-**Problème identifié** (Gemini 2025-12-09 + Exploration Claude 2025-12-09):
-- Mode PARALLEL: 2 agents travaillent en parallèle
-- Fusion actuelle: concat naïf (résultats collés bout à bout)
-- Risque "Tour de Babel": informations contradictoires, redondances, incohérences
+**Solution Implémentée**:
+- Nouveau module `core/swarm/merge_strategies.py` (~355 lignes)
+- 3 stratégies: NAIVE (backward compat), DEDUPLICATE (Jaccard similarity), WEIGHTED (domain fit)
+- ParallelExecutor utilise `_merge_strategy` pluggable
+- Configuration via `NEXUS_PARALLEL_MERGE_STRATEGY` env var
 
-**Code actuel** (`core/swarm/mode_executors.py:532-544`):
-```python
-def _merge_outputs(self, outputs: List[AgentResponse], task: str) -> str:
-    """Merge parallel outputs into unified result"""
-    merged_parts = []
-    for output in outputs:
-        agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
-        merged_parts.append(f"[{agent_name}]:\n{output.content}")
-    return "\n\n---\n\n".join(merged_parts)  # NAIVE: Just concatenate
-```
+**Fichiers créés/modifiés**:
+- `core/swarm/merge_strategies.py` - NEW (MergeStrategy ABC + 3 implémentations)
+- `core/swarm/mode_executors.py` - ParallelExecutor intégration
+- `tests/test_merge_strategies.py` - NEW (32 tests)
+- `.env` - NEXUS_PARALLEL_MERGE_STRATEGY=naive
 
-**Gaps identifiés** (Exploration 2025-12-09):
-| Gap | Impact | Severity |
-|-----|--------|----------|
-| No semantic deduplication | Similar points appear twice | HIGH |
-| No conflict detection | Disagreements not resolved | HIGH |
-| No quality scoring | All outputs treated equally | HIGH |
-| No domain-aware weighting | Agent strengths ignored | MEDIUM |
-| No hierarchical organization | Flat output structure | MEDIUM |
+**Tests**: 32/32 merge_strategies ✅, 41/41 hybrid_swarm ✅
 
-**Recherche Web** (M1-Parallel, Google ADK, AWS Patterns):
-- M1-Parallel: LLM-based aggregation, 2.2× speedup with early termination
-- Google ADK: Shared Session State for parallel agent communication
-- AWS: Scatter-Gather pattern with S3/memory store for results
+**Commit**: `48b4f3e feat(V8.3.3): Parallel Merge Strategy`
 
-**Solution proposée - merge_strategy**:
+---
 
-```python
-# core/hive_mind/types.py - ExecutionStep
-@dataclass
-class ExecutionStep:
-    name: str
-    agent_id: str
-    action: str
-    swarm_mode: Optional[str] = None
-    merge_strategy: Optional[str] = None  # V8.3.2: "concat" | "consensus" | "summary"
-```
+### V8.3.4 - Audit Quick Fixes [Priority: P0] ✅ COMPLETED (2025-12-10)
 
-**Stratégies**:
+**Objectif** : Corriger les failles critiques identifiées par l'audit Gemini
 
-| Strategy | Description | Use Case |
-|----------|-------------|----------|
-| `concat` | Concaténation simple (défaut actuel) | Résultats indépendants |
-| `consensus` | LLM identifie points d'accord/désaccord | Analyses divergentes |
-| `summary` | LLM synthétise en résumé cohérent | Réduction de contexte |
+**Source**: `audit/CLAUDE_audit10122025.md` (2025-12-10)
 
-**Implémentation prévue**:
+| ID | Faille | Impact | Effort | Status |
+|----|--------|--------|--------|--------|
+| FL-001 | Race Condition ThreadPoolExecutor | Corruption blackboard | 30min | ✅ Done |
+| FL-002 | False Positives "DONE" detection | Faux arrêts | 1h | ✅ Done |
+| P1-3 | print(stderr) → logger (26x) | Logs non structurés | 2h | ⏸️ Deferred V8.4 |
+| DC-001 | Dead code cleanup | Tech debt | 1h | ⏸️ Deferred V8.5 |
+
+**Tests**: 6/6 nouveaux tests audit fixes ✅
+
+#### FL-001: Race Condition ThreadPoolExecutor
+
+**Fichier**: `core/swarm/mode_executors.py:513-521`
+
+**Problème**: ThreadPoolExecutor sans lock pour context.blackboard partagé
 
 ```python
-# core/hive_mind/phases/phase_execution.py
-async def _merge_parallel_results(
-    self,
-    results: List[Dict],
-    strategy: str = "concat"
-) -> str:
-    if strategy == "concat":
-        return "\n---\n".join(r["output"] for r in results)
-
-    elif strategy == "consensus":
-        prompt = f"""
-        Analyze these {len(results)} parallel results:
-        {json.dumps(results, indent=2)}
-
-        Identify:
-        1. Points of agreement
-        2. Points of disagreement
-        3. Unique insights from each
-        """
-        return await self._invoke_synthesis_llm(prompt)
-
-    elif strategy == "summary":
-        prompt = f"Synthesize into coherent summary:\n{results}"
-        return await self._invoke_synthesis_llm(prompt)
+# ACTUEL - Race condition possible
+with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+    futures = {executor.submit(self._invoke, ...) for ...}
 ```
 
-| Tâche | Effort | Status |
-|-------|--------|--------|
-| Ajouter merge_strategy à ExecutionStep | 10min | PLANNED |
-| Implémenter _merge_parallel_results() | 2h | PLANNED |
-| Configurer stratégie par défaut | 30min | PLANNED |
-| Tests merge strategies | 1h | PLANNED |
+**Solution**:
+```python
+# core/swarm/mode_executors.py
+from threading import Lock
 
-**Fichiers concernés**:
-- `core/hive_mind/types.py` - Nouveau champ merge_strategy
-- `core/hive_mind/phases/phase_execution.py` - Logique de merge
-- `core/hive_mind/swarm_bridge.py` - Propagation stratégie
+class ParallelExecutor(ModeExecutor):
+    def __init__(self, ...):
+        self._blackboard_lock = Lock()
 
-**Source**: Gemini Security Analysis "Tour de Babel" (2025-12-09)
+    def _safe_blackboard_update(self, context, key, value):
+        with self._blackboard_lock:
+            context.blackboard[key] = value
+```
+
+#### FL-002: False Positives Completion Detection
+
+**Fichier**: `core/swarm/mode_executors.py:62-85`
+
+**Problème**: `"DONE" in content_upper` trop générique ("I'm not DONE yet" → détecté comme terminé)
+
+```python
+# ACTUEL - Faux positifs
+completion_signals = (
+    "FINISHED" in content_upper
+    or "DONE" in content_upper  # ❌ Trop générique!
+)
+```
+
+**Solution**:
+```python
+import re
+# Word boundaries pour éviter faux positifs
+FINISHED_PATTERN = re.compile(
+    r'\b(FINISHED|TASK\s+COMPLETE|COMPLETED|ALL\s+DONE)\b',
+    re.IGNORECASE
+)
+# "DONE" seul exclu car trop générique
+```
+
+#### P1-3: print(stderr) → Structured Logger
+
+**Statistique**: 26 occurrences `print(..., file=sys.stderr)` dans core/
+
+**Solution**: Remplacer par `self.logger.debug()` ou `logger.warning()`
+
+#### DC-001: Dead Code Cleanup
+
+**Fonctions confirmées mortes** (jamais appelées dans core/):
+- `add_child()` - `core/evolution/lineage.py:423`
+- `add_server()` - `core/mcp/registry.py:155`
+- `compress_history()` - `core/synapse/memory_v7.py:192`
+
+**Action**: Marquer `@deprecated` ou supprimer
+
+**Ordre d'exécution**:
+1. FL-001 (30min) - Sécurité critique
+2. FL-002 (1h) - Fiabilité
+3. P1-3 (2h) - Observabilité
+4. DC-001 (1h) - Cleanup
+
+**Critères de succès**:
+- [ ] Tests existants passent (1000+)
+- [ ] Nouveau test `test_parallel_blackboard_thread_safety`
+- [ ] Nouveau test `test_completion_detection_no_false_positives`
+- [ ] grep `print.*stderr` core/ = 0 occurrences
 
 ---
 
@@ -1580,9 +1615,150 @@ def sync_state(hive_state: HiveMindState) -> OrchestratorState:
 
 ---
 
+## Roadmap V8.5 (Architecture Cleanup) [FROM GEMINI AUDIT]
+
+> **Status**: Post-V8.3.4, architectural improvements from audit
+> **Source**: `audit/CLAUDE_audit10122025.md`
+
+### V8.5.0 - AgentRegistry Abstraction [Priority: P1]
+
+**Objectif** : Éliminer les 20+ hardcoded agent lookups (FL-005)
+
+**Problème actuel**:
+```python
+# Pattern répété 20+ fois dans la codebase
+if agent == "Claude":
+    # ...
+elif agent == "Gemini":
+    # ...
+```
+
+**Impact**: Impossible d'ajouter un 3ème agent principal sans refactoring massif
+
+**Solution proposée**:
+```python
+# core/agents/registry.py (NOUVEAU)
+class AgentRegistry:
+    def __init__(self):
+        self._agents: Dict[str, AgentProfile] = {}
+
+    def register(self, agent_id: str, profile: AgentProfile):
+        self._agents[agent_id] = profile
+
+    def get_best_for_domain(self, domain: str) -> AgentProfile:
+        return max(
+            self._agents.values(),
+            key=lambda a: a.get_domain_score(domain)
+        )
+
+    def iterate_all(self) -> Iterator[AgentProfile]:
+        yield from self._agents.values()
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `core/agents/registry.py` | 3h | PLANNED |
+| Wrapper Claude & Gemini profiles | 2h | PLANNED |
+| Migration progressive des lookups | 6h | PLANNED |
+| Tests regression | 2h | PLANNED |
+
+**Fichiers impactés** (20+ occurrences):
+- `core/orchestration/fsm_handlers.py` (8)
+- `core/utils/stream_parser.py` (10)
+- `core/hive_mind/phases/phase_debate.py` (12)
+- Autres (20+)
+
+---
+
+### V8.5.1 - Split mode_executors.py [Priority: P1]
+
+**Objectif** : Décomposer le God Object (1,120 lignes → 6 fichiers)
+
+**Problème actuel**:
+- `core/swarm/mode_executors.py` = 1,120 lignes
+- 6 executors différents dans 1 seul fichier
+- Difficile à maintenir et tester
+
+**Solution**:
+```
+core/swarm/executors/
+├── __init__.py         # Re-exports
+├── base.py             # ModeExecutor ABC + AgentResponse
+├── parallel.py         # ParallelExecutor
+├── sequential.py       # SequentialExecutor
+├── lead_support.py     # LeadSupportExecutor
+├── ping_pong.py        # PingPongExecutor
+├── specialist.py       # SpecialistExecutor
+└── red_blue.py         # RedBlueExecutor
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer structure `executors/` | 30min | PLANNED |
+| Extraire ParallelExecutor | 1h | PLANNED |
+| Extraire autres executors | 3h | PLANNED |
+| Mettre à jour imports | 1h | PLANNED |
+| Tests regression | 1h | PLANNED |
+
+---
+
+### V8.5.2 - Split repl.py [Priority: P2]
+
+**Objectif** : Décomposer le God Object REPL (2,780 lignes → 3-4 modules)
+
+**Problème actuel**:
+- `core/interface/repl.py` = 2,780 lignes
+- Mélange: parsing, session, display, commands
+
+**Solution proposée**:
+```
+core/interface/
+├── repl.py             # Main loop (500 lignes)
+├── command_parser.py   # Command parsing
+├── session_manager.py  # Session state
+└── display_manager.py  # Rich console output
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Extraire CommandParser | 3h | PLANNED |
+| Extraire DisplayManager | 2h | PLANNED |
+| Refactor REPL main | 2h | PLANNED |
+| Tests regression | 2h | PLANNED |
+
+---
+
+### V8.5.3 - Exception Hygiene (FL-004) [Priority: P2]
+
+**Objectif** : Nettoyer les 390 `except Exception` silencieux
+
+**Statistique**: `grep -r "except Exception" core/ | wc -l` → 390
+
+**Stratégie par priorité**:
+
+| Priorité | Pattern | Action |
+|----------|---------|--------|
+| P0 | `except Exception: pass` | Log + raise ou handle spécifiquement |
+| P1 | `except Exception as e: pass` | Log error, continue |
+| P2 | `except Exception as e: return default` | Acceptable si documenté |
+
+**Fichiers prioritaires** (drivers, executors):
+- `core/drivers/gemini_driver_v7.py` - subprocess errors
+- `core/drivers/claude_driver_hybrid.py` - subprocess errors
+- `core/swarm/mode_executors.py` - execution errors
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Audit des except silencieux critiques | 2h | PLANNED |
+| Fix drivers (subprocess) | 2h | PLANNED |
+| Fix executors | 2h | PLANNED |
+| Tests error propagation | 2h | PLANNED |
+
+---
+
 ## Roadmap V8.4 (Productization) [VISION LONG-TERME]
 
-> **Status**: Post-V8.3, dépend des retours terrain
+> **Status**: Post-V8.5, dépend des retours terrain
 
 ### V8.4.0 - Docker Packaging [Priority: P2]
 
