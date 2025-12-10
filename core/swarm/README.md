@@ -1,8 +1,8 @@
-# Module : Swarm - NEXUS V8.3.x "TRUE HIVE MIND"
+# Module : Swarm - NEXUS V8.4.x "TRUE HIVE MIND"
 
 Hybrid Swarm Engine pour collaboration multi-agent dynamique.
 
-## Rôle dans l'Architecture NEXUS V8.3.x
+## Rôle dans l'Architecture NEXUS V8.4.x
 
 Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collaboration** où les agents négocient la manière optimale de travailler ensemble pour chaque tâche.
 
@@ -14,6 +14,9 @@ Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collabora
 | **V8.3.0** | SwarmBridge - HiveMind peut déléguer au Swarm |
 | **V8.3.1** | SwarmTool - Invocation via `swarm_delegate` tool |
 | **V8.3.1-hotfix** | Depth Guard anti-recursion (MAX_DEPTH=2) |
+| **V8.3.3** | MergeStrategy - Intelligent result aggregation |
+| **V8.4.0** | UnifiedAgentRegistry integration |
+| **V8.4.4** | Thread-safety fix (ThreadPoolExecutor + Lock) |
 
 ## Architecture
 
@@ -53,6 +56,7 @@ Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collabora
 | `collaboration_modes.py` | Définitions modes | `CollaborationMode`, `ModeCharacteristics` |
 | `negotiation_protocol.py` | Négociation agents | `NegotiationProtocol`, `NegotiationResult` |
 | `mode_executors.py` | Exécution + self-healing | `ParallelExecutor`, `execute_with_fallback()` |
+| `merge_strategies.py` | **V8.3.3** Fusion résultats | `MergeStrategy`, `IntelligentMerger` |
 | `agent_metrics.py` | DyLAN + scoring | `AgentProfile`, `AgentPool` |
 | `session_manager.py` | Isolation session | `SwarmSessionManager`, `TaskSession` |
 

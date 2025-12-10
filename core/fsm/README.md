@@ -1,17 +1,19 @@
-# FSM Module - NEXUS V8.0 "TRUE HIVE MIND"
+# FSM Module - NEXUS V8.4.x "TRUE HIVE MIND"
 
-Finite State Machine components for NEXUS V8.0 orchestration.
+Finite State Machine components for NEXUS V8.4.x orchestration.
 
 ## Overview
 
 The FSM module implements the state machine that governs NEXUS operation:
-- **State definitions** and transitions (11 + 8 V8.0 Hive Mind states)
+- **State definitions** and transitions (11 + 24 V8.0 Hive Mind states)
 - **TRANSITION_MATRIX** - Complete state machine specification
 - **VALIDATING_CFL** - Cognitive Feedback Loop validation
 - **Panic recovery** system for fatal errors
 - **Stagnation detection** for loop prevention (+ V8.0 StrategyBlacklist integration)
 - **Plan health monitoring**
 - **TaskExecutionContext** - Immutable execution context (Phase 0d)
+- **HealthStateMachine** (V8.4.4) - Automated recovery with strategies
+- **StagnationPredictor** (V8.4.4) - Proactive stagnation prediction
 
 ## V8.0 Hive Mind Integration
 
@@ -143,7 +145,9 @@ TRANSITION_MATRIX = {
 | `states.py` | State enum + TRANSITION_MATRIX | `OrchestratorState`, `TransitionGuard` |
 | `context.py` | Immutable execution context | `TaskExecutionContext` |
 | `panic_system.py` | Error recovery | `PanicSystem`, `PanicEvent` |
-| `stagnation_detector.py` | Loop detection | `StagnationDetector` |
+| `stagnation_detector.py` | Loop detection (reactive) | `StagnationDetector` |
+| `stagnation_predictor.py` | **V8.4.4** Proactive prediction | `StagnationPredictor`, `PredictionLevel` |
+| `health_state_machine.py` | **V8.4.4** Auto-recovery FSM | `HealthStateMachine`, `HealthState`, `RecoveryStrategy` |
 | `plan_health.py` | Plan monitoring | `PlanHealthMonitor` |
 | `__init__.py` | Module exports | - |
 
@@ -429,9 +433,160 @@ if TransitionGuard.can_execute_tool(message):
 - `dataclasses` - TaskExecutionContext
 - `threading.RLock` - Thread safety
 
+---
+
+## V8.4.4 HealthStateMachine - Automated Recovery
+
+### Concept
+
+Le HealthStateMachine remplace les compteurs simples de PanicSystem par un FSM de sante avec strategies de recovery automatiques.
+
+### Health States
+
+```mermaid
+stateDiagram-v2
+    [*] --> HEALTHY
+    HEALTHY --> DEGRADED: 1+ error
+    DEGRADED --> CRITICAL: 3+ errors
+    CRITICAL --> RECOVERING: auto_recover
+    RECOVERING --> HEALTHY: strategy success
+    RECOVERING --> PANIC: all strategies exhausted
+    CRITICAL --> PANIC: force_panic()
+    DEGRADED --> HEALTHY: success recorded
+```
+
+| State | Description | Threshold |
+|-------|-------------|-----------|
+| `HEALTHY` | Normal operation | 0 errors |
+| `DEGRADED` | Minor issues | 1-2 errors |
+| `CRITICAL` | Auto-recovery triggered | 3+ errors |
+| `RECOVERING` | Trying strategies | - |
+| `PANIC` | All recovery failed | - |
+
+### Recovery Strategies
+
+```python
+RECOVERY_STRATEGIES = [
+    RecoveryStrategy("reset_stagnation", "Clear stagnation detector"),
+    RecoveryStrategy("switch_agent", "Switch to alternate agent"),
+    RecoveryStrategy("compress_context", "Reduce context window"),
+    RecoveryStrategy("clear_tool_cache", "Clear tool execution cache"),
+    RecoveryStrategy("rollback_phase", "Rollback to last checkpoint"),
+]
+```
+
+**Caracteristiques**:
+- Cooldown par strategie (evite retry immediat)
+- Max attempts par strategie
+- Callbacks `on_state_change` pour monitoring
+
+### Exemple
+
+```python
+from core.fsm.health_state_machine import HealthStateMachine, HealthState
+
+health = HealthStateMachine(auto_recover=True)
+
+# Register custom strategy
+health.add_strategy(RecoveryStrategy(
+    name="custom_fix",
+    description="Apply project-specific fix",
+    action=async_fix_function
+))
+
+# Record errors
+health.record_error("TOOL_EXECUTION", "subprocess timeout", severity=2)
+
+# Check state
+if health.state == HealthState.CRITICAL:
+    success = await health.attempt_recovery()
+    if not success:
+        # PANIC state
+        ...
+
+# Manual controls
+health.force_panic("User requested")
+health.reset()  # Back to HEALTHY
+```
+
+---
+
+## V8.4.4 StagnationPredictor - Proactive Detection
+
+### Concept
+
+Contrairement a `StagnationDetector` (reactif, detecte apres 3 messages similaires), le `StagnationPredictor` anticipe la stagnation via:
+- **Leading indicators** (patterns textuels)
+- **Trajectory analysis** (longueur decroissante)
+- **Tool mention sans usage** (discussion sans action)
+- **Similarity increase** (convergence vers repetition)
+
+### Prediction Levels
+
+| Level | Probability | Action |
+|-------|-------------|--------|
+| `CONTINUE` | < 0.4 | Normal operation |
+| `MONITOR` | 0.4 - 0.6 | Watch closely |
+| `NUDGE` | 0.6 - 0.8 | Inject gentle reminder |
+| `INTERVENE` | > 0.8 | Force tool usage |
+
+### Leading Indicators (20 patterns EN+FR)
+
+```python
+LEADING_INDICATORS = [
+    (r"\blet me think\b", 0.15),
+    (r"\bperhaps\b", 0.10),
+    (r"\bwe should consider\b", 0.15),
+    (r"\bd'accord mais\b", 0.20),  # French
+    (r"\breflexion\b", 0.15),
+    # ... 15 more patterns
+]
+```
+
+### Exemple
+
+```python
+from core.fsm.stagnation_predictor import StagnationPredictor, PredictionLevel
+
+predictor = StagnationPredictor(window_size=5)
+
+# Feed messages
+predictor.add_message(agent_response, has_tool_use=False)
+
+# Get prediction
+result = predictor.predict()
+
+if result.level == PredictionLevel.NUDGE:
+    print(result.nudge_message)
+    # "Consider using a tool to make progress..."
+
+if result.level == PredictionLevel.INTERVENE:
+    print(result.recommendation)
+    # "FORCE_TOOL_USE"
+```
+
+### Integration avec StagnationDetector
+
+```python
+# Hybrid approach: predict + detect
+predictor = StagnationPredictor()
+detector = StagnationDetector()
+
+prediction = predictor.predict()
+if prediction.level >= PredictionLevel.NUDGE:
+    # Early intervention
+    inject_nudge_message()
+elif detector.is_stagnant():
+    # Reactive fallback
+    inject_stagnation_warning()
+```
+
+---
+
 ## See Also
 
 - [Core README](../README.md) - Architecture overview
 - [Swarm Module](../swarm/README.md) - Hybrid Swarm Engine
 - [Synapse Module](../synapse/README.md) - Message schemas (LightMessageV7/HeavyMessageV7)
 - [Drivers Module](../drivers/README.md) - Agent invocation
+- [Hive Mind Module](../hive_mind/README.md) - SagaManager integration

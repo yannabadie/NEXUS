@@ -1,6 +1,6 @@
 # Module : core/hive_mind
 
-## Rôle dans l'Architecture NEXUS V8.3.x
+## Rôle dans l'Architecture NEXUS V8.4.x
 
 **TRUE HIVE MIND** - Orchestrateur de collaboration intelligente pour tâches complexes.
 
@@ -10,13 +10,17 @@ Ce module transforme NEXUS d'un orchestrateur séquentiel en une **intelligence 
 V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 ```
 
-### Nouveautés V8.3.x
+### Nouveautés V8.3.x - V8.4.x
 
 | Version | Feature | Description |
 |---------|---------|-------------|
 | **V8.3.0** | SwarmBridge | HiveMind peut déléguer au Swarm (Dictator Mode) |
 | **V8.3.1** | SwarmTool | Agents peuvent invoquer `swarm_delegate` à n'importe quelle phase |
 | **V8.3.1-hotfix** | Depth Guard | Anti-recursion (MAX_SWARM_DEPTH=2) |
+| **V8.4.4** | SagaManager | Checkpoints phase atomiques + rollback avec context truncation |
+| **V8.4.4** | Phase Guards | Validation avant chaque transition (guards lambdas) |
+| **V8.4.4** | AsyncHiveMindAdapter | Wrapper async avec CancellationToken support |
+| **V8.4.4** | Context Snapshot | `messages[:checkpoint_index]` sur rollback (anti-hallucination) |
 
 ## Composants Clés
 
@@ -24,8 +28,10 @@ V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 | Fichier | Rôle |
 |---------|------|
 | `orchestrator.py` | **TrueHiveMind** - Coordinateur principal du pipeline 7 phases |
-| `types.py` | Dataclasses et enums (HiveMindState, IndependentAnalysis, DebateArgument, etc.) |
+| `types.py` | Dataclasses et enums (24 HiveMindState, IndependentAnalysis, DebateArgument, etc.) |
 | `swarm_bridge.py` | **SwarmBridge** (V8.3.0) - Pont HiveMind → Swarm pour délégation |
+| `saga_manager.py` | **SagaManager** (V8.4.4) - Checkpoints + rollback + context truncation |
+| `async_adapter.py` | **AsyncHiveMindAdapter** (V8.4.4) - Wrapper async avec CancellationToken |
 
 ### Infrastructure
 | Fichier | Rôle |
@@ -358,3 +364,148 @@ graph TB
     SD -->|"return"| TM
     TM -->|"response"| A
 ```
+
+---
+
+## V8.4.4 SagaManager - Checkpoints & Recovery
+
+### Concept
+
+SagaManager implémente le **Saga Pattern** pour gérer les états intermédiaires du pipeline HiveMind:
+- Checkpoints atomiques après chaque phase
+- Rollback vers une phase précédente avec context truncation
+- Persistence disque via `AtomicJsonStore`
+- Phase Guards pour validation des transitions
+
+### Architecture
+
+```mermaid
+stateDiagram-v2
+    [*] --> ANALYSIS
+    ANALYSIS --> DEBATE: checkpoint saved
+    DEBATE --> ARCHITECTURE: guard: debate_complete
+    ARCHITECTURE --> EXECUTION: guard: architect_approved
+    EXECUTION --> DIAGNOSIS: on failure
+    EXECUTION --> CONSOLIDATION: on success
+    DIAGNOSIS --> RETRY
+    RETRY --> EXECUTION: rollback to checkpoint
+    CONSOLIDATION --> [*]
+```
+
+### Phase Guards (PHASE_GUARDS)
+
+```python
+PHASE_GUARDS = {
+    "debate": lambda ctx: ctx.get("analysis_complete", False),
+    "architecture": lambda ctx: ctx.get("debate_complete") or ctx.get("debate_skipped"),
+    "execution": lambda ctx: ctx.get("architecture_approved", False),
+    "diagnosis": lambda ctx: ctx.get("execution_failed", False),
+    "consolidation": lambda ctx: ctx.get("execution_complete", False),
+}
+```
+
+### Context Snapshot (Anti-Hallucination)
+
+**Problème résolu**: Le rollback restaurait l'état FSM mais pas l'historique de conversation. L'agent "hallucinait" sur un futur qui n'existe plus.
+
+**Solution**: Le checkpoint inclut `context_index`:
+```python
+@dataclass
+class PhaseCheckpoint:
+    phase: str
+    result: Dict[str, Any]
+    state: HiveMindState
+    timestamp: datetime
+    context_index: int  # Index dans l'historique
+
+async def rollback_to(self, target_phase, context_manager):
+    checkpoint = self._checkpoints[target_phase]
+    # Truncate conversation history
+    context_manager.messages = context_manager.messages[:checkpoint.context_index]
+```
+
+### Exemple d'Utilisation
+
+```python
+from core.hive_mind.saga_manager import SagaManager
+
+saga = SagaManager(workspace / ".nexus" / "sagas", task_id)
+
+# Checkpoint après ANALYSIS
+await saga.checkpoint_phase(
+    phase="analysis",
+    result=analysis_result,
+    state=HiveMindState.ANALYSIS_COMPLETE,
+    context_index=len(context_manager.messages)
+)
+
+# Vérifier guard avant EXECUTION
+if saga.can_enter_phase("execution"):
+    ...
+
+# Rollback si échec (tronque context)
+await saga.rollback_to("architecture", context_manager)
+```
+
+### Persistence
+
+- **Fichier**: `.nexus/sagas/{task_id}.json`
+- **Pattern**: Write-Replace atomique via `AtomicJsonStore`
+- **Resume**: `SagaManager.resume_from(sagas_dir, task_id)`
+
+---
+
+## V8.4.4 AsyncHiveMindAdapter
+
+### Concept
+
+Wrapper async autour de `TrueHiveMind` avec support:
+- `CancellationToken` pour annulation gracieuse
+- `AsyncBlackboard` pour état partagé
+- Cleanup automatique sur `CancelledError`
+
+### Exemple
+
+```python
+from core.hive_mind.async_adapter import AsyncHiveMindAdapter, create_async_hive_mind
+
+adapter = await create_async_hive_mind(workspace, config)
+
+token = CancellationToken()
+result = await adapter.process_task(task, token, session_uuid)
+
+# Annulation
+await adapter.cancel_task(session_uuid)  # Cancel specific
+await adapter.cancel_all()               # Ctrl+C handler
+```
+
+---
+
+## 24 HiveMindState Values
+
+| State | Description |
+|-------|-------------|
+| `HIVE_IDLE` | En attente de tâche |
+| `HIVE_GATING` | Évaluation complexité |
+| `ANALYSIS_PENDING` | Analyse non démarrée |
+| `ANALYSIS_IN_PROGRESS` | Analyse en cours |
+| `ANALYSIS_COMPLETE` | Analyse terminée |
+| `DEBATE_PENDING` | Débat non démarré |
+| `DEBATE_IN_PROGRESS` | Débat en cours |
+| `DEBATE_CONVERGED` | Consensus atteint |
+| `DEBATE_SKIPPED` | Consensus initial |
+| `ARCHITECTURE_PENDING` | Architecture non démarrée |
+| `ARCHITECTURE_IN_PROGRESS` | Architecture en cours |
+| `ARCHITECTURE_APPROVED` | Plan approuvé |
+| `EXECUTION_PENDING` | Exécution non démarrée |
+| `EXECUTION_IN_PROGRESS` | Exécution en cours |
+| `EXECUTION_COMPLETE` | Exécution réussie |
+| `EXECUTION_FAILED` | Exécution échouée |
+| `DIAGNOSIS_IN_PROGRESS` | Diagnostic en cours |
+| `DIAGNOSIS_COMPLETE` | Diagnostic terminé |
+| `RETRY_IN_PROGRESS` | Retry en cours |
+| `CONSOLIDATION_PENDING` | Consolidation non démarrée |
+| `CONSOLIDATION_IN_PROGRESS` | Consolidation en cours |
+| `CONSOLIDATION_COMPLETE` | Consolidation terminée |
+| `HIVE_SUCCESS` | Tâche réussie (final) |
+| `HIVE_FAILED` | Tâche échouée (final) |

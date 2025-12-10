@@ -1,7 +1,7 @@
-# Drivers Module - NEXUS V7.7 "HIVE MIND"
+# Drivers Module - NEXUS V8.4.x "TRUE HIVE MIND"
 
 AI model interface drivers for Claude and Gemini CLI communication.
-Supports both blocking and streaming invocation modes.
+Supports blocking, streaming, and **async** invocation modes (V8.4.4).
 
 ## Overview
 
@@ -47,8 +47,11 @@ The Drivers module handles communication with Claude and Gemini via their respec
 
 | File | Purpose | Key Classes |
 |------|---------|-------------|
-| `gemini_driver_v7.py` | Gemini CLI driver | `GeminiDriverV7` |
-| `claude_driver_hybrid.py` | Claude CLI driver | `ClaudeDriverHybrid` |
+| `gemini_driver_v7.py` | Gemini CLI driver (sync) | `GeminiDriverV7` |
+| `claude_driver_hybrid.py` | Claude CLI driver (sync) | `ClaudeDriverHybrid` |
+| `async_gemini_driver.py` | **V8.4.4** Gemini async driver | `AsyncGeminiDriver` |
+| `async_claude_driver.py` | **V8.4.4** Claude async driver | `AsyncClaudeDriver` |
+| `async_factory.py` | **V8.4.4** Driver factory | `AsyncDriverFactory`, `get_driver_factory()` |
 | `__init__.py` | Module exports | - |
 
 ## Driver Comparison
@@ -533,9 +536,130 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
 - `atexit` - Process cleanup
 - `threading` - Stream reading
 
+---
+
+## V8.4.4 Async Drivers - Non-Blocking I/O
+
+### Concept
+
+Les drivers sync (`subprocess.run`) bloquent l'event loop async. V8.4.4 introduit des drivers vraiment async utilisant `asyncio.create_subprocess_exec`.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     ASYNC DRIVERS (V8.4.4)                            │
+├──────────────────────────────┬───────────────────────────────────────┤
+│     AsyncGeminiDriver        │      AsyncClaudeDriver                 │
+│  ┌─────────────────────┐     │   ┌─────────────────────────────┐     │
+│  │  create_subprocess_ │     │   │  create_subprocess_exec     │     │
+│  │  exec (non-blocking)│     │   │  (non-blocking)             │     │
+│  │  --resume {uuid}    │     │   │  CancellationToken support  │     │
+│  └─────────────────────┘     │   └─────────────────────────────┘     │
+│  ┌─────────────────────┐     │   ┌─────────────────────────────┐     │
+│  │  AsyncProcessHandle │     │   │  AsyncProcessHandle         │     │
+│  │  for tracking       │     │   │  for tracking               │     │
+│  └─────────────────────┘     │   └─────────────────────────────┘     │
+└──────────────────────────────┴───────────────────────────────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │   ProcessHandleRegistry │
+                 │   cancel_by_uuid()      │
+                 │   cancel_all()          │
+                 └─────────────────────────┘
+```
+
+### AsyncGeminiDriver
+
+```python
+from core.drivers.async_gemini_driver import AsyncGeminiDriver
+
+driver = AsyncGeminiDriver(config, workspace)
+
+# Async invocation
+response = await driver.invoke(context, session_uuid="uuid-123")
+
+# Streaming with callbacks
+async for chunk in driver.invoke_stream(context):
+    print(chunk, end="", flush=True)
+
+# Sync fallback (deprecated)
+response = driver.invoke_sync(context)
+```
+
+**Session Isolation**: `--resume {uuid}` pour chaque invocation parallèle.
+
+### AsyncClaudeDriver
+
+```python
+from core.drivers.async_claude_driver import AsyncClaudeDriver
+from core.async_primitives import CancellationToken
+
+driver = AsyncClaudeDriver(config, workspace)
+token = CancellationToken()
+
+# With cancellation support
+try:
+    response = await driver.invoke(context, cancellation_token=token)
+except asyncio.CancelledError:
+    print("Cancelled by user")
+```
+
+**CancellationToken integration**: Termine le subprocess gracieusement sur annulation.
+
+### AsyncDriverFactory
+
+```python
+from core.drivers.async_factory import get_driver_factory
+
+factory = get_driver_factory()
+
+# Get singleton drivers
+gemini = factory.get_gemini_driver(config, workspace)
+claude = factory.get_claude_driver(config, workspace)
+
+# Cancel all running processes
+await factory.cancel_all()
+
+# Cancel specific session
+await factory.cancel_by_uuid("session-uuid")
+```
+
+**Singleton pattern**: Un seul driver par config (réutilisation des connexions).
+
+### DriverBridge (DEPRECATED V8.4.4)
+
+```python
+# DEPRECATED - Use invoke_sync() instead
+from core.hive_mind.async_adapter import DriverBridge
+
+# Old way (deprecated)
+bridge = DriverBridge(async_driver)
+response = bridge.invoke_sync(context)  # Blocks!
+
+# New way (V8.4.4)
+response = async_driver.invoke_sync(context)  # Native sync wrapper
+```
+
+**Migration**: Remplacer `DriverBridge(driver).invoke_sync()` par `driver.invoke_sync()`.
+
+### Comparison: Sync vs Async
+
+| Feature | Sync (V7) | Async (V8.4.4) |
+|---------|-----------|----------------|
+| Event loop | Blocks | Yields (cooperative) |
+| Parallel calls | Threads | Coroutines |
+| Cancellation | SIGTERM/SIGKILL | CancellationToken |
+| Process tracking | `_active_processes` list | `ProcessHandleRegistry` |
+| Memory | New process per call | Subprocess pools |
+
+---
+
 ## See Also
 
 - [Core README](../README.md) - Architecture overview
 - [Swarm Module](../swarm/README.md) - Session isolation integration
 - [Synapse Module](../synapse/README.md) - Message schemas
 - [Utils: JSON Extractor](../utils/README.md) - Robust parsing
+- [Async Primitives](../async_primitives/README.md) - CancellationToken, ProcessHandleRegistry
