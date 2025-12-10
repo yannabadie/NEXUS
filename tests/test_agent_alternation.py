@@ -54,10 +54,11 @@ class TestAgentAlternationE2E:
         }])
 
         # Premier tour: Forcer BRAINSTORMING manuellement pour le test
-        orch.active_agent = "Gemini"
+        # V8.4.0: Use lowercase normalized IDs
+        orch.active_agent = "gemini"
         orch._transition_to(OrchestratorState.BRAINSTORMING)
         orch.stagnation_detector.reset()
-        initial_agent = orch.active_agent  # Should be "Gemini"
+        initial_agent = orch.active_agent  # Should be "gemini"
 
         # Deuxième tour: Gemini répond
         result2 = orch.process_turn()
@@ -65,8 +66,8 @@ class TestAgentAlternationE2E:
         # APRÈS CORRECTION P0-1: doit avoir alterné vers Claude
         assert orch.active_agent != initial_agent, \
             f"Alternation not forced! Agent stayed {orch.active_agent}"
-        assert orch.active_agent == "Claude", \
-            f"Expected Claude, got {orch.active_agent}"
+        assert orch.active_agent == "claude", \
+            f"Expected claude, got {orch.active_agent}"
 
     def test_gemini_to_claude_handoff(self, orchestrator_with_mocks):
         """Gemini doit passer à Claude après sa réponse."""
@@ -87,20 +88,21 @@ class TestAgentAlternationE2E:
         }])
 
         # Start with Gemini in BRAINSTORMING mode
-        orch.active_agent = "Gemini"
+        # V8.4.0: Use lowercase normalized IDs
+        orch.active_agent = "gemini"
         orch._transition_to(OrchestratorState.BRAINSTORMING)
         orch.stagnation_detector.reset()
 
         # After Gemini responds, should switch to Claude
         orch.process_turn()
-        assert orch.active_agent == "Claude", "Should have switched to Claude"
+        assert orch.active_agent == "claude", "Should have switched to claude"
 
     def test_claude_to_gemini_handoff(self, orchestrator_with_mocks):
         """Claude doit passer à Gemini après sa réponse."""
         orch = orchestrator_with_mocks
 
-        # Force start with Claude
-        orch.active_agent = "Claude"
+        # Force start with Claude (V8.4.0: lowercase)
+        orch.active_agent = "claude"
 
         orch.drivers["Claude"].set_responses([{
             "sender": "Claude",
@@ -116,14 +118,14 @@ class TestAgentAlternationE2E:
             "status": "FINISHED"
         }])
 
-        # Force start with Claude in BRAINSTORMING mode
-        orch.active_agent = "Claude"
+        # Force start with Claude in BRAINSTORMING mode (V8.4.0: lowercase)
+        orch.active_agent = "claude"
         orch._transition_to(OrchestratorState.BRAINSTORMING)
         orch.stagnation_detector.reset()
 
         # After Claude responds, should switch to Gemini
         orch.process_turn()
-        assert orch.active_agent == "Gemini", "Should have switched to Gemini"
+        assert orch.active_agent == "gemini", "Should have switched to gemini"
 
     def test_multi_turn_alternation(self, orchestrator_with_mocks, run_orchestrator_loop):
         """

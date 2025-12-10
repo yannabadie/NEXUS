@@ -53,7 +53,15 @@
       "Bash(wc:*)",
       "Bash(git restore:*)",
       "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\")",
-      "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\\workflows\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\\workflows\")"
+      "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\\workflows\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\.github\\workflows\")",
+      "Bash(git merge:*)",
+      "WebFetch(domain:docs.langchain.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.crewai.com)",
+      "WebFetch(domain:microsoft.github.io)",
+      "WebFetch(domain:python-prompt-toolkit.readthedocs.io)",
+      "Bash(python3 -c \"import sys; sys.path.insert(0, ''.''); from core.interface.repl import InteractiveNexusV7; print(''✓ REPL imports OK'')\")",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

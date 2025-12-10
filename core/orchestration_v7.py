@@ -41,7 +41,9 @@ from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge, FSMHandlers  # V7.8 Phase 14c.2
 from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
+from core.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
 from pydantic import ValidationError
+import asyncio
 import time
 import json
 import sys
@@ -82,7 +84,8 @@ class OrchestratorV7:
 
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
-        self.active_agent = "Gemini"  # Premier agent par convention (rotation égale ensuite)
+        self.active_agent = "gemini"  # V8.4.0: lowercase normalized (rotation égale ensuite)
+        self._registry = get_registry()  # V8.4.0: Centralized agent registry
         self.iteration = 0
 
         # Memory Manager (charge blackboard UNE FOIS)
@@ -116,9 +119,11 @@ class OrchestratorV7:
         self.gemini_driver = GeminiDriverV7(config, workspace_path, agent_id="gemini_primary")
 
         # Legacy drivers dict for backwards compatibility
+        # V8.4.0: Register drivers in unified registry
+        self._registry.register_driver("gemini", self.gemini_driver)
         self.drivers = {
-            "Gemini": self.gemini_driver,
-            "Claude": None  # Created dynamically via _get_claude_driver()
+            "gemini": self.gemini_driver,  # V8.4.0: lowercase keys
+            "claude": None  # Created dynamically via _get_claude_driver()
         }
 
         # Tool manager
@@ -465,6 +470,184 @@ class OrchestratorV7:
         return self._make_result("ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE")
 
     # =========================================================================
+    # V9 CYBORG: Async Process Turn
+    # =========================================================================
+
+    async def process_turn_async(self, user_input: Optional[str] = None) -> Dict:
+        """
+        V9 Cyborg Async version of process_turn().
+
+        Uses async drivers for LLM calls, enabling:
+        - Non-blocking I/O (event loop free during generation)
+        - Streaming token output
+        - Graceful cancellation via CancellationToken
+
+        Falls back to sync handlers for non-LLM operations.
+
+        Args:
+            user_input: Input utilisateur (si état == IDLE)
+
+        Returns:
+            Same result dict as process_turn()
+        """
+        self.iteration += 1
+
+        # KERNEL RUNTIME INTEGRITY CHECK (every 100 iterations) - sync is OK, fast
+        if KERNEL_AVAILABLE and self.iteration % 100 == 0:
+            self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
+            if not runtime_integrity_check():
+                self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
+                self.state = OrchestratorState.PANIC
+                return self._make_result(
+                    "PANIC",
+                    "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
+                    None, True, error="KERNEL_INTEGRITY_VIOLATION"
+                )
+
+        # States that benefit from async LLM calls
+        async_states = {
+            OrchestratorState.BRAINSTORMING,
+            OrchestratorState.VALIDATING_CFL,
+        }
+
+        if self.state in async_states:
+            return await self._handle_async_state(user_input)
+        else:
+            # Non-LLM states: use sync handlers (fast, no I/O blocking)
+            return self.process_turn(user_input)
+
+    async def _handle_async_state(self, user_input: Optional[str] = None) -> Dict:
+        """
+        Handle states that require async LLM invocation.
+
+        Uses AsyncDriverFactory to get async drivers with streaming.
+        Falls back to sync if factory not available.
+        """
+        try:
+            from core.drivers.async_factory import get_driver_factory
+            factory = get_driver_factory()
+        except ImportError:
+            factory = None
+
+        if not factory:
+            # Fallback: no async factory, use sync path
+            return self.process_turn(user_input)
+
+        if self.state == OrchestratorState.BRAINSTORMING:
+            return await self._handle_brainstorming_async(factory, user_input)
+        elif self.state == OrchestratorState.VALIDATING_CFL:
+            return await self._handle_cfl_async(factory)
+        else:
+            return self.process_turn(user_input)
+
+    async def _handle_brainstorming_async(self, factory, user_input: Optional[str]) -> Dict:
+        """
+        Async brainstorming with streaming output.
+
+        Streams tokens in real-time to console while building response.
+        """
+        # Build context using sync method (fast, no I/O)
+        context = self.context_builder.build_context(
+            history=self.memory.history,
+            blackboard=self.blackboard,
+            active_agent=self.active_agent,
+            current_task=self.current_task,
+            objective=self.objective
+        )
+
+        session_uuid = f"brain_{self.iteration}"
+
+        try:
+            if self.active_agent == "Claude":
+                driver = factory.get_claude_driver()
+                response_parts = []
+
+                # V9: Stream tokens in real-time
+                async for token in driver.invoke_stream(
+                    context,
+                    session_uuid=session_uuid,
+                    on_token=lambda t: print(t, end="", flush=True)
+                ):
+                    response_parts.append(token)
+
+                print()  # Newline after streaming
+                full_response = "".join(response_parts)
+                response = driver._parse_hybrid_response(full_response)
+            else:
+                # Gemini
+                driver = factory.get_gemini_driver()
+                response_parts = []
+
+                async for token in driver.invoke_stream(
+                    context,
+                    session_uuid=session_uuid,
+                    on_token=lambda t: print(t, end="", flush=True)
+                ):
+                    response_parts.append(token)
+
+                print()
+                full_response = "".join(response_parts)
+                response = driver._parse_response(full_response)
+
+            # Process response with existing FSM logic
+            return self.fsm_handlers._process_brainstorming_response(response)
+
+        except asyncio.CancelledError:
+            self.logger.warning("Brainstorming cancelled by user")
+            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+
+        except Exception as e:
+            self.logger.error(f"Async brainstorming error: {e}")
+            # Fallback to sync on error
+            return self.fsm_handlers.handle_brainstorming()
+
+    async def _handle_cfl_async(self, factory) -> Dict:
+        """
+        Async CFL (Cognitive Feedback Loop) validation.
+
+        Uses shorter timeout for CFL validation responses.
+        """
+        # Build CFL context
+        context = self.context_builder.build_cfl_context(
+            history=self.memory.history,
+            blackboard=self.blackboard,
+            active_agent=self.active_agent,
+            tool_result=self.blackboard.get("last_tool_result")
+        )
+
+        session_uuid = f"cfl_{self.iteration}"
+
+        try:
+            if self.active_agent == "Claude":
+                driver = factory.get_claude_driver()
+                # CFL needs faster response - use non-streaming
+                response = await asyncio.wait_for(
+                    driver.invoke(context, session_uuid=session_uuid),
+                    timeout=30.0
+                )
+            else:
+                driver = factory.get_gemini_driver()
+                response = await asyncio.wait_for(
+                    driver.invoke(context, session_uuid=session_uuid),
+                    timeout=30.0
+                )
+
+            return self.fsm_handlers._process_cfl_response(response)
+
+        except asyncio.TimeoutError:
+            self.logger.warning("CFL validation timed out, falling back to sync")
+            return self.fsm_handlers.handle_validating_cfl()
+
+        except asyncio.CancelledError:
+            self.logger.warning("CFL cancelled by user")
+            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+
+        except Exception as e:
+            self.logger.error(f"Async CFL error: {e}")
+            # Fallback to sync on error
+            return self.fsm_handlers.handle_validating_cfl()
+
+    # =========================================================================
     # Helper Methods (Called by FSMHandlers via self._orch)
     # =========================================================================
     # DELETED ~660 lines of inline state handling code
@@ -550,8 +733,8 @@ class OrchestratorV7:
         """Handle stagnation détectée"""
         warning = self.stagnation_detector.get_stagnation_message()
 
-        # Force Gemini to decide
-        self.active_agent = "Gemini"
+        # Force Gemini to decide (V8.4.0: use normalized ID)
+        self.active_agent = "gemini"
         self.stagnation_detector.reset()
 
         return self._make_result(
@@ -642,8 +825,8 @@ class OrchestratorV7:
         if not self.agent_pool:
             return
 
-        # Map agent name to agent_id
-        agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
+        # V8.4.0: Use registry for agent identification
+        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
 
         # Count tokens using tiktoken (accurate) or fallback to estimate
         estimated_tokens = 500  # Default estimate

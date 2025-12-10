@@ -26,6 +26,7 @@ from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
 from ..utils.artifact_verifier import ArtifactVerifier
 from .task_completion_validator import TaskCompletionValidator, get_adaptive_max_rounds
+from ..agents.unified_registry import get_registry  # V8.4.0
 
 # V8.3.3: Type hints for merge strategies (avoid circular import)
 if TYPE_CHECKING:
@@ -321,8 +322,9 @@ class ModeExecutor(ABC):
         return response
 
     def _get_backup_agent(self, agent_id: str) -> str:
-        """Get the backup agent for a given agent"""
-        if "gemini" in agent_id.lower():
+        """Get the backup agent for a given agent (V8.4.0: via registry)"""
+        registry = get_registry()
+        if registry.is_gemini(agent_id):
             return "claude_opus"
         else:
             return "gemini_primary"
@@ -590,13 +592,14 @@ class ParallelExecutor(ModeExecutor):
 
         Deprecated in V8.3.3 - use _merge_with_strategy instead.
         """
+        registry = get_registry()  # V8.4.0
         merged_parts = []
         for output in outputs:
+            # V8.4.0: Use registry for display name
+            agent_name = registry.get_display_name(output.agent_id)
             if output.status == "error":
-                agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
                 merged_parts.append(f"[{agent_name}] ❌ Error:\n{output.error or output.content}")
             else:
-                agent_name = "Gemini" if "gemini" in output.agent_id.lower() else "Claude"
                 merged_parts.append(f"[{agent_name}]:\n{output.content}")
 
         return "\n\n---\n\n".join(merged_parts)

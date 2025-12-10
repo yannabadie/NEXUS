@@ -22,6 +22,7 @@ import time
 import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
+from core.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
@@ -62,6 +63,7 @@ class FSMHandlers:
         """
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.fsm_handlers")
+        self._registry = get_registry()
 
     # =========================================================================
     # Core State Handlers
@@ -235,12 +237,12 @@ class FSMHandlers:
             self._orch.stagnation_detector.add_message(content)
             sender = message.get("sender", self._orch.active_agent)
 
-            # FORCE alternance Gemini↔Claude
+            # FORCE alternance Gemini↔Claude (V8.4.0: via registry)
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
-                print(f"[BRAINSTORM] {previous_agent} → {self._orch.active_agent}", file=sys.stderr)
+                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
             return self._make_result("BRAINSTORMING", content, sender, False)
 
@@ -267,11 +269,11 @@ class FSMHandlers:
         result = self._orch.tool_manager.execute(tool_request)
         self._orch.pending_tool_result = result
 
-        # Switch to OTHER agent for CFL validation
+        # Switch to OTHER agent for CFL validation (V8.4.0: via registry)
         requesting_agent = self._orch.active_agent
-        self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+        self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
-            print(f"[CFL] {requesting_agent} tool → {self._orch.active_agent} validates", file=sys.stderr)
+            print(f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates", file=sys.stderr)
 
         # Transition to CFL validation
         self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
@@ -343,10 +345,11 @@ class FSMHandlers:
             self._orch.panic_system.reset_stalemate()
             self._orch.panic_system.reset_errors()
 
+            # V8.4.0: Use registry for alternation
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
-                print(f"[CFL SUCCESS] {previous_agent} → {self._orch.active_agent}", file=sys.stderr)
+                print(f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
@@ -357,8 +360,9 @@ class FSMHandlers:
             if self._orch.panic_system.check_stalemate():
                 return self._orch._trigger_panic(f"Stalemate: {self._orch.stalemate_counter} failures")
 
+            # V8.4.0: Use registry for alternation
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
@@ -435,9 +439,9 @@ class FSMHandlers:
                 self._orch._transition_to(OrchestratorState.IDLE)
                 return self._make_result("FINISHED", content, sender, True)
 
-        # FORCE alternation
+        # FORCE alternation (V8.4.0: via registry)
         previous_agent = self._orch.active_agent
-        self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+        self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         self._orch.stagnation_detector.reset()
 
         # Handle TOOL_USE
@@ -568,7 +572,8 @@ class FSMHandlers:
         if execution_result.finished:
             formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
             for agent_output in execution_result.agent_outputs:
-                agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                # V8.4.0: Use registry for display name
+                agent_name = self._registry.get_display_name(agent_output.agent_id)
                 formatted_output += f"\n{agent_name}:\n{agent_output.content}\n---\n"
 
             self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
@@ -576,7 +581,8 @@ class FSMHandlers:
         else:
             formatted_output = "[Swarm executing...]\n"
             for agent_output in execution_result.agent_outputs[-2:]:
-                agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                # V8.4.0: Use registry for display name
+                agent_name = self._registry.get_display_name(agent_output.agent_id)
                 formatted_output += f"\n{agent_name}:\n{agent_output.content[:300]}...\n"
 
             return self._make_result("SWARM_EXECUTING", formatted_output, None, False)
@@ -653,10 +659,10 @@ class FSMHandlers:
                 if self._orch.telemetry:
                     self._orch.telemetry.record_error("SWARM_EXCEPTION", str(e))
 
-        # Fallback to BRAINSTORMING
+        # Fallback to BRAINSTORMING (V8.4.0: use normalized agent ID)
         self._orch.blackboard["objective"] = user_input
         self._orch.blackboard["current_state"]["iteration"] = self._orch.iteration
-        self._orch.active_agent = "Gemini"
+        self._orch.active_agent = "gemini"  # V8.4.0: lowercase normalized
         self._orch.stagnation_detector.reset()
         self._orch.stalemate_counter = 0
 
@@ -801,9 +807,9 @@ class FSMHandlers:
             except Exception:
                 pass
 
-        # Fallback to Brainstorming
+        # Fallback to Brainstorming (V8.4.0: use normalized agent ID)
         self._orch.blackboard["objective"] = user_input
-        self._orch.active_agent = "Gemini"
+        self._orch.active_agent = "gemini"  # V8.4.0: lowercase normalized
         self._orch._transition_to(OrchestratorState.BRAINSTORMING)
         return self._make_result("BRAINSTORMING", f"[Task Started - Fallback] {user_input}", "Gemini", False)
 
@@ -820,7 +826,8 @@ class FSMHandlers:
                 content = agent_data.get("content", "")
                 status = agent_data.get("status", "success")
 
-                if "gemini" in agent_id.lower():
+                # V8.4.0: Use registry for agent identification
+                if self._registry.is_gemini(agent_id):
                     agent_name = "🤖 Gemini"
                 else:
                     agent_name = "🧠 Claude"
@@ -953,7 +960,8 @@ class FSMHandlers:
 
         for iteration in range(max_tool_iterations):
             try:
-                if agent == "Claude":
+                # V8.4.0: Use registry for agent identification
+                if self._registry.is_claude(agent):
                     driver = self._get_claude_driver(TaskType.SIMPLE)
                     response = driver.invoke(context)
                 else:

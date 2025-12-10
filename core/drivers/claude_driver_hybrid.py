@@ -45,6 +45,9 @@ from typing import Dict, Optional, Callable
 # V7.7 Phase 15: Stream parser for real-time response display
 from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats, extract_final_result
 
+# V8.4.0: Unified agent registry
+from core.agents.unified_registry import get_registry
+
 
 # Global reference for cleanup at exit
 _active_claude_processes = []
@@ -430,11 +433,13 @@ class ClaudeDriverHybrid:
             status = "FINISHED"
 
         # V7 FIX: Alterner par défaut (l'orchestrateur force aussi)
-        next_agent = "Gemini"  # Default: passer à Gemini après Claude
+        # V8.4.0: Use registry for alternation
+        registry = get_registry()
+        next_agent = registry.get_alternate("claude")  # → "gemini"
 
         # Construct structured message
         return {
-            "sender": "Claude",
+            "sender": registry.get_display_name("claude"),  # V8.4.0
             "action_type": action_type,
             "content": content,
             "tool_use": tool_use,

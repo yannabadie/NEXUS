@@ -14,6 +14,8 @@ from rich.markdown import Markdown
 from typing import Dict, Optional
 import os
 
+from core.agents.unified_registry import get_registry  # V8.4.0
+
 
 class ConsoleV7:
     """Console UI minimaliste pour NEXUS"""
@@ -86,7 +88,9 @@ Type your task or use slash commands (/help for list)
         # Agent message
         if output and agent:
             # V7 FIX: Handle Swarm agent with distinct color
-            if agent == "Gemini":
+            # V8.4.0: Use registry for agent identification
+            registry = get_registry()
+            if registry.is_gemini(agent):
                 color = "cyan"
                 self.console.print(f"[{color}][{agent}][/{color}] {output}")
             elif agent == "Swarm":

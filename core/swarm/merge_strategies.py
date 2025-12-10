@@ -20,6 +20,8 @@ from enum import Enum
 import re
 import os
 
+from ..agents.unified_registry import get_registry  # V8.4.0
+
 if TYPE_CHECKING:
     from .mode_executors import AgentResponse
 
@@ -87,13 +89,9 @@ class MergeStrategy(ABC):
         pass
 
     def _get_agent_name(self, agent_id: str) -> str:
-        """Extract display name from agent_id"""
-        if "gemini" in agent_id.lower():
-            return "Gemini"
-        elif "claude" in agent_id.lower():
-            return "Claude"
-        else:
-            return agent_id
+        """Extract display name from agent_id (V8.4.0: via registry)"""
+        registry = get_registry()
+        return registry.get_display_name(agent_id)
 
 
 class NaiveMergeStrategy(MergeStrategy):
@@ -259,12 +257,13 @@ class WeightedMergeStrategy(MergeStrategy):
             claude_fit = context.task_analysis.get("claude_fit_score", 0.5)
             primary_domain = context.task_analysis.get("primary_domain")
 
-        # Sort outputs by fit score (higher first)
+        # Sort outputs by fit score (higher first) - V8.4.0: via registry
+        registry = get_registry()
+
         def get_fit_score(output) -> float:
-            agent_name = self._get_agent_name(output.agent_id).lower()
-            if "gemini" in agent_name:
+            if registry.is_gemini(output.agent_id):
                 return gemini_fit
-            elif "claude" in agent_name:
+            elif registry.is_claude(output.agent_id):
                 return claude_fit
             return 0.5
 

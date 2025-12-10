@@ -35,6 +35,7 @@ from ..types import (
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
 from ..swarm_bridge import SwarmBridge, HivePhase
+from core.agents.unified_registry import get_registry  # V8.4.0
 
 if TYPE_CHECKING:
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -301,8 +302,9 @@ class MonitoredExecutionPhase:
             previous_results=prev_text
         )
 
-        # Select driver
-        driver = self.claude if step.agent_id == "claude" else self.gemini
+        # Select driver (V8.4.0: use registry for agent identification)
+        registry = get_registry()
+        driver = self.claude if registry.is_claude(step.agent_id) else self.gemini
 
         # Execute with timeout
         start_time = time.time()

@@ -34,6 +34,7 @@ from ..types import (
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
+from ...agents.unified_registry import get_registry  # V8.4.0
 
 if TYPE_CHECKING:
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -288,8 +289,9 @@ class StrategicDebatePhase:
                         params=params
                     )
 
-            # Switch speaker
-            current_speaker = "claude" if current_speaker == "gemini" else "gemini"
+            # Switch speaker (V8.4.0: via registry)
+            registry = get_registry()
+            current_speaker = registry.get_alternate(current_speaker) or current_speaker
 
         # Max turns reached without consensus - force vote
         logger.info(f"Max turns ({params.max_turns}) reached - forcing vote")
@@ -313,7 +315,7 @@ class StrategicDebatePhase:
                 status="IMMEDIATE_CONSENSUS",
                 final_approach=primary.proposed_approach,
                 final_capabilities=comparison.merged_capabilities,
-                final_mode="SPECIALIST" if primary.agent_id == "claude" else "SPECIALIST",
+                final_mode="SPECIALIST",  # V8.4.0: Mode doesn't depend on agent
                 debate_history=[],
                 total_turns=0,
                 resolved_disagreements=[],
@@ -359,8 +361,10 @@ class StrategicDebatePhase:
         params: DebateParams
     ) -> DebateArgument:
         """Get an argument from a speaker."""
-        # Determine positions
-        if speaker == "gemini":
+        # Determine positions (V8.4.0: via registry)
+        registry = get_registry()
+
+        if registry.is_gemini(speaker):
             your_position = disagreement.gemini_position
             other_position = disagreement.claude_position
             your_confidence = comparison.gemini_analysis.confidence
@@ -372,7 +376,7 @@ class StrategicDebatePhase:
             driver = self.claude
 
         # Choose prompt
-        if turn_number == 1 or (turn_number == 2 and speaker == "claude"):
+        if turn_number == 1 or (turn_number == 2 and registry.is_claude(speaker)):
             # Opening argument
             prompt = DEBATE_OPENER_PROMPT.format(
                 task=task,
@@ -387,12 +391,14 @@ class StrategicDebatePhase:
             previous = debate_history[-1]
             history_text = self._format_debate_history(debate_history)
 
+            # V8.4.0: Use registry for display name of other agent
+            other_display = registry.get_display_name(registry.get_alternate(speaker) or speaker)
             prompt = DEBATE_RESPONSE_PROMPT.format(
                 task=task,
                 topic=disagreement.topic,
                 your_position=your_position,
                 other_position=other_position,
-                other_agent="Gemini" if speaker == "claude" else "Claude",
+                other_agent=other_display,
                 previous_argument=previous.argument,
                 debate_history=history_text
             )
@@ -441,9 +447,10 @@ class StrategicDebatePhase:
 
     def _format_debate_history(self, history: List[DebateArgument]) -> str:
         """Format debate history for prompts."""
+        registry = get_registry()  # V8.4.0
         lines = []
         for arg in history[-5:]:  # Last 5 turns
-            speaker = "GEMINI" if arg.agent_id == "gemini" else "CLAUDE"
+            speaker = registry.get_display_name(arg.agent_id).upper()
             lines.append(f"[Turn {arg.turn_number}] {speaker} ({arg.position}):")
             lines.append(f"  {arg.argument}")
             if arg.concession:

@@ -13,8 +13,10 @@ from typing import Dict, Optional
 if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
     del os.environ['TERM']
 
+import asyncio
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 from core.orchestration_v7 import OrchestratorV7
 from core.ui.console_v7 import ConsoleV7
 from core.interface.commands import (
@@ -31,6 +33,7 @@ from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security import MutationValidator
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
+from core.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
 
 
 class InteractiveNexusV7:
@@ -266,6 +269,192 @@ class InteractiveNexusV7:
                 if self.config.ui_verbose:
                     traceback.print_exc()
                 continue
+
+    # =========================================================================
+    # V9 CYBORG: Async REPL Loop
+    # =========================================================================
+
+    async def run_async(self):
+        """
+        V9 Cyborg Async REPL loop.
+
+        Uses prompt_toolkit's prompt_async() for non-blocking input,
+        wrapped with patch_stdout() to prevent streaming corruption.
+
+        Gracefully handles Ctrl+C to cancel all async driver processes.
+        """
+        import re
+
+        # Clear previous session state at startup (fresh start)
+        self.orchestrator.reset_to_idle(clear_task=True)
+
+        self.console.print_banner(
+            gemini_model=self.orchestrator.gemini_info["model"],
+            claude_model=self.orchestrator.claude_info["model"],
+            version=self.config.nexus_version,
+            codename=self.config.nexus_codename
+        )
+
+        self.console.print("\n⚡ V9 Async Mode Active")
+
+        # V7 Sprint 11: Display startup hints
+        hints = self.orchestrator.get_startup_hints()
+        if hints:
+            self.console.print("")
+            for hint in hints:
+                self.console.print(f"  {hint}")
+            self.console.print("")
+
+        with patch_stdout():
+            while True:
+                try:
+                    # V9: Non-blocking input
+                    if self._use_simple_input:
+                        loop = asyncio.get_event_loop()
+                        user_input = await loop.run_in_executor(
+                            None, lambda: input("nexus7> ")
+                        )
+                    else:
+                        user_input = await self.session.prompt_async("nexus7> ")
+
+                    # Sanitize input (same as sync version)
+                    user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)
+                    user_input = re.sub(r'[0-9]+~', '', user_input)
+                    user_input = re.sub(r'\[\w\]?', '', user_input)
+                    user_input = user_input.strip()
+
+                    if not user_input:
+                        continue
+
+                    # Slash commands: keep sync (fast, no I/O)
+                    if is_slash_command(user_input):
+                        self.handle_command(user_input)
+                        continue
+
+                    # Handle exit
+                    if is_exit_command(user_input):
+                        self._abort_requested = True
+                        self.console.print("👋 Goodbye!")
+                        break
+
+                    # V9: Async processing
+                    await self._process_turn_async(user_input)
+
+                except KeyboardInterrupt:
+                    self.console.print("\n🛑 Interruption - cancelling async tasks...")
+                    # V9: Cancel all async driver processes
+                    try:
+                        from core.drivers.async_factory import get_driver_factory
+                        factory = get_driver_factory()
+                        if factory:
+                            cancelled = await factory.cancel_all()
+                            if cancelled > 0:
+                                self.console.print(f"  Cancelled {cancelled} process(es)")
+                    except ImportError:
+                        pass
+                    continue
+
+                except EOFError:
+                    break
+
+                except Exception as e:
+                    self.console.print_error(f"Unexpected error: {e}")
+                    if self.config.ui_verbose:
+                        import traceback
+                        traceback.print_exc()
+                    continue
+
+    async def _process_turn_async(self, user_input: str):
+        """
+        V9 Async wrapper for orchestrator.process_turn().
+
+        If orchestrator has process_turn_async(), uses it.
+        Otherwise falls back to sync process_turn() in executor.
+        """
+        # Check for async method first
+        if hasattr(self.orchestrator, 'process_turn_async'):
+            result = await self.orchestrator.process_turn_async(user_input)
+        else:
+            # Fallback: Run sync in executor (non-blocking for REPL)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, lambda: self.orchestrator.process_turn(user_input)
+            )
+
+        self.console.display_result(result)
+
+        # Continue processing until exit conditions (same logic as sync)
+        max_iterations = 50
+        iterations = 0
+        tool_active = False
+
+        while result["state"] not in ["IDLE", "ERROR", "PANIC", "FINISHED"] and iterations < max_iterations:
+            if self._abort_requested:
+                self.console.print("🛑 Abort requested - stopping")
+                break
+
+            if hasattr(self.orchestrator, 'process_turn_async'):
+                result = await self.orchestrator.process_turn_async()
+            else:
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None, lambda: self.orchestrator.process_turn()
+                )
+
+            self.console.display_result(result)
+            iterations += 1
+
+            # Track tool usage
+            if result.get("state") == "EXECUTING_TOOL":
+                tool_active = True
+
+            # Visual checkpoint every 10 turns
+            if iterations > 0 and iterations % 10 == 0:
+                state = result.get("state", "UNKNOWN")
+                self.console.print(f"[dim]─── Iteration {iterations} | State: {state} ───[/dim]")
+                tool_active = False
+
+            # Check if user input needed
+            needs_user_prompt = (
+                result.get("needs_user_input", False) or
+                result.get("state") == "ERROR" or
+                iterations >= (max_iterations - 2)
+            )
+
+            if needs_user_prompt and not tool_active:
+                self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
+                try:
+                    # Async input for interjection
+                    loop = asyncio.get_event_loop()
+                    user_interjection = await loop.run_in_executor(None, lambda: input().strip())
+                    if user_interjection:
+                        self.console.print(f"[bold green]You:[/bold green] {user_interjection}")
+                        self.orchestrator.memory.add_to_history({
+                            "sender": "User",
+                            "action_type": "TALK",
+                            "content": user_interjection,
+                            "status": "CONTINUE"
+                        })
+                        iterations = 0
+                except (EOFError, KeyboardInterrupt):
+                    self.console.print("\n[Returning to prompt]")
+                    self.orchestrator.reset_to_idle()
+                    break
+
+        if iterations >= max_iterations:
+            self.console.print_error("Max iterations reached. Use /reset")
+            self.orchestrator.reset_to_idle()
+
+        if result.get("finished") and result["state"] != "IDLE":
+            self.console.print("\n✅ [Task Complete]\n")
+            self.successful_turns += 1
+
+            # Check for auto-evolution trigger
+            if self.successful_turns >= self.evolution_trigger_threshold:
+                self.console.print(f"\n⚡ AUTO-EVOLUTION TRIGGER: {self.successful_turns} successful turns reached")
+                self.console.print("   Starting evolution cycle...\n")
+                self.run_evolve(auto_triggered=True)
+                self.successful_turns = 0
 
     def handle_command(self, command: str):
         """
@@ -1878,7 +2067,8 @@ class InteractiveNexusV7:
         # V7.5: Real-time streaming callbacks
         def on_negotiation_turn(message):
             """Display each negotiation turn in real-time"""
-            agent = "Gemini" if message.sender == "gemini" else "Claude"
+            registry = get_registry()  # V8.4.0
+            agent = registry.get_display_name(message.sender)
             self.console.print(f"\n{'─'*40}")
             self.console.print(f"[NEGOTIATION] {agent} (Turn {message.turn_number + 1})")
             self.console.print(f"{'─'*40}")
@@ -1898,7 +2088,8 @@ class InteractiveNexusV7:
 
         def on_execution_round(round_num, response):
             """Display each execution round in real-time"""
-            agent = "Gemini" if "gemini" in response.agent_id.lower() else "Claude"
+            registry = get_registry()  # V8.4.0
+            agent = registry.get_display_name(response.agent_id)
             self.console.print(f"\n{'─'*40}")
             self.console.print(f"[EXECUTION] Round {round_num + 1} - {agent}")
             self.console.print(f"{'─'*40}")
@@ -2372,8 +2563,9 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
             reasoning_match = re.search(reasoning_pattern, prompt, re.IGNORECASE)
             reasoning = reasoning_match.group(1).strip() if reasoning_match else None
 
-            # Validate provider
-            if provider not in ["gemini", "claude"]:
+            # Validate provider (V8.4.0: use registry for valid providers)
+            registry = get_registry()
+            if registry.get(provider) is None:
                 self.console.print(f"   ⚠️ Invalid provider '{provider}', defaulting to claude")
                 provider = "claude"
 

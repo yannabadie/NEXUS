@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Callable
 
 import tiktoken
 
+from core.agents.unified_registry import get_registry
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
@@ -59,6 +60,7 @@ class AgentInvoker:
         """
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.agent_invoker")
+        self._registry = get_registry()
 
     def get_claude_driver(
         self,
@@ -131,7 +133,8 @@ class AgentInvoker:
             self._orch.on_token is not None
         )
 
-        if self._orch.active_agent == "Claude":
+        # V8.4.0: Use registry for agent lookup
+        if self._registry.is_claude(self._orch.active_agent):
             driver = self.get_claude_driver(task_type)
             if use_streaming:
                 return driver.invoke_stream(context, self._orch.on_token)
@@ -164,10 +167,11 @@ class AgentInvoker:
         if self.is_spawned_agent(agent_id):
             return self.invoke_spawned_agent(agent_id, task_type, context)
 
-        is_claude = "claude" in agent_id.lower()
+        # V8.4.0: Use registry for agent identification
+        is_claude = self._registry.is_claude(agent_id)
         # V7 FIX: Use local variable instead of shared self.active_agent to avoid race condition
         # in parallel execution mode. Each thread must know which agent it's invoking.
-        target_agent = "Claude" if is_claude else "Gemini"
+        target_agent = self._registry.get_display_name(agent_id)
 
         try:
             # Map task type string to TaskType enum
@@ -333,7 +337,8 @@ class AgentInvoker:
             self._orch.on_token is not None
         )
 
-        if target_agent == "Claude":
+        # V8.4.0: Use registry for agent identification
+        if self._registry.is_claude(target_agent):
             driver = self.get_claude_driver(task_type)
             if use_streaming:
                 # V8.1.6: Pass session_uuid for thread-safe file access
@@ -368,8 +373,8 @@ class AgentInvoker:
         if not self._orch.agent_pool:
             return
 
-        # Map agent name to agent_id
-        agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
+        # V8.4.0: Use registry for agent mapping
+        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
 
         # Count tokens using tiktoken (accurate) or fallback to estimate
         estimated_tokens = 500  # Default estimate

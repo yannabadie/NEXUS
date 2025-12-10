@@ -12,8 +12,10 @@ Architecture:
 """
 import sys
 import argparse
+import asyncio
 from pathlib import Path
 import importlib.util
+from typing import Dict, Optional
 
 # Fix Windows encoding for emojis
 if sys.platform == 'win32':
@@ -194,6 +196,63 @@ def bootstrap():
     return gemini_info, claude_info
 
 
+# =============================================================================
+# V9 CYBORG: Async Entry Point
+# =============================================================================
+
+async def async_main(
+    workspace_path: Path,
+    gemini_info: Dict,
+    claude_info: Dict,
+    pending_metadata: Optional[Dict],
+    config
+):
+    """
+    V9 Cyborg Async Entry Point.
+
+    Wraps the V7 REPL in an async context, enabling:
+    - Non-blocking user input (prompt_async)
+    - Async LLM streaming
+    - Graceful Ctrl+C cancellation
+
+    Falls back to sync REPL if run_async() not available.
+    """
+    from core.interface.repl import InteractiveNexusV7
+
+    # Initialize async driver factory for process management
+    try:
+        from core.drivers.async_factory import AsyncDriverFactory
+        # Create factory instance (will be accessible via get_driver_factory)
+        _factory = AsyncDriverFactory(config, workspace_path)
+        # Store in module for global access
+        import core.drivers.async_factory as factory_module
+        factory_module._global_factory = _factory
+    except ImportError:
+        # Async drivers not available, continue with sync
+        pass
+
+    # Display pending review alerts (sync, fast)
+    if pending_metadata:
+        from core.notifications.repl_alert import get_repl_alert_message, should_block_evolution
+        print(get_repl_alert_message(pending_metadata, config))
+        if should_block_evolution(pending_metadata, config):
+            print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
+            print("   Use /review command to evaluate children.\n")
+
+    repl = InteractiveNexusV7(
+        workspace_path=workspace_path,
+        gemini_info=gemini_info,
+        claude_info=claude_info
+    )
+
+    # V9 Cyborg: Prefer async, fallback to sync
+    if hasattr(repl, 'run_async'):
+        await repl.run_async()
+    else:
+        # Sync fallback (V7 mode)
+        repl.run()
+
+
 def main():
     """Entry point NEXUS V7.0 Chrysalis"""
     # Parse command-line arguments
@@ -249,10 +308,8 @@ Documentation: https://github.com/nexus-ai/nexus-v7
             print("   NEXUS V7.0 Chrysalis is ready to use.")
             sys.exit(0)
 
-        # Import and launch REPL
-        from core.interface.repl import InteractiveNexusV7
+        # Import config and check pending reviews
         from core.notifications import check_pending_review
-        from core.notifications.repl_alert import get_repl_alert_message, should_block_evolution
         from core.config import load_config
 
         workspace_path = Path(args.workspace).resolve()
@@ -262,27 +319,25 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         config = load_config()
         pending_metadata = check_pending_review(workspace_path)
 
-        if pending_metadata:
-            # Display colored alert
-            alert_message = get_repl_alert_message(pending_metadata, config)
-            print(alert_message)
-
-            # Block evolution if critical (72h+)
-            if should_block_evolution(pending_metadata, config):
-                print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
-                print("   Use /review command to evaluate children.\n")
-
-        repl = InteractiveNexusV7(
+        # V9 CYBORG: Launch via asyncio.run()
+        asyncio.run(async_main(
             workspace_path=workspace_path,
             gemini_info=gemini_info,
-            claude_info=claude_info
-        )
-
-        # Run interactive loop
-        repl.run()
+            claude_info=claude_info,
+            pending_metadata=pending_metadata,
+            config=config
+        ))
 
     except KeyboardInterrupt:
         print("\n\n👋 NEXUS V7.0 Chrysalis terminated by user")
+        # V9: Cleanup orphan async processes
+        try:
+            from core.drivers.async_factory import get_driver_factory
+            factory = get_driver_factory()
+            if factory:
+                asyncio.run(factory.cancel_all())
+        except Exception:
+            pass
         sys.exit(0)
 
     except Exception as e:

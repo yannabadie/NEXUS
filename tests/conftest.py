@@ -254,9 +254,12 @@ def orchestrator_with_mocks(tmp_path):
         orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # Store drivers in a dict for easy access in tests
+    # V8.4.0: Use lowercase normalized IDs (but keep titlecase aliases for backwards compat)
     orch.drivers = {
-        "Gemini": mock_gemini,
-        "Claude": mock_claude
+        "gemini": mock_gemini,
+        "claude": mock_claude,
+        "Gemini": mock_gemini,  # Alias for backwards compat
+        "Claude": mock_claude   # Alias for backwards compat
     }
 
     return orch

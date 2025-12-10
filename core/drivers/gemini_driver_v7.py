@@ -35,6 +35,8 @@ from typing import Dict, Optional, Callable
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
 # V7.7 Phase 15: Stream parser for real-time response display
 from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats
+# V8.4.0: Unified agent registry
+from core.agents.unified_registry import get_registry
 
 
 # Global reference for cleanup at exit
@@ -421,8 +423,10 @@ class GeminiDriverV7:
             # CRITICAL FIX: Handle list response (Evolution Mutations)
             if isinstance(extracted_data, list):
                 # Wrap list in a standard message structure to satisfy Orchestrator
+                # V8.4.0: Use registry for display name
+                registry = get_registry()
                 return {
-                    "sender": "Gemini",
+                    "sender": registry.get_display_name("gemini"),
                     "action_type": "TALK",
                     "content": json.dumps(extracted_data), # Pass the list as a string content
                     "status": "FINISHED"
@@ -470,13 +474,15 @@ class GeminiDriverV7:
 
         # No JSON found - provide fallback or raise
         if fallback_to_error:
+            # V8.4.0: Use registry for display names and alternation
+            registry = get_registry()
             content_preview = text[:1000] if text else "[Empty response]"
             return {
-                "sender": "Gemini",
+                "sender": registry.get_display_name("gemini"),
                 "action_type": "TALK",
                 "content": f"[JSON extraction failed: {error} - raw response]\n{content_preview}",
                 "status": "CONTINUE",
-                "next_agent": "Claude",
+                "next_agent": registry.get_alternate("gemini"),
                 "_json_extraction_failed": True,
                 "_raw_response_preview": text[:500] if text else ""
             }
