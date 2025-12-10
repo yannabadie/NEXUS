@@ -1,7 +1,7 @@
-# NEXUS V8.3.2 Architecture Map
+# NEXUS V8.4.0 Architecture Map
 
-**Auto-Generated**: 2025-12-09 21:12
-**Git Commit**: cce3557
+**Auto-Generated**: 2025-12-10 16:16
+**Git Commit**: 65acd0f
 **Generator**: `scripts/doc_engine.py` V2
 **Codename**: "TRUE HIVE MIND"
 
@@ -19,13 +19,15 @@
 3. [ZOOM: LLM Drivers & Routing](#3-zoom-llm-drivers--routing)
 4. [ZOOM: Swarm Engine](#4-zoom-swarm-engine)
 5. [ZOOM: Hive Mind Pipeline](#5-zoom-hive-mind-pipeline)
-6. [ZOOM: Evolution & Spawning](#6-zoom-evolution--spawning)
-7. [ZOOM: Memory Systems](#7-zoom-memory-systems)
-8. [ZOOM: Security & Governance](#8-zoom-security--governance)
-9. [Functional Inventory](#9-functional-inventory)
-10. [Key Dataclasses](#10-key-dataclasses)
-11. [Statistics](#11-statistics)
-12. [Anti-Hallucination Reference](#12-anti-hallucination-reference)
+6. [ZOOM: Async Primitives (V8.4.4)](#6-zoom-async-primitives-v844)
+7. [ZOOM: Blind Spot Remediations (V8.4.4)](#7-zoom-blind-spot-remediations-v844)
+8. [ZOOM: Evolution & Spawning](#8-zoom-evolution--spawning)
+9. [ZOOM: Memory Systems](#9-zoom-memory-systems)
+10. [ZOOM: Security & Governance](#10-zoom-security--governance)
+11. [Functional Inventory](#11-functional-inventory)
+12. [Key Dataclasses](#12-key-dataclasses)
+13. [Statistics](#13-statistics)
+14. [Anti-Hallucination Reference](#14-anti-hallucination-reference)
 
 ---
 
@@ -84,29 +86,31 @@ graph TD
 
 | Component | Files | LOC | Classes | Functions |
 |-----------|-------|-----|---------|-----------|
-| hive_mind | 17 | 8,443 | 66 | 202 |
-| swarm | 9 | 5,793 | 41 | 165 |
+| hive_mind | 19 | 9,435 | 71 | 239 |
+| swarm | 10 | 6,215 | 48 | 182 |
 | evolution | 11 | 4,744 | 30 | 104 |
-| interface | 3 | 3,285 | 3 | 68 |
-| execution | 3 | 2,814 | 9 | 60 |
+| interface | 3 | 3,477 | 3 | 70 |
+| execution | 3 | 2,808 | 9 | 60 |
 | memory | 8 | 2,749 | 11 | 92 |
-| orchestration | 5 | 2,353 | 6 | 58 |
+| orchestration | 5 | 2,659 | 6 | 63 |
+| drivers | 6 | 2,427 | 9 | 58 |
+| fsm | 7 | 2,065 | 13 | 86 |
 | security | 4 | 1,585 | 8 | 48 |
 | bootstrap | 2 | 1,400 | 5 | 35 |
 | mcp | 3 | 1,393 | 21 | 56 |
-| drivers | 3 | 1,293 | 4 | 21 |
 | telemetry | 3 | 1,235 | 12 | 42 |
+| async_primitives | 4 | 1,217 | 11 | 68 |
 | governance | 4 | 1,206 | 7 | 19 |
-| fsm | 5 | 1,040 | 6 | 46 |
-| utils | 5 | 846 | 3 | 33 |
+| utils | 6 | 1,108 | 4 | 38 |
 | workspace | 3 | 591 | 7 | 26 |
 | synapse | 2 | 506 | 6 | 23 |
 | notifications | 3 | 461 | 1 | 7 |
 | logging | 1 | 454 | 3 | 31 |
+| agents | 1 | 385 | 5 | 24 |
 | routing | 1 | 336 | 3 | 11 |
 | meta | 1 | 267 | 1 | 4 |
 | adapters | 1 | 237 | 1 | 4 |
-| ui | 1 | 224 | 1 | 11 |
+| ui | 1 | 228 | 1 | 11 |
 | prompts | 1 | 178 | 0 | 6 |
 | reasoning | 0 | 0 | 0 | 0 |
 
@@ -211,20 +215,20 @@ graph TD
 
 | Task Type | Model | Reasoning |
 |-----------|-------|-----------|
-| ARCHITECT | Claude Opus 4.5 | Complex reasoning, creativity |
 | BRAINSTORM | Claude Opus 4.5 | Complex reasoning, creativity |
-| REDTEAM | Claude Opus 4.5 | Complex reasoning, creativity |
+| ARCHITECT | Claude Opus 4.5 | Complex reasoning, creativity |
 | EVOLUTION | Claude Opus 4.5 | Complex reasoning, creativity |
-| VALIDATION | Claude Sonnet 4.5 | Speed, tool use |
-| FORMAT | Claude Sonnet 4.5 | Speed, tool use |
-| SIMPLE | Claude Sonnet 4.5 | Speed, tool use |
+| REDTEAM | Claude Opus 4.5 | Complex reasoning, creativity |
 | TOOL | Claude Sonnet 4.5 | Speed, tool use |
-| REASONING | Gemini 3 Pro | Large context, analysis |
+| FORMAT | Claude Sonnet 4.5 | Speed, tool use |
+| VALIDATION | Claude Sonnet 4.5 | Speed, tool use |
+| SIMPLE | Claude Sonnet 4.5 | Speed, tool use |
 | RESEARCH | Gemini 3 Pro | Large context, analysis |
 | ANALYSIS | Gemini 3 Pro | Large context, analysis |
+| REASONING | Gemini 3 Pro | Large context, analysis |
 
-**Claude Tasks**: Opus → architect, brainstorm, redteam, evolution | Sonnet → validation, format, simple, tool
-**Gemini Tasks**: Pro → reasoning, brainstorm, research, analysis, evolution | Flash → simple, validation, format, tool
+**Claude Tasks**: Opus → brainstorm, architect, evolution, redteam | Sonnet → tool, format, validation, simple
+**Gemini Tasks**: Pro → research, analysis, brainstorm, evolution, reasoning | Flash → tool, format, validation, simple
 
 ### Spawned Agent Provider Selection
 
@@ -398,7 +402,164 @@ graph TD
 **Source**: `core/hive_mind/types.py`, `core/hive_mind/phases/`
 
 
-## 6. ZOOM: Evolution & Spawning
+## 6. ZOOM: Async Primitives (V8.4.4)
+
+### Overview
+
+V8.4.4 introduces a complete async infrastructure for non-blocking operations.
+
+```mermaid
+graph TD
+    subgraph Primitives["core/async_primitives/"]
+        CT[CancellationToken<br/>Hierarchical cancellation]
+        PH[AsyncProcessHandle<br/>Subprocess tracking]
+        RW[AsyncRWLock<br/>Reader-Writer lock]
+        BB[AsyncBlackboard<br/>Shared state + TTL]
+    end
+
+    subgraph Usage["Integration Points"]
+        DRIVERS[Async Drivers] --> CT
+        DRIVERS --> PH
+        HIVE[Hive Mind] --> BB
+        FSM[FSM Handlers] --> RW
+    end
+
+    subgraph Control["Cancellation Flow"]
+        USER[Ctrl+C] --> FACTORY[AsyncDriverFactory]
+        FACTORY --> |cancel_all| CT
+        CT --> |propagate| PH
+        PH --> |terminate| PROC[Subprocess]
+    end
+```
+
+### Async Primitive Classes
+
+| Class | Purpose |
+|-------|---------|
+| `CancellationToken` | Hierarchical cancellation with callbacks |
+| `CancellationTokenSource` | Creates and controls tokens |
+| `AsyncProcessHandle` | Track subprocess by UUID |
+| `ProcessHandleRegistry` | Global registry for cancel_by_uuid |
+| `AsyncRWLock` | Multiple readers OR single writer |
+| `AsyncBlackboard` | Thread-safe shared state with TTL |
+
+**Files**: `blackboard.py`, `cancellation.py`, `process_handle.py`, `rwlock.py`
+**Classes**: `BlackboardEntry`, `AsyncBlackboard`, `CancellationToken`, `CancellationTokenSource`, `ProcessState`, `AsyncProcessHandle`, `ProcessHandleRegistry`, `AsyncRWLock`, `AsyncRWLockWithTimeout`, `RWLockStats`, `InstrumentedAsyncRWLock`
+
+### Async Handlers (FSMHandlers)
+
+| Handler | Purpose |
+|---------|---------|
+| `handle_brainstorming_async()` | Non-blocking handler |
+| `handle_validating_cfl_async()` | Non-blocking handler |
+| `handle_fast_path_async()` | Non-blocking handler |
+
+**Source**: `core/async_primitives/`, `core/orchestration/fsm_handlers.py`
+
+
+## 7. ZOOM: Blind Spot Remediations (V8.4.4)
+
+### Overview
+
+V8.4.4 addresses 6 architectural blind spots with dedicated modules.
+
+```mermaid
+graph TD
+    subgraph P0["P0: NexusJSONEncoder"]
+        JSON[Serialization] --> DT[datetime → isoformat]
+        JSON --> EN[Enum → value]
+        JSON --> UUID[UUID → str]
+    end
+
+    subgraph P2["P2: SagaManager"]
+        SAGA[SagaManager] --> CP[Checkpoint Phase]
+        SAGA --> RB[Rollback + Context Truncation]
+        SAGA --> GD[Phase Guards]
+    end
+
+    subgraph P3["P3: Async Handlers"]
+        ASYNC[FSMHandlers] --> BRA[handle_brainstorming_async]
+        ASYNC --> CFL[handle_validating_cfl_async]
+        ASYNC --> FP[handle_fast_path_async]
+    end
+
+    subgraph P4["P4: HealthStateMachine"]
+        HEALTH[HealthFSM] --> STATES[5 States]
+        HEALTH --> RECOV[Recovery Strategies]
+        STATES --> HEALTHY
+        STATES --> DEGRADED
+        STATES --> CRITICAL
+        STATES --> RECOVERING
+        STATES --> PANIC
+    end
+
+    subgraph P5["P5: StagnationPredictor"]
+        STAG[Predictor] --> IND[Leading Indicators]
+        STAG --> TRAJ[Trajectory Analysis]
+        STAG --> ACT[Prediction Levels]
+    end
+```
+
+### HealthStateMachine States
+
+| State |
+|-------|
+| `HEALTHY` |
+| `DEGRADED` |
+| `CRITICAL` |
+| `RECOVERING` |
+| `PANIC` |
+
+**Transitions**: HEALTHY → DEGRADED (1 error) → CRITICAL (3 errors) → RECOVERING/PANIC
+
+### Recovery Strategies
+
+| Strategy |
+|----------|
+| `custom_fix` |
+| `reset_stagnation` |
+| `switch_agent` |
+| `compress_context` |
+| `clear_tool_cache` |
+| `rollback_phase` |
+
+### SagaManager Phase Order
+
+```
+analysis → debate → architecture → execution → diagnosis → retry → consolidation
+```
+
+**Features**:
+- Atomic checkpoints via `AtomicJsonStore`
+- Context truncation on rollback (`messages[:checkpoint_index]`)
+- Phase guards before each transition
+
+### StagnationPredictor Levels
+
+| Level |
+|-------|
+| `CONTINUE` |
+| `MONITOR` |
+| `NUDGE` |
+| `INTERVENE` |
+
+**Thresholds**: CONTINUE (<0.4) → MONITOR (0.4-0.6) → NUDGE (0.6-0.8) → INTERVENE (>0.8)
+
+### Implementation Summary
+
+| Phase | Module | Lines |
+|-------|--------|-------|
+| P0 | `core/utils/serialization.py` | ~240 |
+| P1 | `core/hive_mind/async_adapter.py` | +80 |
+| P2 | `core/hive_mind/saga_manager.py` | ~640 |
+| P3 | `core/orchestration/fsm_handlers.py` | +290 |
+| P4 | `core/fsm/health_state_machine.py` | ~549 |
+| P5 | `core/fsm/stagnation_predictor.py` | ~476 |
+
+**Source**: `core/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
+
+
+## 8. ZOOM: Evolution & Spawning
 
 ### /spawn Flow
 
@@ -464,7 +625,7 @@ graph TD
 **Source**: `core/evolution/`, `core/bootstrap/agent_loader.py`
 
 
-## 7. ZOOM: Memory Systems
+## 9. ZOOM: Memory Systems
 
 ### Memory Architecture
 
@@ -529,7 +690,7 @@ graph TD
 **Source**: `core/memory/`
 
 
-## 8. ZOOM: Security & Governance
+## 10. ZOOM: Security & Governance
 
 ### Security Architecture
 
@@ -590,14 +751,14 @@ The KERNEL.py file is the **immutable alignment core** that:
 **Source**: `core/security/`, `KERNEL.py`
 
 
-## 9. FUNCTIONAL INVENTORY
+## 11. FUNCTIONAL INVENTORY
 
 ### Slash Commands (0 total)
 
 
 
 
-## 10. KEY DATACLASSES
+## 12. KEY DATACLASSES
 
 ### Core Dataclasses
 
@@ -615,71 +776,71 @@ The KERNEL.py file is the **immutable alignment core** that:
 | `TaskAnalysis` | complexity, domains, primary_domain, requires_web, requires_code_execution (+7 more) | `core\swarm\task_analyzer.py` |
 
 
-### All Enums (29 total)
+### All Enums (35 total)
 
-`AgentProvider`, `CollaborationMode`, `CommandType`, `ContextPriority`, `CostCategory`, `EventType`, `EvolutionPhaseStatus`, `ExecutionStatus`, `FailureCategory`, `FailureType`, `HiveMindState`, `HivePhase`, `IssueSeverity`, `LogLevel`, `MCPContentType`, `MetricType`, `NegotiationStatus`, `OrchestratorState`, `RetentionDecision`, `RiskLevel`, `SessionMode`, `SessionStatus`, `SwarmPhase`, `TaskComplexity`, `TaskComplexity` (+4 more)
+`AgentCapability`, `AgentProvider`, `AgentProvider`, `CollaborationMode`, `CommandType`, `ContextPriority`, `CostCategory`, `EventType`, `EvolutionPhaseStatus`, `ExecutionStatus`, `FailureCategory`, `FailureType`, `HealthState`, `HiveMindState`, `HivePhase`, `IssueSeverity`, `LogLevel`, `MCPContentType`, `MergeStrategyType`, `MetricType`, `NegotiationStatus`, `OrchestratorState`, `PredictionLevel`, `ProcessState`, `RetentionDecision` (+10 more)
 
-### All Dataclasses (117 total)
+### All Dataclasses (131 total)
 
-`APICallMetric`, `AgentArchitecture`, `AgentAssignment`, `AgentDebateMetrics`, `AgentInvocationResult`, `AgentPool`, `AgentProfile`, `AgentResponse`, `AgentRetention`, `AgentSession`, `AgentSpec`, `AgentToolDefinition`, `AgentToolResult`, `AnalysisComparison`, `AnalysisPhaseResult`, `ArchitecturePhaseResult`, `ArchiveResult`, `AutoPromotionDecision`, `BlacklistedStrategy`, `BrainstormResult`, `BreakpointOption`, `BreakpointRequest`, `BreakpointResponse`, `BudgetState`, `ChildCreationResult`, `Chunk`, `CodeValidationResult`, `CommandAnalysis`, `CompletionCriteria`, `ConsolidationPhaseResult`...
+`APICallMetric`, `AgentArchitecture`, `AgentAssignment`, `AgentDebateMetrics`, `AgentDescriptor`, `AgentInvocationResult`, `AgentPool`, `AgentProfile`, `AgentResponse`, `AgentRetention`, `AgentSession`, `AgentSpec`, `AgentToolDefinition`, `AgentToolResult`, `AnalysisComparison`, `AnalysisPhaseResult`, `ArchitecturePhaseResult`, `ArchiveResult`, `AsyncClaudeDriverConfig`, `AsyncGeminiDriverConfig`, `AsyncProcessHandle`, `AutoPromotionDecision`, `BlackboardEntry`, `BlacklistedStrategy`, `BrainstormResult`, `BreakpointOption`, `BreakpointRequest`, `BreakpointResponse`, `BudgetState`, `CancellationToken`...
 
 
-## 11. STATISTICS
+## 13. STATISTICS
 
 ### Codebase Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Total Components** | 25 |
-| **Total Python Files** | 99 |
-| **Total Lines of Code** | 43,433 |
-| **Total Classes** | 255 |
-| **Total Functions** | 1,172 |
-| **Total Dataclasses** | 117 |
-| **Total Enums** | 29 |
+| **Total Components** | 27 |
+| **Total Python Files** | 113 |
+| **Total Lines of Code** | 49,366 |
+| **Total Classes** | 296 |
+| **Total Functions** | 1,407 |
+| **Total Dataclasses** | 131 |
+| **Total Enums** | 35 |
 
 ### Test Coverage
 
 | Metric | Value |
 |--------|-------|
-| **Test Functions** | 1197 |
+| **Test Functions** | 1361 |
 
 ### Lines of Code by Component
 
 ```
-hive_mind       | ############################## 8,443
-swarm           | #################### 5,793
-evolution       | ################ 4,744
-interface       | ########### 3,285
-execution       | ######### 2,814
-memory          | ######### 2,749
-orchestration   | ######## 2,353
+hive_mind       | ############################## 9,435
+swarm           | ################### 6,215
+evolution       | ############### 4,744
+interface       | ########### 3,477
+execution       | ######## 2,808
+memory          | ######## 2,749
+orchestration   | ######## 2,659
+drivers         | ####### 2,427
+fsm             | ###### 2,065
 security        | ##### 1,585
 bootstrap       | #### 1,400
 mcp             | #### 1,393
-drivers         | #### 1,293
-telemetry       | #### 1,235
-governance      | #### 1,206
-fsm             | ### 1,040
-utils           | ### 846
+telemetry       | ### 1,235
+async_primitives | ### 1,217
+governance      | ### 1,206
 ```
 
 ### Component Distribution
 
 | Component | % of Codebase |
 |-----------|---------------|
-| hive_mind | 19.4% |
-| swarm | 13.3% |
-| evolution | 10.9% |
-| interface | 7.6% |
-| execution | 6.5% |
-| memory | 6.3% |
+| hive_mind | 19.1% |
+| swarm | 12.6% |
+| evolution | 9.6% |
+| interface | 7.0% |
+| execution | 5.7% |
+| memory | 5.6% |
 | orchestration | 5.4% |
-| security | 3.6% |
-| bootstrap | 3.2% |
-| mcp | 3.2% |
+| drivers | 4.9% |
+| fsm | 4.2% |
+| security | 3.2% |
 
-## 12. ANTI-HALLUCINATION REFERENCE
+## 14. ANTI-HALLUCINATION REFERENCE
 
 ### Verified Structures
 
@@ -776,4 +937,4 @@ python scripts/doc_engine.py --full --apply
 
 *Generated by NEXUS Documentation Engine V2*
 *Source: `scripts/doc_engine.py`*
-*Version: 8.3.2 "TRUE HIVE MIND"*
+*Version: 8.4.0 "TRUE HIVE MIND"*

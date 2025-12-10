@@ -37,6 +37,14 @@ V2.0 Changes:
     - Command categories
     - Dataclass field details
     - Anti-hallucination validation
+
+V2.1 Changes (V8.4.4):
+    - Added ZOOM: Async Primitives section
+    - Added ZOOM: V8.4.4 Blind Spot Remediations section
+    - Enhanced FSM extraction (async handlers detection)
+    - Added SagaManager, HealthStateMachine, StagnationPredictor coverage
+    - Added async_primitives module scanning
+    - Updated anti-hallucination with V8.4 structures
 """
 
 import os
@@ -597,6 +605,10 @@ class StructureExtractor:
                 self.root / "core" / "hive_mind" / "types.py", "HivePhase"),
             "swarm_modes": self._extract_enum_values(
                 self.root / "core" / "swarm" / "collaboration_modes.py", "CollaborationMode"),
+            "health_states": self._extract_enum_values(
+                self.root / "core" / "fsm" / "health_state_machine.py", "HealthState"),
+            "prediction_levels": self._extract_enum_values(
+                self.root / "core" / "fsm" / "stagnation_predictor.py", "PredictionLevel"),
             "commands": self._extract_commands_detailed(),
             "enums": self._extract_all_enums(),
             "dataclasses": self._extract_all_dataclasses_detailed(),
@@ -604,6 +616,10 @@ class StructureExtractor:
             "model_routing": self._extract_model_routing(),
             "fallback_chains": self._extract_fallback_chains(),
             "mode_characteristics": self._extract_mode_characteristics(),
+            "async_primitives": self._extract_async_primitives(),
+            "async_handlers": self._extract_async_handlers(),
+            "saga_phases": self._extract_saga_phases(),
+            "recovery_strategies": self._extract_recovery_strategies(),
         }
 
     def _extract_enum_values(self, file_path: Path, enum_name: str) -> List[str]:
@@ -871,9 +887,87 @@ class StructureExtractor:
             return f"{self._get_annotation(node.value)}.{node.attr}"
         return "Any"
 
+    # =========================================================================
+    # V8.4.4 Extractors
+    # =========================================================================
+
+    def _extract_async_primitives(self) -> Dict[str, List[str]]:
+        """Extract async primitives from core/async_primitives/."""
+        primitives = {
+            "classes": [],
+            "files": []
+        }
+        async_path = self.root / "core" / "async_primitives"
+        if not async_path.exists():
+            return primitives
+
+        for py_file in async_path.glob("*.py"):
+            if py_file.name.startswith("_"):
+                continue
+            primitives["files"].append(py_file.name)
+            try:
+                content = py_file.read_text(encoding="utf-8")
+                tree = ast.parse(content)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        primitives["classes"].append(node.name)
+            except Exception:
+                pass
+        return primitives
+
+    def _extract_async_handlers(self) -> List[str]:
+        """Extract async handler methods from fsm_handlers.py."""
+        handlers = []
+        handler_file = self.root / "core" / "orchestration" / "fsm_handlers.py"
+        if not handler_file.exists():
+            return handlers
+
+        try:
+            content = handler_file.read_text(encoding="utf-8")
+            # Find async def handle_*_async methods
+            pattern = r'async\s+def\s+(handle_\w+_async)'
+            handlers = re.findall(pattern, content)
+        except Exception:
+            pass
+        return handlers
+
+    def _extract_saga_phases(self) -> List[str]:
+        """Extract PHASE_ORDER from saga_manager.py."""
+        phases = []
+        saga_file = self.root / "core" / "hive_mind" / "saga_manager.py"
+        if not saga_file.exists():
+            return phases
+
+        try:
+            content = saga_file.read_text(encoding="utf-8")
+            # Find PHASE_ORDER list
+            match = re.search(r'PHASE_ORDER\s*=\s*\[(.*?)\]', content, re.DOTALL)
+            if match:
+                phase_str = match.group(1)
+                phases = re.findall(r'"(\w+)"', phase_str)
+        except Exception:
+            pass
+        return phases
+
+    def _extract_recovery_strategies(self) -> List[str]:
+        """Extract recovery strategies from health_state_machine.py."""
+        strategies = []
+        health_file = self.root / "core" / "fsm" / "health_state_machine.py"
+        if not health_file.exists():
+            return strategies
+
+        try:
+            content = health_file.read_text(encoding="utf-8")
+            # Find strategy registrations
+            pattern = r'RecoveryStrategy\s*\(\s*name\s*=\s*"(\w+)"'
+            strategies = re.findall(pattern, content)
+        except Exception:
+            pass
+        return strategies
+
 
 # =============================================================================
-# MAP GENERATOR V2 - ENHANCED
+# MAP GENERATOR V2.1 - ENHANCED WITH V8.4.4 SUPPORT
 # =============================================================================
 
 class MapGeneratorV2:
@@ -910,6 +1004,8 @@ class MapGeneratorV2:
             self._generate_llm_drivers_zoom(),
             self._generate_swarm_zoom(),
             self._generate_hive_mind_zoom(),
+            self._generate_async_primitives_zoom(),  # V8.4.4
+            self._generate_blind_spot_remediations_zoom(),  # V8.4.4
             self._generate_evolution_zoom(),
             self._generate_memory_zoom(),
             self._generate_security_zoom(),
@@ -945,13 +1041,15 @@ class MapGeneratorV2:
 3. [ZOOM: LLM Drivers & Routing](#3-zoom-llm-drivers--routing)
 4. [ZOOM: Swarm Engine](#4-zoom-swarm-engine)
 5. [ZOOM: Hive Mind Pipeline](#5-zoom-hive-mind-pipeline)
-6. [ZOOM: Evolution & Spawning](#6-zoom-evolution--spawning)
-7. [ZOOM: Memory Systems](#7-zoom-memory-systems)
-8. [ZOOM: Security & Governance](#8-zoom-security--governance)
-9. [Functional Inventory](#9-functional-inventory)
-10. [Key Dataclasses](#10-key-dataclasses)
-11. [Statistics](#11-statistics)
-12. [Anti-Hallucination Reference](#12-anti-hallucination-reference)
+6. [ZOOM: Async Primitives (V8.4.4)](#6-zoom-async-primitives-v844)
+7. [ZOOM: Blind Spot Remediations (V8.4.4)](#7-zoom-blind-spot-remediations-v844)
+8. [ZOOM: Evolution & Spawning](#8-zoom-evolution--spawning)
+9. [ZOOM: Memory Systems](#9-zoom-memory-systems)
+10. [ZOOM: Security & Governance](#10-zoom-security--governance)
+11. [Functional Inventory](#11-functional-inventory)
+12. [Key Dataclasses](#12-key-dataclasses)
+13. [Statistics](#13-statistics)
+14. [Anti-Hallucination Reference](#14-anti-hallucination-reference)
 
 ---
 """
@@ -1362,8 +1460,176 @@ graph TD
 
 """
 
+    def _generate_async_primitives_zoom(self) -> str:
+        """Generate V8.4.4 Async Primitives section."""
+        primitives = self.structures.get("async_primitives", {})
+        classes = primitives.get("classes", [])
+        files = primitives.get("files", [])
+        async_handlers = self.structures.get("async_handlers", [])
+
+        classes_list = ", ".join(f"`{c}`" for c in classes) if classes else "None found"
+        files_list = ", ".join(f"`{f}`" for f in files) if files else "None found"
+        handlers_list = "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers) if async_handlers else "| None | - |"
+
+        return f"""## 6. ZOOM: Async Primitives (V8.4.4)
+
+### Overview
+
+V8.4.4 introduces a complete async infrastructure for non-blocking operations.
+
+```mermaid
+graph TD
+    subgraph Primitives["core/async_primitives/"]
+        CT[CancellationToken<br/>Hierarchical cancellation]
+        PH[AsyncProcessHandle<br/>Subprocess tracking]
+        RW[AsyncRWLock<br/>Reader-Writer lock]
+        BB[AsyncBlackboard<br/>Shared state + TTL]
+    end
+
+    subgraph Usage["Integration Points"]
+        DRIVERS[Async Drivers] --> CT
+        DRIVERS --> PH
+        HIVE[Hive Mind] --> BB
+        FSM[FSM Handlers] --> RW
+    end
+
+    subgraph Control["Cancellation Flow"]
+        USER[Ctrl+C] --> FACTORY[AsyncDriverFactory]
+        FACTORY --> |cancel_all| CT
+        CT --> |propagate| PH
+        PH --> |terminate| PROC[Subprocess]
+    end
+```
+
+### Async Primitive Classes
+
+| Class | Purpose |
+|-------|---------|
+| `CancellationToken` | Hierarchical cancellation with callbacks |
+| `CancellationTokenSource` | Creates and controls tokens |
+| `AsyncProcessHandle` | Track subprocess by UUID |
+| `ProcessHandleRegistry` | Global registry for cancel_by_uuid |
+| `AsyncRWLock` | Multiple readers OR single writer |
+| `AsyncBlackboard` | Thread-safe shared state with TTL |
+
+**Files**: {files_list}
+**Classes**: {classes_list}
+
+### Async Handlers (FSMHandlers)
+
+| Handler | Purpose |
+|---------|---------|
+{handlers_list}
+
+**Source**: `core/async_primitives/`, `core/orchestration/fsm_handlers.py`
+
+"""
+
+    def _generate_blind_spot_remediations_zoom(self) -> str:
+        """Generate V8.4.4 Blind Spot Remediations section."""
+        health_states = self.structures.get("health_states", [])
+        prediction_levels = self.structures.get("prediction_levels", [])
+        saga_phases = self.structures.get("saga_phases", [])
+        recovery_strategies = self.structures.get("recovery_strategies", [])
+
+        health_table = "\n".join(f"| `{s}` |" for s in health_states) if health_states else "| None |"
+        prediction_table = "\n".join(f"| `{p}` |" for p in prediction_levels) if prediction_levels else "| None |"
+        saga_table = " → ".join(saga_phases) if saga_phases else "Not found"
+        recovery_table = "\n".join(f"| `{s}` |" for s in recovery_strategies) if recovery_strategies else "| None |"
+
+        return f"""## 7. ZOOM: Blind Spot Remediations (V8.4.4)
+
+### Overview
+
+V8.4.4 addresses 6 architectural blind spots with dedicated modules.
+
+```mermaid
+graph TD
+    subgraph P0["P0: NexusJSONEncoder"]
+        JSON[Serialization] --> DT[datetime → isoformat]
+        JSON --> EN[Enum → value]
+        JSON --> UUID[UUID → str]
+    end
+
+    subgraph P2["P2: SagaManager"]
+        SAGA[SagaManager] --> CP[Checkpoint Phase]
+        SAGA --> RB[Rollback + Context Truncation]
+        SAGA --> GD[Phase Guards]
+    end
+
+    subgraph P3["P3: Async Handlers"]
+        ASYNC[FSMHandlers] --> BRA[handle_brainstorming_async]
+        ASYNC --> CFL[handle_validating_cfl_async]
+        ASYNC --> FP[handle_fast_path_async]
+    end
+
+    subgraph P4["P4: HealthStateMachine"]
+        HEALTH[HealthFSM] --> STATES[5 States]
+        HEALTH --> RECOV[Recovery Strategies]
+        STATES --> HEALTHY
+        STATES --> DEGRADED
+        STATES --> CRITICAL
+        STATES --> RECOVERING
+        STATES --> PANIC
+    end
+
+    subgraph P5["P5: StagnationPredictor"]
+        STAG[Predictor] --> IND[Leading Indicators]
+        STAG --> TRAJ[Trajectory Analysis]
+        STAG --> ACT[Prediction Levels]
+    end
+```
+
+### HealthStateMachine States
+
+| State |
+|-------|
+{health_table}
+
+**Transitions**: HEALTHY → DEGRADED (1 error) → CRITICAL (3 errors) → RECOVERING/PANIC
+
+### Recovery Strategies
+
+| Strategy |
+|----------|
+{recovery_table}
+
+### SagaManager Phase Order
+
+```
+{saga_table}
+```
+
+**Features**:
+- Atomic checkpoints via `AtomicJsonStore`
+- Context truncation on rollback (`messages[:checkpoint_index]`)
+- Phase guards before each transition
+
+### StagnationPredictor Levels
+
+| Level |
+|-------|
+{prediction_table}
+
+**Thresholds**: CONTINUE (<0.4) → MONITOR (0.4-0.6) → NUDGE (0.6-0.8) → INTERVENE (>0.8)
+
+### Implementation Summary
+
+| Phase | Module | Lines |
+|-------|--------|-------|
+| P0 | `core/utils/serialization.py` | ~240 |
+| P1 | `core/hive_mind/async_adapter.py` | +80 |
+| P2 | `core/hive_mind/saga_manager.py` | ~640 |
+| P3 | `core/orchestration/fsm_handlers.py` | +290 |
+| P4 | `core/fsm/health_state_machine.py` | ~549 |
+| P5 | `core/fsm/stagnation_predictor.py` | ~476 |
+
+**Source**: `core/hive_mind/saga_manager.py`, `core/fsm/health_state_machine.py`, `core/fsm/stagnation_predictor.py`
+
+"""
+
     def _generate_evolution_zoom(self) -> str:
-        return """## 6. ZOOM: Evolution & Spawning
+        return """## 8. ZOOM: Evolution & Spawning
 
 ### /spawn Flow
 
@@ -1431,7 +1697,7 @@ graph TD
 """
 
     def _generate_memory_zoom(self) -> str:
-        return """## 7. ZOOM: Memory Systems
+        return """## 9. ZOOM: Memory Systems
 
 ### Memory Architecture
 
@@ -1498,7 +1764,7 @@ graph TD
 """
 
     def _generate_security_zoom(self) -> str:
-        return """## 8. ZOOM: Security & Governance
+        return """## 10. ZOOM: Security & Governance
 
 ### Security Architecture
 
@@ -1575,7 +1841,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 
         total_cmds = sum(len(cmds) for cmds in commands.values())
 
-        return f"""## 9. FUNCTIONAL INVENTORY
+        return f"""## 11. FUNCTIONAL INVENTORY
 
 ### Slash Commands ({total_cmds} total)
 
@@ -1607,7 +1873,7 @@ The KERNEL.py file is the **immutable alignment core** that:
         if len(enums) > 25:
             enum_list += f" (+{len(enums)-25} more)"
 
-        return f"""## 10. KEY DATACLASSES
+        return f"""## 12. KEY DATACLASSES
 
 ### Core Dataclasses
 
@@ -1642,7 +1908,7 @@ The KERNEL.py file is the **immutable alignment core** that:
             bar = "#" * bar_len
             loc_chart.append(f"{comp.name:<15} | {bar} {comp.total_loc:,}")
 
-        return f"""## 11. STATISTICS
+        return f"""## 13. STATISTICS
 
 ### Codebase Metrics
 
@@ -1682,7 +1948,7 @@ The KERNEL.py file is the **immutable alignment core** that:
         hive_states = self.structures.get("hive_states", [])
         swarm_modes = self.structures.get("swarm_modes", [])
 
-        return f"""## 12. ANTI-HALLUCINATION REFERENCE
+        return f"""## 14. ANTI-HALLUCINATION REFERENCE
 
 ### Verified Structures
 

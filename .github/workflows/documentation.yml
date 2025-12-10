@@ -9,12 +9,13 @@
 # - Auto-generate architecture map on code changes
 #
 # V8.3.2: Replaces architecture-map.yml with unified doc_engine.py
+# V8.4.4: Added N9AF branch support, enhanced doc_engine coverage
 
 name: Documentation Sync
 
 on:
   push:
-    branches: [N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, main]
     paths:
       # Trigger on version change
       - '.env'
@@ -22,13 +23,15 @@ on:
       - 'core/**/*.py'
       # Trigger on doc engine changes
       - 'scripts/doc_engine.py'
+      # Trigger on prompt doc changes
+      - 'CLAUDE_PROMPTDOC.md'
       # Don't trigger on generated docs (avoid infinite loop)
       - '!docs/ARCHITECTURE_MAP_GENERATED.md'
       - '!README.md'
       - '!CLAUDE.md'
 
   pull_request:
-    branches: [N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, main]
     paths:
       - '.env'
       - 'core/**/*.py'

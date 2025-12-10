@@ -1,17 +1,18 @@
-# NEXUS V8.0 TRUE HIVE MIND - CI/CD Pipeline
+# NEXUS V8.4 TRUE HIVE MIND - CI/CD Pipeline
 #
 # This workflow runs tests on push and pull requests.
 # LLM tests are skipped via SKIP_LLM_TESTS=1 (no API credentials in CI).
 #
 # V8.0.2: Initial CI setup
+# V8.4.4: Added N9AF branch support
 
 name: NEXUS CI
 
 on:
   push:
-    branches: [N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, main]
   pull_request:
-    branches: [N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, main]
 
 jobs:
   test:
