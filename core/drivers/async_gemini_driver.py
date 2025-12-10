@@ -1,0 +1,409 @@
+"""
+AsyncGeminiDriver - TRUE Non-blocking Gemini CLI Driver.
+
+NEXUS V9.0 Async-First Architecture
+
+Same architecture as AsyncClaudeDriver:
+- asyncio.create_subprocess_exec (NOT subprocess.Popen)
+- async for line in proc.stdout (NOT iter(readline))
+- AsyncProcessHandle tracking by session_uuid
+- session_uuid isolation via --resume {uuid}
+
+Key Gemini-specific features:
+- JSON strict mode (--output-format json)
+- Session persistence (--resume {uuid})
+- YOLO approval mode (--approval-mode yolo)
+- Tool restrictions (--allowed-tools)
+
+Usage:
+    driver = AsyncGeminiDriver(config)
+
+    # With session isolation
+    result = await driver.invoke(context, session_uuid="abc123")
+
+    # Streaming
+    async for chunk in driver.invoke_stream(context, session_uuid="abc123"):
+        print(chunk, end="")
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import shutil
+import platform
+import uuid as uuid_module
+import sys
+from pathlib import Path
+from datetime import datetime
+from typing import AsyncIterator, Optional, Dict, Any, Callable
+from dataclasses import dataclass, field
+
+from core.async_primitives import CancellationToken, AsyncProcessHandle
+from core.async_primitives.process_handle import get_process_registry
+from core.agents.unified_registry import get_registry
+from core.utils.json_extractor import extract_json_safe as robust_extract_json
+
+
+@dataclass
+class AsyncGeminiDriverConfig:
+    """Configuration for AsyncGeminiDriver."""
+    cli_path: str = "gemini"
+    timeout: float = 300.0
+    model: str = "gemini-3-pro-preview"
+    workspace_path: Path = field(default_factory=Path.cwd)
+    verbose: bool = False
+    use_session_resume: bool = True
+    approval_mode: str = "yolo"
+    allowed_tools: str = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
+
+
+class AsyncGeminiDriver:
+    """
+    TRUE Async Gemini CLI Driver.
+
+    Key differences from sync GeminiDriverV7:
+    - Uses asyncio.create_subprocess_exec (NOT subprocess.Popen)
+    - Uses async for line in proc.stdout (NOT iter(readline))
+    - Tracks processes by session_uuid via AsyncProcessHandle
+    - Properly handles asyncio.CancelledError with re-raise
+
+    Session Management:
+    - When session_uuid is provided: uses --resume {uuid} for isolation
+    - Without session_uuid: uses --resume latest for continuity
+    - First invocation creates new session (no --resume)
+    """
+
+    def __init__(self, config: AsyncGeminiDriverConfig):
+        """
+        Initialize async Gemini driver.
+
+        Args:
+            config: Driver configuration
+        """
+        self.config = config
+        self.workspace_path = Path(config.workspace_path)
+        self.io_buffer = self.workspace_path / "_IO_BUFFER"
+        self.io_buffer.mkdir(exist_ok=True)
+
+        # Track active processes by UUID
+        self._active_handles: Dict[str, AsyncProcessHandle] = {}
+
+        # Session state for --resume latest
+        self._session_active = False
+
+        # Global registry
+        self._registry = get_process_registry()
+
+    async def invoke(
+        self,
+        context: str,
+        *,
+        session_uuid: Optional[str] = None,
+        token: Optional[CancellationToken] = None,
+        task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Non-blocking invoke that collects full response.
+
+        Args:
+            context: Markdown context with system prompt
+            session_uuid: Unique ID for session isolation (from SwarmSessionManager)
+            token: CancellationToken for graceful cancellation
+            task_id: Optional task ID for tracking
+
+        Returns:
+            Dict structured NEXUS response (JSON parsed)
+        """
+        chunks = []
+        async for chunk in self.invoke_stream(
+            context,
+            session_uuid=session_uuid,
+            token=token,
+            task_id=task_id
+        ):
+            chunks.append(chunk)
+
+        full_response = "".join(chunks)
+        return self._extract_and_parse_json(full_response)
+
+    async def invoke_stream(
+        self,
+        context: str,
+        *,
+        session_uuid: Optional[str] = None,
+        token: Optional[CancellationToken] = None,
+        task_id: Optional[str] = None,
+        on_token: Optional[Callable[[str], None]] = None,
+    ) -> AsyncIterator[str]:
+        """
+        TRUE Non-blocking streaming invoke.
+
+        Args:
+            context: Markdown context with system prompt
+            session_uuid: Unique ID for session isolation
+            token: CancellationToken for graceful cancellation
+            task_id: Optional task ID for tracking
+            on_token: Optional callback for each token
+
+        Yields:
+            Text chunks as they arrive from Gemini CLI
+        """
+        token = token or CancellationToken()
+        unique_id = session_uuid or str(uuid_module.uuid4())[:8]
+
+        # Write context to isolated file
+        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
+        context_file.write_text(context, encoding="utf-8")
+
+        # Use relative path for subprocess (cwd will be workspace)
+        context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
+
+        # Find CLI executable
+        cli_executable = shutil.which(str(self.config.cli_path))
+        if not cli_executable:
+            cli_executable = str(self.config.cli_path)
+
+        # Calculate NEXUS root for --include-directories
+        nexus_root = self._get_nexus_root()
+
+        # Build command parts
+        cmd = [
+            cli_executable,
+            "-m", self.config.model,
+            "--approval-mode", self.config.approval_mode,
+            "--allowed-tools", self.config.allowed_tools,
+            "--include-directories", str(nexus_root),
+        ]
+
+        # Session isolation via --resume
+        if session_uuid:
+            cmd.extend(["--resume", session_uuid])
+            if self.config.verbose:
+                print(f"[AsyncGeminiDriver] Using session isolation: {session_uuid[:8]}...", file=sys.stderr)
+        elif self.config.use_session_resume and self._session_active:
+            cmd.extend(["--resume", "latest"])
+
+        # Add prompt file and output format
+        cmd.extend(["-p", f"@{context_file_relative}", "-o", "json"])
+
+        handle: Optional[AsyncProcessHandle] = None
+
+        try:
+            # TRUE ASYNC: create_subprocess_exec
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(self.workspace_path),
+            )
+
+            # Track by UUID
+            handle = AsyncProcessHandle(
+                proc=proc,
+                session_uuid=unique_id,
+                task_id=task_id,
+                agent_id="gemini",
+                created_at=datetime.now()
+            )
+            self._active_handles[unique_id] = handle
+            await self._registry.register(handle)
+
+            # Register cancellation callback
+            async def cancel_process():
+                if handle and handle.is_running:
+                    await handle.terminate_gracefully()
+
+            token.on_cancel(lambda: asyncio.create_task(cancel_process()))
+
+            if self.config.verbose:
+                print(f"[AsyncGeminiDriver] Started process pid={proc.pid}, uuid={unique_id[:8]}", file=sys.stderr)
+
+            # TRUE ASYNC STREAMING
+            start_time = datetime.now()
+            async for line_bytes in proc.stdout:
+                token.check()
+
+                # Check timeout
+                elapsed = (datetime.now() - start_time).total_seconds()
+                if elapsed > self.config.timeout:
+                    await handle.terminate_gracefully()
+                    raise TimeoutError(f"Gemini CLI timed out after {self.config.timeout}s")
+
+                line = line_bytes.decode('utf-8', errors='replace')
+                if line:
+                    yield line
+                    if on_token:
+                        on_token(line)
+
+            # Wait for process completion
+            await proc.wait()
+
+            if proc.returncode != 0:
+                stderr_bytes = await proc.stderr.read()
+                stderr = stderr_bytes.decode('utf-8', errors='replace')
+                raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {stderr}")
+
+            # Mark session as active for future --resume latest
+            if self.config.use_session_resume:
+                self._session_active = True
+
+            if self.config.verbose:
+                print(f"[AsyncGeminiDriver] Process completed, code={proc.returncode}", file=sys.stderr)
+
+        except asyncio.CancelledError:
+            if self.config.verbose:
+                print(f"[AsyncGeminiDriver] Cancelled, cleaning up...", file=sys.stderr)
+            raise
+
+        finally:
+            # Cleanup
+            if handle and handle.is_running:
+                await handle.terminate_gracefully()
+
+            self._active_handles.pop(unique_id, None)
+            await self._registry.unregister(unique_id)
+
+            try:
+                if context_file.exists():
+                    context_file.unlink()
+            except Exception:
+                pass
+
+    async def cancel_by_uuid(self, session_uuid: str) -> bool:
+        """Cancel a specific task by its session UUID."""
+        handle = self._active_handles.get(session_uuid)
+        if handle:
+            await handle.terminate_gracefully()
+            self._active_handles.pop(session_uuid, None)
+            await self._registry.unregister(session_uuid)
+            return True
+        return False
+
+    async def cancel_all(self) -> int:
+        """Cancel all active processes."""
+        count = 0
+        for uuid_key in list(self._active_handles.keys()):
+            handle = self._active_handles.pop(uuid_key, None)
+            if handle and handle.is_running:
+                await handle.terminate_gracefully()
+                await self._registry.unregister(uuid_key)
+                count += 1
+        return count
+
+    @property
+    def active_process_count(self) -> int:
+        """Get count of active processes."""
+        return sum(1 for h in self._active_handles.values() if h.is_running)
+
+    def list_active_processes(self) -> list[Dict[str, Any]]:
+        """List all active processes."""
+        return [h.to_dict() for h in self._active_handles.values() if h.is_running]
+
+    def _get_nexus_root(self) -> Path:
+        """Calculate NEXUS root directory for --include-directories."""
+        resolved_workspace = self.workspace_path.resolve()
+        parent_dir = resolved_workspace.parent
+        grandparent = parent_dir.parent
+
+        # Handle child workspaces in GENERATION_ACTIVE
+        if grandparent.name == "GENERATION_ACTIVE":
+            return grandparent.parent
+        return grandparent
+
+    def _extract_and_parse_json(self, output_text: str) -> Dict[str, Any]:
+        """
+        Extract and parse JSON from Gemini output.
+
+        Gemini CLI returns JSON wrapped in {"response": "...", "stats": {...}}
+        The actual NEXUS JSON is inside response["response"] as string.
+        """
+        try:
+            gemini_output = json.loads(output_text)
+
+            # Handle wrapper format
+            if "response" in gemini_output and isinstance(gemini_output["response"], str):
+                result, error = robust_extract_json(gemini_output["response"], verbose=True)
+                if result is not None:
+                    return self._normalize_response(result)
+            else:
+                return self._normalize_response(gemini_output)
+
+        except json.JSONDecodeError:
+            # Try to extract JSON from text
+            result, error = robust_extract_json(output_text, verbose=True)
+            if result is not None:
+                return self._normalize_response(result)
+
+        # Fallback for extraction failure
+        registry = get_registry()
+        return {
+            "sender": registry.get_display_name("gemini"),
+            "action_type": "TALK",
+            "content": f"[JSON extraction failed - raw response]\n{output_text[:1000]}",
+            "status": "CONTINUE",
+            "next_agent": registry.get_alternate("gemini"),
+            "_json_extraction_failed": True,
+        }
+
+    def _normalize_response(self, data: Any) -> Dict[str, Any]:
+        """Normalize response to standard NEXUS format."""
+        registry = get_registry()
+
+        # Handle list response (Evolution Mutations)
+        if isinstance(data, list):
+            return {
+                "sender": registry.get_display_name("gemini"),
+                "action_type": "TALK",
+                "content": json.dumps(data),
+                "status": "FINISHED",
+                "next_agent": registry.get_alternate("gemini"),
+            }
+
+        # Ensure required fields
+        if isinstance(data, dict):
+            if "sender" not in data:
+                data["sender"] = registry.get_display_name("gemini")
+            if "action_type" not in data:
+                data["action_type"] = "TALK"
+            if "status" not in data:
+                data["status"] = "CONTINUE"
+            if "next_agent" not in data:
+                data["next_agent"] = registry.get_alternate("gemini")
+            return data
+
+        # Fallback for unexpected format
+        return {
+            "sender": registry.get_display_name("gemini"),
+            "action_type": "TALK",
+            "content": str(data),
+            "status": "CONTINUE",
+            "next_agent": registry.get_alternate("gemini"),
+        }
+
+
+# Factory function
+def create_async_gemini_driver(
+    config: Any,
+    workspace_path: Path,
+    model: Optional[str] = None
+) -> AsyncGeminiDriver:
+    """
+    Create an AsyncGeminiDriver from a NEXUS config object.
+
+    Args:
+        config: NEXUS config object
+        workspace_path: Workspace path for file I/O
+        model: Optional model override
+
+    Returns:
+        Configured AsyncGeminiDriver
+    """
+    return AsyncGeminiDriver(AsyncGeminiDriverConfig(
+        cli_path=getattr(config, 'gemini_cli_path', 'gemini'),
+        timeout=getattr(config, 'timeout', 300.0),
+        model=model or getattr(config, 'gemini_default_model', 'gemini-3-pro-preview'),
+        workspace_path=workspace_path,
+        verbose=getattr(config, 'verbose', False),
+        use_session_resume=getattr(config, 'gemini_persistent_mode', True),
+    ))
