@@ -219,6 +219,11 @@ class DriverBridge:
     """
     Bridge that wraps async drivers to look like sync drivers.
 
+    .. deprecated:: V8.4.4
+        Use async drivers directly with `await driver.invoke()` or
+        `driver.invoke_sync()` for sync fallback. DriverBridge will
+        be removed in V9.0.
+
     This allows gradual migration - phases can use the bridge
     until they're updated to use async drivers directly.
 
@@ -238,7 +243,19 @@ class DriverBridge:
         Args:
             async_driver: AsyncClaudeDriver or AsyncGeminiDriver
             loop: Event loop to use (or get running loop)
+
+        .. deprecated:: V8.4.4
+            Use `driver.invoke_sync()` instead of DriverBridge.
         """
+        import warnings
+        warnings.warn(
+            "DriverBridge is deprecated since V8.4.4. "
+            "Use async drivers directly with `await driver.invoke()` or "
+            "`driver.invoke_sync()` for sync fallback. "
+            "DriverBridge will be removed in V9.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.async_driver = async_driver
         self._loop = loop
 
@@ -248,6 +265,9 @@ class DriverBridge:
 
         WARNING: This blocks the calling thread. Only for
         backwards compatibility during migration.
+
+        .. deprecated:: V8.4.4
+            Use `driver.invoke_sync()` instead.
         """
         loop = self._loop or asyncio.get_event_loop()
 

@@ -382,6 +382,46 @@ class AsyncGeminiDriver:
         }
 
 
+    def invoke_sync(
+        self,
+        context: str,
+        *,
+        session_uuid: Optional[str] = None,
+        task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Synchronous invoke for backward compatibility.
+
+        DEPRECATED: Use `await invoke()` for async code.
+
+        This method runs the async invoke in a new event loop.
+        It's intended for gradual migration from sync to async.
+
+        Args:
+            context: Markdown context with system prompt
+            session_uuid: Unique ID for session isolation
+            task_id: Optional task ID for tracking
+
+        Returns:
+            Dict structured NEXUS response (JSON parsed)
+
+        .. deprecated:: V8.4.4
+            Use `await driver.invoke()` in async code.
+        """
+        import warnings
+        warnings.warn(
+            "invoke_sync() is deprecated since V8.4.4. "
+            "Use `await driver.invoke()` in async code.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return asyncio.run(self.invoke(
+            context,
+            session_uuid=session_uuid,
+            task_id=task_id
+        ))
+
+
 # Factory function
 def create_async_gemini_driver(
     config: Any,

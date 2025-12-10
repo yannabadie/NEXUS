@@ -26,6 +26,12 @@ from .async_utils import (
     get_or_create_event_loop,
     run_in_thread,
 )
+from .serialization import (
+    NexusJSONEncoder,
+    nexus_dumps,
+    nexus_loads,
+    serialize_for_checkpoint,
+)
 
 __all__ = [
     "ArtifactVerifier",
@@ -45,4 +51,8 @@ __all__ = [
     "run_sync",
     "get_or_create_event_loop",
     "run_in_thread",
+    "NexusJSONEncoder",
+    "nexus_dumps",
+    "nexus_loads",
+    "serialize_for_checkpoint",
 ]

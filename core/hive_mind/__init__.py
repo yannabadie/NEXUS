@@ -78,6 +78,13 @@ from .swarm_bridge import (
     suggest_mode_for_subtask,
     create_bridge_for_phase,
 )
+from .saga_manager import (
+    SagaManager,
+    PhaseCheckpoint,
+    SagaContext,
+    PHASE_ORDER,
+    PHASE_GUARDS,
+)
 
 __all__ = [
     # Enums
@@ -123,4 +130,11 @@ __all__ = [
     "HivePhase",
     "suggest_mode_for_subtask",
     "create_bridge_for_phase",
+
+    # V8.4.4 SagaManager - Checkpoint/Recovery
+    "SagaManager",
+    "PhaseCheckpoint",
+    "SagaContext",
+    "PHASE_ORDER",
+    "PHASE_GUARDS",
 ]
