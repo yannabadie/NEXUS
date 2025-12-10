@@ -1097,3 +1097,293 @@ class FSMHandlers:
                 "finished": True,
                 "fast_path": True
             }
+
+    # =========================================================================
+    # V8.4.4: Async Native Handlers (P3 - Blind Spot Remediation)
+    # =========================================================================
+    #
+    # These async handlers run WITHOUT blocking the event loop.
+    # They use `await` for driver invocations instead of sync calls.
+    #
+    # Usage:
+    #     # In async context (e.g., orchestrator.process_turn_async)
+    #     result = await handlers.handle_brainstorming_async()
+    #
+    # The sync handlers above remain for backward compatibility.
+    # The orchestrator chooses which version to use based on context.
+    # =========================================================================
+
+    async def handle_brainstorming_async(self) -> Dict:
+        """
+        Async version of handle_brainstorming.
+
+        V8.4.4: Uses `await driver.invoke()` instead of sync call,
+        allowing the event loop to remain responsive.
+
+        Returns:
+            Result dict
+        """
+        import asyncio
+
+        # Check plan health (ZOMBIE detection) - sync, fast
+        current_plan = self._orch.blackboard.get("strategic_plan", [])
+        health = self._orch.plan_health.check_health(current_plan, self._orch.iteration)
+
+        if health["status"] == "ZOMBIE":
+            self._orch.panic_system.trigger_panic_explicit(
+                reason="ZOMBIE_PLAN",
+                details=health["message"]
+            )
+            return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
+
+        elif health["status"] in ["STAGNANT", "WARNING"]:
+            if self._orch.config.ui_verbose:
+                print(f"[PLAN HEALTH] {health['status']}: {health['message']}")
+
+        # Check stagnation - sync, fast
+        if self._orch.stagnation_detector.is_stagnant():
+            return self._orch._handle_stagnation()
+
+        # Build context - sync, fast
+        context = self._build_context()
+        invoke_start = time.time()
+
+        try:
+            # ASYNC INVOKE: This is the key difference from sync handler
+            response = await self._invoke_agent_async(TaskType.BRAINSTORM, context)
+            invoke_duration = time.time() - invoke_start
+            message = self._validate_message(response)
+            self._orch.json_parse_failures = 0
+            self._orch.panic_system.reset_errors()
+
+            # Calculate quality score
+            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            quality = self._calculate_quality_score(message, True, is_stagnant)
+            self._record_invocation(
+                self._orch.active_agent, "brainstorm", True, invoke_duration, quality
+            )
+
+        except asyncio.CancelledError:
+            # Re-raise cancellation (critical for proper cleanup)
+            raise
+
+        except Exception as e:
+            invoke_duration = time.time() - invoke_start
+            self._orch.json_parse_failures += 1
+            self._record_invocation(
+                self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0
+            )
+
+            if self._orch.panic_system.record_error("AGENT_INVOCATION", str(e)):
+                return self._orch._trigger_panic(f"Too many consecutive errors: {e}")
+
+            if self._orch.json_parse_failures >= self._orch.max_parse_failures:
+                return self._orch._trigger_panic(f"Agent consistently failing: {e}")
+
+            return self._orch._handle_error(f"Agent invocation failed: {e}")
+
+        # Save to history
+        self._orch.memory.add_to_history(message)
+
+        # Analyze action_type
+        action_type = message.get("action_type")
+        content = message.get("content", "")
+
+        if action_type == "TOOL_USE":
+            self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
+            tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
+            return self._make_result("EXECUTING_TOOL", content, self._orch.active_agent, False, tool=tool_name)
+
+        elif action_type in ["TALK", "DELEGATE"]:
+            self._orch.stagnation_detector.add_message(content)
+            sender = message.get("sender", self._orch.active_agent)
+
+            previous_agent = self._orch.active_agent
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
+            self._orch.stagnation_detector.reset()
+            if self._orch.config.ui_verbose:
+                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+
+            return self._make_result("BRAINSTORMING", content, sender, False)
+
+        elif message.get("status") == "FINISHED":
+            self._orch._transition_to(OrchestratorState.IDLE)
+            return self._make_result("FINISHED", content, self._orch.active_agent, True)
+
+        return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
+
+    async def handle_validating_cfl_async(self) -> Dict:
+        """
+        Async version of handle_validating_cfl.
+
+        V8.4.4: Uses `await driver.invoke()` for CFL validation.
+
+        Returns:
+            Result dict
+        """
+        import asyncio
+
+        tool_result = self._orch.pending_tool_result
+        if not tool_result:
+            return self._orch._handle_error("No pending tool result for CFL")
+
+        context = self._build_cfl_context(tool_result)
+        invoke_start = time.time()
+
+        try:
+            # ASYNC INVOKE
+            response = await self._invoke_agent_async(TaskType.VALIDATION, context)
+            invoke_duration = time.time() - invoke_start
+            message = self._validate_message(response)
+            self._orch.json_parse_failures = 0
+
+            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            quality = self._calculate_quality_score(message, True, is_stagnant)
+            self._record_invocation(
+                self._orch.active_agent, "validation", True, invoke_duration, quality
+            )
+
+        except asyncio.CancelledError:
+            raise
+
+        except Exception as e:
+            invoke_duration = time.time() - invoke_start
+            self._orch.json_parse_failures += 1
+            self._record_invocation(
+                self._orch.active_agent, "validation", False, invoke_duration, 0.0
+            )
+
+            if self._orch.json_parse_failures >= self._orch.max_parse_failures:
+                return self._orch._trigger_panic(f"CFL validation failing: {e}")
+
+            return self._orch._handle_error(f"CFL validation failed: {e}")
+
+        self._orch.memory.add_to_history(message)
+        self._orch.pending_tool_result = None
+
+        action_type = message.get("action_type")
+        content = message.get("content", "")
+
+        if action_type == "TOOL_USE":
+            self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
+            tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
+            return self._make_result("EXECUTING_TOOL", content, self._orch.active_agent, False, tool=tool_name)
+
+        elif message.get("status") == "FINISHED":
+            self._orch._transition_to(OrchestratorState.IDLE)
+            return self._make_result("FINISHED", content, self._orch.active_agent, True)
+
+        else:
+            self._orch._transition_to(OrchestratorState.BRAINSTORMING)
+            previous_agent = self._orch.active_agent
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
+            if self._orch.config.ui_verbose:
+                print(f"[CFL] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+            return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
+
+    async def handle_fast_path_async(self, user_input: str) -> Dict:
+        """
+        Async version of handle_fast_path.
+
+        V8.4.4: Uses async driver for fast conversational responses.
+
+        Args:
+            user_input: Trivial conversational input
+
+        Returns:
+            Result dict with FINISHED status
+        """
+        self._logger.debug("Fast Path (async) triggered", {"input": user_input[:50]})
+
+        fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
+
+        try:
+            context = {
+                "prompt": fast_prompt,
+                "task_type": "simple",
+                "max_tokens": 150,
+            }
+            # ASYNC INVOKE
+            response = await self._invoke_agent_async(TaskType.SIMPLE, context, agent="gemini")
+
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
+            self._logger.debug("Fast Path (async) response", {"length": len(content)})
+
+            return {
+                "sender": "Gemini",
+                "action_type": "TALK",
+                "content": content,
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True,
+                "async": True
+            }
+
+        except Exception as e:
+            self._logger.warning("Fast Path (async) failed, falling back to static", {"error": str(e)})
+            return {
+                "sender": "NEXUS",
+                "action_type": "TALK",
+                "content": "Hello! How can I help you today?",
+                "status": "FINISHED",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True
+            }
+
+    async def _invoke_agent_async(
+        self,
+        task_type: TaskType,
+        context: str,
+        agent: str = None
+    ) -> Dict:
+        """
+        Async agent invocation using async drivers.
+
+        V8.4.4: This method uses `await` to invoke drivers without blocking.
+
+        Args:
+            task_type: Type of task for model routing
+            context: Prompt context
+            agent: Specific agent to use (or active_agent)
+
+        Returns:
+            Agent response dict
+        """
+        agent = agent or self._orch.active_agent
+
+        # Check for async driver availability
+        if agent == "gemini" and hasattr(self._orch, 'async_gemini_driver'):
+            driver = self._orch.async_gemini_driver
+            return await driver.invoke(context)
+
+        elif agent == "claude" and hasattr(self._orch, 'async_claude_driver'):
+            driver = self._orch.async_claude_driver
+            return await driver.invoke(context)
+
+        else:
+            # Fallback: run sync driver in executor to not block
+            import asyncio
+            loop = asyncio.get_event_loop()
+
+            if agent == "gemini":
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._orch.gemini_driver.invoke(context)
+                )
+            else:
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._orch.claude_driver.invoke(context)
+                )
+
+    # Property to check if async handlers are available
+    @property
+    def has_async_handlers(self) -> bool:
+        """Check if async handlers are available."""
+        return True  # V8.4.4: Always available
