@@ -23,23 +23,34 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Tests | 1,126+ |
 | Phases complétées | 16 (V8.3.3) |
 
-### Audit Gemini (2025-12-10)
+### Audit Gemini (2025-12-10) + Feedback Consolidé
 
-**Source**: `audit/CLAUDE_audit10122025.md`
+**Source**: `audit/CLAUDE_audit10122025.md` + Cross-review Claude Web + Gemini
 
-| Faille | Sévérité | Status | Cible |
-|--------|----------|--------|-------|
-| FL-001: Race Condition ThreadPoolExecutor | P0 | ✅ **DONE** | V8.3.4 |
-| FL-002: False Positives "DONE" detection | P1 | ✅ **DONE** | V8.3.4 |
-| FL-004: Exception Swallowing (390x) | P1 | **PLANNED** | V8.5.3 |
-| FL-005: Hardcoded Agent Lookups (20+) | P1 | **PLANNED** | V8.5.0 |
-| FL-006: DyLAN Score Non-Normalisé | P2 | **BACKLOG** | - |
-| P1-3: print(stderr) → structured logger | P1 | **DEFERRED** | V8.4 |
+| Faille | Sévérité | Status | Cible | Notes |
+|--------|----------|--------|-------|-------|
+| FL-001: Race Condition ThreadPoolExecutor | P0 | ✅ **DONE** | V8.3.4 | Lock ajouté (tests charge: V8.3.5) |
+| FL-002: False Positives "DONE" detection | P1 | ✅ **DONE** | V8.3.4 | Regex word boundaries |
+| FL-004: Exception Swallowing (390x) | P1 | **PLANNED** | V8.5.3 | Audit progressif |
+| FL-005: Hardcoded Agent Lookups (20+) | P1 | **PLANNED** | V8.4.0 | ⬆️ Remonté (bloque Ollama) |
+| FL-006: DyLAN Score Non-Normalisé | P2 | **BACKLOG** | - | Impact faible |
+| P1-3: print(stderr) → structured logger | P1 | **DEFERRED** | V8.5 | Non-bloquant |
 
-**Rejetés de l'audit**:
-- SDK native drivers par défaut (CLI intentionnel pour coût 0)
-- Dependency Injection container externe (over-engineering)
-- REST API / Docker K8s (hors scope CLI tool)
+**Feedback Consolidé (Gemini + Claude Web 2025-12-10)**:
+
+| Proposition | Verdict Original | Révision | Raison |
+|-------------|------------------|----------|--------|
+| SDK native drivers | ❌ Rejeté | ✅ **OPTIONNEL** | CLI = coût 0, SDK = option pour API users |
+| `asyncio.create_subprocess_exec` | Non mentionné | ✅ **ADOPTÉ V8.4** | Garde CLI, débloque event loop |
+| DI Container externe | ❌ Rejeté | ✅ **Factory Pattern natif** | Pas de lib, juste ServiceFactory |
+| AgentRegistry | V8.5.0 | ⬆️ **V8.4.0** | Bloque Ollama si pas fait avant |
+| REST API | ❌ Rejeté | ⏸️ **V9.0+** | Valide pour V8.x, enterprise later |
+| FL-001 effort | 30min | ⚠️ **4-6h** | Tests charge + deadlock check |
+
+**Rejetés définitivement**:
+- DI lib externe (dependency-injector) → Factory pattern natif suffit
+- REST API pour V8.x → Hors scope CLI, V9.0+ si enterprise
+- Docker/K8s obligatoire → Nice-to-have, pas bloquant
 
 ### Composants Stables ✅
 
@@ -1615,14 +1626,16 @@ def sync_state(hive_state: HiveMindState) -> OrchestratorState:
 
 ---
 
-## Roadmap V8.5 (Architecture Cleanup) [FROM GEMINI AUDIT]
+## Roadmap V8.4 (Pre-Ollama Prep) [FROM FEEDBACK CONSOLIDÉ]
 
-> **Status**: Post-V8.3.4, architectural improvements from audit
-> **Source**: `audit/CLAUDE_audit10122025.md`
+> **Status**: PRIORITAIRE - Bloque V8.4.2 Local Model Support (Ollama)
+> **Source**: Feedback Gemini + Claude Web (2025-12-10)
 
-### V8.5.0 - AgentRegistry Abstraction [Priority: P1]
+### V8.4.0 - AgentRegistry Abstraction [Priority: P0] ⬆️ REMONTÉ
 
 **Objectif** : Éliminer les 20+ hardcoded agent lookups (FL-005)
+
+**⚠️ BLOQUANT**: Sans AgentRegistry, impossible d'ajouter Ollama comme 3ème provider!
 
 **Problème actuel**:
 ```python
@@ -1631,9 +1644,8 @@ if agent == "Claude":
     # ...
 elif agent == "Gemini":
     # ...
+# Ollama? 🤷 Faut tout refactorer!
 ```
-
-**Impact**: Impossible d'ajouter un 3ème agent principal sans refactoring massif
 
 **Solution proposée**:
 ```python
@@ -1653,6 +1665,10 @@ class AgentRegistry:
 
     def iterate_all(self) -> Iterator[AgentProfile]:
         yield from self._agents.values()
+
+# Usage après refactor:
+for agent in registry.iterate_all():
+    agent.invoke(context)  # Works for Claude, Gemini, Ollama, etc.
 ```
 
 | Tâche | Effort | Status |
@@ -1670,9 +1686,140 @@ class AgentRegistry:
 
 ---
 
-### V8.5.1 - Split mode_executors.py [Priority: P1]
+### V8.4.1 - Async CLI Optimization [Priority: P1] 🆕 FROM FEEDBACK
+
+**Objectif** : Débloquer l'event loop tout en gardant CLI (coût 0)
+
+**Contexte** (Feedback Gemini 2025-12-10):
+> "Même si on garde le CLI, on peut optimiser l'appel. `asyncio.create_subprocess_exec`
+> est bien meilleur que `subprocess.run` (bloquant). C'est le compromis idéal."
+
+**Problème actuel**:
+```python
+# core/drivers/gemini_driver_v7.py - BLOQUANT
+result = subprocess.run(
+    ["gemini", "-p", prompt],
+    capture_output=True,
+    timeout=self.timeout
+)
+# L'event loop est bloquée pendant l'appel CLI!
+```
+
+**Solution** (garde CLI, débloque event loop):
+```python
+# core/drivers/gemini_driver_v7.py - NON-BLOQUANT
+async def invoke_async(self, context: str, session_uuid: Optional[str] = None) -> Dict:
+    """True async CLI call - event loop not blocked."""
+    proc = await asyncio.create_subprocess_exec(
+        self.cli_path, "-m", self.model, "-p", f"@{context_file}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    return self._parse_output(stdout.decode())
+```
+
+**Avantages**:
+- ✅ Garde CLI (coût 0, pas d'API keys)
+- ✅ Event loop non bloquée (vrai PARALLEL)
+- ✅ Même interface que subprocess.run
+- ✅ Compatible avec asyncio.gather()
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| `gemini_driver_v7.py` → `invoke_async()` | 2h | PLANNED |
+| `claude_driver_hybrid.py` → `invoke_async()` | 2h | PLANNED |
+| Adapter ParallelExecutor pour async | 2h | PLANNED |
+| Tests async drivers | 2h | PLANNED |
+| Benchmark subprocess vs async | 1h | PLANNED |
+
+---
+
+### V8.4.2 - ServiceFactory Pattern [Priority: P2] 🆕 FROM FEEDBACK
+
+**Objectif** : Découpler OrchestratorV7 sans lib externe
+
+**Contexte** (Feedback Claude Web 2025-12-10):
+> "Pas besoin de lib externe (dependency-injector). Un simple pattern factory suffit."
+
+**Problème actuel** (God Object OrchestratorV7):
+```python
+# core/orchestration_v7.py - 250+ lignes d'init!
+class OrchestratorV7:
+    def __init__(self, config, workspace, ...):
+        self.gemini_driver = GeminiDriver(...)
+        self.claude_driver = ClaudeDriver(...)
+        self.memory = MemoryManager(...)
+        self.swarm = SwarmEngine(...)
+        # ... 20+ autres dépendances créées inline
+```
+
+**Solution** (Factory Pattern natif):
+```python
+# core/factory.py (NOUVEAU - pas de lib externe)
+class ServiceFactory:
+    """Factory pattern natif pour découpler OrchestratorV7."""
+
+    @staticmethod
+    def create_drivers(config, workspace) -> Dict[str, BaseDriver]:
+        return {
+            "gemini": GeminiDriver(config.gemini_model, workspace),
+            "claude": ClaudeDriver(config.claude_model, workspace),
+            # Ollama ajouté facilement ici!
+        }
+
+    @staticmethod
+    def create_memory(workspace, config) -> MemoryManager:
+        return MemoryManager(workspace, config.memory_backend)
+
+    @staticmethod
+    def create_orchestrator(config, workspace) -> OrchestratorV7:
+        drivers = ServiceFactory.create_drivers(config, workspace)
+        memory = ServiceFactory.create_memory(workspace, config)
+        return OrchestratorV7(drivers=drivers, memory=memory, ...)
+```
+
+**Avantages**:
+- ✅ Pas de dépendance externe
+- ✅ Testabilité (mock les factories)
+- ✅ Découplage (OrchestratorV7 reçoit ses deps)
+- ✅ Extensibilité (ajouter Ollama = 1 ligne)
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `core/factory.py` | 2h | PLANNED |
+| Refactor OrchestratorV7.__init__ | 4h | PLANNED |
+| Tests factory | 2h | PLANNED |
+
+---
+
+### V8.4.3 - Local Model Support (Ollama) [Priority: P2]
+
+**Objectif** : Mode air-gapped pour environnements restreints
+
+**⚠️ Prérequis**: V8.4.0 (AgentRegistry) et V8.4.2 (ServiceFactory)
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| OllamaDriver implementation | 8h | PLANNED |
+| Register Ollama in AgentRegistry | 1h | PLANNED |
+| Fallback chain: Cloud → Local | 4h | PLANNED |
+| Tests offline mode | 4h | PLANNED |
+
+**Référence**: Audit2_08122025.md Gap 1 (BLOQUANT pour Motherson)
+
+---
+
+## Roadmap V8.5 (Architecture Cleanup) [REFACTORING]
+
+> **Status**: Post-V8.4, architectural improvements
+> **Source**: `audit/CLAUDE_audit10122025.md`
+
+### V8.5.0 - Split mode_executors.py [Priority: P1]
 
 **Objectif** : Décomposer le God Object (1,120 lignes → 6 fichiers)
+
+**Note**: AgentRegistry déplacé en V8.4.0 (prérequis Ollama)
 
 **Problème actuel**:
 - `core/swarm/mode_executors.py` = 1,120 lignes
@@ -1756,11 +1903,12 @@ core/interface/
 
 ---
 
-## Roadmap V8.4 (Productization) [VISION LONG-TERME]
+## Roadmap V8.6 (Productization) [VISION LONG-TERME]
 
 > **Status**: Post-V8.5, dépend des retours terrain
+> **Note**: Renommé de V8.4 → V8.6 suite au feedback consolidé (2025-12-10)
 
-### V8.4.0 - Docker Packaging [Priority: P2]
+### V8.6.0 - Docker Packaging [Priority: P3]
 
 **Objectif** : Déploiement simplifié via container
 
@@ -1771,15 +1919,15 @@ core/interface/
 | Volume mounts pour workspace | 1h | PLANNED |
 | Documentation déploiement | 2h | PLANNED |
 
-**Source**: Gemini (2025-12-09) - Plan V8.4
+**Source**: Gemini (2025-12-09) - Plan V8.4 (original)
 
 ---
 
-### V8.4.1 - REST API (FastAPI) [Priority: P3]
+### V8.6.1 - REST API (FastAPI) [Priority: P4]
 
 **Objectif** : API HTTP pour intégrations externes
 
-**⚠️ Prérequis**: Stabiliser core V8.2 avant d'exposer une API
+**⚠️ Note**: Reporté à V9.0+ pour enterprise deployment (feedback Claude Web)
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
@@ -1788,11 +1936,11 @@ core/interface/
 | WebSocket streaming | 4h | PLANNED |
 | Auth middleware | 4h | PLANNED |
 
-**Source**: Gemini (2025-12-09) - Plan V8.4
+**Source**: Gemini (2025-12-09) - Plan V8.4 (original)
 
 ---
 
-### V8.4.2 - Observability Dashboard [Priority: P4]
+### V8.6.2 - Observability Dashboard [Priority: P4]
 
 **Objectif** : Visualisation temps réel du système
 
@@ -1804,7 +1952,7 @@ core/interface/
 | WebSocket real-time | 4h | PLANNED |
 | Métriques visualisation | 8h | PLANNED |
 
-**Source**: Gemini (2025-12-09) - Plan V8.4
+**Source**: Gemini (2025-12-09) - Plan V8.4 (original)
 
 ---
 
