@@ -1,7 +1,7 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.3.4 | **Status**: Active | **Last Updated**: 2025-12-10
-**Maintainer**: Yann Abadie | **Branch**: N8THM
+**Version**: 8.4.0-cyborg | **Status**: Active | **Last Updated**: 2025-12-10
+**Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
 
@@ -18,10 +18,40 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Métrique | Valeur |
 |----------|--------|
 | Modules core/ | 24 |
-| Fichiers Python | 126 |
-| Lignes de code | 43,500+ |
-| Tests | 1,126+ |
-| Phases complétées | 16 (V8.3.3) |
+| Fichiers Python | 128 |
+| Lignes de code | 44,000+ |
+| Tests | 1,146+ |
+| Phases complétées | 17 (V8.4.0-cyborg) |
+
+### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
+
+**Source**: Branch N9AF | **Commits**: Phase 1-4 applied
+
+**Objectif**: Intégrer les primitives async V9 comme BIBLIOTHÈQUES dans V7 existant.
+**Philosophie**: *"Installer l'électricité dans le château, pas construire un nouveau château"*
+
+| Composant | Status | Fichier | Lignes ajoutées |
+|-----------|--------|---------|-----------------|
+| Async Entry Point | ✅ DONE | `nexus7.py` | +55 (`async_main()`) |
+| Async REPL Loop | ✅ DONE | `core/interface/repl.py` | +190 (`run_async()`) |
+| Async Orchestrator | ✅ DONE | `core/orchestration_v7.py` | +180 (`process_turn_async()`) |
+| Cyborg Tests | ✅ DONE | `tests/test_cyborg_v75.py` | +160 |
+
+**Caractéristiques**:
+- `prompt_async()` pour input non-bloquant (prompt_toolkit 3.0+)
+- `patch_stdout()` pour streaming propre
+- `AsyncDriverFactory.cancel_all()` pour Ctrl+C graceful
+- Dual-mode: sync (`run()`) et async (`run_async()`) coexistent
+- Fallback automatique si async drivers indisponibles
+
+**Primitives V9 Disponibles** (branch N9AF):
+- `core/async_primitives/cancellation.py` - CancellationToken hierarchique
+- `core/async_primitives/process_handle.py` - AsyncProcessHandle + Registry
+- `core/async_primitives/rwlock.py` - AsyncRWLock
+- `core/async_primitives/blackboard.py` - AsyncBlackboard avec TTL
+- `core/drivers/async_claude_driver.py` - TRUE async avec `create_subprocess_exec`
+- `core/drivers/async_gemini_driver.py` - Session isolation via UUID
+- `core/drivers/async_factory.py` - Singleton factory avec `cancel_all()`
 
 ### Audit Gemini (2025-12-10) + Feedback Consolidé
 
@@ -1799,6 +1829,186 @@ class ServiceFactory:
 
 **⚠️ Prérequis**: V8.4.0 (AgentRegistry) et V8.4.2 (ServiceFactory)
 
+---
+
+### V8.4.4 - Blind Spot Remediations [Priority: P0-P2] 🆕 FROM DEEP ANALYSIS
+
+**Objectif**: Corriger 7 angles morts architecturaux identifiés
+**Source**: Gemini DeepThink + Claude codebase exploration + Web Research (2025-12-10)
+**Philosophie**: "Functional Core, Async Shell" - Le FSM devient GPS, pas conducteur
+
+**Angles Morts Identifiés** (7 total):
+
+| # | Angle Mort | Sévérité | Remédiation |
+|---|------------|----------|-------------|
+| 1 | FSMHandlers I/O Mixing (1,099 lignes) | HIGH | WorkItem Yield Pattern |
+| 2 | HiveMind No Checkpoints (24 états) | CRITICAL | SagaManager + AsyncBlackboard |
+| 3 | StagnationDetector Réactif | MEDIUM | Proactive Trajectory Predictor |
+| 4 | PanicSystem Sans FSM | MEDIUM | HealthStateMachine + Recovery |
+| 5 | async_adapter `future.result()` | HIGH | Deprecate DriverBridge |
+| 6 | Phase Guards Manquants | HIGH | Guards dans SagaManager |
+| 7 | Compensating Transactions Absentes | MEDIUM | Rollback par phase |
+
+---
+
+#### V8.4.4a - DriverBridge Deprecation [P1 - QUICK WIN]
+
+**Problème**: `core/hive_mind/async_adapter.py:263` bloque avec `future.result(timeout=300)`
+
+**Solution**: Ajouter wrappers sync aux async drivers, marquer DriverBridge deprecated
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter `invoke_sync()` aux 2 drivers | 2h | PLANNED |
+| Marquer DriverBridge deprecated | 1h | PLANNED |
+| Tests de compatibilité | 2h | PLANNED |
+| **Total** | **5h** | |
+
+**Fichiers**: `async_claude_driver.py`, `async_gemini_driver.py`, `async_adapter.py`
+
+---
+
+#### V8.4.4b - SagaManager pour HiveMind [P0 - CRITICAL]
+
+**Problème**: 24 états HiveMind, 7 phases, ZERO checkpoints → perte travail sur crash
+
+**Solution**: SagaManager avec persistence AsyncBlackboard (déjà production-ready)
+
+```python
+# core/hive_mind/saga_manager.py (NOUVEAU)
+class SagaManager:
+    async def checkpoint_phase(self, phase, result, compensation)
+    async def rollback_to(self, target_phase)
+    async def resume_from(self, task_id)
+    async def can_enter_phase(self, phase, context)  # Phase Guards
+```
+
+**Compensations par Phase**:
+| Phase | Compensation |
+|-------|--------------|
+| Analysis | Clear analysis_result, reset context |
+| Debate | Clear debate_result, restore analysis |
+| Architecture | Despawn agents créés, clear plan |
+| Execution | Mark incomplete, cleanup artifacts |
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer SagaManager class | 4h | PLANNED |
+| Définir compensations | 2h | PLANNED |
+| Intégrer dans TrueHiveMind | 3h | PLANNED |
+| Phase Guards | 2h | PLANNED |
+| Tests checkpoint/rollback | 3h | PLANNED |
+| **Total** | **14h** | |
+
+**Fichiers**: CREATE `saga_manager.py`, MODIFY `orchestrator.py`, `types.py`
+
+---
+
+#### V8.4.4c - WorkItem Yield Pattern [P1 - HIGH]
+
+**Problème**: FSMHandlers mélange I/O et logique (14 I/O ops dans 1,099 lignes)
+
+**Solution**: Handlers deviennent générateurs yield WorkItems, executor fait I/O
+
+```python
+# Handlers = Pure Logic (yield WorkItems)
+def handle_brainstorming(self):
+    context = self._build_context()
+    response = yield WorkItem(INVOKE_AGENT, context)
+    return self._process_response(response)
+
+# Executor = I/O (async)
+async def execute(item: WorkItem):
+    return await driver.invoke(item.context)
+```
+
+**Ordre d'extraction** (low risk → high):
+1. `handle_swarm_*` (4 handlers) - 0 I/O
+2. `handle_idle` - routing logic
+3. `handle_executing_tool` - 1 I/O
+4. `handle_brainstorming` - 2 I/O
+5. `handle_validating_cfl` - 2 I/O
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer WorkItem types | 1h | PLANNED |
+| Créer WorkItemExecutor | 3h | PLANNED |
+| Extraire handlers (incremental) | 13h | PLANNED |
+| Tests handlers isolés | 4h | PLANNED |
+| **Total** | **21h** | |
+
+**Fichiers**: CREATE `work_items.py`, `work_item_executor.py`, MODIFY `fsm_handlers.py`
+
+---
+
+#### V8.4.4d - HealthStateMachine [P2 - MEDIUM]
+
+**Problème**: PanicSystem utilise compteurs sans recovery automatique
+
+**Solution**: FSM de santé avec stratégies de recovery
+
+```
+HEALTHY → DEGRADED → CRITICAL → RECOVERING → HEALTHY
+             │                       ↑
+             └──► PANIC ─────────────┘
+```
+
+**Recovery Strategies** (séquentielles):
+1. Reset stagnation detector
+2. Switch active agent
+3. Compress context
+4. Clear tool cache
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer HealthStateMachine | 3h | PLANNED |
+| Définir recovery strategies | 2h | PLANNED |
+| Intégrer avec PanicSystem | 2h | PLANNED |
+| Tests transitions | 2h | PLANNED |
+| **Total** | **9h** | |
+
+**Fichiers**: CREATE `health_state_machine.py`, MODIFY `panic_system.py`
+
+---
+
+#### V8.4.4e - Proactive Stagnation Predictor [P2 - LOW]
+
+**Problème**: Détection après 3 messages similaires (réactif → 3 tours gaspillés)
+
+**Solution**: Prédiction basée sur trajectoire + leading indicators
+
+**Leading Indicators**:
+- "let me think", "we should consider" → +0.15
+- "I agree but" → +0.20
+- Decreasing message lengths → +0.25
+- Tool mention without use → +0.20
+
+**Actions par seuil**:
+| Probabilité | Action |
+|-------------|--------|
+| < 0.4 | CONTINUE |
+| 0.4-0.6 | MONITOR |
+| 0.6-0.8 | NUDGE (gentle) |
+| > 0.8 | INJECT_WARNING |
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer StagnationPredictor | 3h | PLANNED |
+| Intégrer dans detector | 1h | PLANNED |
+| Tests avec vrais logs | 3h | PLANNED |
+| **Total** | **7h** | |
+
+**Fichiers**: CREATE `stagnation_predictor.py`, MODIFY `stagnation_detector.py`
+
+---
+
+**Effort Total V8.4.4**: ~56h (~2 semaines full-time)
+
+**Sources Web**:
+- [pytransitions AsyncMachine](https://github.com/pytransitions/transitions) - FSM async avec `queued='model'`
+- [Saga Pattern Python](https://johal.in/implementing-saga-pattern-in-python-distributed-transaction-management-for-services/) - Compensating transactions
+- [Time Series Anomaly Detection](https://blog.jetbrains.com/pycharm/2025/01/anomaly-detection-in-time-series/) - Proactive prediction
+
 | Tâche | Effort | Status |
 |-------|--------|--------|
 | OllamaDriver implementation | 8h | PLANNED |
@@ -1953,6 +2163,146 @@ core/interface/
 | Métriques visualisation | 8h | PLANNED |
 
 **Source**: Gemini (2025-12-09) - Plan V8.4 (original)
+
+---
+
+## Roadmap V8.7 (Async Maturity) [POST-CYBORG]
+
+> **Status**: Post-V8.4.4 StateGuard
+> **Source**: Gemini DeepThink analysis + Claude implementation validation (2025-12-10)
+> **Branch**: N9AF → merge to N8THM when stable
+
+### V8.7.0 - Process Lifecycle FSM (Bio-Moniteur)
+
+**Objectif**: Ajouter un mini-FSM au cycle de vie des processus async
+
+**États**:
+```
+GESTATION → ALIVE → STALLED → DYING → DEAD
+   (boot)    (ok)   (>30s)   (cancel)
+```
+
+**Intégration**: `core/async_primitives/process_handle.py`
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Ajouter `ProcessLifecycleState` enum | 1h | PLANNED |
+| Implémenter heartbeat detection | 2h | PLANNED |
+| Ajouter `stalled_since` timestamp | 1h | PLANNED |
+| Watchdog coroutine (vérif périodique) | 3h | PLANNED |
+| Tests lifecycle transitions | 2h | PLANNED |
+
+---
+
+### V8.7.1 - HiveMind Saga Manager (Phase Checkpoints)
+
+**Objectif**: Système de checkpoints pour les 7 phases HiveMind
+
+**Problème actuel**: 24 états HiveMind sans guards → pas de rollback ni resume
+
+**Solution**:
+```python
+# core/hive_mind/saga_manager.py (NOUVEAU)
+class SagaManager:
+    """Checkpoint system for HiveMind phases."""
+
+    def __init__(self, blackboard: AsyncBlackboard):
+        self.checkpoints: Dict[str, SagaCheckpoint] = {}
+        self._phase_guards = {
+            HiveMindState.HIVE_ARCHITECTING: self._guard_architect,
+            HiveMindState.HIVE_EXECUTING: self._guard_execute,
+        }
+
+    async def save_checkpoint(self, phase: HiveMindState, data: Dict):
+        """Sauvegarde atomique avant phase critique."""
+        self.checkpoints[phase.value] = SagaCheckpoint(
+            phase=phase,
+            data=data,
+            timestamp=datetime.now()
+        )
+
+    async def rollback_to(self, phase: HiveMindState):
+        """Restaure état d'un checkpoint précédent."""
+        if phase.value in self.checkpoints:
+            return self.checkpoints[phase.value].data
+        raise CheckpointNotFoundError(phase)
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `SagaManager` class | 4h | PLANNED |
+| Ajouter phase guards | 3h | PLANNED |
+| Intégrer dans `TrueHiveMind` | 4h | PLANNED |
+| Tests checkpoint/rollback | 3h | PLANNED |
+
+---
+
+### V8.7.2 - UI State Director (Visual State)
+
+**Objectif**: État visuel temps réel pour l'UI pendant les opérations async
+
+**Problème actuel**: REPL affiche état uniquement APRÈS `process_turn()` → "blindness"
+
+**Solution**:
+```python
+# core/ui/state_director.py (NOUVEAU)
+class UIStateDirector:
+    """Dicte l'état visuel du REPL."""
+
+    def __init__(self):
+        self._state = UIState.IDLE
+        self.on_state_change = asyncio.Event()
+
+    @property
+    def visual_state(self) -> str:
+        return {
+            UIState.IDLE: "nexus7> ",
+            UIState.THINKING: "[🤔 Thinking...]",
+            UIState.STREAMING: "[📝 Streaming...]",
+            UIState.EXECUTING: "[⚡ Executing...]",
+            UIState.ERROR: "[❌ Error]",
+        }.get(self._state, "")
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `UIStateDirector` class | 2h | PLANNED |
+| Intégrer dans `run_async()` | 2h | PLANNED |
+| Ajouter spinners Rich | 1h | PLANNED |
+| Tests visual state transitions | 2h | PLANNED |
+
+---
+
+### V8.7.3 - FSM I/O Extraction (Functional Core)
+
+**Objectif**: Séparer logique pure et I/O dans FSMHandlers
+
+**Problème actuel**: 1,099 lignes mêlant décisions et appels API
+
+**Solution pattern**:
+```python
+# AVANT (V8): Handler fait tout
+def handle_brainstorming(self):
+    context = self._build_context()      # Logique
+    response = driver.invoke(context)    # I/O BLOQUANT!
+    self._process_response(response)     # Logique
+
+# APRÈS (V8.7): Handler = pure logique, yield work items
+async def handle_brainstorming(self):
+    context = self._build_context()                    # Logique
+    work_item = WorkItem(type="INVOKE", context=context)
+    response = yield work_item                         # I/O délégué
+    return self._process_response(response)            # Logique
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Définir `WorkItem` dataclass | 1h | PLANNED |
+| Créer `AsyncExecutor` (I/O worker) | 4h | PLANNED |
+| Refactor `handle_brainstorming` | 3h | PLANNED |
+| Refactor `handle_validating_cfl` | 3h | PLANNED |
+| Refactor `_handle_moderate_plus` | 6h | PLANNED |
+| Tests execution separation | 4h | PLANNED |
 
 ---
 
@@ -2466,7 +2816,14 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 | 16d | └─ ~~MT-001: Checkpoint tests~~ | V8.3.2 | ~~1h~~ | ✅ Already impl |
 | 16e | └─ ~~H3: CLAUDE.md update~~ | V8.3.2 | ~~1h~~ | ✅ Updated |
 | 17 | ~~Parallel Merge Strategy~~ | V8.3.3 | ~~3h~~ | ✅ Done |
-| 18 | RedTeam Post-Spawn | V8.2.0c | 2h | PLANNED |
+| 18 | ~~Cyborg V7.5 Async Integration~~ | V8.4.0-cyborg | ~~6h~~ | ✅ Done (branch N9AF) |
+| 19 | ~~Blind Spot Analysis~~ | V8.4.4 | ~~4h~~ | ✅ Done (7 angles morts identifiés) |
+| 20 | **P1: DriverBridge Deprecation** | V8.4.4a | 5h | **NEXT** |
+| 21 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | CRITICAL |
+| 22 | P1: WorkItem Yield Pattern | V8.4.4c | 21h | HIGH |
+| 23 | P2: HealthStateMachine | V8.4.4d | 9h | MEDIUM |
+| 24 | P2: Stagnation Predictor | V8.4.4e | 7h | LOW |
+| 25 | RedTeam Post-Spawn | V8.2.0c | 2h | DEFERRED |
 
 ---
 
@@ -2503,6 +2860,9 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-10 | 8.4.4-analysis | **BLIND SPOT ANALYSIS COMPLETE**: 7 angles morts identifiés (5 originaux + 2 nouveaux). Plan 56h créé: P1 DriverBridge (5h), P0 SagaManager (14h), P1 WorkItem (21h), P2 HealthFSM (9h), P2 StagnationPredictor (7h). Sources: Explore agents, Saga Pattern research, pytransitions AsyncMachine |
+| 2025-12-10 | 8.4.0-cyborg | **Cyborg V7.5 COMPLETED**: Branch N9AF. Async methods added to nexus7.py (+55), repl.py (+190), orchestration_v7.py (+180). StateGuard V8.4.4 & V8.7 Async Maturity roadmap phases added. Source: Gemini DeepThink "Functional Core, Async Shell" analysis |
+| 2025-12-10 | 8.3.4 | **Audit Quick Fixes**: FL-001 race condition fix, FL-002 completion detection. Source: CLAUDE_audit10122025.md |
 | 2025-12-09 | 8.3.2d | **Deep Implementation Analysis**: Codebase exploration + web research. Added blind spots, file:line references, test protocols for Phases 17-24. Sources: aiosqlite, MCP SDK, GraphRAG Neo4j, E2B/Modal. Plan d'attaque révisé with dependencies |
 | 2025-12-09 | 8.3.2c | **ROADMAP Consolidation**: Merged ROADMAP_HIVE_MIND.md Phases 17-24 into Vision Long-Terme section. Added V8.3.4 Symmetric MCP Bridges. Ideas Backlog enriched with File Lock Manager, Skill Crystallization 3x, Watchdog Daemon |
 | 2025-12-09 | 8.3.2b | **Audit V9.0 Analysis**: Integrated Gemini "Living Repository" proposals - File Lock Manager (V8.4.1), Skill Crystallization 3x, Watchdog Daemon (V9.1). Enterprise gaps documented. Mermaid slash fix in doc_engine.py |
