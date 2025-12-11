@@ -38,6 +38,9 @@ from typing import Dict, Optional, Callable
 
 # V7.5 HIVE MIND: Centralized JSON extraction
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
+
+# V8.8: Output Guard - System prompt leak prevention (OWASP LLM01:2025)
+from core.security import get_output_guard
 # V7.7 Phase 15: Stream parser for real-time response display
 from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats
 # V8.4.0: Unified agent registry
@@ -132,6 +135,43 @@ class GeminiDriverV7:
         """
         # Persistent process mode was removed - use session resume instead
         self._persistent_process = None
+
+    def _validate_output(self, response: Dict) -> Dict:
+        """
+        V8.8: Validate LLM output for system prompt leaks (OWASP LLM01:2025).
+
+        Checks response content for potential information leakage and logs warnings.
+        Does not block responses by default (block_on_leak=False), but provides
+        visibility into potential security issues.
+
+        Args:
+            response: Parsed LLM response dict
+
+        Returns:
+            Response dict (unchanged, or with sanitized content if leak detected)
+        """
+        output_guard = get_output_guard()
+
+        # Extract content to validate
+        content = response.get("content", "")
+        if not content or not isinstance(content, str):
+            return response
+
+        validation = output_guard.validate(content)
+
+        if validation.leak_type.value != "none":
+            _logger.warning(
+                f"[OUTPUT GUARD] Potential leak detected: {validation.leak_type.value} "
+                f"(severity: {validation.leak_severity.value}) - {validation.reason}"
+            )
+            # Use sanitized output if available
+            if validation.sanitized_output:
+                response = response.copy()
+                response["content"] = validation.sanitized_output
+                response["_output_sanitized"] = True
+                response["_leak_type"] = validation.leak_type.value
+
+        return response
 
     def invoke(
         self,
@@ -529,14 +569,17 @@ class GeminiDriverV7:
                 # Wrap list in a standard message structure to satisfy Orchestrator
                 # V8.4.0: Use registry for display name
                 registry = get_registry()
-                return {
+                list_response = {
                     "sender": registry.get_display_name("gemini"),
                     "action_type": "TALK",
                     "content": json.dumps(extracted_data), # Pass the list as a string content
                     "status": "FINISHED"
                 }
+                # V8.8: Validate output for leaks
+                return self._validate_output(list_response)
 
-            return extracted_data
+            # V8.8: Validate output for system prompt leaks before returning
+            return self._validate_output(extracted_data)
 
         except TimeoutError:
             # Re-raise timeout from the inner try block
@@ -736,7 +779,8 @@ class GeminiDriverV7:
                 if final_stats:
                     extracted_data["_stream_stats"] = final_stats
 
-                return extracted_data
+                # V8.8: Validate output for system prompt leaks
+                return self._validate_output(extracted_data)
 
             except KeyboardInterrupt:
                 print("\n[DEBUG] Interrupt received, killing Gemini process...", file=sys.stderr)

@@ -48,6 +48,9 @@ from core.utils.stream_parser import parse_stream_chunk, is_result_message, extr
 
 # V8.4.0: Unified agent registry
 from core.agents.unified_registry import get_registry
+
+# V8.8: Output Guard - System prompt leak prevention (OWASP LLM01:2025)
+from core.security import get_output_guard
 # V8.4.5: Structured driver logging
 from core.logging.driver_logger import get_driver_logger
 
@@ -107,6 +110,41 @@ class ClaudeDriverHybrid:
         # V7: Model routing support
         self.model = model or getattr(config, 'claude_sonnet_model', None)
         self.agent_id = agent_id or "claude_primary"
+
+    def _validate_output(self, response: Dict) -> Dict:
+        """
+        V8.8: Validate LLM output for system prompt leaks (OWASP LLM01:2025).
+
+        Checks response content for potential information leakage and logs warnings.
+
+        Args:
+            response: Parsed LLM response dict
+
+        Returns:
+            Response dict (unchanged, or with sanitized content if leak detected)
+        """
+        output_guard = get_output_guard()
+
+        # Extract content to validate
+        content = response.get("content", "")
+        if not content or not isinstance(content, str):
+            return response
+
+        validation = output_guard.validate(content)
+
+        if validation.leak_type.value != "none":
+            _logger.warning(
+                f"[OUTPUT GUARD] Claude leak detected: {validation.leak_type.value} "
+                f"(severity: {validation.leak_severity.value}) - {validation.reason}"
+            )
+            # Use sanitized output if available
+            if validation.sanitized_output:
+                response = response.copy()
+                response["content"] = validation.sanitized_output
+                response["_output_sanitized"] = True
+                response["_leak_type"] = validation.leak_type.value
+
+        return response
 
     def invoke(self, context: str, session_uuid: Optional[str] = None) -> Dict:
         """
@@ -248,7 +286,9 @@ class ClaudeDriverHybrid:
             raw_response = stdout
 
             # Parse hybrid response
-            return self._parse_hybrid_response(raw_response)
+            parsed = self._parse_hybrid_response(raw_response)
+            # V8.8: Validate output for system prompt leaks
+            return self._validate_output(parsed)
 
         except TimeoutError:
             raise
@@ -368,7 +408,8 @@ class ClaudeDriverHybrid:
                 if final_stats:
                     parsed_response["_stream_stats"] = final_stats
 
-                return parsed_response
+                # V8.8: Validate output for system prompt leaks
+                return self._validate_output(parsed_response)
 
             except KeyboardInterrupt:
                 print("\n[DEBUG] Interrupt received, killing Claude process...", file=sys.stderr)
