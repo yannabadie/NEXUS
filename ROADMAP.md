@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.6-session-isolation | **Status**: Active | **Last Updated**: 2025-12-11
+**Version**: 8.4.7-cyborg-hardening | **Status**: Active | **Last Updated**: 2025-12-11
 **Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
@@ -21,7 +21,7 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Fichiers Python | 132 |
 | Lignes de code | 45,000+ |
 | Tests | 1,162+ |
-| Phases complétées | 21 (V8.4.6-session-isolation) |
+| Phases complétées | 22 (V8.4.7-cyborg-hardening) |
 
 ### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
 
@@ -2112,23 +2112,70 @@ HEALTHY → DEGRADED → CRITICAL → RECOVERING → HEALTHY
 
 ---
 
-### V8.4.7 - Audit-Driven Quick Wins [Priority: P1] 🆕 FROM ANALYSIS
+### V8.4.7 - Cyborg Hardening ✅ PARTIAL (2025-12-11)
 
-**Objectif**: Corrections rapides identifiées par analyse Gemini + Claude (2025-12-11)
-**Source**: `audit/ANGLES_MORTS_2025-12-11.md` + `audit/ROADMAP_ENRICHMENT_2025-12-11.md`
+**Objectif**: Corrections audit-driven + documentation recherche
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md` + `audit/grok_audit11122025.md`
+**Commit**: `db5fdb5`
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
+| P0 Path Traversal Security | - | ✅ ALREADY DONE (V8.4.6) |
+| P2 Singleton Race Conditions | - | ✅ ALREADY DONE (double-checked locking) |
+| P3 Exception Logging (critical pass) | 1h | ✅ DONE |
 | Fix README version (7.8 → 8.4.6) | 10min | PLANNED |
-| Archiver ROADMAP_HIVE_MIND.md (lien mort) | 5min | PLANNED |
-| Budget tokens→USD conversion (TODO ligne 274) | 2h | PLANNED |
-| Ajouter logging aux 20 pass critiques | 2h | PLANNED |
-| Documenter 12 TODOs restants comme issues | 1h | PLANNED |
+| Budget tokens→USD (orchestrator.py:274) | 2h | PLANNED |
+| P1 Async Improvements | 4h+ | DEFERRED (large scope) |
 
-**Fichiers concernés**:
-- `README.md` - Version sync
-- `core/hive_mind/orchestrator.py:274` - Budget TODO
-- 5 fichiers avec pass critiques (drivers, mcp, mode_executors)
+**Fichiers modifiés**:
+- `core/drivers/gemini_driver_v7.py` - Logging cleanup processus
+- `core/mcp/client.py` - Logging erreurs JSON
+
+**Documentation recherche créée**:
+- `docs/PROMPT_INJECTION_PREVENTION_GUIDE.md` - AWS/Azure/OWASP patterns
+- `docs/MCP_SERVER_IMPLEMENTATION_GUIDE.md` - FastMCP + Claude Desktop
+- `docs/OPENTELEMETRY_IMPLEMENTATION_GUIDE.md` - GenAI semantic conventions
+
+**Tests**: 59/59 security tests pass
+
+---
+
+### Audit Grok (2025-12-11) - Deep Logic Issues 🆕
+
+**Source**: `audit/grok_audit11122025.md`
+**Analyste**: Grok (X.AI)
+
+| ID | Issue | Sévérité | Description | Phase Cible |
+|----|-------|----------|-------------|-------------|
+| GROK-001 | Race Conditions Blackboard TTL | **P0** | Pas d'atomicité CAS sur expiry en PARALLEL | V8.5.x |
+| GROK-002 | Decay Formula SuccessMemory | P1 | Linéaire (devrait être exponentiel) | V8.5.x |
+| GROK-003 | KERNEL Heredity Check | P1 | Spawned agents bypass KERNEL validation | V8.6.x |
+| GROK-004 | Fallback Chain Non-Adaptative | P2 | Chains statiques ignorent contexte | V8.5.x |
+| GROK-005 | Federated RAG | P2 | LanceDB monolithique (bruit multi-domain) | V9.x |
+
+**Propositions Grok (à évaluer)**:
+
+| Proposition | Effort | Impact | Priorité |
+|-------------|--------|--------|----------|
+| Atomic TTL (CAS) pour Blackboard | 4-6h | ↓90% races, ↑20% PARALLEL perf | HIGH |
+| Exponential Decay en SuccessMemory | 3-5h | ↑15-25% adaptation modes | MEDIUM |
+| KERNEL Heredity Check at Spawn | 5-7h | ↓80% risque adversarial | HIGH |
+| Adaptive Fallbacks via Predictor | 8-10h | ↓10-15s temps COMPLEX | MEDIUM |
+| Federated RAG per Domain | 6-8h | ↑20-30% recall sémantique | LOW |
+
+---
+
+### Audit Angles Morts (2025-12-11) - P0 Critiques
+
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md`
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| repl.py 2,972 lignes (God Object) | PLANNED V8.6 | Split en 4 modules (REPL, Commands, Evolution, Spawn) |
+| 8 singletons globals | ✅ DONE | Thread-safe double-checked locking |
+| 435 bare except | PLANNED V8.5.3 | Top 50 en priorité |
+| Tests E2E manquants | PLANNED V8.6 | Hive Mind → Swarm pipeline |
+| Input validation (prompt injection) | PLANNED V8.8 | Voir docs/PROMPT_INJECTION_PREVENTION_GUIDE.md |
 
 ---
 
