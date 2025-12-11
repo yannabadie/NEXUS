@@ -43,6 +43,16 @@ from .output_guard import (
     get_output_guard,
 )
 
+# V8.8: Spotlighter for RAG content datamarking (from memory module)
+try:
+    from core.memory.spotlighting import Spotlighter, get_spotlighter, SpotlightTechnique
+    SPOTLIGHTER_AVAILABLE = True
+except ImportError:
+    SPOTLIGHTER_AVAILABLE = False
+    Spotlighter = None
+    get_spotlighter = None
+    SpotlightTechnique = None
+
 __all__ = [
     # Path & Mutation
     'PathGuardian',
@@ -63,5 +73,10 @@ __all__ = [
     'LeakSeverity',
     'OutputValidationResult',
     'get_output_guard',
+    # V8.8: Spotlighter (RAG datamarking)
+    'Spotlighter',
+    'get_spotlighter',
+    'SpotlightTechnique',
+    'SPOTLIGHTER_AVAILABLE',
 ]
 
