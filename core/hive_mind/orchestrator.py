@@ -91,7 +91,8 @@ class TrueHiveMind:
         project_memory: "ProjectMemory" = None,
         success_memory: "SuccessMemory" = None,  # V8.2.0
         on_state_change: callable = None,
-        auto_breakpoints: bool = True
+        auto_breakpoints: bool = True,
+        swarm_engine: "HybridSwarmEngine" = None  # V8.4.5: SwarmBridge wiring fix
     ):
         """
         Initialize TRUE HIVE MIND.
@@ -107,6 +108,7 @@ class TrueHiveMind:
             success_memory: V8.2.0 SuccessMemory (for learning from successes)
             on_state_change: Callback for state changes
             auto_breakpoints: Enable user breakpoints
+            swarm_engine: V8.4.5 - Optional Swarm Engine for Phase 4 delegation
         """
         self.workspace_path = Path(workspace_path)
         self.config = config
@@ -118,6 +120,7 @@ class TrueHiveMind:
         self.success_memory = success_memory  # V8.2.0
         self.on_state_change = on_state_change
         self.auto_breakpoints = auto_breakpoints
+        self.swarm_engine = swarm_engine  # V8.4.5: SwarmBridge wiring
 
         # Current state
         self.state = HiveMindState.HIVE_GATING
@@ -193,11 +196,13 @@ class TrueHiveMind:
         )
 
         # Phase 4: Monitored Execution
+        # V8.4.5: Pass swarm_engine for SwarmBridge delegation (Dictator Mode)
         self.phase_execution = MonitoredExecutionPhase(
             gemini_driver=self.gemini,
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
-            context_manager=self.context_manager
+            context_manager=self.context_manager,
+            swarm_engine=self.swarm_engine
         )
 
         # Phase 5: Failure Diagnosis

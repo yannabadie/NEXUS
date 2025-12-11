@@ -22,6 +22,7 @@ V7.5 Phase 7: Session Isolation via session_uuid
 Note: PTY mode was removed in V7.6 cleanup (never worked, gemini_pty_mode=False).
       Archived to: docs/archive/pty_mode_v7_archived.py
 """
+import asyncio
 import subprocess
 import json
 import sys
@@ -37,6 +38,11 @@ from core.utils.json_extractor import extract_json_safe as robust_extract_json
 from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats
 # V8.4.0: Unified agent registry
 from core.agents.unified_registry import get_registry
+# V8.4.5: Structured driver logging
+from core.logging.driver_logger import get_driver_logger
+
+# Initialize driver logger
+_logger = get_driver_logger("gemini")
 
 
 # Global reference for cleanup at exit
@@ -175,6 +181,93 @@ class GeminiDriverV7:
         """
         return self._invoke_subprocess_stream(context, on_token, session_uuid=session_uuid)
 
+    async def send_message_async(self, prompt: str, session_uuid: Optional[str] = None) -> Dict:
+        """
+        Async bridge method for HiveMind phases compatibility (V8.4.5).
+
+        Wraps sync invoke() in asyncio.to_thread() for non-blocking execution.
+        This allows HiveMind phases to call driver methods without blocking
+        the event loop, enabling true concurrent execution.
+
+        Args:
+            prompt: Context markdown with system prompt
+            session_uuid: Optional session UUID for isolation (Phase 7)
+
+        Returns:
+            Dict structured NEXUS response (same as invoke())
+
+        Note:
+            This is a bridge method for backward compatibility with async HiveMind
+            phases. New code should use AsyncGeminiDriver for full async support.
+        """
+        return await asyncio.to_thread(self.invoke, prompt, session_uuid)
+
+    def invoke_with_retry(
+        self,
+        context: str,
+        max_retries: int = 3,
+        session_uuid: Optional[str] = None
+    ) -> Dict:
+        """
+        Invoke with exponential backoff and jitter (V8.4.5).
+
+        Retries on transient failures (timeout, rate limit, server errors)
+        with increasing delays and randomized jitter to prevent thundering herd.
+
+        Args:
+            context: Context markdown with system prompt
+            max_retries: Maximum number of retry attempts (default: 3)
+            session_uuid: Optional session UUID for isolation
+
+        Returns:
+            Dict structured NEXUS response
+
+        Raises:
+            RuntimeError: If all retries fail
+
+        Algorithm:
+            wait_time = (2 ** attempt) + random.uniform(0, 1)
+            - Attempt 0: 1s + jitter (0-1s)
+            - Attempt 1: 2s + jitter
+            - Attempt 2: 4s + jitter
+        """
+        import random
+
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                return self.invoke(context, session_uuid=session_uuid)
+
+            except (TimeoutError, RuntimeError) as e:
+                last_error = e
+                error_str = str(e).lower()
+
+                # Don't retry on auth errors or invalid requests
+                if any(x in error_str for x in ["auth", "invalid", "denied", "permission"]):
+                    raise
+
+                if attempt < max_retries - 1:
+                    # Exponential backoff with jitter
+                    base_wait = 2 ** attempt
+                    jitter = random.uniform(0, 1)
+                    wait_time = base_wait + jitter
+
+                    _logger.warning(
+                        f"Retry {attempt + 1}/{max_retries} after {wait_time:.1f}s",
+                        error=str(e)[:100]
+                    )
+                    time.sleep(wait_time)
+
+            except Exception as e:
+                # Unknown error - don't retry
+                raise
+
+        # All retries failed
+        raise RuntimeError(
+            f"Gemini invocation failed after {max_retries} attempts: {last_error}"
+        )
+
     # NOTE: PTY and legacy persistent methods removed in V7.6 cleanup
     # See: docs/archive/pty_mode_v7_archived.py
 
@@ -255,7 +348,7 @@ class GeminiDriverV7:
         if session_uuid:
             # Phase 7: Explicit session UUID for isolation (Swarm parallel tasks)
             resume_flag = f"--resume {session_uuid}"
-            print(f"[DEBUG] Using session isolation: {session_uuid[:8]}...", file=sys.stderr)
+            _logger.debug("Using session isolation", session_uuid=session_uuid[:8])
         elif self.use_session_resume and self._session_active:
             # Default: Resume latest session for single-agent mode
             resume_flag = "--resume latest"
@@ -283,9 +376,9 @@ class GeminiDriverV7:
             command = cmd_parts
 
         try:
-            print(f"[DEBUG] Invoking Gemini: {self.model} (timeout: {self.timeout}s)", file=sys.stderr)
+            _logger.debug("Invoking Gemini", model=self.model, timeout=self.timeout)
             if use_shell:
-                print(f"[DEBUG] Command: {command}", file=sys.stderr)
+                _logger.debug("Command", cmd=command[:200] if len(str(command)) > 200 else command)
 
             # Use Popen with polling loop to allow CTRL+C interruption
             proc = subprocess.Popen(
@@ -387,11 +480,11 @@ class GeminiDriverV7:
             result.stdout = stdout
             result.stderr = stderr
 
-            print(f"[DEBUG] Gemini returned: code={result.returncode}, stdout_len={len(result.stdout)}", file=sys.stderr)
+            _logger.debug("Gemini returned", code=result.returncode, stdout_len=len(result.stdout))
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout or "Unknown error"
-                print(f"[DEBUG] Gemini error: {error_msg[:500]}", file=sys.stderr)
+                _logger.error("Gemini error", error=error_msg[:500])
                 raise RuntimeError(f"Gemini CLI failed (code {result.returncode}): {error_msg}")
 
             # Get output from stdout

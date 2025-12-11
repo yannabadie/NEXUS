@@ -61,7 +61,8 @@
       "WebFetch(domain:microsoft.github.io)",
       "WebFetch(domain:python-prompt-toolkit.readthedocs.io)",
       "Bash(python3 -c \"import sys; sys.path.insert(0, ''.''); from core.interface.repl import InteractiveNexusV7; print(''✓ REPL imports OK'')\")",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(del nul)"
     ],
     "deny": [],
     "ask": []

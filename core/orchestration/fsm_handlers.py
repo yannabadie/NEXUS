@@ -726,6 +726,7 @@ class FSMHandlers:
         try:
             # Initialize Hive Mind if not exists
             if not hasattr(self._orch, '_hive_mind') or self._orch._hive_mind is None:
+                # V8.4.5: Pass swarm_engine for SwarmBridge delegation (Dictator Mode)
                 self._orch._hive_mind = TrueHiveMind(
                     workspace_path=self._orch.workspace_path,
                     config=self._orch.config,
@@ -734,7 +735,8 @@ class FSMHandlers:
                     agent_pool=self._orch.agent_pool,
                     budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
                     project_memory=self._orch.project_memory,
-                    auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True)
+                    auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
+                    swarm_engine=getattr(self._orch, 'swarm_engine', None)
                 )
 
             # Map TaskComplexity to HiveComplexity
@@ -804,8 +806,9 @@ class FSMHandlers:
                 swarm_result = self._orch.process_with_swarm(user_input)
                 if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
                     return self._format_swarm_result(swarm_result)
-            except Exception:
-                pass
+            except Exception as e:
+                # V8.4.5: Log swarm failure instead of silent swallowing
+                self._logger.warn(f"Swarm processing failed, falling back to brainstorming: {str(e)[:100]}")
 
         # Fallback to Brainstorming (V8.4.0: use normalized agent ID)
         self._orch.blackboard["objective"] = user_input

@@ -299,13 +299,23 @@ class ProcessHandleRegistry:
         return len(self._handles)
 
 
-# Global registry instance
+# Global registry instance with thread-safe initialization (V9)
+import threading
 _global_registry: Optional[ProcessHandleRegistry] = None
+_registry_lock = threading.Lock()
 
 
 def get_process_registry() -> ProcessHandleRegistry:
-    """Get the global process handle registry."""
+    """
+    Get the global process handle registry.
+
+    V9: Thread-safe singleton with double-checked locking to prevent
+    race conditions during initialization.
+    """
     global _global_registry
     if _global_registry is None:
-        _global_registry = ProcessHandleRegistry()
+        with _registry_lock:
+            # Double-check inside lock
+            if _global_registry is None:
+                _global_registry = ProcessHandleRegistry()
     return _global_registry

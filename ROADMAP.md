@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.0-cyborg | **Status**: Active | **Last Updated**: 2025-12-10
+**Version**: 8.4.5-cyborg-hardening | **Status**: Active | **Last Updated**: 2025-12-11
 **Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
@@ -13,15 +13,15 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 ---
 
-## État Actuel (2025-12-10)
+## État Actuel (2025-12-11)
 
 | Métrique | Valeur |
 |----------|--------|
-| Modules core/ | 24 |
-| Fichiers Python | 128 |
-| Lignes de code | 44,000+ |
-| Tests | 1,146+ |
-| Phases complétées | 17 (V8.4.0-cyborg) |
+| Modules core/ | 25 |
+| Fichiers Python | 132 |
+| Lignes de code | 45,000+ |
+| Tests | 1,162+ |
+| Phases complétées | 20 (V8.4.5-cyborg-hardening) |
 
 ### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
 
@@ -2009,6 +2009,61 @@ HEALTHY → DEGRADED → CRITICAL → RECOVERING → HEALTHY
 - [Saga Pattern Python](https://johal.in/implementing-saga-pattern-in-python-distributed-transaction-management-for-services/) - Compensating transactions
 - [Time Series Anomaly Detection](https://blog.jetbrains.com/pycharm/2025/01/anomaly-detection-in-time-series/) - Proactive prediction
 
+---
+
+### V8.4.5 - Cyborg Hardening ✅ COMPLETED (2025-12-11)
+
+**Objectif**: Corrections de sécurité, performance async, et qualité architecturale
+**Source**: 4 Explore agents + Web Research + Plan "Cyborg Hardening"
+**Philosophie**: *"Harden the castle before expanding"*
+
+#### P0 - Sécurité (CRITIQUE) ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| PathGuardian sacred files check en READ | `core/security/path_guardian.py:105-108` | `.env`, credentials bloqués en lecture ET écriture |
+| PathGuardian.validate_read() appelé dans _execute_read() | `core/execution/tool_manager.py:293-332` | Path traversal patché (CWE-22) |
+| .env retiré du whitelist evolution | `core/execution/tool_manager.py:1171` | Credentials jamais lisibles par agents |
+| Tests de sécurité path traversal | `tests/test_path_traversal_security.py` | 16 tests couvrant tous les vecteurs |
+
+**Vulnérabilité corrigée (CWE-22)**:
+- `../.env` - BLOQUÉ (fichier sacré)
+- `./../.env` - BLOQUÉ (fichier sacré)
+- `foo/../../.env` - BLOQUÉ (fichier sacré)
+- Symlinks vers fichiers sacrés - BLOQUÉS
+- Chemins absolus hors zones - BLOQUÉS
+
+#### P1 - Performance Async ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| ParallelExecutor → asyncio.gather() | `core/swarm/mode_executors.py:548-600` | True async (vs ThreadPoolExecutor bloquant) |
+| _invoke_async() dans ModeExecutor | `core/swarm/mode_executors.py:180-220` | Pattern réutilisable pour tous les executors |
+| HiveMind phases → send_message_async() | Déjà intégré V8.4.4 | Bridge async/sync fonctionnel |
+
+#### P2 - Architecture ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| Thread-safe singleton (double-checked locking) | `core/async_primitives/process_handle.py:306-320` | Race conditions éliminées |
+| Thread-safe singleton | `core/logging/logger_v7.py:422-439` | Thread-safe logger init |
+| Thread-safe singleton | `core/agents/unified_registry.py:363-386` | Thread-safe registry init |
+| CommandRegistry structure | `core/interface/commands/` | Strategy Pattern pour REPL commands |
+| Rename commands.py → slash_commands.py | `core/interface/slash_commands.py` | Évite conflit package/module |
+
+#### P3 - Robustesse ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| `except:` → `except Exception:` | `core/logging/logger_v7.py` (4 occurrences) | Permet SystemExit/KeyboardInterrupt |
+
+**Tests de validation**:
+- `pytest tests/test_path_traversal_security.py` → 16/16 ✅
+- `pytest tests/test_security*.py` → 108/108 ✅
+- REPL import OK ✅
+
+---
+
 | Tâche | Effort | Status |
 |-------|--------|--------|
 | OllamaDriver implementation | 8h | PLANNED |
@@ -2818,12 +2873,13 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 | 17 | ~~Parallel Merge Strategy~~ | V8.3.3 | ~~3h~~ | ✅ Done |
 | 18 | ~~Cyborg V7.5 Async Integration~~ | V8.4.0-cyborg | ~~6h~~ | ✅ Done (branch N9AF) |
 | 19 | ~~Blind Spot Analysis~~ | V8.4.4 | ~~4h~~ | ✅ Done (7 angles morts identifiés) |
-| 20 | **P1: DriverBridge Deprecation** | V8.4.4a | 5h | **NEXT** |
-| 21 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | CRITICAL |
-| 22 | P1: WorkItem Yield Pattern | V8.4.4c | 21h | HIGH |
-| 23 | P2: HealthStateMachine | V8.4.4d | 9h | MEDIUM |
-| 24 | P2: Stagnation Predictor | V8.4.4e | 7h | LOW |
-| 25 | RedTeam Post-Spawn | V8.2.0c | 2h | DEFERRED |
+| 20 | ~~Cyborg Hardening (P0-P3)~~ | V8.4.5 | ~~8h~~ | ✅ Done (security + async + singletons) |
+| 21 | **P1: DriverBridge Deprecation** | V8.4.4a | 5h | **NEXT** |
+| 22 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | CRITICAL |
+| 23 | P1: WorkItem Yield Pattern | V8.4.4c | 21h | HIGH |
+| 24 | P2: HealthStateMachine | V8.4.4d | 9h | MEDIUM |
+| 25 | P2: Stagnation Predictor | V8.4.4e | 7h | LOW |
+| 26 | RedTeam Post-Spawn | V8.2.0c | 2h | DEFERRED |
 
 ---
 
@@ -2860,6 +2916,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-11 | 8.4.5-cyborg-hardening | **CYBORG HARDENING COMPLETE**: P0 Path Traversal (CWE-22) patché, P1 asyncio.gather() migration, P2 Thread-safe singletons (3 fichiers), P2 CommandRegistry structure, P3 Exception handling. 108 security tests ✅. Source: 4 Explore agents + Web research + Cyborg Hardening plan |
 | 2025-12-10 | 8.4.4-analysis | **BLIND SPOT ANALYSIS COMPLETE**: 7 angles morts identifiés (5 originaux + 2 nouveaux). Plan 56h créé: P1 DriverBridge (5h), P0 SagaManager (14h), P1 WorkItem (21h), P2 HealthFSM (9h), P2 StagnationPredictor (7h). Sources: Explore agents, Saga Pattern research, pytransitions AsyncMachine |
 | 2025-12-10 | 8.4.0-cyborg | **Cyborg V7.5 COMPLETED**: Branch N9AF. Async methods added to nexus7.py (+55), repl.py (+190), orchestration_v7.py (+180). StateGuard V8.4.4 & V8.7 Async Maturity roadmap phases added. Source: Gemini DeepThink "Functional Core, Async Shell" analysis |
 | 2025-12-10 | 8.3.4 | **Audit Quick Fixes**: FL-001 race condition fix, FL-002 completion detection. Source: CLAUDE_audit10122025.md |

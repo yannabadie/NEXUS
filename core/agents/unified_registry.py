@@ -360,20 +360,28 @@ class UnifiedAgentRegistry:
         return len(self._agents)
 
 
-# Global singleton
+# Global singleton with thread-safe initialization (V9)
+import threading
 _registry: Optional[UnifiedAgentRegistry] = None
+_registry_lock = threading.Lock()
 
 
 def get_registry() -> UnifiedAgentRegistry:
     """
     Get the global agent registry singleton.
 
+    V9: Thread-safe initialization with double-checked locking
+    to prevent race conditions during initialization.
+
     Returns:
         UnifiedAgentRegistry instance
     """
     global _registry
     if _registry is None:
-        _registry = UnifiedAgentRegistry()
+        with _registry_lock:
+            # Double-check inside lock
+            if _registry is None:
+                _registry = UnifiedAgentRegistry()
     return _registry
 
 

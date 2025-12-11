@@ -291,33 +291,47 @@ class ToolManager:
             )
 
     def _execute_read(self, args: Dict) -> ToolResult:
-        """Read file contents"""
-        file_path = Path(args.get("file_path", ""))
+        """Read file contents - SECURED V9 with PathGuardian validation."""
+        file_path_str = args.get("file_path", "")
 
-        # Evolution mode: Allow reading parent code
-        if self.evolution_mode and not file_path.is_absolute():
-            path_str = str(file_path)
-            if path_str.startswith("../"):
-                # Resolve relative to workspace
-                resolved = (self.workspace_path / file_path).resolve()
+        # ========== V9 SECURITY PATCH ==========
+        # ALWAYS validate with PathGuardian FIRST (fixes path traversal vulnerability)
+        valid, resolved_path, msg = self.path_guardian.validate_read(file_path_str)
 
-                # Check whitelist
-                if self._is_evolution_safe_read(resolved):
-                    file_path = resolved
-                else:
+        if not valid:
+            # Evolution mode exception: check whitelist for parent code access
+            if self.evolution_mode:
+                try:
+                    candidate = (self.workspace_path / file_path_str).resolve()
+                    if self._is_evolution_safe_read(candidate):
+                        # Whitelist allows this path in evolution mode
+                        resolved_path = candidate
+                    else:
+                        return ToolResult(
+                            tool_name="read",
+                            status="BLOCKED",
+                            output="",
+                            error=f"[SECURITY] Path blocked by PathGuardian: {msg}"
+                        )
+                except Exception:
                     return ToolResult(
                         tool_name="read",
-                        status="FAILURE",
+                        status="BLOCKED",
                         output="",
-                        error=f"Evolution mode: Read not allowed for {resolved} (not in whitelist)"
+                        error=f"[SECURITY] Invalid path: {msg}"
                     )
-
-        # Normal mode: Resolve relative to workspace
-        if not file_path.is_absolute():
-            file_path = self.workspace_path / file_path
+            else:
+                # Normal mode: strictly enforce PathGuardian
+                return ToolResult(
+                    tool_name="read",
+                    status="BLOCKED",
+                    output="",
+                    error=f"[SECURITY] Path blocked: {msg}"
+                )
+        # ========== END V9 SECURITY PATCH ==========
 
         try:
-            content = file_path.read_text(encoding="utf-8")
+            content = resolved_path.read_text(encoding="utf-8")
             return ToolResult(
                 tool_name="read",
                 status="SUCCESS",
@@ -328,7 +342,14 @@ class ToolManager:
                 tool_name="read",
                 status="FAILURE",
                 output="",
-                error=f"File not found: {file_path}"
+                error=f"File not found: {resolved_path}"
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name="read",
+                status="FAILURE",
+                output="",
+                error=f"Read error: {e}"
             )
 
     def _execute_write(self, args: Dict) -> ToolResult:
@@ -1147,11 +1168,12 @@ class ToolManager:
             ]
 
             # Allowed root files
+            # V9 SECURITY: .env REMOVED - credentials must not be readable by agents
             allowed_root_files = [
                 "README.md",
                 "nexus6.py",
                 "LINEAGE.json",
-                ".env"  # Needed for API keys during evolution
+                # ".env"  # V9: REMOVED - security risk (path traversal)
             ]
 
             # Forbidden patterns

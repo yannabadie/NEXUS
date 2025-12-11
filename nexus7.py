@@ -11,8 +11,10 @@ Architecture:
 - Bootstrap verification at startup
 """
 import sys
+import signal
 import argparse
 import asyncio
+import atexit
 from pathlib import Path
 import importlib.util
 from typing import Dict, Optional
@@ -33,6 +35,86 @@ WORKSPACE_PATH=./workspace
 LOG_LEVEL=INFO
 UI_VERBOSE=False
 """
+
+# =============================================================================
+# V8.4.5: Graceful Shutdown Handlers
+# =============================================================================
+
+_shutdown_requested = False
+_async_factory = None
+
+
+def _cleanup_processes():
+    """
+    Cleanup function called at exit.
+
+    V8.4.5: Ensures all subprocess and async processes are terminated.
+    """
+    global _async_factory
+
+    # Cleanup driver processes (Gemini and Claude)
+    try:
+        from core.drivers.gemini_driver_v7 import _cleanup_processes as cleanup_gemini
+        cleanup_gemini()
+    except Exception:
+        pass
+
+    try:
+        from core.drivers.claude_driver_hybrid import _cleanup_claude_processes
+        _cleanup_claude_processes()
+    except Exception:
+        pass
+
+    # Cleanup async factory if available
+    if _async_factory:
+        try:
+            # Run cleanup in a new event loop since atexit runs outside async context
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(_async_factory.cancel_all())
+            loop.close()
+        except Exception:
+            pass
+
+
+def _signal_handler(signum, frame):
+    """
+    Signal handler for graceful shutdown.
+
+    V8.4.5: Handles SIGINT and SIGTERM for graceful termination.
+    """
+    global _shutdown_requested
+
+    if _shutdown_requested:
+        # Second signal - force exit
+        print("\n[SHUTDOWN] Force exit requested", file=sys.stderr)
+        sys.exit(1)
+
+    _shutdown_requested = True
+    sig_name = signal.Signals(signum).name if hasattr(signal, 'Signals') else str(signum)
+    print(f"\n[SHUTDOWN] Received {sig_name}, cleaning up...", file=sys.stderr)
+
+    # Cleanup will happen via atexit or explicit call
+    raise KeyboardInterrupt
+
+
+def setup_signal_handlers():
+    """
+    Setup signal handlers for graceful shutdown.
+
+    V8.4.5: Cross-platform signal handling.
+    - Windows: SIGINT only (SIGTERM not supported)
+    - Unix: SIGINT and SIGTERM
+    """
+    # Register atexit handler first (always works)
+    atexit.register(_cleanup_processes)
+
+    # SIGINT (Ctrl+C) - works on all platforms
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    # SIGTERM - Unix only
+    if sys.platform != 'win32':
+        signal.signal(signal.SIGTERM, _signal_handler)
+
 
 def bootstrap():
     """
@@ -217,16 +299,20 @@ async def async_main(
 
     Falls back to sync REPL if run_async() not available.
     """
+    global _async_factory
+
     from core.interface.repl import InteractiveNexusV7
 
     # Initialize async driver factory for process management
     try:
         from core.drivers.async_factory import AsyncDriverFactory
         # Create factory instance (will be accessible via get_driver_factory)
-        _factory = AsyncDriverFactory(config, workspace_path)
+        factory = AsyncDriverFactory(config, workspace_path)
         # Store in module for global access
         import core.drivers.async_factory as factory_module
-        factory_module._global_factory = _factory
+        factory_module._global_factory = factory
+        # V8.4.5: Store reference for graceful shutdown
+        _async_factory = factory
     except ImportError:
         # Async drivers not available, continue with sync
         pass
@@ -255,6 +341,9 @@ async def async_main(
 
 def main():
     """Entry point NEXUS V7.0 Chrysalis"""
+    # V8.4.5: Setup graceful shutdown handlers early
+    setup_signal_handlers()
+
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="NEXUS V7.0 Chrysalis - The Omniscient REPL",
@@ -330,14 +419,7 @@ Documentation: https://github.com/nexus-ai/nexus-v7
 
     except KeyboardInterrupt:
         print("\n\n👋 NEXUS V7.0 Chrysalis terminated by user")
-        # V9: Cleanup orphan async processes
-        try:
-            from core.drivers.async_factory import get_driver_factory
-            factory = get_driver_factory()
-            if factory:
-                asyncio.run(factory.cancel_all())
-        except Exception:
-            pass
+        # V8.4.5: Cleanup handled by atexit and signal handlers
         sys.exit(0)
 
     except Exception as e:

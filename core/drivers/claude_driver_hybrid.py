@@ -32,6 +32,7 @@ Parser Output:
         }
     }
 """
+import asyncio
 import re
 import json
 import subprocess
@@ -47,6 +48,11 @@ from core.utils.stream_parser import parse_stream_chunk, is_result_message, extr
 
 # V8.4.0: Unified agent registry
 from core.agents.unified_registry import get_registry
+# V8.4.5: Structured driver logging
+from core.logging.driver_logger import get_driver_logger
+
+# Initialize driver logger
+_logger = get_driver_logger("claude")
 
 
 # Global reference for cleanup at exit
@@ -361,6 +367,27 @@ class ClaudeDriverHybrid:
                     context_file.unlink()
             except Exception:
                 pass  # Best effort cleanup
+
+    async def send_message_async(self, prompt: str, session_uuid: Optional[str] = None) -> Dict:
+        """
+        Async bridge method for HiveMind phases compatibility (V8.4.5).
+
+        Wraps sync invoke() in asyncio.to_thread() for non-blocking execution.
+        This allows HiveMind phases to call driver methods without blocking
+        the event loop, enabling true concurrent execution.
+
+        Args:
+            prompt: Context markdown with system prompt
+            session_uuid: Optional unique ID for file isolation
+
+        Returns:
+            Dict structured NEXUS response (same as invoke())
+
+        Note:
+            This is a bridge method for backward compatibility with async HiveMind
+            phases. New code should use AsyncClaudeDriver for full async support.
+        """
+        return await asyncio.to_thread(self.invoke, prompt, session_uuid)
 
     def _parse_hybrid_response(self, raw_text: str) -> Dict:
         """
