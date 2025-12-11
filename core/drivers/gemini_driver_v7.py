@@ -28,6 +28,10 @@ import json
 import sys
 import time
 import atexit
+import logging
+
+# V9 Cyborg Hardening: Logger for exception tracking
+_logger = logging.getLogger(__name__)
 import uuid as uuid_module
 from pathlib import Path
 from typing import Dict, Optional, Callable
@@ -60,8 +64,8 @@ def _cleanup_processes():
     if _persistent_process:
         try:
             _persistent_process.close()
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.debug(f"[GeminiDriver] Persistent process cleanup warning: {e}")
         _persistent_process = None
 
     # Cleanup any one-shot processes
@@ -70,11 +74,12 @@ def _cleanup_processes():
             if proc.poll() is None:  # Still running
                 proc.terminate()
                 proc.wait(timeout=2)
-        except Exception:
+        except Exception as e:
+            _logger.debug(f"[GeminiDriver] Process terminate failed: {e}")
             try:
                 proc.kill()
-            except Exception:
-                pass
+            except Exception as e2:
+                _logger.warning(f"[GeminiDriver] Process kill also failed: {e2}")
     _active_processes.clear()
 
 
@@ -417,8 +422,8 @@ class GeminiDriverV7:
                             if line:
                                 data_list.append(line)
                                 output_queue.put((stream_name, line.strip()))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        _logger.debug(f"[GeminiDriver] Stream reader ({stream_name}) ended: {e}")
 
                 # Start reader threads
                 stdout_thread = threading.Thread(target=read_stream, args=(proc.stdout, 'stdout', stdout_data))
