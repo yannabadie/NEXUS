@@ -1,7 +1,11 @@
-# Drivers Module - NEXUS V8.4.x "TRUE HIVE MIND"
+# Drivers Module - NEXUS V9.0 "TRUE HIVE MIND"
+
+**Version**: 9.0 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-11
 
 AI model interface drivers for Claude and Gemini CLI communication.
 Supports blocking, streaming, and **async** invocation modes (V8.4.4).
+**V8.8**: OutputGuard integration for leak detection (OWASP LLM02:2025).
 
 ## Overview
 
@@ -656,6 +660,82 @@ response = async_driver.invoke_sync(context)  # Native sync wrapper
 
 ---
 
+---
+
+## V8.8 OutputGuard Integration (OWASP LLM02:2025)
+
+### Concept
+
+Les drivers V8.8 valident automatiquement les réponses LLM pour détecter les fuites de system prompt ou données sensibles.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   OUTPUT GUARD FLOW (V8.8)                   │
+├─────────────────────────────────────────────────────────────┤
+│  LLM Response → _validate_output() → OutputGuard.validate() │
+│                                            │                 │
+│                                    ┌───────┴───────┐         │
+│                                    │ Leak Check    │         │
+│                                    │ SYSTEM_PROMPT │         │
+│                                    │ KERNEL_RULES  │         │
+│                                    │ API_KEYS      │         │
+│                                    └───────┬───────┘         │
+│                                            │                 │
+│                           ┌────────────────┴────────┐        │
+│                           │                         │        │
+│                      LEAK_DETECTED             CLEAN         │
+│                           │                         │        │
+│                   Log + Sanitize               Return        │
+│                           │                         │        │
+│                    Safe Response ←──────────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+```python
+# Dans gemini_driver_v7.py et claude_driver_hybrid.py
+from core.security import get_output_guard
+
+class GeminiDriverV7:
+    def _validate_output(self, response: Dict) -> Dict:
+        """V8.8: Validate output for potential leaks."""
+        output_guard = get_output_guard()
+        content = response.get("content", "")
+
+        validation = output_guard.validate(content)
+
+        if validation.leak_type.value != "none":
+            logger.warning(f"[OUTPUT GUARD] Potential leak: {validation.leak_type.value}")
+            if validation.sanitized_output:
+                response = response.copy()
+                response["content"] = validation.sanitized_output
+
+        return response
+```
+
+### Leak Types Detected
+
+| Leak Type | Patterns | Action |
+|-----------|----------|--------|
+| SYSTEM_PROMPT | "Your instructions are:", "System:" | Log + Sanitize |
+| KERNEL_RULES | "CREATOR =", "ALIGNMENT =" | Log + Sanitize |
+| INTERNAL_STATE | "blackboard:", "context_manager" | Log + Warn |
+| API_KEYS | "API_KEY=", "SECRET=" | Log + Redact |
+
+### Integration Points
+
+| Driver | Method | Line |
+|--------|--------|------|
+| GeminiDriverV7 | `_validate_output()` | Post-invoke |
+| ClaudeDriverHybrid | `_validate_output()` | Post-invoke |
+| AsyncGeminiDriver | `_validate_output()` | Post-async-invoke |
+| AsyncClaudeDriver | `_validate_output()` | Post-async-invoke |
+
+---
+
 ## See Also
 
 - [Core README](../README.md) - Architecture overview
@@ -663,3 +743,4 @@ response = async_driver.invoke_sync(context)  # Native sync wrapper
 - [Synapse Module](../synapse/README.md) - Message schemas
 - [Utils: JSON Extractor](../utils/README.md) - Robust parsing
 - [Async Primitives](../async_primitives/README.md) - CancellationToken, ProcessHandleRegistry
+- [Security Module](../security/README.md) - OutputGuard documentation

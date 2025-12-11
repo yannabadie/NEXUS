@@ -1,6 +1,9 @@
 # Module : core/hive_mind
 
-## Rôle dans l'Architecture NEXUS V8.4.x
+**Version**: 9.0 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-11
+
+## Rôle dans l'Architecture NEXUS V9.0
 
 **TRUE HIVE MIND** - Orchestrateur de collaboration intelligente pour tâches complexes.
 
@@ -10,7 +13,7 @@ Ce module transforme NEXUS d'un orchestrateur séquentiel en une **intelligence 
 V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 ```
 
-### Nouveautés V8.3.x - V8.4.x
+### Nouveautés V8.3.x - V9.0
 
 | Version | Feature | Description |
 |---------|---------|-------------|
@@ -21,6 +24,8 @@ V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 | **V8.4.4** | Phase Guards | Validation avant chaque transition (guards lambdas) |
 | **V8.4.4** | AsyncHiveMindAdapter | Wrapper async avec CancellationToken support |
 | **V8.4.4** | Context Snapshot | `messages[:checkpoint_index]` sur rollback (anti-hallucination) |
+| **V8.8** | Security Hardening | InputGuard + OutputGuard intégrés dans pipeline |
+| **V8.8** | AdaptiveFallback | Fallback contextuel via SwarmBridge |
 
 ## Composants Clés
 
