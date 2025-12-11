@@ -153,6 +153,115 @@ def runtime_integrity_check():
     # Add more checks as needed
     return True
 
+
+# =============================================================================
+# V8.8: KERNEL HEREDITY CHECK (GROK-003)
+# =============================================================================
+
+def compute_rules_hash() -> str:
+    """
+    Compute a hash of the core alignment rules.
+
+    V8.8 (GROK-003): Used for heredity validation of spawned agents.
+    Ensures all agents descend from a valid KERNEL state.
+
+    Returns:
+        str: SHA-256 hash (first 16 chars) of the five invariants.
+    """
+    import hashlib
+
+    # Concatenate all invariants
+    rules_content = "|".join([
+        CREATOR,
+        ALIGNMENT,
+        OBJECTIVE,
+        IMMUTABILITY_RULE,
+        SURVIVAL_LAW
+    ])
+
+    return hashlib.sha256(rules_content.encode("utf-8")).hexdigest()[:16]
+
+
+def validate_lineage(birth_certificate: dict, max_drift_percent: float = 5.0) -> tuple:
+    """
+    Validate a spawned agent's birth certificate against current KERNEL.
+
+    V8.8 (GROK-003): Prevents adversarial agents from being spawned with
+    different alignment. Called during /spawn flow.
+
+    Validation checks:
+    1. human_authority matches KERNEL.CREATOR
+    2. kernel_rules_hash (if present) matches current compute_rules_hash()
+    3. Drift calculation based on hash similarity
+
+    Args:
+        birth_certificate: Dict containing agent birth certificate.
+            Expected fields:
+            - human_authority: str (must match CREATOR)
+            - kernel_rules_hash: str (optional, hash from parent KERNEL)
+        max_drift_percent: Maximum allowed drift percentage (default 5.0%).
+
+    Returns:
+        tuple: (is_valid: bool, reason: str)
+            - is_valid: True if certificate is valid
+            - reason: Explanation of validation result
+    """
+    # Check 1: Human authority must match CREATOR
+    cert_authority = birth_certificate.get("human_authority", "")
+    if cert_authority != CREATOR:
+        return False, f"Authority mismatch: '{cert_authority}' != '{CREATOR}'"
+
+    # Check 2: KERNEL rules hash (if present)
+    cert_hash = birth_certificate.get("kernel_rules_hash")
+    if cert_hash:
+        current_hash = compute_rules_hash()
+
+        if cert_hash != current_hash:
+            # Calculate drift as percentage of mismatched characters
+            mismatch_count = sum(1 for a, b in zip(cert_hash, current_hash) if a != b)
+            drift_percent = (mismatch_count / len(current_hash)) * 100
+
+            if drift_percent > max_drift_percent:
+                return False, (
+                    f"KERNEL drift detected: {drift_percent:.1f}% > {max_drift_percent}% allowed. "
+                    f"Certificate hash: {cert_hash}, Current hash: {current_hash}"
+                )
+            else:
+                # Warn but allow (minor drift, possibly due to KERNEL version update)
+                return True, (
+                    f"Minor KERNEL drift: {drift_percent:.1f}% (within tolerance). "
+                    f"Certificate may be from older KERNEL version."
+                )
+
+        return True, "KERNEL heredity validated: hash match"
+
+    # No hash in certificate - legacy certificate, validate authority only
+    return True, "Legacy certificate (no kernel_rules_hash): authority validated"
+
+
+def get_heredity_stamp() -> dict:
+    """
+    Generate a heredity stamp for new agents.
+
+    V8.8 (GROK-003): Called when creating birth certificates to embed
+    current KERNEL state for future validation.
+
+    Returns:
+        dict: Heredity stamp containing:
+            - kernel_rules_hash: Current rules hash
+            - kernel_version: KERNEL version
+            - human_authority: Creator name
+            - stamped_at: ISO timestamp
+    """
+    from datetime import datetime
+
+    return {
+        "kernel_rules_hash": compute_rules_hash(),
+        "kernel_version": VERSION,
+        "human_authority": CREATOR,
+        "stamped_at": datetime.now().isoformat()
+    }
+
 # ============================================================================
 # EXPORT
 # ============================================================================
@@ -166,7 +275,11 @@ __all__ = [
     "VERSION",
     "verify_kernel_integrity",
     "get_invariants",
-    "runtime_integrity_check"
+    "runtime_integrity_check",
+    # V8.8: GROK-003 Heredity Check
+    "compute_rules_hash",
+    "validate_lineage",
+    "get_heredity_stamp",
 ]
 
 if __name__ == "__main__":
