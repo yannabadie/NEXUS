@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 from dataclasses import dataclass, field
 
 from .rwlock import AsyncRWLock, InstrumentedAsyncRWLock
@@ -56,12 +56,14 @@ class BlackboardEntry:
         updated_at: When the entry was last updated
         source: What created this entry (agent, phase, etc.)
         ttl_seconds: Optional time-to-live
+        version: Monotonic version number for CAS operations (GROK-001 fix)
     """
     value: Any
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     source: Optional[str] = None
     ttl_seconds: Optional[float] = None
+    version: int = 1  # V8.4.7: CAS support for PARALLEL mode race conditions
 
     @property
     def is_expired(self) -> bool:
@@ -130,7 +132,7 @@ class AsyncBlackboard:
         value: Any,
         source: Optional[str] = None,
         ttl_seconds: Optional[float] = None
-    ) -> None:
+    ) -> int:
         """
         Set a value in the blackboard.
 
@@ -139,27 +141,34 @@ class AsyncBlackboard:
             value: The value to store
             source: Optional source identifier
             ttl_seconds: Optional time-to-live in seconds
+
+        Returns:
+            The new version number of the entry (V8.4.7 CAS support)
         """
         async with self._lock.write():
             now = datetime.now()
             if key in self._data:
-                # Update existing
+                # Update existing - increment version (GROK-001 fix)
                 entry = self._data[key]
                 entry.value = value
                 entry.updated_at = now
+                entry.version += 1
                 if source:
                     entry.source = source
                 if ttl_seconds is not None:
                     entry.ttl_seconds = ttl_seconds
+                return entry.version
             else:
-                # Create new
+                # Create new with version 1
                 self._data[key] = BlackboardEntry(
                     value=value,
                     created_at=now,
                     updated_at=now,
                     source=source,
-                    ttl_seconds=ttl_seconds
+                    ttl_seconds=ttl_seconds,
+                    version=1
                 )
+                return 1
 
     async def delete(self, key: str) -> bool:
         """
@@ -319,7 +328,7 @@ class AsyncBlackboard:
         Get metadata for an entry.
 
         Returns:
-            Dictionary with created_at, updated_at, source, ttl, is_expired
+            Dictionary with created_at, updated_at, source, ttl, is_expired, version
         """
         async with self._lock.read():
             entry = self._data.get(key)
@@ -331,6 +340,7 @@ class AsyncBlackboard:
                 "source": entry.source,
                 "ttl_seconds": entry.ttl_seconds,
                 "is_expired": entry.is_expired,
+                "version": entry.version,  # V8.4.7: CAS support
             }
 
     async def namespaced_keys(self, namespace: str) -> List[str]:
@@ -353,6 +363,190 @@ class AsyncBlackboard:
         """Get the number of entries (excluding expired)."""
         async with self._lock.read():
             return sum(1 for v in self._data.values() if not v.is_expired)
+
+    # =========================================================================
+    # V8.4.7 CAS Operations (GROK-001 Fix)
+    # Compare-And-Swap for atomic operations in PARALLEL swarm mode
+    # =========================================================================
+
+    async def get_with_version(
+        self,
+        key: str,
+        default: T = None,
+        include_expired: bool = False
+    ) -> Tuple[Union[Any, T], int]:
+        """
+        Get a value along with its version number.
+
+        Essential for CAS operations: read value+version, then use
+        compare_and_set() to atomically update only if version matches.
+
+        Args:
+            key: The key to look up
+            default: Value to return if key not found
+            include_expired: If True, return expired values too
+
+        Returns:
+            Tuple of (value, version). Version is 0 if key not found.
+        """
+        async with self._lock.read():
+            entry = self._data.get(key)
+            if entry is None:
+                return default, 0
+            if entry.is_expired and not include_expired:
+                return default, 0
+            return entry.value, entry.version
+
+    async def compare_and_set(
+        self,
+        key: str,
+        expected_version: int,
+        new_value: Any,
+        source: Optional[str] = None,
+        ttl_seconds: Optional[float] = None
+    ) -> Tuple[bool, int]:
+        """
+        Atomic Compare-And-Set (CAS) operation.
+
+        Only updates the value if the current version matches expected_version.
+        This prevents lost updates in concurrent PARALLEL mode operations.
+
+        Usage pattern:
+            value, version = await bb.get_with_version("key")
+            # ... process value ...
+            success, new_version = await bb.compare_and_set(
+                "key", version, new_value
+            )
+            if not success:
+                # Concurrent modification detected, retry or handle
+
+        Args:
+            key: The key to update
+            expected_version: The version we expect (from get_with_version)
+            new_value: The new value to set
+            source: Optional source identifier
+            ttl_seconds: Optional TTL (preserves existing if None)
+
+        Returns:
+            Tuple of (success, current_version).
+            - success=True, new_version if update succeeded
+            - success=False, current_version if version mismatch (concurrent mod)
+        """
+        async with self._lock.write():
+            entry = self._data.get(key)
+
+            # Key doesn't exist
+            if entry is None:
+                if expected_version == 0:
+                    # Expected no entry, create new
+                    now = datetime.now()
+                    self._data[key] = BlackboardEntry(
+                        value=new_value,
+                        created_at=now,
+                        updated_at=now,
+                        source=source,
+                        ttl_seconds=ttl_seconds,
+                        version=1
+                    )
+                    return True, 1
+                else:
+                    # Expected existing entry, but it's gone
+                    return False, 0
+
+            # Version mismatch - concurrent modification detected
+            if entry.version != expected_version:
+                return False, entry.version
+
+            # Version matches - update atomically
+            now = datetime.now()
+            entry.value = new_value
+            entry.updated_at = now
+            entry.version += 1
+            if source:
+                entry.source = source
+            if ttl_seconds is not None:
+                entry.ttl_seconds = ttl_seconds
+
+            return True, entry.version
+
+    async def expire_if_version(
+        self,
+        key: str,
+        expected_version: int
+    ) -> Tuple[bool, int]:
+        """
+        Atomically expire (delete) a key only if version matches.
+
+        Prevents race conditions where one agent expires a key that
+        another agent has just updated with fresh data.
+
+        Args:
+            key: The key to expire
+            expected_version: The version we expect
+
+        Returns:
+            Tuple of (success, current_version).
+            - success=True, 0 if deleted successfully
+            - success=False, current_version if version mismatch
+        """
+        async with self._lock.write():
+            entry = self._data.get(key)
+
+            if entry is None:
+                return False, 0
+
+            if entry.version != expected_version:
+                # Someone updated it - don't expire
+                return False, entry.version
+
+            # Version matches - safe to delete
+            del self._data[key]
+            return True, 0
+
+    async def update_if_fresh(
+        self,
+        key: str,
+        new_value: Any,
+        max_age_seconds: float,
+        source: Optional[str] = None
+    ) -> Tuple[bool, int]:
+        """
+        Update a value only if the existing entry is still fresh (not stale).
+
+        Combines TTL check with atomic update. Useful for cache refresh
+        patterns where we only want to update if our read was recent.
+
+        Args:
+            key: The key to update
+            new_value: The new value
+            max_age_seconds: Maximum age in seconds to consider fresh
+            source: Optional source identifier
+
+        Returns:
+            Tuple of (success, version).
+            - success=True if updated
+            - success=False if entry is stale or missing
+        """
+        async with self._lock.write():
+            entry = self._data.get(key)
+
+            if entry is None:
+                return False, 0
+
+            # Check freshness
+            age = (datetime.now() - entry.updated_at).total_seconds()
+            if age > max_age_seconds:
+                return False, entry.version
+
+            # Fresh - update
+            now = datetime.now()
+            entry.value = new_value
+            entry.updated_at = now
+            entry.version += 1
+            if source:
+                entry.source = source
+
+            return True, entry.version
 
     def __repr__(self) -> str:
         # Sync repr for debugging - don't acquire lock

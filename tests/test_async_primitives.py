@@ -649,5 +649,358 @@ class TestAsyncPrimitivesIntegration:
         assert 0 < size < 100
 
 
+# ============================================================================
+# V8.4.7 CAS Tests (GROK-001 Fix)
+# ============================================================================
+
+class TestAsyncBlackboardCAS:
+    """Tests for Compare-And-Set operations (GROK-001 fix)."""
+
+    @pytest.mark.asyncio
+    async def test_get_with_version(self):
+        """get_with_version should return value and version."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "value1")
+        value, version = await bb.get_with_version("key")
+
+        assert value == "value1"
+        assert version == 1
+
+    @pytest.mark.asyncio
+    async def test_get_with_version_missing_key(self):
+        """get_with_version should return default and version 0 for missing key."""
+        bb = AsyncBlackboard()
+
+        value, version = await bb.get_with_version("missing", default="default")
+
+        assert value == "default"
+        assert version == 0
+
+    @pytest.mark.asyncio
+    async def test_set_increments_version(self):
+        """Each set should increment the version."""
+        bb = AsyncBlackboard()
+
+        v1 = await bb.set("key", "value1")
+        v2 = await bb.set("key", "value2")
+        v3 = await bb.set("key", "value3")
+
+        assert v1 == 1
+        assert v2 == 2
+        assert v3 == 3
+
+    @pytest.mark.asyncio
+    async def test_compare_and_set_success(self):
+        """CAS should succeed when version matches."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "initial")
+        value, version = await bb.get_with_version("key")
+
+        success, new_version = await bb.compare_and_set("key", version, "updated")
+
+        assert success is True
+        assert new_version == 2
+        assert await bb.get("key") == "updated"
+
+    @pytest.mark.asyncio
+    async def test_compare_and_set_failure_version_mismatch(self):
+        """CAS should fail when version doesn't match."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "initial")
+        _, version = await bb.get_with_version("key")
+
+        # Simulate concurrent modification
+        await bb.set("key", "modified_by_other")
+
+        # Our CAS should fail
+        success, current_version = await bb.compare_and_set("key", version, "my_update")
+
+        assert success is False
+        assert current_version == 2  # Shows current version
+        assert await bb.get("key") == "modified_by_other"  # Other's update preserved
+
+    @pytest.mark.asyncio
+    async def test_compare_and_set_create_new(self):
+        """CAS with version 0 should create new entry if missing."""
+        bb = AsyncBlackboard()
+
+        success, version = await bb.compare_and_set("new_key", 0, "new_value")
+
+        assert success is True
+        assert version == 1
+        assert await bb.get("new_key") == "new_value"
+
+    @pytest.mark.asyncio
+    async def test_expire_if_version_success(self):
+        """expire_if_version should delete when version matches."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "value")
+        _, version = await bb.get_with_version("key")
+
+        success, _ = await bb.expire_if_version("key", version)
+
+        assert success is True
+        assert await bb.get("key") is None
+
+    @pytest.mark.asyncio
+    async def test_expire_if_version_failure(self):
+        """expire_if_version should fail when version doesn't match."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "value")
+        _, version = await bb.get_with_version("key")
+
+        # Simulate concurrent update
+        await bb.set("key", "updated")
+
+        # Expire should fail - data was refreshed
+        success, current_version = await bb.expire_if_version("key", version)
+
+        assert success is False
+        assert current_version == 2
+        assert await bb.get("key") == "updated"  # Data preserved
+
+    @pytest.mark.asyncio
+    async def test_update_if_fresh_success(self):
+        """update_if_fresh should succeed when entry is fresh."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "initial")
+
+        # Immediately update (definitely fresh)
+        success, version = await bb.update_if_fresh("key", "updated", max_age_seconds=10)
+
+        assert success is True
+        assert version == 2
+        assert await bb.get("key") == "updated"
+
+    @pytest.mark.asyncio
+    async def test_update_if_fresh_failure_stale(self):
+        """update_if_fresh should fail when entry is stale."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "initial")
+
+        # Wait for entry to become stale
+        await asyncio.sleep(0.02)
+
+        # Try to update with very short freshness window
+        success, version = await bb.update_if_fresh("key", "updated", max_age_seconds=0.01)
+
+        assert success is False
+        assert await bb.get("key") == "initial"  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_metadata_includes_version(self):
+        """Metadata should include version field."""
+        bb = AsyncBlackboard()
+
+        await bb.set("key", "value")
+        await bb.set("key", "value2")
+
+        metadata = await bb.get_metadata("key")
+
+        assert metadata["version"] == 2
+
+
+# ============================================================================
+# Chaos Tests for PARALLEL Mode (GROK-001 Validation)
+# ============================================================================
+
+class TestAsyncBlackboardChaos:
+    """Chaos tests simulating PARALLEL swarm mode with 50 concurrent agents."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_increments_without_cas(self):
+        """
+        Demonstrate the race condition problem that CAS solves.
+        50 concurrent agents each try to increment a counter.
+        Without CAS, final count will be less than 50 due to lost updates.
+        """
+        bb = AsyncBlackboard()
+        await bb.set("counter", 0)
+
+        async def increment_unsafe():
+            """Unsafe increment - demonstrates race condition."""
+            value = await bb.get("counter")
+            await asyncio.sleep(0.001)  # Simulate processing time
+            await bb.set("counter", value + 1)
+
+        # Run 50 concurrent unsafe increments
+        await asyncio.gather(*[increment_unsafe() for _ in range(50)])
+
+        final = await bb.get("counter")
+        # Due to race conditions, final will likely be < 50
+        # (This is the bug GROK-001 describes)
+        assert final <= 50  # May be less due to lost updates
+
+    @pytest.mark.asyncio
+    async def test_concurrent_increments_with_cas(self):
+        """
+        CAS-based concurrent increment - should achieve exactly 50.
+        Each agent retries on conflict until successful.
+        """
+        bb = AsyncBlackboard()
+        await bb.set("counter", 0)
+
+        async def increment_with_cas():
+            """Safe CAS-based increment with retry."""
+            max_retries = 100
+            for _ in range(max_retries):
+                value, version = await bb.get_with_version("counter")
+                await asyncio.sleep(0.001)  # Simulate processing time
+                success, _ = await bb.compare_and_set("counter", version, value + 1)
+                if success:
+                    return True
+            return False  # Failed after max retries
+
+        # Run 50 concurrent CAS increments
+        results = await asyncio.gather(*[increment_with_cas() for _ in range(50)])
+
+        # All should succeed
+        assert all(results)
+
+        # Final count should be exactly 50
+        final = await bb.get("counter")
+        assert final == 50
+
+    @pytest.mark.asyncio
+    async def test_chaos_mixed_operations(self):
+        """
+        Simulate chaotic PARALLEL swarm mode with mixed operations.
+        50 agents doing random reads, writes, and CAS operations.
+        """
+        bb = AsyncBlackboard()
+        errors = []
+        operations_count = {"reads": 0, "writes": 0, "cas_success": 0, "cas_fail": 0}
+
+        async def chaotic_agent(agent_id: int):
+            """Agent performing random operations."""
+            import random
+            for _ in range(10):
+                op = random.choice(["read", "write", "cas"])
+
+                try:
+                    if op == "read":
+                        await bb.get(f"key_{random.randint(0, 9)}")
+                        operations_count["reads"] += 1
+
+                    elif op == "write":
+                        await bb.set(f"key_{random.randint(0, 9)}", f"value_{agent_id}")
+                        operations_count["writes"] += 1
+
+                    else:  # cas
+                        key = f"key_{random.randint(0, 9)}"
+                        value, version = await bb.get_with_version(key)
+                        success, _ = await bb.compare_and_set(
+                            key, version, f"cas_{agent_id}"
+                        )
+                        if success:
+                            operations_count["cas_success"] += 1
+                        else:
+                            operations_count["cas_fail"] += 1
+
+                    await asyncio.sleep(0.001)
+
+                except Exception as e:
+                    errors.append(f"Agent {agent_id}: {e}")
+
+        # Run 50 chaotic agents
+        await asyncio.gather(*[chaotic_agent(i) for i in range(50)])
+
+        # No errors should occur
+        assert len(errors) == 0, f"Errors occurred: {errors}"
+
+        # Should have completed 500 operations total (50 agents * 10 ops each)
+        total_ops = sum(operations_count.values())
+        assert total_ops == 500
+
+    @pytest.mark.asyncio
+    async def test_ttl_expiry_race_condition_fixed(self):
+        """
+        Test that CAS prevents the TTL race condition from GROK-001.
+
+        Scenario:
+        1. Agent A reads key with TTL (gets version 1)
+        2. Key expires
+        3. Agent B sets fresh value (version increments to 2)
+        4. Agent A tries to expire with version 1 - should FAIL
+        """
+        bb = AsyncBlackboard()
+
+        # Agent A reads key with short TTL
+        await bb.set("cache_key", "old_data", ttl_seconds=0.01)
+        value_a, version_a = await bb.get_with_version("cache_key")
+        assert version_a == 1
+
+        # Wait for TTL expiry
+        await asyncio.sleep(0.02)
+
+        # Agent B refreshes the cache - version increments even for expired keys
+        # This is correct behavior: the entry still exists, just flagged expired
+        new_version = await bb.set("cache_key", "fresh_data")
+        assert new_version == 2  # Version incremented
+
+        # Agent A tries to expire based on stale version 1 - should fail
+        success, current_version = await bb.expire_if_version("cache_key", version_a)
+
+        assert success is False
+        assert current_version == 2  # Shows current version, not stale
+
+        # Fresh data should be preserved - this is the key safety guarantee
+        assert await bb.get("cache_key") == "fresh_data"
+
+    @pytest.mark.asyncio
+    async def test_high_contention_single_key(self):
+        """
+        High contention test: 50 agents competing for same key.
+        All CAS operations should eventually succeed via retry.
+        """
+        bb = AsyncBlackboard()
+        await bb.set("hot_key", {"count": 0, "contributors": []})
+
+        successful_agents = []
+
+        async def compete_for_key(agent_id: int):
+            """Try to add self to contributors list."""
+            max_retries = 200  # High retry count for high contention
+            for attempt in range(max_retries):
+                value, version = await bb.get_with_version("hot_key")
+                if value is None:
+                    continue
+
+                # Add self to contributors
+                new_value = {
+                    "count": value["count"] + 1,
+                    "contributors": value["contributors"] + [agent_id]
+                }
+
+                success, _ = await bb.compare_and_set("hot_key", version, new_value)
+                if success:
+                    successful_agents.append(agent_id)
+                    return True
+
+                # Small backoff on conflict
+                await asyncio.sleep(0.001 * (attempt % 5))
+
+            return False
+
+        # Run 50 agents competing
+        results = await asyncio.gather(*[compete_for_key(i) for i in range(50)])
+
+        # All should eventually succeed
+        assert all(results), f"Some agents failed: {[i for i, r in enumerate(results) if not r]}"
+
+        # Final state should have all 50 contributors
+        final_value, _ = await bb.get_with_version("hot_key")
+        assert final_value["count"] == 50
+        assert len(final_value["contributors"]) == 50
+        assert set(final_value["contributors"]) == set(range(50))
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
