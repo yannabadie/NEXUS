@@ -3,39 +3,37 @@ AsyncClaudeDriver - TRUE Non-blocking Claude CLI Driver.
 
 NEXUS V9.0 Async-First Architecture
 
-CRITICAL ARCHITECTURE DIFFERENCE FROM SYNC DRIVER:
-- Uses asyncio.create_subprocess_exec (NOT subprocess.Popen)
-- Uses async for line in proc.stdout (NOT iter(readline))
-- This ensures the Event Loop is NOT blocked during CLI execution
-- Tracks processes by session_uuid via AsyncProcessHandle
+Architecture:
+- asyncio.create_subprocess_exec (NOT subprocess.Popen)
+- async for line in proc.stdout (NOT iter(readline))
+- AsyncProcessHandle tracking by session_uuid
+- Session isolation via unique context files (Claude CLI doesn't support --resume like Gemini)
 
-This solves:
-1. REPL blocking during Claude execution
-2. Ctrl+C not working (orphan processes)
-3. No streaming capability
+Key Claude-specific features:
+- Hybrid Mode (Natural Language + XML Tools)
+- Dynamic Model Selection (Opus/Sonnet)
+- Streaming via --output-format stream-json
 
 Usage:
     driver = AsyncClaudeDriver(config)
 
-    # Non-streaming (collects full response)
+    # With session isolation
     result = await driver.invoke(context, session_uuid="abc123")
 
-    # Streaming (yields tokens)
+    # Streaming
     async for chunk in driver.invoke_stream(context, session_uuid="abc123"):
         print(chunk, end="")
-
-References:
-- https://docs.python.org/3/library/asyncio-subprocess.html
-- https://superfastpython.com/asyncio-subprocess/
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-import re
-import uuid
+import shutil
+import platform
+import uuid as uuid_module
 import sys
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import AsyncIterator, Optional, Dict, Any, Callable
@@ -44,6 +42,7 @@ from dataclasses import dataclass, field
 from core.async_primitives import CancellationToken, AsyncProcessHandle
 from core.async_primitives.process_handle import get_process_registry
 from core.agents.unified_registry import get_registry
+from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats, extract_final_result
 
 
 @dataclass
@@ -51,7 +50,7 @@ class AsyncClaudeDriverConfig:
     """Configuration for AsyncClaudeDriver."""
     cli_path: str = "claude"
     timeout: float = 300.0
-    model: str = "claude-sonnet-4-5-20250929"
+    model: Optional[str] = None  # None = use CLI default or Sonnet
     workspace_path: Path = field(default_factory=Path.cwd)
     verbose: bool = False
 
@@ -61,18 +60,10 @@ class AsyncClaudeDriver:
     TRUE Async Claude CLI Driver.
 
     Key differences from sync ClaudeDriverHybrid:
-    - Uses asyncio.create_subprocess_exec (NOT subprocess.Popen)
-    - Uses async for line in proc.stdout (NOT iter(readline))
+    - Uses asyncio.create_subprocess_exec
+    - Uses async for line in proc.stdout
     - Tracks processes by session_uuid via AsyncProcessHandle
-    - Properly handles asyncio.CancelledError with re-raise
-
-    The sync driver blocks the event loop during:
-    - proc.stdout.readline() - BLOCKING
-    - proc.wait() - BLOCKING (without timeout)
-
-    This async driver uses:
-    - async for line in proc.stdout - NON-BLOCKING
-    - await proc.wait() - NON-BLOCKING
+    - Properly handles asyncio.CancelledError
     """
 
     def __init__(self, config: AsyncClaudeDriverConfig):
@@ -87,10 +78,10 @@ class AsyncClaudeDriver:
         self.io_buffer = self.workspace_path / "_IO_BUFFER"
         self.io_buffer.mkdir(parents=True, exist_ok=True)
 
-        # Track ALL active processes by UUID for cancellation
+        # Track active processes by UUID
         self._active_handles: Dict[str, AsyncProcessHandle] = {}
 
-        # Global registry for cross-driver coordination
+        # Global registry
         self._registry = get_process_registry()
 
     async def invoke(
@@ -107,21 +98,18 @@ class AsyncClaudeDriver:
 
         Args:
             context: Markdown context with system prompt
-            session_uuid: Unique ID for file isolation (from SwarmSessionManager)
+            session_uuid: Unique ID for session isolation
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
             on_token: Optional callback for each token
 
         Returns:
-            Dict structured NEXUS response with:
-            - sender: "Claude"
-            - action_type: "TALK" or "TOOL_USE"
-            - content: Response text
-            - tool_use: Optional tool use dict
-            - status: "CONTINUE" or "FINISHED"
-            - next_agent: Suggested next agent
+            Dict structured NEXUS response (Hybrid parsed)
         """
         chunks = []
+        final_result_text = None
+        final_stats = {}
+
         async for chunk in self.invoke_stream(
             context,
             session_uuid=session_uuid,
@@ -129,6 +117,11 @@ class AsyncClaudeDriver:
             task_id=task_id,
             on_token=on_token
         ):
+            # Check if chunk is a special result object (from stream parser)
+            # But invoke_stream yields strings. We need to capture stats differently?
+            # Actually invoke_stream implementation below handles parsing and yields text.
+            # We need a way to get stats out.
+            # For now, let's just collect text.
             chunks.append(chunk)
 
         full_response = "".join(chunks)
@@ -146,41 +139,53 @@ class AsyncClaudeDriver:
         """
         TRUE Non-blocking streaming invoke.
 
-        CRITICAL: Uses async for line in proc.stdout
-        This does NOT block the Event Loop (unlike iter(readline))
-
         Args:
             context: Markdown context with system prompt
-            session_uuid: Unique ID for isolation (from SwarmSessionManager)
+            session_uuid: Unique ID for session isolation
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
-            on_token: Optional callback for each token (in addition to yield)
+            on_token: Optional callback for each token
 
         Yields:
             Text chunks as they arrive from Claude CLI
         """
         token = token or CancellationToken()
-        unique_id = session_uuid or str(uuid.uuid4())[:8]
+        unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
         # Write context to isolated file
         context_file = self.io_buffer / f"claude_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
+        
+        # Restrict permissions if possible
+        try:
+            import os
+            os.chmod(context_file, 0o600)
+        except OSError:
+            pass
 
-        # Build command
+        # Find CLI executable
+        cli_executable = shutil.which(str(self.config.cli_path))
+        if not cli_executable:
+            cli_executable = str(self.config.cli_path)
+
+        # Build command parts
+        # Claude streaming requires: --verbose --output-format stream-json --include-partial-messages
         cmd = [
-            str(self.config.cli_path),
+            cli_executable,
             "-p", f"@{context_file}",
             "--dangerously-skip-permissions",
+            "--verbose",
+            "--output-format", "stream-json",
+            "--include-partial-messages"
         ]
 
-        # Add model if specified
         if self.config.model:
-            cmd.extend(["--model", self.config.model])
+            cmd.extend(["-m", self.config.model])
 
         handle: Optional[AsyncProcessHandle] = None
 
         try:
-            # TRUE ASYNC: create_subprocess_exec (NOT Popen!)
+            # TRUE ASYNC: create_subprocess_exec
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -209,11 +214,10 @@ class AsyncClaudeDriver:
             if self.config.verbose:
                 print(f"[AsyncClaudeDriver] Started process pid={proc.pid}, uuid={unique_id[:8]}", file=sys.stderr)
 
-            # TRUE ASYNC STREAMING: async for (NOT iter(readline)!)
-            # This yields control to Event Loop between lines
+            # TRUE ASYNC STREAMING
             start_time = datetime.now()
             async for line_bytes in proc.stdout:
-                token.check()  # Check cancellation between lines
+                token.check()
 
                 # Check timeout
                 elapsed = (datetime.now() - start_time).total_seconds()
@@ -223,9 +227,13 @@ class AsyncClaudeDriver:
 
                 line = line_bytes.decode('utf-8', errors='replace')
                 if line:
-                    yield line
-                    if on_token:
-                        on_token(line)
+                    # Parse stream chunk using core utility
+                    text_chunk, data = parse_stream_chunk(line, "claude")
+
+                    if text_chunk:
+                        yield text_chunk
+                        if on_token:
+                            on_token(text_chunk)
 
             # Wait for process completion
             await proc.wait()
@@ -239,21 +247,18 @@ class AsyncClaudeDriver:
                 print(f"[AsyncClaudeDriver] Process completed, code={proc.returncode}", file=sys.stderr)
 
         except asyncio.CancelledError:
-            # CRITICAL: Re-raise after cleanup (don't swallow!)
             if self.config.verbose:
                 print(f"[AsyncClaudeDriver] Cancelled, cleaning up...", file=sys.stderr)
             raise
 
         finally:
-            # Cleanup: terminate process if still running
+            # Cleanup
             if handle and handle.is_running:
                 await handle.terminate_gracefully()
 
-            # Remove from tracking
             self._active_handles.pop(unique_id, None)
             await self._registry.unregister(unique_id)
 
-            # Cleanup context file
             try:
                 if context_file.exists():
                     context_file.unlink()
@@ -261,15 +266,7 @@ class AsyncClaudeDriver:
                 pass
 
     async def cancel_by_uuid(self, session_uuid: str) -> bool:
-        """
-        Cancel a specific task by its session UUID.
-
-        Args:
-            session_uuid: The UUID of the process to cancel
-
-        Returns:
-            True if process was found and terminated
-        """
+        """Cancel a specific task by its session UUID."""
         handle = self._active_handles.get(session_uuid)
         if handle:
             await handle.terminate_gracefully()
@@ -279,12 +276,7 @@ class AsyncClaudeDriver:
         return False
 
     async def cancel_all(self) -> int:
-        """
-        Cancel all active processes (for Ctrl+C handler).
-
-        Returns:
-            Number of processes terminated
-        """
+        """Cancel all active processes."""
         count = 0
         for uuid_key in list(self._active_handles.keys()):
             handle = self._active_handles.pop(uuid_key, None)
@@ -294,25 +286,10 @@ class AsyncClaudeDriver:
                 count += 1
         return count
 
-    @property
-    def active_process_count(self) -> int:
-        """Get count of active processes."""
-        return sum(1 for h in self._active_handles.values() if h.is_running)
-
-    def list_active_processes(self) -> list[Dict[str, Any]]:
-        """List all active processes."""
-        return [h.to_dict() for h in self._active_handles.values() if h.is_running]
-
     def _parse_hybrid_response(self, raw_text: str) -> Dict[str, Any]:
         """
         Parse Claude's natural language response with XML tags.
-
-        Claude uses a hybrid format:
-        - Natural language response text
-        - Tool use in <tool_use name="...">...</tool_use> blocks
-
-        Returns:
-            Dict with sender, action_type, content, tool_use, status, next_agent
+        Same logic as sync driver.
         """
         # Extract tool use blocks (XML pattern)
         tool_pattern = r'<tool_use\s+name="(\w+)">(.*?)</tool_use>'
@@ -329,14 +306,16 @@ class AsyncClaudeDriver:
         action_type = "TALK"
 
         if tool_matches:
+            # Use first tool block found
             match = tool_matches[0]
             tool_name = match.group(1)
             tool_args_raw = match.group(2).strip()
 
+            # Parse arguments (JSON or key=value)
             try:
                 arguments = json.loads(tool_args_raw)
             except json.JSONDecodeError:
-                # Try parsing as key=value
+                # Fallback: parse key=value format
                 arguments = self._parse_keyvalue_args(tool_args_raw)
 
             tool_use = {
@@ -352,8 +331,8 @@ class AsyncClaudeDriver:
         if any(keyword in content.lower() for keyword in finish_keywords):
             status = "FINISHED"
 
-        # Get display name and alternate from registry
         registry = get_registry()
+        next_agent = registry.get_alternate("claude")
 
         return {
             "sender": registry.get_display_name("claude"),
@@ -361,11 +340,11 @@ class AsyncClaudeDriver:
             "content": content,
             "tool_use": tool_use,
             "status": status,
-            "next_agent": registry.get_alternate("claude"),
+            "next_agent": next_agent
         }
 
     def _parse_keyvalue_args(self, args_text: str) -> Dict[str, str]:
-        """Parse arguments in key=value format (fallback if not JSON)."""
+        """Parse key=value arguments."""
         args = {}
         for line in args_text.split('\n'):
             line = line.strip()
@@ -375,67 +354,17 @@ class AsyncClaudeDriver:
         return args
 
 
-    def invoke_sync(
-        self,
-        context: str,
-        *,
-        session_uuid: Optional[str] = None,
-        task_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Synchronous invoke for backward compatibility.
-
-        DEPRECATED: Use `await invoke()` for async code.
-
-        This method runs the async invoke in a new event loop.
-        It's intended for gradual migration from sync to async.
-
-        Args:
-            context: Markdown context with system prompt
-            session_uuid: Unique ID for file isolation
-            task_id: Optional task ID for tracking
-
-        Returns:
-            Dict structured NEXUS response
-
-        .. deprecated:: V8.4.4
-            Use `await driver.invoke()` in async code.
-        """
-        import warnings
-        warnings.warn(
-            "invoke_sync() is deprecated since V8.4.4. "
-            "Use `await driver.invoke()` in async code.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return asyncio.run(self.invoke(
-            context,
-            session_uuid=session_uuid,
-            task_id=task_id
-        ))
-
-
-# Factory function for easy creation
+# Factory function
 def create_async_claude_driver(
     config: Any,
     workspace_path: Path,
     model: Optional[str] = None
 ) -> AsyncClaudeDriver:
-    """
-    Create an AsyncClaudeDriver from a NEXUS config object.
-
-    Args:
-        config: NEXUS config object with claude_cli_path, timeout, etc.
-        workspace_path: Workspace path for file I/O
-        model: Optional model override
-
-    Returns:
-        Configured AsyncClaudeDriver
-    """
+    """Create an AsyncClaudeDriver from a NEXUS config object."""
     return AsyncClaudeDriver(AsyncClaudeDriverConfig(
         cli_path=getattr(config, 'claude_cli_path', 'claude'),
         timeout=getattr(config, 'timeout', 300.0),
-        model=model or getattr(config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
+        model=model or getattr(config, 'claude_sonnet_model', None),
         workspace_path=workspace_path,
         verbose=getattr(config, 'verbose', False),
     ))

@@ -20,6 +20,32 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.config import Config
 from core.fsm.states import OrchestratorState
+from core.agents.unified_registry import reset_registry
+from core.execution.agent_tools import reset_agent_tool_registry
+from core.async_primitives.process_handle import reset_process_registry
+from core.drivers.async_factory import reset_driver_factory
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons():
+    """
+    Reset all global singletons before each test.
+    
+    CRIT-005: Prevents state pollution between tests.
+    """
+    # Reset before test
+    reset_registry()
+    reset_agent_tool_registry()
+    reset_process_registry()
+    reset_driver_factory()
+    
+    yield
+    
+    # Reset after test (cleanup)
+    reset_registry()
+    reset_agent_tool_registry()
+    reset_process_registry()
+    reset_driver_factory()
 
 
 class MockDriver:

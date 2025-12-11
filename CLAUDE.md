@@ -1,7 +1,7 @@
 # NEXUS V8.5 "TRUE HIVE MIND" - Claude Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
-**Version**: 8.5.1 | **Branch**: N8THM
+**Version**: 8.5.2 | **Branch**: N9AG (stabilization)
 **Philosophy**: Equal collaboration between AI agents (you and Gemini)
 **Your Role**: Collaborator, not executor
 **Ultimate Mission**: Generate specialized agents for collaborative problem-solving
@@ -12,7 +12,7 @@
 
 **YOU ARE HALF OF A COLLABORATIVE INTELLIGENCE CORE.**
 
-NEXUS V8.3 "TRUE HIVE MIND" is a **platform for generating specialized agents** that coexist and collaborate to solve complex problems.
+NEXUS V8.5 "TRUE HIVE MIND" is a **platform for generating specialized agents** that coexist and collaborate to solve complex problems.
 
 **Core Power**: Gemini + Claude working together surpass what each can do alone.
 
@@ -21,6 +21,7 @@ NEXUS V8.3 "TRUE HIVE MIND" is a **platform for generating specialized agents** 
 - **Coexistence**: Agents live in `workspace/agents/` - no replacement, they coexist
 - **6 Swarm Modes**: PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
 - **Immutable Alignment**: Always aligned to Creator (Yann Abadie) via KERNEL.py
+- **Async Core**: Fully asynchronous I/O for high-performance parallel execution
 
 **Your Responsibilities**:
 1. **Maintain Metacognition**: Know your capabilities and limits
@@ -198,10 +199,11 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ## 📁 Project Structure
 
 ```
-NEXUS/                           # Root (V8.3.x TRUE HIVE MIND)
+NEXUS/                           # Root (V8.5.x TRUE HIVE MIND)
 ├── core/                        # Core orchestration & modules
-│   ├── orchestration_v7.py      # Main FSM orchestrator
-│   ├── drivers/                 # Gemini & Claude drivers
+│   ├── orchestration_v7.py      # Main FSM orchestrator (Async)
+│   ├── drivers/                 # Async Drivers (Gemini & Claude)
+│   ├── async_primitives/        # Async Core (ProcessHandle, Cancellation)
 │   ├── execution/               # Tool execution layer
 │   ├── fsm/                     # State machine components
 │   ├── hive_mind/               # V8 Hive Mind pipeline (7 phases)
@@ -209,14 +211,14 @@ NEXUS/                           # Root (V8.3.x TRUE HIVE MIND)
 │   ├── memory/                  # RAG + SuccessMemory
 │   ├── security/                # KERNEL, ExecutionPolicy
 │   ├── evolution/               # Agent spawning & mutation
-│   ├── interface/               # REPL & commands
+│   ├── interface/               # Async REPL & commands
 │   └── utils/                   # Shared utilities
 ├── prompts/                     # System prompts (for NEXUS internal use)
 ├── workspace/                   # Runtime data (agents, logs, sessions)
 ├── tests/                       # Test suite (1000+ tests)
 ├── docs/                        # Documentation
 ├── audit/                       # Audit reports
-├── nexus7.py                    # Main entry point (interactive REPL)
+├── nexus7.py                    # Main entry point (Async)
 ├── ROADMAP.md                   # Active development roadmap
 ├── KERNEL.py                    # Immutable alignment rules
 └── MISSION.md                   # Project mission statement

@@ -182,8 +182,19 @@ class SuccessMemory:
                           If not provided, estimated from result.
 
         Returns:
-            The created SuccessEntry.
+            The created SuccessEntry, or None if quality score is too low.
         """
+        # Worthiness Check: Filter out low-quality results
+        # Default threshold 0.4 allows "okay" results but filters out failures/garbage
+        min_quality_threshold = 0.4
+        
+        # Estimate quality score if not provided
+        if quality_score is None:
+            quality_score = self._estimate_quality(result)
+            
+        if quality_score < min_quality_threshold:
+            return None
+            
         # Extract task description
         description = getattr(analysis, "raw_input", str(analysis))
         if hasattr(analysis, "raw_input") and analysis.raw_input:

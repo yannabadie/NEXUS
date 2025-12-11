@@ -140,11 +140,13 @@ class ProjectMemory:
 
         # Explicit preference
         if backend_pref == "dense":
-            if DenseBackend.is_available():
+            # V9.0: Check UniversalIO availability too
+            from ..io.universal_io import UniversalIO
+            if DenseBackend.is_available() or UniversalIO.is_available():
                 self._logger.info("Using Dense backend (semantic search)")
                 return DenseBackend(lancedb_path)
             else:
-                self._logger.warning("Dense backend requested but unavailable, falling back")
+                self._logger.warning("Dense backend requested but unavailable (needs lancedb + litellm/sentence-transformers), falling back")
 
         elif backend_pref == "bm25":
             if Bm25Backend.is_available():
@@ -158,7 +160,8 @@ class ProjectMemory:
             return TfidfBackend()
 
         # Auto selection: Dense > BM25S > TF-IDF
-        if DenseBackend.is_available():
+        from ..io.universal_io import UniversalIO
+        if DenseBackend.is_available() or (LANCEDB_AVAILABLE and UniversalIO.is_available()):
             self._logger.info("Using Dense backend (semantic search, best recall)")
             return DenseBackend(lancedb_path)
         elif Bm25Backend.is_available():

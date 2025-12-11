@@ -1,18 +1,18 @@
 # Module: Orchestration Package
 
-**Version**: 8.0 TRUE HIVE MIND
-**Last Updated**: 2025-12-08
-**Phase**: 14c Complete + V8.0 Hive Mind Integration
+**Version**: 8.5 TRUE HIVE MIND (Async)
+**Last Updated**: 2025-12-11
+**Phase**: V8.5 Async Integration Complete
 
 ---
 
-## Role dans l'Architecture NEXUS V8.0
+## Role dans l'Architecture NEXUS V8.5
 
 Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 
-**Principe**: Decoupage du "God Object" OrchestratorV7 (2223 lignes -> 783 lignes) en modules specialises suivant le Single Responsibility Principle.
+**Principe**: Decoupage du "God Object" OrchestratorV7 en modules specialises suivant le Single Responsibility Principle.
 
-**Resultat V7.8**: Reduction de **65%** du code orchestrateur, testabilite accrue.
+**V8.5 Async**: Support natif de l'execution asynchrone via `process_turn_async` et integration `AsyncDriverFactory`.
 
 **V8.0 Integration**: `FSMHandlers` route MODERATE/COMPLEX/EXPERT vers `TrueHiveMind`.
 
@@ -184,6 +184,14 @@ class OrchestratorV7:
             # ... all 11 states
         }
         return state_handlers[self.state]()
+
+    async def process_turn_async(self, user_input: Optional[str] = None) -> Dict:
+        """V8.5: Async version of process_turn."""
+        # Uses AsyncDriverFactory for non-blocking I/O
+        # Supports cancellation via CancellationToken
+        # Routes to handle_idle_async, etc.
+        pass
+```
 ```
 
 ---

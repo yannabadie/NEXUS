@@ -127,7 +127,8 @@ class TaskSession:
             "created_at": self.created_at,
             "completed_at": self.completed_at,
             "roles": {role: session.to_dict() for role, session in self.roles.items()},
-            "metadata": self.metadata
+            "metadata": self.metadata,
+            "is_ephemeral": self.is_ephemeral
         }
 
     @classmethod
@@ -144,7 +145,8 @@ class TaskSession:
             created_at=data.get("created_at", datetime.now().isoformat()),
             completed_at=data.get("completed_at"),
             roles=roles,
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
+            is_ephemeral=data.get("is_ephemeral", False)
         )
 
 
@@ -204,6 +206,7 @@ class SwarmSessionManager:
                 "tasks": {
                     task_id: task.to_dict()
                     for task_id, task in self._tasks.items()
+                    if not task.is_ephemeral  # V7.8.2: Never persist ephemeral tasks
                 }
             }
             self._store.save(data)
@@ -320,6 +323,10 @@ class SwarmSessionManager:
             # Check if session already exists for this role
             if role in task.roles:
                 return task.roles[role].session_uuid
+
+            # V8.0.3: Enforce EPHEMERAL mode if task is ephemeral
+            if task.is_ephemeral and mode == SessionMode.FRESH:
+                mode = SessionMode.EPHEMERAL
 
             # Create new session
             session_uuid = str(uuid.uuid4())

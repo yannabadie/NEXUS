@@ -94,10 +94,13 @@ class FSMHandlers:
         # V7.7 Phase 14e: Store complexity for CoT enforcement
         self._orch._current_complexity = complexity
 
-        # V7.5 HIVE MIND: Track task for Auto-Memory
-        self._orch._current_task_start = time.time()
-        self._orch._current_task_description = user_input[:200]
-        self._orch._current_task_type = task_analysis.primary_domain.value if task_analysis.primary_domain else "general"
+        # V7.5 HIVE MIND: Track task for Auto-Memory (Skip for TRIVIAL)
+        if complexity != TaskComplexity.TRIVIAL:
+            self._orch._current_task_start = time.time()
+            self._orch._current_task_description = user_input[:200]
+            self._orch._current_task_type = task_analysis.primary_domain.value if task_analysis.primary_domain else "general"
+        else:
+            self._orch._current_task_start = 0  # Ensure no recording
 
         # Check Auto-Memory for recommendations
         memory_rec = self._orch.auto_memory.get_recommendation(self._orch._current_task_type)
@@ -757,6 +760,52 @@ class FSMHandlers:
             return self._execute_simple_task(user_input, task_analysis)
 
         # MODERATE/COMPLEX/EXPERT → Swarm or Brainstorming (Async)
+        
+        # V9.0 Phase 19: Architect Negotiation
+        if self._orch.architect and complexity != TaskComplexity.TRIVIAL:
+            try:
+                negotiation = await self._orch.architect.negotiate_roles(user_input)
+                lead_agent = negotiation.get("lead", "gemini")
+                reasoning = negotiation.get("reasoning", "Default fallback")
+                
+                # Update active agent based on negotiation
+                if lead_agent == "spawn":
+                    spawn_details = negotiation.get("spawn_details", {})
+                    agent_name = spawn_details.get("name", "UnknownAgent")
+                    system_prompt = spawn_details.get("system_prompt", "You are a helpful assistant.")
+                    
+                    self._logger.info(f"✨ ARCHITECT DECISION: SPAWN NEW AGENT '{agent_name}'")
+                    if self._orch.config.ui_verbose:
+                        print(f"\n✨ [ARCHITECT] Spawning specialized agent: {agent_name}")
+                        print(f"   Prompt: {system_prompt[:100]}...\n")
+                        
+                    # Spawn the agent via Registry
+                    new_agent = self._registry.spawn_agent(
+                        name=agent_name,
+                        system_prompt=system_prompt
+                    )
+                    
+                    # Set as active agent
+                    self._orch.active_agent = new_agent.id
+                    
+                    # Note: The Orchestrator needs to handle fetching the system prompt 
+                    # for 'spawned' agents during invocation. This is handled in 
+                    # _build_context or the Driver, but for now we ensure it's registered.
+                else:
+                    self._orch.active_agent = lead_agent
+                
+                if self._orch.config.ui_verbose:
+                    print(self._orch.architect.format_decision_log(negotiation))
+                    
+                self._logger.info("Architect negotiation complete", {
+                    "lead": lead_agent,
+                    "support": negotiation.get("support"),
+                    "reasoning": reasoning
+                })
+            except Exception as e:
+                self._logger.error(f"Architect negotiation failed: {e}")
+                # Fallback to default (Gemini usually)
+
         return await self._handle_moderate_plus_async(user_input, task_analysis)
 
     # =========================================================================

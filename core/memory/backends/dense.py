@@ -107,7 +107,7 @@ class DenseBackend(MemoryBackend):
 
     def _ensure_model(self) -> bool:
         """
-        Lazy-load the embedding model.
+        Lazy-load the embedding model (UniversalIO or SentenceTransformers).
 
         Returns:
             True if model is ready, False otherwise
@@ -115,15 +115,28 @@ class DenseBackend(MemoryBackend):
         if self._model is not None:
             return True
 
+        # Try UniversalIO first (V9.0 Preference)
+        try:
+            from ...io.universal_io import UniversalIO
+            # Check if UniversalIO is usable (litellm installed)
+            if UniversalIO.is_available():
+                self._logger.info("Using UniversalIO for embeddings (API/Local LLM)")
+                self._model = UniversalIO()
+                self._device = "api"
+                return True
+        except ImportError:
+            pass
+
+        # Fallback to SentenceTransformers
         if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            self._logger.warning("sentence-transformers not installed")
+            self._logger.warning("Neither UniversalIO (litellm) nor sentence-transformers installed")
             return False
 
         try:
             # Import only when needed (slow import)
             from sentence_transformers import SentenceTransformer
 
-            self._logger.info(f"Loading embedding model: {DEFAULT_MODEL}")
+            self._logger.info(f"Loading local embedding model: {DEFAULT_MODEL}")
             self._logger.info("First use may download model (~22MB from HuggingFace)...")
 
             # Detect device
@@ -134,7 +147,7 @@ class DenseBackend(MemoryBackend):
                 self._device = "cpu"
 
             self._model = SentenceTransformer(DEFAULT_MODEL, device=self._device)
-            self._logger.info(f"Embedding model ready (device: {self._device})")
+            self._logger.info(f"Local embedding model ready (device: {self._device})")
             return True
 
         except Exception as e:
@@ -221,12 +234,31 @@ class DenseBackend(MemoryBackend):
 
             # Batch encode
             self._logger.debug(f"Encoding {len(texts)} chunks (batch_size={BATCH_SIZE})...")
-            embeddings = self._model.encode(
-                texts,
-                batch_size=BATCH_SIZE,
-                show_progress_bar=False,
-                convert_to_numpy=True
-            )
+            
+            # Check if using UniversalIO (device="api")
+            if self._device == "api":
+                # Use UniversalIO for embeddings
+                from ...io.universal_io import UniversalIO
+                
+                # Use synchronous embedding generation
+                # Use text-embedding-3-small by default for API, or local model
+                model_name = "text-embedding-3-small" 
+                
+                # UniversalIO.embed_sync handles batching internally via litellm if needed
+                # or we can pass the list directly
+                embeddings_list = self._model.embed_sync(texts, model=model_name)
+                
+                import numpy as np
+                embeddings = np.array(embeddings_list)
+                
+            else:
+                # SentenceTransformers
+                embeddings = self._model.encode(
+                    texts,
+                    batch_size=BATCH_SIZE,
+                    show_progress_bar=False,
+                    convert_to_numpy=True
+                )
 
             # Prepare data for LanceDB
             data = []

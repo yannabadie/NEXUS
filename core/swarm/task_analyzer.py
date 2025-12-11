@@ -118,7 +118,7 @@ AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
 # These inputs should NOT trigger multi-agent collaboration
 CONVERSATIONAL_TRIVIAL_PATTERNS = [
     # Greetings (FR/EN/ES/DE)
-    r'^(hello|hi|hey|bonjour|salut|coucou|hola|hallo|guten tag)[\s!?.]*$',
+    r'^(hello|hi|hey|bonjour|salut|coucou|hola|hallo|guten tag)( there| all| everyone| team)?[\s!?.]*$',
     r'^(bonsoir|good morning|good evening|good night)[\s!?.]*$',
     # Farewells
     r'^(bye|goodbye|au revoir|ciao|adieu|à bientôt|a\+)[\s!?.]*$',

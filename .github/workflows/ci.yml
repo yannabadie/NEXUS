@@ -56,6 +56,10 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest tests/ -v --tb=short -x --ignore=tests/benchmark_professional.py
+          # Explicitly run V9.0 E2E tests (Mocked LLM)
+          python -m pytest tests/e2e/test_architect_negotiation.py -v
+          python -m pytest tests/e2e/test_architect_spawning.py -v
+          python -m pytest tests/e2e/test_spawn_execution.py -v
         timeout-minutes: 30
 
       - name: Run tests with coverage (Python 3.12 only)

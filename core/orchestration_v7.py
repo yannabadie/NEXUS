@@ -267,6 +267,15 @@ class OrchestratorV7:
             "project_memory": self.project_memory.get_stats().total_chunks
         })
 
+        # V9.0 Phase 18: The Architect (Dynamic Role Negotiation)
+        try:
+            from core.hive_mind.architect import Architect
+            self.architect = Architect(config)
+            self.logger.debug("Architect initialized")
+        except ImportError:
+            self.architect = None
+            self.logger.warning("Architect module not found - dynamic negotiation disabled")
+
         # V7.5 Phase 0d: Task execution context for thread-safe operations
         self._task_context: Optional[TaskExecutionContext] = None
 

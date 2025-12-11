@@ -351,6 +351,69 @@ class UnifiedAgentRegistry:
             return True
         return False
 
+    def spawn_agent(
+        self,
+        name: str,
+        system_prompt: str,
+        capabilities: Optional[List[AgentCapability]] = None
+    ) -> AgentDescriptor:
+        """
+        Spawn a new specialized agent.
+
+        1. Creates AgentDescriptor.
+        2. Saves config to workspace/agents/{name}.json.
+        3. Registers agent in memory.
+
+        Args:
+            name: Name of the new agent (e.g., "RustExpert")
+            system_prompt: The system prompt defining behavior
+            capabilities: List of capabilities (default: [GENERAL])
+
+        Returns:
+            The created AgentDescriptor
+        """
+        import json
+        
+        agent_id = name.lower()
+        if capabilities is None:
+            capabilities = [AgentCapability.GENERAL]
+
+        # Define path
+        # Assuming running from project root, or relative to this file?
+        # Best to use absolute path relative to project root if possible, 
+        # or rely on a config. For now, let's assume a standard location.
+        workspace_dir = Path("workspace/agents")
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        config_path = workspace_dir / f"{agent_id}.json"
+
+        # Create descriptor
+        descriptor = AgentDescriptor(
+            id=agent_id,
+            provider=AgentProvider.SPAWNED,
+            display_name=name,
+            capabilities=capabilities,
+            config_path=config_path,
+            is_available=True
+        )
+
+        # Save config to disk
+        config_data = {
+            "id": agent_id,
+            "name": name,
+            "provider": "spawned",
+            "system_prompt": system_prompt,
+            "capabilities": [c.value for c in capabilities],
+            "created_at": str(import_time.time()) if 'import_time' in globals() else None
+        }
+        
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, indent=2)
+
+        # Register in memory
+        self.register(descriptor)
+        
+        return descriptor
+
     def __contains__(self, agent_id: str) -> bool:
         """Check if agent is registered"""
         return self.get(agent_id) is not None

@@ -98,9 +98,9 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | **CRIT-002** | **Blocking I/O in Async** | `time.sleep` bloque l'event loop | ✅ **DONE (V8.5.1)** |
 | **CRIT-003** | **God Object `repl.py`** | 3000 lignes, non-maintenable | ✅ **DONE (V8.5.1)** |
 | **CRIT-004** | **Exception Swallowing** | 435 `except:` masquent les bugs | **P1** |
-| **CRIT-005** | **Singletons (8)** | Cause des 16 tests flaky | **P1** |
+| **CRIT-005** | **Singletons (8)** | Cause des 16 tests flaky | ✅ **DONE (V8.0.2)** |
 | OP-001 | Hot-Swap Lead non intégré dans retry loop | Stagnation non récupérée | ✅ DONE (V8.0.1) |
-| OP-002 | 16 tests flaky (context isolation) | CI instable | P1 |
+| OP-002 | 16 tests flaky (context isolation) | CI instable | ✅ **DONE (V8.0.2)** |
 | OP-003 | EPHEMERAL sessions non activé | Overhead sur tâches triviales | P2 |
 | OP-005 | Sync drivers in async context | PARALLEL = séquentiel déguisé | ✅ DONE (V8.1.6) |
 
