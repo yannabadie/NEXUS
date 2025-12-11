@@ -56,22 +56,26 @@ _logger = get_driver_logger("claude")
 
 
 # Global reference for cleanup at exit
+# V8.4.6: Thread-safe access for PARALLEL swarm mode
+import threading
 _active_claude_processes = []
+_claude_processes_lock = threading.Lock()
 
 
 def _cleanup_claude_processes():
     """Kill any remaining Claude processes at exit."""
-    for proc in _active_claude_processes:
-        try:
-            if proc.poll() is None:  # Still running
-                proc.terminate()
-                proc.wait(timeout=2)
-        except Exception:
+    with _claude_processes_lock:
+        for proc in _active_claude_processes:
             try:
-                proc.kill()
+                if proc.poll() is None:  # Still running
+                    proc.terminate()
+                    proc.wait(timeout=2)
             except Exception:
-                pass
-    _active_claude_processes.clear()
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        _active_claude_processes.clear()
 
 
 # Register cleanup handler
@@ -123,6 +127,12 @@ class ClaudeDriverHybrid:
         unique_id = session_uuid or str(uuid.uuid4())[:8]
         context_file = self.io_buffer / f"claude_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
+        # V8.4.6 SECURITY: Restrict context file to owner-only (may contain sensitive prompts)
+        try:
+            import os
+            os.chmod(context_file, 0o600)
+        except OSError:
+            pass  # Windows may not support chmod, but file is in user-owned temp dir
 
         # Invoke Claude (mode naturel, PAS de flag JSON!)
         # @file syntax reads prompt from file
@@ -142,11 +152,12 @@ class ClaudeDriverHybrid:
             )
 
             # Track for cleanup at exit
-            _active_claude_processes.append(proc)
+            # V8.4.6: Thread-safe access
+            with _claude_processes_lock:
+                _active_claude_processes.append(proc)
 
             try:
-                import threading
-                import queue
+                import queue  # threading already imported at module level
 
                 start_time = time.time()
                 stdout_data = []
@@ -226,8 +237,10 @@ class ClaudeDriverHybrid:
                 raise
             finally:
                 # Remove from tracking once done
-                if proc in _active_claude_processes:
-                    _active_claude_processes.remove(proc)
+                # V8.4.6: Thread-safe access
+                with _claude_processes_lock:
+                    if proc in _active_claude_processes:
+                        _active_claude_processes.remove(proc)
 
             if proc.returncode != 0:
                 raise RuntimeError(f"Claude CLI failed: {stderr}")
@@ -275,6 +288,12 @@ class ClaudeDriverHybrid:
         unique_id = session_uuid or str(uuid.uuid4())[:8]
         context_file = self.io_buffer / f"claude_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
+        # V8.4.6 SECURITY: Restrict context file to owner-only (may contain sensitive prompts)
+        try:
+            import os
+            os.chmod(context_file, 0o600)
+        except OSError:
+            pass  # Windows may not support chmod, but file is in user-owned temp dir
 
         # Claude streaming requires: --verbose --output-format stream-json --include-partial-messages
         command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --verbose --output-format stream-json --include-partial-messages'
@@ -293,7 +312,9 @@ class ClaudeDriverHybrid:
                 errors='replace'
             )
 
-            _active_claude_processes.append(proc)
+            # V8.4.6: Thread-safe access
+            with _claude_processes_lock:
+                _active_claude_processes.append(proc)
 
             try:
                 accumulated_text = []
@@ -355,8 +376,10 @@ class ClaudeDriverHybrid:
                 proc.wait()
                 raise
             finally:
-                if proc in _active_claude_processes:
-                    _active_claude_processes.remove(proc)
+                # V8.4.6: Thread-safe access
+                with _claude_processes_lock:
+                    if proc in _active_claude_processes:
+                        _active_claude_processes.remove(proc)
 
         except TimeoutError:
             raise

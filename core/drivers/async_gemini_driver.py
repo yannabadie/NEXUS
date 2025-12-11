@@ -177,12 +177,12 @@ class AsyncGeminiDriver:
         ]
 
         # Session isolation via --resume
+        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage)
         if session_uuid:
             cmd.extend(["--resume", session_uuid])
             if self.config.verbose:
                 print(f"[AsyncGeminiDriver] Using session isolation: {session_uuid[:8]}...", file=sys.stderr)
-        elif self.config.use_session_resume and self._session_active:
-            cmd.extend(["--resume", "latest"])
+        # REMOVED: --resume latest fallback (context leakage risk in multi-agent scenarios)
 
         # Add prompt file and output format
         cmd.extend(["-p", f"@{context_file_relative}", "-o", "json"])

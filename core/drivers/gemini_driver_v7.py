@@ -341,20 +341,26 @@ class GeminiDriverV7:
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
         # V7.5 Phase 7: Session isolation via explicit session_uuid
-        # V7 Sprint 12: Session resume for context persistence + YOLO mode for auto-approval
+        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage risk)
         # --resume {uuid}: Isolates this task from other parallel tasks
-        # --resume latest: Restores previous session context (~14k cached tokens)
         # --approval-mode yolo: Auto-approve with --allowed-tools restriction (read-only safe)
+        #
+        # REMOVED: --resume latest fallback - caused context leakage in multi-agent scenarios
+        # If no session_uuid provided, start FRESH session (safer default)
         if session_uuid:
             # Phase 7: Explicit session UUID for isolation (Swarm parallel tasks)
             resume_flag = f"--resume {session_uuid}"
             _logger.debug("Using session isolation", session_uuid=session_uuid[:8])
-        elif self.use_session_resume and self._session_active:
-            # Default: Resume latest session for single-agent mode
-            resume_flag = "--resume latest"
         else:
-            # New session (first invocation or session resume disabled)
+            # V8.4.6: ALWAYS start fresh session if no UUID (security by default)
+            # This prevents context leakage between unrelated tasks
             resume_flag = ""
+            if self._session_active:
+                _logger.warning(
+                    "No session_uuid provided but session was active. "
+                    "Starting FRESH session to prevent context leakage. "
+                    "Pass session_uuid for session persistence."
+                )
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
         if use_shell:
@@ -367,10 +373,10 @@ class GeminiDriverV7:
             # List format for Unix
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
             # V7.5 Phase 7: Session isolation support
+            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
             if session_uuid:
                 cmd_parts.extend(["--resume", session_uuid])
-            elif self.use_session_resume and self._session_active:
-                cmd_parts.extend(["--resume", "latest"])
+            # REMOVED: --resume latest fallback (context leakage risk)
             # FIX: Use context_file_relative to avoid double-path issue
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "json"])
             command = cmd_parts
@@ -632,12 +638,14 @@ class GeminiDriverV7:
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
         # Build resume flag
+        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage)
         if session_uuid:
             resume_flag = f"--resume {session_uuid}"
-        elif self.use_session_resume and self._session_active:
-            resume_flag = "--resume latest"
         else:
+            # REMOVED: --resume latest fallback - start fresh to prevent leakage
             resume_flag = ""
+            if self._session_active:
+                _logger.warning("invoke_stream: No session_uuid but session active. Starting FRESH.")
 
         approval_mode = "--approval-mode yolo"
 
@@ -646,10 +654,10 @@ class GeminiDriverV7:
             command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o stream-json'
         else:
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
+            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
             if session_uuid:
                 cmd_parts.extend(["--resume", session_uuid])
-            elif self.use_session_resume and self._session_active:
-                cmd_parts.extend(["--resume", "latest"])
+            # REMOVED: --resume latest fallback (context leakage risk)
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "stream-json"])
             command = cmd_parts
 
