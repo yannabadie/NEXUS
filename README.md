@@ -4,7 +4,7 @@
 
 <h1 align="center">
   <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V8.3.2 "TRUE HIVE MIND"
+  NEXUS V8.4.7 "CYBORG HARDENING"
 </h1>
 
 <p align="center">
@@ -16,11 +16,11 @@
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#commands">Commands</a> •
-  <a href="ROADMAP_HIVE_MIND.md">Roadmap</a>
+  <a href="ROADMAP.md">Roadmap</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-8.3.2-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-8.4.7-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
   <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
   <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>

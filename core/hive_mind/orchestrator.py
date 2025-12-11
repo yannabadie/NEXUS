@@ -271,7 +271,16 @@ class TrueHiveMind:
             if self.budget_tracker:
                 # Integration with V7 BudgetTracker
                 estimated_cost = self.cost_estimator.estimate_full_hive_mind()
-                # TODO: Convert tokens to USD and check with budget_tracker
+                estimated_usd = self.cost_estimator.tokens_to_usd(estimated_cost)
+                logger.info(
+                    f"[HiveMind] Estimated execution cost: "
+                    f"~{estimated_cost:,} tokens (~${estimated_usd:.4f})"
+                )
+                # Check if we can afford it
+                if not self.cost_estimator.check_usd_budget(estimated_cost):
+                    logger.warning(
+                        f"[HiveMind] Execution may exceed USD budget"
+                    )
 
             # =========================================================
             # PHASE 1: Independent Analysis
