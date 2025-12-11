@@ -30,6 +30,14 @@ from .task_completion_validator import TaskCompletionValidator, get_adaptive_max
 from ..agents.unified_registry import get_registry  # V8.4.0
 from ..api.rate_limiter import get_rate_limiter, RateLimitExceeded  # V8.4.5
 
+# V8.8 (GROK-004): Adaptive fallback selection
+try:
+    from .adaptive_fallback import get_adaptive_fallback_selector, FallbackContext
+    ADAPTIVE_FALLBACK_AVAILABLE = True
+except ImportError:
+    ADAPTIVE_FALLBACK_AVAILABLE = False
+    FallbackContext = None
+
 # V8.3.3: Type hints for merge strategies (avoid circular import)
 if TYPE_CHECKING:
     from .merge_strategies import MergeStrategy, MergeResult
@@ -556,8 +564,27 @@ class ModeExecutor(ABC):
                     except Exception:
                         pass  # Continue even if restore fails
 
-                # Get fallback mode
-                fallback = current_mode.fallback_mode
+                # V8.8 (GROK-004): Get adaptive fallback based on context
+                if ADAPTIVE_FALLBACK_AVAILABLE:
+                    selector = get_adaptive_fallback_selector()
+                    fallback_context = FallbackContext(
+                        domains=context.config.get("domains", []) if context.config else [],
+                        complexity=context.config.get("complexity", "moderate") if context.config else "moderate",
+                        raw_input=context.task or "",
+                        modes_tried=degradation_path.copy(),
+                        errors_encountered=[str(original_exception)] if original_exception else []
+                    )
+                    decision = selector.get_adaptive_fallback(current_mode, fallback_context)
+                    fallback = decision.fallback_mode
+                    if decision.skip_intermediate and fallback:
+                        print(
+                            f"[SWARM DEGRADATION] Adaptive skip to {fallback.value}: {decision.reason}",
+                            file=sys.stderr
+                        )
+                else:
+                    # Static fallback chain
+                    fallback = current_mode.fallback_mode
+
                 if fallback is None:
                     # No more fallbacks available
                     print(

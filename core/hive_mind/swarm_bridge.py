@@ -21,6 +21,18 @@ import logging
 
 from core.swarm.collaboration_modes import CollaborationMode
 
+# V8.8 (GROK-004): Adaptive fallback selection
+try:
+    from core.swarm.adaptive_fallback import (
+        get_adaptive_fallback_selector,
+        FallbackContext,
+        AdaptiveFallbackSelector
+    )
+    ADAPTIVE_FALLBACK_AVAILABLE = True
+except ImportError:
+    ADAPTIVE_FALLBACK_AVAILABLE = False
+    FallbackContext = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -304,8 +316,25 @@ class SwarmBridge:
                 except Exception as e:
                     logger.warning(f"SwarmBridge: Checkpoint restore failed: {e}")
 
-            # Get fallback mode
-            current_mode = current_mode.fallback_mode
+            # V8.8 (GROK-004): Get adaptive fallback based on context
+            if ADAPTIVE_FALLBACK_AVAILABLE:
+                selector = get_adaptive_fallback_selector()
+                context = FallbackContext(
+                    domains=config.get("domains", []),
+                    complexity=config.get("complexity", "moderate"),
+                    raw_input=task,
+                    modes_tried=[m.value for m in fallback_chain],
+                    errors_encountered=[str(last_error)] if last_error else []
+                )
+                decision = selector.get_adaptive_fallback(current_mode, context)
+                current_mode = decision.fallback_mode
+                if decision.skip_intermediate:
+                    logger.info(f"SwarmBridge: Adaptive skip to {current_mode.value}: {decision.reason}")
+                elif current_mode:
+                    logger.debug(f"SwarmBridge: Adaptive fallback to {current_mode.value}: {decision.reason}")
+            else:
+                # Static fallback chain
+                current_mode = current_mode.fallback_mode
             attempts += 1
 
         # All fallbacks exhausted
