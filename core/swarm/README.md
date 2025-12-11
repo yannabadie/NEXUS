@@ -1,12 +1,15 @@
-# Module : Swarm - NEXUS V8.4.x "TRUE HIVE MIND"
+# Module : Swarm - NEXUS V9.0 "TRUE HIVE MIND"
 
 Hybrid Swarm Engine pour collaboration multi-agent dynamique.
 
-## Rôle dans l'Architecture NEXUS V8.4.x
+**Version**: 9.0 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-11
+
+## Rôle dans l'Architecture NEXUS V9.0
 
 Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collaboration** où les agents négocient la manière optimale de travailler ensemble pour chaque tâche.
 
-### Évolution V8.x
+### Évolution V8.x / V9.0
 
 | Version | Feature |
 |---------|---------|
@@ -17,6 +20,8 @@ Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collabora
 | **V8.3.3** | MergeStrategy - Intelligent result aggregation |
 | **V8.4.0** | UnifiedAgentRegistry integration |
 | **V8.4.4** | Thread-safety fix (ThreadPoolExecutor + Lock) |
+| **V8.8** | **GROK-002**: Exponential Decay + Domain Boost (SuccessMemory) |
+| **V8.8** | **GROK-004**: AdaptiveFallbackSelector (context-aware fallbacks) |
 
 ## Architecture
 
@@ -59,6 +64,7 @@ Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collabora
 | `merge_strategies.py` | **V8.3.3** Fusion résultats | `MergeStrategy`, `IntelligentMerger` |
 | `agent_metrics.py` | DyLAN + scoring | `AgentProfile`, `AgentPool` |
 | `session_manager.py` | Isolation session | `SwarmSessionManager`, `TaskSession` |
+| `adaptive_fallback.py` | **V8.8** Fallback contextuel | `AdaptiveFallbackSelector`, `FallbackContext` |
 
 ## Modes de Collaboration (6)
 
@@ -73,6 +79,7 @@ Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collabora
 
 ### Chaîne de Fallback (Phase 8: Self-Healing)
 
+**Chaîne Statique** (legacy):
 ```
 PARALLEL    → SEQUENTIAL
 RED_BLUE    → LEAD_SUPPORT
@@ -81,6 +88,53 @@ PING_PONG   → SEQUENTIAL
 SEQUENTIAL  → SPECIALIST
 SPECIALIST  → None (terminal)
 ```
+
+### AdaptiveFallbackSelector (V8.8 - GROK-004)
+
+**Nouveau**: Sélection de fallback contextuel remplaçant les chaînes statiques.
+
+```python
+from core.swarm.adaptive_fallback import (
+    AdaptiveFallbackSelector,
+    FallbackContext,
+    get_adaptive_fallback_selector
+)
+
+selector = get_adaptive_fallback_selector()
+decision = selector.get_adaptive_fallback(
+    current_mode=CollaborationMode.PARALLEL,
+    context=FallbackContext(
+        domains=["coding"],
+        complexity="moderate",
+        stagnation_level="high"  # none, low, moderate, high, critical
+    )
+)
+
+print(f"Fallback: {decision.fallback_mode}")   # SPECIALIST (shortcut)
+print(f"Reason: {decision.reason}")            # "High stagnation - skipping to specialist"
+print(f"Confidence: {decision.confidence}")    # 0.85
+```
+
+**Facteurs de décision** (ordre de priorité):
+1. **Stagnation Level** - High/critical → shortcut vers SPECIALIST
+2. **Domain Affinity** - `coding` préfère `lead_support`, `research` préfère `sequential`
+3. **Historical Performance** - SuccessMemory pour les patterns réussis
+4. **Static Chain** - Fallback par défaut si aucun contexte
+
+**Domain Fallback Preferences**:
+| Mode | coding | research | security | default |
+|------|--------|----------|----------|---------|
+| PARALLEL | lead_support | sequential | red_blue | sequential |
+| RED_BLUE | lead_support | specialist | specialist | lead_support |
+| LEAD_SUPPORT | specialist | specialist | specialist | specialist |
+| PING_PONG | lead_support | sequential | sequential | sequential |
+
+**Stagnation Shortcuts**:
+| Mode | Shortcut | Skip |
+|------|----------|------|
+| PARALLEL | specialist | SEQUENTIAL |
+| RED_BLUE | specialist | LEAD_SUPPORT |
+| PING_PONG | specialist | SEQUENTIAL |
 
 ## Phase Status (V8.3.x)
 

@@ -1,18 +1,28 @@
-# Module: MCP (CORTEX)
+# Module: MCP (CORTEX) - Client & Server
+
+**Version**: 9.0 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-11
 
 ## Rôle Architectural
 
-Client Model Context Protocol (MCP) permettant à NEXUS d'interagir avec des outils externes via le standard MCP.
-Implémentation zero-dependency utilisant JSON-RPC 2.0 sur stdio.
+Model Context Protocol (MCP) module bidirectionnel:
+- **Client**: NEXUS consomme des outils depuis des serveurs MCP externes
+- **Server V9.0**: NEXUS exposé comme serveur MCP pour Claude Desktop, VSCode, etc.
 
-**Phase ROADMAP**: 12.3 - CORTEX (MCP Client)
+Implémentation zero-dependency (client) + FastMCP SDK (server).
 
-## Alignement ROADMAP V7.6+
+**Phase ROADMAP**: 12.3 - CORTEX (MCP Client), V9.0 - MCP Server
 
-Ce module implémente la Phase 12.3 de la roadmap:
-- Infrastructure client MCP
-- Intégration dynamique des outils MCP dans ToolManager
+## Alignement ROADMAP V7.6+ / V9.0
+
+Ce module implémente:
+- **Phase 12.3**: Infrastructure client MCP
+- **V9.0**: NEXUS MCP Server (expose NEXUS comme outil externe)
+
+Capacités:
+- Intégration dynamique des outils MCP dans ToolManager (client)
 - Support des serveurs MCP via stdio (transport standard)
+- Exposition de NEXUS à Claude Desktop, VSCode, etc. (server)
 
 ## Composants Clés
 
@@ -43,6 +53,21 @@ Ce module implémente la Phase 12.3 de la roadmap:
   - Chargement paresseux des configs
   - Cache des clients connectés
   - Gestion automatique des reconnexions
+
+### Fichier: `server.py` (V9.0 - NOUVEAU)
+* **Fonction**: Expose NEXUS comme serveur MCP pour Claude Desktop/VSCode
+* **Framework**: FastMCP SDK (`pip install mcp`)
+* **Transport**: stdio (standard JSON-RPC 2.0)
+* **Outils exposés**:
+  - `nexus_read` - Lecture fichiers workspace
+  - `nexus_glob` - Pattern matching fichiers
+  - `nexus_grep` - Recherche regex dans code
+  - `nexus_analyze` - Analyse tâche multi-agent (Gemini+Claude)
+  - `nexus_status` - État système NEXUS
+  - `nexus_bash` - Exécution shell sandboxée
+* **Resources**:
+  - `nexus://config` - Configuration NEXUS
+  - `nexus://agents` - Liste des agents enregistrés
 
 ## Format de Configuration
 
@@ -92,6 +117,8 @@ Exemple: `mcp_filesystem_read_file`
 
 ## Usage
 
+### Client (consommer des outils MCP externes)
+
 ```python
 from core.mcp import MCPClient, MCPRegistry
 
@@ -105,6 +132,38 @@ result = client.call_tool("read_file", {"path": "/tmp/test.txt"})
 with MCPClient(command=["npx", "-y", "server-name"]) as client:
     tools = client.list_tools()
     result = client.call_tool("tool_name", {"arg": "value"})
+```
+
+### Server V9.0 (exposer NEXUS comme outil)
+
+**Lancement standalone:**
+```bash
+python -m core.mcp.server
+```
+
+**Configuration Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+    "mcpServers": {
+        "nexus": {
+            "command": "python",
+            "args": ["-m", "core.mcp.server"],
+            "cwd": "/path/to/nexus"
+        }
+    }
+}
+```
+
+**Usage dans Claude Desktop:**
+```
+Utilisateur: Analyse le fichier auth.py avec NEXUS
+Claude: <uses nexus_read tool to read auth.py>
+Claude: <uses nexus_analyze tool for multi-agent analysis>
+```
+
+**Prérequis:**
+```bash
+pip install mcp  # FastMCP SDK
 ```
 
 ## Tests
