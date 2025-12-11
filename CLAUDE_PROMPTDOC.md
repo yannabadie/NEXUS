@@ -192,6 +192,45 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → WAITING_USER
 | **UI** | `core/ui/` | ConsoleV7 display |
 | **Reasoning** | `core/reasoning/` | Chain-of-Thought enforcement |
 | **Notifications** | `core/notifications/` | User notifications |
+
+## Test Infrastructure V8.2.0d - Torture Protocol
+
+### Structure Torture Protocol
+```
+tests/
+├── torture_v8.py                    # Main entry point (TortureProtocolV8)
+└── torture/
+    ├── __init__.py
+    ├── base.py                      # TortureBase, TortureResultV8
+    ├── metrics_collector.py         # MetricsCollector, ScenarioMetrics
+    ├── chaos_injectors.py           # CrashInjector, RaceInjector, CorruptionInjector, TimeoutInjector
+    └── scenarios/
+        ├── saga_crash.py            # 15 tests (CR-001 to CR-015) - Crash recovery
+        ├── saga_concurrency.py      # 12 tests (CC-001 to CC-012) - Race conditions
+        ├── context_edge.py          # 10 tests (CE-001 to CE-010) - Edge cases
+        ├── compensation.py          # 8 tests (CF-001 to CF-008) - Compensation failures
+        └── hive_integration.py      # 30 tests (HM-001 to HM-030) - HiveMind pipeline
+```
+
+### Chaos Injectors (V8.2.0d)
+| Injector | Méthodes | Usage |
+|----------|----------|-------|
+| **CrashInjector** | `crash_after_n_checkpoints()`, `crash_during_persist()`, `crash_during_fsync()` | Simulate crashes |
+| **RaceInjector** | `delay_persist()`, `concurrent_checkpoints()`, `concurrent_operations()` | Race conditions |
+| **CorruptionInjector** | `corrupt_json()`, `truncate_file()`, `create_locked_file()` | File corruption |
+| **TimeoutInjector** | `timeout()`, `async_timeout()` | Operation timeouts |
+
+### Métriques Cibles Torture
+*   **Success Rate**: >95%
+*   **Recovery Rate**: >90% (post-erreur)
+*   **Panic Rate**: <1%
+*   **Hot-Swap Effectiveness**: >80%
+
+### pytest Markers
+*   `@pytest.mark.torture` - All torture tests
+*   `@pytest.mark.torture_saga` - SagaManager tests
+*   `@pytest.mark.torture_hive` - HiveMind tests
+*   `@pytest.mark.torture_slow` - Slow tests (>5s)
 </architecture_summary>
 </context>
 
@@ -327,5 +366,6 @@ Votre réponse finale doit contenir :
 | V8.4.4 | 2025-12-10 | +Async Primitives, +SagaManager, +HealthFSM, +StagnationPredictor, +NexusJSONEncoder, +UnifiedAgentRegistry, +Async Handlers, +Cyborg V7.5, audit categories updated |
 | V8.8 | 2025-12-11 | +Security V8.8 (InputGuard, OutputGuard, Spotlighter), +GROK-002 (Exponential Decay + Domain Boost), +GROK-003 (KERNEL Heredity Check), +GROK-004 (AdaptiveFallbackSelector), +Blackboard CAS (GROK-001) |
 | V9.0 | 2025-12-11 | +MCP Server (NEXUS as tool), +CommandRegistry (Phase E), +Security integration in orchestrator/drivers, audit categories V9.0 |
+| V8.2.0d | 2025-12-11 | +Torture Protocol V8 (75 tests), +MetricsCollector, +ChaosInjectors (Crash, Race, Corruption, Timeout), +5 scenario categories (saga_crash, saga_concurrency, context_edge, compensation, hive_integration), pytest markers |
 </version_history>
 </prompt>

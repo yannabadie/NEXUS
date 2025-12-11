@@ -45,6 +45,11 @@ V2.1 Changes (V8.4.4):
     - Added SagaManager, HealthStateMachine, StagnationPredictor coverage
     - Added async_primitives module scanning
     - Updated anti-hallucination with V8.4 structures
+
+V2.2 Changes (V8.2.0d):
+    - Added Torture Protocol test scanning
+    - Added torture test statistics to architecture map
+    - Added torture scenario categories extraction
 """
 
 import os
@@ -620,6 +625,7 @@ class StructureExtractor:
             "async_handlers": self._extract_async_handlers(),
             "saga_phases": self._extract_saga_phases(),
             "recovery_strategies": self._extract_recovery_strategies(),
+            "torture_tests": self._extract_torture_tests(),
         }
 
     def _extract_enum_values(self, file_path: Path, enum_name: str) -> List[str]:
@@ -965,9 +971,57 @@ class StructureExtractor:
             pass
         return strategies
 
+    def _extract_torture_tests(self) -> Dict[str, Any]:
+        """Extract Torture Protocol V8 test statistics."""
+        torture_stats = {
+            "total_tests": 0,
+            "categories": {},
+            "files": [],
+            "markers": []
+        }
+
+        torture_dir = self.root / "tests" / "torture"
+        if not torture_dir.exists():
+            return torture_stats
+
+        # Extract category stats from scenario files
+        scenarios_dir = torture_dir / "scenarios"
+        category_map = {
+            "saga_crash.py": ("Saga Crash Recovery", "CR"),
+            "saga_concurrency.py": ("Saga Concurrency", "CC"),
+            "context_edge.py": ("Context Edge Cases", "CE"),
+            "compensation.py": ("Compensation Failures", "CF"),
+            "hive_integration.py": ("HiveMind Integration", "HM"),
+        }
+
+        for filename, (category_name, prefix) in category_map.items():
+            file_path = scenarios_dir / filename
+            if file_path.exists():
+                try:
+                    content = file_path.read_text(encoding="utf-8")
+                    # Count test functions
+                    test_count = len(re.findall(rf'def test_{prefix.lower()}\d+', content))
+                    torture_stats["categories"][category_name] = test_count
+                    torture_stats["total_tests"] += test_count
+                    torture_stats["files"].append(filename)
+                except Exception:
+                    pass
+
+        # Extract markers from base.py or torture_v8.py
+        torture_v8 = self.root / "tests" / "torture_v8.py"
+        if torture_v8.exists():
+            try:
+                content = torture_v8.read_text(encoding="utf-8")
+                markers = re.findall(r'@pytest\.mark\.(\w+)', content)
+                torture_stats["markers"] = list(set(m for m in markers if m.startswith("torture")))
+            except Exception:
+                pass
+
+        return torture_stats
+
 
 # =============================================================================
-# MAP GENERATOR V2.1 - ENHANCED WITH V8.4.4 SUPPORT
+# MAP GENERATOR V2.2 - ENHANCED WITH V8.4.4 + V8.2.0d SUPPORT
 # =============================================================================
 
 class MapGeneratorV2:
@@ -1012,6 +1066,7 @@ class MapGeneratorV2:
             self._generate_functional_inventory(),
             self._generate_key_dataclasses(),
             self._generate_statistics(),
+            self._generate_torture_protocol_zoom(),  # V8.2.0d
             self._generate_anti_hallucination(),
             self._generate_footer(),
         ]
@@ -1049,7 +1104,8 @@ class MapGeneratorV2:
 11. [Functional Inventory](#11-functional-inventory)
 12. [Key Dataclasses](#12-key-dataclasses)
 13. [Statistics](#13-statistics)
-14. [Anti-Hallucination Reference](#14-anti-hallucination-reference)
+14. [Torture Protocol (V8.2.0d)](#14-torture-protocol-v820d)
+15. [Anti-Hallucination Reference](#15-anti-hallucination-reference)
 
 ---
 """
@@ -1943,12 +1999,106 @@ The KERNEL.py file is the **immutable alignment core** that:
             for comp in sorted(self.components, key=lambda c: -c.total_loc)[:10]
         ) + "\n"
 
+    def _generate_torture_protocol_zoom(self) -> str:
+        """Generate Torture Protocol V8.2.0d section."""
+        torture = self.structures.get("torture_tests", {})
+        total_tests = torture.get("total_tests", 0)
+        categories = torture.get("categories", {})
+        markers = torture.get("markers", [])
+
+        if total_tests == 0:
+            return """## 14. TORTURE PROTOCOL (V8.2.0d)
+
+> Torture Protocol tests not found. Run `pytest tests/torture_v8.py -m torture` to verify.
+
+"""
+
+        category_table = "\n".join(
+            f"| {cat} | {count} |" for cat, count in categories.items()
+        ) if categories else "| N/A | 0 |"
+
+        markers_list = ", ".join(f"`@pytest.mark.{m}`" for m in markers) if markers else "None"
+
+        return f"""## 14. TORTURE PROTOCOL (V8.2.0d)
+
+### Overview
+
+Torture Protocol V8 provides comprehensive stress testing for SagaManager + HiveMind integration.
+
+```mermaid
+graph TD
+    subgraph TortureProtocol["Torture Protocol V8"]
+        ENTRY[torture_v8.py] --> METRICS[MetricsCollector]
+        ENTRY --> CHAOS[ChaosInjectors]
+
+        subgraph Categories["5 Test Categories"]
+            CR[Saga Crash<br/>15 tests]
+            CC[Concurrency<br/>12 tests]
+            CE[Context Edge<br/>10 tests]
+            CF[Compensation<br/>8 tests]
+            HM[HiveMind<br/>30 tests]
+        end
+
+        CHAOS --> CR
+        CHAOS --> CC
+        CHAOS --> CE
+        CHAOS --> CF
+        CHAOS --> HM
+
+        METRICS --> REPORT[Report]
+    end
+```
+
+### Test Categories ({total_tests} total)
+
+| Category | Tests |
+|----------|-------|
+{category_table}
+
+### Target Metrics
+
+| Metric | Target |
+|--------|--------|
+| Success Rate | >95% |
+| Recovery Rate | >90% |
+| Panic Rate | <1% |
+| Hot-Swap Effectiveness | >80% |
+
+### Chaos Injectors
+
+| Injector | Purpose |
+|----------|---------|
+| `CrashInjector` | Simulate crashes at checkpoints, persist, fsync |
+| `RaceInjector` | Introduce race conditions via delays |
+| `CorruptionInjector` | Corrupt saga files in various ways |
+| `TimeoutInjector` | Inject timeouts into operations |
+
+### pytest Markers
+
+{markers_list}
+
+### Execution
+
+```bash
+# Run all torture tests
+pytest tests/torture_v8.py -m torture -v --tb=short
+
+# Run by category
+pytest tests/torture_v8.py -m torture_saga -v   # Saga tests
+pytest tests/torture_v8.py -m torture_hive -v   # HiveMind tests
+pytest tests/torture_v8.py -m torture_slow -v   # Slow tests
+```
+
+**Source**: `tests/torture_v8.py`, `tests/torture/`
+
+"""
+
     def _generate_anti_hallucination(self) -> str:
         fsm_states = self.structures.get("fsm_states", [])
         hive_states = self.structures.get("hive_states", [])
         swarm_modes = self.structures.get("swarm_modes", [])
 
-        return f"""## 14. ANTI-HALLUCINATION REFERENCE
+        return f"""## 15. ANTI-HALLUCINATION REFERENCE
 
 ### Verified Structures
 

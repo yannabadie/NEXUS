@@ -959,7 +959,7 @@ if getattr(self.config, 'redteam_spawn_mandatory', False):
 
 ---
 
-### V8.2.0d - Torture Protocol V8 [Priority: P2] (NEW)
+### V8.2.0d - Torture Protocol V8 [Priority: P2] ✅ COMPLETED (2025-12-11)
 
 **Objectif** : Test de stress post-consolidation pour valider robustesse
 
@@ -970,26 +970,44 @@ if getattr(self.config, 'redteam_spawn_mandatory', False):
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Créer `tests/torture_v8.py` | 3h | PLANNED |
-| Scénarios: parallel overload, stagnation chains, budget exhaustion | 2h | PLANNED |
-| Métriques: success rate, recovery rate, panic rate | 1h | PLANNED |
+| Créer `tests/torture_v8.py` | 3h | ✅ DONE |
+| Scénarios: 75 tests across 5 categories | 4h | ✅ DONE |
+| Métriques: success rate, recovery rate, panic rate | 1h | ✅ DONE |
 | CI integration (nightly) | 1h | PLANNED |
 
-**Scénarios de torture**:
-```python
-# tests/torture_v8.py
-TORTURE_SCENARIOS = [
-    # Parallel overload
-    {"name": "parallel_flood", "concurrent_tasks": 10, "mode": "PARALLEL"},
-    # Stagnation chains
-    {"name": "stagnation_loop", "similar_tasks": 5, "expect_hot_swap": True},
-    # Budget exhaustion
-    {"name": "budget_drain", "expensive_tasks": 20, "expect_budget_error": True},
-    # Memory pressure
-    {"name": "rag_flood", "documents": 1000, "queries": 100},
-    # Mixed chaos
-    {"name": "chaos_monkey", "random_failures": True, "duration_minutes": 5},
-]
+**Implementation (2025-12-11)**:
+
+```
+tests/
+├── torture_v8.py                    # Main entry point
+└── torture/
+    ├── __init__.py
+    ├── base.py                      # TortureBase, TortureResultV8
+    ├── metrics_collector.py         # MetricsCollector, ScenarioMetrics
+    ├── chaos_injectors.py           # CrashInjector, RaceInjector, CorruptionInjector
+    └── scenarios/
+        ├── saga_crash.py            # 15 tests (CR-001 to CR-015)
+        ├── saga_concurrency.py      # 12 tests (CC-001 to CC-012)
+        ├── context_edge.py          # 10 tests (CE-001 to CE-010)
+        ├── compensation.py          # 8 tests (CF-001 to CF-008)
+        └── hive_integration.py      # 30 tests (HM-001 to HM-030)
+```
+
+**Test Categories (75 total)**:
+- **Saga Crash Recovery** (15): Partial writes, corrupted JSON, fsync crashes
+- **Saga Concurrency** (12): Parallel checkpoints, race conditions, high contention
+- **Context Edge Cases** (10): Truncation, missing estimates, deque/list handling
+- **Compensation Failures** (8): Exception handling, partial chains, timeouts
+- **HiveMind Integration** (30): Full pipeline, phase failures, hot-swap, resume
+
+**Execution**:
+```bash
+# Run all torture tests
+pytest tests/torture_v8.py -m torture -v --tb=short
+
+# Run by category
+pytest tests/torture_v8.py -m torture_saga -v   # Saga tests
+pytest tests/torture_v8.py -m torture_hive -v   # HiveMind tests
 ```
 
 **Métriques cibles**:
@@ -3384,6 +3402,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-11 | 8.2.0d-torture | **V8.2.0d TORTURE PROTOCOL COMPLETE**: 75 tests across 5 categories (saga_crash: 15, saga_concurrency: 12, context_edge: 10, compensation: 8, hive_integration: 30). New module `tests/torture/` with MetricsCollector, ChaosInjectors (Crash, Race, Corruption, Timeout). pytest markers: `@torture`, `@torture_saga`, `@torture_hive`, `@torture_slow`. Target metrics: Success >95%, Recovery >90%, Panic <1%. Source: Gemini astuce + Claude implementation |
 | 2025-12-11 | 8.4.8-saga-integration | **V8.4.4b COMPLETE**: SagaManager wired into orchestrator, context truncation bug fixed (._items vs .messages), file cleanup compensations added, 6 checkpoints in process_task(). Fichiers: `saga_manager.py`, `orchestrator.py`. KEY FINDING: SagaManager existed (641 lines) but was NOT wired. Source: Claude implementation |
 | 2025-12-11 | 8.4.4a-driverbridge | **V8.4.4a COMPLETE**: run_sync() timeout (300s) + deprecation warning, ParallelExecutor.execute() deprecation warning, DriverBridge migration guide. Source: Gemini analysis + Claude implementation. Fichiers: `async_utils.py`, `mode_executors.py`, `async_adapter.py` |
 | 2025-12-11 | 8.4.6-session-isolation | **SESSION ISOLATION HARDENING**: P0 Gemini `--resume latest` REMOVED (5 code paths), P1 Claude context files 0o600 permissions, P2 Thread-safe `_active_claude_processes`. ROADMAP enriched with V8.8 Security, V8.9 Observability, V9.0 Enterprise phases. Source: Audit Gemini `NEXUS_AUDIT_2025-12-11.md` + Claude deep analysis |
