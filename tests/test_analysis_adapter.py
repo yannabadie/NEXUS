@@ -230,6 +230,86 @@ class TestSuccessMemoryDecay:
             sig = inspect.signature(memory.get_best_mode_for_similar)
             assert 'apply_decay' in sig.parameters
 
+    def test_exponential_decay_curve(self):
+        """V8.8: Test exponential decay produces expected curve."""
+        from core.memory.success_memory import SuccessMemory
+        import tempfile
+        from pathlib import Path
+        from datetime import datetime, timedelta
+        from math import exp
+
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = SuccessMemory(Path(tmp))
+
+            # Test decay at various ages
+            test_cases = [
+                (0, 1.0),      # Today: no decay
+                (7, 0.97),     # 1 week: ~3% decay
+                (28, 0.89),    # 4 weeks: ~11% decay
+                (84, 0.71),    # 12 weeks: ~29% decay
+                (364, 0.23),   # 52 weeks: ~77% decay
+            ]
+
+            for age_days, expected_approx in test_cases:
+                timestamp = (datetime.now() - timedelta(days=age_days)).isoformat()
+                score = memory._apply_time_decay(1.0, timestamp)
+
+                # Allow 5% tolerance for floating point and time differences
+                assert abs(score - expected_approx) < 0.05, \
+                    f"At {age_days} days, expected ~{expected_approx}, got {score}"
+
+    def test_domain_bonus_parameter(self):
+        """V8.8: Test domain_bonus parameter in _apply_time_decay."""
+        from core.memory.success_memory import SuccessMemory
+        import tempfile
+        from pathlib import Path
+        from datetime import datetime
+
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = SuccessMemory(Path(tmp))
+
+            timestamp = datetime.now().isoformat()
+
+            # Without bonus
+            score_no_bonus = memory._apply_time_decay(0.5, timestamp, domain_bonus=0.0)
+            # With bonus
+            score_with_bonus = memory._apply_time_decay(0.5, timestamp, domain_bonus=0.15)
+
+            # Score with bonus should be higher
+            assert score_with_bonus > score_no_bonus
+            assert abs(score_with_bonus - score_no_bonus - 0.15) < 0.01
+
+    def test_get_best_mode_with_query_domains(self):
+        """V8.8: Test query_domains parameter in get_best_mode_for_similar."""
+        from core.memory.success_memory import SuccessMemory
+        import tempfile
+        from pathlib import Path
+        import inspect
+
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = SuccessMemory(Path(tmp))
+
+            # Check signature includes query_domains
+            sig = inspect.signature(memory.get_best_mode_for_similar)
+            assert 'query_domains' in sig.parameters
+            assert 'domain_boost' in sig.parameters
+
+    def test_decay_capped_at_one(self):
+        """V8.8: Test that decayed score doesn't exceed 1.0."""
+        from core.memory.success_memory import SuccessMemory
+        import tempfile
+        from pathlib import Path
+        from datetime import datetime
+
+        with tempfile.TemporaryDirectory() as tmp:
+            memory = SuccessMemory(Path(tmp))
+
+            timestamp = datetime.now().isoformat()
+
+            # With high domain bonus, score should still be capped at 1.0
+            score = memory._apply_time_decay(0.9, timestamp, domain_bonus=0.3)
+            assert score <= 1.0
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
