@@ -36,6 +36,7 @@
 | **V8.3.0** | SwarmBridge "Dictator Mode" | ✅ Complete | (pending) |
 | **V8.3.1** | SwarmTool "Swarm as Invocable Tool" | ✅ Complete | (pending) |
 | **V8.3.1-hotfix** | Depth Guard Anti-Recursion | ✅ Complete | (pending) |
+| **V8.5.1** | Refactor God Object `repl.py` | ✅ Complete | (current) |
 
 ### Documentation Session (2025-12-08/09)
 
@@ -175,6 +176,16 @@ PROJECT_MEMORY_BACKEND=tfidf
 | `core/execution/tool_manager.py` | MODIFIED | Added MAX_SWARM_DEPTH=2, depth check, propagation |
 | `ROADMAP.md` | MODIFIED | Added V8.3.1-hotfix + V8.3.2 merge_strategy sections |
 | `SESSION_CONTINUITY.md` | MODIFIED | Updated with hotfix info |
+
+### V8.5.1 - Refactor God Object `repl.py` (2025-12-11)
+
+| File | Action | Description |
+|------|--------|-------------|
+| `core/interface/repl.py` | MODIFIED | Extracted commands, removed unused methods |
+| `core/interface/commands/misc.py` | MODIFIED | Implemented `DoctorCommand`, `PoolStatsCommand`, etc. |
+| `core/interface/commands/evolution.py` | MODIFIED | Implemented `ReviewCommand` logic |
+| `core/interface/command_dispatcher.py` | CREATED | Extracted dispatch logic |
+| `ROADMAP.md` | MODIFIED | Marked CRIT-003 as DONE |
 
 ### Previous Session (Documentation)
 

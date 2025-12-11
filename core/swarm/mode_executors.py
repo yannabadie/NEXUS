@@ -16,12 +16,13 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
+# from concurrent.futures import ThreadPoolExecutor, as_completed  # Removed in V9
 from enum import Enum
 from pathlib import Path
 from threading import Lock
 import asyncio  # V9: True async parallel execution
 import re
+import sys
 
 from .collaboration_modes import CollaborationMode
 from .mode_selector import AgentAssignment
@@ -125,7 +126,11 @@ class ExecutionContext:
     task_id: Optional[str] = None
     session_manager: Optional[Any] = None  # SwarmSessionManager (avoid circular import)
     # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT complexity
+    session_manager: Optional[Any] = None  # SwarmSessionManager (avoid circular import)
+    # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT complexity
     force_cot: bool = False
+    # V9: Async invocation support
+    invoke_agent_async: Optional[Callable] = None  # Async equivalent of invoke_agent
 
     def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
         """Get agent assignment by role"""
@@ -158,7 +163,8 @@ class ExecutionContext:
             return self.session_manager.get_or_create_session(
                 self.task_id, role, agent_id
             )
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] Failed to get session: {e}", file=sys.stderr)
             return None
 
 
@@ -505,8 +511,8 @@ class ModeExecutor(ABC):
         if context.session_manager and context.task_id:
             try:
                 checkpoint_id = context.session_manager.create_checkpoint(context.task_id)
-            except Exception:
-                pass  # Continue without checkpoint
+            except Exception as e:
+                print(f"[WARN] Failed to create checkpoint: {e}", file=sys.stderr)
 
         while fallback_count <= max_fallbacks:
             try:
@@ -553,8 +559,8 @@ class ModeExecutor(ABC):
                         context.session_manager.restore_checkpoint(
                             context.task_id, checkpoint_id
                         )
-                    except Exception:
-                        pass  # Continue even if restore fails
+                    except Exception as e:
+                        print(f"[WARN] Failed to restore checkpoint: {e}", file=sys.stderr)
 
                 # Get fallback mode
                 fallback = current_mode.fallback_mode

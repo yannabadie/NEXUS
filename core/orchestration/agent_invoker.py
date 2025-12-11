@@ -28,7 +28,11 @@ from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult
+from core.swarm import AgentInvocationResult
 from core.telemetry import BudgetExceededError
+# V9: Async Drivers
+from core.drivers.async_claude_driver import create_async_claude_driver, AsyncClaudeDriver
+from core.drivers.async_gemini_driver import create_async_gemini_driver, AsyncGeminiDriver
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -96,6 +100,30 @@ class AgentInvoker:
             driver.timeout = timeout_override
 
         return driver
+
+    def get_async_claude_driver(
+        self,
+        task_type: TaskType,
+        timeout_override: Optional[int] = None
+    ) -> AsyncClaudeDriver:
+        """
+        Get Async Claude driver with appropriate model.
+        """
+        model = self._orch.model_router.select_claude_model(task_type)
+        driver = create_async_claude_driver(
+            self._orch.config,
+            self._orch.workspace_path,
+            model=model
+        )
+        # TODO: Async driver doesn't support timeout override on instance yet, uses config
+        return driver
+
+    def get_async_gemini_driver(self) -> AsyncGeminiDriver:
+        """Get Async Gemini driver."""
+        return create_async_gemini_driver(
+            self._orch.config,
+            self._orch.workspace_path
+        )
 
     def invoke_agent(self, task_type: TaskType, context: str) -> Dict:
         """
@@ -200,6 +228,50 @@ class AgentInvoker:
 
         except Exception as e:
             self._logger.error(f"Swarm invocation failed: {e}")
+            self._logger.error(f"Swarm invocation failed: {e}")
+            return f"Error: {e}"
+
+    async def invoke_for_swarm_async(self, agent_id: str, task_type: str, context: str,
+                                     session_uuid: Optional[str] = None) -> str:
+        """
+        Async version of invoke_for_swarm.
+        """
+        # V7.5 HIVE MIND: Check if this is a spawned agent
+        if self.is_spawned_agent(agent_id):
+            # TODO: Implement async spawned agent invocation
+            # For now, wrap sync call in thread (temporary bridge)
+            import asyncio
+            return await asyncio.to_thread(self.invoke_spawned_agent, agent_id, task_type, context)
+
+        # V8.4.0: Use registry for agent identification
+        target_agent = self._registry.get_display_name(agent_id)
+
+        try:
+            # Map task type string to TaskType enum
+            task_type_enum = TaskType.BRAINSTORM  # Default
+            if task_type == "negotiation":
+                task_type_enum = TaskType.BRAINSTORM
+            elif task_type == "execution":
+                task_type_enum = TaskType.TOOL
+            elif task_type == "validation":
+                task_type_enum = TaskType.VALIDATION
+
+            # Build rich context
+            if hasattr(self._orch, 'context_builder'):
+                enriched_context = self._orch.context_builder.build_swarm_context(
+                    context, task_type, target_agent
+                )
+            else:
+                enriched_context = self._orch._build_swarm_context(context, task_type, target_agent)
+
+            # Invoke async
+            response = await self.invoke_agent_direct_async(
+                task_type_enum, enriched_context, target_agent, session_uuid=session_uuid
+            )
+            return response.get("content", str(response))
+
+        except Exception as e:
+            self._logger.error(f"Async Swarm invocation failed: {e}")
             return f"Error: {e}"
 
     def is_spawned_agent(self, agent_id: str) -> bool:
@@ -349,6 +421,57 @@ class AgentInvoker:
                 # V8.1.6: Pass session_uuid for thread-safe file access
                 return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
             return self._orch.gemini_driver.invoke(context, session_uuid=session_uuid)
+
+    async def invoke_agent_direct_async(
+        self,
+        task_type: TaskType,
+        context: str,
+        target_agent: str,
+        session_uuid: Optional[str] = None
+    ) -> Dict:
+        """
+        Async version of invoke_agent_direct.
+        """
+        # Phase 14d: Enforce budget limit
+        try:
+            if self._orch.telemetry:
+                self._orch.telemetry.enforce_budget()
+        except BudgetExceededError as e:
+            self._logger.error(f"Budget exceeded in async swarm: {e}")
+            return {
+                "sender": "System",
+                "action_type": "ERROR",
+                "content": f"BUDGET EXCEEDED: ${e.spent:.2f}/${e.limit:.2f}",
+                "status": "ERROR"
+            }
+
+        # V7.7 Phase 15: Streaming support
+        use_streaming = (
+            getattr(self._orch.config, 'streaming_enabled', False) and
+            self._orch.on_token is not None
+        )
+
+        if self._registry.is_claude(target_agent):
+            driver = self.get_async_claude_driver(task_type)
+            if use_streaming:
+                # V9: Drivers now support on_token in invoke()
+                return await driver.invoke(
+                    context, 
+                    session_uuid=session_uuid,
+                    on_token=self._orch.on_token
+                )
+            
+            return await driver.invoke(context, session_uuid=session_uuid)
+
+        else:
+            driver = self.get_async_gemini_driver()
+            if use_streaming:
+                return await driver.invoke(
+                    context, 
+                    session_uuid=session_uuid,
+                    on_token=self._orch.on_token
+                )
+            return await driver.invoke(context, session_uuid=session_uuid)
 
     def record_invocation(
         self,

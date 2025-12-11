@@ -277,12 +277,18 @@ class ArchitectureGenerationPhase:
         try:
             response = await self.gemini.send_message_async(prompt)
 
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("generate_architecture", tokens)
 
             # Parse response
-            return self._parse_architecture_response(response, capabilities)
+            return self._parse_architecture_response(content, capabilities)
 
         except Exception as e:
             logger.error(f"Architecture generation failed: {e}")

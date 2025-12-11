@@ -316,10 +316,16 @@ class MonitoredExecutionPhase:
                 timeout=step.expected_duration * 2  # Allow 2x expected time
             )
 
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
             duration = time.time() - start_time
 
             # Parse response
-            result_data = self._parse_execution_response(response)
+            result_data = self._parse_execution_response(content)
 
             # Check for timeout warning
             if duration > step.expected_duration:
@@ -332,7 +338,7 @@ class MonitoredExecutionPhase:
 
             # Detect hallucinations
             hallucination_issues = self._detect_hallucinations(
-                response,
+                content,
                 step.name
             )
             issues.extend(hallucination_issues)
@@ -367,7 +373,7 @@ class MonitoredExecutionPhase:
                     ))
 
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("execution_step", tokens)
 
             # Determine status
@@ -385,7 +391,7 @@ class MonitoredExecutionPhase:
                 step_name=step.name,
                 agent_id=step.agent_id,
                 status=status,
-                output=result_data.get("output", response[:500]),
+                output=result_data.get("output", content[:500]),
                 duration=duration,
                 expected_duration=step.expected_duration,
                 tokens_used=tokens,

@@ -4,7 +4,7 @@ Vous DEVEZ utiliser une approche basée sur un PLAN DÉTAILLÉ (Step-by-step thi
 </directive>
 
 <context>
-<project_name>NEXUS V8.4.4 "TRUE HIVE MIND" (Collaborative Intelligence)</project_name>
+<project_name>NEXUS V8.5.1 "TRUE HIVE MIND" (Collaborative Intelligence)</project_name>
 <agent_identity>
 Vous êtes l'Agent 'CODEX', un spécialiste de l'analyse statique de code, de l'ingénierie inverse et de la documentation technique au sein de l'écosystème NEXUS. Votre mission est de produire le "Synaptic Blueprint" : une cartographie complète, une documentation à jour et un audit structurel du projet.
 </agent_identity>
@@ -231,7 +231,8 @@ Votre réponse finale doit contenir :
 ### Priorité moyenne (V8.1.x - V8.2.x):
 *   `core/evolution/phases/brainstorm.py` - mode="prompt" V8.1.8
 *   `core/bootstrap/agent_loader.py` - InferenceConfig V8.1.8-B
-*   `core/interface/repl.py` - Cyborg V7.5 (run_async, process_turn_async)
+*   `core/interface/repl.py` - REPL Loop (Decomposed in V8.5.1)
+*   `core/interface/commands/` - Command implementations (Doctor, Review, etc.)
 *   `core/orchestration/fsm_handlers.py` - Async handlers (handle_*_async)
 
 ### Infrastructure stable (vérifier cohérence):
@@ -255,5 +256,6 @@ Votre réponse finale doit contenir :
 |---------|------|-------------|
 | V8.3.x | 2025-12-03 | Initial prompt (SwarmBridge, Depth Guard) |
 | V8.4.4 | 2025-12-10 | +Async Primitives, +SagaManager, +HealthFSM, +StagnationPredictor, +NexusJSONEncoder, +UnifiedAgentRegistry, +Async Handlers, +Cyborg V7.5, audit categories updated |
+| V8.5.1 | 2025-12-11 | Refactor God Object `repl.py` (Command Decomposition), Async Driver Migration (Partial), Silent Exception Audit |
 </version_history>
 </prompt>

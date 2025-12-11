@@ -70,7 +70,8 @@ def _cleanup_claude_processes():
                 if proc.poll() is None:  # Still running
                     proc.terminate()
                     proc.wait(timeout=2)
-            except Exception:
+            except Exception as e:
+                print(f"[WARN] Failed to terminate process: {e}", file=sys.stderr)
                 try:
                     proc.kill()
                 except Exception:
@@ -548,7 +549,17 @@ class ClaudeDriverHybrid:
                 if attempt < max_retries - 1:
                     # Wait before retry (exponential backoff)
                     wait_time = 2 ** attempt
-                    time.sleep(wait_time)
+                    # V9: Use asyncio.sleep if running in async loop, else time.sleep
+                    try:
+                        loop = asyncio.get_running_loop()
+                        if loop.is_running():
+                            # We can't await here because this method is sync
+                            # But if we are in a thread pool (via to_thread), time.sleep is fine
+                            time.sleep(wait_time)
+                        else:
+                            time.sleep(wait_time)
+                    except RuntimeError:
+                        time.sleep(wait_time)
 
                     # If parse error, inject stronger reminder
                     if "parse" in str(e).lower() or "json" in str(e).lower():

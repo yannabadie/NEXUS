@@ -12,7 +12,10 @@ Extraction Priority:
 
 import json
 import re
+import logging
 from typing import Optional, Dict, Any, Tuple
+
+logger = logging.getLogger(__name__)
 
 def extract_json_safe(text: str, verbose: bool = False) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
@@ -57,8 +60,9 @@ def extract_json_safe(text: str, verbose: bool = False) -> Tuple[Optional[Dict[s
         candidate = text[start_idx:end_idx+1]
         try:
             return json.loads(candidate), None
-        except json.JSONDecodeError:
-            # Try to clean up common issues (trailing commas, etc)
+        except json.JSONDecodeError as e:
+            if verbose:
+                 logger.debug(f"Brute force JSON extraction failed: {e}")
             pass
 
     return None, "No valid JSON found with any strategy"

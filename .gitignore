@@ -25,7 +25,7 @@ ENV/
 Thumbs.db
 
 # NEXUS specific
-workspace/
+/workspace/
 workspace_archive.tar.gz
 *.log
 *.jsonl

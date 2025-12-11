@@ -79,19 +79,18 @@ Get recommended strategy based on history.
 
 ---
 
-## 🏭 Module: `core.interface.repl` (Agent Factory)
+## 🏭 Module: `core.interface.commands.evolution` (Agent Factory)
 
-Interactive shell handling Agent Spawning.
+Handles Agent Spawning via `/spawn` command.
 
-### `spawn_agent(role: str)`
+### `class SpawnCommand`
 
 Create a specialized agent that persists in `workspace/agents/`.
 
-**Parameters**:
-- `role` (str): Role description (e.g., "SQL Expert")
+**Usage**: `/spawn <role>`
 
 **Process**:
-1. Uses `brainstorm_children_with_ais` to design the agent
+1. Uses `brainstorm_children_with_ais` (Gemini+Claude) to design the agent
 2. Creates directory `workspace/agents/<role_slug>/`
 3. Generates `BIRTH_CERTIFICATE.json` and `system_prompt.md`
 4. Copies core files (preserving KERNEL.py)

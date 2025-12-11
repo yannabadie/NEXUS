@@ -4,7 +4,7 @@
 
 <h1 align="center">
   <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V8.3.2 "TRUE HIVE MIND"
+  NEXUS V8.5.1 "TRUE HIVE MIND"
 </h1>
 
 <p align="center">
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-8.3.2-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-8.5.1-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
   <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
   <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>
@@ -70,7 +70,7 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
 ```
 
 <a name="features"></a>
-## V8.3 Features
+## V8.5 Features
 
 ### Phase Highlights
 
@@ -126,7 +126,7 @@ nexus> /review         # Review pending children
 ```
 
 <a name="architecture"></a>
-## Architecture (V8.3)
+## Architecture (V8.5)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐

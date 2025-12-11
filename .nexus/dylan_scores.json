@@ -1,0 +1,460 @@
+{
+  "agents": {
+    "gemini_primary": {
+      "agent_id": "gemini_primary",
+      "provider": "gemini",
+      "model": "gemini-3-pro-preview",
+      "capabilities": [
+        "reasoning",
+        "coding",
+        "research"
+      ],
+      "is_active": true,
+      "uuid": null,
+      "average_importance": 0.0,
+      "success_rate": 0.0,
+      "invocation_count": 21,
+      "invocation_history": [
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003689",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9.7e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003697",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003700",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003702",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 7.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003703",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003704",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003705",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 8.1e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003706",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003707",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 5e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003708",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 8e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003709",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003710",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 7e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003712",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 7.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003713",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003714",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003715",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003716",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003717",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.083657",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 8.5e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.083679",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 9e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "gemini_primary",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.083684",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        }
+      ]
+    },
+    "claude_opus": {
+      "agent_id": "claude_opus",
+      "provider": "claude",
+      "model": "claude-opus-4-5-20251101",
+      "capabilities": [
+        "brainstorm",
+        "creativity",
+        "architecture"
+      ],
+      "is_active": true,
+      "uuid": null,
+      "average_importance": 0.0,
+      "success_rate": 0.0,
+      "invocation_count": 14,
+      "invocation_history": [
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003719",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 2.2e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003720",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003721",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003722",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003723",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003724",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003725",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 2.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003726",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 8e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003727",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1.5e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003728",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003729",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.003730",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 6e-06,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.083673",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 1.6e-05,
+          "importance_score": 0.0,
+          "error": null
+        },
+        {
+          "agent_id": "claude_opus",
+          "task_type": "analysis",
+          "timestamp": "2025-12-11T15:17:40.083681",
+          "success": false,
+          "quality_score": 0.0,
+          "tokens_used": 0,
+          "time_seconds": 7e-06,
+          "importance_score": 0.0,
+          "error": null
+        }
+      ]
+    }
+  },
+  "stats": {
+    "agents": 2,
+    "total_invocations": 35,
+    "average_pool_importance": 0.0,
+    "agents_detail": {
+      "gemini_primary": {
+        "agent_id": "gemini_primary",
+        "provider": "gemini",
+        "model": "gemini-3-pro-preview",
+        "capabilities": [
+          "reasoning",
+          "coding",
+          "research"
+        ],
+        "is_active": true,
+        "uuid": null,
+        "average_importance": 0.0,
+        "success_rate": 0.0,
+        "invocation_count": 21
+      },
+      "claude_opus": {
+        "agent_id": "claude_opus",
+        "provider": "claude",
+        "model": "claude-opus-4-5-20251101",
+        "capabilities": [
+          "brainstorm",
+          "creativity",
+          "architecture"
+        ],
+        "is_active": true,
+        "uuid": null,
+        "average_importance": 0.0,
+        "success_rate": 0.0,
+        "invocation_count": 14
+      }
+    }
+  }
+}

@@ -60,8 +60,8 @@ def _cleanup_processes():
     if _persistent_process:
         try:
             _persistent_process.close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARN] Failed to close persistent process: {e}", file=sys.stderr)
         _persistent_process = None
 
     # Cleanup any one-shot processes
@@ -70,7 +70,8 @@ def _cleanup_processes():
             if proc.poll() is None:  # Still running
                 proc.terminate()
                 proc.wait(timeout=2)
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] Failed to terminate process: {e}", file=sys.stderr)
             try:
                 proc.kill()
             except Exception:
@@ -257,7 +258,19 @@ class GeminiDriverV7:
                         f"Retry {attempt + 1}/{max_retries} after {wait_time:.1f}s",
                         error=str(e)[:100]
                     )
-                    time.sleep(wait_time)
+                    # V9: Use asyncio.sleep if running in async loop, else time.sleep
+                    try:
+                        loop = asyncio.get_running_loop()
+                        if loop.is_running():
+                            # We can't await here because this method is sync
+                            # But if we are in a thread pool (via to_thread), time.sleep is fine
+                            # If we are in the main loop, time.sleep blocks everything
+                            # Ideally this method should be async, but for now we rely on to_thread wrapper
+                            time.sleep(wait_time)
+                        else:
+                            time.sleep(wait_time)
+                    except RuntimeError:
+                        time.sleep(wait_time)
 
             except Exception as e:
                 # Unknown error - don't retry

@@ -125,6 +125,7 @@ class HybridSwarmEngine:
         model_router: Optional[Any] = None,
         config: Optional[Any] = None,
         invoke_agent: Optional[Callable] = None,
+        invoke_agent_async: Optional[Callable] = None,  # V9: Async invocation support
         workspace_path: Optional[Path] = None
     ):
         """
@@ -134,13 +135,15 @@ class HybridSwarmEngine:
             agent_pool: AgentPool for DyLAN metrics
             model_router: ModelRouter for agent selection
             config: Configuration object
-            invoke_agent: Callable to invoke agents
+            invoke_agent: Callable to invoke agents (sync)
+            invoke_agent_async: Callable to invoke agents (async)
             workspace_path: Path to workspace for session persistence (Phase 7)
         """
         self.agent_pool = agent_pool or create_default_pool()
         self.model_router = model_router
         self.config = config
         self.invoke_agent = invoke_agent
+        self.invoke_agent_async = invoke_agent_async
         self.workspace_path = workspace_path
 
         # V7.5 Phase 7: Session isolation manager
@@ -300,7 +303,9 @@ class HybridSwarmEngine:
                 task_id=task_id,
                 session_manager=self.session_manager,
                 # V7.7 Phase 14e: Force CoT for EXPERT complexity
-                force_cot=(analysis.complexity == TaskComplexity.EXPERT)
+                force_cot=(analysis.complexity == TaskComplexity.EXPERT),
+                # V9: Async invocation support
+                invoke_agent_async=self._wrap_invoke_agent_async() if self.invoke_agent_async else None
             )
 
             # V7.9: Pass workspace_path for artifact verification in PingPong
@@ -481,6 +486,58 @@ class HybridSwarmEngine:
                 return response
             elif isinstance(response, str):
                 # V7 FIX: Detect error responses from _invoke_for_swarm
+                is_error = response.startswith("Error:") or "timed out" in response.lower()
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content=response,
+                    status="error" if is_error else "success",
+                    error=response if is_error else None,
+                    time_seconds=elapsed
+                )
+            elif isinstance(response, dict):
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content=response.get("content", str(response)),
+                    status=response.get("status", "success"),
+                    tokens_used=response.get("tokens_used", 0),
+                    time_seconds=elapsed
+                )
+            else:
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content=str(response),
+                    status="success",
+                    time_seconds=elapsed
+                )
+
+        return wrapper
+
+    def _wrap_invoke_agent_async(self) -> Callable:
+        """
+        Wrap invoke_agent_async to return AgentResponse (Async version).
+        """
+        async def wrapper(agent_id: str, task_type: str, context: str,
+                          session_uuid: Optional[str] = None) -> AgentResponse:
+            if self.invoke_agent_async is None:
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content=f"[Mock {agent_id} response]",
+                    status="mock"
+                )
+
+            # V7.7 Phase 14e: Inject CoT instruction for EXPERT complexity
+            if (self._current_analysis and
+                self._current_analysis.complexity == TaskComplexity.EXPERT):
+                context += "\n\n<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
+
+            start = datetime.now()
+            # Await the async invoker
+            response = await self.invoke_agent_async(agent_id, task_type, context, session_uuid=session_uuid)
+            elapsed = (datetime.now() - start).total_seconds()
+
+            if isinstance(response, AgentResponse):
+                return response
+            elif isinstance(response, str):
                 is_error = response.startswith("Error:") or "timed out" in response.lower()
                 return AgentResponse(
                     agent_id=agent_id,

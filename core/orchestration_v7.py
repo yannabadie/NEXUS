@@ -191,7 +191,8 @@ class OrchestratorV7:
                 agent_pool=self.agent_pool,
                 model_router=self.model_router,
                 config=self.config,
-                invoke_agent=self._invoke_for_swarm
+                invoke_agent=self._invoke_for_swarm,
+                invoke_agent_async=self._invoke_for_swarm_async  # V9: Async wiring
             )
             self.logger.debug("HybridSwarmEngine initialized", {
                 "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
@@ -328,6 +329,10 @@ class OrchestratorV7:
     def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
         """Invoke agent for swarm. V7.8: Delegates to AgentInvoker."""
         return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context)
+
+    async def _invoke_for_swarm_async(self, agent_id: str, task_type: str, context: str, session_uuid: str = None) -> str:
+        """Invoke agent for swarm (async). V9: Delegates to AgentInvoker."""
+        return await self.agent_invoker.invoke_for_swarm_async(agent_id, task_type, context, session_uuid=session_uuid)
 
     def _invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) -> Dict:
         """Invoke specific agent directly. V7.8: Delegates to AgentInvoker."""
@@ -508,11 +513,16 @@ class OrchestratorV7:
         async_states = {
             OrchestratorState.BRAINSTORMING,
             OrchestratorState.VALIDATING_CFL,
+            OrchestratorState.IDLE,  # V9: IDLE now supports async routing (Hive Mind)
         }
+        
+        print(f"DEBUG: process_turn_async state={self.state}, async_states={async_states}")
 
         if self.state in async_states:
+            print("DEBUG: Taking async path")
             return await self._handle_async_state(user_input)
         else:
+            print("DEBUG: Taking sync path")
             # Non-LLM states: use sync handlers (fast, no I/O blocking)
             return self.process_turn(user_input)
 
@@ -537,6 +547,9 @@ class OrchestratorV7:
             return await self._handle_brainstorming_async(factory, user_input)
         elif self.state == OrchestratorState.VALIDATING_CFL:
             return await self._handle_cfl_async(factory)
+        elif self.state == OrchestratorState.IDLE:
+            # V9: Delegate to async FSM handler for IDLE (Hive Mind routing)
+            return await self.fsm_handlers.handle_idle_async(user_input)
         else:
             return self.process_turn(user_input)
 
@@ -558,7 +571,7 @@ class OrchestratorV7:
         session_uuid = f"brain_{self.iteration}"
 
         try:
-            if self.active_agent == "Claude":
+            if self.active_agent.lower() == "claude":
                 driver = factory.get_claude_driver()
                 response_parts = []
 
@@ -618,7 +631,7 @@ class OrchestratorV7:
         session_uuid = f"cfl_{self.iteration}"
 
         try:
-            if self.active_agent == "Claude":
+            if self.active_agent.lower() == "claude":
                 driver = factory.get_claude_driver()
                 # CFL needs faster response - use non-streaming
                 response = await asyncio.wait_for(
@@ -834,7 +847,8 @@ class OrchestratorV7:
             try:
                 encoding = tiktoken.get_encoding("cl100k_base")
                 estimated_tokens = len(encoding.encode(response_text))
-            except Exception:
+            except Exception as e:
+                self.logger.warning(f"Token counting failed: {e}")
                 # Fallback: rough estimate (1 token ≈ 4 chars)
                 estimated_tokens = len(response_text) // 4
 

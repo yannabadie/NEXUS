@@ -1,8 +1,8 @@
-# NEXUS V8.0 Core Module
+# NEXUS V8.5.1 Core Module
 
-Le module `core/` est le coeur de NEXUS V8.0 "TRUE HIVE MIND" - un systeme d'orchestration multi-agent collaboratif qui genere des agents specialises pour resoudre des problemes complexes.
+Le module `core/` est le coeur de NEXUS V8.5.1 "TRUE HIVE MIND" - un systeme d'orchestration multi-agent collaboratif qui genere des agents specialises pour resoudre des problemes complexes.
 
-**Version**: 8.0 | **Last Updated**: 2025-12-08
+**Version**: 8.5.1 | **Last Updated**: 2025-12-11
 
 ## V8.0 TRUE HIVE MIND - Nouveaute Majeure
 
@@ -87,7 +87,7 @@ Le module core implémente une **Finite State Machine (FSM)** qui orchestre la c
 | [`execution/`](execution/README.md) | **[V7.8]** Tools + Agent-as-Tool | `tool_manager.py`, `agent_tools.py` |
 | [`evolution/`](evolution/README.md) | Moteur d'auto-modification | `lineage.py`, `tiered_validator.py` |
 | [`routing/`](routing/README.md) | Sélection dynamique modèles | `model_router.py` |
-| [`interface/`](interface/README.md) | Interaction utilisateur | `repl.py`, `commands.py` |
+| [`interface/`](interface/README.md) | Interaction utilisateur | `repl.py`, `commands/` (Decomposed) |
 | [`telemetry/`](telemetry/README.md) | Métriques & budget | `metrics.py`, `budget_tracker.py` |
 | [`security/`](security/README.md) | Validation & politiques | `mutation_validator.py`, `path_guardian.py` |
 | [`workspace/`](workspace/README.md) | Gestion sessions | `manager.py` |
@@ -236,6 +236,8 @@ GEMINI_MODEL=gemini-3-pro-preview
 | orchestration/*.py | 0 | 1527 | NEW |
 | memory/*.py | 450 | 1135 | +152% |
 | execution/*.py | 800 | 1310 | +64% |
+| interface/repl.py | 3000 | ~500 | -83% (Decomposed) |
+| interface/commands/*.py | 0 | ~2500 | NEW |
 | **Total core/** | ~15000 | ~14500 | -3% |
 
 ## Voir Aussi

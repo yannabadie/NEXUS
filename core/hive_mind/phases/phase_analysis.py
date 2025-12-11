@@ -192,8 +192,14 @@ class IndependentAnalysisPhase:
             # Call Gemini driver
             response = await self.gemini.send_message_async(prompt)
 
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
             # Parse JSON response
-            analysis_data = self._parse_analysis_response(response, "gemini")
+            analysis_data = self._parse_analysis_response(content, "gemini")
 
             # Record cost
             tokens = len(response) // 4  # Rough estimate
@@ -216,8 +222,14 @@ class IndependentAnalysisPhase:
             # Call Claude driver
             response = await self.claude.send_message_async(prompt)
 
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
             # Parse JSON response
-            analysis_data = self._parse_analysis_response(response, "claude")
+            analysis_data = self._parse_analysis_response(content, "claude")
 
             # Record cost
             tokens = len(response) // 4

@@ -406,7 +406,14 @@ class StrategicDebatePhase:
         # Call driver
         try:
             response = await driver.send_message_async(prompt)
-            argument_data = self._parse_argument_response(response)
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            argument_data = self._parse_argument_response(content)
 
             # Record cost
             tokens = len(response) // 4
@@ -478,10 +485,17 @@ class StrategicDebatePhase:
         # Use Gemini for consensus check (neutral)
         try:
             response = await self.gemini.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("check_consensus", tokens)
 
-            json_match = re.search(r'\{[\s\S]*\}', response)
+            json_match = re.search(r'\{[\s\S]*\}', content)
             if json_match:
                 return json.loads(json_match.group())
 

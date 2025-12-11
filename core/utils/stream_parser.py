@@ -8,26 +8,28 @@ See: docs/STREAM_FORMAT_ANALYSIS.md for format specifications.
 """
 
 import json
+import logging
 from typing import Optional, Tuple, Dict, Any
 
+logger = logging.getLogger(__name__)
 
 def parse_stream_chunk(line: str, source: str) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """
     Parse a single line of stream-json output.
-
+    
     Args:
         line: JSON line from CLI stdout
         source: "gemini" or "claude"
-
+        
     Returns:
         Tuple of (text_chunk, metadata):
         - text_chunk: Extracted text if this is a text delta, else None
         - metadata: Full parsed JSON for other processing (None if parse error)
-
+        
     Examples:
         >>> parse_stream_chunk('{"type":"message","role":"assistant","content":"Hello","delta":true}', "gemini")
         ('Hello', {'type': 'message', 'role': 'assistant', 'content': 'Hello', 'delta': True})
-
+        
         >>> parse_stream_chunk('{"type":"init",...}', "gemini")
         (None, {'type': 'init', ...})
     """
@@ -36,7 +38,8 @@ def parse_stream_chunk(line: str, source: str) -> Tuple[Optional[str], Optional[
 
     try:
         data = json.loads(line.strip())
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse stream chunk from {source}: {e} | Line: {line[:100]}...")
         return None, None
 
     text_chunk = None

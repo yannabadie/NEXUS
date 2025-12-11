@@ -18,11 +18,14 @@ Date: 2025-12-04
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class AtomicJsonStore:
@@ -122,7 +125,8 @@ class AtomicJsonStore:
             default = {}
         try:
             return self.load()
-        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
+            logger.debug(f"load_safe suppressed exception for {self._filepath}: {e}")
             return default
 
     def save(self, data: Dict[str, Any]) -> None:

@@ -256,9 +256,16 @@ class FailureDiagnosisPhase:
         """Get diagnosis from Gemini."""
         try:
             response = await self.gemini.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("failure_diagnosis_gemini", tokens)
-            return response
+            return content
         except Exception as e:
             logger.error(f"Gemini diagnosis failed: {e}")
             raise
@@ -267,9 +274,16 @@ class FailureDiagnosisPhase:
         """Get diagnosis from Claude."""
         try:
             response = await self.claude.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("failure_diagnosis_claude", tokens)
-            return response
+            return content
         except Exception as e:
             logger.error(f"Claude diagnosis failed: {e}")
             raise
@@ -289,12 +303,19 @@ class FailureDiagnosisPhase:
 
         try:
             response = await self.gemini.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("synthesize_diagnosis", tokens)
 
             # Parse response
             return self._parse_diagnosis_response(
-                response,
+                content,
                 gemini_diagnosis,
                 claude_diagnosis
             )

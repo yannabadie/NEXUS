@@ -299,9 +299,16 @@ class KnowledgeConsolidationPhase:
         """Get reflection from Gemini."""
         try:
             response = await self.gemini.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("reflection_gemini", tokens)
-            return response
+            return content
         except Exception as e:
             logger.error(f"Gemini reflection failed: {e}")
             raise
@@ -310,9 +317,16 @@ class KnowledgeConsolidationPhase:
         """Get reflection from Claude."""
         try:
             response = await self.claude.send_message_async(prompt)
-            tokens = len(response) // 4
+            
+            # Extract content if response is a dict
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+                
+            tokens = len(content) // 4
             self.cost_estimator.record_cost("reflection_claude", tokens)
-            return response
+            return content
         except Exception as e:
             logger.error(f"Claude reflection failed: {e}")
             raise

@@ -85,7 +85,7 @@ class AsyncClaudeDriver:
         self.config = config
         self.workspace_path = Path(config.workspace_path)
         self.io_buffer = self.workspace_path / "_IO_BUFFER"
-        self.io_buffer.mkdir(exist_ok=True)
+        self.io_buffer.mkdir(parents=True, exist_ok=True)
 
         # Track ALL active processes by UUID for cancellation
         self._active_handles: Dict[str, AsyncProcessHandle] = {}
@@ -100,6 +100,7 @@ class AsyncClaudeDriver:
         session_uuid: Optional[str] = None,
         token: Optional[CancellationToken] = None,
         task_id: Optional[str] = None,
+        on_token: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """
         Non-blocking invoke that collects full response.
@@ -109,6 +110,7 @@ class AsyncClaudeDriver:
             session_uuid: Unique ID for file isolation (from SwarmSessionManager)
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
+            on_token: Optional callback for each token
 
         Returns:
             Dict structured NEXUS response with:
@@ -124,7 +126,8 @@ class AsyncClaudeDriver:
             context,
             session_uuid=session_uuid,
             token=token,
-            task_id=task_id
+            task_id=task_id,
+            on_token=on_token
         ):
             chunks.append(chunk)
 

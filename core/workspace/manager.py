@@ -374,7 +374,8 @@ class WorkspaceManager:
             for f in self.archive_path.rglob("*"):
                 if f.is_file():
                     total += f.stat().st_size
-        except Exception:
+        except Exception as e:
+            self._logger.warning(f"Failed to calculate archive size: {e}")
             return "?"
 
         if total < 1024 * 1024:

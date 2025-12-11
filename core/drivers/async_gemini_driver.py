@@ -84,7 +84,7 @@ class AsyncGeminiDriver:
         self.config = config
         self.workspace_path = Path(config.workspace_path)
         self.io_buffer = self.workspace_path / "_IO_BUFFER"
-        self.io_buffer.mkdir(exist_ok=True)
+        self.io_buffer.mkdir(parents=True, exist_ok=True)
 
         # Track active processes by UUID
         self._active_handles: Dict[str, AsyncProcessHandle] = {}
@@ -102,6 +102,7 @@ class AsyncGeminiDriver:
         session_uuid: Optional[str] = None,
         token: Optional[CancellationToken] = None,
         task_id: Optional[str] = None,
+        on_token: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """
         Non-blocking invoke that collects full response.
@@ -111,6 +112,7 @@ class AsyncGeminiDriver:
             session_uuid: Unique ID for session isolation (from SwarmSessionManager)
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
+            on_token: Optional callback for each token
 
         Returns:
             Dict structured NEXUS response (JSON parsed)
@@ -120,7 +122,8 @@ class AsyncGeminiDriver:
             context,
             session_uuid=session_uuid,
             token=token,
-            task_id=task_id
+            task_id=task_id,
+            on_token=on_token
         ):
             chunks.append(chunk)
 

@@ -45,6 +45,8 @@ def test_global_integration():
         mock_config.red_team_mandatory = False
         mock_config.max_children_concurrent = 5
         mock_config.max_generations_per_day = 100
+        mock_config.redteam_spawn_enabled = False
+        mock_config.budget_limit_usd = 100.0
         MockConfig.return_value = mock_config
         
         # Mock Lineage

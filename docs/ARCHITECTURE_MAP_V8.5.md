@@ -1,7 +1,7 @@
-# NEXUS V8.1 Architecture Map
+# NEXUS V8.5.1 Architecture Map
 
-**Generated**: 2025-12-09
-**Version**: V8.1.8-B "True Hive Mind"
+**Generated**: 2025-12-11
+**Version**: V8.5.1 "True Hive Mind"
 **Source**: Codebase analysis (126 files, 42,831 LOC)
 
 ---
@@ -468,7 +468,8 @@ graph LR
 
 | File | LOC | Purpose |
 |------|-----|---------|
-| `core/interface/repl.py` | 2340 | spawn_agent(), _brainstorm_agent_prompt() |
+| `core/interface/repl.py` | ~500 | Main Loop (Decomposed) |
+| `core/interface/commands/` | ~2500 | Command Implementations |
 | `core/evolution/manager.py` | 556 | EvolutionManager |
 | `core/evolution/phases/brainstorm.py` | ~400 | BrainstormPhase |
 | `core/evolution/phases/create.py` | ~300 | CreatePhase |
@@ -664,7 +665,7 @@ graph TD
 | Swarm Engine | 9 | 5,800 | 13.5% |
 | Hive Mind | 12 | 5,500 | 12.8% |
 | Evolution | 9 | 4,000 | 9.3% |
-| Interface | 3 | 3,000 | 7.0% |
+| Interface | 15+ | 3,000 | 7.0% |
 | Orchestration | 6 | 2,500 | 5.8% |
 | Memory | 7 | 2,500 | 5.8% |
 | Drivers | 4 | 1,700 | 4.0% |
@@ -702,7 +703,7 @@ graph TD
 | FSM Orchestrator | `orchestration_v7.py` |
 | Swarm Engine | `core/swarm/hybrid_swarm_engine.py` |
 | Hive Mind | `core/hive_mind/orchestrator.py` |
-| Agent Spawning | `core/interface/repl.py` (spawn_agent) |
+| Agent Spawning | `core/interface/commands/misc.py` (SpecializeCommand) |
 | Model Routing | `core/routing/model_router.py` |
 | RAG Memory | `core/memory/project_memory.py` |
 | Success Memory | `core/memory/success_memory.py` |

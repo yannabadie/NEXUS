@@ -1,7 +1,7 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.6-session-isolation | **Status**: Active | **Last Updated**: 2025-12-11
-**Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
+**Version**: 8.5.0-stabilization-plan | **Status**: Active | **Last Updated**: 2025-12-11
+**Maintainer**: Yann Abadie | **Branch**: N9AG (stabilization) / N8THM (main)
 
 ---
 
@@ -90,14 +90,18 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 - **MCP Client** : 36 tests, zero-dependency
 - **Security** : SandboxPolicy, CodeValidator
 
-### Gaps Opérationnels ⚠️
+### Gaps Opérationnels & Angles Morts (Audit 2025-12-11) ⚠️
 
 | ID | Gap | Impact | Priorité |
 |----|-----|--------|----------|
+| **CRIT-001** | **Hive Mind → Swarm Wiring** | Délégation Phase 4 inopérante | **P0 (IMMÉDIAT)** |
+| **CRIT-002** | **Blocking I/O in Async** | `time.sleep` bloque l'event loop | **P0 (IMMÉDIAT)** |
+| **CRIT-003** | **God Object `repl.py`** | 3000 lignes, non-maintenable | ✅ **DONE (V8.5.1)** |
+| **CRIT-004** | **Exception Swallowing** | 435 `except:` masquent les bugs | **P1** |
+| **CRIT-005** | **Singletons (8)** | Cause des 16 tests flaky | **P1** |
 | OP-001 | Hot-Swap Lead non intégré dans retry loop | Stagnation non récupérée | ✅ DONE (V8.0.1) |
 | OP-002 | 16 tests flaky (context isolation) | CI instable | P1 |
 | OP-003 | EPHEMERAL sessions non activé | Overhead sur tâches triviales | P2 |
-| OP-004 | Phase 5b hardcoded lookups | Tech debt mineur | P3 |
 | OP-005 | Sync drivers in async context | PARALLEL = séquentiel déguisé | ✅ DONE (V8.1.6) |
 
 ---
@@ -3360,4 +3364,43 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 ---
 
-*Cette roadmap est opérationnelle. Pour la vision stratégique V9.0+, voir `docs/architecture/VISION_V9_SINGULARITY.md`*
+## Vision Stratégique V9.0 "SINGULARITY"
+
+> **Concept**: NEXUS cesse d'être un outil pour devenir un organisme auto-évolutif.
+> **Source**: `docs/architecture/VISION_V9_SINGULARITY.md`
+
+### Architecture Cible : "The Intelligence Hub"
+
+L'architecture V9.0 repose sur 4 boucles de feedback unifiées :
+
+1.  **Swarm → Evolution** : Les scores DyLAN informent la fitness des mutations.
+2.  **Hive Mind → Evolution** : Les échecs alimentent la "Blacklist" génétique.
+3.  **Success Memory → Mode Selection** : Les victoires passées boostent les modes futurs.
+4.  **Execution → Auto-Spawn** : L'excellence dans un domaine déclenche la spécialisation.
+
+### Phases Stratégiques (Q1 2026)
+
+#### Phase 9.1: Evolution Intelligence Hub [CRITICAL]
+*Centralisation des 4 systèmes de mémoire pour décision unifiée.*
+- **Livrables**: `EvolutionIntelligenceHub`, Scoring unifié (4 sources).
+- **Gain**: Fin des silos de mémoire.
+
+#### Phase 9.2: Closed-Loop Refinement [CRITICAL]
+*Garantie d'amélioration monotone via validation rigoureuse.*
+- **Livrables**: Algorithme de raffinement en boucle fermée (inspiré arXiv:2412.17149).
+- **Gain**: Chaque itération est mathématiquement supérieure ou rejetée.
+
+#### Phase 9.3: Auto-Specialization Engine [HIGH]
+*Spawn d'agents basé sur la data, pas l'intuition.*
+- **Trigger**: >85% succès dans un domaine + >10 tâches.
+- **Gain**: Croissance organique de la "Hive".
+
+#### Phase 9.4: Unified Memory Layer [HIGH]
+*Fusion des backends RAG, Vectoriel et Graph.*
+- **Livrables**: Interface de requête unique pour tout le savoir du projet.
+- **Gain**: Contexte parfait pour chaque décision.
+
+#### Phase 9.5: Self-Healing Integration [MEDIUM]
+*Réparation autonome des pannes.*
+- **Actions**: Hot-Swap, Mode Change, Auto-Spawn, Evolution Cycle.
+- **Gain**: Résilience "Zero-Touch".
