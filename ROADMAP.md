@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.7-cyborg-hardening | **Status**: Active | **Last Updated**: 2025-12-11
+**Version**: 8.4.8-saga-integration | **Status**: Active | **Last Updated**: 2025-12-11
 **Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
@@ -21,7 +21,7 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Fichiers Python | 132 |
 | Lignes de code | 45,000+ |
 | Tests | 1,162+ |
-| Phases complétées | 22 (V8.4.7-cyborg-hardening) |
+| Phases complétées | 23 (V8.4.8-saga-integration) |
 
 ### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
 
@@ -1874,14 +1874,16 @@ class ServiceFactory:
 
 ---
 
-#### V8.4.4b - SagaManager pour HiveMind [P0 - CRITICAL]
+#### V8.4.4b - SagaManager pour HiveMind [P0 - CRITICAL] ✅ COMPLETED (2025-12-11)
 
 **Problème**: 24 états HiveMind, 7 phases, ZERO checkpoints → perte travail sur crash
 
-**Solution**: SagaManager avec persistence AsyncBlackboard (déjà production-ready)
+**Solution**: SagaManager avec persistence AtomicJsonStore (déjà existant!)
+
+**KEY FINDING**: SagaManager existait déjà (641 lignes) mais NON câblé dans orchestrator.
 
 ```python
-# core/hive_mind/saga_manager.py (NOUVEAU)
+# core/hive_mind/saga_manager.py (EXISTANT - 641 lignes)
 class SagaManager:
     async def checkpoint_phase(self, phase, result, compensation)
     async def rollback_to(self, target_phase)
@@ -1894,19 +1896,20 @@ class SagaManager:
 |-------|--------------|
 | Analysis | Clear analysis_result, reset context |
 | Debate | Clear debate_result, restore analysis |
-| Architecture | Despawn agents créés, clear plan |
+| Architecture | Despawn agents créés, **+ delete agent files** (V8.4.4b) |
 | Execution | Mark incomplete, cleanup artifacts |
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Créer SagaManager class | 4h | PLANNED |
-| Définir compensations | 2h | PLANNED |
-| Intégrer dans TrueHiveMind | 3h | PLANNED |
-| Phase Guards | 2h | PLANNED |
-| Tests checkpoint/rollback | 3h | PLANNED |
-| **Total** | **14h** | |
+| Fix context truncation bug | 30min | ✅ Done (._items vs .messages) |
+| Enhance compensations (file cleanup) | 30min | ✅ Done |
+| Wire SagaManager into orchestrator | 2h | ✅ Done |
+| Add checkpoints after each phase | 2h | ✅ Done |
+| **Total** | **~5h** | ✅ Done |
 
-**Fichiers**: CREATE `saga_manager.py`, MODIFY `orchestrator.py`, `types.py`
+**Fichiers modifiés V8.4.4b**:
+- `core/hive_mind/saga_manager.py` - context truncation bug fix + file cleanup compensation
+- `core/hive_mind/orchestrator.py` - SagaManager integration + 6 checkpoints
 
 ---
 
@@ -3340,7 +3343,7 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 | 19 | ~~Blind Spot Analysis~~ | V8.4.4 | ~~4h~~ | ✅ Done (7 angles morts identifiés) |
 | 20 | ~~Cyborg Hardening (P0-P3)~~ | V8.4.5 | ~~8h~~ | ✅ Done (security + async + singletons) |
 | 21 | ~~P1: DriverBridge Deprecation~~ | V8.4.4a | ~~5h~~ | ✅ Done (timeout + deprecation warnings) |
-| 22 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | **NEXT** CRITICAL |
+| 22 | ~~P0: SagaManager + Phase Guards~~ | V8.4.4b | ~~14h~~ ~5h | ✅ Done (wiring only, SagaManager existed) |
 | 23 | P1: WorkItem Yield Pattern | V8.4.4c | 21h | HIGH |
 | 24 | P2: HealthStateMachine | V8.4.4d | 9h | MEDIUM |
 | 25 | P2: Stagnation Predictor | V8.4.4e | 7h | LOW |
@@ -3381,6 +3384,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-11 | 8.4.8-saga-integration | **V8.4.4b COMPLETE**: SagaManager wired into orchestrator, context truncation bug fixed (._items vs .messages), file cleanup compensations added, 6 checkpoints in process_task(). Fichiers: `saga_manager.py`, `orchestrator.py`. KEY FINDING: SagaManager existed (641 lines) but was NOT wired. Source: Claude implementation |
 | 2025-12-11 | 8.4.4a-driverbridge | **V8.4.4a COMPLETE**: run_sync() timeout (300s) + deprecation warning, ParallelExecutor.execute() deprecation warning, DriverBridge migration guide. Source: Gemini analysis + Claude implementation. Fichiers: `async_utils.py`, `mode_executors.py`, `async_adapter.py` |
 | 2025-12-11 | 8.4.6-session-isolation | **SESSION ISOLATION HARDENING**: P0 Gemini `--resume latest` REMOVED (5 code paths), P1 Claude context files 0o600 permissions, P2 Thread-safe `_active_claude_processes`. ROADMAP enriched with V8.8 Security, V8.9 Observability, V9.0 Enterprise phases. Source: Audit Gemini `NEXUS_AUDIT_2025-12-11.md` + Claude deep analysis |
 | 2025-12-11 | 8.4.5-cyborg-hardening | **CYBORG HARDENING COMPLETE**: P0 Path Traversal (CWE-22) patché, P1 asyncio.gather() migration, P2 Thread-safe singletons (3 fichiers), P2 CommandRegistry structure, P3 Exception handling. 108 security tests ✅. Source: 4 Explore agents + Web research + Cyborg Hardening plan |

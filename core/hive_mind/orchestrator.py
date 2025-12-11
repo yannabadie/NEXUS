@@ -22,7 +22,7 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .types import HiveMindState, UserBreakpoint
@@ -42,6 +42,9 @@ from .phases import (
     AdaptiveRetryPhase,
     KnowledgeConsolidationPhase,
 )
+
+# V8.4.4b: SagaManager for checkpoint/rollback
+from .saga_manager import SagaManager
 
 # V8.0.1: Hot-Swap Lead Agent
 from core.fsm.stagnation_detector import StagnationDetector
@@ -92,7 +95,8 @@ class TrueHiveMind:
         success_memory: "SuccessMemory" = None,  # V8.2.0
         on_state_change: callable = None,
         auto_breakpoints: bool = True,
-        swarm_engine: "HybridSwarmEngine" = None  # V8.4.5: SwarmBridge wiring fix
+        swarm_engine: "HybridSwarmEngine" = None,  # V8.4.5: SwarmBridge wiring fix
+        saga_enabled: bool = True,  # V8.4.4b: Enable Saga checkpointing
     ):
         """
         Initialize TRUE HIVE MIND.
@@ -161,6 +165,11 @@ class TrueHiveMind:
             enable_rich=True,
             auto_accept=not self.auto_breakpoints
         )
+
+        # V8.4.4b: SagaManager for checkpoint/rollback
+        self.saga_enabled = saga_enabled
+        self._saga: Optional[SagaManager] = None
+        self._spawned_agents: List[str] = []
 
         # Initialize phases
         self._init_phases()
@@ -243,7 +252,8 @@ class TrueHiveMind:
     async def process_task(
         self,
         task: str,
-        complexity: TaskComplexity = TaskComplexity.MODERATE
+        complexity: TaskComplexity = TaskComplexity.MODERATE,
+        task_id: Optional[str] = None,  # V8.4.4b: For saga resume
     ) -> HiveMindResult:
         """
         Process a task through the Hive Mind pipeline.
@@ -251,6 +261,7 @@ class TrueHiveMind:
         Args:
             task: Task description
             complexity: Task complexity level
+            task_id: Optional task ID for saga resume support
 
         Returns:
             HiveMindResult with outcome
@@ -266,6 +277,22 @@ class TrueHiveMind:
             self.cost_estimator.start_task()
             self.phase_retry.reset_retry_count()
             self.context_manager.clear(keep_critical=False)
+
+            # V8.4.4b: Initialize SagaManager for checkpoint/rollback
+            if self.saga_enabled:
+                from core.swarm import generate_task_id
+                task_id = task_id or generate_task_id(prefix="hive")
+                sagas_dir = self.workspace_path / ".nexus" / "sagas"
+                sagas_dir.mkdir(parents=True, exist_ok=True)
+
+                # Check for resume
+                self._saga = await SagaManager.resume_from(sagas_dir, task_id)
+                if self._saga:
+                    logger.info(f"[Saga] Resumed: {task_id}, recovery={self._saga.recovery_point}")
+                else:
+                    self._saga = SagaManager(sagas_dir, task_id)
+                    self._saga.register_default_compensations(self)
+                    logger.info(f"[Saga] Started: {task_id}")
 
             # Check budget before starting
             if self.budget_tracker:
@@ -288,6 +315,16 @@ class TrueHiveMind:
             self._set_state(HiveMindState.HIVE_ANALYZING_GEMINI)
             analysis_result = await self.phase_analysis.execute(task)
             phases_completed.append("analysis")
+
+            # V8.4.4b: Checkpoint after analysis
+            if self._saga:
+                await self._saga.checkpoint_phase(
+                    phase="analysis",
+                    result={"task": task, "needs_debate": analysis_result.needs_debate},
+                    state=self.state.value,
+                    context_index=len(self.context_manager._items)
+                )
+                self._saga.update_context(analysis_complete=True)
 
             # =========================================================
             # PHASE 2: Strategic Debate (if needed)
@@ -320,6 +357,16 @@ class TrueHiveMind:
                 )
                 phases_completed.append("debate_skipped")
 
+            # V8.4.4b: Checkpoint after debate
+            if self._saga:
+                await self._saga.checkpoint_phase(
+                    phase="debate",
+                    result={"was_skipped": debate_result.was_skipped},
+                    state=self.state.value,
+                    context_index=len(self.context_manager._items)
+                )
+                self._saga.update_context(debate_complete=True)
+
             # =========================================================
             # PHASE 3: Architecture Generation
             # =========================================================
@@ -330,6 +377,17 @@ class TrueHiveMind:
             )
             phases_completed.append("architecture")
             agents_spawned = arch_result.agents_spawned
+            self._spawned_agents = agents_spawned  # V8.4.4b: Track for compensation
+
+            # V8.4.4b: Checkpoint after architecture
+            if self._saga:
+                await self._saga.checkpoint_phase(
+                    phase="architecture",
+                    result={"agents_spawned": agents_spawned},
+                    state=self.state.value,
+                    context_index=len(self.context_manager._items)
+                )
+                self._saga.update_context(architecture_approved=True)
 
             # =========================================================
             # PHASE 4-6: Execution Loop (with retry)
@@ -349,9 +407,21 @@ class TrueHiveMind:
                 if execution_result.success:
                     execution_success = True
                     phases_completed.append(f"execution_success_attempt_{attempt + 1}")
+                    # V8.4.4b: Checkpoint execution success
+                    if self._saga:
+                        await self._saga.checkpoint_phase(
+                            phase="execution",
+                            result={"success": True, "attempt": attempt + 1},
+                            state=self.state.value,
+                            context_index=len(self.context_manager._items)
+                        )
+                        self._saga.update_context(execution_complete=True)
                     break
 
                 phases_completed.append(f"execution_failed_attempt_{attempt + 1}")
+                # V8.4.4b: Mark execution failed in saga context
+                if self._saga:
+                    self._saga.update_context(execution_failed=True, attempt=attempt + 1)
 
                 # Check if diagnosis needed
                 if not execution_result.needs_diagnosis:
@@ -366,6 +436,16 @@ class TrueHiveMind:
                     failure_step=execution_result.failure_step
                 )
                 phases_completed.append("diagnosis")
+
+                # V8.4.4b: Checkpoint after diagnosis
+                if self._saga:
+                    await self._saga.checkpoint_phase(
+                        phase="diagnosis",
+                        result={"user_decision": diagnosis_result.user_decision},
+                        state=self.state.value,
+                        context_index=len(self.context_manager._items)
+                    )
+                    self._saga.update_context(diagnosis_complete=True)
 
                 # Check user decision
                 if diagnosis_result.user_decision in ("abort", "escalate"):
@@ -475,6 +555,11 @@ class TrueHiveMind:
                     logger.debug("Recorded HiveMind success to memory")
                 except Exception as mem_err:
                     logger.warning(f"Failed to record HiveMind success: {mem_err}")
+
+            # V8.4.4b: Cleanup saga on success (remove checkpoint files)
+            if self._saga and execution_success:
+                self._saga.cleanup()
+                logger.info(f"[Saga] Completed and cleaned up: {task_id}")
 
             return HiveMindResult(
                 success=execution_success,

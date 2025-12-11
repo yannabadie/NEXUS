@@ -293,13 +293,26 @@ class SagaManager:
             logger.info("Compensated debate phase")
 
         # Architecture: Despawn created agents, clear plan
+        # V8.4.4b: Enhanced with file cleanup
         async def compensate_architecture():
             if hasattr(orchestrator, '_execution_plan'):
                 orchestrator._execution_plan = None
             if hasattr(orchestrator, '_spawned_agents'):
-                # Mark agents for cleanup (actual cleanup handled elsewhere)
+                spawned_list = list(orchestrator._spawned_agents)
+                # V8.4.4b: Delete spawned agent files
+                if hasattr(orchestrator, 'workspace_path') and spawned_list:
+                    from pathlib import Path
+                    agents_dir = Path(orchestrator.workspace_path) / "agents"
+                    for agent_id in spawned_list:
+                        agent_file = agents_dir / f"{agent_id}.json"
+                        try:
+                            if agent_file.exists():
+                                agent_file.unlink()
+                                logger.info(f"Deleted agent file: {agent_file}")
+                        except Exception as e:
+                            logger.warning(f"Failed to delete agent file {agent_file}: {e}")
                 orchestrator._spawned_agents = []
-            logger.info("Compensated architecture phase")
+            logger.info("Compensated architecture phase (with file cleanup)")
 
         # Execution: Mark incomplete, cleanup artifacts
         async def compensate_execution():
@@ -483,13 +496,31 @@ class SagaManager:
                 del self._checkpoints[phase]
 
         # Truncate conversation history (CRITICAL for context bleeding prevention)
-        if context_manager and hasattr(context_manager, 'messages'):
-            original_len = len(context_manager.messages)
-            context_manager.messages = context_manager.messages[:target_checkpoint.context_index]
-            logger.info(
-                f"Context truncated: {original_len} → {len(context_manager.messages)} messages "
-                f"(rollback to index {target_checkpoint.context_index})"
-            )
+        # V8.4.4b: Support HiveMindContextManager (._items) and generic (.messages)
+        if context_manager:
+            if hasattr(context_manager, '_items'):
+                # HiveMindContextManager uses deque
+                from collections import deque
+                original_len = len(context_manager._items)
+                items_list = list(context_manager._items)[:target_checkpoint.context_index]
+                context_manager._items = deque(items_list)
+                # Recalculate token count
+                if hasattr(context_manager, '_current_tokens'):
+                    context_manager._current_tokens = sum(
+                        getattr(item, 'token_estimate', 0) for item in context_manager._items
+                    )
+                logger.info(
+                    f"Context truncated: {original_len} → {len(context_manager._items)} items "
+                    f"(rollback to index {target_checkpoint.context_index})"
+                )
+            elif hasattr(context_manager, 'messages'):
+                # Generic context manager with messages list
+                original_len = len(context_manager.messages)
+                context_manager.messages = context_manager.messages[:target_checkpoint.context_index]
+                logger.info(
+                    f"Context truncated: {original_len} → {len(context_manager.messages)} messages "
+                    f"(rollback to index {target_checkpoint.context_index})"
+                )
 
         # Update recovery point
         self._recovery_point = target_phase
