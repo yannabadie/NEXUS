@@ -319,3 +319,29 @@ def get_process_registry() -> ProcessHandleRegistry:
             if _global_registry is None:
                 _global_registry = ProcessHandleRegistry()
     return _global_registry
+
+
+def reset_process_registry() -> None:
+    """
+    Reset the global process handle registry.
+
+    CRIT-005: For test isolation - allows tests to start with fresh registry.
+    Also cancels any active processes to prevent orphans.
+
+    Usage in tests:
+        @pytest.fixture(autouse=True)
+        def reset_singletons():
+            yield
+            reset_process_registry()
+    """
+    global _global_registry
+    if _global_registry is not None:
+        # Cancel all active processes first
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_global_registry.cancel_all())
+        except RuntimeError:
+            # No event loop - try sync cleanup
+            pass
+    _global_registry = None

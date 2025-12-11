@@ -10,9 +10,9 @@ name: NEXUS CI
 
 on:
   push:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [N9AG, N9AF, N8THM, N7HM, main]
   pull_request:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [N9AG, N9AF, N8THM, N7HM, main]
 
 jobs:
   test:

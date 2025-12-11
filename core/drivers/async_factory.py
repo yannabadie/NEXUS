@@ -234,3 +234,28 @@ def create_driver_factory(config: Any, workspace_path: Path) -> AsyncDriverFacto
     factory = AsyncDriverFactory(config, workspace_path)
     set_driver_factory(factory)
     return factory
+
+
+def reset_driver_factory() -> None:
+    """
+    Reset the global driver factory.
+
+    CRIT-005: For test isolation - allows tests to start with fresh factory.
+    Cancels all active processes before resetting.
+
+    Usage in tests:
+        @pytest.fixture(autouse=True)
+        def reset_singletons():
+            yield
+            reset_driver_factory()
+    """
+    global _global_factory
+    if _global_factory is not None:
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_global_factory.cancel_all())
+        except RuntimeError:
+            # No event loop running
+            pass
+    _global_factory = None

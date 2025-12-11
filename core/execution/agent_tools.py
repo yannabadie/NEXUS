@@ -508,3 +508,19 @@ def get_agent_tool_registry(
             _registry._agent_loader = agent_loader
 
     return _registry
+
+
+def reset_agent_tool_registry() -> None:
+    """
+    Reset the global agent tool registry.
+
+    CRIT-005: For test isolation - allows tests to start with fresh registry.
+
+    Usage in tests:
+        @pytest.fixture(autouse=True)
+        def reset_singletons():
+            yield
+            reset_agent_tool_registry()
+    """
+    global _registry
+    _registry = None

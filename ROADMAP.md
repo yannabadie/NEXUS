@@ -94,8 +94,8 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 | ID | Gap | Impact | Priorité |
 |----|-----|--------|----------|
-| **CRIT-001** | **Hive Mind → Swarm Wiring** | Délégation Phase 4 inopérante | **P0 (IMMÉDIAT)** |
-| **CRIT-002** | **Blocking I/O in Async** | `time.sleep` bloque l'event loop | **P0 (IMMÉDIAT)** |
+| **CRIT-001** | **Hive Mind → Swarm Wiring** | Délégation Phase 4 inopérante | ✅ **DONE (V8.5.1)** |
+| **CRIT-002** | **Blocking I/O in Async** | `time.sleep` bloque l'event loop | ✅ **DONE (V8.5.1)** |
 | **CRIT-003** | **God Object `repl.py`** | 3000 lignes, non-maintenable | ✅ **DONE (V8.5.1)** |
 | **CRIT-004** | **Exception Swallowing** | 435 `except:` masquent les bugs | **P1** |
 | **CRIT-005** | **Singletons (8)** | Cause des 16 tests flaky | **P1** |
