@@ -227,3 +227,40 @@ class CommandRegistry:
     def __contains__(self, name: str) -> bool:
         """Check if command is registered."""
         return name.lower() in self._commands
+
+
+# =============================================================================
+# Thread-safe Singleton
+# =============================================================================
+
+_registry_instance: Optional[CommandRegistry] = None
+_registry_lock = None
+
+
+def get_registry() -> CommandRegistry:
+    """
+    Get or create the global CommandRegistry singleton.
+
+    Thread-safe with double-checked locking.
+
+    Returns:
+        The global CommandRegistry instance
+    """
+    global _registry_instance, _registry_lock
+
+    if _registry_lock is None:
+        import threading
+        _registry_lock = threading.Lock()
+
+    if _registry_instance is None:
+        with _registry_lock:
+            if _registry_instance is None:
+                _registry_instance = CommandRegistry()
+
+    return _registry_instance
+
+
+def reset_registry() -> None:
+    """Reset the singleton (for testing)."""
+    global _registry_instance
+    _registry_instance = None

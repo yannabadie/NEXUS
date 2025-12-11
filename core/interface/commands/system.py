@@ -181,3 +181,24 @@ class QuitCommand(Command):
             message="Goodbye!",
             continue_session=False
         )
+
+
+def register_system_commands(registry: "CommandRegistry") -> None:
+    """
+    Register all system commands with a registry.
+
+    Args:
+        registry: CommandRegistry instance to register commands with
+    """
+    from .registry import CommandRegistry
+
+    # Status command
+    registry.register(StatusCommand())
+
+    # Help command (needs registry reference)
+    help_cmd = HelpCommand()
+    help_cmd.set_registry(registry)
+    registry.register(help_cmd)
+
+    # Quit command
+    registry.register(QuitCommand())

@@ -25,6 +25,8 @@ from .registry import (
     CommandRegistry,
     CommandResult,
     CommandStatus,
+    get_registry,
+    reset_registry,
 )
 
 # Legacy: Re-export from slash_commands.py for backward compatibility
@@ -45,6 +47,8 @@ __all__ = [
     "CommandRegistry",
     "CommandResult",
     "CommandStatus",
+    "get_registry",
+    "reset_registry",
     # Legacy
     "is_slash_command",
     "is_exit_command",
