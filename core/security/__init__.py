@@ -1,10 +1,15 @@
 """
-NEXUS V7.6 Security Module - Multi-Layer Defense System
+NEXUS V8.8 Security Module - Multi-Layer Defense System
 
 This module provides defense-in-depth protection:
-- ExecutionPolicy: Command validation and injection prevention (Phase 14a)
-- PathGuardian: Path canonicalization and zone validation
-- MutationValidator: AST-based behavioral analysis of mutation code
+
+Layer 1: InputGuard - Prompt injection prevention (V8.8)
+Layer 2: Spotlighter - RAG content protection (V8.8, in core/memory/)
+Layer 3: ExecutionPolicy - Command validation (Phase 14a)
+Layer 4: PathGuardian - Path canonicalization and zone validation
+Layer 5: OutputGuard - System prompt leak prevention (V8.8)
+Layer 6: MutationValidator - AST-based behavioral analysis
+Layer 7: CodeValidator - Dynamic tool code validation (Phase 12.5)
 
 Design Principles:
 - BLOCK writes to parent code (absolute protection)
@@ -12,17 +17,51 @@ Design Principles:
 - WARN on suspicious patterns (don't over-block)
 - ALLOW testing in workspace (agents need to experiment)
 - PREFER shell=False for command execution (Phase 14a)
+- SANITIZE before BLOCK when possible (V8.8)
+
+V8.8 Additions (based on OWASP LLM01:2025):
+- InputGuard: Regex-based prompt injection detection
+- OutputGuard: System prompt leakage detection
+- Spotlighter: RAG content datamarking (in core/memory/)
 """
 
 from .path_guardian import PathGuardian
 from .mutation_validator import MutationValidator
 from .execution_policy import ExecutionPolicy, CommandType, get_execution_policy
+from .input_guard import (
+    InputGuard,
+    ThreatLevel,
+    ThreatType,
+    InputValidationResult,
+    get_input_guard,
+)
+from .output_guard import (
+    OutputGuard,
+    LeakType,
+    LeakSeverity,
+    OutputValidationResult,
+    get_output_guard,
+)
 
 __all__ = [
+    # Path & Mutation
     'PathGuardian',
     'MutationValidator',
+    # Execution Policy
     'ExecutionPolicy',
     'CommandType',
     'get_execution_policy',
+    # V8.8: Input Guard
+    'InputGuard',
+    'ThreatLevel',
+    'ThreatType',
+    'InputValidationResult',
+    'get_input_guard',
+    # V8.8: Output Guard
+    'OutputGuard',
+    'LeakType',
+    'LeakSeverity',
+    'OutputValidationResult',
+    'get_output_guard',
 ]
 
