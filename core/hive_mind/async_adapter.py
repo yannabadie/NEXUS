@@ -291,6 +291,36 @@ class DriverBridge:
             raise
 
 
+# ============================================================================
+# V8.4.4 MIGRATION GUIDE - DriverBridge Removal
+# ============================================================================
+#
+# DriverBridge is DEPRECATED since V8.4.4. Migration paths:
+#
+# 1. ASYNC CODE (Recommended):
+#    BEFORE: bridge = DriverBridge(async_driver); result = bridge.invoke(ctx)
+#    AFTER:  result = await async_driver.invoke(ctx)
+#
+# 2. SYNC CODE (Transitional):
+#    BEFORE: bridge = DriverBridge(async_driver); result = bridge.invoke(ctx)
+#    AFTER:  result = async_driver.invoke_sync(ctx)  # Also deprecated!
+#
+# 3. HIVEMIND PHASES (Already migrated):
+#    All phases use send_message_async() which wraps sync drivers via
+#    asyncio.to_thread(). No DriverBridge usage.
+#
+# Removal Timeline:
+# - V8.4.4: DriverBridge deprecated, invoke_sync() deprecated
+# - V8.5.x: DriverBridge removed from codebase
+# - V9.0:   invoke_sync() removed, all code must be async
+#
+# See also:
+# - core/drivers/async_claude_driver.py:invoke_sync()
+# - core/drivers/async_gemini_driver.py:invoke_sync()
+# - core/utils/async_utils.py:run_sync() (also deprecated V8.4.4)
+# ============================================================================
+
+
 def create_async_hive_mind(
     workspace_path: Path,
     config: Any,

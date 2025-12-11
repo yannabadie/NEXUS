@@ -644,8 +644,21 @@ class ParallelExecutor(ModeExecutor):
         """
         Sync execute - calls async execute_async() with appropriate event loop handling.
 
+        .. deprecated:: V8.4.4
+            Prefer `execute_async()` directly in async code. This sync wrapper
+            blocks the calling thread and will be removed in V9.0.
+
         V9: Backward compatible wrapper that uses asyncio.gather() internally.
         """
+        import warnings
+        warnings.warn(
+            "ParallelExecutor.execute() is deprecated since V8.4.4. "
+            "Use `await executor.execute_async(context)` in async code. "
+            "This method will be removed in V9.0.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         try:
             # Check if we're already in an event loop
             loop = asyncio.get_running_loop()

@@ -1851,20 +1851,26 @@ class ServiceFactory:
 
 ---
 
-#### V8.4.4a - DriverBridge Deprecation [P1 - QUICK WIN]
+#### V8.4.4a - DriverBridge Deprecation [P1 - QUICK WIN] ✅ COMPLETE
 
-**Problème**: `core/hive_mind/async_adapter.py:263` bloque avec `future.result(timeout=300)`
+**Problème**: `core/hive_mind/async_adapter.py:283` bloque avec `future.result(timeout=300)`
 
 **Solution**: Ajouter wrappers sync aux async drivers, marquer DriverBridge deprecated
 
 | Tâche | Effort | Status |
 |-------|--------|--------|
-| Ajouter `invoke_sync()` aux 2 drivers | 2h | PLANNED |
-| Marquer DriverBridge deprecated | 1h | PLANNED |
-| Tests de compatibilité | 2h | PLANNED |
-| **Total** | **5h** | |
+| Ajouter `invoke_sync()` aux 2 drivers | 2h | ✅ DONE (V8.4.4) |
+| Marquer DriverBridge deprecated | 1h | ✅ DONE (V8.4.4) |
+| Add timeout to `run_sync()` helper | 0.5h | ✅ DONE (V8.4.4a) |
+| Deprecate `ParallelExecutor.execute()` | 0.5h | ✅ DONE (V8.4.4a) |
+| Add migration documentation | 0.5h | ✅ DONE (V8.4.4a) |
+| Tests de compatibilité | 1h | ✅ DONE (existing tests pass) |
+| **Total** | **5.5h** | **COMPLETE** |
 
-**Fichiers**: `async_claude_driver.py`, `async_gemini_driver.py`, `async_adapter.py`
+**Fichiers modifiés V8.4.4a**:
+- `core/utils/async_utils.py` - timeout + deprecation warning
+- `core/swarm/mode_executors.py` - ParallelExecutor deprecation
+- `core/hive_mind/async_adapter.py` - migration guide
 
 ---
 
@@ -3333,8 +3339,8 @@ Phase 24 (MCP Server) ─────────────────→ Qui
 | 18 | ~~Cyborg V7.5 Async Integration~~ | V8.4.0-cyborg | ~~6h~~ | ✅ Done (branch N9AF) |
 | 19 | ~~Blind Spot Analysis~~ | V8.4.4 | ~~4h~~ | ✅ Done (7 angles morts identifiés) |
 | 20 | ~~Cyborg Hardening (P0-P3)~~ | V8.4.5 | ~~8h~~ | ✅ Done (security + async + singletons) |
-| 21 | **P1: DriverBridge Deprecation** | V8.4.4a | 5h | **NEXT** |
-| 22 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | CRITICAL |
+| 21 | ~~P1: DriverBridge Deprecation~~ | V8.4.4a | ~~5h~~ | ✅ Done (timeout + deprecation warnings) |
+| 22 | **P0: SagaManager + Phase Guards** | V8.4.4b | 14h | **NEXT** CRITICAL |
 | 23 | P1: WorkItem Yield Pattern | V8.4.4c | 21h | HIGH |
 | 24 | P2: HealthStateMachine | V8.4.4d | 9h | MEDIUM |
 | 25 | P2: Stagnation Predictor | V8.4.4e | 7h | LOW |
@@ -3375,6 +3381,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-11 | 8.4.4a-driverbridge | **V8.4.4a COMPLETE**: run_sync() timeout (300s) + deprecation warning, ParallelExecutor.execute() deprecation warning, DriverBridge migration guide. Source: Gemini analysis + Claude implementation. Fichiers: `async_utils.py`, `mode_executors.py`, `async_adapter.py` |
 | 2025-12-11 | 8.4.6-session-isolation | **SESSION ISOLATION HARDENING**: P0 Gemini `--resume latest` REMOVED (5 code paths), P1 Claude context files 0o600 permissions, P2 Thread-safe `_active_claude_processes`. ROADMAP enriched with V8.8 Security, V8.9 Observability, V9.0 Enterprise phases. Source: Audit Gemini `NEXUS_AUDIT_2025-12-11.md` + Claude deep analysis |
 | 2025-12-11 | 8.4.5-cyborg-hardening | **CYBORG HARDENING COMPLETE**: P0 Path Traversal (CWE-22) patché, P1 asyncio.gather() migration, P2 Thread-safe singletons (3 fichiers), P2 CommandRegistry structure, P3 Exception handling. 108 security tests ✅. Source: 4 Explore agents + Web research + Cyborg Hardening plan |
 | 2025-12-10 | 8.4.4-analysis | **BLIND SPOT ANALYSIS COMPLETE**: 7 angles morts identifiés (5 originaux + 2 nouveaux). Plan 56h créé: P1 DriverBridge (5h), P0 SagaManager (14h), P1 WorkItem (21h), P2 HealthFSM (9h), P2 StagnationPredictor (7h). Sources: Explore agents, Saga Pattern research, pytransitions AsyncMachine |
