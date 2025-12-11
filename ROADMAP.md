@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.5-cyborg-hardening | **Status**: Active | **Last Updated**: 2025-12-11
+**Version**: 8.4.6-session-isolation | **Status**: Active | **Last Updated**: 2025-12-11
 **Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
@@ -21,7 +21,7 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Fichiers Python | 132 |
 | Lignes de code | 45,000+ |
 | Tests | 1,162+ |
-| Phases complétées | 20 (V8.4.5-cyborg-hardening) |
+| Phases complétées | 21 (V8.4.6-session-isolation) |
 
 ### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
 
@@ -2064,6 +2064,74 @@ HEALTHY → DEGRADED → CRITICAL → RECOVERING → HEALTHY
 
 ---
 
+### V8.4.6 - Session Isolation Hardening ✅ COMPLETED (2025-12-11)
+
+**Objectif**: Éliminer le context leakage dans les drivers LLM multi-agents
+**Source**: Audit Gemini `NEXUS_AUDIT_2025-12-11.md` + Deep Analysis Claude
+**Commit**: `186a42e`
+
+#### P0 - Session Leakage Fix (CRITIQUE) ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| REMOVE `--resume latest` fallback (Windows) | `gemini_driver_v7.py:343-363` | Contexte ne fuit plus entre tâches Swarm |
+| REMOVE `--resume latest` fallback (Unix) | `gemini_driver_v7.py:376-379` | Idem |
+| REMOVE `--resume latest` fallback (stream Windows) | `gemini_driver_v7.py:641-648` | Idem pour invoke_stream() |
+| REMOVE `--resume latest` fallback (stream Unix) | `gemini_driver_v7.py:657-660` | Idem |
+| REMOVE `--resume latest` fallback (async) | `async_gemini_driver.py:180-185` | Driver async également sécurisé |
+
+**Comportement post-fix**:
+- Si `session_uuid` fourni → `--resume {uuid}` (isolation Swarm)
+- Si `session_uuid` absent → Session FRESH (safe default, pas de leak)
+- Warning log si session était active mais pas d'UUID passé
+
+#### P1 - Claude Context File Security ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| Context files 0o600 permissions | `claude_driver_hybrid.py:126-131` | Prompts protégés (owner-only) |
+| Context files 0o600 permissions | `claude_driver_hybrid.py:284-289` | Idem pour invoke_stream() |
+
+#### P2 - Thread Safety ✅
+
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| `_claude_processes_lock` mutex | `claude_driver_hybrid.py:60-62` | Race conditions PARALLEL éliminées |
+| Thread-safe append | `claude_driver_hybrid.py:155-157` | Accès liste protégé |
+| Thread-safe remove | `claude_driver_hybrid.py:241-243,315-317,379-382` | Cleanup thread-safe |
+
+**Vulnérabilité corrigée (Context Leakage)**:
+- `--resume latest` permettait à une tâche Swarm de voir le contexte d'une autre
+- 20+ code paths identifiés sans `session_uuid` (FSM, HiveMind phases)
+- Fix: Default FRESH plutôt que RESUME si pas d'UUID explicite
+
+**Validation**:
+- 16/16 security tests ✅
+- Driver imports OK ✅
+- Session isolation verified ✅
+
+---
+
+### V8.4.7 - Audit-Driven Quick Wins [Priority: P1] 🆕 FROM ANALYSIS
+
+**Objectif**: Corrections rapides identifiées par analyse Gemini + Claude (2025-12-11)
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md` + `audit/ROADMAP_ENRICHMENT_2025-12-11.md`
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Fix README version (7.8 → 8.4.6) | 10min | PLANNED |
+| Archiver ROADMAP_HIVE_MIND.md (lien mort) | 5min | PLANNED |
+| Budget tokens→USD conversion (TODO ligne 274) | 2h | PLANNED |
+| Ajouter logging aux 20 pass critiques | 2h | PLANNED |
+| Documenter 12 TODOs restants comme issues | 1h | PLANNED |
+
+**Fichiers concernés**:
+- `README.md` - Version sync
+- `core/hive_mind/orchestrator.py:274` - Budget TODO
+- 5 fichiers avec pass critiques (drivers, mcp, mode_executors)
+
+---
+
 | Tâche | Effort | Status |
 |-------|--------|--------|
 | OllamaDriver implementation | 8h | PLANNED |
@@ -2165,6 +2233,98 @@ core/interface/
 | Fix drivers (subprocess) | 2h | PLANNED |
 | Fix executors | 2h | PLANNED |
 | Tests error propagation | 2h | PLANNED |
+
+---
+
+### V8.5.4 - Replace print(stderr) with Logger [Priority: P2] 🆕 FROM AUDIT
+
+**Objectif** : Standardiser les logs (32 occurrences print(stderr))
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md`
+
+**Fichiers concernés** (9 fichiers):
+- `core/drivers/gemini_driver_v7.py` - 7 occurrences
+- `core/drivers/claude_driver_hybrid.py` - 9 occurrences
+- `core/drivers/async_gemini_driver.py` - 4 occurrences
+- `core/drivers/async_claude_driver.py` - 3 occurrences
+- `core/orchestration/fsm_handlers.py` - 5 occurrences
+- `core/swarm/mode_executors.py` - 1 occurrence
+- `core/swarm/hybrid_swarm_engine.py` - 1 occurrence
+- `core/governance/red_team/validator.py` - 1 occurrence
+- `core/logging/logger_v7.py` - 1 occurrence
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Remplacer print(stderr) dans drivers | 2h | PLANNED |
+| Remplacer print(stderr) dans swarm | 1h | PLANNED |
+| Tests logging output | 1h | PLANNED |
+
+---
+
+### V8.5.5 - Singleton → Factory Pattern [Priority: P2] 🆕 FROM AUDIT
+
+**Objectif** : Éliminer les 17 globals singletons pour testabilité
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md`
+
+**Statistique**: `grep -r "global _" core/ | wc -l` → 17
+
+**Singletons identifiés**:
+| Module | Singleton | Impact Tests |
+|--------|-----------|--------------|
+| `unified_registry.py` | `_registry` | Tests flaky |
+| `async_factory.py` | `_global_factory` | State partagé |
+| `gemini_driver_v7.py` | `_persistent_process` | Leak ressources |
+| `process_handle.py` | `_global_registry` | Cleanup difficile |
+| `execution_policy.py` | `_policy`, `_code_validator` | State partagé |
+| `logger_v7.py` | `_global_logger` | OK (acceptable) |
+| `budget_tracker.py` | `_tracker` | State partagé |
+| `success_memory.py` | `_default_memory` | State partagé |
+
+**Solution**: Convertir en Factory pattern avec reset() pour tests
+```python
+class ProcessRegistryFactory:
+    _instance: Optional[ProcessHandleRegistry] = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def get(cls) -> ProcessHandleRegistry:
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = ProcessHandleRegistry()
+        return cls._instance
+
+    @classmethod
+    def reset(cls) -> None:  # For tests
+        cls._instance = None
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Convertir 3 singletons critiques (registry, factory, process_handle) | 3h | PLANNED |
+| Ajouter reset() pour tests | 1h | PLANNED |
+| Update conftest.py fixtures | 1h | PLANNED |
+| Tests isolation | 1h | PLANNED |
+
+---
+
+### V8.5.6 - Tests E2E Pipeline [Priority: P1] 🆕 FROM AUDIT
+
+**Objectif** : Tester le pipeline complet Hive Mind → Swarm
+**Source**: `audit/ANGLES_MORTS_2025-12-11.md`
+
+**Scénarios manquants**:
+| Scénario | Status |
+|----------|--------|
+| Hive Mind → Swarm full pipeline | ❌ |
+| Success Memory feedback loop | ❌ |
+| Agent spawn + invoke + cleanup | ❌ |
+| Graceful shutdown under load | ❌ |
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `tests/test_e2e_hive_swarm.py` | 4h | PLANNED |
+| Test Success Memory feedback | 2h | PLANNED |
+| Test graceful shutdown | 2h | PLANNED |
 
 ---
 
@@ -2361,9 +2521,261 @@ async def handle_brainstorming(self):
 
 ---
 
+## Roadmap V8.8 (Security Hardening) [FROM AUDIT 2025-12-11] 🆕
+
+> **Status**: Post-V8.5, security-first
+> **Source**: `audit/ROADMAP_ENRICHMENT_2025-12-11.md` + Industry research (OWASP, AWS Guardrails)
+> **Contexte Industrie**: Prompt injection = #1 vulnérabilité OWASP 2025 (73% des déploiements)
+
+### V8.8.0 - Input Guardrails [Priority: P0]
+
+**Objectif**: Prévenir les attaques par injection de prompts
+**Référence**: [AWS Bedrock Guardrails](https://aws.amazon.com/blogs/security/safeguard-your-generative-ai-workloads-from-prompt-injections/)
+
+**Gap actuel**:
+- Aucune validation des inputs utilisateur
+- Pas de sanitization des réponses LLM
+- Pas de sandboxing des agents spawnés
+
+**Pattern de détection**:
+```python
+# core/security/input_guardrails.py (NOUVEAU)
+class InputGuardrails:
+    INJECTION_PATTERNS = [
+        r"ignore\s+(previous|above|all)\s+instructions",
+        r"you\s+are\s+now\s+(a|an)\s+",
+        r"forget\s+(everything|all)",
+        r"system\s*:\s*",
+        r"<\|im_start\|>",  # ChatML injection
+    ]
+
+    def validate(self, user_input: str) -> Tuple[bool, str]:
+        for pattern in self.INJECTION_PATTERNS:
+            if re.search(pattern, user_input, re.IGNORECASE):
+                return False, f"Potential injection detected: {pattern}"
+        return True, ""
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer `core/security/input_guardrails.py` | 4h | PLANNED |
+| Intégrer dans REPL input | 1h | PLANNED |
+| Tests injection patterns | 2h | PLANNED |
+| Logging tentatives d'injection | 1h | PLANNED |
+
+---
+
+### V8.8.1 - Output Validation [Priority: P1]
+
+**Objectif**: Valider les réponses LLM avant exécution
+
+**Risques actuels**:
+- LLM peut générer des commandes malveillantes
+- Pas de validation du JSON tool_use
+- Hallucinations de chemins/fichiers
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer output sanitizer | 3h | PLANNED |
+| Valider tool_use JSON schema | 2h | PLANNED |
+| Path existence check avant write | 1h | PLANNED |
+| Tests hallucination detection | 2h | PLANNED |
+
+---
+
+### V8.8.2 - Agent Sandboxing [Priority: P1]
+
+**Objectif**: Isoler les agents spawnés dans un subprocess sandboxé
+
+**Gap actuel**:
+- Agents spawnés ont accès complet au workspace
+- Pas d'isolation mémoire/CPU
+- Pas de timeout strict
+
+**Solution proposée**:
+```python
+# subprocess avec restrictions
+sandbox_config = {
+    "timeout": 300,           # 5 min max
+    "max_memory": "1G",       # Limite mémoire
+    "allowed_dirs": [workspace],  # Restriction I/O
+    "no_network": False       # Configurable
+}
+```
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Sandbox subprocess wrapper | 4h | PLANNED |
+| Resource limits (CPU, memory) | 2h | PLANNED |
+| Network isolation option | 2h | PLANNED |
+| Tests sandboxing | 2h | PLANNED |
+
+---
+
+### V8.8.3 - Log Redaction [Priority: P2]
+
+**Objectif**: Supprimer les secrets des logs
+
+**Risque actuel**: API keys, tokens peuvent apparaître dans logs
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Pattern redaction dans logger | 2h | PLANNED |
+| Redact API keys (sk-*, AIKEY-*) | 1h | PLANNED |
+| Tests redaction | 1h | PLANNED |
+
+---
+
+## Roadmap V8.9 (Observability & Evaluation) [FROM AUDIT 2025-12-11] 🆕
+
+> **Status**: Post-V8.6, production monitoring
+> **Source**: `audit/ROADMAP_ENRICHMENT_2025-12-11.md` + Industry research (OpenTelemetry, CLASSic)
+> **Contexte Industrie**: OpenTelemetry = standard, CLASSic = framework d'évaluation agents 2025
+
+### V8.9.0 - OTLP Observability Exporter [Priority: P2]
+
+**Objectif**: Traces distribuées compatibles OpenTelemetry
+**Référence**: [OpenTelemetry AI Agent Observability](https://opentelemetry.io/blog/2025/ai-agent-observability/)
+
+**Gap actuel**:
+- Logs JSONL non compatibles OTLP
+- Pas de traces distribuées (spans)
+- Pas de replay de sessions
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer OTLP exporter | 4h | PLANNED |
+| Span per tool call | 2h | PLANNED |
+| Session replay capability | 3h | PLANNED |
+
+---
+
+### V8.9.1 - Token/Cost Real-time Tracking [Priority: P1]
+
+**Objectif**: Monitoring coûts en temps réel
+
+**Gap actuel**: `budget_limit_usd=50` pas vérifié côté drivers
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Budget abort sur dépassement | 2h | PLANNED |
+| Token counting per agent | 2h | PLANNED |
+| Cost dashboard CLI | 2h | PLANNED |
+
+---
+
+### V8.9.2 - CLASSic Metrics Integration [Priority: P2]
+
+**Objectif**: Métriques standardisées (Cost, Latency, Accuracy, Stability, Security)
+**Référence**: [CLASSic Framework - Aisera](https://aisera.com/ai-agents-evaluation/)
+
+**Métriques à tracker**:
+| Métrique | Description | Status |
+|----------|-------------|--------|
+| **C**ost | USD per task | ⚠️ Partiel |
+| **L**atency | P50/P95/P99 | ❌ |
+| **A**ccuracy | Success rate per domain | ⚠️ Partiel |
+| **S**tability | Error rate, retries | ⚠️ Partiel |
+| **S**ecurity | Blocked attempts | ✅ (PathGuardian) |
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Implémenter CLASSic collector | 4h | PLANNED |
+| Latency percentiles | 2h | PLANNED |
+| CLI metrics summary | 2h | PLANNED |
+
+---
+
+### V8.9.3 - Automated Benchmark Suite [Priority: P2]
+
+**Objectif**: Benchmarks automatisés pour comparaison mode vs mode
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Créer benchmark tasks suite | 4h | PLANNED |
+| Mode comparison dashboard | 3h | PLANNED |
+| Regression detection | 2h | PLANNED |
+
+---
+
+## Roadmap V9.0 (Enterprise) [VISION LONG-TERME] 🆕
+
+> **Status**: Post-V8.x stabilisation
+> **Source**: `audit/ROADMAP_ENRICHMENT_2025-12-11.md` + Industry research (McKinsey, NIST AI RMF)
+> **Contexte Industrie**: McKinsey 2025: "Barrier #1 = lack of governance"
+
+### V9.0.0 - MCP Server [Priority: P1]
+
+**Objectif**: Exposer NEXUS comme un outil pour d'autres agents (Claude Desktop, etc.)
+**Référence**: [Microsoft MCP Patterns](https://microsoft.github.io/autogen/dev/user-guide/agentchat-user-guide/tutorial/models.html)
+
+**Gap actuel**: NEXUS a MCP Client mais PAS MCP Server
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| MCP Server implementation | 8h | PLANNED |
+| Expose NEXUS as tool | 2h | PLANNED |
+| Tests Claude Desktop integration | 4h | PLANNED |
+
+---
+
+### V9.0.1 - REST API (FastAPI) [Priority: P2]
+
+**Objectif**: API HTTP pour intégrations enterprise
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| FastAPI wrapper | 8h | PLANNED |
+| Authentication (JWT) | 4h | PLANNED |
+| WebSocket streaming | 4h | PLANNED |
+
+---
+
+### V9.0.2 - RBAC [Priority: P2]
+
+**Objectif**: Role-Based Access Control pour multi-tenant
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Role definitions | 2h | PLANNED |
+| Permission checks | 4h | PLANNED |
+| Audit trail | 4h | PLANNED |
+
+---
+
+### V9.0.3 - Cryptographic Audit Trail [Priority: P2]
+
+**Objectif**: Audit trail avec signatures cryptographiques (NIST AI RMF)
+
+| Tâche | Effort | Status |
+|-------|--------|--------|
+| Hash chain for events | 4h | PLANNED |
+| Event signatures | 2h | PLANNED |
+| Compliance report generator | 4h | PLANNED |
+
+---
+
 ## Ideas Backlog (Non-Priorisé)
 
 > Idées intéressantes mais non planifiées. À réévaluer post-V8.2.
+
+### FROM AUDIT 2025-12-11 (Gemini + Claude)
+
+| Idée | Source | Priorité Suggérée | Notes |
+|------|--------|-------------------|-------|
+| **Agent Reaper (GC)** | Gemini Audit | P2 | Garbage collection pour agents zombies |
+| **CLASSic Metrics** | ROADMAP_ENRICHMENT | P1 | Cost/Latency/Accuracy/Stability/Security standardisés |
+| **MCP Server** | ROADMAP_ENRICHMENT | P1 | Exposer NEXUS comme tool pour Claude Desktop |
+| **OTLP Exporter** | ROADMAP_ENRICHMENT | P2 | Traces OpenTelemetry compatibles |
+| **Input Guardrails** | NEXUS_AUDIT | P0 | Protection prompt injection (OWASP #1) |
+| **Output Sanitization** | NEXUS_AUDIT | P1 | Valider réponses LLM avant exécution |
+| **Budget USD Enforcement** | NEXUS_AUDIT | P1 | Abort si budget dépassé (ligne 274 orchestrator) |
+| **Agent Sandboxing** | NEXUS_AUDIT | P1 | Subprocess isolation pour agents spawnés |
+| **Log Redaction** | ANGLES_MORTS | P2 | Supprimer secrets des logs |
+| **LangGraph Export** | ROADMAP_ENRICHMENT | P3 | Interopérabilité frameworks |
+| **A2A Protocol** | ROADMAP_ENRICHMENT | P3 | Google Agent-to-Agent protocol |
+
+### PRE-EXISTING
 
 | Idée | Source | Notes |
 |------|--------|-------|
@@ -2916,6 +3328,7 @@ Voir `docs/KNOWN_ISSUES.md` pour la liste complète.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-11 | 8.4.6-session-isolation | **SESSION ISOLATION HARDENING**: P0 Gemini `--resume latest` REMOVED (5 code paths), P1 Claude context files 0o600 permissions, P2 Thread-safe `_active_claude_processes`. ROADMAP enriched with V8.8 Security, V8.9 Observability, V9.0 Enterprise phases. Source: Audit Gemini `NEXUS_AUDIT_2025-12-11.md` + Claude deep analysis |
 | 2025-12-11 | 8.4.5-cyborg-hardening | **CYBORG HARDENING COMPLETE**: P0 Path Traversal (CWE-22) patché, P1 asyncio.gather() migration, P2 Thread-safe singletons (3 fichiers), P2 CommandRegistry structure, P3 Exception handling. 108 security tests ✅. Source: 4 Explore agents + Web research + Cyborg Hardening plan |
 | 2025-12-10 | 8.4.4-analysis | **BLIND SPOT ANALYSIS COMPLETE**: 7 angles morts identifiés (5 originaux + 2 nouveaux). Plan 56h créé: P1 DriverBridge (5h), P0 SagaManager (14h), P1 WorkItem (21h), P2 HealthFSM (9h), P2 StagnationPredictor (7h). Sources: Explore agents, Saga Pattern research, pytransitions AsyncMachine |
 | 2025-12-10 | 8.4.0-cyborg | **Cyborg V7.5 COMPLETED**: Branch N9AF. Async methods added to nexus7.py (+55), repl.py (+190), orchestration_v7.py (+180). StateGuard V8.4.4 & V8.7 Async Maturity roadmap phases added. Source: Gemini DeepThink "Functional Core, Async Shell" analysis |
