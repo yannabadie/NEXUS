@@ -134,8 +134,8 @@ class TestLazyLoaders:
         from core.mcp.server import get_tool_manager
         tm = get_tool_manager()
         assert tm is not None
-        # ToolManager should have execute_tool method
-        assert hasattr(tm, 'execute_tool')
+        # ToolManager should have execute method
+        assert hasattr(tm, 'execute')
 
     def test_get_orchestrator_returns_instance(self):
         """Test get_orchestrator returns OrchestratorV7 instance."""
@@ -158,63 +158,78 @@ class TestMCPTools:
     """Tests for MCP tool implementations."""
 
     @pytest.fixture
-    def mock_tool_manager(self):
-        """Create mock ToolManager."""
-        return MockToolManager()
+    def mock_execute_tool(self):
+        """Create mock execute_tool function."""
+        calls = []
+
+        def _mock_execute(tool_name: str, params: dict):
+            calls.append((tool_name, params))
+            if tool_name == "read":
+                return MockToolResult(status="SUCCESS", output=f"Mock content of {params.get('file_path', 'unknown')}")
+            elif tool_name == "glob":
+                return MockToolResult(status="SUCCESS", output="file1.py\nfile2.py\nfile3.py")
+            elif tool_name == "grep":
+                return MockToolResult(status="SUCCESS", output="src/main.py:10: pattern found")
+            elif tool_name == "bash":
+                return MockToolResult(status="SUCCESS", output="Command executed successfully")
+            return MockToolResult(status="ERROR", output="", error=f"Unknown tool: {tool_name}")
+
+        _mock_execute.calls = calls
+        return _mock_execute
 
     @pytest.mark.asyncio
-    async def test_nexus_read_success(self, mock_tool_manager):
+    async def test_nexus_read_success(self, mock_execute_tool):
         """Test nexus_read returns file contents."""
-        with patch('core.mcp.server.get_tool_manager', return_value=mock_tool_manager):
+        with patch('core.mcp.server.execute_tool', mock_execute_tool):
             from core.mcp.server import nexus_read
             result = await nexus_read("/path/to/file.py", offset=0, limit=100)
 
             assert "Mock content" in result
-            assert len(mock_tool_manager.calls) == 1
-            assert mock_tool_manager.calls[0][0] == "read"
+            assert len(mock_execute_tool.calls) == 1
+            assert mock_execute_tool.calls[0][0] == "read"
 
     @pytest.mark.asyncio
-    async def test_nexus_glob_success(self, mock_tool_manager):
+    async def test_nexus_glob_success(self, mock_execute_tool):
         """Test nexus_glob returns matching files."""
-        with patch('core.mcp.server.get_tool_manager', return_value=mock_tool_manager):
+        with patch('core.mcp.server.execute_tool', mock_execute_tool):
             from core.mcp.server import nexus_glob
             result = await nexus_glob("**/*.py", path=".")
 
             assert "file1.py" in result
-            assert len(mock_tool_manager.calls) == 1
-            assert mock_tool_manager.calls[0][0] == "glob"
+            assert len(mock_execute_tool.calls) == 1
+            assert mock_execute_tool.calls[0][0] == "glob"
 
     @pytest.mark.asyncio
-    async def test_nexus_grep_success(self, mock_tool_manager):
+    async def test_nexus_grep_success(self, mock_execute_tool):
         """Test nexus_grep returns matching lines."""
-        with patch('core.mcp.server.get_tool_manager', return_value=mock_tool_manager):
+        with patch('core.mcp.server.execute_tool', mock_execute_tool):
             from core.mcp.server import nexus_grep
             result = await nexus_grep("pattern", path=".", file_type="py")
 
             assert "pattern found" in result
-            assert len(mock_tool_manager.calls) == 1
-            assert mock_tool_manager.calls[0][0] == "grep"
+            assert len(mock_execute_tool.calls) == 1
+            assert mock_execute_tool.calls[0][0] == "grep"
 
     @pytest.mark.asyncio
-    async def test_nexus_bash_success(self, mock_tool_manager):
+    async def test_nexus_bash_success(self, mock_execute_tool):
         """Test nexus_bash executes command."""
-        with patch('core.mcp.server.get_tool_manager', return_value=mock_tool_manager):
+        with patch('core.mcp.server.execute_tool', mock_execute_tool):
             from core.mcp.server import nexus_bash
             result = await nexus_bash("echo hello", timeout=10)
 
             assert "successfully" in result
-            assert len(mock_tool_manager.calls) == 1
-            assert mock_tool_manager.calls[0][0] == "bash"
+            assert len(mock_execute_tool.calls) == 1
+            assert mock_execute_tool.calls[0][0] == "bash"
 
     @pytest.mark.asyncio
-    async def test_nexus_bash_timeout_cap(self, mock_tool_manager):
+    async def test_nexus_bash_timeout_cap(self, mock_execute_tool):
         """Test nexus_bash caps timeout at 120s."""
-        with patch('core.mcp.server.get_tool_manager', return_value=mock_tool_manager):
+        with patch('core.mcp.server.execute_tool', mock_execute_tool):
             from core.mcp.server import nexus_bash
             result = await nexus_bash("echo hello", timeout=999)
 
             # Should have capped timeout to 120s (120000ms)
-            _, params = mock_tool_manager.calls[0]
+            _, params = mock_execute_tool.calls[0]
             assert params["timeout"] == 120 * 1000
 
 

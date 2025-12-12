@@ -54,7 +54,20 @@ def get_tool_manager():
     from core.execution.tool_manager import ToolManager
     from core.config import Config
     config = Config()
-    return ToolManager(config)
+    # V8.5.0: ToolManager expects workspace_path, not config
+    return ToolManager(config.workspace_path)
+
+
+def execute_tool(tool_name: str, params: dict):
+    """
+    Helper to execute a tool via ToolManager.
+
+    V8.5.0: Wraps ToolManager.execute() with ToolUse object creation.
+    """
+    from core.synapse.protocol_v7 import ToolUse
+    tm = get_tool_manager()
+    tool_request = ToolUse(tool_name=tool_name, arguments=params)
+    return tm.execute(tool_request)
 
 
 def get_orchestrator():
@@ -62,7 +75,10 @@ def get_orchestrator():
     from core.orchestration_v7 import OrchestratorV7
     from core.config import Config
     config = Config()
-    return OrchestratorV7(config)
+    # V8.5.0: OrchestratorV7 requires workspace_path, config, and model info
+    gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
+    claude_info = {"model": config.claude_opus_model, "provider": "claude"}
+    return OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
 
 
 # =============================================================================
@@ -91,8 +107,7 @@ if MCP_AVAILABLE:
             File contents as a string with line numbers
         """
         try:
-            tm = get_tool_manager()
-            result = tm.execute_tool("read", {
+            result = execute_tool("read", {
                 "file_path": file_path,
                 "offset": offset,
                 "limit": limit
@@ -115,8 +130,7 @@ if MCP_AVAILABLE:
             List of matching file paths
         """
         try:
-            tm = get_tool_manager()
-            result = tm.execute_tool("glob", {
+            result = execute_tool("glob", {
                 "pattern": pattern,
                 "path": path
             })
@@ -145,7 +159,6 @@ if MCP_AVAILABLE:
             Matching lines with file paths and line numbers
         """
         try:
-            tm = get_tool_manager()
             params = {
                 "pattern": pattern,
                 "path": path
@@ -155,7 +168,7 @@ if MCP_AVAILABLE:
             if context_lines > 0:
                 params["-C"] = context_lines
 
-            result = tm.execute_tool("grep", params)
+            result = execute_tool("grep", params)
             return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_grep error: {e}")
@@ -224,8 +237,7 @@ if MCP_AVAILABLE:
             Command output (stdout + stderr)
         """
         try:
-            tm = get_tool_manager()
-            result = tm.execute_tool("bash", {
+            result = execute_tool("bash", {
                 "command": command,
                 "timeout": min(timeout, 120) * 1000  # Convert to ms, cap at 120s
             })

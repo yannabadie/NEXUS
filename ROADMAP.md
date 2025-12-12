@@ -1,6 +1,6 @@
 # NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
 
-**Version**: 8.4.8-saga-integration | **Status**: Active | **Last Updated**: 2025-12-11
+**Version**: 8.5.0 | **Status**: Active | **Last Updated**: 2025-12-12
 **Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
 
 ---
@@ -13,15 +13,42 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 ---
 
-## État Actuel (2025-12-11)
+## État Actuel (2025-12-12)
 
 | Métrique | Valeur |
 |----------|--------|
 | Modules core/ | 25 |
-| Fichiers Python | 132 |
-| Lignes de code | 45,000+ |
-| Tests | 1,162+ |
-| Phases complétées | 23 (V8.4.8-saga-integration) |
+| Fichiers Python | 133 |
+| Lignes de code | 46,000+ |
+| Tests | 1,206+ |
+| Phases complétées | 24 (V8.5.0) |
+
+### V8.5.0 - AdaptiveFallback Fix + MCP Validation ✅ COMPLETED (2025-12-12)
+
+**Source**: Analyse comparative Gemini vs Réalité du code
+
+**Problèmes découverts**:
+- GROK-004 AdaptiveFallbackSelector était intégré mais **CASSÉ** (2 bugs attributs)
+- MCP Server était complet mais avec des **bugs lazy loaders**
+- Gemini avait surestimé les issues (390 except:pass → 16 réels)
+
+| Tâche | Status | Fichiers |
+|-------|--------|----------|
+| Fix `context.config` → `context.blackboard` | ✅ Done | `mode_executors.py:571-572` |
+| Fix `context.task` → `context.task_input` | ✅ Done | `mode_executors.py:573` |
+| Pass domains/complexity to blackboard | ✅ Done | `hybrid_swarm_engine.py:291-293` |
+| Fix MCP lazy loaders | ✅ Done | `server.py:52-80` |
+| Create `execute_tool()` helper | ✅ Done | `server.py:61-70` |
+| Add MCP server tests | ✅ Done | `test_mcp_server.py` (370L, 20 tests) |
+| Exception cleanup (4 files) | ✅ Done | `tool_manager.py`, `panic_system.py`, `memory_v7.py` |
+
+**Tag**: `v8.4.8` (milestone before fixes)
+
+**Commits**: `aa28f41` (V8.5.0 initial), `[pending]` (MCP fixes)
+
+**Tests**:
+- `test_adaptive_fallback.py`: 24/24 passed
+- `test_mcp_server.py`: 20/20 passed
 
 ### Cyborg V7.5 - Async Integration ✅ COMPLETED (2025-12-10)
 
