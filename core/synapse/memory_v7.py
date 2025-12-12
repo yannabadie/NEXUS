@@ -377,5 +377,6 @@ Résumé concis (max 2000 tokens) :"""
         for old_backup in backups[keep:]:
             try:
                 old_backup.unlink()
-            except:
+            except Exception:
+                # V8.5.0: Ignore cleanup failures (file may be locked)
                 pass

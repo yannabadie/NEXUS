@@ -288,6 +288,9 @@ class HybridSwarmEngine:
             # V7.9: Store task_analysis in blackboard for completion validation
             blackboard["task_analysis"] = analysis
             blackboard["workspace_path"] = self.workspace_path
+            # V8.5.0: Add domains/complexity for AdaptiveFallbackSelector
+            blackboard["domains"] = [d.value for d in analysis.domains]
+            blackboard["complexity"] = analysis.complexity.name
 
             execution_context = ExecutionContext(
                 task_input=task_input,

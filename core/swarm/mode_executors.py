@@ -565,12 +565,13 @@ class ModeExecutor(ABC):
                         pass  # Continue even if restore fails
 
                 # V8.8 (GROK-004): Get adaptive fallback based on context
+                # V8.5.0: Fixed attribute references (context.blackboard, context.task_input)
                 if ADAPTIVE_FALLBACK_AVAILABLE:
                     selector = get_adaptive_fallback_selector()
                     fallback_context = FallbackContext(
-                        domains=context.config.get("domains", []) if context.config else [],
-                        complexity=context.config.get("complexity", "moderate") if context.config else "moderate",
-                        raw_input=context.task or "",
+                        domains=context.blackboard.get("domains", []) if context.blackboard else [],
+                        complexity=context.blackboard.get("complexity", "moderate") if context.blackboard else "moderate",
+                        raw_input=context.task_input or "",
                         modes_tried=degradation_path.copy(),
                         errors_encountered=[str(original_exception)] if original_exception else []
                     )

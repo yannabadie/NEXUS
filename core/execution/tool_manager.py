@@ -765,7 +765,8 @@ class ToolManager:
 
                 try:
                     content = content_bytes.decode(encoding, errors='replace')
-                except:
+                except Exception:
+                    # V8.5.0: Fallback to UTF-8 on encoding error
                     content = content_bytes.decode('utf-8', errors='replace')
 
                 # Truncate if too long
