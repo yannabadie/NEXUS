@@ -1,11 +1,6 @@
-# Module: Security - Multi-Layer Defense System
+# Security Module - NEXUS V9.0
 
-**Version**: 9.0 (TRUE HIVE MIND)
-**Last Updated**: 2025-12-11
-
----
-
-## Rôle dans l'Architecture NEXUS V9.0
+## Rôle
 
 Implémentation des mécanismes de défense actifs multi-couches (Defense-in-Depth).
 Protège contre les attaques OWASP LLM Top 10 2025, notamment:
@@ -15,7 +10,19 @@ Protège contre les attaques OWASP LLM Top 10 2025, notamment:
 
 **Principe**: Défense en profondeur - chaque requête traverse 7 couches de validation.
 
----
+## Fichiers Clés
+
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `execution_policy.py` | ~821 | Validation commandes bash, CodeValidator |
+| `input_guard.py` | ~421 | Prévention injection de prompt (OWASP LLM01) |
+| `output_guard.py` | ~326 | Détection fuites system prompt (OWASP LLM02) |
+| `integrity_monitor.py` | ~320 | Surveillance intégrité fichiers critiques |
+| `mutation_validator.py` | ~235 | Analyse AST du code généré |
+| `path_guardian.py` | ~214 | Contrôle d'accès fichiers par zones |
+| `__init__.py` | ~82 | Exports publics |
+
+**Total**: ~2,419 lignes
 
 ## Architecture Defense-in-Depth V8.8
 
@@ -210,12 +217,15 @@ from core.security import (
 - `hashlib` - Intégrité (IntegrityMonitor)
 - `core.memory.spotlighting` - Spotlighter (re-export)
 
-**Utilisé par**:
-- `core/orchestration_v7.py` - InputGuard
-- `core/drivers/` - OutputGuard
-- `core/execution/tool_manager.py` - PathGuardian, ExecutionPolicy
-- `core/evolution/phases/create.py` - MutationValidator, KERNEL validation
-- `core/memory/project_memory.py` - Spotlighter
+**Importé par** (via grep):
+- `core/orchestration_v7.py:61` - InputGuard, ThreatLevel
+- `core/drivers/gemini_driver_v7.py:43` - OutputGuard
+- `core/drivers/claude_driver_hybrid.py:53` - OutputGuard
+- `core/execution/tool_manager.py:33-34` - PathGuardian, ExecutionPolicy
+- `core/execution/dynamic_tools.py:40` - CodeValidator
+- `core/evolution/phases/create.py:23` - MutationValidator
+- `core/interface/repl.py:34` - MutationValidator
+- `core/memory/project_memory.py:44` - Spotlighter
 
 ---
 

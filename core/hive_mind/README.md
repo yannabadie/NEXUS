@@ -1,9 +1,6 @@
-# Module : core/hive_mind
+# HiveMind Module - NEXUS V9.0
 
-**Version**: 9.0 (TRUE HIVE MIND)
-**Last Updated**: 2025-12-11
-
-## Rôle dans l'Architecture NEXUS V9.0
+## Rôle
 
 **TRUE HIVE MIND** - Orchestrateur de collaboration intelligente pour tâches complexes.
 
@@ -26,6 +23,27 @@ V7 Swarm (TRIVIAL/SIMPLE) vs V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
 | **V8.4.4** | Context Snapshot | `messages[:checkpoint_index]` sur rollback (anti-hallucination) |
 | **V8.8** | Security Hardening | InputGuard + OutputGuard intégrés dans pipeline |
 | **V8.8** | AdaptiveFallback | Fallback contextuel via SwarmBridge |
+
+## Fichiers Clés
+
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `orchestrator.py` | ~778 | TrueHiveMind - Coordinateur 7 phases |
+| `saga_manager.py` | ~671 | Checkpoints + rollback + context truncation |
+| `swarm_bridge.py` | ~630 | Pont HiveMind → Swarm (V8.3.0) |
+| `user_interaction.py` | ~595 | Breakpoints utilisateur (Rich UI) |
+| `cost_estimator.py` | ~488 | Contrôle budget tokens + USD |
+| `context_manager.py` | ~479 | Fenêtre glissante tokens |
+| `adaptive_debate.py` | ~476 | Paramètres débat adaptatifs |
+| `strategy_blacklist.py` | ~461 | Anti-retry circulaire |
+| `types.py` | ~404 | Dataclasses, 24 HiveMindState |
+| `async_adapter.py` | ~373 | Wrapper async + CancellationToken |
+| `agent_registry.py` | ~344 | Anti-duplication (Jaccard) |
+| `success_adapter.py` | ~250 | Feedback vers SuccessMemory |
+| `phases/` | ~3,707 | 7 phases du pipeline |
+| `__init__.py` | ~140 | Exports publics |
+
+**Total**: ~9,796 lignes
 
 ## Composants Clés
 
@@ -168,16 +186,12 @@ from core.fsm.stagnation_detector import StagnationDetector
 from rich.console import Console  # UI breakpoints
 ```
 
-### Utilise par
-```python
-# Orchestration
-core.orchestration.fsm_handlers.FSMHandlers._route_to_hive_mind()
-
-# Tests
-tests.test_hive_mind_e2e
-tests.test_v8_integrations
-tests.verify_hive_mind_routing
-```
+**Importé par** (via grep):
+- `core/adapters/analysis_adapter.py:31` - IndependentAnalysis
+- `core/orchestration/fsm_handlers.py` - TrueHiveMind (route)
+- `tests/test_hive_mind_e2e.py:69-312` - All components
+- `tests/test_async_hive_mind.py:21` - AsyncHiveMindAdapter
+- `tests/test_analysis_adapter.py:17` - IndependentAnalysis
 
 ## Diagramme: Integrations V7 -> V8
 

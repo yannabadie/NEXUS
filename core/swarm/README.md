@@ -1,11 +1,6 @@
-# Module : Swarm - NEXUS V9.0 "TRUE HIVE MIND"
+# Swarm Module - NEXUS V9.0
 
-Hybrid Swarm Engine pour collaboration multi-agent dynamique.
-
-**Version**: 9.0 (TRUE HIVE MIND)
-**Last Updated**: 2025-12-11
-
-## Rôle dans l'Architecture NEXUS V9.0
+## Rôle
 
 Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collaboration** où les agents négocient la manière optimale de travailler ensemble pour chaque tâche.
 
@@ -288,16 +283,24 @@ SWARM_MAX_FALLBACKS=2               # Max tentatives fallback
 
 ---
 
-## Métriques V8.3.x
+## Fichiers Clés
 
-| Fichier | Lignes | Changement |
-|---------|--------|------------|
-| `hybrid_swarm_engine.py` | 595 | Stable |
-| `mode_executors.py` | 450 | Stable |
-| `mode_selector.py` | 620 | Stable |
-| `session_manager.py` | 380 | Stable |
-| `collaboration_modes.py` | ~200 | +from_string() method |
-| **Total module** | ~3200 | Stable |
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `mode_executors.py` | ~1302 | Exécution modes + self-healing fallback |
+| `mode_selector.py` | ~981 | Sélection mode via DyLAN scores |
+| `hybrid_swarm_engine.py` | ~757 | Moteur principal d'orchestration |
+| `session_manager.py` | ~669 | Isolation sessions parallèles |
+| `negotiation_protocol.py` | ~635 | Négociation inter-agents |
+| `agent_metrics.py` | ~628 | DyLAN metrics + AgentPool |
+| `task_analyzer.py` | ~518 | Analyse complexité/domaines |
+| `adaptive_fallback.py` | ~417 | GROK-004: Fallback contextuel |
+| `merge_strategies.py` | ~353 | Fusion résultats (IntelligentMerger) |
+| `task_completion_validator.py` | ~319 | Validation complétion tâches |
+| `collaboration_modes.py` | ~234 | Définitions 6 modes |
+| `__init__.py` | ~185 | Exports publics |
+
+**Total**: ~6,998 lignes
 
 ---
 
@@ -327,6 +330,29 @@ SWARM_MAX_FALLBACKS=2               # Max tentatives fallback
 - **Depth Guard**: Testé via `test_swarm_tool.py`
 
 ---
+
+## Dépendances
+
+**Importe**:
+- `core/memory/` - SuccessMemory, AutoMemory
+- `core/drivers/` - GeminiDriverV7, ClaudeDriverHybrid
+- `core/api/rate_limiter.py` - APIRateLimiter (PARALLEL mode)
+- `core/utils/atomic_store.py` - AtomicJsonStore (sessions)
+
+**Importé par** (via grep):
+- `core/orchestration_v7.py:28-30` - AgentPool, HybridSwarmEngine
+- `core/orchestration/swarm_bridge.py:19` - CollaborationMode, SwarmPhase
+- `core/adapters/analysis_adapter.py:30` - TaskAnalysis, TaskComplexity
+- `core/bootstrap/agent_loader.py:24` - AgentProfile
+- `core/execution/tool_manager.py:1763` - CollaborationMode
+- `core/execution/agent_tools.py:47` - AgentPool, AgentProfile
+
+## Tests
+
+- `tests/test_swarm_*.py` - Tests Swarm Engine
+- `tests/test_self_healing.py` - Fallback chain
+- `tests/test_cot_enforcement.py` - Force CoT EXPERT
+- `tests/test_automemory_integration.py` - Memory-augmented selection
 
 ## Voir Aussi
 
