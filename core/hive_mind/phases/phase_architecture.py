@@ -294,18 +294,13 @@ class ArchitectureGenerationPhase:
         capabilities: List[str]
     ) -> AgentArchitecture:
         """Parse architecture JSON from response."""
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            response = response.get("content", response.get("text", str(response)))
-        if not isinstance(response, str):
-            response = str(response)
+        from ..json_parser import parse_json_response
 
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
+        data = parse_json_response(response, "architecture", default=None)
+        if data is None:
             return self._create_fallback_architecture(capabilities)
 
         try:
-            data = json.loads(json_match.group())
 
             # Parse agents to spawn
             agents_to_spawn = []
@@ -362,8 +357,8 @@ class ArchitectureGenerationPhase:
                 reasoning=data.get("reasoning", "")
             )
 
-        except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse error: {e}")
+        except Exception as e:
+            logger.warning(f"Architecture parse error: {e}")
             return self._create_fallback_architecture(capabilities)
 
     def _create_fallback_architecture(self, capabilities: List[str]) -> AgentArchitecture:

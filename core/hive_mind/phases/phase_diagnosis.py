@@ -313,19 +313,13 @@ class FailureDiagnosisPhase:
         claude_diagnosis: str
     ) -> FailureDiagnosis:
         """Parse synthesis response into FailureDiagnosis."""
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            response = response.get("content", response.get("text", str(response)))
-        if not isinstance(response, str):
-            response = str(response)
+        from ..json_parser import parse_json_response
 
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
+        data = parse_json_response(response, "diagnosis", default=None)
+        if data is None:
             return self._create_fallback_diagnosis(gemini_diagnosis, claude_diagnosis)
 
         try:
-            data = json.loads(json_match.group())
-
             # Parse failure type
             failure_type_str = data.get("failure_type", "unknown")
             try:
@@ -345,7 +339,8 @@ class FailureDiagnosisPhase:
                 missing_capability=data.get("missing_capability")
             )
 
-        except json.JSONDecodeError:
+        except Exception as e:
+            logger.warning(f"Diagnosis parse error: {e}")
             return self._create_fallback_diagnosis(gemini_diagnosis, claude_diagnosis)
 
     def _create_fallback_diagnosis(

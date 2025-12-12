@@ -436,20 +436,19 @@ class StrategicDebatePhase:
 
     def _parse_argument_response(self, response) -> Dict[str, Any]:
         """Parse argument JSON from response."""
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            response = response.get("content", response.get("text", str(response)))
-        if not isinstance(response, str):
-            response = str(response)
+        from ..json_parser import parse_json_response
 
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
-            return {"argument": response[:300]}
+        # Get raw string for fallback
+        raw = response
+        if isinstance(raw, dict):
+            raw = raw.get("content", raw.get("text", str(raw)))
+        if not isinstance(raw, str):
+            raw = str(raw)
 
-        try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            return {"argument": response[:300]}
+        data = parse_json_response(response, "debate", default=None)
+        if data is None:
+            return {"argument": raw[:300]}
+        return data
 
     def _format_debate_history(self, history: List[DebateArgument]) -> str:
         """Format debate history for prompts."""
@@ -483,20 +482,20 @@ class StrategicDebatePhase:
 
         # Use Gemini for consensus check (neutral)
         try:
+            from ..json_parser import parse_json_response
+
             response = await self.gemini.send_message_async(prompt)
 
-            # V9.1: Handle dict response from drivers
-            if isinstance(response, dict):
-                response = response.get("content", response.get("text", str(response)))
-            if not isinstance(response, str):
-                response = str(response)
-
-            tokens = len(response) // 4
+            # Record cost estimate
+            raw = response
+            if isinstance(raw, dict):
+                raw = raw.get("content", raw.get("text", str(raw)))
+            tokens = len(str(raw)) // 4
             self.cost_estimator.record_cost("check_consensus", tokens)
 
-            json_match = re.search(r'\{[\s\S]*\}', response)
-            if json_match:
-                return json.loads(json_match.group())
+            data = parse_json_response(response, "consensus", default=None)
+            if data is not None:
+                return data
 
         except Exception as e:
             logger.error(f"Consensus check failed: {e}")

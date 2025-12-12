@@ -234,28 +234,14 @@ class IndependentAnalysisPhase:
 
     def _parse_analysis_response(self, response, agent_id: str) -> Dict[str, Any]:
         """Parse agent's response into analysis data."""
-        import json
-        import re
+        from ..json_parser import parse_json_response
 
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            # Driver returned a dict - extract content
-            response = response.get("content", response.get("text", str(response)))
-
-        # Ensure we have a string
-        if not isinstance(response, str):
-            response = str(response)
-
-        # Try to extract JSON from response
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
-            logger.warning(f"{agent_id} response not in JSON format, using defaults")
+        data = parse_json_response(response, agent_id, default=None)
+        if data is None:
             return self._default_analysis_data()
 
+        # Validate and normalize
         try:
-            data = json.loads(json_match.group())
-
-            # Validate and normalize
             return {
                 "task_understanding": data.get("task_understanding", "Unknown"),
                 "complexity_assessment": data.get("complexity_assessment", "MODERATE"),
@@ -265,9 +251,8 @@ class IndependentAnalysisPhase:
                 "confidence": float(data.get("confidence", 0.5)),
                 "reasoning": data.get("reasoning", "")
             }
-
-        except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse error for {agent_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Data extraction error for {agent_id}: {e}")
             return self._default_analysis_data()
 
     def _default_analysis_data(self) -> Dict[str, Any]:

@@ -452,23 +452,19 @@ class MonitoredExecutionPhase:
 
     def _parse_execution_response(self, response) -> Dict[str, Any]:
         """Parse execution JSON from response."""
-        import json
-        import re
+        from ..json_parser import parse_json_response
 
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            response = response.get("content", response.get("text", str(response)))
-        if not isinstance(response, str):
-            response = str(response)
+        # Get raw string for fallback
+        raw = response
+        if isinstance(raw, dict):
+            raw = raw.get("content", raw.get("text", str(raw)))
+        if not isinstance(raw, str):
+            raw = str(raw)
 
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
-            return {"output": response[:500], "status": "success"}
-
-        try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            return {"output": response[:500], "status": "success"}
+        data = parse_json_response(response, "execution", default=None)
+        if data is None:
+            return {"output": raw[:500], "status": "success"}
+        return data
 
     def _detect_hallucinations(
         self,

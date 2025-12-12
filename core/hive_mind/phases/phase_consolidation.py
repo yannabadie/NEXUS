@@ -383,20 +383,10 @@ class KnowledgeConsolidationPhase:
 
     def _parse_reflection(self, response) -> Dict[str, Any]:
         """Parse reflection JSON from response."""
-        # V9.1: Handle dict response from drivers
-        if isinstance(response, dict):
-            response = response.get("content", response.get("text", str(response)))
-        if not isinstance(response, str):
-            response = str(response)
+        from ..json_parser import parse_json_response
 
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        if not json_match:
-            return {}
-
-        try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            return {}
+        data = parse_json_response(response, "consolidation", default=None)
+        return data if data is not None else {}
 
     def _merge_agent_decisions(
         self,
