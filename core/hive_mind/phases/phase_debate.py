@@ -415,16 +415,19 @@ class StrategicDebatePhase:
                 
             argument_data = self._parse_argument_response(content)
 
-            # Record cost
-            tokens = len(response) // 4
+            # Record cost - use content length, not response
+            tokens = len(content) // 4 if content else 0
             self.cost_estimator.record_cost("debate_turn", tokens)
+
+            # Safe fallback for argument - use content not response
+            fallback_arg = content[:200] if content else "No response received"
 
             return DebateArgument(
                 agent_id=speaker,
                 turn_number=turn_number,
                 position=argument_data.get("position", "OPPOSE"),
                 target_point=argument_data.get("target_point", disagreement.topic),
-                argument=argument_data.get("argument", response[:200]),
+                argument=argument_data.get("argument") or fallback_arg,
                 evidence=argument_data.get("evidence", []),
                 proposed_modification=argument_data.get("proposed_modification"),
                 concession=argument_data.get("concession")
