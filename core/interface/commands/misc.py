@@ -1,0 +1,339 @@
+"""
+V9 Miscellaneous Commands - /mode, /reset, /doctor, /telemetry, /budget, /tutorial, /quickstart, /chat, /clear
+
+These commands provide various utility functions for the REPL.
+"""
+
+from typing import List
+from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+class ClearCommand(Command):
+    """Clear the console screen."""
+
+    @property
+    def name(self) -> str:
+        return "/clear"
+
+    @property
+    def aliases(self) -> List[str]:
+        return ["/cls"]
+
+    @property
+    def description(self) -> str:
+        return "Clear the console screen"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute clear command."""
+        context.console.clear()
+        return CommandResult(
+            status=CommandStatus.SUCCESS,
+            message=""
+        )
+
+
+class ModeCommand(Command):
+    """Change the orchestrator mode."""
+
+    @property
+    def name(self) -> str:
+        return "/mode"
+
+    @property
+    def aliases(self) -> List[str]:
+        return []
+
+    @property
+    def description(self) -> str:
+        return "Change the orchestrator mode"
+
+    @property
+    def usage(self) -> str:
+        return "/mode <mode_name>"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute mode command."""
+        if not args.strip():
+            return CommandResult(
+                status=CommandStatus.INVALID_ARGS,
+                message="Usage: /mode <mode_name>"
+            )
+
+        context.orchestrator.blackboard["mode"] = args.strip()
+        return CommandResult(
+            status=CommandStatus.SUCCESS,
+            message=f"Mode changed to: {args.strip()}"
+        )
+
+
+class ResetCommand(Command):
+    """Reset the orchestrator to IDLE state."""
+
+    @property
+    def name(self) -> str:
+        return "/reset"
+
+    @property
+    def aliases(self) -> List[str]:
+        return []
+
+    @property
+    def description(self) -> str:
+        return "Reset the orchestrator to IDLE state"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute reset command."""
+        try:
+            context.orchestrator.reset_to_idle()
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message="Orchestrator reset to IDLE"
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Reset failed: {e}"
+            )
+
+
+class DoctorCommand(Command):
+    """Run system diagnostics."""
+
+    @property
+    def name(self) -> str:
+        return "/doctor"
+
+    @property
+    def aliases(self) -> List[str]:
+        return ["/diag"]
+
+    @property
+    def description(self) -> str:
+        return "Run system diagnostics and check API connectivity"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute doctor command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.run_doctor()
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Diagnostics failed: {e}"
+            )
+
+
+class TelemetryCommand(Command):
+    """Manage telemetry settings."""
+
+    @property
+    def name(self) -> str:
+        return "/telemetry"
+
+    @property
+    def aliases(self) -> List[str]:
+        return ["/tel"]
+
+    @property
+    def description(self) -> str:
+        return "View or configure telemetry settings"
+
+    @property
+    def usage(self) -> str:
+        return "/telemetry [on|off|status]"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute telemetry command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.handle_telemetry_command(args)
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Telemetry command failed: {e}"
+            )
+
+
+class BudgetCommand(Command):
+    """Manage token budget."""
+
+    @property
+    def name(self) -> str:
+        return "/budget"
+
+    @property
+    def aliases(self) -> List[str]:
+        return []
+
+    @property
+    def description(self) -> str:
+        return "View or set token budget for API calls"
+
+    @property
+    def usage(self) -> str:
+        return "/budget [set <amount>|status|reset]"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute budget command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.handle_budget_command(args)
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Budget command failed: {e}"
+            )
+
+
+class TutorialCommand(Command):
+    """Run the interactive tutorial."""
+
+    @property
+    def name(self) -> str:
+        return "/tutorial"
+
+    @property
+    def aliases(self) -> List[str]:
+        return ["/tut"]
+
+    @property
+    def description(self) -> str:
+        return "Run the interactive NEXUS tutorial"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute tutorial command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.run_tutorial()
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Tutorial failed: {e}"
+            )
+
+
+class QuickstartCommand(Command):
+    """Show quickstart guide."""
+
+    @property
+    def name(self) -> str:
+        return "/quickstart"
+
+    @property
+    def aliases(self) -> List[str]:
+        return ["/qs"]
+
+    @property
+    def description(self) -> str:
+        return "Show the NEXUS quickstart guide"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute quickstart command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.show_quickstart()
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Quickstart failed: {e}"
+            )
+
+
+class ChatCommand(Command):
+    """Toggle chat mode."""
+
+    @property
+    def name(self) -> str:
+        return "/chat"
+
+    @property
+    def aliases(self) -> List[str]:
+        return []
+
+    @property
+    def description(self) -> str:
+        return "Toggle chat mode for direct AI conversation"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        """Execute chat command."""
+        repl = context.extras.get("repl")
+        if not repl:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message="REPL instance not available"
+            )
+
+        try:
+            repl.toggle_chat_mode()
+            return CommandResult(
+                status=CommandStatus.SUCCESS,
+                message=""
+            )
+        except Exception as e:
+            return CommandResult(
+                status=CommandStatus.ERROR,
+                message=f"Chat toggle failed: {e}"
+            )
+
+
+def register_misc_commands(registry: "CommandRegistry") -> None:
+    """Register all miscellaneous commands with a registry."""
+    registry.register(ClearCommand())
+    registry.register(ModeCommand())
+    registry.register(ResetCommand())
+    registry.register(DoctorCommand())
+    registry.register(TelemetryCommand())
+    registry.register(BudgetCommand())
+    registry.register(TutorialCommand())
+    registry.register(QuickstartCommand())
+    registry.register(ChatCommand())

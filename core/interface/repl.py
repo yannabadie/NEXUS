@@ -24,7 +24,11 @@ from core.interface.commands import (
     is_exit_command,
     parse_command,
     get_help_message,
-    SLASH_COMMANDS
+    SLASH_COMMANDS,
+    # V9: Command Pattern
+    get_initialized_registry,
+    CommandContext,
+    CommandStatus,
 )
 from core.config import load_config
 from core.fsm.states import OrchestratorState
@@ -458,119 +462,46 @@ class InteractiveNexusV7:
 
     def handle_command(self, command: str):
         """
-        Handle slash commands
+        Handle slash commands via V9 Command Pattern.
+
+        Uses CommandRegistry to dispatch commands to their handlers.
+        This replaces the legacy 26-branch elif chain.
 
         Args:
             command: Slash command string (e.g. "/status")
         """
         cmd, args = parse_command(command)
 
-        if cmd == "/clear":
-            self.console.clear()
-
-        elif cmd == "/status":
-            self.show_status()
-
-        elif cmd == "/doctor":
-            self.run_doctor()
-
-        elif cmd == "/reset":
-            self.orchestrator.reset_to_idle()
-            self.console.print("✓ Orchestrator reset to IDLE")
-
-        elif cmd == "/mode":
-            if args:
-                self.orchestrator.blackboard["mode"] = args
-                self.console.print(f"✓ Mode changed to: {args}")
-            else:
-                self.console.print_error("Usage: /mode <mode_name>")
-
-        elif cmd == "/review":
-            self.run_review()
-
-        elif cmd == "/evolve":
-            # Parse child count from args (default 3)
-            child_count = int(args) if args.isdigit() else 3
-            self.run_evolve(child_count=child_count)
-
-        elif cmd == "/evolve-status":
-            self.show_evolve_status()
-
-        elif cmd == "/swarm":
-            if not args:
-                self.console.print_error("Usage: /swarm <task description>")
-                self.console.print("Example: /swarm Analyze this codebase and find bugs")
-            else:
-                self.run_swarm_task(args)
-
-        elif cmd == "/swarm-status":
-            self.show_swarm_status()
-
-        elif cmd == "/swarm-fsm":
-            if not args:
-                self.console.print_error("Usage: /swarm-fsm <task description>")
-                self.console.print("Debug: Uses FSM states (SWARM_ANALYZING → NEGOTIATING → EXECUTING)")
-            else:
-                self.run_swarm_task_fsm(args)
-
-        elif cmd == "/spawn":
-            if not args:
-                self.console.print_error("Usage: /spawn <role> (e.g., /spawn SQL Expert)")
-            else:
-                self.spawn_agent(args)
-
-        elif cmd == "/agents":
-            self.list_agents()
-
-        elif cmd == "/pool-stats":
-            self.show_pool_stats()
-
-        elif cmd == "/bootstrap":
-            self.run_bootstrap(args)
-
-        elif cmd == "/specialize":
-            if args:
-                self.run_specialization(mission=args)
-            else:
-                self.console.print_error("Usage: /specialize <mission_description>")
-
-        elif cmd == "/workspace":
-            self.handle_workspace_command(args)
-
-        elif cmd == "/telemetry":
-            self.handle_telemetry_command(args)
-
-        elif cmd == "/budget":
-            self.handle_budget_command(args)
-
-        elif cmd == "/tutorial":
-            self.run_tutorial()
-
-        elif cmd == "/quickstart":
-            self.show_quickstart()
-
-        elif cmd == "/chat":
-            self.toggle_chat_mode()
-
-        # V7.8 Phase 10c: Project Memory commands
-        elif cmd == "/learn":
-            self.handle_learn_command(args)
-
-        elif cmd == "/forget":
-            self.handle_forget_command(args)
-
-        elif cmd == "/memory-status":
-            self.show_memory_status()
-
-        elif cmd == "/rag":
-            self.handle_rag_command(args)
-
-        elif cmd == "/help":
+        # Special case: /help uses legacy help message for full coverage
+        if cmd == "/help":
             self.console.print_help(get_help_message())
+            return
 
-        else:
-            self.console.print_error(f"Unknown command: {cmd}")
-            self.console.print(f"Available commands: {', '.join(SLASH_COMMANDS.keys())}")
+        # V9: Command Pattern dispatch
+        registry = get_initialized_registry()
+        context = CommandContext(
+            orchestrator=self.orchestrator,
+            console=self.console,
+            config=self.config,
+            extras={"repl": self}
+        )
+
+        # Dispatch command
+        full_command = f"{cmd} {args}".strip() if args else cmd
+        result = registry.dispatch(full_command, context)
+
+        # Handle result
+        if result.message:
+            if result.status == CommandStatus.ERROR:
+                self.console.print_error(result.message)
+            elif result.status == CommandStatus.INVALID_ARGS:
+                self.console.print_error(result.message)
+            elif result.status == CommandStatus.NOT_FOUND:
+                # Fallback to legacy error message with available commands
+                self.console.print_error(f"Unknown command: {cmd}")
+                self.console.print(f"Available commands: {', '.join(SLASH_COMMANDS.keys())}")
+            else:
+                self.console.print(result.message)
 
     def show_status(self):
         """Show orchestrator status (/status command)"""
