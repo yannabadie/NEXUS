@@ -408,8 +408,15 @@ class StrategicDebatePhase:
             response = await driver.send_message_async(prompt)
             argument_data = self._parse_argument_response(response)
 
+            # V9.1.1: Safely get raw string for fallback and cost estimation
+            raw_response = response
+            if isinstance(raw_response, dict):
+                raw_response = raw_response.get("content", raw_response.get("text", str(raw_response)))
+            if not isinstance(raw_response, str):
+                raw_response = str(raw_response)
+
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(raw_response) // 4
             self.cost_estimator.record_cost("debate_turn", tokens)
 
             return DebateArgument(
@@ -417,7 +424,7 @@ class StrategicDebatePhase:
                 turn_number=turn_number,
                 position=argument_data.get("position", "OPPOSE"),
                 target_point=argument_data.get("target_point", disagreement.topic),
-                argument=argument_data.get("argument", response[:200]),
+                argument=argument_data.get("argument", raw_response[:200]),
                 evidence=argument_data.get("evidence", []),
                 proposed_modification=argument_data.get("proposed_modification"),
                 concession=argument_data.get("concession")

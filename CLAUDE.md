@@ -101,7 +101,7 @@ NEXUS adapts through multiple mechanisms:
 | **NEXUS.md** | Project-specific instructions (auto-generated if missing) | Always |
 | **Evolution** | Create specialized children for domain expertise | Complex projects |
 | **Memory** | Blackboard persists learned patterns | Across sessions |
-| **@external_sources** | Connect to external data for analysis | Data-heavy tasks |
+| **Web Tools** | Use web_search/web_fetch for external data | Data-heavy tasks |
 
 ### Auto-Generated NEXUS.md (Bootstrap Protocol)
 

@@ -173,6 +173,36 @@ class GeminiDriverV7:
 
         return response
 
+    def _enforce_json_format(self, context: str) -> str:
+        """
+        V9.1.1: Add JSON enforcement suffix to context.
+
+        Since Gemini CLI doesn't support --response-mime-type application/json,
+        we enforce structured JSON output via strong prompt engineering.
+
+        Args:
+            context: Original context markdown
+
+        Returns:
+            Context with JSON enforcement suffix
+        """
+        json_enforcement = """
+
+---
+**CRITICAL: YOUR RESPONSE MUST BE VALID JSON**
+
+You MUST respond with a single JSON object. Example format:
+{"sender": "Gemini", "action_type": "TALK", "content": "your message", "status": "CONTINUE"}
+
+Rules:
+- Start with `{`, end with `}`
+- Use double quotes " for all strings (NOT single quotes ')
+- NO text before or after the JSON
+- NO markdown code blocks (```) around the JSON
+- Use true/false (lowercase), not True/False
+"""
+        return context + json_enforcement
+
     def invoke(
         self,
         context: str,
@@ -340,9 +370,12 @@ class GeminiDriverV7:
         # V8.1.6: Generate unique ID for thread-safe file access
         unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
+        # V9.1.1: Enforce JSON format via prompt suffix
+        enforced_context = self._enforce_json_format(context)
+
         # Write context to file with unique ID
         context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
-        context_file.write_text(context, encoding="utf-8")
+        context_file.write_text(enforced_context, encoding="utf-8")
 
         # FIX: Use path relative to cwd (workspace) to avoid double-path issue
         # The subprocess runs with cwd=workspace_path, so the path should be relative to that
@@ -663,9 +696,12 @@ class GeminiDriverV7:
         # V8.1.6: Generate unique ID for thread-safe file access
         unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
+        # V9.1.1: Enforce JSON format via prompt suffix
+        enforced_context = self._enforce_json_format(context)
+
         # Write context to file with unique ID
         context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
-        context_file.write_text(context, encoding="utf-8")
+        context_file.write_text(enforced_context, encoding="utf-8")
         context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
         # Find CLI executable
