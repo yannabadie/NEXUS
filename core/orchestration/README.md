@@ -1,12 +1,6 @@
-# Module: Orchestration Package
+# Orchestration Module - NEXUS V9.0
 
-**Version**: 8.0 TRUE HIVE MIND
-**Last Updated**: 2025-12-08
-**Phase**: 14c Complete + V8.0 Hive Mind Integration
-
----
-
-## Role dans l'Architecture NEXUS V8.0
+## Rôle
 
 Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 
@@ -16,7 +10,18 @@ Package modulaire contenant les composants extraits de `orchestration_v7.py`.
 
 **V8.0 Integration**: `FSMHandlers` route MODERATE/COMPLEX/EXPERT vers `TrueHiveMind`.
 
----
+## Fichiers Clés
+
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `fsm_handlers.py` | ~1392 | Handlers pour 11 états FSM |
+| `agent_invoker.py` | ~453 | Invocation multi-agent + DyLAN |
+| `context_builder.py` | ~390 | Construction contextes + RAG |
+| `detectors.py` | ~237 | Détection patterns/mutations |
+| `swarm_bridge.py` | ~190 | Pont vers HybridSwarmEngine |
+| `__init__.py` | ~48 | Exports publics |
+
+**Total**: ~2,710 lignes
 
 ## Alignement ROADMAP V7.8
 

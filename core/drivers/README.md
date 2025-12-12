@@ -1,7 +1,6 @@
-# Drivers Module - NEXUS V9.0 "TRUE HIVE MIND"
+# Drivers Module - NEXUS V9.0
 
-**Version**: 9.0 (TRUE HIVE MIND)
-**Last Updated**: 2025-12-11
+## Rôle
 
 AI model interface drivers for Claude and Gemini CLI communication.
 Supports blocking, streaming, and **async** invocation modes (V8.4.4).

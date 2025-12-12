@@ -1,12 +1,6 @@
-# Module: Evolution - NEXUS V9.0 Agent Factory Engine
+# Evolution Module - NEXUS V9.0
 
-**Version**: 9.0 (TRUE HIVE MIND)
-**Status**: Production-ready
-**Last Updated**: 2025-12-11
-
----
-
-## Role Architectural
+## Rôle
 
 Le module Evolution est le coeur de la capacite NEXUS a generer des agents specialises via selection darwinienne.
 
@@ -34,7 +28,21 @@ Le module Evolution est le coeur de la capacite NEXUS a generer des agents speci
 
 **Task Fitness** remplace "ASI Score" - mesure la capacite a resoudre des taches specifiques.
 
----
+## Fichiers Clés
+
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `manager.py` | ~710 | Orchestrateur central évolution |
+| `evaluator.py` | ~450 | Benchmarks, Task Fitness |
+| `tiered_validator.py` | ~420 | Validation 4-tier fast-fail |
+| `lineage.py` | ~380 | LINEAGE.json, certificats |
+| `models.py` | ~350 | Dataclasses type-safe |
+| `mutation_parser.py` | ~280 | Parser SEARCH/REPLACE |
+| `rate_limiter.py` | ~250 | Protection anti-spam |
+| `validator.py` | ~230 | Validation legacy |
+| `phases/` | ~1,843 | Pipeline 5 phases |
+
+**Total**: ~4,913 lignes
 
 ## Architecture V7.5
 
