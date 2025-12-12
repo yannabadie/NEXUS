@@ -328,9 +328,9 @@ class OrchestratorV7:
         """Invoke active agent. V7.8: Delegates to AgentInvoker."""
         return self.agent_invoker.invoke_agent(task_type, context)
 
-    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
+    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str, session_uuid: str = None) -> str:
         """Invoke agent for swarm. V7.8: Delegates to AgentInvoker."""
-        return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context)
+        return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context, session_uuid)
 
     def _invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) -> Dict:
         """Invoke specific agent directly. V7.8: Delegates to AgentInvoker."""
@@ -959,7 +959,8 @@ class OrchestratorV7:
         panic_status = self.panic_system.get_status()
 
         return {
-            "fsm_state": self.state.name,
+            "state": self.state.name,  # V9.1: Use "state" for consistency with process_turn()
+            "fsm_state": self.state.name,  # V9.1: Keep for backward compatibility
             "active_agent": self.active_agent,
             "iteration": self.iteration,
             "stalemate_counter": self.stalemate_counter,

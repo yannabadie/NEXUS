@@ -549,9 +549,10 @@ class ModeExecutor(ABC):
                 if original_exception is None:
                     original_exception = e
 
-                # Log degradation
+                # Log degradation with exception type if message is empty
+                error_msg = str(e)[:100] if str(e) else f"{type(e).__name__} (no message)"
                 print(
-                    f"[SWARM DEGRADATION] Mode {current_mode.value} failed: {str(e)[:100]}",
+                    f"[SWARM DEGRADATION] Mode {current_mode.value} failed: {error_msg}",
                     file=sys.stderr
                 )
 
@@ -678,9 +679,14 @@ class ParallelExecutor(ModeExecutor):
         This provides real concurrency instead of ThreadPoolExecutor which
         blocks worker threads. Performance gain: 40-50% for I/O-bound tasks.
         """
+        import sys
         agents = context.get_all_agents()
         total_tokens = 0
         total_time = 0.0
+
+        # V9.1 UX: Show parallel execution start
+        agent_names = [a.agent_id for a in agents]
+        print(f"\n🔀 [PARALLEL] Starting execution with {len(agents)} agents: {', '.join(agent_names)}", file=sys.stderr)
 
         # Prepare async tasks
         tasks_info = []
@@ -689,11 +695,16 @@ class ParallelExecutor(ModeExecutor):
             subtask = agent.subtask or context.task_input
             task_context = f"PARALLEL MODE - Your subtask:\n{subtask}\n\nFull task: {context.task_input}"
             tasks_info.append((agent.agent_id, task_context))
+            # V9.1 UX: Show each agent's subtask
+            subtask_preview = (subtask[:100] + "...") if len(subtask) > 100 else subtask
+            print(f"   → {agent.agent_id}: {subtask_preview}", file=sys.stderr)
 
             # Create async task using _invoke_async
             async_tasks.append(
                 self._invoke_async(context, agent.agent_id, task_context, f"worker_{idx}")
             )
+
+        print(f"   ⏳ Agents working...", file=sys.stderr)
 
         # V9: TRUE PARALLEL EXECUTION with asyncio.gather()
         # All tasks run concurrently, not blocked by GIL for I/O operations
@@ -702,21 +713,31 @@ class ParallelExecutor(ModeExecutor):
         # Process results
         outputs: List[AgentResponse] = []
         for i, result in enumerate(results):
+            agent_id = tasks_info[i][0]
             if isinstance(result, Exception):
-                agent_id = tasks_info[i][0]
                 outputs.append(AgentResponse(
                     agent_id=agent_id,
                     content="",
                     status="error",
                     error=str(result)
                 ))
+                # V9.1 UX: Show error
+                print(f"   ❌ {agent_id}: ERROR - {str(result)[:100]}", file=sys.stderr)
             else:
                 outputs.append(result)
                 total_tokens += result.tokens_used
                 total_time = max(total_time, result.time_seconds)
+                # V9.1 UX: Show completion
+                content_preview = (result.content[:80] + "...") if len(result.content) > 80 else result.content
+                content_preview = content_preview.replace('\n', ' ')
+                print(f"   ✓ {agent_id}: {content_preview}", file=sys.stderr)
 
         # V8.3.3: Use pluggable merge strategy
         merge_result = self._merge_with_strategy(context, outputs)
+
+        # V9.1 UX: Show completion summary
+        success_count = sum(1 for o in outputs if o.status != "error")
+        print(f"✅ [PARALLEL] Complete: {success_count}/{len(outputs)} agents succeeded | {total_time:.1f}s | Merge: {merge_result.strategy_used.value}\n", file=sys.stderr)
 
         return ExecutionResult(
             mode=self.mode,

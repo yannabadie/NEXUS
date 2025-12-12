@@ -125,6 +125,7 @@ class TrueHiveMind:
         self.on_state_change = on_state_change
         self.auto_breakpoints = auto_breakpoints
         self.swarm_engine = swarm_engine  # V8.4.5: SwarmBridge wiring
+        self.saga_enabled = saga_enabled  # V8.4.4b: Must set BEFORE _init_components()
 
         # Current state
         self.state = HiveMindState.HIVE_GATING
@@ -166,8 +167,7 @@ class TrueHiveMind:
             auto_accept=not self.auto_breakpoints
         )
 
-        # V8.4.4b: SagaManager for checkpoint/rollback
-        self.saga_enabled = saga_enabled
+        # V8.4.4b: SagaManager for checkpoint/rollback (saga_enabled set in __init__)
         self._saga: Optional[SagaManager] = None
         self._spawned_agents: List[str] = []
 

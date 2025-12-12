@@ -450,10 +450,16 @@ class MonitoredExecutionPhase:
             lines.append(f"{status_icon} {r.step_name}: {r.output[:100]}...")
         return "\n".join(lines)
 
-    def _parse_execution_response(self, response: str) -> Dict[str, Any]:
+    def _parse_execution_response(self, response) -> Dict[str, Any]:
         """Parse execution JSON from response."""
         import json
         import re
+
+        # V9.1: Handle dict response from drivers
+        if isinstance(response, dict):
+            response = response.get("content", response.get("text", str(response)))
+        if not isinstance(response, str):
+            response = str(response)
 
         json_match = re.search(r'\{[\s\S]*\}', response)
         if not json_match:

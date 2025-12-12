@@ -752,16 +752,25 @@ class FSMHandlers:
             # Run Hive Mind (async in sync context)
             hive_start = time.time()
 
-            # Get or create event loop
+            # Run async HiveMind - handle already-running loops
             try:
-                loop = asyncio.get_event_loop()
+                # Try to get running loop - if it exists, we're in async context
+                loop = asyncio.get_running_loop()
+                # Loop is running - use thread to avoid "already running" error
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    # Create coroutine inside thread to avoid "never awaited" warning
+                    def run_hive():
+                        return asyncio.run(
+                            self._orch._hive_mind.process_task(user_input, hive_complexity)
+                        )
+                    future = executor.submit(run_hive)
+                    result = future.result(timeout=300)  # 5 min timeout
             except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            result = loop.run_until_complete(
-                self._orch._hive_mind.process_task(user_input, hive_complexity)
-            )
+                # No running loop - safe to use asyncio.run() directly
+                result = asyncio.run(
+                    self._orch._hive_mind.process_task(user_input, hive_complexity)
+                )
 
             hive_duration = time.time() - hive_start
 
@@ -1079,23 +1088,19 @@ class FSMHandlers:
             self._logger.debug("Fast Path response", {"length": len(content)})
 
             return {
-                "sender": "Gemini",
-                "action_type": "TALK",
-                "content": content,
-                "status": "FINISHED",
+                "agent": "Gemini",
+                "output": content,
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True  # Mark as Fast Path response
             }
 
         except Exception as e:
-            self._logger.warning("Fast Path failed, falling back to static", {"error": str(e)})
+            self._logger.debug("Fast Path failed, falling back to static", {"error": str(e)})
             # Fallback to static response if Gemini fails
             return {
-                "sender": "NEXUS",
-                "action_type": "TALK",
-                "content": "Hello! How can I help you today?",
-                "status": "FINISHED",
+                "agent": "NEXUS",
+                "output": "Hello! How can I help you today?",
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True
@@ -1317,10 +1322,8 @@ class FSMHandlers:
             self._logger.debug("Fast Path (async) response", {"length": len(content)})
 
             return {
-                "sender": "Gemini",
-                "action_type": "TALK",
-                "content": content,
-                "status": "FINISHED",
+                "agent": "Gemini",
+                "output": content,
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True,
@@ -1328,12 +1331,10 @@ class FSMHandlers:
             }
 
         except Exception as e:
-            self._logger.warning("Fast Path (async) failed, falling back to static", {"error": str(e)})
+            self._logger.debug("Fast Path (async) failed, falling back to static", {"error": str(e)})
             return {
-                "sender": "NEXUS",
-                "action_type": "TALK",
-                "content": "Hello! How can I help you today?",
-                "status": "FINISHED",
+                "agent": "NEXUS",
+                "output": "Hello! How can I help you today?",
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True

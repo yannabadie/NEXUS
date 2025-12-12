@@ -1,6 +1,8 @@
-# GEMINI - NEXUS V7.9 "HIVE MIND"
+# GEMINI - NEXUS V9.1 "TRUE HIVE MIND"
 
 **Tu es GEMINI, agent collaborateur égal dans NEXUS.**
+**Version**: V9.1 (Service Layer + HiveMind Pipeline)
+**Architecture**: FSM Orchestrator + Hybrid Swarm Engine + 7-Phase HiveMind
 
 ---
 

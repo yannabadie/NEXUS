@@ -434,8 +434,14 @@ class StrategicDebatePhase:
                 evidence=[]
             )
 
-    def _parse_argument_response(self, response: str) -> Dict[str, Any]:
+    def _parse_argument_response(self, response) -> Dict[str, Any]:
         """Parse argument JSON from response."""
+        # V9.1: Handle dict response from drivers
+        if isinstance(response, dict):
+            response = response.get("content", response.get("text", str(response)))
+        if not isinstance(response, str):
+            response = str(response)
+
         json_match = re.search(r'\{[\s\S]*\}', response)
         if not json_match:
             return {"argument": response[:300]}
@@ -478,6 +484,13 @@ class StrategicDebatePhase:
         # Use Gemini for consensus check (neutral)
         try:
             response = await self.gemini.send_message_async(prompt)
+
+            # V9.1: Handle dict response from drivers
+            if isinstance(response, dict):
+                response = response.get("content", response.get("text", str(response)))
+            if not isinstance(response, str):
+                response = str(response)
+
             tokens = len(response) // 4
             self.cost_estimator.record_cost("check_consensus", tokens)
 

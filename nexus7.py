@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-NEXUS V7.0 "Chrysalis" - The Omniscient REPL
+NEXUS - The Omniscient REPL
 Persistent FSM Orchestrator with Hybrid Drivers
+(Version loaded from .env: NEXUS_VERSION, NEXUS_CODENAME)
 
 Architecture:
 - FSM (Finite State Machine) for persistent state management
@@ -19,20 +20,58 @@ from pathlib import Path
 import importlib.util
 from typing import Dict, Optional
 
-# Fix Windows encoding for emojis
+# Fix Windows ANSI colors
 if sys.platform == 'win32':
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    import os as _os
+    # Set TERM to enable ANSI in libraries that check it
+    if 'TERM' not in _os.environ:
+        _os.environ['TERM'] = 'xterm-256color'
+
+    try:
+        import colorama
+        # Use init() with convert=True to wrap stdout/stderr with ANSI-translating streams
+        # This converts ANSI codes to Windows console API calls
+        colorama.init(convert=True, strip=False)
+    except ImportError:
+        # Fallback: enable VT100 mode via Windows API (requires Windows 10+)
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        stdout_handle = kernel32.GetStdHandle(-11)
+        stderr_handle = kernel32.GetStdHandle(-12)
+        mode = ctypes.c_ulong()
+        if kernel32.GetConsoleMode(stdout_handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(stdout_handle, mode.value | 0x0004)
+        if kernel32.GetConsoleMode(stderr_handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(stderr_handle, mode.value | 0x0004)
+
+# Load version from .env (single source of truth)
+import os
+import logging
+from dotenv import load_dotenv
+load_dotenv()
+NEXUS_VERSION = os.getenv("NEXUS_VERSION", "8.4.0")
+NEXUS_CODENAME = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
+
+# Configure logging EARLY - FORCE override any existing config
+# Default to WARNING to hide INFO messages in production
+_log_level = os.getenv("LOG_LEVEL", "WARNING").upper()
+_log_level_int = getattr(logging, _log_level, logging.WARNING)
+# Force reconfigure by clearing root logger handlers
+logging.root.handlers.clear()
+logging.basicConfig(
+    level=_log_level_int,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True  # Python 3.8+ - forces reconfiguration
+)
 
 # Constantes
-ENV_TEMPLATE = """# NEXUS V7.0 Chrysalis Configuration
+ENV_TEMPLATE = f"""# NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Configuration
 GEMINI_CLI_PATH=gemini
 CLAUDE_CLI_PATH=claude
 MAX_STALEMATE_COUNT=5
 STAGNATION_SIMILARITY_THRESHOLD=0.8
 WORKSPACE_PATH=./workspace
-LOG_LEVEL=INFO
+LOG_LEVEL=WARNING
 UI_VERBOSE=False
 """
 
@@ -134,7 +173,7 @@ def bootstrap():
     Raises:
         SystemExit: Si bootstrap échoue
     """
-    print("🚀 NEXUS V7.0 Chrysalis Bootstrap...")
+    print(f"🚀 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap...")
 
     # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
     # KERNEL.py location:
@@ -258,7 +297,7 @@ def bootstrap():
 
     # Success!
     print("\n" + "="*60)
-    print("✅ NEXUS V7.0 Chrysalis Bootstrap Complete")
+    print(f"✅ NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap Complete")
     print("="*60)
     print(f"\n📊 Gemini")
     print(f"   Model: {gemini_info['model']}")
@@ -340,13 +379,13 @@ async def async_main(
 
 
 def main():
-    """Entry point NEXUS V7.0 Chrysalis"""
+    """Entry point for NEXUS interactive REPL."""
     # V8.4.5: Setup graceful shutdown handlers early
     setup_signal_handlers()
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description="NEXUS V7.0 Chrysalis - The Omniscient REPL",
+        description=f"NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} - The Omniscient REPL",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -382,9 +421,9 @@ Documentation: https://github.com/nexus-ai/nexus-v7
 
     # Handle --version
     if args.version:
-        print("NEXUS V7.0 Chrysalis - The Omniscient REPL")
+        print(f"NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} - The Omniscient REPL")
         print("Persistent FSM Orchestrator with Hybrid Drivers")
-        print("https://github.com/yannabadie/NEXUS (branch: N7C)")
+        print("https://github.com/yannabadie/NEXUS")
         sys.exit(0)
 
     try:
@@ -394,7 +433,7 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         # Handle --verify (exit after bootstrap)
         if args.verify:
             print("\n✅ Bootstrap verification successful!")
-            print("   NEXUS V7.0 Chrysalis is ready to use.")
+            print(f"   NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} is ready to use.")
             sys.exit(0)
 
         # Import config and check pending reviews
@@ -418,7 +457,7 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         ))
 
     except KeyboardInterrupt:
-        print("\n\n👋 NEXUS V7.0 Chrysalis terminated by user")
+        print(f"\n\n👋 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} terminated by user")
         # V8.4.5: Cleanup handled by atexit and signal handlers
         sys.exit(0)
 

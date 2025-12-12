@@ -27,7 +27,8 @@ class ConsoleV7:
         Args:
             verbose: Si True, affiche détails FSM et JSON
         """
-        self.console = Console()
+        # Force terminal mode and disable legacy Windows handling (we use colorama)
+        self.console = Console(force_terminal=True, legacy_windows=False)
         self.verbose = verbose
 
     def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):

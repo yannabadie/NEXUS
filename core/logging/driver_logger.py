@@ -16,6 +16,7 @@ Usage:
 """
 
 import logging
+import os
 import sys
 from typing import Any, Dict, Optional
 
@@ -23,6 +24,12 @@ from typing import Any, Dict, Optional
 # Configure basic logging format
 _LOG_FORMAT = "[%(levelname)s] %(name)s: %(message)s"
 _DATE_FORMAT = "%H:%M:%S"
+
+# Get log level from environment (respects .env LOG_LEVEL)
+def _get_default_level() -> int:
+    """Get default log level from environment."""
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    return getattr(logging, level_name, logging.INFO)
 
 
 def _format_extras(extras: Dict[str, Any]) -> str:
@@ -41,14 +48,16 @@ class DriverLogger:
     and support for structured extra parameters.
     """
 
-    def __init__(self, name: str, level: int = logging.DEBUG):
+    def __init__(self, name: str, level: int = None):
         """
         Initialize driver logger.
 
         Args:
             name: Logger name (e.g., "gemini_driver")
-            level: Logging level (default: DEBUG)
+            level: Logging level (default: from LOG_LEVEL env var or INFO)
         """
+        if level is None:
+            level = _get_default_level()
         self.name = name
         self._logger = logging.getLogger(f"nexus.drivers.{name}")
         self._logger.setLevel(level)

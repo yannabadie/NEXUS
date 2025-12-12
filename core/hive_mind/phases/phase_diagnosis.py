@@ -308,11 +308,17 @@ class FailureDiagnosisPhase:
 
     def _parse_diagnosis_response(
         self,
-        response: str,
+        response,
         gemini_diagnosis: str,
         claude_diagnosis: str
     ) -> FailureDiagnosis:
         """Parse synthesis response into FailureDiagnosis."""
+        # V9.1: Handle dict response from drivers
+        if isinstance(response, dict):
+            response = response.get("content", response.get("text", str(response)))
+        if not isinstance(response, str):
+            response = str(response)
+
         json_match = re.search(r'\{[\s\S]*\}', response)
         if not json_match:
             return self._create_fallback_diagnosis(gemini_diagnosis, claude_diagnosis)

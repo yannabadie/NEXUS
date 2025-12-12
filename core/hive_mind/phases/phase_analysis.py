@@ -232,10 +232,19 @@ class IndependentAnalysisPhase:
             logger.error(f"Claude analysis error: {e}")
             raise
 
-    def _parse_analysis_response(self, response: str, agent_id: str) -> Dict[str, Any]:
-        """Parse agent's JSON response into analysis data."""
+    def _parse_analysis_response(self, response, agent_id: str) -> Dict[str, Any]:
+        """Parse agent's response into analysis data."""
         import json
         import re
+
+        # V9.1: Handle dict response from drivers
+        if isinstance(response, dict):
+            # Driver returned a dict - extract content
+            response = response.get("content", response.get("text", str(response)))
+
+        # Ensure we have a string
+        if not isinstance(response, str):
+            response = str(response)
 
         # Try to extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response)

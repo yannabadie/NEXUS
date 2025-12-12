@@ -381,8 +381,14 @@ class KnowledgeConsolidationPhase:
             claude_reflection=claude_data.get("overall_reflection", "")
         )
 
-    def _parse_reflection(self, response: str) -> Dict[str, Any]:
+    def _parse_reflection(self, response) -> Dict[str, Any]:
         """Parse reflection JSON from response."""
+        # V9.1: Handle dict response from drivers
+        if isinstance(response, dict):
+            response = response.get("content", response.get("text", str(response)))
+        if not isinstance(response, str):
+            response = str(response)
+
         json_match = re.search(r'\{[\s\S]*\}', response)
         if not json_match:
             return {}

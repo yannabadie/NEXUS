@@ -401,10 +401,11 @@ class GeminiDriverV7:
             # This prevents context leakage between unrelated tasks
             resume_flag = ""
             if self._session_active:
-                _logger.warning(
-                    "No session_uuid provided but session was active. "
-                    "Starting FRESH session to prevent context leakage. "
-                    "Pass session_uuid for session persistence."
+                # V9.1: Downgrade to DEBUG - this is expected behavior for sequential FSM paths
+                # where context isolation isn't needed. Only Swarm parallel tasks need UUIDs.
+                _logger.debug(
+                    "Starting FRESH session (no session_uuid). "
+                    "Pass session_uuid for session persistence in parallel tasks."
                 )
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
