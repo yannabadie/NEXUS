@@ -233,6 +233,16 @@ class StrategicDebatePhase:
             )
 
             debate_history.append(argument)
+            
+            # V10: Display debate turn to user (visible output!)
+            speaker_color = "\033[36m" if current_speaker == "gemini" else "\033[32m"  # Cyan for Gemini, Green for Claude
+            reset = "\033[0m"
+            position_icon = "🗣️" if argument.position == "SUPPORT" else ("🤝" if argument.position == "CONCEDE" else "⚔️")
+            print(f"\n{speaker_color}[Turn {turn_number}] {current_speaker.upper()} ({argument.position}) {position_icon}{reset}")
+            print(f"  {argument.argument[:300]}{'...' if len(argument.argument) > 300 else ''}")
+            if argument.concession:
+                print(f"  \033[33m→ Concession: {argument.concession[:100]}{reset}")
+            
             self.context_manager.add_debate_turn(
                 turn_number,
                 current_speaker,

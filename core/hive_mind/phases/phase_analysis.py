@@ -132,6 +132,11 @@ class IndependentAnalysisPhase:
         # Run analyses in parallel
         prompt = ANALYSIS_PROMPT.format(task=task)
 
+        # V10: Show Phase 1 progress to user
+        print("\n\033[95m━━━ PHASE 1: Independent Analysis ━━━\033[0m")
+        print("  \033[36m🔵 Gemini\033[0m analyzing task...")
+        print("  \033[32m🟢 Claude\033[0m analyzing task...")
+        
         gemini_task = self._analyze_with_gemini(prompt)
         claude_task = self._analyze_with_claude(prompt)
 
