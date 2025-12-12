@@ -192,8 +192,9 @@ class DocEngine:
 
     def __init__(self, project_root: Path):
         self.root = project_root
-        self.version = self._read_env_value("NEXUS_VERSION", "0.0.0")
-        self.codename = self._read_env_value("NEXUS_CODENAME", "UNKNOWN")
+        # V9.2 Override: Default to Singularity if .env is inaccessible
+        self.version = self._read_env_value("NEXUS_VERSION", "9.2")
+        self.codename = self._read_env_value("NEXUS_CODENAME", "SINGULARITY")
         self.major_minor = ".".join(self.version.split(".")[:2])
         self.issues: List[Issue] = []
         self.changes: List[Change] = []

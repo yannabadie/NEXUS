@@ -123,6 +123,99 @@ async def get_dependencies():
     except ImportError:
         return {"nodes": [], "edges": []}
 
+    except ImportError:
+        return {"nodes": [], "edges": []}
+
+@app.get("/api/memory/vectors")
+async def get_memory_vectors():
+    """Get semantic memory vectors for visualization."""
+    try:
+        from core.memory.project_memory import ProjectMemory
+        # Initialize memory (read-only mode effectively)
+        memory = ProjectMemory(Path("workspace")) # FIX: Use workspace path
+        vectors = memory.get_all_vectors()
+        
+        data = []
+        for v in vectors:
+            vec = v["vector"]
+            # Naive 3D projection: Use first 3 components (or averages)
+            x = vec[0] * 10
+            y = vec[1] * 10
+            z = vec[2] * 10
+            
+            data.append({
+                "id": v["id"],
+                "pos": [x, y, z],
+                "content": v["metadata"].get("content", "")[:100] + "..."
+            })
+            
+        return data
+    except Exception as e:
+        return {"error": str(e)}
+
+# --- New Endpoints (Phase 34) ---
+
+@app.get("/api/evolve/status")
+async def get_evolution_status():
+    """Get evolution lineage statistics."""
+    try:
+        from core.evolution.lineage import load_lineage, get_evolution_stats
+        workspace = Path("workspace")
+        if not (workspace / "LINEAGE.json").exists():
+             return {"status": "no_lineage", "stats": {}}
+             
+        lineage = load_lineage(workspace)
+        stats = get_evolution_stats(lineage)
+        parent = lineage.get("current_parent", {})
+        
+        return {
+            "status": "active",
+            "generation": lineage.get("generation", 1),
+            "parent": {
+                "id": parent.get("id", "unknown"),
+                "score": parent.get("fitness_score", 0.0),
+                "created_at": parent.get("created_at", "")
+            },
+            "stats": stats
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/budget")
+async def get_budget_status():
+    """Get current budget status."""
+    try:
+        from core.telemetry import BudgetTracker
+        tracker = BudgetTracker(Path("workspace"))
+        return tracker.get_stats()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/doctor")
+async def run_doctor():
+    """Run system diagnostics (read-only checks)."""
+    try:
+        from core.meta.cli_inspector import CLIInspector
+        inspector = CLIInspector()
+        
+        # We can't easily check API keys from here without env vars, 
+        # but we can check workspace health.
+        workspace = Path("workspace")
+        
+        return {
+            "workspace": {
+                "exists": workspace.exists(),
+                "agents": len(list((workspace / "agents").glob("*.json"))) if (workspace / "agents").exists() else 0,
+                "memory": (workspace / "memory").exists()
+            },
+            "system": {
+                "python": "3.13+", # Mock for now
+                "os": os.name
+            }
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

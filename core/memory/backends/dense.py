@@ -374,3 +374,31 @@ class DenseBackend(MemoryBackend):
             "storage_path": str(self._storage_path),
             "dependencies": "lancedb>=0.4.0, sentence-transformers>=2.2.0"
         }
+
+    def get_all_vectors(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all vectors for visualization.
+        
+        Returns:
+            List of dicts with 'id', 'vector', and 'metadata'
+        """
+        if not self._ensure_db() or self._table is None:
+            return []
+            
+        try:
+            # Limit to 1000 for performance in prototype
+            df = self._table.to_pandas()
+            if len(df) > 1000:
+                df = df.sample(1000)
+                
+            results = []
+            for _, row in df.iterrows():
+                results.append({
+                    "id": row["id"],
+                    "vector": row["vector"], # Already a list/array
+                    "metadata": json.loads(row["metadata"])
+                })
+            return results
+        except Exception as e:
+            self._logger.error(f"Failed to get all vectors: {e}")
+            return []

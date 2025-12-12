@@ -1,7 +1,7 @@
-# NEXUS V8.4.0 Architecture Map
+# NEXUS V8.5.1 Architecture Map
 
-**Auto-Generated**: 2025-12-10 16:16
-**Git Commit**: 65acd0f
+**Auto-Generated**: 2025-12-12 07:19
+**Git Commit**: ca6c992
 **Generator**: `scripts/doc_engine.py` V2
 **Codename**: "TRUE HIVE MIND"
 
@@ -86,31 +86,33 @@ graph TD
 
 | Component | Files | LOC | Classes | Functions |
 |-----------|-------|-----|---------|-----------|
-| hive_mind | 19 | 9,435 | 71 | 239 |
-| swarm | 10 | 6,215 | 48 | 182 |
+| hive_mind | 20 | 9,757 | 74 | 248 |
+| swarm | 10 | 6,413 | 48 | 186 |
 | evolution | 11 | 4,744 | 30 | 104 |
-| interface | 3 | 3,477 | 3 | 70 |
-| execution | 3 | 2,808 | 9 | 60 |
-| memory | 8 | 2,749 | 11 | 92 |
-| orchestration | 5 | 2,659 | 6 | 63 |
-| drivers | 6 | 2,427 | 9 | 58 |
+| interface | 12 | 4,329 | 37 | 186 |
+| orchestration | 5 | 3,023 | 6 | 70 |
+| execution | 3 | 2,846 | 9 | 61 |
+| memory | 8 | 2,831 | 11 | 94 |
+| drivers | 6 | 2,562 | 9 | 59 |
 | fsm | 7 | 2,065 | 13 | 86 |
-| security | 4 | 1,585 | 8 | 48 |
+| security | 4 | 1,590 | 8 | 48 |
 | bootstrap | 2 | 1,400 | 5 | 35 |
 | mcp | 3 | 1,393 | 21 | 56 |
+| utils | 8 | 1,379 | 7 | 48 |
+| async_primitives | 4 | 1,253 | 11 | 69 |
 | telemetry | 3 | 1,235 | 12 | 42 |
-| async_primitives | 4 | 1,217 | 11 | 68 |
 | governance | 4 | 1,206 | 7 | 19 |
-| utils | 6 | 1,108 | 4 | 38 |
-| workspace | 3 | 591 | 7 | 26 |
+| workspace | 3 | 592 | 7 | 26 |
+| logging | 2 | 589 | 4 | 41 |
+| ui | 4 | 579 | 5 | 32 |
 | synapse | 2 | 506 | 6 | 23 |
 | notifications | 3 | 461 | 1 | 7 |
-| logging | 1 | 454 | 3 | 31 |
-| agents | 1 | 385 | 5 | 24 |
+| agents | 1 | 456 | 5 | 25 |
+| api | 1 | 344 | 4 | 14 |
 | routing | 1 | 336 | 3 | 11 |
 | meta | 1 | 267 | 1 | 4 |
 | adapters | 1 | 237 | 1 | 4 |
-| ui | 1 | 228 | 1 | 11 |
+| io | 1 | 209 | 1 | 6 |
 | prompts | 1 | 178 | 0 | 6 |
 | reasoning | 0 | 0 | 0 | 0 |
 
@@ -216,19 +218,19 @@ graph TD
 | Task Type | Model | Reasoning |
 |-----------|-------|-----------|
 | BRAINSTORM | Claude Opus 4.5 | Complex reasoning, creativity |
+| REDTEAM | Claude Opus 4.5 | Complex reasoning, creativity |
 | ARCHITECT | Claude Opus 4.5 | Complex reasoning, creativity |
 | EVOLUTION | Claude Opus 4.5 | Complex reasoning, creativity |
-| REDTEAM | Claude Opus 4.5 | Complex reasoning, creativity |
 | TOOL | Claude Sonnet 4.5 | Speed, tool use |
-| FORMAT | Claude Sonnet 4.5 | Speed, tool use |
-| VALIDATION | Claude Sonnet 4.5 | Speed, tool use |
 | SIMPLE | Claude Sonnet 4.5 | Speed, tool use |
-| RESEARCH | Gemini 3 Pro | Large context, analysis |
+| VALIDATION | Claude Sonnet 4.5 | Speed, tool use |
+| FORMAT | Claude Sonnet 4.5 | Speed, tool use |
 | ANALYSIS | Gemini 3 Pro | Large context, analysis |
 | REASONING | Gemini 3 Pro | Large context, analysis |
+| RESEARCH | Gemini 3 Pro | Large context, analysis |
 
-**Claude Tasks**: Opus → brainstorm, architect, evolution, redteam | Sonnet → tool, format, validation, simple
-**Gemini Tasks**: Pro → research, analysis, brainstorm, evolution, reasoning | Flash → tool, format, validation, simple
+**Claude Tasks**: Opus → brainstorm, redteam, architect, evolution | Sonnet → tool, simple, validation, format
+**Gemini Tasks**: Pro → brainstorm, analysis, reasoning, research, evolution | Flash → simple, tool, validation, format
 
 ### Spawned Agent Provider Selection
 
@@ -450,6 +452,7 @@ graph TD
 
 | Handler | Purpose |
 |---------|---------|
+| `handle_idle_async()` | Non-blocking handler |
 | `handle_brainstorming_async()` | Non-blocking handler |
 | `handle_validating_cfl_async()` | Non-blocking handler |
 | `handle_fast_path_async()` | Non-blocking handler |
@@ -776,13 +779,13 @@ The KERNEL.py file is the **immutable alignment core** that:
 | `TaskAnalysis` | complexity, domains, primary_domain, requires_web, requires_code_execution (+7 more) | `core\swarm\task_analyzer.py` |
 
 
-### All Enums (35 total)
+### All Enums (37 total)
 
-`AgentCapability`, `AgentProvider`, `AgentProvider`, `CollaborationMode`, `CommandType`, `ContextPriority`, `CostCategory`, `EventType`, `EvolutionPhaseStatus`, `ExecutionStatus`, `FailureCategory`, `FailureType`, `HealthState`, `HiveMindState`, `HivePhase`, `IssueSeverity`, `LogLevel`, `MCPContentType`, `MergeStrategyType`, `MetricType`, `NegotiationStatus`, `OrchestratorState`, `PredictionLevel`, `ProcessState`, `RetentionDecision` (+10 more)
+`AgentCapability`, `AgentProvider`, `AgentProvider`, `CollaborationMode`, `CommandStatus`, `CommandType`, `ContextPriority`, `CostCategory`, `EventType`, `EvolutionPhaseStatus`, `ExecutionStatus`, `FailureCategory`, `FailureType`, `HealthState`, `HiveMindState`, `HivePhase`, `IssueSeverity`, `LogLevel`, `MCPContentType`, `MergeStrategyType`, `MetricType`, `NegotiationStatus`, `OrchestratorState`, `PredictionLevel`, `ProcessState` (+12 more)
 
-### All Dataclasses (131 total)
+### All Dataclasses (136 total)
 
-`APICallMetric`, `AgentArchitecture`, `AgentAssignment`, `AgentDebateMetrics`, `AgentDescriptor`, `AgentInvocationResult`, `AgentPool`, `AgentProfile`, `AgentResponse`, `AgentRetention`, `AgentSession`, `AgentSpec`, `AgentToolDefinition`, `AgentToolResult`, `AnalysisComparison`, `AnalysisPhaseResult`, `ArchitecturePhaseResult`, `ArchiveResult`, `AsyncClaudeDriverConfig`, `AsyncGeminiDriverConfig`, `AsyncProcessHandle`, `AutoPromotionDecision`, `BlackboardEntry`, `BlacklistedStrategy`, `BrainstormResult`, `BreakpointOption`, `BreakpointRequest`, `BreakpointResponse`, `BudgetState`, `CancellationToken`...
+`APICallMetric`, `AgentArchitecture`, `AgentAssignment`, `AgentBid`, `AgentDebateMetrics`, `AgentDescriptor`, `AgentInvocationResult`, `AgentPool`, `AgentProfile`, `AgentResponse`, `AgentRetention`, `AgentSession`, `AgentSpec`, `AgentToolDefinition`, `AgentToolResult`, `AnalysisComparison`, `AnalysisPhaseResult`, `ArchitecturePhaseResult`, `ArchiveResult`, `AsyncClaudeDriverConfig`, `AsyncGeminiDriverConfig`, `AsyncProcessHandle`, `AutoPromotionDecision`, `BlackboardEntry`, `BlacklistedStrategy`, `BrainstormResult`, `BreakpointOption`, `BreakpointRequest`, `BreakpointResponse`, `BudgetState`...
 
 
 ## 13. STATISTICS
@@ -791,54 +794,54 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 | Metric | Value |
 |--------|-------|
-| **Total Components** | 27 |
-| **Total Python Files** | 113 |
-| **Total Lines of Code** | 49,366 |
-| **Total Classes** | 296 |
-| **Total Functions** | 1,407 |
-| **Total Dataclasses** | 131 |
-| **Total Enums** | 35 |
+| **Total Components** | 29 |
+| **Total Python Files** | 131 |
+| **Total Lines of Code** | 52,780 |
+| **Total Classes** | 346 |
+| **Total Functions** | 1,610 |
+| **Total Dataclasses** | 136 |
+| **Total Enums** | 37 |
 
 ### Test Coverage
 
 | Metric | Value |
 |--------|-------|
-| **Test Functions** | 1361 |
+| **Test Functions** | 1462 |
 
 ### Lines of Code by Component
 
 ```
-hive_mind       | ############################## 9,435
-swarm           | ################### 6,215
-evolution       | ############### 4,744
-interface       | ########### 3,477
-execution       | ######## 2,808
-memory          | ######## 2,749
-orchestration   | ######## 2,659
-drivers         | ####### 2,427
+hive_mind       | ############################## 9,757
+swarm           | ################### 6,413
+evolution       | ############## 4,744
+interface       | ############# 4,329
+orchestration   | ######### 3,023
+execution       | ######## 2,846
+memory          | ######## 2,831
+drivers         | ####### 2,562
 fsm             | ###### 2,065
-security        | ##### 1,585
+security        | #### 1,590
 bootstrap       | #### 1,400
 mcp             | #### 1,393
+utils           | #### 1,379
+async_primitives | ### 1,253
 telemetry       | ### 1,235
-async_primitives | ### 1,217
-governance      | ### 1,206
 ```
 
 ### Component Distribution
 
 | Component | % of Codebase |
 |-----------|---------------|
-| hive_mind | 19.1% |
-| swarm | 12.6% |
-| evolution | 9.6% |
-| interface | 7.0% |
-| execution | 5.7% |
-| memory | 5.6% |
-| orchestration | 5.4% |
+| hive_mind | 18.5% |
+| swarm | 12.2% |
+| evolution | 9.0% |
+| interface | 8.2% |
+| orchestration | 5.7% |
+| execution | 5.4% |
+| memory | 5.4% |
 | drivers | 4.9% |
-| fsm | 4.2% |
-| security | 3.2% |
+| fsm | 3.9% |
+| security | 3.0% |
 
 ## 14. ANTI-HALLUCINATION REFERENCE
 
@@ -937,4 +940,4 @@ python scripts/doc_engine.py --full --apply
 
 *Generated by NEXUS Documentation Engine V2*
 *Source: `scripts/doc_engine.py`*
-*Version: 8.4.0 "TRUE HIVE MIND"*
+*Version: 8.5.1 "TRUE HIVE MIND"*

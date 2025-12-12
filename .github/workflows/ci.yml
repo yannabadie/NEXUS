@@ -61,6 +61,7 @@ jobs:
           python -m pytest tests/e2e/test_architect_spawning.py -v
           python -m pytest tests/e2e/test_spawn_execution.py -v
           python -m pytest tests/e2e/test_stress_scenarios.py -v
+          python -m pytest tests/e2e/test_singularity_integration.py -v
         timeout-minutes: 30
 
       - name: Run UI Smoke Test

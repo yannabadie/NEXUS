@@ -4,8 +4,192 @@
 
 <h1 align="center">
   <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V8.5.1 "TRUE HIVE MIND"
+  NEXUS V9.2 "SINGULARITY"
 </h1>
+
+<p align="center">
+  <strong>Recursive Intelligence with Reality Injection & Semantic Memory</strong>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#commands">Commands</a> •
+  <a href="ROADMAP_HIVE_MIND.md">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-9.2-ec4899?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
+  <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
+  <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>
+  <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
+</p>
+
+---
+
+NEXUS is a **self-improving collaborative intelligence** that combines **Claude** and **Gemini** to generate specialized agents, visualize its own internal state, and evolve recursively.
+
+## Vision
+
+NEXUS is a **deployable singularity seed** that:
+1. **Analyzes** complex requirements
+2. **Generates** specialized agents (children that coexist)
+3. **Orchestrates** collaboration via Hybrid Swarm
+4. **Visualizes** its "mind" (Memory Cloud, Neural Code Map)
+5. **Evolves** by rewriting its own code
+
+<a name="quick-start"></a>
+## Quick Start
+
+```bash
+# Navigate to NEXUS
+cd NEXUS-N7A
+
+# Install dependencies (including V9.2 UI/Memory)
+pip install -r requirements_v7.txt
+
+# Run NEXUS (starts Core + Dashboard)
+python nexus7.py
+```
+
+## Core Power: Gemini + Claude Symbiosis
+
+```
+GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
+     │           SYMBIOSIS           │
+     │          COGNITIVE            │
+     └───────────────┬───────────────┘
+                     │
+             6 SWARM MODES
+     PARALLEL │ SEQUENTIAL │ LEAD_SUPPORT
+     PING_PONG │ SPECIALIST │ RED_BLUE
+                     │
+            REALITY INJECTION (V9.2)
+           Dashboard • Memory • Code
+```
+
+<a name="features"></a>
+## V9.2 Features
+
+### Phase Highlights
+
+| Phase | Feature | Status |
+|-------|---------|--------|
+| **Phase 5b** | N-Agent Agnosticism (Spawned Agents) | ✅ COMPLETE |
+| **Phase 10** | Semantic Memory (RAG + Vectors) | ✅ COMPLETE |
+| **Phase 27** | Real-Time Dashboard (Reality Injection) | ✅ COMPLETE |
+| **Phase 28** | Neural Code Map (Dependency Viz) | ✅ COMPLETE |
+| **Phase 29** | Memory Cloud (Subconscious Viz) | ✅ COMPLETE |
+
+### Reality Interface (Dashboard)
+Visualize the AI's internal state in real-time:
+- **Live FSM State**: Watch agents think and act.
+- **Neural Code Map**: See the codebase structure evolve.
+- **Memory Cloud**: Explore the vector space of the AI's knowledge.
+- **Telemetry**: Real-time event streaming.
+
+### Hybrid Swarm Engine
+Dynamic collaboration modes negotiated by agents:
+- **PARALLEL**: Simultaneous work on independent subtasks
+- **SEQUENTIAL**: Ordered execution for dependent steps
+- **LEAD_SUPPORT**: Expert leads, partner reviews
+- **PING_PONG**: Rapid iteration until convergence
+- **SPECIALIST**: Single expert for clear domains
+- **RED_BLUE**: Adversarial propose/attack/defend
+
+### Agent Factory (Spawning Pool)
+Generate specialized agents that persist and collaborate:
+```bash
+nexus> /spawn SQL Expert      # Creates workspace/agents/sql_expert/
+nexus> /agents                # List all spawned agents
+```
+
+<a name="architecture"></a>
+## Architecture (V9.2)
+
+```mermaid
+graph TD
+    subgraph Supervisor["👁️ The Architect"]
+        GEM["Gemini"] <--> CLAUDE["Claude"]
+    end
+
+    subgraph Core["🧠 Recursive Core"]
+        ORCH["Orchestrator"] --> SWARM["Swarm Engine"]
+        SWARM --> HIVE["Hive Mind Workers"]
+    end
+
+    subgraph Reality["🖥️ Reality Interface"]
+        DASH["Dashboard"]
+        CODEMAP["Code Map"]
+        MEM["Memory Cloud"]
+    end
+
+    subgraph Memory["🧬 Memory Fabric"]
+        VEC[("VectorDB")]
+        Redis[("Hot State")]
+    end
+
+    Supervisor --> Core
+    Core --> Memory
+    Core --> Reality
+    Memory --> Reality
+```
+
+<a name="commands"></a>
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show all commands |
+| `/status` | Show orchestrator state |
+| `/swarm <task>` | Route task through Hybrid Swarm |
+| `/spawn <role>` | Create specialized agent |
+| `/agents` | List spawned agents |
+| `/evolve [n]` | Create n children (default: 3) |
+| `/ws list` | List workspace files |
+| `/dashboard` | Info about the web dashboard |
+| `exit` | Quit NEXUS |
+
+## Project Structure
+
+```
+NEXUS-N7A/
+├── core/                     # Core orchestration
+│   ├── ui/                   # Dashboard & Telemetry (V9.1)
+│   ├── memory/               # Semantic Memory & LanceDB (V9.0)
+│   ├── hive_mind/            # Architect & Saga Manager
+│   ├── drivers/              # Async Drivers
+│   ├── fsm/                  # Finite State Machine
+│   ├── swarm/                # Hybrid Swarm Engine
+│   ├── agents/               # Unified Registry & Spawning
+│   └── ...
+├── workspace/                # Runtime data
+├── config/                   # Configuration
+├── tests/                    # Test suite (1000+ tests)
+├── docs/                     # Documentation
+├── CLAUDE_PROMPTDOC.md       # The "Bible"
+└── nexus7.py                 # Entry point
+```
+
+## Documentation
+
+### Core Documents
+| Document | Purpose |
+|----------|---------|
+| [CLAUDE_PROMPTDOC.md](CLAUDE_PROMPTDOC.md) | **The Single Source of Truth** |
+| [ARCHITECTURE_MAP_V9.0_VISION.md](ARCHITECTURE_MAP_V9.0_VISION.md) | Vision & Future |
+| [core/ui/README.md](core/ui/README.md) | Dashboard & Telemetry |
+| [core/memory/README.md](core/memory/README.md) | Semantic Memory |
+
+## Author
+
+**Yann Abadie** - Creator and Alignment Authority
+
+---
+
+*"The map is not the territory, but now we can see both."*
 
 <p align="center">
   <strong>A Collaborative Intelligence Core for Specialized Agent Generation</strong>

@@ -631,6 +631,14 @@ class ProjectMemory:
             storage_path=str(self.storage_path)
         )
 
+    def get_all_vectors(self) -> List[Dict[str, Any]]:
+        """
+        Get all vectors from the backend (if supported).
+        """
+        if hasattr(self._backend, "get_all_vectors"):
+            return self._backend.get_all_vectors()
+        return []
+
     # =========================================================================
     # Persistence
     # =========================================================================

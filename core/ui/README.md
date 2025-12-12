@@ -1,38 +1,43 @@
-# UI Module
+# Module: core/ui
 
-Console output handling for NEXUS V7.
+## Rôle dans l'Architecture NEXUS V9.2
+Ce module gère l'interface "Réalité" de NEXUS, permettant de visualiser l'état interne du système en temps réel. Il transforme NEXUS d'une "boîte noire" en une "boîte de verre".
 
-## Overview
+## Composants Clés
+*   `dashboard_server.py`: Serveur FastAPI (Backend). Sert les fichiers statiques et les endpoints API.
+*   `telemetry.py`: Client asynchrone (Singleton) pour émettre des événements depuis le Core vers le Dashboard.
+*   `code_mapper.py`: Analyseur statique (AST) pour générer le graphe de dépendances (Neural Code Map).
+*   `static/`: Frontend (HTML/JS/CSS) utilisant Cytoscape.js et WebSockets.
 
-Provides a clean, rich-text interface for the REPL using the `rich` library.
+## Architecture & Flux
+*   **Entrées :**
+    *   Événements FSM (`TASK_STARTED`, `TOOL_USE`) via `TelemetryClient`.
+    *   Modifications de fichiers via `watchdog` (dans `dashboard_server.py`).
+    *   Requêtes API (`/api/agents`, `/api/memory/vectors`).
+*   **Sorties :**
+    *   Flux WebSocket (`/ws/logs`) vers le navigateur.
+    *   JSON pour les graphes et nuages de points.
+*   **Configuration :**
+    *   Port par défaut : 8000 (configurable via `uvicorn`).
 
-## Architecture
+## Protocole WebSocket
+Les messages sont des objets JSON avec un champ `type` :
+*   `log`: Message textuel standard.
+*   `TASK_STARTED`: Début d'une tâche (`data: { task, complexity }`).
+*   `TOOL_USE`: Utilisation d'un outil (`data: { agent, tool, args }`).
+*   `TASK_COMPLETED`: Fin de tâche.
+*   `FILE_EVENT`: Modification système de fichiers (`data: { event, path }`).
 
-Wraps `rich.console.Console` to provide standardized formatting for:
-- Agent messages (colored by agent)
-- Tool outputs (panels)
-- System alerts (bold/red)
-- Tables (status, stats)
+## Dépendances
+*   **Utilise :** `fastapi`, `uvicorn`, `watchdog`, `core.agents`, `core.memory`.
+*   **Utilisé par :** `core.orchestration.fsm_handlers` (via `telemetry`).
 
-## Files
-
-| File | Purpose | Key Class |
-|------|---------|-----------|
-| `console_v7.py` | Main UI logic | `ConsoleV7` |
-| `__init__.py` | Exports | - |
-
-## Key Features
-
-- **Streaming Support**: (V7.5) Methods to print chunks of text for real-time feedback.
-- **Themes**: Consistent color coding (Gemini=Blue, Claude=Orange).
-- **Spinners**: Visual feedback during long operations.
-
-## Usage
-
-```python
-from core.ui.console_v7 import ConsoleV7
-
-console = ConsoleV7()
-console.print_agent_message("Claude", "Hello!")
-console.print_tool_output("read", "File content...")
+## Diagramme
+```mermaid
+graph LR
+    Core[NEXUS Core] -->|Telemetry| Server[Dashboard Server]
+    FS[FileSystem] -->|Watchdog| Server
+    Server -->|WebSocket| Browser[Frontend UI]
+    Browser -->|API Call| Server
+    Server -->|Query| Memory[Semantic Memory]
 ```

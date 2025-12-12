@@ -21,6 +21,9 @@ from typing import Dict, Optional, List, Protocol, Any, runtime_checkable
 from enum import Enum
 from pathlib import Path
 
+# Default agents directory (can be patched for testing)
+AGENTS_DIR = Path("workspace/agents")
+
 
 class AgentProvider(Enum):
     """Supported agent providers"""
@@ -101,7 +104,8 @@ class UnifiedAgentRegistry:
         next_agent = registry.get_alternate("gemini")  # "claude"
     """
 
-    def __init__(self) -> None:
+    def __init__(self, agents_dir: Path = AGENTS_DIR) -> None:
+        self.agents_dir = agents_dir
         self._agents: Dict[str, AgentDescriptor] = {}
         self._drivers: Dict[str, DriverProtocol] = {}
         self._aliases: Dict[str, str] = {}  # "Gemini" → "gemini"
@@ -379,10 +383,7 @@ class UnifiedAgentRegistry:
             capabilities = [AgentCapability.GENERAL]
 
         # Define path
-        # Assuming running from project root, or relative to this file?
-        # Best to use absolute path relative to project root if possible, 
-        # or rely on a config. For now, let's assume a standard location.
-        workspace_dir = Path("workspace/agents")
+        workspace_dir = self.agents_dir
         workspace_dir.mkdir(parents=True, exist_ok=True)
         config_path = workspace_dir / f"{agent_id}.json"
 

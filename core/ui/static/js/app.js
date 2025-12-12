@@ -7,6 +7,7 @@ const WS_URL = `ws://${window.location.host}/ws/logs`;
 // --- STATE ---
 let cy = null;
 let agents = [];
+let controlPanelVisible = false;
 
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchFiles();
     connectWebSocket();
     setupUI();
+
+    // Start polling for control panel stats
+    setInterval(updateControlPanel, 5000);
+    updateControlPanel(); // Initial call
 });
 
 // --- GRAPH (Cytoscape.js) ---
@@ -166,6 +171,175 @@ function renderCodeMap(data) {
         .update();
 
     cy.layout({ name: 'cose', animate: true }).run();
+}
+
+// --- CONTROL PANEL (V9.2) ---
+function toggleControlPanel() {
+    controlPanelVisible = !controlPanelVisible;
+    const panel = document.getElementById('control-panel');
+    const btn = document.getElementById('btn-control');
+
+    if (controlPanelVisible) {
+        panel.classList.remove('hidden');
+        btn.classList.add('active');
+        updateControlPanel();
+    } else {
+        panel.classList.add('hidden');
+        btn.classList.remove('active');
+    }
+}
+
+async function updateControlPanel() {
+    if (!controlPanelVisible) return;
+
+    fetchEvolutionStats();
+    fetchBudgetStats();
+    fetchDoctorStats();
+}
+
+async function fetchEvolutionStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/evolve/status`);
+        const data = await res.json();
+
+        if (data.status === "active") {
+            document.getElementById('evo-gen').textContent = data.generation;
+            document.getElementById('evo-score').textContent = data.parent.score.toFixed(2);
+            document.getElementById('evo-status').textContent = "Active";
+            document.getElementById('evo-status').style.color = "#00ff00";
+        } else {
+            document.getElementById('evo-status').textContent = "No Lineage";
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function fetchBudgetStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/budget`);
+        const data = await res.json();
+
+        if (!data.error) {
+            const spent = data.total_cost || 0;
+            const limit = data.limit || 10.0; // Default mock
+            const remaining = Math.max(0, limit - spent);
+            const percent = Math.min(100, (spent / limit) * 100);
+
+            document.getElementById('budget-spent').textContent = `$${spent.toFixed(2)}`;
+            document.getElementById('budget-remaining').textContent = `$${remaining.toFixed(2)}`;
+            document.getElementById('budget-bar').style.width = `${percent}%`;
+
+            if (percent > 90) {
+                document.getElementById('budget-bar').style.backgroundColor = '#ff4444';
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function fetchDoctorStats() {
+    try {
+        const res = await fetch(`${API_BASE}/api/doctor`);
+        const data = await res.json();
+
+        const list = document.getElementById('doctor-list');
+        list.innerHTML = '';
+
+        if (data.workspace) {
+            addCheckItem(list, "Workspace Connected", data.workspace.exists);
+            addCheckItem(list, `Agents Found (${data.workspace.agents})`, data.workspace.agents > 0);
+            addCheckItem(list, "Memory Store", data.workspace.memory);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function addCheckItem(list, text, status) {
+    const li = document.createElement('li');
+    li.innerHTML = `<i class="fa-solid ${status ? 'fa-check' : 'fa-times'}" style="color: ${status ? '#00ff00' : '#ff4444'}"></i> ${text}`;
+    list.appendChild(li);
+}
+
+async function triggerEvolution() {
+    if (!confirm("Start Evolution Cycle? This will consume significant tokens.")) return;
+    logToTerminal("🧬 Evolution Triggered (Simulation)", "system");
+    // In real implementation: await fetch(`${API_BASE}/api/evolve/trigger`, { method: 'POST' });
+}
+
+async function triggerSwarm() {
+    const task = document.getElementById('swarm-task').value;
+    if (!task) return;
+
+    logToTerminal(`🐝 Swarm Triggered: ${task}`, "system");
+    document.getElementById('swarm-task').value = '';
+    // In real implementation: await fetch(`${API_BASE}/api/swarm/trigger`, { method: 'POST', body: JSON.stringify({task}) });
+}
+
+// --- MEMORY CLOUD (V9.2) ---
+let memoryCloudVisible = false;
+
+async function toggleMemoryCloud() {
+    memoryCloudVisible = !memoryCloudVisible;
+    const btn = document.getElementById('btn-memory-cloud');
+    if (btn) btn.classList.toggle('active');
+
+    if (memoryCloudVisible) {
+        try {
+            const response = await fetch(`${API_BASE}/api/memory/vectors`);
+            const data = await response.json();
+            if (data.error) {
+                console.error(data.error);
+                return;
+            }
+            renderMemoryCloud(data);
+        } catch (e) {
+            console.error(e);
+        }
+    } else {
+        // Remove memory nodes
+        cy.elements('[type="memory"]').remove();
+        cy.layout({ name: 'cose', animate: true }).run();
+    }
+}
+
+function renderMemoryCloud(data) {
+    // Hide other elements temporarily? No, overlay is cooler.
+
+    const nodes = data.map(item => ({
+        data: {
+            id: 'mem_' + item.id,
+            label: '',
+            type: 'memory',
+            content: item.content
+        },
+        position: {
+            x: item.pos[0] * 50 + 500, // Offset to separate from main graph
+            y: item.pos[1] * 50
+        }
+    }));
+
+    cy.add(nodes);
+
+    // Style memory nodes
+    cy.style()
+        .selector('node[type="memory"]')
+        .style({
+            'background-color': '#00ffcc',
+            'width': 5,
+            'height': 5,
+            'opacity': 0.8,
+            'label': ''
+        })
+        .update();
+
+    // Add hover effect
+    cy.on('mouseover', 'node[type="memory"]', function (evt) {
+        const node = evt.target;
+        logToTerminal(`🧠 MEMORY: ${node.data('content')}`, 'system');
+    });
 }
 
 function showAgentDetails(data) {

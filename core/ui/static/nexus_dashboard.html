@@ -20,6 +20,9 @@
                 <i class="fa-solid fa-network-wired"></i> NEXUS <span class="version">V9.0 SINGULARITY</span>
             </div>
             <div class="controls">
+                <button id="btn-control" class="btn" onclick="toggleControlPanel()">
+                    <i class="fa-solid fa-sliders"></i> Control Panel
+                </button>
                 <button id="btn-code-map" class="btn" onclick="toggleCodeMap()">
                     <i class="fa-solid fa-code-branch"></i> Code Map
                 </button>
@@ -63,6 +66,61 @@
                 </div>
             </aside>
         </main>
+
+        <!-- CONTROL PANEL (Hidden by default) -->
+        <section id="control-panel" class="control-panel hidden">
+            <div class="panel-header">
+                <h2><i class="fa-solid fa-sliders"></i> CONTROL CENTER</h2>
+                <button class="btn-close" onclick="toggleControlPanel()"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="control-grid">
+                <!-- EVOLUTION WIDGET -->
+                <div class="widget evolution-widget">
+                    <h3><i class="fa-solid fa-dna"></i> Evolution</h3>
+                    <div id="evolution-stats" class="stats-box">
+                        <div class="stat-item"><span class="label">Generation:</span> <span id="evo-gen">-</span></div>
+                        <div class="stat-item"><span class="label">Parent Score:</span> <span id="evo-score">-</span>
+                        </div>
+                        <div class="stat-item"><span class="label">Status:</span> <span id="evo-status">Idle</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="triggerEvolution()">
+                        <i class="fa-solid fa-flask"></i> Evolve (3 Children)
+                    </button>
+                </div>
+
+                <!-- BUDGET WIDGET -->
+                <div class="widget budget-widget">
+                    <h3><i class="fa-solid fa-coins"></i> Budget</h3>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="budget-bar" style="width: 0%"></div>
+                    </div>
+                    <div id="budget-stats" class="stats-box">
+                        <div class="stat-item"><span class="label">Spent Today:</span> <span
+                                id="budget-spent">$0.00</span></div>
+                        <div class="stat-item"><span class="label">Remaining:</span> <span
+                                id="budget-remaining">$0.00</span></div>
+                    </div>
+                </div>
+
+                <!-- DIAGNOSTICS WIDGET -->
+                <div class="widget doctor-widget">
+                    <h3><i class="fa-solid fa-user-doctor"></i> System Health</h3>
+                    <ul id="doctor-list" class="check-list">
+                        <li><i class="fa-solid fa-spinner fa-spin"></i> Loading...</li>
+                    </ul>
+                </div>
+
+                <!-- SWARM TRIGGER -->
+                <div class="widget swarm-widget">
+                    <h3><i class="fa-solid fa-users-gear"></i> Swarm Trigger</h3>
+                    <input type="text" id="swarm-task" placeholder="Describe a task..." class="input-dark">
+                    <button class="btn btn-accent" onclick="triggerSwarm()">
+                        <i class="fa-solid fa-bolt"></i> Launch Swarm
+                    </button>
+                </div>
+            </div>
+        </section>
 
         <!-- BOTTOM: TERMINAL / LOGS -->
         <footer class="terminal-footer">
