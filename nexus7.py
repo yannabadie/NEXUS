@@ -20,29 +20,24 @@ from pathlib import Path
 import importlib.util
 from typing import Dict, Optional
 
-# Fix Windows ANSI colors
+# Fix Windows ANSI colors - V9.1.1: Simplified approach
+# Let Rich handle ANSI auto-detection. Only enable VT100 mode via Windows API.
+# DO NOT use colorama - it conflicts with Rich's output handling.
 if sys.platform == 'win32':
-    import os as _os
-    # Set TERM to enable ANSI in libraries that check it
-    if 'TERM' not in _os.environ:
-        _os.environ['TERM'] = 'xterm-256color'
-
+    import ctypes
     try:
-        import colorama
-        # Use init() with convert=True to wrap stdout/stderr with ANSI-translating streams
-        # This converts ANSI codes to Windows console API calls
-        colorama.init(convert=True, strip=False)
-    except ImportError:
-        # Fallback: enable VT100 mode via Windows API (requires Windows 10+)
-        import ctypes
+        # Enable VT100 mode (ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004)
+        # This allows Windows 10+ terminals to interpret ANSI codes natively
         kernel32 = ctypes.windll.kernel32
-        stdout_handle = kernel32.GetStdHandle(-11)
-        stderr_handle = kernel32.GetStdHandle(-12)
+        stdout_handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        stderr_handle = kernel32.GetStdHandle(-12)  # STD_ERROR_HANDLE
         mode = ctypes.c_ulong()
         if kernel32.GetConsoleMode(stdout_handle, ctypes.byref(mode)):
             kernel32.SetConsoleMode(stdout_handle, mode.value | 0x0004)
         if kernel32.GetConsoleMode(stderr_handle, ctypes.byref(mode)):
             kernel32.SetConsoleMode(stderr_handle, mode.value | 0x0004)
+    except Exception:
+        pass  # Non-critical: Rich will fallback gracefully
 
 # Load version from .env (single source of truth)
 import os
@@ -312,6 +307,14 @@ def bootstrap():
     print(f"   Version: {claude_info.get('version', 'Unknown')}")
 
     print("\n" + "="*60)
+
+    # V9.1.1: Windows Terminal recommendation for best experience
+    if sys.platform == 'win32':
+        # Check if running in Windows Terminal (has WT_SESSION env var)
+        if not os.environ.get('WT_SESSION'):
+            print("\n💡 Tip: For best colors/Unicode, use Windows Terminal:")
+            print("   https://aka.ms/terminal")
+
     print()
 
     return gemini_info, claude_info

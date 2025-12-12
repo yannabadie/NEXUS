@@ -27,8 +27,11 @@ class ConsoleV7:
         Args:
             verbose: Si True, affiche détails FSM et JSON
         """
-        # Force terminal mode and disable legacy Windows handling (we use colorama)
-        self.console = Console(force_terminal=True, legacy_windows=False)
+        # V9.1.1: Let Rich auto-detect terminal capabilities
+        # - Don't force legacy_windows=False (breaks on conhost.exe)
+        # - Don't force force_terminal=True (let Rich decide)
+        # Rich will use VT100 if available, fallback to Windows API otherwise
+        self.console = Console()
         self.verbose = verbose
 
     def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):
