@@ -113,6 +113,13 @@ from .task_completion_validator import (
     get_adaptive_max_rounds
 )
 
+# Service Layer (V9.1)
+from .service import (
+    SwarmService,
+    SwarmResult as SwarmServiceResult,
+    SwarmStatus,
+)
+
 __all__ = [
     # Agent Metrics
     "AgentInvocationResult",
@@ -182,4 +189,9 @@ __all__ = [
     "CompletionCriteria",
     "ValidationResult",
     "get_adaptive_max_rounds",
+
+    # Service Layer (V9.1)
+    "SwarmService",
+    "SwarmServiceResult",
+    "SwarmStatus",
 ]

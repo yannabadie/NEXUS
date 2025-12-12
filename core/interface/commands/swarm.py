@@ -1,11 +1,43 @@
 """
-V9 Swarm Commands - /swarm, /swarm-status, /swarm-fsm
+V9.1 Swarm Commands - /swarm, /swarm-status, /swarm-fsm
 
 These commands manage the Hybrid Swarm Engine for multi-agent collaboration.
+Uses SwarmService for business logic (Service Layer Pattern).
 """
 
 from typing import List
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+def _get_swarm_service(context: CommandContext):
+    """
+    Get or create SwarmService from context.
+
+    SwarmService requires orchestrator, console, and config.
+    """
+    from core.swarm import SwarmService
+
+    # Try to get cached service from extras
+    service = context.extras.get("swarm_service")
+    if service:
+        return service
+
+    # Get config from extras or orchestrator
+    config = context.config
+    if not config and hasattr(context.orchestrator, 'config'):
+        config = context.orchestrator.config
+
+    if not config:
+        # Fallback: try to get from repl if available
+        repl = context.extras.get("repl")
+        if repl and hasattr(repl, 'config'):
+            config = repl.config
+
+    return SwarmService(
+        orchestrator=context.orchestrator,
+        console=context.console,
+        config=config
+    )
 
 
 class SwarmCommand(Command):
@@ -28,14 +60,7 @@ class SwarmCommand(Command):
         return "/swarm <task description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute swarm command using SwarmService."""
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -43,11 +68,19 @@ class SwarmCommand(Command):
             )
 
         try:
-            repl.run_swarm_task(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_swarm_service(context)
+            result = service.run_task(args.strip())
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Swarm task failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -71,16 +104,10 @@ class SwarmStatusCommand(Command):
         return "Show Swarm Engine status and DyLAN metrics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm-status command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute swarm-status command using SwarmService."""
         try:
-            repl.show_swarm_status()
+            service = _get_swarm_service(context)
+            service.get_status()
             return CommandResult(
                 status=CommandStatus.SUCCESS,
                 message=""
@@ -105,21 +132,14 @@ class SwarmFSMCommand(Command):
 
     @property
     def description(self) -> str:
-        return "Execute task via FSM states (SWARM_ANALYZING -> NEGOTIATING -> EXECUTING)"
+        return "Execute task via FSM states (debug mode)"
 
     @property
     def usage(self) -> str:
         return "/swarm-fsm <task description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm-fsm command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute swarm-fsm command using SwarmService."""
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -127,11 +147,19 @@ class SwarmFSMCommand(Command):
             )
 
         try:
-            repl.run_swarm_task_fsm(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_swarm_service(context)
+            result = service.run_task_fsm(args.strip())
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Swarm FSM task failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,

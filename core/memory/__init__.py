@@ -1,5 +1,5 @@
 """
-NEXUS V7.9 Memory Module
+NEXUS V9.1 Memory Module
 
 Memory systems for NEXUS:
 - AutoMemory: Learning from task execution patterns (V7.5)
@@ -7,6 +7,7 @@ Memory systems for NEXUS:
 - ProjectMemory: Project knowledge RAG (V7.8 Phase 10c)
 - Backend Abstraction: Pluggable retrieval backends (V7.9 Phase 10f)
 - Dense Embeddings: Semantic retrieval (V7.9 Phase 10g)
+- MemoryService: Service Layer for memory operations (V9.1)
 """
 
 from .auto_memory import AutoMemory, get_auto_memory, MemoryEntry
@@ -18,6 +19,15 @@ from .types import Chunk, IndexStats
 from .backends import (
     MemoryBackend, TfidfBackend, Bm25Backend, DenseBackend,
     BM25S_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
+)
+
+# V9.1: Service Layer
+from .service import (
+    MemoryService,
+    MemoryStatus,
+    LearnResult,
+    ForgetResult,
+    QueryResult,
 )
 
 __all__ = [
@@ -41,4 +51,10 @@ __all__ = [
     "BM25S_AVAILABLE",
     "LANCEDB_AVAILABLE",
     "SENTENCE_TRANSFORMERS_AVAILABLE",
+    # Service Layer (V9.1)
+    "MemoryService",
+    "MemoryStatus",
+    "LearnResult",
+    "ForgetResult",
+    "QueryResult",
 ]

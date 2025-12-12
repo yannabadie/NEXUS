@@ -62,7 +62,18 @@
       "WebFetch(domain:python-prompt-toolkit.readthedocs.io)",
       "Bash(python3 -c \"import sys; sys.path.insert(0, ''.''); from core.interface.repl import InteractiveNexusV7; print(''✓ REPL imports OK'')\")",
       "Bash(python3:*)",
-      "Bash(del nul)"
+      "Bash(del nul)",
+      "Bash(git tag:*)",
+      "Bash(for mod in core/*/)",
+      "Bash(do [ -f \"$modREADME.md\" ])",
+      "Bash(xargs:*)",
+      "Bash(sort:*)",
+      "Bash(for f in core/governance/*.py)",
+      "Bash(do basename \"$f\" .py)",
+      "Bash(do [ \"$mod\" != \"__init__\" ])",
+      "Bash([ \"$mod\" != \"__pycache__\" ])",
+      "Bash(comm:*)",
+      "WebFetch(domain:gofastmcp.com)"
     ],
     "deny": [],
     "ask": []

@@ -1,11 +1,47 @@
 """
-V9 Agent Commands - /spawn, /agents, /pool-stats
+V9.1 Agent Commands - /spawn, /agents, /pool-stats
 
 These commands manage spawned agents and the agent pool.
+Uses AgentService for business logic (Service Layer Pattern).
 """
 
 from typing import List
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+def _get_agent_service(context: CommandContext):
+    """
+    Get or create AgentService from context.
+
+    AgentService requires orchestrator, workspace_path, and console.
+    These are available through the CommandContext.
+    """
+    from core.agents import AgentService
+
+    # Try to get cached service from extras
+    service = context.extras.get("agent_service")
+    if service:
+        return service
+
+    # Get workspace_path from extras or orchestrator
+    workspace_path = context.extras.get("workspace_path")
+    if not workspace_path and hasattr(context.orchestrator, 'workspace_path'):
+        workspace_path = context.orchestrator.workspace_path
+
+    if not workspace_path:
+        # Fallback: try to get from repl if available
+        repl = context.extras.get("repl")
+        if repl and hasattr(repl, 'workspace_path'):
+            workspace_path = repl.workspace_path
+
+    if not workspace_path:
+        raise ValueError("workspace_path not available in context")
+
+    return AgentService(
+        orchestrator=context.orchestrator,
+        workspace_path=workspace_path,
+        console=context.console
+    )
 
 
 class SpawnCommand(Command):
@@ -28,14 +64,7 @@ class SpawnCommand(Command):
         return "/spawn <role> (e.g., /spawn SQL Expert)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute spawn command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute spawn command using AgentService."""
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -43,11 +72,19 @@ class SpawnCommand(Command):
             )
 
         try:
-            repl.spawn_agent(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_agent_service(context)
+            result = service.spawn(args.strip())
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Spawn failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -71,16 +108,10 @@ class AgentsCommand(Command):
         return "List all registered agents and their capabilities"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute agents command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute agents command using AgentService."""
         try:
-            repl.list_agents()
+            service = _get_agent_service(context)
+            service.list_agents()
             return CommandResult(
                 status=CommandStatus.SUCCESS,
                 message=""
@@ -108,16 +139,10 @@ class PoolStatsCommand(Command):
         return "Show agent pool statistics and usage metrics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute pool-stats command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute pool-stats command using AgentService."""
         try:
-            repl.show_pool_stats()
+            service = _get_agent_service(context)
+            service.get_pool_stats()
             return CommandResult(
                 status=CommandStatus.SUCCESS,
                 message=""

@@ -1,7 +1,7 @@
 """
-NEXUS V8.4.0 - Agents Module
+NEXUS V9.1 - Agents Module
 
-Centralized agent management and registry.
+Centralized agent management, registry, and services.
 """
 
 from .unified_registry import (
@@ -13,11 +13,24 @@ from .unified_registry import (
     get_registry,
 )
 
+from .service import (
+    AgentService,
+    SpawnResult,
+    AgentInfo,
+    PoolStats,
+)
+
 __all__ = [
+    # Registry
     "UnifiedAgentRegistry",
     "AgentDescriptor",
     "AgentProvider",
     "AgentCapability",
     "DriverProtocol",
     "get_registry",
+    # Service (V9.1)
+    "AgentService",
+    "SpawnResult",
+    "AgentInfo",
+    "PoolStats",
 ]

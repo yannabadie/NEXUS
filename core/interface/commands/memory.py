@@ -1,11 +1,55 @@
 """
-V9 Memory Commands - /learn, /forget, /memory-status, /rag
+V9.1 Memory Commands - /learn, /forget, /memory-status, /rag
 
 These commands manage Project Memory (RAG) for context retrieval.
+Uses MemoryService for business logic (Service Layer Pattern).
 """
 
 from typing import List
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+def _get_memory_service(context: CommandContext):
+    """
+    Get or create MemoryService from context.
+
+    MemoryService requires project_memory, workspace_path, and console.
+    These are available through the CommandContext.
+    """
+    from core.memory import MemoryService
+
+    # Try to get cached service from extras
+    service = context.extras.get("memory_service")
+    if service:
+        return service
+
+    # Get project_memory from orchestrator
+    project_memory = None
+    if hasattr(context.orchestrator, 'project_memory'):
+        project_memory = context.orchestrator.project_memory
+
+    if not project_memory:
+        raise ValueError("Project memory not available")
+
+    # Get workspace_path from extras or orchestrator
+    workspace_path = context.extras.get("workspace_path")
+    if not workspace_path and hasattr(context.orchestrator, 'workspace_path'):
+        workspace_path = context.orchestrator.workspace_path
+
+    if not workspace_path:
+        # Fallback: try to get from repl if available
+        repl = context.extras.get("repl")
+        if repl and hasattr(repl, 'workspace_path'):
+            workspace_path = repl.workspace_path
+
+    if not workspace_path:
+        raise ValueError("workspace_path not available in context")
+
+    return MemoryService(
+        project_memory=project_memory,
+        workspace_path=workspace_path,
+        console=context.console
+    )
 
 
 class LearnCommand(Command):
@@ -21,27 +65,28 @@ class LearnCommand(Command):
 
     @property
     def description(self) -> str:
-        return "Add knowledge chunk to Project Memory (RAG)"
+        return "Index file or directory into Project Memory (RAG)"
 
     @property
     def usage(self) -> str:
-        return "/learn <knowledge text>"
+        return "/learn <path> (e.g., /learn core/)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute learn command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute learn command using MemoryService."""
         try:
-            repl.handle_learn_command(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_memory_service(context)
+            result = service.learn(args.strip() if args else "")
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Learn failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -62,27 +107,28 @@ class ForgetCommand(Command):
 
     @property
     def description(self) -> str:
-        return "Remove knowledge from Project Memory"
+        return "Remove file or directory from Project Memory"
 
     @property
     def usage(self) -> str:
-        return "/forget <query to match>"
+        return "/forget <path>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute forget command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute forget command using MemoryService."""
         try:
-            repl.handle_forget_command(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_memory_service(context)
+            result = service.forget(args.strip() if args else "")
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Forget failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -106,16 +152,10 @@ class MemoryStatusCommand(Command):
         return "Show Project Memory (RAG) status and statistics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute memory-status command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute memory-status command using MemoryService."""
         try:
-            repl.show_memory_status()
+            service = _get_memory_service(context)
+            service.get_status()
             return CommandResult(
                 status=CommandStatus.SUCCESS,
                 message=""
@@ -128,7 +168,7 @@ class MemoryStatusCommand(Command):
 
 
 class RagCommand(Command):
-    """Query Project Memory (RAG)."""
+    """RAG operations for Project Memory."""
 
     @property
     def name(self) -> str:
@@ -140,23 +180,17 @@ class RagCommand(Command):
 
     @property
     def description(self) -> str:
-        return "Query Project Memory for relevant context"
+        return "RAG operations: init, clear, query"
 
     @property
     def usage(self) -> str:
-        return "/rag <query>"
+        return "/rag <init|clear|query <text>>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute rag command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
-
+        """Execute rag command using MemoryService."""
         try:
-            repl.handle_rag_command(args)
+            service = _get_memory_service(context)
+            service.handle_rag_command(args.strip() if args else "")
             return CommandResult(
                 status=CommandStatus.SUCCESS,
                 message=""
@@ -164,7 +198,7 @@ class RagCommand(Command):
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
-                message=f"RAG query failed: {e}"
+                message=f"RAG command failed: {e}"
             )
 
 
