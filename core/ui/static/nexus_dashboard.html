@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS SINGULARITY DASHBOARD</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Cytoscape.js for Graph -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="logo">
+                <i class="fa-solid fa-network-wired"></i> NEXUS <span class="version">V9.0 SINGULARITY</span>
+            </div>
+            <div class="controls">
+                <button id="btn-code-map" class="btn" onclick="toggleCodeMap()">
+                    <i class="fa-solid fa-code-branch"></i> Code Map
+                </button>
+                <button id="toggle-contrast" class="btn" aria-label="Toggle High Contrast Mode">
+                    <i class="fa-solid fa-circle-half-stroke"></i> High Contrast
+                </button>
+                <div class="status-indicator">
+                    <span class="dot pulse"></span> LIVE
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-grid">
+            <!-- LEFT SIDEBAR: EVOLUTION & FILES -->
+            <aside class="sidebar left-sidebar">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-folder-tree"></i> WORKSPACE</h2>
+                </div>
+                <div id="file-explorer" class="scrollable-content">
+                    <!-- File Tree injected here -->
+                    <div class="loading">Scanning workspace...</div>
+                </div>
+            </aside>
+
+            <!-- CENTER: SYNAPTIC WEB (GRAPH) -->
+            <section class="center-stage">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-brain"></i> SYNAPTIC WEB (Active Agents)</h2>
+                </div>
+                <div id="cy" class="graph-container" aria-label="Agent Interaction Graph"></div>
+            </section>
+
+            <!-- RIGHT SIDEBAR: AGENT DETAILS -->
+            <aside class="sidebar right-sidebar">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-robot"></i> AGENT DETAILS</h2>
+                </div>
+                <div id="agent-details" class="scrollable-content">
+                    <p class="placeholder-text">Select a node to view agent details.</p>
+                </div>
+            </aside>
+        </main>
+
+        <!-- BOTTOM: TERMINAL / LOGS -->
+        <footer class="terminal-footer">
+            <div class="panel-header">
+                <h2><i class="fa-solid fa-terminal"></i> HIVE MIND LOGS</h2>
+            </div>
+            <div id="log-container" class="terminal-content">
+                <div class="log-entry system">[SYSTEM] Dashboard initialized. Connecting to Neural Core...</div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

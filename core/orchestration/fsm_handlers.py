@@ -64,6 +64,13 @@ class FSMHandlers:
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.fsm_handlers")
         self._registry = get_registry()
+        
+        # V9.1 Telemetry
+        try:
+            from core.ui.telemetry import telemetry
+            self._telemetry = telemetry
+        except ImportError:
+            self._telemetry = None
 
     # =========================================================================
     # Core State Handlers
@@ -98,6 +105,13 @@ class FSMHandlers:
         if complexity != TaskComplexity.TRIVIAL:
             self._orch._current_task_start = time.time()
             self._orch._current_task_description = user_input[:200]
+            
+        # V9.1 Telemetry: Task Started
+        if self._telemetry:
+            self._telemetry.emit_sync("TASK_STARTED", {
+                "task": user_input[:100],
+                "complexity": complexity.value
+            })
             self._orch._current_task_type = task_analysis.primary_domain.value if task_analysis.primary_domain else "general"
         else:
             self._orch._current_task_start = 0  # Ensure no recording
@@ -268,6 +282,14 @@ class FSMHandlers:
         last_message = self._orch.memory.get_last_message()
         tool_request = ToolUse(**last_message["tool_use"])
 
+        # V9.1 Telemetry: Tool Use
+        if self._telemetry:
+            self._telemetry.emit_sync("TOOL_USE", {
+                "agent": self._orch.active_agent,
+                "tool": tool_request.tool_name,
+                "args": tool_request.arguments
+            })
+
         # Execute (synchronous)
         result = self._orch.tool_manager.execute(tool_request)
         self._orch.pending_tool_result = result
@@ -341,6 +363,14 @@ class FSMHandlers:
             self._orch.panic_system.reset_stalemate()
             self._orch.panic_system.reset_errors()
             self._orch._transition_to(OrchestratorState.IDLE)
+            
+            # V9.1 Telemetry: Task Completed
+            if self._telemetry:
+                self._telemetry.emit_sync("TASK_COMPLETED", {
+                    "result": content[:200],
+                    "success": True
+                })
+                
             return self._make_result("FINISHED", f"✓ {content}", self._orch.active_agent, True)
 
         elif validation_success:

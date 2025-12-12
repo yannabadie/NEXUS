@@ -161,5 +161,6 @@ Votre réponse finale doit contenir :
 | V8.4.4 | 2025-12-10 | +Async Primitives, +SagaManager, +HealthFSM, +StagnationPredictor, +NexusJSONEncoder, +UnifiedAgentRegistry, +Async Handlers, +Cyborg V7.5 |
 | V8.5.1 | 2025-12-11 | Refactor God Object `repl.py`, Async Driver Migration, Silent Exception Audit |
 | V9.0 | 2025-12-11 | **Singularity**: Semantic Architect, Recursive Spawning, UniversalIO, Semantic Memory |
+| V9.1 | 2025-12-12 | **Reality Injection**: Real-time Dashboard, Neural Code Map, Telemetry |
 </version_history>
 </prompt>

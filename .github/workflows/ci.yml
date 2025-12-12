@@ -60,7 +60,11 @@ jobs:
           python -m pytest tests/e2e/test_architect_negotiation.py -v
           python -m pytest tests/e2e/test_architect_spawning.py -v
           python -m pytest tests/e2e/test_spawn_execution.py -v
+          python -m pytest tests/e2e/test_stress_scenarios.py -v
         timeout-minutes: 30
+
+      - name: Run UI Smoke Test
+        run: python tests/ui/test_ui_smoke.py
 
       - name: Run tests with coverage (Python 3.12 only)
         if: matrix.python-version == '3.12'
