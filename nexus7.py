@@ -19,6 +19,12 @@ from pathlib import Path
 import importlib.util
 from typing import Dict, Optional
 
+# V8.5 Fix: Resource module not available on Windows
+try:
+    import resource
+except ImportError:
+    resource = None
+
 # Fix Windows encoding for emojis
 if sys.platform == 'win32':
     import io
@@ -331,12 +337,12 @@ async def async_main(
         claude_info=claude_info
     )
 
-    # V9 Cyborg: Prefer async, fallback to sync
+    # V9 Cyborg: Force Async-First
     if hasattr(repl, 'run_async'):
         await repl.run_async()
     else:
-        # Sync fallback (V7 mode)
-        repl.run()
+        print("❌ FATAL: InteractiveNexusV7 does not support run_async(). Update core/interface/repl.py.")
+        sys.exit(1)
 
 
 def main():

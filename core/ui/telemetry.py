@@ -4,6 +4,8 @@ import logging
 import json
 from typing import Dict, Any
 
+import os
+
 logger = logging.getLogger("nexus.telemetry")
 
 class TelemetryClient:
@@ -15,7 +17,7 @@ class TelemetryClient:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(TelemetryClient, cls).__new__(cls)
-            cls._instance.dashboard_url = "http://localhost:8000/api/telemetry"
+            cls._instance.dashboard_url = os.getenv("NEXUS_DASHBOARD_URL", "http://localhost:8000/api/telemetry")
             cls._instance.enabled = True
         return cls._instance
 

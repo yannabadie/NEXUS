@@ -1,0 +1,264 @@
+/* NEXUS V9.0 "Singularity" Design System */
+
+:root {
+    /* Color Palette - Cyberpunk Neon */
+    --bg-deep: #050505;
+    --bg-panel: rgba(20, 20, 25, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+
+    --neon-blue: #00f3ff;
+    --neon-purple: #bc13fe;
+    --neon-green: #0aff68;
+    --neon-red: #ff0055;
+
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+
+    /* Effects */
+    --glow-blue: 0 0 10px rgba(0, 243, 255, 0.5), 0 0 20px rgba(0, 243, 255, 0.3);
+    --glow-purple: 0 0 10px rgba(188, 19, 254, 0.5), 0 0 20px rgba(188, 19, 254, 0.3);
+    --glass-blur: blur(12px);
+}
+
+body {
+    background-color: var(--bg-deep);
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(188, 19, 254, 0.1) 0%, transparent 20%),
+        radial-gradient(circle at 90% 80%, rgba(0, 243, 255, 0.1) 0%, transparent 20%);
+    color: var(--text-primary);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    margin: 0;
+    overflow: hidden;
+    /* App-like feel */
+    height: 100vh;
+}
+
+/* --- Layout: The Cockpit --- */
+.cockpit-grid {
+    display: grid;
+    grid-template-columns: 250px 1fr 300px;
+    grid-template-rows: 60px 1fr 250px;
+    height: 100vh;
+    gap: 10px;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+/* --- Components: Glass Panels --- */
+.glass-panel {
+    background: var(--bg-panel);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.glass-panel:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.panel-header {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--glass-border);
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--neon-blue);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* --- Header Area --- */
+.header-area {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+
+.nexus-logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 20px rgba(188, 19, 254, 0.5);
+    letter-spacing: 2px;
+}
+
+/* --- Sidebar (Left) --- */
+.sidebar-area {
+    grid-column: 1;
+    grid-row: 2 / -1;
+}
+
+/* --- Main View (Center) --- */
+.main-view {
+    grid-column: 2;
+    grid-row: 2 / 3;
+    position: relative;
+}
+
+#cy {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(10, 10, 20, 0.5) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* --- Right Panel (Stats/Chat) --- */
+.right-panel {
+    grid-column: 3;
+    grid-row: 2 / -1;
+}
+
+/* --- Terminal (Bottom Center) --- */
+.terminal-area {
+    grid-column: 2;
+    grid-row: 3;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+#log-container {
+    padding: 10px;
+    overflow-y: auto;
+    height: 100%;
+    font-size: 0.9rem;
+}
+
+.log-entry {
+    margin-bottom: 4px;
+    border-left: 2px solid transparent;
+    padding-left: 8px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.log-info {
+    border-color: var(--neon-blue);
+    color: #e0e0e0;
+}
+
+.log-warn {
+    border-color: #ffcc00;
+    color: #ffcc00;
+}
+
+.log-error {
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+    text-shadow: 0 0 5px rgba(255, 0, 85, 0.5);
+}
+
+.log-success {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+}
+
+/* --- Widgets --- */
+.stat-widget {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+/* --- Buttons --- */
+.btn-neon {
+    background: transparent;
+    border: 1px solid var(--neon-blue);
+    color: var(--neon-blue);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+}
+
+.btn-neon:hover {
+    background: var(--neon-blue);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
+}
+
+.btn-neon.danger {
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+    box-shadow: 0 0 5px rgba(255, 0, 85, 0.2);
+}
+
+.btn-neon.danger:hover {
+    background: var(--neon-red);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px var(--neon-blue);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--neon-blue);
+    }
+
+    100% {
+        box-shadow: 0 0 5px var(--neon-blue);
+    }
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}

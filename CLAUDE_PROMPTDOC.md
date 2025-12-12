@@ -65,7 +65,10 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → WAITING_USER
 *   **Gemini:** JSON strict (`LightMessageV7`, `HeavyMessageV7`)
 *   **Claude:** Hybrid (natural language + XML `<tool_use>` tags)
 
-## Sécurité
+## Sécurité (Restored V9.2)
+*   **InputGuard:** `core/security/input_guard.py` - OWASP LLM01 Prompt Injection Defense.
+*   **OutputGuard:** `core/security/output_guard.py` - OWASP LLM02 System Prompt Leakage Defense.
+*   **Spotlighter:** `core/memory/spotlighting.py` - RAG Indirect Injection Defense.
 *   `SandboxPolicy` stricte (`core/governance/sandbox_policy.py`)
 *   `KERNEL.py` - Immutable alignment rules
 
@@ -146,7 +149,9 @@ Votre réponse finale doit contenir :
 *   `core/hive_mind/architect.py` - Semantic Architect
 *   `core/agents/unified_registry.py` - Recursive Spawning
 *   `core/io/universal_io.py` - Universal IO Wrapper
+*   `core/io/universal_io.py` - Universal IO Wrapper
 *   `core/memory/semantic_memory.py` - Semantic Memory
+*   `core/security/` - Security Guards (Input/Output/Spotlight)
 
 ### Priorité haute (V8.4.x):
 *   `core/orchestration/fsm_handlers.py` - FSM Handlers (Updated)
@@ -162,5 +167,6 @@ Votre réponse finale doit contenir :
 | V8.5.1 | 2025-12-11 | Refactor God Object `repl.py`, Async Driver Migration, Silent Exception Audit |
 | V9.0 | 2025-12-11 | **Singularity**: Semantic Architect, Recursive Spawning, UniversalIO, Semantic Memory |
 | V9.1 | 2025-12-12 | **Reality Injection**: Real-time Dashboard, Neural Code Map, Telemetry |
+| V9.2 | 2025-12-12 | **Security Restoration**: InputGuard, OutputGuard, Spotlighter (Post-Audit Fix) |
 </version_history>
 </prompt>

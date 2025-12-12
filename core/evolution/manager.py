@@ -411,7 +411,7 @@ class EvolutionManager:
         )
 
         # Check rate limits
-        can_evolve, reason = self.rate_limiter.can_evolve()
+        can_evolve, reason = self.rate_limiter.can_evolve(child_count)
         if not can_evolve:
             result.errors.append(f"Rate limited: {reason}")
             return result
@@ -530,7 +530,7 @@ class EvolutionManager:
             EvolutionStatus with current state
         """
         lineage = load_lineage(self.lineage_path)
-        can_evolve, block_reason = self.rate_limiter.can_evolve()
+        can_evolve, block_reason = self.rate_limiter.can_evolve(1)  # Use 1 as default for status check
 
         # Count children
         total_children = 0

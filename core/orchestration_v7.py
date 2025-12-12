@@ -117,6 +117,10 @@ class OrchestratorV7:
         # V7 Sprint 8: Task-aware driver creation
         # Gemini driver is static, Claude driver is created dynamically per task type
         self.gemini_driver = GeminiDriverV7(config, workspace_path, agent_id="gemini_primary")
+        
+        # V8.4.4: Initialize Async Gemini Driver (Adapter)
+        from core.drivers.async_adapter import AsyncDriverAdapter
+        self.async_gemini_driver = AsyncDriverAdapter(self.gemini_driver)
 
         # Legacy drivers dict for backwards compatibility
         # V8.4.0: Register drivers in unified registry
@@ -278,6 +282,79 @@ class OrchestratorV7:
 
         # V7.5 Phase 0d: Task execution context for thread-safe operations
         self._task_context: Optional[TaskExecutionContext] = None
+
+        # V9.0 Phase 43: System Monitor & Hot Reload
+        try:
+            from core.telemetry.system_monitor import SystemMonitor
+            from core.ui.event_bus import EventBus
+            self.system_monitor = SystemMonitor(EventBus)
+        except ImportError:
+            self.system_monitor = None
+            self.logger.warning("SystemMonitor or EventBus not available")
+
+        self._background_tasks = []
+
+    async def start_background_tasks(self):
+        """Start background tasks (Telemetry, Agent Watcher)."""
+        if self.system_monitor:
+            self._background_tasks.append(
+                asyncio.create_task(self.system_monitor.start_monitoring())
+            )
+        
+        # Start Agent Watcher
+        self._background_tasks.append(
+            asyncio.create_task(self._watch_agents())
+        )
+        self.logger.info("Background tasks started (Telemetry, Agent Watcher)")
+
+    async def stop_background_tasks(self):
+        """Stop all background tasks."""
+        if self.system_monitor:
+            self.system_monitor.stop()
+        
+        for task in self._background_tasks:
+            task.cancel()
+        
+        if self._background_tasks:
+            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            self._background_tasks = []
+
+    async def _watch_agents(self):
+        """Poll workspace/agents for new files (Hot Reload)."""
+        agents_dir = self.workspace_path / "agents"
+        if not agents_dir.exists():
+            return
+
+        known_agents = set(p.name for p in agents_dir.glob("*.json"))
+        
+        while True:
+            try:
+                current_agents = set(p.name for p in agents_dir.glob("*.json"))
+                new_agents = current_agents - known_agents
+                
+                if new_agents:
+                    self.logger.info(f"Detected new agents: {new_agents}")
+                    # Reload registry
+                    if self.agent_tool_registry:
+                        self.agent_tool_registry.refresh()
+                        self.agent_tool_registry.register_with_tool_manager(self.tool_manager)
+                    
+                    if self.agent_pool:
+                        # Re-discover spawned agents
+                        from core.bootstrap import discover_and_register_spawned_agents
+                        discover_and_register_spawned_agents(self.workspace_path, self.agent_pool)
+                    
+                    # Broadcast update
+                    from core.ui.event_bus import EventBus
+                    await EventBus.publish("AGENTS_UPDATED", {"count": len(current_agents), "new": list(new_agents)})
+                    
+                    known_agents = current_agents
+                
+                await asyncio.sleep(2.0)
+            except Exception as e:
+                self.logger.error(f"Agent watcher error: {e}")
+                await asyncio.sleep(5.0)
+
 
     # =========================================================================
     # V7.5 Phase 0d: Execution Context (Thread-Safe Agent Tracking)
@@ -525,13 +602,14 @@ class OrchestratorV7:
             OrchestratorState.IDLE,  # V9: IDLE now supports async routing (Hive Mind)
         }
         
-        print(f"DEBUG: process_turn_async state={self.state}, async_states={async_states}")
+        # DEBUG removed for production
+        # print(f"DEBUG: process_turn_async state={self.state}, async_states={async_states}")
 
         if self.state in async_states:
-            print("DEBUG: Taking async path")
+            # print("DEBUG: Taking async path")
             return await self._handle_async_state(user_input)
         else:
-            print("DEBUG: Taking sync path")
+            # print("DEBUG: Taking sync path")
             # Non-LLM states: use sync handlers (fast, no I/O blocking)
             return self.process_turn(user_input)
 

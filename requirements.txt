@@ -21,6 +21,15 @@ prompt-toolkit>=3.0.43
 tiktoken>=0.5.2
 
 # =============================================================================
+# Phase 35: NEXUS Cockpit (Dashboard Server)
+# =============================================================================
+fastapi>=0.109.0
+uvicorn>=0.27.0
+websockets>=12.0
+python-multipart>=0.0.9
+watchdog>=4.0.0
+
+# =============================================================================
 # Phase 10e: BM25S Sparse Retrieval (Project Memory RAG)
 # =============================================================================
 # BM25S: 500x faster than rank-bm25, pure Python + Scipy sparse matrices

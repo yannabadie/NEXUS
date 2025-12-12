@@ -6,7 +6,7 @@ This package contains the refactored orchestration components:
 - ContextBuilder: Context construction for agents
 - MutationDetector: Format detection for evolution
 - AgentInvoker: Agent invocation handling
-- SwarmBridge: Swarm engine integration
+- SwarmBridge: Swarm engine integration (via swarm_adapter)
 - FSMHandlers: State machine handlers
 
 Phase 14c Migration Strategy:
@@ -22,7 +22,7 @@ Usage:
     from core.orchestration.context_builder import ContextBuilder
     from core.orchestration.detectors import MutationDetector
     from core.orchestration.agent_invoker import AgentInvoker
-    from core.orchestration.swarm_bridge import SwarmBridge
+    from core.orchestration.swarm_adapter import SwarmBridge
     from core.orchestration.fsm_handlers import FSMHandlers
 """
 
@@ -33,7 +33,7 @@ Usage:
 from core.orchestration.context_builder import ContextBuilder
 from core.orchestration.detectors import MutationDetector, ResponseDetector, get_mutation_detector
 from core.orchestration.agent_invoker import AgentInvoker
-from core.orchestration.swarm_bridge import SwarmBridge
+from core.orchestration.swarm_adapter import SwarmBridge
 from core.orchestration.fsm_handlers import FSMHandlers
 
 __all__ = [

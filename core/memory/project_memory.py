@@ -706,6 +706,13 @@ class ProjectMemory:
         lines = ["## RELEVANT PROJECT KNOWLEDGE", ""]
         current_chars = 0
 
+        # V8.8: Spotlighting for RAG content (OWASP LLM01)
+        try:
+            from core.memory.spotlighting import get_spotlighter, SpotlightTechnique
+            spotlighter = get_spotlighter(technique=SpotlightTechnique.DELIMITER)
+        except ImportError:
+            spotlighter = None
+
         for chunk in chunks:
             # Build chunk header
             header = f"### {chunk.file_path}"
@@ -713,8 +720,13 @@ class ProjectMemory:
                 header += f" - {chunk.chunk_type}: {chunk.name}"
             header += f" (L{chunk.start_line}-{chunk.end_line})"
 
+            # Apply spotlighting to content if available
+            content_to_use = chunk.content
+            if spotlighter:
+                content_to_use = spotlighter.spotlight(content_to_use)
+
             # Check size limit
-            chunk_text = f"{header}\n```\n{chunk.content}\n```\n"
+            chunk_text = f"{header}\n```\n{content_to_use}\n```\n"
             if current_chars + len(chunk_text) > max_chars:
                 break
 

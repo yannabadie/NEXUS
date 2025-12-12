@@ -42,6 +42,7 @@ import atexit
 import uuid
 from pathlib import Path
 from typing import Dict, Optional, Callable
+import warnings
 
 # V7.7 Phase 15: Stream parser for real-time response display
 from core.utils.stream_parser import parse_stream_chunk, is_result_message, extract_stats, extract_final_result
@@ -100,6 +101,11 @@ class ClaudeDriverHybrid:
         model: Optional[str] = None,
         agent_id: Optional[str] = None
     ):
+        warnings.warn(
+            "ClaudeDriverHybrid is deprecated and will be removed in V9.5. Use AsyncClaudeDriver instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.cli_path = config.claude_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"

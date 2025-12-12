@@ -27,10 +27,10 @@ Complete installation guide for Windows PowerShell.
 
 ## Quick Install (Recommended)
 
-### Step 1: Navigate to NEXUS V7
+### Step 1: Navigate to NEXUS
 
 ```powershell
-cd C:\Code\NEXUS\20_NEXUS\NEXUS_V7_CHRYSALIS
+cd /path/to/NEXUS-N7A-AG
 ```
 
 ### Step 2: Install Dependencies

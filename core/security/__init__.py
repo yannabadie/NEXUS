@@ -17,6 +17,8 @@ Design Principles:
 from .path_guardian import PathGuardian
 from .mutation_validator import MutationValidator
 from .execution_policy import ExecutionPolicy, CommandType, get_execution_policy
+from .input_guard import InputGuard, get_input_guard, ThreatType
+from .output_guard import OutputGuard, get_output_guard, LeakType
 
 __all__ = [
     'PathGuardian',
@@ -24,5 +26,11 @@ __all__ = [
     'ExecutionPolicy',
     'CommandType',
     'get_execution_policy',
+    'InputGuard',
+    'get_input_guard',
+    'ThreatType',
+    'OutputGuard',
+    'get_output_guard',
+    'LeakType',
 ]
 

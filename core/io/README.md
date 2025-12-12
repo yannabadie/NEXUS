@@ -1,29 +1,50 @@
-# Module: core/io
+# IO Module - NEXUS V9.2
 
-## Rôle dans l'Architecture NEXUS V9.2
-Ce module fournit l'interface unifiée d'Entrée/Sortie pour tous les modèles de langage (LLM). Il abstrait les différences entre les fournisseurs (Anthropic, Google, OpenAI) via `litellm`.
+## Rôle
+Le module `core/io` fournit une couche d'abstraction universelle pour l'accès aux modèles externes (OpenAI, Mistral, Cohere, etc.) via `litellm`. Il permet à NEXUS d'utiliser n'importe quel modèle supporté par LiteLLM sans modifier le code core.
 
-## Composants Clés
-*   `universal_io.py`: Classe `UniversalIO` (Singleton/Utility).
-    *   `generate()`: Génération de texte standard.
-    *   `embed()`: Génération d'embeddings (pour Semantic Memory).
-    *   `transcribe()`: Audio-to-text (futur).
+## Fichiers Clés
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `universal_io.py` | ~210 | **UniversalIO**: Wrapper autour de `litellm` pour `invoke`, `invoke_stream` et `embed`. |
 
-## Architecture & Flux
-*   **Entrées :** Prompts, Messages (format standardisé), Images (base64).
-*   **Sorties :** Texte, JSON, Embeddings (vecteurs).
-*   **Configuration :** Clés API via `.env` (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`).
+## API Publique
+```python
+from core.io.universal_io import UniversalIO
+
+# Usage
+io = UniversalIO()
+response = await io.invoke("gpt-4o", messages=[...])
+```
+
+## Flux de Données
+
+### External Model Call
+```mermaid
+flowchart LR
+    Agent --> UniversalIO
+    UniversalIO --> LiteLLM
+    LiteLLM --> API[External API (OpenAI/Anthropic/etc)]
+    API --> LiteLLM
+    LiteLLM --> UniversalIO
+    UniversalIO --> Agent
+```
 
 ## Dépendances
-*   **Utilise :** `litellm`, `tenacity` (retries).
-*   **Utilisé par :** `core.drivers`, `core.memory.backends.dense`, `core.hive_mind.architect`.
 
-## Diagramme
-```mermaid
-graph LR
-    Agent[Agent] -->|Call| UIO[UniversalIO]
-    UIO -->|Route| LiteLLM[LiteLLM]
-    LiteLLM -->|API| Claude[Claude API]
-    LiteLLM -->|API| Gemini[Gemini API]
-    UIO -->|Retry| Tenacity[Tenacity]
-```
+**Importe :**
+- `litellm` : Bibliothèque tierce pour l'unification des API LLM.
+
+**Importé par :**
+- `core/hive_mind/architect.py` : Pour la négociation sémantique (utilise des modèles légers).
+- `core/memory/backends/dense_backend.py` : Pour générer des embeddings.
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LITELLM_AVAILABLE` | `True/False` | Détecté automatiquement si `litellm` est installé. |
+
+## Tests
+
+- `tests/io/test_universal_io.py`

@@ -278,8 +278,7 @@ class InteractiveNexusV7:
 
         Uses prompt_toolkit's prompt_async() for non-blocking input,
         wrapped with patch_stdout() to prevent streaming corruption.
-
-        Gracefully handles Ctrl+C to cancel all async driver processes.
+        Also polls for IPC commands from Dashboard.
         """
         import re
 
@@ -293,7 +292,7 @@ class InteractiveNexusV7:
             codename=self.config.nexus_codename
         )
 
-        self.console.print("\n⚡ V9 Async Mode Active")
+        self.console.print("\n⚡ V9 Async Mode Active (Cockpit Enabled)")
 
         # V7 Sprint 11: Display startup hints
         hints = self.orchestrator.get_startup_hints()
@@ -303,17 +302,42 @@ class InteractiveNexusV7:
                 self.console.print(f"  {hint}")
             self.console.print("")
 
+        # V9 Phase 43: Start Background Tasks (Telemetry, Hot Reload)
+        if hasattr(self.orchestrator, 'start_background_tasks'):
+            await self.orchestrator.start_background_tasks()
+
         with patch_stdout():
             while True:
                 try:
-                    # V9: Non-blocking input
-                    if self._use_simple_input:
-                        loop = asyncio.get_event_loop()
-                        user_input = await loop.run_in_executor(
-                            None, lambda: input("nexus7> ")
-                        )
-                    else:
-                        user_input = await self.session.prompt_async("nexus7> ")
+                    # V9: Non-blocking input + IPC Polling
+                    # We create two tasks: user input and IPC polling
+                    
+                    input_task = asyncio.create_task(self.session.prompt_async("nexus7> "))
+                    ipc_task = asyncio.create_task(self._poll_command_queue())
+                    
+                    # Wait for either to complete
+                    done, pending = await asyncio.wait(
+                        [input_task, ipc_task], 
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    
+                    # Cancel pending tasks
+                    for task in pending:
+                        task.cancel()
+                        
+                    user_input = None
+                    
+                    if input_task in done:
+                        # User typed something in terminal
+                        user_input = input_task.result()
+                    elif ipc_task in done:
+                        # Command received from Dashboard
+                        user_input = ipc_task.result()
+                        if user_input:
+                            self.console.print(f"\n[IPC] Command received: {user_input}")
+
+                    if not user_input:
+                        continue
 
                     # Sanitize input (same as sync version)
                     user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)
@@ -362,6 +386,28 @@ class InteractiveNexusV7:
                         traceback.print_exc()
                     continue
 
+    async def _poll_command_queue(self) -> Optional[str]:
+        """
+        Poll for IPC commands from Dashboard.
+        Reads workspace/_IO_BUFFER/chat_input.json
+        """
+        ipc_file = self.workspace_path / "_IO_BUFFER" / "chat_input.json"
+        
+        while True:
+            if ipc_file.exists():
+                try:
+                    # Read and delete immediately (consume)
+                    content = ipc_file.read_text(encoding="utf-8")
+                    ipc_file.unlink()
+                    
+                    data = json.loads(content)
+                    return data.get("content", "")
+                except Exception:
+                    pass
+            
+            # Check every 500ms
+            await asyncio.sleep(0.5)
+
     async def _process_turn_async(self, user_input: str):
         """
         V9 Async wrapper for orchestrator.process_turn().
@@ -390,6 +436,9 @@ class InteractiveNexusV7:
             if self._abort_requested:
                 self.console.print("🛑 Abort requested - stopping")
                 break
+
+            # Check for IPC interruption during execution
+            # TODO: Implement IPC interruption (e.g. /stop from dashboard)
 
             if hasattr(self.orchestrator, 'process_turn_async'):
                 result = await self.orchestrator.process_turn_async()
@@ -423,8 +472,28 @@ class InteractiveNexusV7:
                 self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
                 try:
                     # Async input for interjection
+                    # We reuse the same wait pattern for IPC during interjection
+                    
                     loop = asyncio.get_event_loop()
-                    user_interjection = await loop.run_in_executor(None, lambda: input().strip())
+                    input_task = loop.run_in_executor(None, lambda: input().strip())
+                    ipc_task = asyncio.create_task(self._poll_command_queue())
+                    
+                    done, pending = await asyncio.wait(
+                        [input_task, ipc_task], 
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    
+                    for task in pending:
+                        task.cancel()
+                        
+                    user_interjection = None
+                    if input_task in done:
+                        user_interjection = input_task.result()
+                    elif ipc_task in done:
+                        user_interjection = ipc_task.result()
+                        if user_interjection:
+                            self.console.print(f"\n[IPC] Interjection: {user_interjection}")
+
                     if user_interjection:
                         self.console.print(f"[bold green]You:[/bold green] {user_interjection}")
                         self.orchestrator.memory.add_to_history({

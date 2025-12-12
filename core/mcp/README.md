@@ -1,128 +1,64 @@
-# Module: MCP (CORTEX)
+# MCP Module - NEXUS V9.2
 
-## Rôle Architectural
+## Rôle
+Le module `core/mcp` implémente le **Model Context Protocol (MCP)**, permettant à NEXUS d'utiliser des outils externes exposés via des serveurs MCP (stdio/JSON-RPC). Il agit comme un client universel pour étendre les capacités de l'agent sans modifier son code core.
 
-Client Model Context Protocol (MCP) permettant à NEXUS d'interagir avec des outils externes via le standard MCP.
-Implémentation zero-dependency utilisant JSON-RPC 2.0 sur stdio.
+## Fichiers Clés
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `client.py` | ~400 | **MCP Client**: Gère la connexion subprocess (stdio) et le cycle de vie JSON-RPC. |
+| `protocol.py` | ~300 | **Types**: Définitions Pydantic des messages MCP (Request, Response, Tool). |
+| `registry.py` | ~300 | **Config**: Charge `mcp_config.json` et instancie les clients pour chaque serveur. |
 
-**Phase ROADMAP**: 12.3 - CORTEX (MCP Client)
+## API Publique
+```python
+from core.mcp import (
+    MCPClient,    # Client bas niveau (connexion directe)
+    MCPRegistry,  # Gestionnaire de serveurs (chargement config)
+    MCPTool       # Type definition pour un outil
+)
+```
 
-## Alignement ROADMAP V7.6+
+## Flux de Données
 
-Ce module implémente la Phase 12.3 de la roadmap:
-- Infrastructure client MCP
-- Intégration dynamique des outils MCP dans ToolManager
-- Support des serveurs MCP via stdio (transport standard)
+### Tool Execution Flow
+```mermaid
+flowchart LR
+    Orchestrator --> TM[ToolManager]
+    TM --> Registry[MCPRegistry]
+    Registry --> Client[MCPClient]
+    Client -- JSON-RPC --> Server[External MCP Server]
+    Server -- Result --> Client
+    Client --> TM
+```
 
-## Composants Clés
+## Dépendances
 
-### Fichier: `protocol.py`
-* **Fonction**: Types JSON-RPC 2.0 pour le protocole MCP
-* **Classes**:
-  - `MCPRequest` / `MCPResponse` - Messages JSON-RPC 2.0
-  - `MCPTool` / `MCPToolResult` - Définitions et résultats d'outils
-  - `MCPCapabilities` - Capacités serveur
-  - `MCPError` - Erreurs protocole
-* **Zero-Dep**: Aucune dépendance externe, sérialisation JSON native
+**Importe :**
+- `subprocess` : Communication stdio avec les serveurs.
+- `pydantic` : Validation des messages JSON-RPC.
+- `json` : Sérialisation.
 
-### Fichier: `client.py`
-* **Fonction**: Client MCP gérant la communication subprocess
-* **Classe principale**: `MCPClient`
-* **Responsabilités**:
-  - Gestion du cycle de vie (start, initialize, close)
-  - Communication stdio avec le serveur
-  - Thread de lecture asynchrone
-  - Handshake protocolaire MCP
-* **Timeout**: 30s par défaut, 10s pour l'initialisation
+**Importé par :**
+- `core/execution/tool_manager.py` : Intégration des outils MCP dans le pool d'outils global.
 
-### Fichier: `registry.py`
-* **Fonction**: Chargement de la configuration des serveurs MCP
-* **Classe principale**: `MCPRegistry`
-* **Configuration**: `workspace/.nexus/mcp_servers.json`
-* **Fonctionnalités**:
-  - Chargement paresseux des configs
-  - Cache des clients connectés
-  - Gestion automatique des reconnexions
+## Configuration
 
-## Format de Configuration
+Le fichier `workspace/mcp_config.json` définit les serveurs actifs :
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "filesystem": {
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem"],
-      "args": ["/tmp"],
-      "env": {"DEBUG": "true"},
-      "enabled": true,
-      "description": "File system access via MCP"
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "workspace"]
     }
   }
 }
 ```
 
-## Intégration ToolManager
-
-Les outils MCP sont automatiquement enregistrés dans `ToolManager` avec le préfixe:
-```
-mcp_{server}_{tool}
-```
-
-Exemple: `mcp_filesystem_read_file`
-
-## Dépendances et Interactions
-
-```
-┌─────────────────┐      ┌──────────────────┐
-│  ToolManager    │─────▶│   MCPRegistry    │
-└────────┬────────┘      └────────┬─────────┘
-         │                        │
-         │ execute()              │ get_client()
-         ▼                        ▼
-┌─────────────────┐      ┌──────────────────┐
-│   MCPClient     │◀─────│  ServerConfig    │
-└────────┬────────┘      └──────────────────┘
-         │
-         │ JSON-RPC 2.0 (stdio)
-         ▼
-┌─────────────────┐
-│   MCP Server    │ (subprocess)
-│   (external)    │
-└─────────────────┘
-```
-
-## Usage
-
-```python
-from core.mcp import MCPClient, MCPRegistry
-
-# Via Registry (recommandé)
-registry = MCPRegistry(workspace_path)
-client = registry.get_client("filesystem")
-tools = client.list_tools()
-result = client.call_tool("read_file", {"path": "/tmp/test.txt"})
-
-# Directement
-with MCPClient(command=["npx", "-y", "server-name"]) as client:
-    tools = client.list_tools()
-    result = client.call_tool("tool_name", {"arg": "value"})
-```
-
 ## Tests
 
-```bash
-pytest tests/test_mcp_client.py -v
-```
-
-Tests incluent:
-- Types protocole (serialization/deserialization)
-- Cycle de vie client (start, initialize, close)
-- Opérations sur les outils (list, call)
-- Gestion des erreurs
-- Intégration ToolManager
-
-## Notes d'Audit
-
-- **Thread Safety**: Reader thread pour les réponses asynchrones
-- **Timeouts**: Configurables, défaut raisonnable (30s)
-- **Error Handling**: Exceptions spécifiques (MCPClientError, MCPServerError)
-- **Zero-Dep**: Pas de dépendance au SDK MCP officiel
+- `tests/mcp/test_client.py` (Mock stdio)
+- `tests/mcp/test_registry.py` (Config loading)
+- `tests/e2e/test_mcp_integration.py` (Live server test)

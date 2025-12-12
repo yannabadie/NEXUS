@@ -75,6 +75,16 @@ class AsyncDriverAdapter:
             session_uuid=session_uuid
         )
 
+    # V8.5 Fix: Alias invoke to invoke_async for interface compatibility
+    async def invoke(
+        self,
+        context: str,
+        session_uuid: Optional[str] = None,
+        **kwargs
+    ) -> Dict:
+        """Alias for invoke_async to match AsyncGeminiDriver interface."""
+        return await self.invoke_async(context, session_uuid)
+
     async def invoke_stream_async(
         self,
         context: str,

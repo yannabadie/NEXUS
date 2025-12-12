@@ -31,6 +31,7 @@ import atexit
 import uuid as uuid_module
 from pathlib import Path
 from typing import Dict, Optional, Callable
+import warnings
 
 # V7.5 HIVE MIND: Centralized JSON extraction
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
@@ -40,6 +41,8 @@ from core.utils.stream_parser import parse_stream_chunk, is_result_message, extr
 from core.agents.unified_registry import get_registry
 # V8.4.5: Structured driver logging
 from core.logging.driver_logger import get_driver_logger
+# V8.8: Output Guard - System prompt leak prevention (OWASP LLM01:2025)
+from core.security import get_output_guard
 
 # Initialize driver logger
 _logger = get_driver_logger("gemini")
@@ -99,6 +102,11 @@ class GeminiDriverV7:
         agent_id: Optional[str] = None,
         persistent: Optional[bool] = None
     ):
+        warnings.warn(
+            "GeminiDriverV7 is deprecated and will be removed in V9.5. Use AsyncGeminiDriver instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
@@ -128,6 +136,46 @@ class GeminiDriverV7:
         """
         # Persistent process mode was removed - use session resume instead
         self._persistent_process = None
+
+    def _validate_output(self, response: Dict) -> Dict:
+        """
+        V8.8: Validate LLM output for system prompt leaks (OWASP LLM01:2025).
+
+        Checks response content for potential information leakage and logs warnings.
+        Does not block responses by default (block_on_leak=False), but provides
+        visibility into potential security issues.
+
+        Args:
+            response: Parsed LLM response dict
+
+        Returns:
+            Response dict (unchanged, or with sanitized content if leak detected)
+        """
+        try:
+            output_guard = get_output_guard()
+
+            # Extract content to validate
+            content = response.get("content", "")
+            if not content or not isinstance(content, str):
+                return response
+
+            validation = output_guard.validate(content)
+
+            if validation.leak_type.value != "none":
+                _logger.warning(
+                    f"[OUTPUT GUARD] Potential leak detected: {validation.leak_type.value} "
+                    f"(severity: {validation.leak_severity.value}) - {validation.reason}"
+                )
+                # Use sanitized output if available
+                if validation.sanitized_output:
+                    response = response.copy()
+                    response["content"] = validation.sanitized_output
+                    response["_output_sanitized"] = True
+                    response["_leak_type"] = validation.leak_type.value
+        except Exception as e:
+            _logger.error(f"Output guard validation failed: {e}")
+
+        return response
 
     def invoke(
         self,
@@ -543,8 +591,11 @@ class GeminiDriverV7:
                     "content": json.dumps(extracted_data), # Pass the list as a string content
                     "status": "FINISHED"
                 }
+                # V8.8: Validate output for leaks
+                return self._validate_output(list_response)
 
-            return extracted_data
+            # V8.8: Validate output for system prompt leaks before returning
+            return self._validate_output(extracted_data)
 
         except TimeoutError:
             # Re-raise timeout from the inner try block
@@ -744,7 +795,11 @@ class GeminiDriverV7:
                 if final_stats:
                     extracted_data["_stream_stats"] = final_stats
 
-                return extracted_data
+                if final_stats:
+                    extracted_data["_stream_stats"] = final_stats
+
+                # V8.8: Validate output for system prompt leaks
+                return self._validate_output(extracted_data)
 
             except KeyboardInterrupt:
                 print("\n[DEBUG] Interrupt received, killing Gemini process...", file=sys.stderr)

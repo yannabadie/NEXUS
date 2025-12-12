@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Dict, Optional, Callable
 
 from core.fsm.states import OrchestratorState
 from core.swarm import CollaborationMode, SwarmPhase
+from core.ui.event_bus import EventBus
+import asyncio
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -116,13 +118,39 @@ class SwarmBridge:
             return self._make_result("ERROR", "Swarm engine not enabled", None, False, error="SWARM_DISABLED")
 
         try:
+            # V9.1: Real-time Telemetry Callbacks
+            async def _on_negotiation_turn(turn_data: Dict):
+                await EventBus.publish("SWARM_NEGOTIATION", turn_data)
+                if on_negotiation_turn:
+                    on_negotiation_turn(turn_data)
+
+            async def _on_execution_round(round_data: Dict):
+                await EventBus.publish("SWARM_EXECUTION", round_data)
+                if on_execution_round:
+                    on_execution_round(round_data)
+
+            # Bridge sync callbacks to async EventBus
+            def sync_negotiation_callback(data):
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(_on_negotiation_turn(data))
+                except RuntimeError:
+                    pass
+
+            def sync_execution_callback(data):
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(_on_execution_round(data))
+                except RuntimeError:
+                    pass
+
             result = self._orch.swarm_engine.process_task(
                 task_input=task_input,
                 blackboard=self._orch.blackboard,
                 force_mode=force_mode,
                 skip_negotiation=skip_negotiation,
-                on_negotiation_turn=on_negotiation_turn,
-                on_execution_round=on_execution_round
+                on_negotiation_turn=sync_negotiation_callback,
+                on_execution_round=sync_execution_callback
             )
 
             # Update history with swarm result

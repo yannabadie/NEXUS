@@ -1,29 +1,54 @@
-# Module: core/orchestration
+# Orchestration Module - NEXUS V9.2
 
-## Rôle dans l'Architecture NEXUS V9.2
-Ce module gère le flux d'exécution principal via une Machine à États Finis (FSM). Il est le "cœur battant" de NEXUS, coordonnant les interactions entre l'utilisateur, les agents et les outils.
+## Rôle
+Le module `core/orchestration` contient les composants de bas niveau de la machine à états (FSM) de NEXUS. Il gère l'invocation des agents, la construction du contexte, et les transitions d'états tactiques.
 
-## Composants Clés
-*   `fsm_handlers.py`: Gestionnaires de transition d'état (IDLE -> BRAINSTORMING -> EXECUTING).
-*   `orchestration_v7.py`: Classe `OrchestratorV7` (Singleton).
-*   `states.py`: Définition des 11 états (`OrchestratorState`).
+## Fichiers Clés
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `fsm_handlers.py` | ~750 | **FSM Logic**: Implémente la logique de transition pour chaque état (IDLE, EXECUTING, etc.). |
+| `agent_invoker.py` | ~210 | **Invocation**: Wrapper pour appeler les drivers LLM avec gestion d'erreurs et retry. |
+| `context_builder.py` | ~120 | **Context**: Construit le prompt système et l'historique des messages. |
+| `detectors.py` | ~80 | **Parsing**: Détecte les blocs JSON/Code dans les réponses brutes. |
+| `swarm_bridge.py` | ~60 | **Bridge**: Connecte l'orchestrateur FSM au moteur Swarm. |
 
-## Architecture & Flux (V9.2)
-*   **Entrées :** Commandes utilisateur (`/swarm`, `/spawn`), événements système.
-*   **Sorties :** Actions d'agents, mises à jour de l'interface.
-*   **Telemetry (V9.1) :** Émet des événements (`TASK_STARTED`, `TOOL_USE`) vers le Dashboard via `core.ui.telemetry`.
+## API Publique
+```python
+from core.orchestration import (
+    FSMHandlers,
+    AgentInvoker,
+    ContextBuilder
+)
+```
+
+## Flux de Données
+
+### FSM Loop
+```mermaid
+flowchart TD
+    Idle[IDLE] -->|User Input| Analyzing[ANALYZING]
+    Analyzing -->|Tool Use| Executing[EXECUTING_TOOL]
+    Executing -->|Result| Analyzing
+    Analyzing -->|Answer| Waiting[WAITING_USER]
+```
 
 ## Dépendances
-*   **Utilise :** `core.agents`, `core.swarm`, `core.ui.telemetry`.
-*   **Utilisé par :** `nexus7.py` (Point d'entrée).
 
-## Diagramme FSM
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-    IDLE --> BRAINSTORMING : User Input
-    BRAINSTORMING --> EXECUTING_TOOL : Tool Call
-    EXECUTING_TOOL --> VALIDATING_CFL : Tool Result
-    VALIDATING_CFL --> IDLE : Task Done
-    VALIDATING_CFL --> BRAINSTORMING : Continue
-```
+**Importe :**
+- `core/drivers` : Pour appeler les modèles.
+- `core/memory` : Pour récupérer le contexte RAG.
+- `core/security` : Pour valider les entrées/sorties.
+
+**Importé par :**
+- `core/orchestration_v7.py` : L'orchestrateur principal compose ces modules.
+- `core/interface/repl.py` : La boucle REPL interagit avec l'orchestrateur.
+
+## Configuration
+
+Pas de configuration directe, hérite de la configuration de `OrchestratorV7`.
+
+## Tests
+
+- `tests/orchestration/test_fsm_handlers.py`
+- `tests/orchestration/test_context_builder.py`
+- `tests/e2e/test_full_system_flow.py`

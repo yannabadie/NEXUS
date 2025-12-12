@@ -72,6 +72,26 @@ class FSMHandlers:
         except ImportError:
             self._telemetry = None
 
+        # V9.1 Reality Injection (Event Bus)
+        try:
+            from core.ui.event_bus import EventBus
+            self._event_bus = EventBus
+        except ImportError:
+            self._event_bus = None
+            
+        import asyncio
+        self._asyncio = asyncio
+
+    def _emit(self, event_type: str, data: Dict):
+        """Helper to emit events asynchronously from sync context."""
+        if self._event_bus:
+            try:
+                # Fire and forget
+                self._asyncio.create_task(self._event_bus.publish(event_type, data))
+            except Exception:
+                pass
+
+
     # =========================================================================
     # Core State Handlers
     # =========================================================================
@@ -93,6 +113,17 @@ class FSMHandlers:
         """
         if not user_input:
             return self._make_result("IDLE", None, None, False)
+
+        # V8.8: Input Guard Validation (OWASP LLM01)
+        try:
+            from core.security import get_input_guard
+            guard = get_input_guard()
+            validation = guard.validate(user_input)
+            if not validation.is_safe:
+                self._logger.warning(f"[INPUT GUARD] Blocked input: {validation.threat_type} - {validation.reason}")
+                return self._make_result("IDLE", f"Security Alert: Input blocked by guard ({validation.reason})", None, False)
+        except Exception as e:
+            self._logger.error(f"Input guard failed: {e}")
 
         # Step 1: Analyze task complexity
         task_analysis = self._orch.task_analyzer.analyze(user_input)
@@ -116,6 +147,15 @@ class FSMHandlers:
         else:
             self._orch._current_task_start = 0  # Ensure no recording
 
+        # V9.1 Reality Injection
+        self._emit("STATE_CHANGE", {"state": "ANALYZING", "task": user_input[:100]})
+        self._emit("TASK_STARTED", {
+            "task": user_input, 
+            "complexity": complexity.name,
+            "lead": task_analysis.recommended_lead
+        })
+
+
         # Check Auto-Memory for recommendations
         memory_rec = self._orch.auto_memory.get_recommendation(self._orch._current_task_type)
         if memory_rec["confidence"] > 0.5 and memory_rec["suggested_mode"]:
@@ -137,7 +177,10 @@ class FSMHandlers:
 
         # TRIVIAL → Fast Path
         if complexity == TaskComplexity.TRIVIAL:
-            return self._handle_trivial(user_input)
+            if getattr(self._orch.config, 'fast_path_enabled', True):
+                return self._handle_fast_path(user_input)
+            else:
+                return self._handle_trivial(user_input)
 
         # SIMPLE → Single agent mode
         if complexity == TaskComplexity.SIMPLE:
@@ -261,6 +304,13 @@ class FSMHandlers:
             if self._orch.config.ui_verbose:
                 print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
+            # V9.1 Reality Injection
+            self._emit("AGENT_THINK", {
+                "agent": previous_agent,
+                "content": content,
+                "next": self._orch.active_agent
+            })
+
             return self._make_result("BRAINSTORMING", content, sender, False)
 
         elif message.get("status") == "FINISHED":
@@ -289,6 +339,14 @@ class FSMHandlers:
                 "tool": tool_request.tool_name,
                 "args": tool_request.arguments
             })
+
+        # V9.1 Reality Injection
+        self._emit("TOOL_USE", {
+            "agent": self._orch.active_agent,
+            "tool": tool_request.tool_name,
+            "args": tool_request.arguments
+        })
+
 
         # Execute (synchronous)
         result = self._orch.tool_manager.execute(tool_request)
@@ -370,6 +428,13 @@ class FSMHandlers:
                     "result": content[:200],
                     "success": True
                 })
+
+            # V9.1 Reality Injection
+            self._emit("TASK_COMPLETED", {
+                "result": content,
+                "success": True
+            })
+
                 
             return self._make_result("FINISHED", f"✓ {content}", self._orch.active_agent, True)
 
@@ -464,6 +529,13 @@ class FSMHandlers:
         content = message.get("content", "")
         sender = message.get("sender", self._orch.active_agent)
         self._orch.stagnation_detector.add_message(content)
+
+        # V9.1 Reality Injection
+        self._emit("AGENT_THINK", {
+            "agent": sender,
+            "content": content,
+            "next": self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
+        })
 
         # Check if finished with valid mutation
         if message.get("status") == "FINISHED":
@@ -783,7 +855,10 @@ class FSMHandlers:
 
         # TRIVIAL → Fast Path
         if complexity == TaskComplexity.TRIVIAL:
-            return self._handle_trivial(user_input)
+            if getattr(self._orch.config, 'fast_path_enabled', True):
+                return await self.handle_fast_path_async(user_input)
+            else:
+                return self._handle_trivial(user_input)
 
         # SIMPLE → Single agent mode (Sync is fine for now, or wrap in thread if needed)
         if complexity == TaskComplexity.SIMPLE:
@@ -905,7 +980,8 @@ class FSMHandlers:
                     budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
                     project_memory=self._orch.project_memory,
                     auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
-                    swarm_engine=getattr(self._orch, 'swarm_engine', None)
+                    swarm_engine=getattr(self._orch, 'swarm_engine', None),
+                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value})
                 )
 
             # Map TaskComplexity to HiveComplexity
@@ -985,7 +1061,8 @@ class FSMHandlers:
                     budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
                     project_memory=self._orch.project_memory,
                     auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
-                    swarm_engine=getattr(self._orch, 'swarm_engine', None)
+                    swarm_engine=getattr(self._orch, 'swarm_engine', None),
+                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value})
                 )
 
             # Map TaskComplexity to HiveComplexity
@@ -1539,13 +1616,9 @@ class FSMHandlers:
         fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
 
         try:
-            context = {
-                "prompt": fast_prompt,
-                "task_type": "simple",
-                "max_tokens": 150,
-            }
             # ASYNC INVOKE
-            response = await self._invoke_agent_async(TaskType.SIMPLE, context, agent="gemini")
+            # Driver expects string context, not dict
+            response = await self._invoke_agent_async(TaskType.SIMPLE, fast_prompt, agent="gemini")
 
             if isinstance(response, dict):
                 content = response.get("content", response.get("text", str(response)))
@@ -1556,8 +1629,10 @@ class FSMHandlers:
 
             return {
                 "sender": "Gemini",
+                "agent": "Gemini",  # Required by display_result
                 "action_type": "TALK",
                 "content": content,
+                "output": content,  # Required by display_result
                 "status": "FINISHED",
                 "state": "IDLE",
                 "finished": True,
@@ -1566,11 +1641,14 @@ class FSMHandlers:
             }
 
         except Exception as e:
-            self._logger.warning("Fast Path (async) failed, falling back to static", {"error": str(e)})
+            self._logger.error("Fast Path (async) failed", {"error": str(e), "type": type(e).__name__})
+            print(f"Fast Path failed: {e}") # Force print to console for user visibility
             return {
                 "sender": "NEXUS",
+                "agent": "NEXUS",  # Required by display_result
                 "action_type": "TALK",
                 "content": "Hello! How can I help you today?",
+                "output": "Hello! How can I help you today?",  # Required by display_result
                 "status": "FINISHED",
                 "state": "IDLE",
                 "finished": True,

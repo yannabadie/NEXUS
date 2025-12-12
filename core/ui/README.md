@@ -9,6 +9,26 @@ Ce module gère l'interface "Réalité" de NEXUS, permettant de visualiser l'ét
 *   `code_mapper.py`: Analyseur statique (AST) pour générer le graphe de dépendances (Neural Code Map).
 *   `static/`: Frontend (HTML/JS/CSS) utilisant Cytoscape.js et WebSockets.
 
+## 🚀 Usage (Comment lancer le Dashboard)
+
+Le Dashboard **ne doit pas** être ouvert directement en double-cliquant sur le fichier HTML. Il nécessite le serveur Python pour fonctionner (API & WebSockets).
+
+### 1. Lancer le serveur
+Depuis la racine du projet (`NEXUS-N7A-AG/`) :
+
+```bash
+python core/ui/dashboard_server.py
+```
+
+### 2. Accéder à l'interface
+Ouvrez votre navigateur à l'adresse :
+👉 **http://localhost:8000**
+
+### 3. Fonctionnalités
+*   **Control Panel** : Cliquez sur le bouton "Control Panel" pour gérer l'évolution et le budget.
+*   **Code Map** : Visualisez les dépendances du code.
+*   **Synaptic Web** : Visualisez les agents actifs.
+
 ## Architecture & Flux
 *   **Entrées :**
     *   Événements FSM (`TASK_STARTED`, `TOOL_USE`) via `TelemetryClient`.

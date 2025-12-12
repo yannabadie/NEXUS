@@ -1,283 +1,72 @@
-# Module : Swarm - NEXUS V8.4.x "TRUE HIVE MIND"
+# Swarm Module - NEXUS V9.2
 
-Hybrid Swarm Engine pour collaboration multi-agent dynamique.
+## Rôle
+Le module `core/swarm` est le moteur de collaboration multi-agents dynamique de NEXUS. Il permet à plusieurs agents (Gemini, Claude, et agents spécialisés) de collaborer sur une tâche complexe en négociant le mode de travail optimal (Parallèle, Séquentiel, Lead/Support, etc.) au runtime.
 
-## Rôle dans l'Architecture NEXUS V8.4.x
+## Fichiers Clés
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `hybrid_swarm_engine.py` | ~300 | **Orchestrator**: Coordonne le cycle de vie du Swarm (Analyze -> Negotiate -> Execute). |
+| `mode_selector.py` | ~350 | **Decision**: Sélectionne le mode optimal basé sur la complexité (DyLAN). |
+| `negotiation_protocol.py` | ~230 | **Protocol**: Gère l'échange de messages de négociation entre agents. |
+| `mode_executors.py` | ~480 | **Executors**: Implémente la logique d'exécution pour chaque mode (Parallel, Sequential, etc.). |
+| `task_analyzer.py` | ~180 | **Analysis**: Détermine la complexité et le domaine de la tâche. |
 
-Le module Swarm (Sprint 9) permet la **sélection dynamique du mode de collaboration** où les agents négocient la manière optimale de travailler ensemble pour chaque tâche.
-
-### Évolution V8.x
-
-| Version | Feature |
-|---------|---------|
-| V7.8 | Suppression code GoT mort, Phase 15 Agent-as-Tool |
-| **V8.3.0** | SwarmBridge - HiveMind peut déléguer au Swarm |
-| **V8.3.1** | SwarmTool - Invocation via `swarm_delegate` tool |
-| **V8.3.1-hotfix** | Depth Guard anti-recursion (MAX_DEPTH=2) |
-| **V8.3.3** | MergeStrategy - Intelligent result aggregation |
-| **V8.4.0** | UnifiedAgentRegistry integration |
-| **V8.4.4** | Thread-safety fix (ThreadPoolExecutor + Lock) |
-
-## Architecture
-
-```
-                         USER INPUT
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    HYBRID SWARM ENGINE                          │
-│                                                                 │
-│  ┌──────────────────┐   ┌──────────────────┐   ┌─────────────┐  │
-│  │   TaskAnalyzer   │──▶│   ModeSelector   │──▶│ Negotiation │  │
-│  │  • Complexity    │   │   • DyLAN scores │   │  Protocol   │  │
-│  │  • Domains       │   │   • Mode scoring │   │  • Hybrid   │  │
-│  └──────────────────┘   └──────────────────┘   └─────────────┘  │
-│                                                      │          │
-│                                                      ▼          │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    MODE EXECUTORS                        │   │
-│  │  ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌──────────┐  │   │
-│  │  │ PARALLEL │ │SEQUENTIAL│ │LEAD_SUPPORT│ │PING_PONG │  │   │
-│  │  └──────────┘ └──────────┘ └────────────┘ └──────────┘  │   │
-│  │  ┌────────────┐ ┌──────────┐                             │   │
-│  │  │ SPECIALIST │ │ RED_BLUE │                             │   │
-│  │  └────────────┘ └──────────┘                             │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Composants Principaux
-
-| Fichier | Rôle | Classes/Fonctions clés |
-|---------|------|------------------------|
-| `hybrid_swarm_engine.py` | Moteur principal | `HybridSwarmEngine`, `SwarmResult` |
-| `task_analyzer.py` | Analyse tâches | `TaskAnalyzer`, `TaskComplexity`, `TaskDomain` |
-| `mode_selector.py` | Sélection mode | `ModeSelector`, `ModeProposal` |
-| `collaboration_modes.py` | Définitions modes | `CollaborationMode`, `ModeCharacteristics` |
-| `negotiation_protocol.py` | Négociation agents | `NegotiationProtocol`, `NegotiationResult` |
-| `mode_executors.py` | Exécution + self-healing | `ParallelExecutor`, `execute_with_fallback()` |
-| `merge_strategies.py` | **V8.3.3** Fusion résultats | `MergeStrategy`, `IntelligentMerger` |
-| `agent_metrics.py` | DyLAN + scoring | `AgentProfile`, `AgentPool` |
-| `session_manager.py` | Isolation session | `SwarmSessionManager`, `TaskSession` |
-
-## Modes de Collaboration (6)
-
-| Mode | Description | Cas d'usage | Affinité Complexité |
-|------|-------------|-------------|---------------------|
-| **PARALLEL** | Travail simultané, fusion résultats | Sous-tâches indépendantes | 0.5 |
-| **SEQUENTIAL** | Exécution ordonnée | Dépendances claires | 0.6 |
-| **LEAD_SUPPORT** | Lead (80%) + Support (20%) | Expertise dominante | 0.7 |
-| **PING_PONG** | Alternance rapide | Brainstorming, créativité | 0.6 |
-| **SPECIALIST** | Un seul expert | Expertise exclusive | 0.8 |
-| **RED_BLUE** | Adversarial propose/attaque/défend | Sécurité, décisions critiques | 1.0 |
-
-### Chaîne de Fallback (Phase 8: Self-Healing)
-
-```
-PARALLEL    → SEQUENTIAL
-RED_BLUE    → LEAD_SUPPORT
-LEAD_SUPPORT → SPECIALIST
-PING_PONG   → SEQUENTIAL
-SEQUENTIAL  → SPECIALIST
-SPECIALIST  → None (terminal)
-```
-
-## Phase Status (V8.3.x)
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| **Phase 7** | Session Isolation (SwarmSessionManager) | ✅ |
-| **Phase 8** | Self-Healing Swarm (Fallback) | ✅ |
-| **Phase 10a** | Success Memory | ✅ |
-| **Phase 10b** | Memory-Augmented Mode Selection | ✅ |
-| **Phase 10d** | Session-Aware Agent Selection | ✅ |
-| **Phase 5b** | N-Agent Agnosticism (Spawned Agents) | ✅ |
-| **Phase 14e** | Force Chain-of-Thought (EXPERT) | ✅ |
-| **Phase 14c** | GoT code removal (-206 lignes) | ✅ |
-| **Phase 15** | Agent-as-Tool integration | ✅ |
-| **V8.3.0** | SwarmBridge (Dictator Mode) | ✅ **[NEW]** |
-| **V8.3.1** | SwarmTool (swarm_delegate) | ✅ **[NEW]** |
-| **V8.3.1-hotfix** | Depth Guard (anti-recursion) | ✅ **[NEW]** |
-
----
-
-## Complexité des Tâches
-
-| Niveau | Valeur | Description | Négociation | CoT Forcé |
-|--------|--------|-------------|-------------|-----------|
-| `TRIVIAL` | 1 | Tâches mono-étape | Skip | Non |
-| `SIMPLE` | 2 | Opérations basiques | Minimal | Non |
-| `MODERATE` | 3 | Tâches standard | Full | Non |
-| `COMPLEX` | 4 | Planification multi-étapes | Extended | Non |
-| `EXPERT` | 5 | Décisions critiques | RED_BLUE | **Oui** |
-
-### Force Chain-of-Thought (Phase 14e)
-
-Pour EXPERT, injection automatique de l'instruction CoT:
-
-```xml
-<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>
-```
-
----
-
-## Scoring Session-Aware (Phase 10d)
-
+## API Publique
 ```python
-Score = (DyLAN_importance × 0.7) + (Session_success_rate × 0.3)
+from core.swarm import (
+    HybridSwarmEngine,
+    CollaborationMode,
+    SwarmResult
+)
 
-# Bonus session
-HIGH_SESSION_BONUS = 0.08   # Success rate ≥ 0.8
-MEDIUM_SESSION_BONUS = 0.05 # Success rate ≥ 0.6
-LOW_SESSION_BONUS = 0.02    # Success rate ≥ 0.4
+# Usage
+engine = HybridSwarmEngine(agent_pool, model_router, config)
+result = await engine.process_task(task, blackboard)
 ```
 
----
+## Flux de Données
 
-## Interactions et Flux de Données
-
+### Swarm Lifecycle
 ```mermaid
-graph TB
-    subgraph "Swarm Module"
-        HSE[HybridSwarmEngine]
-        TA[TaskAnalyzer]
-        MS[ModeSelector]
-        NP[NegotiationProtocol]
-        ME[ModeExecutors]
-        SM[SessionManager]
-    end
-
-    subgraph "Consumers"
-        OV7[OrchestratorV7]
-        SB[SwarmBridge]
-    end
-
-    subgraph "Dépendances"
-        AM[AutoMemory]
-        AP[AgentPool]
-        ATR[AgentToolRegistry]
-    end
-
-    OV7 -->|via| SB
-    SB -->|process_task| HSE
-
-    HSE -->|analyze| TA
-    HSE -->|select| MS
-    HSE -->|negotiate| NP
-    HSE -->|execute| ME
-
-    MS -->|recommendations| AM
-    ME -->|sessions| SM
-    ME -->|agent tools| ATR
+flowchart TD
+    Start[Task] --> Analyze[TaskAnalyzer]
+    Analyze --> Negotiate[NegotiationProtocol]
+    Negotiate --> Select[ModeSelector]
+    Select --> Execute[ModeExecutor]
+    Execute --> Validate[TaskCompletionValidator]
+    Validate -- Success --> End[Result]
+    Validate -- Retry --> Execute
 ```
 
----
+## Modes de Collaboration
+1.  **PARALLEL**: Exécution simultanée, fusion des résultats.
+2.  **SEQUENTIAL**: Chaîne de responsabilité (A -> B -> C).
+3.  **LEAD_SUPPORT**: Un leader dirige, les supports exécutent/vérifient.
+4.  **PING_PONG**: Alternance rapide jusqu'à convergence.
+5.  **SPECIALIST**: Un seul expert gère tout.
+6.  **RED_BLUE**: Adversarial (Propose vs Critique).
 
-## Usage
+## Dépendances
 
-### Traitement Basique
+**Importe :**
+- `core/drivers` : Pour invoquer les agents.
+- `core/synapse` : Blackboard pour le partage d'état.
 
-```python
-from core.swarm import HybridSwarmEngine
-
-engine = HybridSwarmEngine(
-    agent_pool=agent_pool,
-    model_router=router,
-    config=config,
-    invoke_agent=orchestrator._invoke_for_swarm,
-    workspace_path=workspace_path
-)
-
-result = engine.process_task("Review the auth module security")
-
-print(f"Mode: {result.mode}")        # RED_BLUE
-print(f"Status: {result.status}")    # SUCCESS
-```
-
-### Force Mode Spécifique
-
-```python
-result = engine.process_task(
-    "Write unit tests",
-    forced_mode=CollaborationMode.SPECIALIST
-)
-```
-
-### Skip Négociation
-
-```python
-result = engine.process_task(
-    "Quick fix",
-    skip_negotiation=True
-)
-```
-
----
+**Importé par :**
+- `core/orchestration_v7.py` : Point d'entrée principal du Swarm.
+- `core/orchestration/fsm_handlers.py` : Gestion des états FSM liés au Swarm.
+- `core/hive_mind/swarm_bridge.py` : Pont entre Hive Mind (Strategic) et Swarm (Tactical).
 
 ## Configuration
 
-```bash
-# Core
-SWARM_ENABLED=True                  # Activer swarm engine
-SWARM_AUTO_ROUTE=True               # Auto-route MODERATE+ tasks
-SWARM_NEGOTIATION=True              # Activer phase négociation
-SWARM_NEGOTIATION_TURNS=4           # Max rounds négociation
-SWARM_DEFAULT_MODE=ping_pong        # Mode fallback
-SWARM_MAX_ROUNDS=6                  # Max rounds exécution
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SWARM_AUTO_ROUTE` | `True` | Active le routage automatique vers le Swarm. |
+| `MAX_SWARM_ROUNDS` | `5` | Nombre max d'itérations en mode Ping-Pong/Red-Blue. |
 
-# Session (Phase 7)
-SWARM_SESSION_RETENTION_HOURS=24    # Durée rétention sessions
+## Tests
 
-# Self-Healing (Phase 8)
-SWARM_MAX_FALLBACKS=2               # Max tentatives fallback
-```
-
----
-
-## Métriques V8.3.x
-
-| Fichier | Lignes | Changement |
-|---------|--------|------------|
-| `hybrid_swarm_engine.py` | 595 | Stable |
-| `mode_executors.py` | 450 | Stable |
-| `mode_selector.py` | 620 | Stable |
-| `session_manager.py` | 380 | Stable |
-| `collaboration_modes.py` | ~200 | +from_string() method |
-| **Total module** | ~3200 | Stable |
-
----
-
-## Notes d'Audit Local
-
-### [V8.3.x] Changements
-
-**V8.3.0 SwarmBridge:**
-- Nouveau composant `core/hive_mind/swarm_bridge.py`
-- Guardrails: modes autorisés par phase HiveMind
-- Self-healing avec checkpoints (create/restore)
-
-**V8.3.1 SwarmTool:**
-- Handler `_execute_swarm_delegate()` dans ToolManager
-- Wrapper async→sync pour intégration
-- Feedback loop: injection résultats dans contexte
-
-**V8.3.1-hotfix Depth Guard:**
-- `MAX_SWARM_DEPTH = 2` (anti-recursion)
-- Paramètre `_swarm_depth` propagé entre appels
-- Erreur explicite si profondeur dépassée
-
-### Points d'attention
-- **Thread-safety**: `threading.RLock` sur opérations critiques
-- **Session cleanup**: 24h retention par défaut
-- **Fallback chain**: Testé via `test_self_healing.py`
-- **Depth Guard**: Testé via `test_swarm_tool.py`
-
----
-
-## Voir Aussi
-
-- [core/memory/README.md](../memory/README.md) - SuccessMemory pour scoring
-- [core/orchestration/README.md](../orchestration/README.md) - SwarmBridge
-- [core/execution/README.md](../execution/README.md) - AgentToolRegistry
-- [core/fsm/README.md](../fsm/README.md) - États SWARM_*
-- [docs/PHASE_14E_COT_ENFORCEMENT.md](../../docs/PHASE_14E_COT_ENFORCEMENT.md) - Force CoT
+- `tests/swarm/test_hybrid_swarm_engine.py`
+- `tests/swarm/test_negotiation.py`
+- `tests/e2e/test_swarm_collaboration.py`

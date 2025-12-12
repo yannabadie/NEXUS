@@ -24,6 +24,13 @@ try:
 except ImportError:
     UNIVERSAL_IO_AVAILABLE = False
     UniversalIO = None
+    
+# V9.1 Reality Injection
+try:
+    from core.ui.event_bus import EventBus
+except ImportError:
+    EventBus = None
+
 
 class Role(Enum):
     LEAD = "lead"
@@ -75,7 +82,14 @@ class Architect:
                 self.logger.warning(f"Semantic negotiation failed: {e}. Falling back to heuristics.")
 
         # 2. Fallback to Heuristics
-        return await self._negotiate_with_heuristics(task_description)
+        decision = await self._negotiate_with_heuristics(task_description)
+        
+        # V9.1 Reality Injection
+        if EventBus:
+            await EventBus.publish("ARCHITECT_DECISION", decision)
+            
+        return decision
+
 
     async def _negotiate_with_llm(self, task: str) -> Dict[str, Any]:
         """
@@ -140,7 +154,15 @@ class Architect:
         if result["lead"] == "spawn":
             result["spawn_details"] = decision.get("spawn_details", {})
             
+        if result["lead"] == "spawn":
+            result["spawn_details"] = decision.get("spawn_details", {})
+            
+        # V9.1 Reality Injection
+        if EventBus:
+            await EventBus.publish("ARCHITECT_DECISION", result)
+
         return result
+
 
     async def _negotiate_with_heuristics(self, task_description: str) -> Dict[str, Any]:
         """
