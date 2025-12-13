@@ -10,20 +10,22 @@ BRIDGE, sending events via HTTP POST to the Dashboard's /api/telemetry endpoint.
 Usage:
     from core.ui.event_bus import EventBus
 
-    # Publish (Fire and Forget)
+    # Async context:
     await EventBus.publish("AGENT_THINK", {"agent": "Gemini", "thought": "..."})
+    
+    # Sync context (e.g., from drivers):
+    EventBus.publish_sync("AGENT_RESPONSE", {"agent": "Gemini", "content": "..."})
 """
 
 import asyncio
 import logging
 import json
-import aiohttp
+import os
+import threading
 from datetime import datetime
 from typing import Dict, Any
 
 logger = logging.getLogger("nexus.event_bus")
-
-import os
 
 DASHBOARD_URL = os.getenv("NEXUS_DASHBOARD_URL", "http://localhost:8000/api/telemetry")
 
@@ -36,6 +38,7 @@ class EventBus:
 
     @classmethod
     async def get_session(cls):
+        import aiohttp
         if cls._session is None or cls._session.closed:
             cls._session = aiohttp.ClientSession()
         return cls._session
@@ -43,12 +46,13 @@ class EventBus:
     @classmethod
     async def publish(cls, event_type: str, data: Dict[str, Any]):
         """
-        Publish an event to the Dashboard via HTTP POST.
+        Publish an event to the Dashboard via HTTP POST (async).
         
         Args:
             event_type: Type of event (e.g., "STATE_CHANGE", "LOG")
             data: Event payload
         """
+        import aiohttp
         event = {
             "type": event_type,
             "timestamp": datetime.now().isoformat(),
@@ -57,16 +61,42 @@ class EventBus:
         
         try:
             session = await cls.get_session()
-            # Fire and forget - don't wait for response to avoid blocking Core
-            # But we must await the request creation
             async with session.post(DASHBOARD_URL, json=event) as resp:
                 pass
         except Exception as e:
-            # Silently fail if dashboard is down to not disrupt Core
-            # logger.debug(f"Failed to push event to dashboard: {e}")
-            pass
+            pass  # Silently fail if dashboard is down
+
+    @classmethod
+    def publish_sync(cls, event_type: str, data: Dict[str, Any]):
+        """
+        Publish an event to the Dashboard via HTTP POST (synchronous).
+        
+        Uses a background thread for fire-and-forget semantics.
+        Safe to call from synchronous driver code.
+        
+        Args:
+            event_type: Type of event (e.g., "AGENT_RESPONSE")
+            data: Event payload
+        """
+        event = {
+            "type": event_type,
+            "timestamp": datetime.now().isoformat(),
+            "data": data
+        }
+        
+        def _send():
+            try:
+                import requests
+                requests.post(DASHBOARD_URL, json=event, timeout=2)
+            except Exception:
+                pass  # Silently fail
+        
+        # Fire-and-forget in background thread
+        thread = threading.Thread(target=_send, daemon=True)
+        thread.start()
 
     @classmethod
     async def close(cls):
         if cls._session:
             await cls._session.close()
+

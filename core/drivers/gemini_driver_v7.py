@@ -179,18 +179,13 @@ class GeminiDriverV7:
         Fire-and-forget pattern - never blocks driver execution.
         """
         try:
-            import asyncio as _asyncio
             from core.ui.event_bus import EventBus
-            try:
-                loop = _asyncio.get_running_loop()
-                _asyncio.ensure_future(EventBus.publish("AGENT_RESPONSE", {
-                    "agent": "Gemini",
-                    "content": response.get("content", "")[:500],  # Truncate for WebSocket
-                    "action_type": response.get("action_type", "TALK"),
-                    "tool": response.get("tool_use", {}).get("tool_name") if response.get("tool_use") else None
-                }))
-            except RuntimeError:
-                pass  # No event loop running, skip dashboard update
+            EventBus.publish_sync("AGENT_RESPONSE", {
+                "agent": "Gemini",
+                "content": response.get("content", "")[:500],  # Truncate for WebSocket
+                "action_type": response.get("action_type", "TALK"),
+                "tool": response.get("tool_use", {}).get("tool_name") if response.get("tool_use") else None
+            })
         except ImportError:
             pass  # EventBus not available
 
