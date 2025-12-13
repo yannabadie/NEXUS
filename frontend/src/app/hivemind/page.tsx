@@ -49,6 +49,18 @@ const DEMO_EXECUTION_STEPS: ExecutionStep[] = [
 ];
 
 // ============================================================================
+// Helper: Extract phase number safely (API may return object or number)
+// ============================================================================
+
+function getPhaseNumber(phase: unknown): number | null {
+    if (typeof phase === 'number') return phase;
+    if (typeof phase === 'object' && phase !== null && 'iteration' in phase) {
+        return (phase as { iteration?: number }).iteration || null;
+    }
+    return null;
+}
+
+// ============================================================================
 // Main HiveMind Page
 // ============================================================================
 
@@ -89,7 +101,7 @@ export default function HiveMindPage() {
                         Show demo data
                     </label>
                     <span className="px-3 py-1 bg-violet-600/20 border border-violet-600 rounded-full text-sm text-violet-300">
-                        Phase {orchestration?.hive_mind_phase || "-"}
+                        Phase {getPhaseNumber(orchestration?.hive_mind_phase) ?? "-"}
                     </span>
                 </div>
             </div>
@@ -97,7 +109,7 @@ export default function HiveMindPage() {
             {/* HiveMind Phase Tracker */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
                 <h2 className="text-sm font-medium text-zinc-400 mb-4">Pipeline Progress</h2>
-                <HiveMindTracker currentPhase={orchestration?.hive_mind_phase || null} />
+                <HiveMindTracker currentPhase={getPhaseNumber(orchestration?.hive_mind_phase)} />
             </div>
 
             {/* Tab Navigation */}
@@ -111,8 +123,8 @@ export default function HiveMindPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as typeof activeTab)}
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
-                                ? "border-violet-500 text-violet-300"
-                                : "border-transparent text-zinc-400 hover:text-zinc-200"
+                            ? "border-violet-500 text-violet-300"
+                            : "border-transparent text-zinc-400 hover:text-zinc-200"
                             }`}
                     >
                         {tab.icon} {tab.label}
@@ -134,9 +146,9 @@ export default function HiveMindPage() {
                     ].map((phase) => (
                         <div
                             key={phase.id}
-                            className={`bg-zinc-800/50 border rounded-lg p-4 transition-all ${orchestration?.hive_mind_phase === phase.id
-                                    ? "border-violet-500 bg-violet-600/10"
-                                    : "border-zinc-700"
+                            className={`bg-zinc-800/50 border rounded-lg p-4 transition-all ${getPhaseNumber(orchestration?.hive_mind_phase) === phase.id
+                                ? "border-violet-500 bg-violet-600/10"
+                                : "border-zinc-700"
                                 }`}
                         >
                             <div className="flex items-center gap-2 mb-2">
@@ -154,7 +166,7 @@ export default function HiveMindPage() {
                     topic="Task Approach Strategy"
                     turns={showDemo ? DEMO_DEBATE_TURNS : []}
                     consensusScore={showDemo ? 65 : 0}
-                    isLive={orchestration?.hive_mind_phase === 2}
+                    isLive={getPhaseNumber(orchestration?.hive_mind_phase) === 2}
                 />
             )}
 

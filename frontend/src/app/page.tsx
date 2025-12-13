@@ -73,6 +73,18 @@ function AgentCard({
 }
 
 // ============================================================================
+// Helper: Extract phase number safely (API may return object or number)
+// ============================================================================
+
+function getPhaseNumber(phase: unknown): number | null {
+  if (typeof phase === 'number') return phase;
+  if (typeof phase === 'object' && phase !== null && 'iteration' in phase) {
+    return (phase as { iteration?: number }).iteration || null;
+  }
+  return null;
+}
+
+// ============================================================================
 // Main Dashboard Page
 // ============================================================================
 
@@ -160,7 +172,7 @@ export default function Dashboard() {
 
       {/* HiveMind Phase Tracker */}
       <StatusPanel title="HiveMind Pipeline">
-        <HiveMindTracker currentPhase={orchestration?.hive_mind_phase || null} />
+        <HiveMindTracker currentPhase={getPhaseNumber(orchestration?.hive_mind_phase)} />
       </StatusPanel>
 
       {/* Middle Row: Swarm + Agents */}
