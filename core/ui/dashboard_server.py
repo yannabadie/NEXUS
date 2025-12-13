@@ -183,31 +183,38 @@ async def upload_memory(file: UploadFile = File(...)):
 
 @app.post("/api/chat")
 async def send_chat(message: Dict[str, str]):
-    """Send a chat message to NEXUS Core via IPC."""
+    """
+    V10: Send a chat message to NEXUS Core via embedded orchestrator.
+    
+    This invokes real Gemini/Claude agents, not a mock.
+    Agent responses are streamed via EventBus → WebSocket.
+    """
     try:
-        workspace = Path("workspace")
-        buffer_dir = workspace / "_IO_BUFFER"
-        buffer_dir.mkdir(exist_ok=True)
+        from core.ui.dashboard_orchestrator import get_dashboard_orchestrator
         
-        # Write to IPC file
-        ipc_file = buffer_dir / "chat_input.json"
+        content = message.get("content", "")
+        if not content:
+            return {"error": "Empty message"}
         
-        payload = {
-            "sender": "User (Dashboard)",
-            "content": message.get("content", ""),
-            "timestamp": asyncio.get_event_loop().time()
+        # Get orchestrator and process message
+        orchestrator = get_dashboard_orchestrator()
+        
+        # Process through real NEXUS agents
+        result = await orchestrator.process_message(content)
+        
+        if "error" in result:
+            return {"error": result["error"], "response": f"Error: {result['error']}"}
+        
+        return {
+            "response": result.get("response", ""),
+            "agent": result.get("agent", "NEXUS"),
+            "state": result.get("state", "IDLE"),
+            "finished": result.get("finished", False)
         }
         
-        # Atomic write (write to temp then rename)
-        temp_file = ipc_file.with_suffix(".tmp")
-        with open(temp_file, "w", encoding="utf-8") as f:
-            json.dump(payload, f)
-        
-        temp_file.replace(ipc_file)
-        
-        return {"status": "sent"}
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Chat error: {e}")
+        return {"error": str(e), "response": f"Error: {str(e)}"}
 
 # --- Control Endpoints (Phase 41) ---
 
