@@ -1,12 +1,17 @@
 """
-NEXUS V8.0 - Phase 7: Knowledge Consolidation
+NEXUS V9.2 - Phase 7: Knowledge Consolidation
 
 Post-task debate between agents about what to retain.
 Implements user's decision: agents debate what knowledge to keep.
 
+V9.2 Enhancement: Session Isolation for Parallel Reflection
+- Each agent reflects with isolated session
+- Context inheritance from Phase 6 (TASK_PLUS_RESULTS scope)
+- Model-aware context for reflection capabilities
+
 Flow:
-1. Gemini reflects on task outcome
-2. Claude reflects on task outcome
+1. Gemini reflects on task outcome (session: uuid-cons-G)
+2. Claude reflects on task outcome (session: uuid-cons-C) [parallel]
 3. Agents debate: What learned? What to keep?
 4. User Breakpoint: KNOWLEDGE_CONSOLIDATION
 5. Archive decisions to Registry and RAG
@@ -16,6 +21,7 @@ Key Innovation:
 - Agents decide together what's worth keeping
 - Patterns/antipatterns extracted for learning
 - Spawned agents evaluated for retention
+- V9.2: Session isolation for parallel reflection
 """
 
 import asyncio
@@ -34,10 +40,13 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..agent_registry import AgentRegistry
 from ..user_interaction import UserInteractionHandler
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
     from core.memory.project_memory import ProjectMemory
@@ -126,6 +135,8 @@ class KnowledgeConsolidationPhase:
     Phase 7: Knowledge Consolidation
 
     Post-task debate on what to retain.
+
+    V9.2: Integrated session isolation for parallel reflection.
     """
 
     def __init__(
@@ -136,7 +147,9 @@ class KnowledgeConsolidationPhase:
         context_manager: HiveMindContextManager,
         agent_registry: AgentRegistry,
         user_handler: UserInteractionHandler,
-        project_memory: "ProjectMemory" = None
+        project_memory: "ProjectMemory" = None,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 7.
@@ -149,6 +162,8 @@ class KnowledgeConsolidationPhase:
             agent_registry: Agent registry
             user_handler: User interaction handler
             project_memory: Optional ProjectMemory for RAG archival
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
@@ -157,6 +172,11 @@ class KnowledgeConsolidationPhase:
         self.registry = agent_registry
         self.user_handler = user_handler
         self.project_memory = project_memory
+
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("consolidation")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
 
     async def execute(
         self,
@@ -187,6 +207,22 @@ class KnowledgeConsolidationPhase:
         """
         logger.info("Phase 7: Starting Knowledge Consolidation")
 
+        # V9.2: Initialize session integration with TASK_PLUS_RESULTS scope
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="consolidation",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity="MODERATE"
+        )
+        self._session_integration.set_previous_phase("execution")
+
+        # V9.2: Get isolated sessions for parallel reflection
+        parallel_sessions = self._session_integration.get_parallel_sessions(
+            agents=["gemini", "claude"]
+        )
+        logger.debug(f"Created isolated consolidation sessions: {parallel_sessions}")
+
         # Check budget
         if not self.cost_estimator.can_afford_multiple({
             "reflection_gemini": 1,
@@ -209,8 +245,8 @@ class KnowledgeConsolidationPhase:
             agents_spawned=", ".join(agents_spawned) or "None"
         )
 
-        gemini_task = self._reflect_with_gemini(reflection_prompt)
-        claude_task = self._reflect_with_claude(reflection_prompt)
+        gemini_task = self._reflect_with_gemini(reflection_prompt, parallel_sessions.get("gemini"))
+        claude_task = self._reflect_with_claude(reflection_prompt, parallel_sessions.get("claude"))
 
         gemini_result, claude_result = await asyncio.gather(
             gemini_task,
@@ -295,10 +331,11 @@ class KnowledgeConsolidationPhase:
             agents_deleted=agents_deleted
         )
 
-    async def _reflect_with_gemini(self, prompt: str) -> str:
-        """Get reflection from Gemini."""
+    async def _reflect_with_gemini(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+        """Get reflection from Gemini with session isolation."""
         try:
-            response = await self.gemini.send_message_async(prompt)
+            logger.debug(f"Gemini reflection using session {session_uuid[:8] if session_uuid else 'none'}")
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
             tokens = len(response) // 4
             self.cost_estimator.record_cost("reflection_gemini", tokens)
             return response
@@ -306,10 +343,11 @@ class KnowledgeConsolidationPhase:
             logger.error(f"Gemini reflection failed: {e}")
             raise
 
-    async def _reflect_with_claude(self, prompt: str) -> str:
-        """Get reflection from Claude."""
+    async def _reflect_with_claude(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+        """Get reflection from Claude with session isolation."""
         try:
-            response = await self.claude.send_message_async(prompt)
+            logger.debug(f"Claude reflection using session {session_uuid[:8] if session_uuid else 'none'}")
+            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
             tokens = len(response) // 4
             self.cost_estimator.record_cost("reflection_claude", tokens)
             return response

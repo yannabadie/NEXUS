@@ -21,6 +21,32 @@ import logging
 
 from core.swarm.collaboration_modes import CollaborationMode
 
+
+# V9.3 ISSUE-008: Exception for exhausted fallback chains (no more silent failures)
+class FallbackExhaustedError(Exception):
+    """
+    Raised when all fallback modes have been exhausted without success.
+
+    V9.3: Replaces silent `return None` to make failures explicit and traceable.
+    Callers can catch this to handle graceful degradation or escalation.
+    """
+
+    def __init__(
+        self,
+        modes_tried: List[CollaborationMode],
+        task: str,
+        last_result: Any = None
+    ):
+        self.modes_tried = modes_tried
+        self.task = task
+        self.last_result = last_result
+        modes_str = " -> ".join(m.value for m in modes_tried)
+        super().__init__(
+            f"All fallback modes exhausted ({modes_str}). "
+            f"Task: {task[:100]}..."
+        )
+
+
 # V8.8 (GROK-004): Adaptive fallback selection
 try:
     from core.swarm.adaptive_fallback import (
@@ -337,12 +363,17 @@ class SwarmBridge:
                 current_mode = current_mode.fallback_mode
             attempts += 1
 
-        # All fallbacks exhausted
+        # V9.3 ISSUE-008: All fallbacks exhausted - raise explicit exception
+        # BEFORE: Silent `return None` caused caller to not detect failure
+        # AFTER: Explicit exception enables proper error handling and diagnosis
         if last_error:
             raise last_error
 
-        # Return last result even if not fully successful
-        return None
+        raise FallbackExhaustedError(
+            modes_tried=fallback_chain,
+            task=task,
+            last_result=None
+        )
 
     async def _call_swarm(
         self,

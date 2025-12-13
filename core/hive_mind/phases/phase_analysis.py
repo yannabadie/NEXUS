@@ -1,12 +1,17 @@
 """
-NEXUS V8.0 - Phase 1: Independent Analysis
+NEXUS V9.2 - Phase 1: Independent Analysis
 
 Both agents analyze the task INDEPENDENTLY before comparing.
 This ensures genuine diversity of thought, not rubber-stamping.
 
+V9.2 Enhancement: Session Isolation for Parallel Agents
+- Each agent gets unique session_uuid for isolation
+- Context scope: TASK_ONLY (no cross-contamination)
+- Model-aware context for capability reminders
+
 Flow:
-1. Gemini analyzes task → IndependentAnalysis
-2. Claude analyzes task → IndependentAnalysis (in parallel)
+1. Gemini analyzes task → IndependentAnalysis (session: uuid-001)
+2. Claude analyzes task → IndependentAnalysis (session: uuid-002) [parallel]
 3. Compare analyses → AnalysisComparison
 4. Decide: needs_debate? → Phase 2 or skip to Phase 3
 
@@ -14,6 +19,7 @@ Key Innovation:
 - Agents DON'T see each other's analysis until both are complete
 - Comparison identifies genuine disagreements
 - High agreement (>85%) can skip debate entirely
+- V9.2: Session isolation prevents context bleeding
 """
 
 import asyncio
@@ -28,8 +34,11 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope, ScopedContext
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
@@ -78,6 +87,8 @@ class IndependentAnalysisPhase:
     Phase 1: Independent Analysis
 
     Both agents analyze the task separately, then compare results.
+
+    V9.2: Integrated session isolation for parallel agent execution.
     """
 
     # Thresholds
@@ -89,7 +100,9 @@ class IndependentAnalysisPhase:
         gemini_driver: "GeminiDriverV7",
         claude_driver: "ClaudeDriverV7",
         cost_estimator: CostEstimator,
-        context_manager: HiveMindContextManager
+        context_manager: HiveMindContextManager,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 1.
@@ -99,15 +112,24 @@ class IndependentAnalysisPhase:
             claude_driver: Claude driver instance
             cost_estimator: Cost estimator for budget control
             context_manager: Context manager for state
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
         self.cost_estimator = cost_estimator
         self.context_manager = context_manager
 
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("analysis")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
+
     async def execute(self, task: str) -> AnalysisPhaseResult:
         """
         Execute Phase 1: Independent Analysis.
+
+        V9.2: Creates isolated sessions for each agent to prevent context bleeding.
 
         Args:
             task: The task to analyze
@@ -116,6 +138,15 @@ class IndependentAnalysisPhase:
             AnalysisPhaseResult with both analyses and comparison
         """
         logger.info("Phase 1: Starting Independent Analysis")
+
+        # V9.2: Initialize session integration for this phase
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="analysis",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity="MODERATE"  # Will be refined after analysis
+        )
 
         # Add task to context
         self.context_manager.add_task(task)
@@ -129,11 +160,17 @@ class IndependentAnalysisPhase:
             logger.error("Cannot afford Phase 1 operations")
             raise RuntimeError("Budget exceeded for Phase 1")
 
-        # Run analyses in parallel
+        # V9.2: Get isolated sessions for parallel execution
+        parallel_sessions = self._session_integration.get_parallel_sessions(
+            agents=["gemini", "claude"]
+        )
+        logger.debug(f"Created isolated sessions: {parallel_sessions}")
+
+        # Run analyses in parallel with isolated sessions
         prompt = ANALYSIS_PROMPT.format(task=task)
 
-        gemini_task = self._analyze_with_gemini(prompt)
-        claude_task = self._analyze_with_claude(prompt)
+        gemini_task = self._analyze_with_gemini(prompt, parallel_sessions.get("gemini"))
+        claude_task = self._analyze_with_claude(prompt, parallel_sessions.get("claude"))
 
         # Wait for both to complete
         gemini_analysis, claude_analysis = await asyncio.gather(
@@ -184,19 +221,34 @@ class IndependentAnalysisPhase:
 
         return result
 
-    async def _analyze_with_gemini(self, prompt: str) -> IndependentAnalysis:
-        """Get analysis from Gemini."""
-        logger.debug("Requesting Gemini analysis...")
+    async def _analyze_with_gemini(
+        self,
+        prompt: str,
+        session_uuid: Optional[str] = None
+    ) -> IndependentAnalysis:
+        """
+        Get analysis from Gemini.
+
+        V9.2: Uses session_uuid for context isolation.
+
+        Args:
+            prompt: Analysis prompt
+            session_uuid: Unique session for isolation
+
+        Returns:
+            IndependentAnalysis from Gemini
+        """
+        logger.debug(f"Requesting Gemini analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # Call Gemini driver
-            response = await self.gemini.send_message_async(prompt)
+            # V9.2: Call Gemini driver with session isolation
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
 
             # Parse JSON response
             analysis_data = self._parse_analysis_response(response, "gemini")
 
             # Record cost
-            tokens = len(response) // 4  # Rough estimate
+            tokens = len(str(response)) // 4  # Rough estimate
             self.cost_estimator.record_cost("independent_analysis_gemini", tokens)
 
             return IndependentAnalysis(
@@ -208,19 +260,34 @@ class IndependentAnalysisPhase:
             logger.error(f"Gemini analysis error: {e}")
             raise
 
-    async def _analyze_with_claude(self, prompt: str) -> IndependentAnalysis:
-        """Get analysis from Claude."""
-        logger.debug("Requesting Claude analysis...")
+    async def _analyze_with_claude(
+        self,
+        prompt: str,
+        session_uuid: Optional[str] = None
+    ) -> IndependentAnalysis:
+        """
+        Get analysis from Claude.
+
+        V9.2: Uses session_uuid for context isolation.
+
+        Args:
+            prompt: Analysis prompt
+            session_uuid: Unique session for isolation
+
+        Returns:
+            IndependentAnalysis from Claude
+        """
+        logger.debug(f"Requesting Claude analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # Call Claude driver
-            response = await self.claude.send_message_async(prompt)
+            # V9.2: Call Claude driver with session isolation
+            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
 
             # Parse JSON response
             analysis_data = self._parse_analysis_response(response, "claude")
 
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(str(response)) // 4
             self.cost_estimator.record_cost("independent_analysis_claude", tokens)
 
             return IndependentAnalysis(
@@ -492,3 +559,46 @@ class IndependentAnalysisPhase:
             "primary_agent": primary.agent_id,
             "needs_debate": result.needs_debate
         }
+
+    # V9.2: Session accessors for subsequent phases
+    @property
+    def task_id(self) -> str:
+        """Get task ID for session continuity."""
+        return self._task_id
+
+    @property
+    def session_integration(self) -> Optional[HiveMindSessionIntegration]:
+        """Get session integration for subsequent phases."""
+        return self._session_integration
+
+    def get_phase_transition_context(
+        self,
+        result: AnalysisPhaseResult,
+        to_phase: str
+    ) -> "ScopedContext":
+        """
+        Create scoped context for transition to next phase.
+
+        V9.2: Controlled inheritance - passes results summary, not full history.
+
+        Args:
+            result: Phase 1 result
+            to_phase: Target phase name (e.g., "debate", "architecture")
+
+        Returns:
+            ScopedContext for the next phase
+        """
+        if self._session_integration is None:
+            raise RuntimeError("Session integration not initialized. Call execute() first.")
+
+        # Determine complexity from analysis
+        complexity = result.gemini_analysis.complexity_assessment
+        if result.claude_analysis.complexity_assessment in ["COMPLEX", "EXPERT"]:
+            complexity = result.claude_analysis.complexity_assessment
+
+        # Create scoped context with appropriate inheritance
+        return self._session_integration.create_phase_context(
+            scope=ContextScope.TASK_PLUS_RESULTS,
+            agent_id=None,  # Will be set by next phase
+            relevant_files=[]  # Could extract from analysis if available
+        )

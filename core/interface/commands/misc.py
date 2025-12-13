@@ -1,11 +1,25 @@
 """
-V9 Miscellaneous Commands - /mode, /reset, /doctor, /telemetry, /budget, /tutorial, /quickstart, /chat, /clear
+V9.1 Miscellaneous Commands - /mode, /reset, /doctor, /telemetry, /budget, /tutorial, /quickstart, /chat, /clear
 
 These commands provide various utility functions for the REPL.
+
+V9.1: TelemetryCommand and BudgetCommand now use Service Layer (TelemetryService, BudgetService).
 """
 
 from typing import List
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+def _get_telemetry_service(context: CommandContext):
+    """Get or create TelemetryService from context."""
+    from core.telemetry import _get_telemetry_service as get_service
+    return get_service(context)
+
+
+def _get_budget_service(context: CommandContext):
+    """Get or create BudgetService from context."""
+    from core.telemetry import _get_budget_service as get_service
+    return get_service(context)
 
 
 class ClearCommand(Command):
@@ -150,23 +164,40 @@ class TelemetryCommand(Command):
 
     @property
     def usage(self) -> str:
-        return "/telemetry [on|off|status]"
+        return "/telemetry [status|report|export] [days]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute telemetry command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+        """Execute telemetry command using TelemetryService.
 
+        V9.1: Delegated to TelemetryService (Service Layer Pattern).
+        """
         try:
-            repl.handle_telemetry_command(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_telemetry_service(context)
+            parts = args.strip().split()
+            subcommand = parts[0] if parts else "status"
+
+            if subcommand == "status":
+                result = service.status()
+            elif subcommand == "report":
+                days = int(parts[1]) if len(parts) > 1 else 7
+                result = service.report(days=days)
+            elif subcommand == "export":
+                days = int(parts[1]) if len(parts) > 1 else None
+                result = service.export(days=days)
+            else:
+                # Default to status for unknown subcommands
+                result = service.status()
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""  # Service handles its own output
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Telemetry command failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -191,23 +222,52 @@ class BudgetCommand(Command):
 
     @property
     def usage(self) -> str:
-        return "/budget [set <amount>|status|reset]"
+        return "/budget [status|reset|add <amount>|history]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute budget command."""
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+        """Execute budget command using BudgetService.
 
+        V9.1: Delegated to BudgetService (Service Layer Pattern).
+        """
         try:
-            repl.handle_budget_command(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_budget_service(context)
+            parts = args.strip().split()
+            subcommand = parts[0] if parts else "status"
+
+            if subcommand == "status" or not subcommand:
+                result = service.status()
+            elif subcommand == "reset":
+                result = service.reset(confirmed=False)
+            elif subcommand == "add":
+                if len(parts) < 2:
+                    return CommandResult(
+                        status=CommandStatus.INVALID_ARGS,
+                        message="Usage: /budget add <amount>"
+                    )
+                try:
+                    amount = float(parts[1])
+                    result = service.add_credit(amount)
+                except ValueError:
+                    return CommandResult(
+                        status=CommandStatus.INVALID_ARGS,
+                        message="Amount must be a number"
+                    )
+            elif subcommand == "history":
+                result = service.history()
+            else:
+                # Default to status for unknown subcommands
+                result = service.status()
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""  # Service handles its own output
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Budget command failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,

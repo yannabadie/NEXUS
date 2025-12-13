@@ -46,6 +46,9 @@ from .phases import (
 # V8.4.4b: SagaManager for checkpoint/rollback
 from .saga_manager import SagaManager
 
+# V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
+from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
+
 # V8.0.1: Hot-Swap Lead Agent
 from core.fsm.stagnation_detector import StagnationDetector
 
@@ -171,6 +174,13 @@ class TrueHiveMind:
         self._saga: Optional[SagaManager] = None
         self._spawned_agents: List[str] = []
 
+        # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
+        self._sync_bridge: OrchestratorSyncBridge = get_sync_bridge()
+        self._sync_bridge._workspace = self.workspace_path
+        # Wire up swarm session manager if available
+        if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
+            self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
+
         # Initialize phases
         self._init_phases()
 
@@ -294,6 +304,9 @@ class TrueHiveMind:
                     self._saga.register_default_compensations(self)
                     logger.info(f"[Saga] Started: {task_id}")
 
+                # V9.4 ISSUE-003: Wire saga manager to sync bridge
+                self._sync_bridge.set_saga_manager(self._saga)
+
             # Check budget before starting
             if self.budget_tracker:
                 # Integration with V7 BudgetTracker
@@ -325,6 +338,13 @@ class TrueHiveMind:
                     context_index=len(self.context_manager._items)
                 )
                 self._saga.update_context(analysis_complete=True)
+                # V9.4 ISSUE-003: Propagate checkpoint to Swarm
+                await self._sync_bridge.sync_checkpoint(
+                    source="hivemind",
+                    task_id=self._saga.task_id,
+                    phase_or_mode="analysis",
+                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                )
 
             # =========================================================
             # PHASE 2: Strategic Debate (if needed)
@@ -366,6 +386,13 @@ class TrueHiveMind:
                     context_index=len(self.context_manager._items)
                 )
                 self._saga.update_context(debate_complete=True)
+                # V9.4 ISSUE-003: Propagate checkpoint to Swarm
+                await self._sync_bridge.sync_checkpoint(
+                    source="hivemind",
+                    task_id=self._saga.task_id,
+                    phase_or_mode="debate",
+                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                )
 
             # =========================================================
             # PHASE 3: Architecture Generation
@@ -388,6 +415,13 @@ class TrueHiveMind:
                     context_index=len(self.context_manager._items)
                 )
                 self._saga.update_context(architecture_approved=True)
+                # V9.4 ISSUE-003: Propagate checkpoint to Swarm
+                await self._sync_bridge.sync_checkpoint(
+                    source="hivemind",
+                    task_id=self._saga.task_id,
+                    phase_or_mode="architecture",
+                    checkpoint_data={"context_index": len(self.context_manager._items)}
+                )
 
             # =========================================================
             # PHASE 4-6: Execution Loop (with retry)
@@ -416,6 +450,13 @@ class TrueHiveMind:
                             context_index=len(self.context_manager._items)
                         )
                         self._saga.update_context(execution_complete=True)
+                        # V9.4 ISSUE-003: Propagate checkpoint to Swarm
+                        await self._sync_bridge.sync_checkpoint(
+                            source="hivemind",
+                            task_id=self._saga.task_id,
+                            phase_or_mode="execution",
+                            checkpoint_data={"context_index": len(self.context_manager._items)}
+                        )
                     break
 
                 phases_completed.append(f"execution_failed_attempt_{attempt + 1}")
@@ -446,6 +487,13 @@ class TrueHiveMind:
                         context_index=len(self.context_manager._items)
                     )
                     self._saga.update_context(diagnosis_complete=True)
+                    # V9.4 ISSUE-003: Propagate checkpoint to Swarm
+                    await self._sync_bridge.sync_checkpoint(
+                        source="hivemind",
+                        task_id=self._saga.task_id,
+                        phase_or_mode="diagnosis",
+                        checkpoint_data={"context_index": len(self.context_manager._items)}
+                    )
 
                 # Check user decision
                 if diagnosis_result.user_decision in ("abort", "escalate"):

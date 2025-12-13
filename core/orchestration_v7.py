@@ -87,9 +87,15 @@ class OrchestratorV7:
 
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
-        self.active_agent = "gemini"  # V8.4.0: lowercase normalized (rotation égale ensuite)
         self._registry = get_registry()  # V8.4.0: Centralized agent registry
         self.iteration = 0
+
+        # V9.3: Immutable TaskExecutionContext for thread-safe active_agent tracking
+        # Replaces mutable self.active_agent string to prevent race conditions in PARALLEL mode
+        self._task_context: TaskExecutionContext = TaskExecutionContext.create(
+            objective="",
+            initial_agent="gemini"  # V8.4.0: lowercase normalized
+        )
 
         # Memory Manager (charge blackboard UNE FOIS)
         self.memory = MemoryManagerV7(workspace_path, config)
@@ -236,6 +242,14 @@ class OrchestratorV7:
         self.swarm_bridge = SwarmBridge(self)
         self.fsm_handlers = FSMHandlers(self)
 
+        # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
+        from core.orchestration.sync_bridge import get_sync_bridge
+        self._sync_bridge = get_sync_bridge()
+        self._sync_bridge._workspace = self.workspace_path
+        # Wire up swarm session manager if available
+        if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
+            self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
+
         # V7.8 Phase 10c: Project Memory RAG
         # Stored at NEXUS_ROOT/.nexus/ (persists across /workspace new)
         nexus_root = workspace_path.parent if workspace_path.name == "workspace" else workspace_path
@@ -269,12 +283,47 @@ class OrchestratorV7:
             "project_memory": self.project_memory.get_stats().total_chunks
         })
 
-        # V7.5 Phase 0d: Task execution context for thread-safe operations
-        self._task_context: Optional[TaskExecutionContext] = None
+    # =========================================================================
+    # V9.3: Thread-Safe Agent Tracking via Immutable Context
+    # =========================================================================
+    # CRITICAL FIX (ISSUE-001): Replaced mutable self.active_agent string with
+    # immutable TaskExecutionContext to prevent race conditions in PARALLEL mode.
+    #
+    # Before V9.3:
+    #   self.active_agent = "gemini"  # Mutable! Race condition in parallel!
+    #   self.active_agent = self._registry.get_alternate(...)  # No lock!
+    #
+    # After V9.3:
+    #   self._task_context.current_agent  # Immutable read
+    #   self._task_context = self._task_context.with_agent(...)  # New immutable copy
+    #
+    # The @property below provides backward compatibility - existing code using
+    # `self.active_agent` continues to work but is now thread-safe.
+    # =========================================================================
 
-    # =========================================================================
-    # V7.5 Phase 0d: Execution Context (Thread-Safe Agent Tracking)
-    # =========================================================================
+    @property
+    def active_agent(self) -> str:
+        """
+        V9.3: Thread-safe read of current agent via immutable context.
+
+        Returns:
+            Current agent ID (lowercase: "gemini" or "claude")
+        """
+        return self._task_context.current_agent
+
+    @active_agent.setter
+    def active_agent(self, agent: str):
+        """
+        V9.3: Thread-safe agent swap via immutable context replacement.
+
+        Creates a new immutable context with the new agent.
+        This is atomic - no intermediate state where agent is undefined.
+
+        Args:
+            agent: New agent ID (will be normalized to lowercase)
+        """
+        normalized = agent.lower() if agent else "gemini"
+        self._task_context = self._task_context.with_agent(normalized)
 
     def _build_execution_context(self, objective: str = "") -> TaskExecutionContext:
         """
@@ -297,23 +346,22 @@ class OrchestratorV7:
     @property
     def current_context(self) -> TaskExecutionContext:
         """
-        Get current task context (creates new if none exists).
+        Get current task context.
 
-        V7.5: For backward compatibility, syncs with self.active_agent.
-        In V7.6+, this will become the primary agent tracking mechanism.
+        V9.3: Now always returns the internal context (never None).
         """
-        if self._task_context is None:
-            self._task_context = self._build_execution_context()
         return self._task_context
 
     def _sync_context_agent(self, context: TaskExecutionContext):
         """
-        Sync self.active_agent with context (backward compatibility).
+        Replace current context with new one.
 
-        V7.5: Bridge between old self.active_agent and new context system.
-        This allows gradual migration without breaking existing code.
+        V9.3: Simply replaces the immutable context reference.
+        The active_agent property now reads from this context.
+
+        Args:
+            context: New TaskExecutionContext to use
         """
-        self.active_agent = context.current_agent
         self._task_context = context
 
     # =========================================================================
@@ -609,7 +657,7 @@ class OrchestratorV7:
         session_uuid = f"brain_{self.iteration}"
 
         try:
-            if self.active_agent == "Claude":
+            if self.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = factory.get_claude_driver()
                 response_parts = []
 
@@ -669,7 +717,7 @@ class OrchestratorV7:
         session_uuid = f"cfl_{self.iteration}"
 
         try:
-            if self.active_agent == "Claude":
+            if self.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = factory.get_claude_driver()
                 # CFL needs faster response - use non-streaming
                 response = await asyncio.wait_for(

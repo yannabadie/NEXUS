@@ -73,7 +73,11 @@
       "Bash(do [ \"$mod\" != \"__init__\" ])",
       "Bash([ \"$mod\" != \"__pycache__\" ])",
       "Bash(comm:*)",
-      "WebFetch(domain:gofastmcp.com)"
+      "WebFetch(domain:gofastmcp.com)",
+      "Bash(pip show:*)",
+      "WebFetch(domain:rich.readthedocs.io)",
+      "WebFetch(domain:galileo.ai)",
+      "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\core\\resilience\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\core\\resilience\")"
     ],
     "deny": [],
     "ask": []

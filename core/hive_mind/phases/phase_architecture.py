@@ -1,5 +1,5 @@
 """
-NEXUS V8.0 - Phase 3: Architecture Generation
+NEXUS V9.2 - Phase 3: Architecture Generation
 
 Generates the agent architecture for task execution:
 - Which existing agents to use
@@ -7,17 +7,23 @@ Generates the agent architecture for task execution:
 - Execution plan (sequential/parallel/pipeline)
 - RAG configuration
 
+V9.2 Enhancement: Session Isolation + Scoped Context
+- Inherits context from Phase 2 via TASK_PLUS_RESULTS scope
+- Spawned agents get isolated sessions with TASK_ONLY context
+- Model-change detection for architecture decisions
+
 Flow:
 1. Check Agent Registry for existing agents
-2. Generate architecture based on debate outcome
+2. Generate architecture based on debate outcome (session: uuid-arch)
 3. User Breakpoint: BEFORE_SPAWN (if spawning agents)
-4. Spawn new agents if approved
+4. Spawn new agents if approved (each with isolated session)
 5. Return execution-ready architecture
 
 Key Innovation:
 - Auto-detects when specialized agents are needed
 - Prevents duplicate spawning via Registry
 - User can intervene before spawning
+- V9.2: Session isolation for spawned agents
 """
 
 import asyncio
@@ -40,10 +46,13 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..agent_registry import AgentRegistry
 from ..user_interaction import UserInteractionHandler
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
@@ -116,6 +125,8 @@ class ArchitectureGenerationPhase:
     Phase 3: Architecture Generation
 
     Generates agent topology and execution plan.
+
+    V9.2: Integrated session isolation for architecture generation.
     """
 
     def __init__(
@@ -126,7 +137,9 @@ class ArchitectureGenerationPhase:
         context_manager: HiveMindContextManager,
         agent_registry: AgentRegistry,
         user_handler: UserInteractionHandler,
-        workspace_path: Path
+        workspace_path: Path,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 3.
@@ -139,6 +152,8 @@ class ArchitectureGenerationPhase:
             agent_registry: Agent registry for spawn tracking
             user_handler: User interaction handler for breakpoints
             workspace_path: Workspace path for agent files
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
@@ -148,6 +163,11 @@ class ArchitectureGenerationPhase:
         self.user_handler = user_handler
         self.workspace_path = workspace_path
 
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("architecture")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
+
     async def execute(
         self,
         task: str,
@@ -155,6 +175,8 @@ class ArchitectureGenerationPhase:
     ) -> ArchitecturePhaseResult:
         """
         Execute Phase 3: Architecture Generation.
+
+        V9.2: Initializes session integration with context from Phase 2.
 
         Args:
             task: Original task
@@ -164,6 +186,16 @@ class ArchitectureGenerationPhase:
             ArchitecturePhaseResult with execution-ready architecture
         """
         logger.info("Phase 3: Starting Architecture Generation")
+
+        # V9.2: Initialize session integration for this phase
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="architecture",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity="MODERATE"
+        )
+        self._session_integration.set_previous_phase("debate")
 
         # Check budget
         if not self.cost_estimator.can_afford_multiple({
@@ -274,11 +306,17 @@ class ArchitectureGenerationPhase:
             available_agents=available_agents
         )
 
+        # V9.2: Get session for architecture generation
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session("gemini")
+            logger.debug(f"Architecture generation using session {session_uuid[:8] if session_uuid else 'none'}")
+
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
 
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(str(response)) // 4
             self.cost_estimator.record_cost("generate_architecture", tokens)
 
             # Parse response

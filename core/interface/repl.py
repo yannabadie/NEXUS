@@ -532,80 +532,8 @@ class InteractiveNexusV7:
 
         self.console.print_doctor_results(results)
 
-    def run_bootstrap(self, args: str):
-        """Run AutoBootstrap to generate NEXUS.md (/bootstrap command)"""
-        from core.bootstrap import AutoBootstrap
-
-        # Parse path argument (default: current directory)
-        if args.strip():
-            project_path = Path(args.strip()).resolve()
-        else:
-            project_path = Path.cwd()
-
-        if not project_path.exists():
-            self.console.print_error(f"Path does not exist: {project_path}")
-            return
-
-        if not project_path.is_dir():
-            self.console.print_error(f"Path is not a directory: {project_path}")
-            return
-
-        self.console.print(f"🔍 Analyzing project: {project_path}")
-
-        try:
-            # Run analysis
-            bootstrap = AutoBootstrap(project_path)
-            analysis = bootstrap.analyze()
-
-            # Display results
-            self.console.print("\n📊 Analysis Results:")
-            self.console.print(f"   Project: {analysis.project_name}")
-            self.console.print(f"   Languages: {', '.join(analysis.languages) or 'None detected'}")
-            self.console.print(f"   Frameworks: {', '.join(analysis.frameworks) or 'None detected'}")
-            self.console.print(f"   Databases: {', '.join(analysis.databases) or 'None detected'}")
-            self.console.print(f"   Tools: {', '.join(analysis.tools) or 'None detected'}")
-            self.console.print(f"   Has tests: {'Yes' if analysis.has_tests else 'No'}")
-            self.console.print(f"   Has docs: {'Yes' if analysis.has_docs else 'No'}")
-            self.console.print(f"   Has CI: {'Yes' if analysis.has_ci else 'No'}")
-
-            if analysis.commands:
-                self.console.print(f"\n📝 Commands discovered:")
-                for cmd, desc in list(analysis.commands.items())[:5]:
-                    self.console.print(f"   {cmd}: {desc}")
-
-            # Generate NEXUS.md
-            nexus_md = bootstrap.generate_nexus_md(analysis)
-
-            # Check if NEXUS.md already exists
-            nexus_path = project_path / "NEXUS.md"
-            if nexus_path.exists():
-                existing_size = len(nexus_path.read_text(encoding='utf-8'))
-                self.console.print(f"\n⚠️  NEXUS.md already exists at {nexus_path}")
-                self.console.print(f"   Existing file size: {existing_size} characters")
-                self.console.print(f"   New file size: {len(nexus_md)} characters")
-
-                if existing_size > len(nexus_md) * 2:
-                    self.console.print(f"\n   [bold red]WARNING: Existing file is much larger![/bold red]")
-                    self.console.print(f"   The existing NEXUS.md may contain important documentation.")
-
-                response = input("   Create backup and overwrite? (y/N): ").strip().lower()
-                if response != 'y':
-                    self.console.print("   Cancelled.")
-                    return
-
-                # Create backup before overwriting
-                backup_path = project_path / "NEXUS.md.bak"
-                import shutil
-                shutil.copy2(nexus_path, backup_path)
-                self.console.print(f"   📦 Backup created: {backup_path}")
-
-            # Save
-            bootstrap.save(nexus_md)
-            self.console.print(f"\n✅ Generated: {nexus_path}")
-            self.console.print(f"   Size: {len(nexus_md)} characters")
-
-        except Exception as e:
-            self.console.print_error(f"Bootstrap failed: {e}")
+    # V9.1: run_bootstrap() delegated to BootstrapService
+    # See: core/bootstrap/service.py, core/interface/commands/workspace.py
 
     def run_review(self):
         """Run interactive review of pending children (/review command)"""
@@ -662,8 +590,17 @@ class InteractiveNexusV7:
                 self.console.print(f"   Confidence: {decision_result.confidence:.1%}")
                 self.console.print(f"   Reason: {decision_result.reason}")
                 try:
-                    self._promote_child(child, generation)
-                    self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
+                    result = self.evolution_manager.promote_child(
+                        child_id=child['id'],
+                        fitness_score=child['score'],
+                        generation=generation,
+                        child_metadata={'improvements_summary': child.get('improvements_summary')},
+                    )
+                    if result.success:
+                        self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
+                    else:
+                        raise Exception("; ".join(result.errors))
                 except Exception as e:
                     self.console.print_error(f"Auto-promotion failed: {e}")
                     self.console.print("⚠️  Falling back to manual review...")
@@ -685,19 +622,36 @@ class InteractiveNexusV7:
 
                 if decision in ['a', 'approve']:
                     self.console.print(f"✓ Approved: {child['id']} will become new parent")
-                    # Execute promotion logic
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
-                        self._promote_child(child, generation)
-                        self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                        result = self.evolution_manager.promote_child(
+                            child_id=child['id'],
+                            fitness_score=child['score'],
+                            generation=generation,
+                            child_metadata={'improvements_summary': child.get('improvements_summary')},
+                        )
+                        if result.success:
+                            self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                        else:
+                            raise Exception("; ".join(result.errors))
                     except Exception as e:
                         self.console.print_error(f"Promotion failed: {e}")
                         self.console.print("⚠️  Manual promotion required")
                     break
                 elif decision in ['r', 'reject']:
                     self.console.print(f"✗ Rejected: {child['id']} will be archived")
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
-                        self._archive_rejected_child(child, generation)
-                        self.console.print(f"✅ Child archived: {child['id']}")
+                        result = self.evolution_manager.archive_child(
+                            child_id=child['id'],
+                            reason="manual_review_rejection",
+                            generation=generation,
+                            fitness_score=child.get('score', 0.0),
+                        )
+                        if result.success:
+                            self.console.print(f"✅ Child archived: {child['id']}")
+                        else:
+                            raise Exception(result.reason)
                     except Exception as e:
                         self.console.print_error(f"Archival failed: {e}")
                         self.console.print("⚠️  Manual cleanup required")
@@ -1093,300 +1047,8 @@ class InteractiveNexusV7:
 
     # ==================== END WORKSPACE MANAGEMENT ====================
 
-    # ==================== TELEMETRY MANAGEMENT (Phase 13c) ====================
-
-    def handle_telemetry_command(self, args: str):
-        """
-        Handle /telemetry commands (Phase 13c).
-
-        Subcommands:
-            /telemetry           - Show performance report (last 7 days)
-            /telemetry status    - Show detailed telemetry stats
-            /telemetry export [days] - Export telemetry to CSV file
-        """
-        from core.telemetry import TelemetryExporter
-
-        exporter = TelemetryExporter(self.workspace_path)
-
-        parts = args.strip().split(maxsplit=1)
-        subcommand = parts[0].lower() if parts else ""
-        sub_args = parts[1] if len(parts) > 1 else ""
-
-        if not subcommand:
-            # /telemetry - Show default report (7 days)
-            self._telemetry_show_report(exporter, days=7)
-
-        elif subcommand == "status":
-            # /telemetry status - Show detailed stats
-            self._telemetry_show_status(exporter)
-
-        elif subcommand == "export":
-            # /telemetry export [days]
-            days = None
-            if sub_args:
-                try:
-                    days = int(sub_args)
-                except ValueError:
-                    self.console.print_error(f"Invalid number of days: {sub_args}")
-                    return
-            self._telemetry_export(exporter, days=days)
-
-        else:
-            self.console.print_error(f"Unknown subcommand: {subcommand}")
-            self.console.print("Usage: /telemetry [status|export [days]]")
-
-    def _telemetry_show_report(self, exporter, days: int = 7):
-        """Display telemetry performance report."""
-        event_count = exporter.get_event_count()
-
-        if event_count == 0:
-            self.console.print("\n📊 [bold]Telemetry Report[/bold]\n")
-            self.console.print("[dim]No telemetry data available yet.[/dim]")
-            self.console.print("[dim]Telemetry is recorded when you use /swarm, API calls, etc.[/dim]\n")
-            return
-
-        report = exporter.generate_report(days=days)
-        formatted = exporter.format_report_for_console(report)
-        self.console.console.print(formatted)
-
-    def _telemetry_show_status(self, exporter):
-        """Display detailed telemetry status."""
-        from rich.panel import Panel
-
-        event_count = exporter.get_event_count()
-        file_exists = exporter.telemetry_file.exists()
-        file_size = exporter.telemetry_file.stat().st_size if file_exists else 0
-
-        # Format file size
-        if file_size < 1024:
-            size_str = f"{file_size} B"
-        elif file_size < 1024 * 1024:
-            size_str = f"{file_size / 1024:.1f} KB"
-        else:
-            size_str = f"{file_size / (1024*1024):.1f} MB"
-
-        status_lines = [
-            f"📁 File: {exporter.telemetry_file}",
-            f"   Exists: {'✓' if file_exists else '✗'}",
-            f"   Size: {size_str}",
-            f"   Events: {event_count:,}",
-            "",
-            "📈 Config:",
-            f"   Enabled: {self.config.telemetry_enabled}",
-            f"   File: {self.config.telemetry_file}",
-        ]
-
-        if event_count > 0:
-            report = exporter.generate_report(days=7)
-            status_lines.extend([
-                "",
-                "📊 Last 7 Days:",
-                f"   API Calls: {report['api_calls']:,}",
-                f"   Success Rate: {report['success_rate']}%",
-                f"   Total Tokens: {report['total_tokens']['total']:,}",
-            ])
-
-        panel = Panel(
-            "\n".join(status_lines),
-            title="[bold]Telemetry Status[/bold]",
-            border_style="blue"
-        )
-        self.console.console.print(panel)
-
-    def _telemetry_export(self, exporter, days: int = None):
-        """Export telemetry to CSV file."""
-        event_count = exporter.get_event_count()
-
-        if event_count == 0:
-            self.console.print("\n[yellow]No telemetry data to export.[/yellow]")
-            self.console.print("[dim]Start using /swarm to generate telemetry data.[/dim]\n")
-            return
-
-        try:
-            csv_path = exporter.export_to_csv(days=days)
-            period = f" (last {days} days)" if days else " (all time)"
-
-            self.console.print(f"\n✅ [bold green]Telemetry exported successfully[/bold green]{period}")
-            self.console.print(f"   📄 File: {csv_path}")
-            self.console.print(f"   📊 Events: {event_count:,}")
-            self.console.print(f"\n[dim]Import in Excel, Grafana, or analyze with pandas.[/dim]\n")
-
-        except (IOError, OSError) as e:
-            self.console.print_error(f"Export failed: {e}")
-
-    # ==================== END TELEMETRY MANAGEMENT ====================
-
-    # ==================== PHASE 16: DEVELOPER EXPERIENCE ====================
-
-    def handle_budget_command(self, args: str):
-        """
-        Handle /budget commands (Phase 16a).
-
-        Subcommands:
-            /budget           - Show budget status (spent, limit, remaining)
-            /budget reset     - Reset daily budget counter (with confirmation)
-            /budget add <n>   - Add emergency credit to budget
-            /budget history   - Show recent API costs
-        """
-        from core.telemetry import BudgetTracker
-
-        tracker = BudgetTracker(self.workspace_path)
-
-        parts = args.strip().split(maxsplit=1)
-        subcommand = parts[0].lower() if parts else ""
-        sub_args = parts[1] if len(parts) > 1 else ""
-
-        if not subcommand:
-            # /budget - Show budget status
-            self._budget_show_status(tracker)
-
-        elif subcommand == "reset":
-            # /budget reset - Reset with confirmation
-            self._budget_reset(tracker)
-
-        elif subcommand == "add":
-            # /budget add <amount>
-            if not sub_args:
-                self.console.print_error("Usage: /budget add <amount_usd>")
-                return
-            try:
-                amount = float(sub_args)
-                if amount <= 0:
-                    self.console.print_error("Amount must be positive")
-                    return
-                self._budget_add_credit(tracker, amount)
-            except ValueError:
-                self.console.print_error(f"Invalid amount: {sub_args}")
-
-        elif subcommand == "history":
-            # /budget history - Show recent API costs
-            self._budget_show_history()
-
-        else:
-            self.console.print_error(f"Unknown subcommand: {subcommand}")
-            self.console.print("Usage: /budget [reset|add <amount>|history]")
-
-    def _budget_show_status(self, tracker):
-        """Display current budget status."""
-        stats = tracker.get_stats()
-        warning = tracker.get_warning_level()
-
-        # Build status display
-        lines = [
-            "",
-            "╔══════════════════════════════════════════════════════════════╗",
-            "║                    💰 BUDGET STATUS                          ║",
-            "╚══════════════════════════════════════════════════════════════╝",
-            "",
-        ]
-
-        # Progress bar
-        pct = stats["percentage_used"]
-        bar_width = 40
-        filled = int(bar_width * pct / 100)
-        bar = "█" * filled + "░" * (bar_width - filled)
-
-        if warning == "critical":
-            color = "[bold red]"
-        elif warning == "warning":
-            color = "[yellow]"
-        else:
-            color = "[green]"
-
-        lines.append(f"  {color}[{bar}] {pct:.1f}%[/{color.split('[')[1]}")
-        lines.append("")
-        lines.append(f"  💸 Spent Today:    ${stats['spent_today_usd']:.4f}")
-        lines.append(f"  📊 Daily Limit:    ${stats['limit_usd']:.2f}")
-        lines.append(f"  💰 Remaining:      ${stats['remaining_usd']:.4f}")
-        lines.append("")
-        lines.append(f"  📞 API Calls:      {stats['api_calls_today']}")
-        lines.append(f"  📅 Reset Date:     {stats['reset_date']}")
-
-        if warning:
-            lines.append("")
-            if warning == "critical":
-                lines.append("  ⚠️  [bold red]CRITICAL: Budget at 90%+! Consider /budget add[/bold red]")
-            else:
-                lines.append("  ⚠️  [yellow]WARNING: Budget at 80%+[/yellow]")
-
-        lines.append("")
-        lines.append("─" * 64)
-        lines.append("  /budget reset     Reset counter (emergency)")
-        lines.append("  /budget add <n>   Add credit ($)")
-        lines.append("  /budget history   Show recent costs")
-        lines.append("")
-
-        for line in lines:
-            self.console.console.print(line)
-
-    def _budget_reset(self, tracker):
-        """Reset daily budget counter with confirmation."""
-        # Ask for confirmation
-        self.console.print("\n⚠️  [yellow]This will reset your daily budget counter.[/yellow]")
-        self.console.print("    Current spent amount will be set to $0.00.")
-        try:
-            confirm = input("\n    Type 'yes' to confirm: ").strip().lower()
-            if confirm == "yes":
-                tracker.reset_daily()
-                self.console.print("\n✅ [green]Budget counter reset successfully.[/green]")
-                self.console.print("   Daily spent: $0.00\n")
-            else:
-                self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
-        except (EOFError, KeyboardInterrupt):
-            self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
-
-    def _budget_add_credit(self, tracker, amount: float):
-        """Add emergency credit to budget."""
-        old_limit = tracker.limit_usd
-        tracker.add_credit(amount)
-        new_limit = tracker.limit_usd
-
-        self.console.print(f"\n✅ [green]Added ${amount:.2f} to daily budget.[/green]")
-        self.console.print(f"   Previous limit: ${old_limit:.2f}")
-        self.console.print(f"   New limit:      ${new_limit:.2f}")
-        self.console.print(f"   Remaining:      ${tracker.get_remaining():.4f}\n")
-
-    def _budget_show_history(self):
-        """Show recent API costs from telemetry."""
-        from core.telemetry import TelemetryExporter
-
-        exporter = TelemetryExporter(self.workspace_path)
-        events = exporter.read_events(days=1)
-
-        # Filter api_call events
-        api_calls = [e for e in events if e.event_type == "api_call"]
-
-        if not api_calls:
-            self.console.print("\n📊 [bold]Recent API Costs[/bold]\n")
-            self.console.print("[dim]No API calls recorded in the last 24 hours.[/dim]\n")
-            return
-
-        lines = [
-            "",
-            "╔══════════════════════════════════════════════════════════════╗",
-            "║                  📊 RECENT API COSTS (24h)                   ║",
-            "╚══════════════════════════════════════════════════════════════╝",
-            "",
-            "  Time          Provider    Model              Tokens (I/O)",
-            "  ─────────────────────────────────────────────────────────────",
-        ]
-
-        # Show last 10 calls
-        for event in api_calls[-10:]:
-            data = event.data
-            time_str = event.timestamp.strftime("%H:%M:%S")
-            provider = data.get("provider", "?")[:10]
-            model = data.get("model", "?")[:18]
-            tokens_in = data.get("tokens_in", 0)
-            tokens_out = data.get("tokens_out", 0)
-            lines.append(f"  {time_str}    {provider:<10} {model:<18} {tokens_in:>6}/{tokens_out:<6}")
-
-        lines.append("")
-        lines.append(f"  Total calls (24h): {len(api_calls)}")
-        lines.append("")
-
-        for line in lines:
-            self.console.console.print(line)
+    # V9.1: Telemetry & Budget commands delegated to TelemetryService/BudgetService
+    # See: core/telemetry/service.py, core/interface/commands/misc.py
 
     # =========================================================================
     # Project Memory Commands (V9.1 - Delegated to MemoryService)
@@ -1452,176 +1114,8 @@ class InteractiveNexusV7:
     # Logic moved to core/evolution/phases/brainstorm.py (BrainstormPhase)
     # Called via EvolutionManager.brainstorm_mutations()
 
-    def brainstorm_spinoff_with_ais(self, parent_id: str, parent_path: Path, mission: str) -> list:
-        """
-        Collaborative brainstorming for SPECIALIZATION.
-        Gemini+Claude design a specific child optimized for a mission.
-        """
-        import json
-        import re
-        from core.fsm.states import OrchestratorState
-        from core.utils.json_extractor import extract_json_safe as robust_extract_json
-
-        self.console.print("\n" + "="*60)
-        self.console.print(f"🚀 MISSION SPECIALIZATION: {mission}")
-        self.console.print("="*60)
-        self.console.print(f"Gemini + Claude will now design a Specialist NEXUS\n")
-
-        # CLEAR HISTORY
-        self.console.print("🧹 Clearing short-term memory for focused brainstorming...")
-        self.orchestrator.blackboard["recent_history"] = []
-        self.orchestrator.memory.save_to_disk()
-
-        # V7.5 HIVE MIND: Load prompt with includes resolved
-        try:
-            brainstorm_task = load_prompt("specialization_mission", {
-                "mission": mission
-            })
-        except FileNotFoundError as e:
-            self.console.print_error(f"Missing prompt file: {e}")
-            return []
-
-        # Switch to EVOLUTION_BRAINSTORM mode (reused for debate)
-        self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-        self.console.print(f"[FSM] Mode: MISSION_SPECIALIZATION (via EVOLUTION_BRAINSTORM)\n")
-
-        # Start brainstorming
-        result = self.orchestrator.process_turn(brainstorm_task)
-        self.console.display_result(result)
-
-        # Loop
-        max_iterations = 30
-        iterations = 0
-
-        while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
-            result = self.orchestrator.process_turn()
-            self.console.display_result(result)
-            iterations += 1
-            if result.get("finished"):
-                break
-
-        self.orchestrator._transition_to(OrchestratorState.IDLE)
-
-        # Extract JSON
-        final_content = result.get('output') or ''
-        
-        # V7.5 HIVE MIND: Use robust extractor
-        proposals, _ = robust_extract_json(final_content, verbose=True)
-        
-        if not proposals:
-             # Fallback retry logic could be added here, for now we raise
-             raise ValueError("Failed to extract specialization plan")
-
-        return proposals
-
-        return proposals
-
-    def run_specialization(self, mission: str):
-        """
-        Create a specialized NEXUS spinoff for a specific mission.
-        """
-        from core.evolution.lineage import load_lineage, get_current_parent
-        import shutil
-        from datetime import datetime
-        import json
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🧬 SPECIALIZATION CYCLE STARTED")
-        self.console.print("="*60)
-        
-        try:
-            lineage = load_lineage(self.workspace_path)
-            parent = get_current_parent(lineage)
-            parent_id = parent["id"]
-            
-            parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS (validated at init)
-
-            # 1. Brainstorm mutations
-            mutations = self.brainstorm_spinoff_with_ais(parent_id, parent_path, mission)
-            
-            # 2. Create Spinoff ID
-            # Sanitize mission string for folder name
-            mission_slug = "".join(c if c.isalnum() else "_" for c in mission)[:30].upper()
-            spinoff_id = f"NEXUS_SPECIALIST_{mission_slug}_{datetime.now().strftime('%Y%m%d')}"
-            
-            self.console.print(f"\n{'─'*60}")
-            self.console.print(f"Creating Specialist: {spinoff_id}")
-            self.console.print(f"{'─'*60}")
-
-            # 3. Create Directory
-            child_dir = parent_path.parent / "GENERATION_ACTIVE" / spinoff_id
-            if child_dir.exists():
-                shutil.rmtree(child_dir)
-            child_dir.mkdir(parents=True, exist_ok=True)
-
-            # 4. Copy Parent
-            shutil.copytree(
-                parent_path,
-                child_dir,
-                ignore=shutil.ignore_patterns(
-                    '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
-                ),
-                dirs_exist_ok=True
-            )
-            self.console.print(f"✓ Copied parent base")
-
-            # FIX: Copy KERNEL.py from project root (alignment file)
-            project_root = parent_path.parent
-            kernel_path = project_root / "KERNEL.py"
-            kernel_hash_path = project_root / "KERNEL_HASH.txt"
-            if kernel_path.exists():
-                shutil.copy2(kernel_path, child_dir / "KERNEL.py")
-                if kernel_hash_path.exists():
-                    shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
-                self.console.print(f"✓ Copied KERNEL.py (alignment file)")
-
-            # FIX: Create workspace directories required by drivers
-            child_workspace = child_dir / "workspace"
-            child_workspace.mkdir(exist_ok=True)
-            (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
-            (child_workspace / ".nexus").mkdir(exist_ok=True)
-            (child_workspace / "logs").mkdir(exist_ok=True)
-            self.console.print(f"✓ Created workspace directories")
-
-            # 5. Apply Mutations
-            for mutation in mutations:
-                target_file = child_dir / mutation['file']
-                if target_file.exists():
-                    original = target_file.read_text(encoding='utf-8')
-                    # Simple append/replace logic depending on mutation type
-                    # For specialization, we might want to REPLACE content often (e.g. prompts)
-                    # But here we stick to append for safety unless 'REMPLACER' is explicit?
-                    # Let's stick to append/overwrite logic from run_evolve for consistency
-                    # BUT: Gemini instruction said "Remplacer le prompt". 
-                    # Let's just append for now to avoid breaking things, manual review needed anyway.
-                    
-                    updated = original + "\n\n" + mutation['change']
-                    target_file.write_text(updated, encoding='utf-8')
-                    self.console.print(f"✓ Applied mutation to {mutation['file']}")
-                else:
-                    self.console.print(f"⚠️ File not found: {mutation['file']}")
-
-            # 6. Spinoff Certificate
-            cert = {
-                "id": spinoff_id,
-                "type": "SPECIALIST",
-                "mission": mission,
-                "parent": parent_id,
-                "created_at": datetime.now().isoformat(),
-                "mutations": mutations
-            }
-            (child_dir / "SPINOFF_CERTIFICATE.json").write_text(json.dumps(cert, indent=2), encoding='utf-8')
-            
-            self.console.print("\n" + "="*60)
-            self.console.print(f"✅ SPECIALIST CREATED: {spinoff_id}")
-            self.console.print(f"Location: GENERATION_ACTIVE/{spinoff_id}")
-            self.console.print("To use: cd into directory and run nexus7.py")
-            self.console.print("="*60 + "\n")
-
-        except Exception as e:
-            self.console.print_error(f"Specialization failed: {e}")
-            import traceback
-            traceback.print_exc()
+    # V9.1: brainstorm_spinoff_with_ais() and run_specialization() delegated to SpinoffService
+    # See: core/bootstrap/service.py, core/interface/commands/workspace.py
 
     def _calculate_nexus_root(self) -> Path:
         """
@@ -1845,215 +1339,8 @@ class InteractiveNexusV7:
         self._get_agent_service().get_pool_stats()
 
     # =========================================================================
-    # Evolution Commands (kept - uses EvolutionManager)
+    # V9.1: Evolution methods (_promote_child, _archive_rejected_child) REMOVED
+    # These were 100% duplicates of core/evolution/phases/promote.py
+    # Now using EvolutionManager.promote_child() and .archive_child() directly
+    # See: core/evolution/service.py for Service Layer implementation
     # =========================================================================
-
-    def _promote_child(self, child: dict, generation: int):
-        """
-        Promote approved child to become the new active parent.
-
-        Steps:
-        1. Archive current parent to ARCHIVE/GEN_XXX/
-        2. Move child from GENERATION_ACTIVE/ to NEXUS_V7_CHRYSALIS/
-        3. Update LINEAGE.json via promote_child_to_parent()
-        4. Git commit the promotion
-
-        Args:
-            child: Child metadata dict from pending review
-            generation: Generation number
-        """
-        import shutil
-        import subprocess
-        from datetime import datetime
-        from core.evolution.lineage import (
-            load_lineage, save_lineage,
-            promote_child_to_parent, archive_generation
-        )
-
-        child_id = child['id']
-        fitness_score = child['score']
-
-        # Paths (use validated nexus_root)
-        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/ (validated at init)
-        project_root = parent_path.parent  # 20_NEXUS/
-        child_path = project_root / "GENERATION_ACTIVE" / child_id
-        archive_dir = project_root / "ARCHIVE" / f"GEN_{generation-1:03d}"
-
-        # Validate child exists
-        if not child_path.exists():
-            raise FileNotFoundError(f"Child not found: {child_path}")
-
-        self.console.print(f"\n{'─'*60}")
-        self.console.print("🔄 PROMOTION IN PROGRESS")
-        self.console.print(f"{'─'*60}")
-
-        # 1. Load lineage
-        lineage = load_lineage(self.workspace_path)
-        old_parent = lineage["current_parent"]
-        old_parent_id = old_parent["id"]
-
-        self.console.print(f"Old Parent: {old_parent_id}")
-        self.console.print(f"New Parent: {child_id}")
-
-        # 2. Archive old parent
-        self.console.print(f"\n📦 Archiving {old_parent_id}...")
-        archive_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy parent to archive (keep original for safety during transition)
-        archive_parent_path = archive_dir / old_parent_id
-        if not archive_parent_path.exists():
-            shutil.copytree(
-                parent_path,
-                archive_parent_path,
-                ignore=shutil.ignore_patterns('__pycache__', '*.pyc', 'workspace')
-            )
-            self.console.print(f"✓ Parent archived to {archive_dir}")
-        else:
-            self.console.print(f"⚠️  Archive already exists, skipping")
-
-        # Update lineage with archive info
-        lineage = archive_generation(
-            lineage,
-            old_parent_id,
-            archive_parent_path,
-            reason=f"Superseded by {child_id}"
-        )
-
-        # 3. Promote child - copy child files over parent
-        self.console.print(f"\n🚀 Promoting {child_id}...")
-
-        # Remove old parent files (except workspace and .git)
-        for item in parent_path.iterdir():
-            if item.name in ['workspace', '.git', '__pycache__']:
-                continue
-            if item.is_dir():
-                shutil.rmtree(item)
-            else:
-                item.unlink()
-
-        # Copy child files to parent location
-        for item in child_path.iterdir():
-            if item.name in ['__pycache__', 'workspace']:
-                continue
-            dest = parent_path / item.name
-            if item.is_dir():
-                shutil.copytree(item, dest)
-            else:
-                shutil.copy2(item, dest)
-
-        self.console.print(f"✓ Child files promoted to NEXUS_V7_CHRYSALIS/")
-
-        # 4. Update LINEAGE.json
-        birth_cert_path = child.get('birth_cert_path', f"GENERATION_ACTIVE/{child_id}/BIRTH_CERTIFICATE.json")
-        notable_features = [child.get('improvements_summary', 'Emergent mutation')]
-
-        lineage = promote_child_to_parent(
-            lineage=lineage,
-            child_id=child_id,
-            child_path=parent_path,  # New location
-            fitness_score=fitness_score,
-            birth_cert_path=birth_cert_path,
-            notable_features=notable_features
-        )
-
-        save_lineage(lineage, self.workspace_path)
-        self.console.print(f"✓ LINEAGE.json updated")
-
-        # 5. Clean up GENERATION_ACTIVE
-        self.console.print(f"\n🧹 Cleaning up...")
-        shutil.rmtree(child_path)
-        self.console.print(f"✓ Removed {child_path}")
-
-        # 6. Git commit
-        self.console.print(f"\n📝 Git commit...")
-        try:
-            subprocess.run(
-                ["git", "add", "-A"],
-                cwd=project_root,
-                check=True,
-                capture_output=True
-            )
-            commit_msg = f"evolution(promote): {child_id} -> active parent (Gen {generation})\n\n" \
-                        f"Fitness Score: {fitness_score:.3f}\n" \
-                        f"Archived: {old_parent_id}\n\n" \
-                        f"Generated with NEXUS Evolution Engine"
-            subprocess.run(
-                ["git", "commit", "-m", commit_msg],
-                cwd=project_root,
-                check=True,
-                capture_output=True
-            )
-            self.console.print(f"✓ Committed promotion to git")
-        except subprocess.CalledProcessError as e:
-            self.console.print(f"⚠️  Git commit failed (manual commit recommended)")
-
-        self.console.print(f"\n{'─'*60}")
-        self.console.print(f"✅ PROMOTION COMPLETE")
-        self.console.print(f"{'─'*60}")
-        self.console.print(f"New active parent: {child_id}")
-        self.console.print(f"Generation: {generation}")
-        self.console.print(f"Fitness Score: {fitness_score:.3f}")
-
-    def _archive_rejected_child(self, child: dict, generation: int):
-        """
-        Archive a rejected child to prevent accumulation in GENERATION_ACTIVE.
-
-        Steps:
-        1. Create archive directory for rejected children
-        2. Move child from GENERATION_ACTIVE/ to ARCHIVE/rejected/GEN_XXX/
-        3. Update lineage with rejection reason
-
-        Args:
-            child: Child metadata dict from pending review
-            generation: Generation number
-        """
-        import shutil
-        from datetime import datetime
-        from core.evolution.lineage import load_lineage, save_lineage
-
-        child_id = child['id']
-
-        # Paths
-        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/
-        project_root = parent_path.parent  # 20_NEXUS/
-        child_path = project_root / "GENERATION_ACTIVE" / child_id
-        archive_dir = project_root / "ARCHIVE" / "rejected" / f"GEN_{generation:03d}"
-
-        # Validate child exists
-        if not child_path.exists():
-            raise FileNotFoundError(f"Child not found: {child_path}")
-
-        self.console.print(f"Archiving rejected child: {child_id}")
-
-        # 1. Create archive directory
-        archive_dir.mkdir(parents=True, exist_ok=True)
-
-        # 2. Move child to archive
-        archive_child_path = archive_dir / child_id
-        if archive_child_path.exists():
-            # If already exists, add timestamp to avoid collision
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_child_path = archive_dir / f"{child_id}_rejected_{timestamp}"
-
-        shutil.move(str(child_path), str(archive_child_path))
-        self.console.print(f"✓ Moved to {archive_child_path}")
-
-        # 3. Update lineage with rejection
-        try:
-            lineage = load_lineage(self.workspace_path)
-            if "rejected_children" not in lineage:
-                lineage["rejected_children"] = []
-
-            lineage["rejected_children"].append({
-                "id": child_id,
-                "generation": generation,
-                "rejected_at": datetime.now().isoformat(),
-                "reason": "manual_review_rejection",
-                "archive_path": str(archive_child_path),
-                "fitness_score": child.get('score', 0.0)
-            })
-
-            save_lineage(lineage, self.workspace_path)
-            self.console.print("✓ Updated lineage with rejection record")
-        except Exception as e:
-            self.console.print(f"⚠️  Lineage update failed: {e}")

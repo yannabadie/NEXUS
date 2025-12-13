@@ -1,12 +1,17 @@
 """
-NEXUS V8.0 - Phase 5: Failure Diagnosis
+NEXUS V9.2 - Phase 5: Failure Diagnosis
 
 Dual-agent failure analysis when execution encounters issues.
 Both agents independently diagnose, then synthesize.
 
+V9.2 Enhancement: Session Isolation for Parallel Diagnosis
+- Each agent diagnoses with isolated session
+- Full context inheritance from Phase 4 (FULL scope for debugging)
+- Model-aware context for diagnostic capabilities
+
 Flow:
-1. Gemini diagnoses failure
-2. Claude diagnoses failure (in parallel)
+1. Gemini diagnoses failure (session: uuid-diag-G)
+2. Claude diagnoses failure (session: uuid-diag-C) [parallel]
 3. Synthesize diagnoses
 4. User Breakpoint: AFTER_DIAGNOSIS
 5. Return diagnosis for Phase 6 (Retry)
@@ -15,6 +20,7 @@ Key Innovation:
 - Dual diagnosis catches more root causes
 - Cross-validation reduces misdiagnosis
 - User can override or guide retry
+- V9.2: Session isolation for parallel diagnosis
 """
 
 import asyncio
@@ -35,9 +41,12 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..user_interaction import UserInteractionHandler
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
@@ -122,6 +131,8 @@ class FailureDiagnosisPhase:
     Phase 5: Failure Diagnosis
 
     Dual-agent analysis of execution failures.
+
+    V9.2: Integrated session isolation for parallel diagnosis.
     """
 
     def __init__(
@@ -130,7 +141,9 @@ class FailureDiagnosisPhase:
         claude_driver: "ClaudeDriverV7",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
-        user_handler: UserInteractionHandler
+        user_handler: UserInteractionHandler,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 5.
@@ -141,12 +154,19 @@ class FailureDiagnosisPhase:
             cost_estimator: Cost estimator
             context_manager: Context manager
             user_handler: User interaction handler
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
         self.cost_estimator = cost_estimator
         self.context_manager = context_manager
         self.user_handler = user_handler
+
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("diagnosis")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
 
     async def execute(
         self,
@@ -169,6 +189,22 @@ class FailureDiagnosisPhase:
         """
         logger.info("Phase 5: Starting Failure Diagnosis")
 
+        # V9.2: Initialize session integration with FULL scope (needs complete context for debugging)
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="diagnosis",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity="COMPLEX"  # Diagnosis needs full context
+        )
+        self._session_integration.set_previous_phase("execution")
+
+        # V9.2: Get isolated sessions for parallel diagnosis
+        parallel_sessions = self._session_integration.get_parallel_sessions(
+            agents=["gemini", "claude"]
+        )
+        logger.debug(f"Created isolated diagnosis sessions: {parallel_sessions}")
+
         # Check budget
         if not self.cost_estimator.can_afford_multiple({
             "failure_diagnosis_gemini": 1,
@@ -189,8 +225,8 @@ class FailureDiagnosisPhase:
             issues=issues_text
         )
 
-        gemini_task = self._diagnose_with_gemini(prompt)
-        claude_task = self._diagnose_with_claude(prompt)
+        gemini_task = self._diagnose_with_gemini(prompt, parallel_sessions.get("gemini"))
+        claude_task = self._diagnose_with_claude(prompt, parallel_sessions.get("claude"))
 
         gemini_result, claude_result = await asyncio.gather(
             gemini_task,
@@ -252,22 +288,24 @@ class FailureDiagnosisPhase:
             lines.append(f"- [{i.severity.value.upper()}] {i.issue_type}: {i.details}")
         return "\n".join(lines)
 
-    async def _diagnose_with_gemini(self, prompt: str) -> str:
-        """Get diagnosis from Gemini."""
+    async def _diagnose_with_gemini(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+        """Get diagnosis from Gemini with session isolation."""
         try:
-            response = await self.gemini.send_message_async(prompt)
-            tokens = len(response) // 4
+            logger.debug(f"Gemini diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+            tokens = len(str(response)) // 4
             self.cost_estimator.record_cost("failure_diagnosis_gemini", tokens)
             return response
         except Exception as e:
             logger.error(f"Gemini diagnosis failed: {e}")
             raise
 
-    async def _diagnose_with_claude(self, prompt: str) -> str:
-        """Get diagnosis from Claude."""
+    async def _diagnose_with_claude(self, prompt: str, session_uuid: Optional[str] = None) -> str:
+        """Get diagnosis from Claude with session isolation."""
         try:
-            response = await self.claude.send_message_async(prompt)
-            tokens = len(response) // 4
+            logger.debug(f"Claude diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
+            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
+            tokens = len(str(response)) // 4
             self.cost_estimator.record_cost("failure_diagnosis_claude", tokens)
             return response
         except Exception as e:
@@ -287,8 +325,14 @@ class FailureDiagnosisPhase:
             claude_diagnosis=claude_diagnosis
         )
 
+        # V9.2: Use session for synthesis
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session("gemini_synthesis")
+            logger.debug(f"Synthesis using session {session_uuid[:8] if session_uuid else 'none'}")
+
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
             tokens = len(response) // 4
             self.cost_estimator.record_cost("synthesize_diagnosis", tokens)
 

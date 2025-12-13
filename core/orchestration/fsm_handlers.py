@@ -298,7 +298,7 @@ class FSMHandlers:
         try:
             cfl_timeout = getattr(self._orch.config, 'cfl_timeout', 60)
 
-            if self._orch.active_agent == "Claude":
+            if self._orch.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = self._get_claude_driver(TaskType.VALIDATION, timeout_override=cfl_timeout)
                 response = driver.invoke(context)
             else:
@@ -355,10 +355,13 @@ class FSMHandlers:
             return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
 
         else:
-            self._orch.stalemate_counter += 1
+            # V9.3 ISSUE-004 FIX: Removed duplicate increment
+            # BEFORE: Both self._orch.stalemate_counter AND panic_system.stalemate_counter
+            # were incremented, causing stalemate detection at half the expected threshold.
+            # NOW: Only panic_system tracks stalemate counter (single source of truth)
 
             if self._orch.panic_system.check_stalemate():
-                return self._orch._trigger_panic(f"Stalemate: {self._orch.stalemate_counter} failures")
+                return self._orch._trigger_panic(f"Stalemate: {self._orch.panic_system.stalemate_counter} failures")
 
             # V8.4.0: Use registry for alternation
             previous_agent = self._orch.active_agent
@@ -372,8 +375,20 @@ class FSMHandlers:
         return self._make_result("ERROR", "System in error state. Use /reset", None, False, error="ERROR")
 
     def handle_panic(self) -> Dict:
-        """Handle PANIC state."""
-        return self._make_result("PANIC", "Fatal error. Restart session.", None, True, error="PANIC")
+        """
+        Handle PANIC state.
+
+        V9.3 ISSUE-002: Now recoverable via /reset command.
+        Before V9.3, PANIC had no exit - user had to restart session.
+        """
+        return self._make_result(
+            "PANIC",
+            "Fatal error detected. Use /reset to recover or restart session.",
+            None,
+            False,  # V9.3: finished=False allows /reset to work
+            error="PANIC",
+            recoverable=True  # V9.3: Signal to UI that recovery is possible
+        )
 
     # =========================================================================
     # Evolution State Handler

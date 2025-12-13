@@ -136,6 +136,26 @@ class TelemetryExporter:
             pass
         return count
 
+    def read_events(
+        self,
+        days: int = 1,
+        event_types: Optional[List[str]] = None
+    ) -> List[TelemetryEvent]:
+        """
+        Read telemetry events from the last N days.
+
+        V9.1: Added to fix bug in repl.py _budget_show_history().
+
+        Args:
+            days: Number of days to look back (default: 1).
+            event_types: Optional list of event types to filter.
+
+        Returns:
+            List of TelemetryEvent objects.
+        """
+        since = datetime.utcnow() - timedelta(days=days)
+        return list(self._iter_events(since=since, event_types=event_types))
+
     def export_to_csv(
         self,
         output_dir: Optional[Path] = None,

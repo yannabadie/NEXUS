@@ -313,28 +313,37 @@ class TestSagaManagerCanEnterPhase(TestCase):
         """Test that analysis phase has no guards (always enterable)."""
         saga = SagaManager(self.sagas_dir, "guard-test")
 
-        # analysis has no guard defined
-        assert saga.can_enter_phase("analysis") is True
+        # analysis has no guard defined - can_enter_phase returns (bool, reason)
+        can_enter, reason = saga.can_enter_phase("analysis")
+        assert can_enter is True
+        assert reason == ""
 
     def test_can_enter_debate_requires_analysis(self):
         """Test that debate requires analysis_complete."""
         saga = SagaManager(self.sagas_dir, "guard-test")
 
-        # Without analysis_complete
-        assert saga.can_enter_phase("debate") is False
+        # Without analysis_complete - can_enter_phase returns (bool, reason)
+        can_enter, reason = saga.can_enter_phase("debate")
+        assert can_enter is False
+        assert "Guard failed" in reason
 
         # With analysis_complete
         saga.context.analysis_complete = True
-        assert saga.can_enter_phase("debate") is True
+        can_enter, reason = saga.can_enter_phase("debate")
+        assert can_enter is True
 
     def test_can_enter_execution_requires_architecture(self):
         """Test that execution requires architecture_approved."""
         saga = SagaManager(self.sagas_dir, "guard-test")
 
-        assert saga.can_enter_phase("execution") is False
+        # can_enter_phase returns (bool, reason)
+        can_enter, reason = saga.can_enter_phase("execution")
+        assert can_enter is False
+        assert "Guard failed" in reason
 
         saga.context.architecture_approved = True
-        assert saga.can_enter_phase("execution") is True
+        can_enter, reason = saga.can_enter_phase("execution")
+        assert can_enter is True
 
 
 class TestSagaManagerRollback(TestCase):
@@ -367,11 +376,12 @@ class TestSagaManagerRollback(TestCase):
 
             ctx_manager = MockContextManager()
 
-            # Rollback to analysis
+            # Rollback to analysis - now returns bool instead of checkpoint
             result = await saga.rollback_to("analysis", ctx_manager)
 
-            assert result is not None
-            assert result.phase == "analysis"
+            assert result is True
+            # recovery_point should be set to target phase
+            assert saga.recovery_point == "analysis"
             # Context should be truncated to index 5
             assert len(ctx_manager.messages) == 5
 

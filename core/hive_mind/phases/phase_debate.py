@@ -1,12 +1,17 @@
 """
-NEXUS V8.0 - Phase 2: Strategic Debate
+NEXUS V9.2 - Phase 2: Strategic Debate
 
 Structured debate between agents to resolve disagreements.
 Uses argument/counter-argument format with evidence requirements.
 
+V9.2 Enhancement: Session Isolation for Sequential Debate
+- Each agent maintains isolated session during debate
+- Context inheritance from Phase 1 via TASK_PLUS_RESULTS scope
+- Model-aware context for capability reminders
+
 Flow:
-1. Agent A presents argument on disagreement point
-2. Agent B responds (SUPPORT, OPPOSE, or CONCEDE)
+1. Agent A presents argument on disagreement point (session: uuid-A)
+2. Agent B responds (SUPPORT, OPPOSE, or CONCEDE) (session: uuid-B)
 3. Repeat until consensus OR max turns reached
 4. If no consensus, force vote based on confidence
 
@@ -15,6 +20,7 @@ Key Features:
 - Concessions are encouraged (sign of good reasoning)
 - Evidence required for COMPLEX/EXPERT tasks
 - Adaptive turns (3-10) based on context
+- V9.2: Session isolation prevents context bleeding
 """
 
 import asyncio
@@ -33,10 +39,13 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from ...agents.unified_registry import get_registry  # V8.4.0
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
@@ -147,6 +156,8 @@ class StrategicDebatePhase:
     Phase 2: Strategic Debate
 
     Agents debate disagreements until consensus or forced vote.
+
+    V9.2: Integrated session isolation for debate turns.
     """
 
     def __init__(
@@ -155,7 +166,9 @@ class StrategicDebatePhase:
         claude_driver: "ClaudeDriverV7",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
-        debate_config: AdaptiveDebateConfig = None
+        debate_config: AdaptiveDebateConfig = None,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 2.
@@ -166,12 +179,19 @@ class StrategicDebatePhase:
             cost_estimator: Cost estimator
             context_manager: Context manager
             debate_config: Adaptive debate configuration
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
         self.cost_estimator = cost_estimator
         self.context_manager = context_manager
         self.debate_config = debate_config or AdaptiveDebateConfig()
+
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("debate")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
 
     async def execute(
         self,
@@ -181,6 +201,8 @@ class StrategicDebatePhase:
     ) -> DebatePhaseResult:
         """
         Execute Phase 2: Strategic Debate.
+
+        V9.2: Creates isolated sessions for each agent during debate.
 
         Args:
             task: The original task
@@ -194,6 +216,16 @@ class StrategicDebatePhase:
         if not comparison.needs_debate:
             logger.info("Phase 2: Skipping debate (high agreement)")
             return self._create_skipped_result(comparison)
+
+        # V9.2: Initialize session integration for this phase
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="debate",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity=complexity.value if hasattr(complexity, 'value') else str(complexity)
+        )
+        self._session_integration.set_previous_phase("analysis")
 
         logger.info(f"Phase 2: Starting Strategic Debate ({len(comparison.disagreements)} disagreements)")
 
@@ -403,9 +435,15 @@ class StrategicDebatePhase:
                 debate_history=history_text
             )
 
-        # Call driver
+        # V9.2: Get isolated session for this speaker
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session(speaker)
+            logger.debug(f"Debate turn {turn_number}: {speaker} using session {session_uuid[:8] if session_uuid else 'none'}")
+
+        # Call driver with session isolation
         try:
-            response = await driver.send_message_async(prompt)
+            response = await driver.send_message_async(prompt, session_uuid=session_uuid)
             argument_data = self._parse_argument_response(response)
 
             # V9.1.1: Safely get raw string for fallback and cost estimation
@@ -487,11 +525,16 @@ class StrategicDebatePhase:
             claude_position=disagreement.claude_position
         )
 
+        # V9.2: Get session for consensus check (use gemini's session)
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session("gemini")
+
         # Use Gemini for consensus check (neutral)
         try:
             from ..json_parser import parse_json_response
 
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
 
             # Record cost estimate
             raw = response

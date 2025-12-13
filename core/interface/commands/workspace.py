@@ -2,12 +2,24 @@
 V9.1 Workspace Commands - /bootstrap, /specialize, /workspace
 
 These commands manage workspace configuration and project specialization.
-Uses WorkspaceManager for business logic (Service Layer Pattern).
+Uses WorkspaceManager, BootstrapService, SpinoffService for business logic (Service Layer Pattern).
 """
 
 from pathlib import Path
 from typing import List
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+
+def _get_bootstrap_service(context: CommandContext):
+    """Get or create BootstrapService from context."""
+    from core.bootstrap import _get_bootstrap_service as get_service
+    return get_service(context)
+
+
+def _get_spinoff_service(context: CommandContext):
+    """Get or create SpinoffService from context."""
+    from core.bootstrap import _get_spinoff_service as get_service
+    return get_service(context)
 
 
 def _get_workspace_manager(context: CommandContext):
@@ -63,21 +75,28 @@ class BootstrapCommand(Command):
         return "/bootstrap [path] (default: current directory)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute bootstrap command."""
-        # Bootstrap still uses repl for now (complex AI interaction)
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+        """Execute bootstrap command using BootstrapService.
 
+        V9.1: Delegated to BootstrapService (Service Layer Pattern).
+        """
         try:
-            repl.run_bootstrap(args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_bootstrap_service(context)
+
+            # Parse path argument (default: current directory)
+            project_path = Path(args.strip()).resolve() if args.strip() else None
+
+            result = service.bootstrap(project_path)
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""  # Service handles its own output
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Bootstrap failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
@@ -105,15 +124,10 @@ class SpecializeCommand(Command):
         return "/specialize <mission_description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute specialize command."""
-        # Specialize still uses repl for now (complex AI interaction)
-        repl = context.extras.get("repl")
-        if not repl:
-            return CommandResult(
-                status=CommandStatus.ERROR,
-                message="REPL instance not available"
-            )
+        """Execute specialize command using SpinoffService.
 
+        V9.1: Delegated to SpinoffService (Service Layer Pattern).
+        """
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -121,11 +135,19 @@ class SpecializeCommand(Command):
             )
 
         try:
-            repl.run_specialization(mission=args)
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            service = _get_spinoff_service(context)
+            result = service.specialize(mission=args.strip())
+
+            if result.success:
+                return CommandResult(
+                    status=CommandStatus.SUCCESS,
+                    message=""  # Service handles its own output
+                )
+            else:
+                return CommandResult(
+                    status=CommandStatus.ERROR,
+                    message=result.error or "Specialization failed"
+                )
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,

@@ -11,6 +11,7 @@ Simple file-based telemetry for tracking:
 V7 Sprint 10: Basic telemetry foundation
 V7.6 Phase 13c: Telemetry Export (CSV, reports)
 V7.6 Phase 14d: Budget Cap & Cost Tracking
+V9.1: Service Layer (TelemetryService, BudgetService)
 Future: Export to Langfuse, OTLP, or other backends
 """
 
@@ -23,6 +24,15 @@ from .budget_tracker import (
     get_budget_tracker,
 )
 
+# V9.1: Service Layer
+from .service import (
+    TelemetryService,
+    BudgetService,
+    ServiceResult,
+    _get_telemetry_service,
+    _get_budget_service,
+)
+
 __all__ = [
     "TelemetryCollector",
     "MetricType",
@@ -31,4 +41,10 @@ __all__ = [
     "BudgetExceededError",
     "BudgetWarning",
     "get_budget_tracker",
+    # V9.1: Service Layer
+    "TelemetryService",
+    "BudgetService",
+    "ServiceResult",
+    "_get_telemetry_service",
+    "_get_budget_service",
 ]

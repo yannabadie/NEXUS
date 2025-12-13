@@ -1,8 +1,13 @@
 """
-NEXUS V8.0 - Hive Mind Context Manager
+NEXUS V9.2 - Hive Mind Context Manager
 
 Sliding window context management to prevent token explosion.
 Maintains essential context while discarding old/irrelevant information.
+
+V9.2 Enhancement: Scoped Context for Controlled Inheritance
+- create_scoped_context() for phase transitions
+- summarize_for_inheritance() for result extraction
+- Model-aware context (capability reminders)
 
 Integration with ProjectMemory RAG:
 - Important insights are indexed for long-term retrieval
@@ -18,6 +23,13 @@ Usage:
     # Get context for an operation
     context = manager.get_context_for("debate", max_tokens=8000)
 
+    # V9.2: Create scoped context for phase transition
+    scoped = manager.create_scoped_context(
+        scope=ContextScope.TASK_PLUS_RESULTS,
+        from_phase="analysis",
+        session_uuid="abc-123"
+    )
+
     # Archive important insights to RAG
     manager.archive_to_rag(project_memory, session_id)
 """
@@ -31,6 +43,9 @@ from collections import deque
 
 if TYPE_CHECKING:
     from core.memory.project_memory import ProjectMemory
+
+# V9.2: Import scoped context types
+from .context_scope import ContextScope, ScopedContext, ContextScopePolicy, get_scope_policy
 
 logger = logging.getLogger(__name__)
 
@@ -477,3 +492,218 @@ Timestamp: {insight['timestamp']}
             "priority_counts": priority_counts,
             "pending_insights": len(self._archived_insights)
         }
+
+    # ===== V9.2: Scoped Context for Controlled Inheritance =====
+
+    def create_scoped_context(
+        self,
+        scope: ContextScope,
+        from_phase: Optional[str] = None,
+        session_uuid: Optional[str] = None,
+        relevant_files: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
+        max_summary_tokens: int = 2000
+    ) -> ScopedContext:
+        """
+        Create a scoped context for phase transitions or agent spawning.
+
+        V9.2: Controlled inheritance - only pass what's needed.
+
+        Args:
+            scope: The scope level to apply
+            from_phase: Source phase for summarization (e.g., "analysis")
+            session_uuid: Session UUID for isolation
+            relevant_files: Files to include in context
+            model_id: Model identifier for capability context
+            max_summary_tokens: Max tokens for parent summary
+
+        Returns:
+            ScopedContext with appropriate content
+
+        Example:
+            # Phase 1 → Phase 2 transition
+            scoped = manager.create_scoped_context(
+                scope=ContextScope.TASK_PLUS_RESULTS,
+                from_phase="analysis",
+                session_uuid="abc-123"
+            )
+        """
+        # Get task description (CRITICAL priority items)
+        task_description = self._get_task_description()
+
+        # Get parent summary based on phase
+        parent_summary = ""
+        if scope in [ContextScope.FULL, ContextScope.TASK_PLUS_RESULTS, ContextScope.RESULTS_ONLY]:
+            parent_summary = self.summarize_for_inheritance(
+                from_phase=from_phase,
+                max_tokens=max_summary_tokens
+            )
+
+        # Get full history only for FULL scope
+        full_history = []
+        if scope == ContextScope.FULL:
+            full_history = [
+                {
+                    "category": item.category,
+                    "source": item.source,
+                    "content": item.content,
+                    "timestamp": item.timestamp.isoformat()
+                }
+                for item in self._items
+            ]
+
+        # Model-specific context
+        model_context = self._get_model_context(model_id) if model_id else None
+
+        return ScopedContext(
+            scope=scope,
+            task_description=task_description if scope != ContextScope.FRESH else "",
+            relevant_files=relevant_files or [],
+            parent_summary=parent_summary,
+            full_history=full_history,
+            session_uuid=session_uuid,
+            model_context=model_context,
+            metadata={
+                "from_phase": from_phase,
+                "created_by": "HiveMindContextManager"
+            }
+        )
+
+    def summarize_for_inheritance(
+        self,
+        from_phase: Optional[str] = None,
+        max_tokens: int = 2000
+    ) -> str:
+        """
+        Summarize context for inheritance to next phase/agent.
+
+        Extracts only the essential results, not the full history.
+
+        Args:
+            from_phase: Phase to summarize from (filters by category)
+            max_tokens: Maximum tokens for summary
+
+        Returns:
+            Concise summary string
+        """
+        # Map phase names to categories
+        phase_categories = {
+            "analysis": ["analysis"],
+            "debate": ["debate", "analysis"],
+            "architecture": ["architecture", "debate"],
+            "execution": ["execution", "architecture"],
+            "diagnosis": ["diagnosis", "execution"],
+            "consolidation": ["consolidation", "execution"]
+        }
+
+        # Get relevant categories
+        if from_phase and from_phase in phase_categories:
+            include_categories = phase_categories[from_phase]
+        else:
+            include_categories = None
+
+        # Build summary from high-priority items
+        summary_parts = []
+        token_count = 0
+
+        for item in reversed(list(self._items)):  # Most recent first
+            # Filter by category
+            if include_categories and item.category not in include_categories:
+                continue
+
+            # Skip low priority verbose items
+            if item.priority == ContextPriority.LOW:
+                continue
+
+            # Check token budget
+            if token_count + item.token_estimate > max_tokens:
+                break
+
+            # Add to summary
+            summary_parts.append(
+                f"[{item.category.upper()}:{item.source}] {item.content[:500]}"
+            )
+            token_count += item.token_estimate
+
+        if not summary_parts:
+            return "No prior context available."
+
+        return "\n\n".join(reversed(summary_parts))  # Chronological order
+
+    def _get_task_description(self) -> str:
+        """Extract task description from CRITICAL items."""
+        for item in self._items:
+            if item.category == "task" and item.priority == ContextPriority.CRITICAL:
+                return item.content
+        return ""
+
+    def _get_model_context(self, model_id: str) -> str:
+        """
+        Get model-specific context (capabilities reminder).
+
+        Helps models understand what they can/cannot do.
+        """
+        model_capabilities = {
+            "claude-opus-4-5": (
+                "You are Claude Opus 4.5, Anthropic's most capable model. "
+                "Strengths: Complex reasoning, nuanced analysis, creative solutions, "
+                "long-form generation, safety considerations."
+            ),
+            "claude-sonnet-4-5": (
+                "You are Claude Sonnet 4.5, optimized for speed and efficiency. "
+                "Strengths: Fast responses, tool execution, code generation, "
+                "straightforward tasks."
+            ),
+            "gemini-3-pro": (
+                "You are Gemini 3 Pro. "
+                "Strengths: Multimodal understanding, code execution, "
+                "structured outputs, large context handling."
+            ),
+            "gemini-3-flash": (
+                "You are Gemini 3 Flash, optimized for speed. "
+                "Strengths: Fast responses, simple tasks, high throughput."
+            ),
+        }
+
+        # Match by prefix
+        for prefix, context in model_capabilities.items():
+            if model_id and model_id.startswith(prefix):
+                return context
+
+        return None
+
+    def get_scoped_prompt(
+        self,
+        instruction: str,
+        scope: ContextScope,
+        from_phase: Optional[str] = None,
+        session_uuid: Optional[str] = None,
+        relevant_files: Optional[List[str]] = None,
+        model_id: Optional[str] = None
+    ) -> str:
+        """
+        Create a complete prompt with scoped context prefix.
+
+        Convenience method combining create_scoped_context + instruction.
+
+        Args:
+            instruction: The actual instruction/prompt for the agent
+            scope: Context scope to apply
+            from_phase: Source phase
+            session_uuid: Session UUID
+            relevant_files: Relevant files
+            model_id: Model identifier
+
+        Returns:
+            Complete prompt with context prefix
+        """
+        scoped = self.create_scoped_context(
+            scope=scope,
+            from_phase=from_phase,
+            session_uuid=session_uuid,
+            relevant_files=relevant_files,
+            model_id=model_id
+        )
+
+        prefix = scoped.to_prompt_prefix()
+        return f"{prefix}{instruction}"

@@ -1,11 +1,16 @@
 """
-NEXUS V8.0 - Phase 4: Monitored Execution
+NEXUS V9.2 - Phase 4: Monitored Execution
 
 Executes the architecture plan with real-time monitoring.
 Tracks issues, verifies outputs, and prepares for diagnosis if needed.
 
+V9.2 Enhancement: Session Isolation per Execution Step
+- Each execution step gets isolated session
+- Context inheritance from Phase 3 via TASK_PLUS_RESULTS scope
+- Spawned agent execution uses separate sessions
+
 Flow:
-1. Execute each step according to plan
+1. Execute each step according to plan (session per step)
 2. Monitor for issues (timeout, errors, hallucinations)
 3. Verify artifacts created
 4. Report step-by-step results
@@ -16,6 +21,7 @@ Key Features:
 - Artifact verification
 - Timeout handling per step
 - Issue severity classification
+- V9.2: Session isolation per execution step
 """
 
 import asyncio
@@ -34,10 +40,13 @@ from ..types import (
 )
 from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
+from ..context_scope import ContextScope
+from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..swarm_bridge import SwarmBridge, HivePhase
 from core.agents.unified_registry import get_registry  # V8.4.0
 
 if TYPE_CHECKING:
+    from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
     from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
@@ -118,7 +127,9 @@ class MonitoredExecutionPhase:
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         tool_executor: Callable = None,
-        swarm_engine: "HybridSwarmEngine" = None
+        swarm_engine: "HybridSwarmEngine" = None,
+        task_id: Optional[str] = None,
+        session_manager: Optional["SwarmSessionManager"] = None
     ):
         """
         Initialize Phase 4.
@@ -130,6 +141,8 @@ class MonitoredExecutionPhase:
             context_manager: Context manager
             tool_executor: Optional tool execution callback
             swarm_engine: V8.3 - Optional Swarm Engine for delegation
+            task_id: V9.2 - Unique task identifier for session isolation
+            session_manager: V9.2 - Optional session manager for persistence
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
@@ -144,6 +157,11 @@ class MonitoredExecutionPhase:
                 context_manager=context_manager
             )
 
+        # V9.2: Session isolation
+        self._task_id = task_id or generate_hivemind_task_id("execution")
+        self._session_manager = session_manager
+        self._session_integration: Optional[HiveMindSessionIntegration] = None
+
     async def execute(
         self,
         task: str,
@@ -151,6 +169,8 @@ class MonitoredExecutionPhase:
     ) -> ExecutionPhaseResult:
         """
         Execute Phase 4: Monitored Execution.
+
+        V9.2: Each step gets an isolated session to prevent context bleeding.
 
         Args:
             task: Original task
@@ -160,6 +180,16 @@ class MonitoredExecutionPhase:
             ExecutionPhaseResult with all step results
         """
         logger.info(f"Phase 4: Starting Monitored Execution ({len(architecture.execution_plan.steps)} steps)")
+
+        # V9.2: Initialize session integration for this phase
+        self._session_integration = HiveMindSessionIntegration(
+            task_id=self._task_id,
+            phase_name="execution",
+            context_manager=self.context_manager,
+            session_manager=self._session_manager,
+            complexity="MODERATE"
+        )
+        self._session_integration.set_previous_phase("architecture")
 
         step_results: List[MonitoredStepResult] = []
         all_issues: List[ExecutionIssue] = []
@@ -306,13 +336,22 @@ class MonitoredExecutionPhase:
         registry = get_registry()
         driver = self.claude if registry.is_claude(step.agent_id) else self.gemini
 
+        # V9.2: Get isolated session for this step's agent
+        session_uuid = None
+        if self._session_integration:
+            # Use step name as role for unique session per step
+            session_uuid = self._session_integration.get_agent_session(
+                f"{step.agent_id}_{step.name}"
+            )
+            logger.debug(f"Step '{step.name}' using session {session_uuid[:8] if session_uuid else 'none'}")
+
         # Execute with timeout
         start_time = time.time()
         issues: List[ExecutionIssue] = []
 
         try:
             response = await asyncio.wait_for(
-                driver.send_message_async(prompt),
+                driver.send_message_async(prompt, session_uuid=session_uuid),
                 timeout=step.expected_duration * 2  # Allow 2x expected time
             )
 
