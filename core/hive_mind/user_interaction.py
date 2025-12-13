@@ -9,6 +9,7 @@ Features:
 - Timeout handling with default actions
 - Breakpoint history tracking
 - Custom input support
+- V9.8 DETOX: Headless mode via InteractionProvider
 
 Usage:
     handler = UserInteractionHandler()
@@ -32,9 +33,12 @@ Usage:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Callable, Any
+from typing import List, Optional, Callable, Any, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
+
+if TYPE_CHECKING:
+    from core.interaction import InteractionProvider
 
 # Try to import rich for better UI, fallback to basic input
 try:
@@ -75,7 +79,8 @@ class UserInteractionHandler:
         self,
         default_timeout: int = 60,
         enable_rich: bool = True,
-        auto_accept: bool = False
+        auto_accept: bool = False,
+        interaction: Optional["InteractionProvider"] = None
     ):
         """
         Initialize user interaction handler.
@@ -84,10 +89,12 @@ class UserInteractionHandler:
             default_timeout: Default timeout for breakpoints (seconds)
             enable_rich: Use rich console if available
             auto_accept: Auto-accept recommendations (for testing)
+            interaction: V9.8 DETOX - Optional interaction provider for headless mode
         """
         self.default_timeout = default_timeout
         self.auto_accept = auto_accept
         self._history: List[BreakpointResponse] = []
+        self._interaction = interaction
 
         # Initialize console
         if enable_rich and RICH_AVAILABLE:
@@ -143,11 +150,46 @@ class UserInteractionHandler:
             self._history.append(response)
             return response
 
+        # V9.8 DETOX: Check for headless mode via InteractionProvider
+        if self._interaction is not None and not self._interaction.is_interactive:
+            return self._headless_breakpoint(request)
+
         # Display and get input
         if self._use_rich:
             return self._rich_breakpoint(request)
         else:
             return self._basic_breakpoint(request)
+
+    def _headless_breakpoint(self, request: BreakpointRequest) -> BreakpointResponse:
+        """
+        Handle breakpoint in headless mode (V9.8 DETOX).
+
+        Returns recommended option without blocking.
+        Logs the breakpoint for audit trail.
+        """
+        import logging
+        logger = logging.getLogger("nexus.interaction.headless")
+
+        # Log the breakpoint
+        logger.info(f"[HEADLESS BREAKPOINT] Type: {request.breakpoint_type.value}")
+        logger.debug(f"[HEADLESS BREAKPOINT] Context: {request.context[:200]}...")
+        logger.info(f"[HEADLESS BREAKPOINT] Recommendation: {request.recommendation}")
+
+        # Get recommended option
+        recommended = next(
+            (opt for opt in request.options if opt.is_recommended),
+            request.options[0] if request.options else None
+        )
+
+        response = BreakpointResponse(
+            breakpoint_type=request.breakpoint_type,
+            chosen_option=recommended.id if recommended else "accept",
+            was_timeout=False  # Not a timeout, deliberate headless choice
+        )
+
+        logger.info(f"[HEADLESS BREAKPOINT] Auto-selected: {response.chosen_option}")
+        self._history.append(response)
+        return response
 
     async def request_breakpoint(
         self,

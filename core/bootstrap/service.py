@@ -20,6 +20,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 from datetime import datetime
@@ -29,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 if TYPE_CHECKING:
     from core.interface.console_v7 import ConsoleV7
     from core.orchestration_v7 import OrchestratorV7
+    from core.interaction import InteractionProvider
 
 # V9.1: Import ServiceResult from telemetry (single source of truth)
 from core.telemetry.service import ServiceResult
@@ -40,16 +42,25 @@ class BootstrapService:
 
     Wraps AutoBootstrap with console UI output.
     Extracted from InteractiveNexusV7 (repl.py) for proper separation of concerns.
+
+    V9.8 DETOX: Supports headless mode via InteractionProvider.
     """
 
-    def __init__(self, console: "ConsoleV7"):
+    def __init__(
+        self,
+        console: "ConsoleV7",
+        interaction: Optional["InteractionProvider"] = None
+    ):
         """
         Initialize BootstrapService.
 
         Args:
             console: Console for output
+            interaction: Optional interaction provider for headless mode.
+                        If None, uses get_interaction_provider().
         """
         self.console = console
+        self._interaction = interaction
 
     # ==================== PUBLIC API ====================
 
@@ -118,9 +129,10 @@ class BootstrapService:
                     self.console.print(f"\n   [bold red]WARNING: Existing file is much larger![/bold red]")
                     self.console.print(f"   The existing NEXUS.md may contain important documentation.")
 
+                # V9.8 DETOX: Use interaction provider instead of raw input()
                 try:
-                    response = input("   Create backup and overwrite? (y/N): ").strip().lower()
-                    if response != 'y':
+                    confirmed = self._confirm_overwrite()
+                    if not confirmed:
                         self.console.print("   Cancelled.")
                         return ServiceResult(success=False, message="Cancelled by user")
                 except (EOFError, KeyboardInterrupt):
@@ -150,6 +162,44 @@ class BootstrapService:
         except Exception as e:
             self.console.print_error(f"Bootstrap failed: {e}")
             return ServiceResult(success=False, error=str(e))
+
+    def _confirm_overwrite(self) -> bool:
+        """
+        Ask user to confirm overwrite of existing NEXUS.md.
+
+        V9.8 DETOX: Uses InteractionProvider for headless compatibility.
+
+        Returns:
+            True if user confirms, False otherwise.
+        """
+        if self._interaction is not None:
+            # Use injected provider (async wrapped in sync)
+            return asyncio.get_event_loop().run_until_complete(
+                self._interaction.confirm(
+                    "Create backup and overwrite?",
+                    default=False
+                )
+            )
+        else:
+            # Fallback: Use provider from factory
+            from core.interaction import get_interaction_provider
+            provider = get_interaction_provider()
+
+            if provider.is_interactive:
+                # Direct sync input for CLI (avoid event loop issues)
+                response = input("   Create backup and overwrite? (y/N): ").strip().lower()
+                return response == 'y'
+            else:
+                # Headless: run async provider
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                return loop.run_until_complete(
+                    provider.confirm("Create backup and overwrite?", default=False)
+                )
 
 
 class SpinoffService:

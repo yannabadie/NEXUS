@@ -277,11 +277,22 @@ if MCP_AVAILABLE:
 # Server Entry Point
 # =============================================================================
 
+class MCPNotAvailableError(RuntimeError):
+    """Raised when MCP SDK is not installed."""
+    pass
+
+
 def main():
-    """Run NEXUS MCP server."""
+    """
+    Run NEXUS MCP server.
+
+    V9.8 DETOX: Raises MCPNotAvailableError instead of sys.exit()
+    for proper exception handling when imported as a module.
+    """
     if not MCP_AVAILABLE:
-        print("ERROR: MCP SDK not installed. Install with: pip install mcp", file=sys.stderr)
-        sys.exit(1)
+        raise MCPNotAvailableError(
+            "MCP SDK not installed. Install with: pip install mcp"
+        )
 
     logger.info("Starting NEXUS MCP Server...")
     logger.info("Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, nexus_bash")
@@ -292,4 +303,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except MCPNotAvailableError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)

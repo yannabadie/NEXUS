@@ -30,6 +30,7 @@ import sys
 import time
 import atexit
 import logging
+import threading
 
 # V9 Cyborg Hardening: Logger for exception tracking
 _logger = logging.getLogger(__name__)
@@ -54,7 +55,9 @@ _logger = get_driver_logger("gemini")
 
 
 # Global reference for cleanup at exit
+# V9.8 DETOX: Thread-safe with lock (for multi-tenant/concurrent use)
 _active_processes = []
+_active_processes_lock = threading.Lock()
 _persistent_process = None  # Singleton persistent process
 
 # PTY mode removed in V7.6 cleanup - see docs/archive/pty_mode_v7_archived.py
@@ -72,19 +75,20 @@ def _cleanup_processes():
             _logger.debug(f"[GeminiDriver] Persistent process cleanup warning: {e}")
         _persistent_process = None
 
-    # Cleanup any one-shot processes
-    for proc in _active_processes:
-        try:
-            if proc.poll() is None:  # Still running
-                proc.terminate()
-                proc.wait(timeout=2)
-        except Exception as e:
-            _logger.debug(f"[GeminiDriver] Process terminate failed: {e}")
+    # V9.8 DETOX: Thread-safe cleanup of one-shot processes
+    with _active_processes_lock:
+        for proc in _active_processes:
             try:
-                proc.kill()
-            except Exception as e2:
-                _logger.warning(f"[GeminiDriver] Process kill also failed: {e2}")
-    _active_processes.clear()
+                if proc.poll() is None:  # Still running
+                    proc.terminate()
+                    proc.wait(timeout=2)
+            except Exception as e:
+                _logger.debug(f"[GeminiDriver] Process terminate failed: {e}")
+                try:
+                    proc.kill()
+                except Exception as e2:
+                    _logger.warning(f"[GeminiDriver] Process kill also failed: {e2}")
+        _active_processes.clear()
 
 
 # Register cleanup handler
@@ -503,8 +507,9 @@ Rules:
                 errors='replace'
             )
 
-            # Track for cleanup at exit
-            _active_processes.append(proc)
+            # V9.8 DETOX: Thread-safe process tracking
+            with _active_processes_lock:
+                _active_processes.append(proc)
 
             try:
                 import threading
@@ -579,9 +584,10 @@ Rules:
                 proc.wait()
                 raise
             finally:
-                # Remove from tracking once done
-                if proc in _active_processes:
-                    _active_processes.remove(proc)
+                # V9.8 DETOX: Thread-safe process removal
+                with _active_processes_lock:
+                    if proc in _active_processes:
+                        _active_processes.remove(proc)
 
             # Create result-like object for compatibility
             class Result:
@@ -798,7 +804,9 @@ Rules:
                 errors='replace'
             )
 
-            _active_processes.append(proc)
+            # V9.8 DETOX: Thread-safe process tracking
+            with _active_processes_lock:
+                _active_processes.append(proc)
 
             try:
                 accumulated_text = []
@@ -863,8 +871,10 @@ Rules:
                 proc.wait()
                 raise
             finally:
-                if proc in _active_processes:
-                    _active_processes.remove(proc)
+                # V9.8 DETOX: Thread-safe process removal
+                with _active_processes_lock:
+                    if proc in _active_processes:
+                        _active_processes.remove(proc)
 
         except TimeoutError:
             raise

@@ -29,6 +29,7 @@ Usage:
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Dict, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +37,7 @@ from pathlib import Path
 if TYPE_CHECKING:
     from core.interface.console_v7 import ConsoleV7
     from core.config import Config
+    from core.interaction import InteractionProvider
 
 
 @dataclass
@@ -211,6 +213,8 @@ class BudgetService:
 
     Wraps BudgetTracker with console UI output.
     Extracted from InteractiveNexusV7 (repl.py) for proper separation of concerns.
+
+    V9.8 DETOX: Supports headless mode via InteractionProvider.
     """
 
     def __init__(
@@ -218,6 +222,7 @@ class BudgetService:
         workspace_path: Path,
         console: "ConsoleV7",
         config: Optional["Config"] = None,
+        interaction: Optional["InteractionProvider"] = None,
     ):
         """
         Initialize BudgetService.
@@ -226,10 +231,12 @@ class BudgetService:
             workspace_path: Path to workspace directory
             console: Console for output
             config: Optional configuration object
+            interaction: Optional interaction provider for headless mode
         """
         self.workspace_path = Path(workspace_path)
         self.console = console
         self.config = config
+        self._interaction = interaction
 
     def _get_tracker(self):
         """Get BudgetTracker instance."""
@@ -316,8 +323,8 @@ class BudgetService:
             self.console.print("\n[yellow]This will reset your daily budget counter.[/yellow]")
             self.console.print("    Current spent amount will be set to $0.00.")
             try:
-                confirm = input("\n    Type 'yes' to confirm: ").strip().lower()
-                if confirm != "yes":
+                user_confirmed = self._confirm_reset()
+                if not user_confirmed:
                     self.console.print("\n[dim]Reset cancelled.[/dim]\n")
                     return ServiceResult(success=False, message="Cancelled by user")
             except (EOFError, KeyboardInterrupt):
@@ -329,6 +336,44 @@ class BudgetService:
         self.console.print("   Daily spent: $0.00\n")
 
         return ServiceResult(success=True, message="Budget reset")
+
+    def _confirm_reset(self) -> bool:
+        """
+        Ask user to confirm budget reset.
+
+        V9.8 DETOX: Uses InteractionProvider for headless compatibility.
+
+        Returns:
+            True if user confirms, False otherwise.
+        """
+        if self._interaction is not None:
+            # Use injected provider (async wrapped in sync)
+            return asyncio.get_event_loop().run_until_complete(
+                self._interaction.confirm(
+                    "Reset budget counter?",
+                    default=False
+                )
+            )
+        else:
+            # Fallback: Use provider from factory
+            from core.interaction import get_interaction_provider
+            provider = get_interaction_provider()
+
+            if provider.is_interactive:
+                # Direct sync input for CLI (avoid event loop issues)
+                response = input("\n    Type 'yes' to confirm: ").strip().lower()
+                return response == 'yes'
+            else:
+                # Headless: run async provider
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                return loop.run_until_complete(
+                    provider.confirm("Reset budget counter?", default=False)
+                )
 
     def add_credit(self, amount: float) -> ServiceResult:
         """
