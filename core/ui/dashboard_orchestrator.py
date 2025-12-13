@@ -26,20 +26,47 @@ _orchestrator_instance: Optional["DashboardOrchestrator"] = None
 
 @dataclass
 class DashboardConfig:
-    """Minimal config for dashboard orchestrator."""
+    """Minimal config for dashboard orchestrator - mirrors core/config.py."""
     workspace_path: Path
     gemini_cli_path: str
     claude_cli_path: str
+    # Models
     gemini_opus_model: str = "gemini-3-pro-preview"
     claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
+    # Orchestration
     timeout: int = 120
-    log_level: str = "INFO"
+    cfl_timeout: int = 60
+    max_stalemate_count: int = 5
     stagnation_similarity_threshold: float = 0.85
+    # Memory
+    compression_threshold_tokens: int = 100000
+    # Logging
+    log_level: str = "INFO"
+    # UI
     streaming_enabled: bool = True
+    ui_verbose: bool = False
+    console_output_limit: int = 5000
+    # Version
     nexus_version: str = "10.0"
     nexus_codename: str = "SINGULARITY"
-    ui_verbose: bool = False
+    # Budget
     budget_limit: float = 10.0
+    # Evolution (minimal, not used in dashboard)
+    max_generations_per_day: int = 10
+    min_hours_between_gen: float = 0.1
+    max_children_concurrent: int = 5
+    max_children_stable: int = 10
+    stable_mode_threshold: int = 5
+    fitness_metrics: dict = None
+    
+    def __post_init__(self):
+        if self.fitness_metrics is None:
+            self.fitness_metrics = {
+                "coding": 0.30,
+                "reasoning": 0.30,
+                "creativity": 0.25,
+                "scalability": 0.15
+            }
 
 
 class DashboardOrchestrator:
