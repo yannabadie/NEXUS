@@ -140,11 +140,46 @@ class MemoryManagerV7:
                 "last_action_signature": "",
                 "pending_tool_validation": False
             },
+            # V10 Dashboard fields
+            "fsm_state": "IDLE",
+            "swarm_mode": None,
+            "hive_phase": None,
+            "current_task": None,
+            "last_agent": None,
             "metadata": {
                 "created": datetime.now().isoformat(),
-                "version": "6.0.0"
+                "version": "10.0.0"
             }
         }
+
+    def update_dashboard_state(
+        self,
+        fsm_state: str = None,
+        swarm_mode: str = None,
+        hive_phase: int = None,
+        current_task: str = None,
+        last_agent: str = None
+    ):
+        """
+        Update dashboard-visible state fields.
+        Called by orchestrator on state transitions for real-time dashboard updates.
+        
+        V10: Bridge between CLI and dashboard_server.py
+        """
+        with self._lock:
+            if fsm_state is not None:
+                self.blackboard["fsm_state"] = fsm_state
+            if swarm_mode is not None:
+                self.blackboard["swarm_mode"] = swarm_mode
+            if hive_phase is not None:
+                self.blackboard["hive_phase"] = hive_phase
+            if current_task is not None:
+                self.blackboard["current_task"] = current_task
+            if last_agent is not None:
+                self.blackboard["last_agent"] = last_agent
+        
+        # Persist to disk so dashboard_server.py can read it
+        self.save_to_disk()
 
     def get_last_message(self) -> Dict:
         """Get last message from history"""

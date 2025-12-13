@@ -778,7 +778,11 @@ class OrchestratorV7:
             self.logger.info("🧬 EVOLUTION MODE: Permissions restored to normal (workspace only)")
 
         self.state = new_state
-        self.memory.save_to_disk()  # Backup after transition
+        # V10: Update dashboard state (includes save_to_disk)
+        self.memory.update_dashboard_state(
+            fsm_state=new_state.value if hasattr(new_state, 'value') else str(new_state),
+            last_agent=self.active_agent
+        )
 
     def _make_result(self, state: str, output: Optional[str], agent: Optional[str],
                      finished: bool, error: Optional[str] = None, tool: Optional[str] = None) -> Dict:
