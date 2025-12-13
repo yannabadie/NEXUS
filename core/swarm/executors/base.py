@@ -392,3 +392,120 @@ class ModeExecutor(ABC):
             "successes": successes,
             "failures": failures
         }
+
+    def execute_with_fallback(
+        self,
+        context: ExecutionContext,
+        max_fallbacks: int = 2
+    ) -> ExecutionResult:
+        """
+        Execute with automatic fallback to simpler modes on failure.
+
+        V7.5 Phase 8: Self-Healing Swarm - Graceful Degradation
+
+        Algorithm:
+        1. Create checkpoint (if session_manager available)
+        2. Try execute()
+        3. If failure: restore checkpoint, get fallback mode, retry
+        4. If success after fallback: mark status="RECOVERED"
+
+        Args:
+            context: Execution context
+            max_fallbacks: Maximum number of fallback attempts (default 2)
+
+        Returns:
+            ExecutionResult with status potentially marked as RECOVERED
+        """
+        import sys
+        # Lazy import to avoid circular dependency
+        # Use mode_executors.EXECUTOR_REGISTRY for backward compat with tests
+        from ..mode_executors import EXECUTOR_REGISTRY
+
+        current_mode = self.mode
+        checkpoint_id = None
+        fallback_count = 0
+        original_exception = None
+        degradation_path = [current_mode.value]
+
+        # Create checkpoint if session manager available
+        if context.session_manager and context.task_id:
+            try:
+                checkpoint_id = context.session_manager.create_checkpoint(context.task_id)
+            except Exception:
+                pass
+
+        while fallback_count <= max_fallbacks:
+            try:
+                # Get appropriate executor from EXECUTOR_REGISTRY (allows test patching)
+                executor = EXECUTOR_REGISTRY.get(current_mode, self)
+
+                # Attempt execution
+                result = executor.execute(context)
+
+                # Check for failure status
+                if result.status == ExecutionStatus.FAILED:
+                    raise ExecutionError(
+                        f"Mode {current_mode.value} returned FAILED status: "
+                        f"{result.final_output[:200] if result.final_output else 'No output'}"
+                    )
+
+                # Success! Mark as recovered if we fell back
+                if fallback_count > 0:
+                    result.metadata["status"] = "RECOVERED"
+                    result.metadata["original_mode"] = degradation_path[0]
+                    result.metadata["fallback_path"] = degradation_path
+                    result.metadata["fallback_count"] = fallback_count
+                    print(
+                        f"[SELF-HEALING] Recovered via {current_mode.value} after "
+                        f"{fallback_count} fallback(s): {' -> '.join(degradation_path)}",
+                        file=sys.stderr
+                    )
+
+                return result
+
+            except Exception as e:
+                if original_exception is None:
+                    original_exception = e
+
+                # Log degradation
+                error_msg = str(e)[:100] if str(e) else f"{type(e).__name__} (no message)"
+                print(
+                    f"[SWARM DEGRADATION] Mode {current_mode.value} failed: {error_msg}",
+                    file=sys.stderr
+                )
+
+                # Restore checkpoint if available
+                if checkpoint_id and context.session_manager and context.task_id:
+                    try:
+                        context.session_manager.restore_checkpoint(
+                            context.task_id, checkpoint_id
+                        )
+                    except Exception:
+                        pass
+
+                # Get fallback mode (static chain)
+                fallback = current_mode.fallback_mode
+
+                if fallback is None:
+                    print(
+                        f"[SWARM DEGRADATION] No fallback available for {current_mode.value}. "
+                        f"Degradation path: {' -> '.join(degradation_path)}",
+                        file=sys.stderr
+                    )
+                    raise original_exception
+
+                # Prepare for next iteration
+                fallback_count += 1
+                current_mode = fallback
+                degradation_path.append(current_mode.value)
+
+                print(
+                    f"[SWARM DEGRADATION] Falling back to {current_mode.value} "
+                    f"(attempt {fallback_count}/{max_fallbacks})",
+                    file=sys.stderr
+                )
+
+        # Exceeded max fallbacks
+        raise original_exception or ExecutionError(
+            f"Exceeded max fallbacks ({max_fallbacks}) without success"
+        )
