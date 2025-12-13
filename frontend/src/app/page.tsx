@@ -13,6 +13,8 @@ import {
 import { SwarmVisualization, type SwarmMode } from "@/components/SwarmVisualization";
 import { ChatPanel } from "@/components/ChatPanel";
 import { AgentExchanges } from "@/components/AgentExchanges";
+import { HiveMindTracker } from "@/components/HiveMindTracker";
+import { AGENT_COLORS } from "@/lib/design-tokens";
 
 // ============================================================================
 // Status Panel Component
@@ -36,42 +38,6 @@ function StatusPanel({
 }
 
 // ============================================================================
-// HiveMind Phase Tracker
-// ============================================================================
-
-const HIVEMIND_PHASES = [
-  { id: 1, name: "Analysis", icon: "🔍" },
-  { id: 2, name: "Debate", icon: "⚔️" },
-  { id: 3, name: "Architecture", icon: "📐" },
-  { id: 4, name: "Execution", icon: "⚡" },
-  { id: 5, name: "Diagnosis", icon: "🔬" },
-  { id: 6, name: "Retry", icon: "🔄" },
-  { id: 7, name: "Consolidation", icon: "📦" },
-];
-
-function HiveMindTracker({ currentPhase }: { currentPhase: number | null }) {
-  return (
-    <div className="flex items-center gap-1">
-      {HIVEMIND_PHASES.map((phase) => (
-        <div
-          key={phase.id}
-          className={`flex-1 p-2 rounded-lg text-center transition-all ${phase.id === currentPhase
-            ? "bg-violet-600 text-white scale-105"
-            : phase.id < (currentPhase || 0)
-              ? "bg-zinc-700 text-zinc-300"
-              : "bg-zinc-800 text-zinc-500"
-            }`}
-          title={phase.name}
-        >
-          <div className="text-lg">{phase.icon}</div>
-          <div className="text-xs mt-1 hidden md:block">{phase.name}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
 // Agent Card
 // ============================================================================
 
@@ -84,11 +50,7 @@ function AgentCard({
   status: "active" | "idle" | "spawned";
   type: "gemini" | "claude" | "spawned";
 }) {
-  const colors = {
-    gemini: "from-blue-500 to-cyan-500",
-    claude: "from-orange-500 to-amber-500",
-    spawned: "from-violet-500 to-fuchsia-500",
-  };
+  const colors = AGENT_COLORS[type];
 
   const statusColors = {
     active: "bg-emerald-500",
@@ -98,7 +60,7 @@ function AgentCard({
 
   return (
     <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors[type]} flex items-center justify-center`}>
+      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors.gradient} flex items-center justify-center`}>
         <span className="text-white font-bold text-sm">{name[0].toUpperCase()}</span>
       </div>
       <div className="flex-1">

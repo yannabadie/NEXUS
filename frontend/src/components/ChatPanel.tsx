@@ -129,7 +129,7 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
                     <div className="text-center text-zinc-500 py-8">
                         <div className="text-3xl mb-2">🤖</div>
                         <div className="text-sm">Start a conversation with NEXUS</div>
-                        <div className="text-xs mt-1">Try: "Hello" or use commands like /help</div>
+                        <div className="text-xs mt-1">Try: &quot;Hello&quot; or use commands like /help</div>
                     </div>
                 )}
 
@@ -140,10 +140,10 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
                     >
                         <div
                             className={`max-w-[80%] rounded-xl px-4 py-2 ${message.role === "user"
-                                    ? "bg-violet-600 text-white"
-                                    : message.role === "system"
-                                        ? "bg-red-900/30 border border-red-700 text-red-200"
-                                        : "bg-zinc-800 text-zinc-200"
+                                ? "bg-violet-600 text-white"
+                                : message.role === "system"
+                                    ? "bg-red-900/30 border border-red-700 text-red-200"
+                                    : "bg-zinc-800 text-zinc-200"
                                 }`}
                         >
                             {/* Role indicator for assistant */}

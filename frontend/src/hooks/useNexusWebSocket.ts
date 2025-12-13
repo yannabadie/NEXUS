@@ -49,8 +49,8 @@ export function useNexusWebSocket(options: UseNexusWebSocketOptions = {}) {
                     const message: NexusMessage = JSON.parse(event.data);
                     setLastMessage(message);
                     onMessage?.(message);
-                } catch (e) {
-                    console.warn("[NEXUS WS] Failed to parse message:", e);
+                } catch {
+                    console.warn("[NEXUS WS] Failed to parse message");
                 }
             };
 

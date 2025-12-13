@@ -135,7 +135,7 @@ export function AgentExchanges({
                             return updated.slice(-maxExchanges);
                         });
                     }
-                } catch (e) {
+                } catch {
                     // Ignore non-JSON messages
                 }
             };
