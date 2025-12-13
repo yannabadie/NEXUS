@@ -2,18 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
 import { sendChatMessage } from "@/lib/api";
+import { useChatStore, type ChatMessage } from "@/stores/chatStore";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface Message {
-    id: string;
-    role: "user" | "assistant" | "system";
-    content: string;
-    timestamp: Date;
-    isStreaming?: boolean;
-}
+type Message = ChatMessage;
 
 interface ChatPanelProps {
     className?: string;
@@ -25,9 +20,8 @@ interface ChatPanelProps {
 // ============================================================================
 
 export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const { messages, addMessage, isLoading, setIsLoading } = useChatStore();
     const [input, setInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,7 +46,7 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
             timestamp: new Date(),
         };
 
-        setMessages((prev) => [...prev, userMessage]);
+        addMessage(userMessage);
         setInput("");
         setIsLoading(true);
         onNewMessage?.(userMessage);
@@ -68,7 +62,7 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
                     content: result.data.response,
                     timestamp: new Date(),
                 };
-                setMessages((prev) => [...prev, assistantMessage]);
+                addMessage(assistantMessage);
                 onNewMessage?.(assistantMessage);
             } else if (result.error) {
                 const errorMessage: Message = {
@@ -77,7 +71,7 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
                     content: `Error: ${result.error}`,
                     timestamp: new Date(),
                 };
-                setMessages((prev) => [...prev, errorMessage]);
+                addMessage(errorMessage);
             }
         } catch (error) {
             const errorMessage: Message = {
@@ -86,7 +80,7 @@ export function ChatPanel({ className = "", onNewMessage }: ChatPanelProps) {
                 content: `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
                 timestamp: new Date(),
             };
-            setMessages((prev) => [...prev, errorMessage]);
+            addMessage(errorMessage);
         } finally {
             setIsLoading(false);
             inputRef.current?.focus();
