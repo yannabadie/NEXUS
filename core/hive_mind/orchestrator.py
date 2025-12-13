@@ -93,7 +93,8 @@ class TrueHiveMind:
         success_memory: "SuccessMemory" = None,  # V8.2.0
         on_state_change: callable = None,
         auto_breakpoints: bool = True,
-        swarm_engine: "HybridSwarmEngine" = None  # V8.4.5: SwarmBridge wiring fix
+        swarm_engine: "HybridSwarmEngine" = None,  # V8.4.5: SwarmBridge wiring fix
+        headless: bool = False  # V10: Dashboard mode (no stdin)
     ):
         """
         Initialize TRUE HIVE MIND.
@@ -110,6 +111,7 @@ class TrueHiveMind:
             on_state_change: Callback for state changes
             auto_breakpoints: Enable user breakpoints
             swarm_engine: V8.4.5 - Optional Swarm Engine for Phase 4 delegation
+            headless: V10 - No stdin available (dashboard mode)
         """
         self.workspace_path = Path(workspace_path)
         self.config = config
@@ -122,6 +124,7 @@ class TrueHiveMind:
         self.on_state_change = on_state_change
         self.auto_breakpoints = auto_breakpoints
         self.swarm_engine = swarm_engine  # V8.4.5: SwarmBridge wiring
+        self.headless = headless  # V10: Dashboard mode
 
         # Current state
         self.state = HiveMindState.HIVE_GATING
@@ -160,7 +163,8 @@ class TrueHiveMind:
         self.user_handler = UserInteractionHandler(
             default_timeout=getattr(self.config, 'hive_mind_breakpoint_timeout', 60),
             enable_rich=True,
-            auto_accept=not self.auto_breakpoints
+            auto_accept=not self.auto_breakpoints,
+            headless=self.headless  # V10: Force headless for dashboard
         )
 
         # Initialize phases

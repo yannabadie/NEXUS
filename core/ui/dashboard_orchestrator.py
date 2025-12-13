@@ -63,6 +63,9 @@ class DashboardOrchestrator:
                 config = Config()
                 config.workspace_path = workspace_path
                 
+                # V10: Dashboard runs HiveMind in headless mode (no stdin)
+                config.hive_mind_headless = True
+                
                 # Agent info
                 gemini_info = {
                     "model": config.gemini_default_model,

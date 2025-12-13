@@ -981,7 +981,8 @@ class FSMHandlers:
                     project_memory=self._orch.project_memory,
                     auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
                     swarm_engine=getattr(self._orch, 'swarm_engine', None),
-                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value})
+                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value}),
+                    headless=getattr(self._orch.config, 'hive_mind_headless', False)  # V10: Dashboard mode
                 )
 
             # Map TaskComplexity to HiveComplexity
@@ -1062,7 +1063,8 @@ class FSMHandlers:
                     project_memory=self._orch.project_memory,
                     auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
                     swarm_engine=getattr(self._orch, 'swarm_engine', None),
-                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value})
+                    on_state_change=lambda old, new: self._emit("HIVE_MIND_STATE_CHANGE", {"old": old.value, "new": new.value}),
+                    headless=getattr(self._orch.config, 'hive_mind_headless', False)  # V10: Dashboard mode
                 )
 
             # Map TaskComplexity to HiveComplexity
