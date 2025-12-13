@@ -39,7 +39,7 @@ from datetime import datetime
 from typing import AsyncIterator, Optional, Dict, Any, Callable
 from dataclasses import dataclass, field
 
-from core.async_primitives import CancellationToken, AsyncProcessHandle
+from core.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
 from core.async_primitives.process_handle import get_process_registry
 from core.agents.unified_registry import get_registry
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
@@ -214,7 +214,8 @@ class AsyncGeminiDriver:
                 if handle and handle.is_running:
                     await handle.terminate_gracefully()
 
-            token.on_cancel(lambda: asyncio.create_task(cancel_process()))
+            # V9.5: Use SafeTaskManager for error tracking
+            token.on_cancel(lambda: create_safe_task(cancel_process(), name="gemini_cancel"))
 
             if self.config.verbose:
                 print(f"[AsyncGeminiDriver] Started process pid={proc.pid}, uuid={unique_id[:8]}", file=sys.stderr)

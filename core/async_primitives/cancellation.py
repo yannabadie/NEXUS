@@ -32,10 +32,13 @@ References:
 from __future__ import annotations
 
 import asyncio
+import logging
 import weakref
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional, Set
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -107,12 +110,15 @@ class CancellationToken:
                 if asyncio.iscoroutine(result):
                     try:
                         loop = asyncio.get_running_loop()
-                        loop.create_task(result)
+                        # V9.5: Use SafeTaskManager for error tracking
+                        from .safe_task_manager import SafeTaskManager
+                        SafeTaskManager.create_task(result, name="cancellation_callback")
                     except RuntimeError:
                         # No running loop, try to run synchronously
                         pass
-            except Exception:
-                pass  # Callbacks should not raise
+            except Exception as e:
+                # V9.5: Log callback failures
+                logger.warning(f"CancellationToken: Callback failed: {e}")
 
     def check(self) -> None:
         """
@@ -157,7 +163,7 @@ class CancellationToken:
 
         Example:
             token.on_cancel(lambda: print("Cancelled!"))
-            token.on_cancel(lambda: asyncio.create_task(cleanup()))
+            token.on_cancel(lambda: create_safe_task(cleanup(), name="cleanup"))
         """
         if self._cancelled:
             # Already cancelled, execute immediately
@@ -166,11 +172,13 @@ class CancellationToken:
                 if asyncio.iscoroutine(result):
                     try:
                         loop = asyncio.get_running_loop()
-                        loop.create_task(result)
+                        # V9.5: Use SafeTaskManager for error tracking
+                        from .safe_task_manager import SafeTaskManager
+                        SafeTaskManager.create_task(result, name="on_cancel_immediate")
                     except RuntimeError:
                         pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"CancellationToken: on_cancel callback failed: {e}")
         else:
             self._callbacks.append(callback)
 
