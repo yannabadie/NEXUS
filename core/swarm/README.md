@@ -65,8 +65,39 @@ flowchart TD
 | `SWARM_AUTO_ROUTE` | `True` | Active le routage automatique vers le Swarm. |
 | `MAX_SWARM_ROUNDS` | `5` | Nombre max d'itérations en mode Ping-Pong/Red-Blue. |
 
+## Session Isolation (V10)
+
+### SwarmSessionManager
+
+Prevents **Context Bleeding** by assigning unique `session_uuid` to each agent-role combination:
+
+```
+TaskSession (task_id)
+    └── roles: {
+          "lead":    AgentSession(agent_id="gemini", session_uuid="uuid-1")
+          "worker":  AgentSession(agent_id="claude", session_uuid="uuid-2")
+        }
+```
+
+### Session Modes
+| Mode | Description | Persisted |
+|------|-------------|-----------|
+| `FRESH` | New session | ✅ Yes |
+| `CONTINUE` | Resume existing | ✅ Yes |
+| `BRANCH` | Fork from parent | ✅ Yes |
+| `EPHEMERAL` | Memory-only (TRIVIAL) | ❌ No |
+
+### Storage
+Sessions persisted to: `workspace/.nexus/session_registry.json`
+
+### Key File
+- `session_manager.py` - `SwarmSessionManager` class
+
 ## Tests
 
 - `tests/swarm/test_hybrid_swarm_engine.py`
 - `tests/swarm/test_negotiation.py`
 - `tests/e2e/test_swarm_collaboration.py`
+- `tests/test_session_manager.py` **(V7.5)**
+- `tests/test_ephemeral_sessions.py` **(V7.8)**
+

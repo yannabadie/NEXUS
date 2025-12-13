@@ -70,8 +70,31 @@ flowchart LR
 | `HIVE_MIND_ENABLED` | `True` | Active le pipeline stratégique complet. |
 | `ARCHITECT_MODEL` | `gemini-pro` | Modèle utilisé pour la négociation des rôles. |
 
+## Session Isolation (V10)
+
+### session_uuid Lifecycle
+
+```
+TrueHiveMind.process_task()
+    │
+    ├── self._current_session_uuid = uuid.uuid4()
+    │
+    └── Phase 1-7 receive session_uuid via execute()
+        │
+        ├── phase.execute(task, session_uuid=...)
+        └── driver.send_message_async(session_uuid=...)
+```
+
+### Key Points
+- **Generated**: `session_uuid` created at start of `process_task()`
+- **Propagated**: Passed to all 7 phases via `execute()` parameter
+- **Used by**: Drivers for CLI session isolation (`--session-id`)
+- **Storage**: In-memory only (HiveMind sessions are not persisted)
+
 ## Tests
 
 - `tests/hive_mind/test_orchestrator.py`
 - `tests/hive_mind/test_architect.py`
 - `tests/e2e/test_hive_mind_pipeline.py`
+- `tests/test_v10_session_uuid_comprehensive.py` **(V10)**
+
