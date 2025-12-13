@@ -173,6 +173,27 @@ class GeminiDriverV7:
 
         return response
 
+    def _emit_dashboard_event(self, response: Dict):
+        """
+        V10: Emit agent response to dashboard via EventBus.
+        Fire-and-forget pattern - never blocks driver execution.
+        """
+        try:
+            import asyncio as _asyncio
+            from core.ui.event_bus import EventBus
+            try:
+                loop = _asyncio.get_running_loop()
+                _asyncio.ensure_future(EventBus.publish("AGENT_RESPONSE", {
+                    "agent": "Gemini",
+                    "content": response.get("content", "")[:500],  # Truncate for WebSocket
+                    "action_type": response.get("action_type", "TALK"),
+                    "tool": response.get("tool_use", {}).get("tool_name") if response.get("tool_use") else None
+                }))
+            except RuntimeError:
+                pass  # No event loop running, skip dashboard update
+        except ImportError:
+            pass  # EventBus not available
+
     def invoke(
         self,
         context: str,
@@ -588,10 +609,16 @@ class GeminiDriverV7:
                     "status": "FINISHED"
                 }
                 # V8.8: Validate output for leaks
-                return self._validate_output(list_response)
+                validated = self._validate_output(list_response)
+                # V10: Emit agent response to dashboard
+                self._emit_dashboard_event(validated)
+                return validated
 
             # V8.8: Validate output for system prompt leaks before returning
-            return self._validate_output(extracted_data)
+            validated = self._validate_output(extracted_data)
+            # V10: Emit agent response to dashboard
+            self._emit_dashboard_event(validated)
+            return validated
 
         except TimeoutError:
             # Re-raise timeout from the inner try block

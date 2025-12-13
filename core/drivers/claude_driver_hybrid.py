@@ -255,7 +255,26 @@ class ClaudeDriverHybrid:
             raw_response = stdout
 
             # Parse hybrid response
-            return self._parse_hybrid_response(raw_response)
+            parsed_response = self._parse_hybrid_response(raw_response)
+            
+            # V10: Emit agent response to dashboard
+            try:
+                import asyncio as _asyncio
+                from core.ui.event_bus import EventBus
+                try:
+                    loop = _asyncio.get_running_loop()
+                    _asyncio.ensure_future(EventBus.publish("AGENT_RESPONSE", {
+                        "agent": "Claude",
+                        "content": parsed_response.get("content", "")[:500],  # Truncate for WebSocket
+                        "action_type": parsed_response.get("action_type", "TALK"),
+                        "tool": parsed_response.get("tool_use", {}).get("tool_name") if parsed_response.get("tool_use") else None
+                    }))
+                except RuntimeError:
+                    pass  # No event loop running, skip dashboard update
+            except ImportError:
+                pass  # EventBus not available
+            
+            return parsed_response
 
         except TimeoutError:
             raise
