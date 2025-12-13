@@ -1,8 +1,9 @@
-# NEXUS V8.1 Architecture Map
+# NEXUS V9.6 Architecture Map
 
-**Generated**: 2025-12-09
-**Version**: V8.1.8-B "True Hive Mind"
-**Source**: Codebase analysis (126 files, 42,831 LOC)
+**Generated**: 2025-12-13
+**Version**: V9.6.0 (Updated from V8.1.8-B "True Hive Mind")
+**Source**: Codebase analysis + V9.6 Refactoring Sprint
+**Changes**: Added sections 5.5 (HiveMind↔Swarm) and 5.6 (Executor Architecture)
 
 ---
 
@@ -297,7 +298,8 @@ graph TD
 |------|-----|---------|
 | `core/swarm/hybrid_swarm_engine.py` | 749 | Main swarm orchestrator |
 | `core/swarm/mode_selector.py` | 972 | DyLAN-based mode selection |
-| `core/swarm/mode_executors.py` | 1071 | 6 mode implementations |
+| `core/swarm/mode_executors.py` | 74 | **V9.6**: Re-export module (was 1188) |
+| `core/swarm/executors/` | ~770 | **V9.6**: 7 extracted executor files |
 | `core/swarm/collaboration_modes.py` | 234 | Mode definitions + fallback chain |
 | `core/swarm/negotiation_protocol.py` | 627 | Negotiation logic |
 | `core/swarm/task_analyzer.py` | 518 | Complexity detection |
@@ -405,6 +407,103 @@ graph TD
 | `core/hive_mind/phases/phase_retry.py` | 221 | Phase 6 implementation |
 | `core/hive_mind/phases/phase_consolidation.py` | 588 | Phase 7 implementation |
 | `core/hive_mind/user_interaction.py` | 595 | Breakpoint handling |
+
+### 5.5 HiveMind ↔ Swarm Integration (V9.6)
+
+```mermaid
+graph TD
+    subgraph HiveMind["🧠 HiveMind Pipeline"]
+        HIVE_EXEC[HIVE_EXECUTING<br/>Phase 4]
+        PLAN[ExecutionPlan<br/>Multiple Steps]
+    end
+
+    subgraph Bridge["🌉 OrchestratorSyncBridge"]
+        BRIDGE[OrchestratorSyncBridge]
+        TASK_ID[task_id = uuid4]
+        SESSION[SwarmSessionManager]
+    end
+
+    subgraph Swarm["🐝 Swarm Engine"]
+        ENGINE[HybridSwarmEngine]
+        EXECUTOR{Mode Executor}
+        EXECUTOR --> PAR[PARALLEL]
+        EXECUTOR --> SEQ[SEQUENTIAL]
+        EXECUTOR --> SPEC[SPECIALIST]
+        EXECUTOR --> LEAD[LEAD_SUPPORT]
+        EXECUTOR --> PING[PING_PONG]
+        EXECUTOR --> RB[RED_BLUE]
+    end
+
+    HIVE_EXEC --> PLAN
+    PLAN -->|"step.swarm_mode"| BRIDGE
+    BRIDGE --> TASK_ID
+    BRIDGE --> SESSION
+    BRIDGE -->|"process_task()"| ENGINE
+    ENGINE --> EXECUTOR
+
+    PAR -.->|"result"| BRIDGE
+    SEQ -.->|"result"| BRIDGE
+    SPEC -.->|"result"| BRIDGE
+    LEAD -.->|"result"| BRIDGE
+    PING -.->|"result"| BRIDGE
+    RB -.->|"result"| BRIDGE
+
+    BRIDGE -.->|"SwarmResult"| HIVE_EXEC
+
+    style BRIDGE fill:#f59e0b,color:#fff
+    style ENGINE fill:#10b981,color:#fff
+    style HIVE_EXEC fill:#4ecdc4,color:#fff
+```
+
+#### Delegation Flow
+
+1. **HiveMind Phase 4** identifies tasks needing multi-agent collaboration
+2. **ExecutionStep** can specify `swarm_mode` for delegation
+3. **OrchestratorSyncBridge** creates isolated session (task_id UUID)
+4. **Swarm Engine** executes with specified mode
+5. **Result** returns to HiveMind for continued processing
+
+#### Session Isolation (V7.5 Phase 7)
+
+```
+Session UUID Structure:
+├── task_id (from generate_task_id())
+├── role ("lead", "support", "blue", "red", etc.)
+└── agent_id ("gemini", "claude")
+
+UUID Generation:
+session_uuid = f"{task_id}_{role}_{agent_id}"
+```
+
+**Why Isolation Matters:**
+- Prevents context bleeding between parallel tasks
+- Each role maintains independent conversation history
+- Enables true concurrent execution in PARALLEL mode
+
+### 5.6 Executor Architecture (V9.6)
+
+**Post-Refactoring Structure:**
+
+```
+core/swarm/executors/           # V9.6 Extracted
+├── __init__.py                 # All exports
+├── base.py                     # ModeExecutor + execute_with_fallback
+├── registry.py                 # get_executor(), EXECUTOR_REGISTRY
+├── parallel_executor.py        # async PARALLEL (asyncio.gather)
+├── sequential_executor.py      # SEQUENTIAL (A→B pipeline)
+├── specialist_executor.py      # SPECIALIST (single expert + failover)
+├── lead_support_executor.py    # LEAD_SUPPORT (80/20 split)
+├── ping_pong_executor.py       # PING_PONG (convergence + validation)
+└── red_blue_executor.py        # RED_BLUE (adversarial + artifacts)
+```
+
+**V9.6 Metrics:**
+
+| Component | Before | After |
+|-----------|--------|-------|
+| `mode_executors.py` | 1188 LOC | 74 LOC (re-exports) |
+| New executor files | 0 | 7 files (~770 LOC) |
+| `executors/base.py` | 394 LOC | 510 LOC (+execute_with_fallback) |
 
 ---
 
