@@ -1,6 +1,8 @@
 """
 Mode Executors - Sprint 9 Hybrid Swarm Engine
 
+V9.5 Refactored: Base classes moved to executors/base.py
+
 Implements the 6 collaboration mode executors:
 - ParallelExecutor: Simultaneous work with result merging
 - SequentialExecutor: Ordered execution (first → second)
@@ -30,6 +32,19 @@ from .task_completion_validator import TaskCompletionValidator, get_adaptive_max
 from ..agents.unified_registry import get_registry  # V8.4.0
 from ..api.rate_limiter import get_rate_limiter, RateLimitExceeded  # V8.4.5
 
+# V9.5: Import base classes from executors module (for future decomposition)
+# These are re-exported here for backward compatibility
+from .executors.base import (
+    ExecutionStatus,
+    AgentResponse,
+    ExecutionContext,
+    ExecutionResult,
+    ModeExecutor as _BaseModeExecutor,
+    ExecutionError,
+    COMPLETION_PATTERN,
+    _blackboard_lock,
+)
+
 # V8.8 (GROK-004): Adaptive fallback selection
 try:
     from .adaptive_fallback import get_adaptive_fallback_selector, FallbackContext
@@ -42,164 +57,13 @@ except ImportError:
 if TYPE_CHECKING:
     from .merge_strategies import MergeStrategy, MergeResult
 
-# V8.3.4: Thread-safe blackboard access lock for PARALLEL mode
-_blackboard_lock = Lock()
 
-# V8.3.4 FL-002: Regex pattern for completion detection (word boundaries)
-# Avoids false positives like "I'm not DONE yet" matching "DONE"
-COMPLETION_PATTERN = re.compile(
-    r'\b(FINISHED|TASK\s+COMPLETE|COMPLETED|ALL\s+DONE)\b',
-    re.IGNORECASE
-)
+# V9.5: Base classes (ExecutionStatus, AgentResponse, ExecutionContext, ExecutionResult)
+# are now imported from executors.base for maintainability.
+# The ModeExecutor base class methods are inherited from _BaseModeExecutor.
 
 
-class ExecutionStatus(Enum):
-    """Status of mode execution"""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CONVERGED = "converged"
-
-
-@dataclass
-class AgentResponse:
-    """Response from a single agent invocation"""
-    agent_id: str
-    content: str
-    status: str = "success"
-    tool_results: List[Dict] = field(default_factory=list)
-    tokens_used: int = 0
-    time_seconds: float = 0.0
-    error: Optional[str] = None
-
-    @property
-    def is_finished(self) -> bool:
-        """
-        Check if agent signals completion.
-
-        V8.3.4 FL-002: Fixed false positive detection using word boundaries.
-        - Uses regex with \b word boundaries (not substring matching)
-        - "I'm not DONE yet" no longer triggers completion
-        - Rejects if ongoing work indicators are present
-        """
-        # V8.3.4: Use regex pattern with word boundaries
-        completion_signals = (
-            COMPLETION_PATTERN.search(self.content) is not None
-            or self.status == "finished"
-        )
-
-        if not completion_signals:
-            return False
-
-        # V7.9: Check for ongoing work indicators (false positive prevention)
-        content_lower = self.content.lower()
-        ongoing_indicators = [
-            "will ", "going to", "next step", "todo", "remaining",
-            "need to", "should ", "plan to", "working on", "then we"
-        ]
-
-        has_ongoing = any(indicator in content_lower for indicator in ongoing_indicators)
-
-        # Only consider finished if no ongoing work detected
-        return not has_ongoing
-
-    def to_dict(self) -> Dict:
-        return {
-            "agent_id": self.agent_id,
-            "content": self.content,  # Full content (no truncation)
-            "status": self.status,
-            "tool_results_count": len(self.tool_results),
-            "tokens_used": self.tokens_used,
-            "time_seconds": round(self.time_seconds, 2),
-            "error": self.error
-        }
-
-
-@dataclass
-class ExecutionContext:
-    """Context for mode execution.
-
-    V7.5 Phase 7: Added task_id and session_manager for session isolation.
-    V7.7 Phase 14e: Added force_cot for Chain-of-Thought enforcement.
-    """
-    task_input: str
-    agent_assignments: List[AgentAssignment]
-    blackboard: Dict = field(default_factory=dict)
-    max_rounds: int = 6
-    invoke_agent: Optional[Callable] = None  # Callable[[str, str, str], AgentResponse]
-    on_round: Optional[Callable[[int, "AgentResponse"], None]] = None  # V7.5: Streaming callback
-    # V7.5 Phase 7: Session isolation
-    task_id: Optional[str] = None
-    session_manager: Optional[Any] = None  # SwarmSessionManager (avoid circular import)
-    # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT complexity
-    force_cot: bool = False
-
-    def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
-        """Get agent assignment by role"""
-        for assignment in self.agent_assignments:
-            if assignment.role == role:
-                return assignment
-        return None
-
-    def get_all_agents(self) -> List[AgentAssignment]:
-        """Get all agent assignments"""
-        return self.agent_assignments
-
-    def get_session_uuid(self, role: str, agent_id: str) -> Optional[str]:
-        """
-        Get or create session UUID for an agent-role combination.
-
-        V7.5 Phase 7: Session isolation for parallel task execution.
-
-        Args:
-            role: The role in the task (e.g., "lead", "support")
-            agent_id: The agent identifier (e.g., "gemini", "claude")
-
-        Returns:
-            Session UUID string if session_manager is available, None otherwise
-        """
-        if self.session_manager is None or self.task_id is None:
-            return None
-
-        try:
-            return self.session_manager.get_or_create_session(
-                self.task_id, role, agent_id
-            )
-        except Exception:
-            return None
-
-
-@dataclass
-class ExecutionResult:
-    """Result of mode execution"""
-    mode: CollaborationMode
-    status: ExecutionStatus
-    final_output: str
-    agent_outputs: List[AgentResponse]
-    total_rounds: int
-    total_tokens: int
-    total_time_seconds: float
-    metadata: Dict = field(default_factory=dict)
-
-    @property
-    def finished(self) -> bool:
-        return self.status in [ExecutionStatus.COMPLETED, ExecutionStatus.CONVERGED]
-
-    def to_dict(self) -> Dict:
-        return {
-            "mode": self.mode.value,
-            "status": self.status.value,
-            "final_output": self.final_output,  # Full output (no truncation)
-            "agent_outputs": [a.to_dict() for a in self.agent_outputs],
-            "total_rounds": self.total_rounds,
-            "total_tokens": self.total_tokens,
-            "total_time_seconds": round(self.total_time_seconds, 2),
-            "metadata": self.metadata
-        }
-
-
-class ModeExecutor(ABC):
+class ModeExecutor(_BaseModeExecutor):
     """Base class for mode executors"""
 
     mode: CollaborationMode

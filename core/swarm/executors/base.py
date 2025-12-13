@@ -1,0 +1,394 @@
+"""
+Base Executor Classes - V9.5 Refactored
+
+Foundation for all mode executors:
+- ExecutionStatus: Enum for execution states
+- AgentResponse: Response from agent invocation
+- ExecutionContext: Context for mode execution
+- ExecutionResult: Result of mode execution
+- ModeExecutor: Abstract base class for executors
+"""
+
+from __future__ import annotations
+
+import re
+import asyncio
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from threading import Lock
+from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
+
+from ..collaboration_modes import CollaborationMode
+from ..mode_selector import AgentAssignment
+from ...utils.artifact_verifier import ArtifactVerifier
+from ...agents.unified_registry import get_registry
+from ...api.rate_limiter import get_rate_limiter, RateLimitExceeded
+
+if TYPE_CHECKING:
+    from ..merge_strategies import MergeStrategy, MergeResult
+
+# Thread-safe blackboard access lock for PARALLEL mode
+_blackboard_lock = Lock()
+
+# Completion detection pattern (word boundaries)
+COMPLETION_PATTERN = re.compile(
+    r'\b(FINISHED|TASK\s+COMPLETE|COMPLETED|ALL\s+DONE)\b',
+    re.IGNORECASE
+)
+
+
+class ExecutionStatus(Enum):
+    """Status of mode execution."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CONVERGED = "converged"
+
+
+@dataclass
+class AgentResponse:
+    """Response from a single agent invocation."""
+    agent_id: str
+    content: str
+    status: str = "success"
+    tool_results: List[Dict] = field(default_factory=list)
+    tokens_used: int = 0
+    time_seconds: float = 0.0
+    error: Optional[str] = None
+
+    @property
+    def is_finished(self) -> bool:
+        """
+        Check if agent signals completion.
+
+        Uses regex with word boundaries to avoid false positives.
+        Rejects if ongoing work indicators are present.
+        """
+        completion_signals = (
+            COMPLETION_PATTERN.search(self.content) is not None
+            or self.status == "finished"
+        )
+
+        if not completion_signals:
+            return False
+
+        # Check for ongoing work indicators
+        content_lower = self.content.lower()
+        ongoing_indicators = [
+            "will ", "going to", "next step", "todo", "remaining",
+            "need to", "should ", "plan to", "working on", "then we"
+        ]
+
+        has_ongoing = any(indicator in content_lower for indicator in ongoing_indicators)
+        return not has_ongoing
+
+    def to_dict(self) -> Dict:
+        return {
+            "agent_id": self.agent_id,
+            "content": self.content,
+            "status": self.status,
+            "tool_results_count": len(self.tool_results),
+            "tokens_used": self.tokens_used,
+            "time_seconds": round(self.time_seconds, 2),
+            "error": self.error
+        }
+
+
+@dataclass
+class ExecutionContext:
+    """
+    Context for mode execution.
+
+    Provides task input, agent assignments, and session management.
+    """
+    task_input: str
+    agent_assignments: List[AgentAssignment]
+    blackboard: Dict = field(default_factory=dict)
+    max_rounds: int = 6
+    invoke_agent: Optional[Callable] = None
+    on_round: Optional[Callable[[int, "AgentResponse"], None]] = None
+    task_id: Optional[str] = None
+    session_manager: Optional[Any] = None
+    force_cot: bool = False
+
+    def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
+        """Get agent assignment by role."""
+        for assignment in self.agent_assignments:
+            if assignment.role == role:
+                return assignment
+        return None
+
+    def get_all_agents(self) -> List[AgentAssignment]:
+        """Get all agent assignments."""
+        return self.agent_assignments
+
+    def get_session_uuid(self, role: str, agent_id: str) -> Optional[str]:
+        """Get or create session UUID for an agent-role combination."""
+        if self.session_manager is None or self.task_id is None:
+            return None
+
+        try:
+            return self.session_manager.get_or_create_session(
+                self.task_id, role, agent_id
+            )
+        except Exception:
+            return None
+
+
+@dataclass
+class ExecutionResult:
+    """Result of mode execution."""
+    mode: CollaborationMode
+    status: ExecutionStatus
+    final_output: str
+    agent_outputs: List[AgentResponse]
+    total_rounds: int
+    total_tokens: int
+    total_time_seconds: float
+    metadata: Dict = field(default_factory=dict)
+
+    @property
+    def finished(self) -> bool:
+        return self.status in [ExecutionStatus.COMPLETED, ExecutionStatus.CONVERGED]
+
+    def to_dict(self) -> Dict:
+        return {
+            "mode": self.mode.value,
+            "status": self.status.value,
+            "final_output": self.final_output,
+            "agent_outputs": [a.to_dict() for a in self.agent_outputs],
+            "total_rounds": self.total_rounds,
+            "total_tokens": self.total_tokens,
+            "total_time_seconds": round(self.total_time_seconds, 2),
+            "metadata": self.metadata
+        }
+
+
+class ExecutionError(Exception):
+    """Exception raised during mode execution."""
+    pass
+
+
+class ModeExecutor(ABC):
+    """
+    Abstract base class for mode executors.
+
+    Provides common functionality for agent invocation, failover,
+    and artifact verification.
+    """
+
+    mode: CollaborationMode
+
+    @abstractmethod
+    def execute(self, context: ExecutionContext) -> ExecutionResult:
+        """Execute the mode with given context."""
+        pass
+
+    def _invoke(
+        self,
+        context: ExecutionContext,
+        agent_id: str,
+        task_context: str,
+        role: Optional[str] = None
+    ) -> AgentResponse:
+        """
+        Invoke an agent with task context.
+
+        Args:
+            context: Execution context
+            agent_id: Agent identifier
+            task_context: Task context string
+            role: Agent's role for session isolation
+        """
+        if context.invoke_agent is None:
+            return AgentResponse(
+                agent_id=agent_id,
+                content=f"[Mock response from {agent_id}]",
+                status="mock"
+            )
+
+        start_time = datetime.now()
+
+        # Get session UUID for isolation
+        session_uuid = None
+        if role:
+            session_uuid = context.get_session_uuid(role, agent_id)
+            if session_uuid:
+                with _blackboard_lock:
+                    context.blackboard[f"_session_uuid_{agent_id}"] = session_uuid
+
+        try:
+            # Apply rate limiting
+            registry = get_registry()
+            provider = "gemini" if registry.is_gemini(agent_id) else "claude"
+            rate_limiter = get_rate_limiter(provider)
+
+            try:
+                rate_limiter.acquire_sync(timeout=60.0)
+            except RateLimitExceeded as e:
+                import sys
+                print(f"[RATE LIMIT] {e}", file=sys.stderr)
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content="",
+                    status="error",
+                    error=f"Rate limit exceeded: {str(e)}",
+                    time_seconds=(datetime.now() - start_time).total_seconds()
+                )
+
+            # Invoke agent
+            response = context.invoke_agent(agent_id, "execution", task_context, session_uuid)
+
+            if isinstance(response, str):
+                response = AgentResponse(
+                    agent_id=agent_id,
+                    content=response,
+                    status="success"
+                )
+
+            response.time_seconds = (datetime.now() - start_time).total_seconds()
+            return response
+
+        except Exception as e:
+            return AgentResponse(
+                agent_id=agent_id,
+                content="",
+                status="error",
+                error=str(e),
+                time_seconds=(datetime.now() - start_time).total_seconds()
+            )
+        finally:
+            if session_uuid:
+                context.blackboard.pop(f"_session_uuid_{agent_id}", None)
+
+    async def _invoke_async(
+        self,
+        context: ExecutionContext,
+        agent_id: str,
+        task_context: str,
+        role: Optional[str] = None
+    ) -> AgentResponse:
+        """
+        Async invocation of an agent.
+
+        Uses asyncio.to_thread() for sync driver compatibility.
+        """
+        if context.invoke_agent is None:
+            return AgentResponse(
+                agent_id=agent_id,
+                content=f"[Mock response from {agent_id}]",
+                status="mock"
+            )
+
+        start_time = datetime.now()
+        session_uuid = None
+        if role:
+            session_uuid = context.get_session_uuid(role, agent_id)
+
+        try:
+            # Async rate limiting
+            registry = get_registry()
+            provider = "gemini" if registry.is_gemini(agent_id) else "claude"
+            rate_limiter = get_rate_limiter(provider)
+
+            try:
+                await rate_limiter.acquire(timeout=60.0)
+            except RateLimitExceeded as e:
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content="",
+                    status="error",
+                    error=f"Rate limit exceeded: {str(e)}",
+                    time_seconds=(datetime.now() - start_time).total_seconds()
+                )
+
+            # Try async invoke first, fallback to sync
+            if hasattr(context, 'invoke_agent_async') and context.invoke_agent_async:
+                response = await context.invoke_agent_async(
+                    agent_id, "execution", task_context, session_uuid
+                )
+            else:
+                response = await asyncio.to_thread(
+                    context.invoke_agent, agent_id, "execution", task_context, session_uuid
+                )
+
+            if isinstance(response, str):
+                response = AgentResponse(
+                    agent_id=agent_id,
+                    content=response,
+                    status="success"
+                )
+
+            response.time_seconds = (datetime.now() - start_time).total_seconds()
+            return response
+
+        except Exception as e:
+            return AgentResponse(
+                agent_id=agent_id,
+                content="",
+                status="error",
+                error=str(e),
+                time_seconds=(datetime.now() - start_time).total_seconds()
+            )
+
+    def _invoke_with_failover(
+        self,
+        context: ExecutionContext,
+        primary_agent_id: str,
+        backup_agent_id: str,
+        task_context: str,
+        primary_role: Optional[str] = None,
+        backup_role: Optional[str] = None
+    ) -> AgentResponse:
+        """Invoke primary agent, failover to backup if primary fails."""
+        response = self._invoke(context, primary_agent_id, task_context, role=primary_role)
+
+        if response.status == "error" or "timed out" in (response.error or "").lower():
+            import sys
+            print(f"[FAILOVER] {primary_agent_id} failed, trying {backup_agent_id}",
+                  file=sys.stderr)
+
+            failover_context = (
+                f"{task_context}\n\n"
+                f"[NOTE: {primary_agent_id} was unavailable. You are the failover agent.]"
+            )
+
+            backup_response = self._invoke(context, backup_agent_id, failover_context, role=backup_role)
+
+            if backup_response.status != "error":
+                backup_response.content = (
+                    f"[Failover from {primary_agent_id}]\n\n{backup_response.content}"
+                )
+
+            return backup_response
+
+        return response
+
+    def _get_backup_agent(self, agent_id: str) -> str:
+        """Get the backup agent for a given agent."""
+        registry = get_registry()
+        if registry.is_gemini(agent_id):
+            return "claude_opus"
+        else:
+            return "gemini_primary"
+
+    def _verify_artifacts(
+        self,
+        content: str,
+        context: ExecutionContext
+    ) -> Dict[str, Any]:
+        """Verify artifacts mentioned in agent output."""
+        workspace_path = context.blackboard.get("workspace_path", Path.cwd())
+        verifier = ArtifactVerifier(Path(workspace_path))
+
+        verified, successes, failures = verifier.verify_from_content(content)
+
+        return {
+            "verified": verified,
+            "successes": successes,
+            "failures": failures
+        }
