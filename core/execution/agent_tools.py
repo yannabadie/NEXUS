@@ -284,7 +284,8 @@ class AgentToolRegistry:
     def execute_agent_tool(
         self,
         tool_name: str,
-        args: Dict[str, Any]
+        args: Dict[str, Any],
+        session_uuid: Optional[str] = None
     ) -> AgentToolResult:
         """
         Execute an agent as a tool.
@@ -294,6 +295,7 @@ class AgentToolRegistry:
             args: Tool arguments:
                 - task: str (required) - The task for the agent
                 - context: str (optional) - Additional context
+            session_uuid: Optional session UUID for context isolation (V10.1)
 
         Returns:
             AgentToolResult with execution output
@@ -341,10 +343,12 @@ class AgentToolRegistry:
             # Invoke the spawned agent
             self._logger.debug(f"Invoking agent tool: {tool_name} with task: {task[:100]}...")
 
+            # V10.1: Pass session_uuid for context isolation
             response = self._agent_invoker.invoke_spawned_agent(
                 agent_id=tool_def.agent_id,
                 task_type="tool_invocation",
-                context=full_context
+                context=full_context,
+                session_uuid=session_uuid
             )
 
             duration = time.time() - start_time
@@ -384,8 +388,9 @@ class AgentToolRegistry:
         # Import here to avoid circular dependency
         from core.execution.tool_manager import ToolResult
 
-        def handler(args: Dict) -> ToolResult:
-            result = self.execute_agent_tool(tool_name, args)
+        def handler(args: Dict, session_uuid: Optional[str] = None) -> ToolResult:
+            # V10.1: Pass session_uuid for context isolation
+            result = self.execute_agent_tool(tool_name, args, session_uuid=session_uuid)
 
             return ToolResult(
                 tool_name=tool_name,

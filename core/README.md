@@ -240,9 +240,65 @@ GEMINI_MODEL=gemini-3-pro-preview
 | interface/commands/*.py | 0 | ~2500 | NEW |
 | **Total core/** | ~15000 | ~14500 | -3% |
 
+## V10.1 Architecture Interactions (2025-12)
+
+### Orchestration Layers
+
+NEXUS has three orchestration layers that interact based on task complexity:
+
+| Layer | Entry Point | Task Complexity | session_uuid |
+|-------|------------|-----------------|--------------|
+| **FSM** | OrchestratorV7 | TRIVIAL/SIMPLE | None (ephemeral) |
+| **HiveMind** | TrueHiveMind | MODERATE/COMPLEX/EXPERT | Generated per-task |
+| **Swarm** | HybridSwarmEngine | Any (via delegation) | SwarmSessionManager |
+
+### Session Isolation Flow (V10.1)
+
+```
+USER INPUT
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  OrchestratorV7 (FSM)                                   │
+│  └─► TaskAnalyzer determines complexity                 │
+│      │                                                  │
+│      ├── TRIVIAL/SIMPLE → Direct execution              │
+│      │                                                  │
+│      └── MODERATE+ → TrueHiveMind                       │
+│           │                                             │
+│           ▼                                             │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ TrueHiveMind.process_task()                      │  │
+│  │   self._current_session_uuid = uuid.uuid4() ───┐ │  │
+│  │                                                 │ │  │
+│  │   Phase 1-7 receive session_uuid ◄──────────────┘ │  │
+│  │   └─► driver.send_message_async(session_uuid=...) │  │
+│  │                                                    │  │
+│  │   SwarmBridge.delegate() ◄── creates NEW session  │  │
+│  │   └─► SwarmSessionManager                         │  │
+│  │       └─► workspace/.nexus/session_registry.json  │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  Agent-as-Tool (V10.1 FIX)                              │
+│  └─► execute_agent_tool(session_uuid=...) ──────────┐   │
+│      └─► invoke_spawned_agent(session_uuid=...) ────┤   │
+│          └─► invoke_agent_direct(session_uuid=...) ─┘   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Key Files for Session Management
+
+| File | Purpose |
+|------|---------|
+| `hive_mind/orchestrator.py` | Generates `session_uuid` for HiveMind |
+| `swarm/session_manager.py` | Persists Swarm sessions to JSON |
+| `execution/agent_tools.py` | Propagates `session_uuid` to Agent-as-Tool |
+| `orchestration/agent_invoker.py` | Routes `session_uuid` to drivers |
+
 ## Voir Aussi
 
 - [Main README](../README.md) - Documentation complète V7.8
 - [ROADMAP_HIVE_MIND.md](../ROADMAP_HIVE_MIND.md) - Roadmap phases
 - [docs/FEATURE_INVENTORY_V7.8.md](../docs/FEATURE_INVENTORY_V7.8.md) - Inventaire fonctionnalités
 - [docs/HYBRID_SWARM.md](../docs/HYBRID_SWARM.md) - Documentation Swarm
+

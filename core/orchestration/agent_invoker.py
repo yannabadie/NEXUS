@@ -193,7 +193,7 @@ class AgentInvoker:
         """
         # V7.5 HIVE MIND: Check if this is a spawned agent
         if self.is_spawned_agent(agent_id):
-            return self.invoke_spawned_agent(agent_id, task_type, context)
+            return self.invoke_spawned_agent(agent_id, task_type, context, session_uuid=session_uuid)
 
         # V8.4.0: Use registry for agent identification
         is_claude = self._registry.is_claude(agent_id)
@@ -241,7 +241,9 @@ class AgentInvoker:
             # TODO: Implement async spawned agent invocation
             # For now, wrap sync call in thread (temporary bridge)
             import asyncio
-            return await asyncio.to_thread(self.invoke_spawned_agent, agent_id, task_type, context)
+            return await asyncio.to_thread(
+                self.invoke_spawned_agent, agent_id, task_type, context, session_uuid
+            )
 
         # V8.4.0: Use registry for agent identification
         target_agent = self._registry.get_display_name(agent_id)
@@ -292,18 +294,26 @@ class AgentInvoker:
             return False
         return self._orch.agent_pool.agents[agent_id].provider == "spawned"
 
-    def invoke_spawned_agent(self, agent_id: str, task_type: str, context: str) -> str:
+    def invoke_spawned_agent(
+        self,
+        agent_id: str,
+        task_type: str,
+        context: str,
+        session_uuid: Optional[str] = None
+    ) -> str:
         """
         Invoke a spawned agent with its specialized system prompt.
 
         V7.5 HIVE MIND: Spawned agents are invoked via their configured provider
         with custom system_prompt.md prepended to the context.
         V8.1.8-B: Provider routing based on BIRTH_CERTIFICATE inference config.
+        V10.1: Added session_uuid for context isolation.
 
         Args:
             agent_id: The spawned agent's ID
             task_type: Task type string (execution, etc.)
             context: Task context from swarm executor
+            session_uuid: Optional session UUID for context isolation (V10.1)
 
         Returns:
             Agent response content as string
@@ -358,7 +368,10 @@ class AgentInvoker:
                 task_type_enum = TaskType.BRAINSTORM
 
             # V8.1.8-B: Route to configured provider (Claude or Gemini)
-            response = self.invoke_agent_direct(task_type_enum, enriched_context, target_agent)
+            # V10.1: Pass session_uuid for context isolation
+            response = self.invoke_agent_direct(
+                task_type_enum, enriched_context, target_agent, session_uuid=session_uuid
+            )
             return response.get("content", str(response))
 
         except Exception as e:
