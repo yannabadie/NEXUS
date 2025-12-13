@@ -153,7 +153,8 @@ class FailureDiagnosisPhase:
         task: str,
         step_results: List[MonitoredStepResult],
         issues: List[ExecutionIssue],
-        failure_step: Optional[str]
+        failure_step: Optional[str],
+        session_uuid: str = None  # V10: Session isolation
     ) -> DiagnosisPhaseResult:
         """
         Execute Phase 5: Failure Diagnosis.
@@ -163,10 +164,12 @@ class FailureDiagnosisPhase:
             step_results: Results from execution
             issues: Issues detected
             failure_step: Step that failed
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             DiagnosisPhaseResult with diagnosis and user decision
         """
+        self._session_uuid = session_uuid  # Store for driver calls
         logger.info("Phase 5: Starting Failure Diagnosis")
 
         # Check budget
@@ -255,7 +258,7 @@ class FailureDiagnosisPhase:
     async def _diagnose_with_gemini(self, prompt: str) -> str:
         """Get diagnosis from Gemini."""
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):
@@ -273,7 +276,7 @@ class FailureDiagnosisPhase:
     async def _diagnose_with_claude(self, prompt: str) -> str:
         """Get diagnosis from Claude."""
         try:
-            response = await self.claude.send_message_async(prompt)
+            response = await self.claude.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):
@@ -302,7 +305,7 @@ class FailureDiagnosisPhase:
         )
 
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):

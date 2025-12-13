@@ -147,7 +147,8 @@ class MonitoredExecutionPhase:
     async def execute(
         self,
         task: str,
-        architecture: AgentArchitecture
+        architecture: AgentArchitecture,
+        session_uuid: str = None  # V10: Session isolation
     ) -> ExecutionPhaseResult:
         """
         Execute Phase 4: Monitored Execution.
@@ -155,10 +156,12 @@ class MonitoredExecutionPhase:
         Args:
             task: Original task
             architecture: Architecture from Phase 3
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             ExecutionPhaseResult with all step results
         """
+        self._session_uuid = session_uuid  # Store for driver calls
         logger.info(f"Phase 4: Starting Monitored Execution ({len(architecture.execution_plan.steps)} steps)")
 
         step_results: List[MonitoredStepResult] = []
@@ -312,7 +315,7 @@ class MonitoredExecutionPhase:
 
         try:
             response = await asyncio.wait_for(
-                driver.send_message_async(prompt),
+                driver.send_message_async(prompt, session_uuid=self._session_uuid),
                 timeout=step.expected_duration * 2  # Allow 2x expected time
             )
 

@@ -167,7 +167,8 @@ class KnowledgeConsolidationPhase:
         issues_count: int,
         approach: str,
         agents_used: List[str],
-        agents_spawned: List[str]
+        agents_spawned: List[str],
+        session_uuid: str = None  # V10: Session isolation
     ) -> ConsolidationPhaseResult:
         """
         Execute Phase 7: Knowledge Consolidation.
@@ -181,10 +182,12 @@ class KnowledgeConsolidationPhase:
             approach: Approach used
             agents_used: Agents that were used
             agents_spawned: Agents that were spawned
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             ConsolidationPhaseResult with decisions
         """
+        self._session_uuid = session_uuid  # Store for driver calls
         logger.info("Phase 7: Starting Knowledge Consolidation")
 
         # Check budget
@@ -298,7 +301,7 @@ class KnowledgeConsolidationPhase:
     async def _reflect_with_gemini(self, prompt: str) -> str:
         """Get reflection from Gemini."""
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):
@@ -316,7 +319,7 @@ class KnowledgeConsolidationPhase:
     async def _reflect_with_claude(self, prompt: str) -> str:
         """Get reflection from Claude."""
         try:
-            response = await self.claude.send_message_async(prompt)
+            response = await self.claude.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):

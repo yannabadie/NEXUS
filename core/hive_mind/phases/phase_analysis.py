@@ -227,7 +227,7 @@ class IndependentAnalysisPhase:
 
         try:
             # Call Claude driver
-            response = await self.claude.send_message_async(prompt)
+            response = await self.claude.send_message_async(prompt, session_uuid=self._session_uuid)
 
             # Extract content if response is a dict
             if isinstance(response, dict):

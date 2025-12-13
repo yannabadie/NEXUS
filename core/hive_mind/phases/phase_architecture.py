@@ -151,7 +151,8 @@ class ArchitectureGenerationPhase:
     async def execute(
         self,
         task: str,
-        debate_result: DebateResult
+        debate_result: DebateResult,
+        session_uuid: str = None  # V10: Session isolation
     ) -> ArchitecturePhaseResult:
         """
         Execute Phase 3: Architecture Generation.
@@ -159,10 +160,12 @@ class ArchitectureGenerationPhase:
         Args:
             task: Original task
             debate_result: Result from Phase 2
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             ArchitecturePhaseResult with execution-ready architecture
         """
+        self._session_uuid = session_uuid  # Store for driver calls
         logger.info("Phase 3: Starting Architecture Generation")
 
         # Check budget
@@ -275,7 +278,7 @@ class ArchitectureGenerationPhase:
         )
 
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
 
             # Extract content if response is a dict
             if isinstance(response, dict):

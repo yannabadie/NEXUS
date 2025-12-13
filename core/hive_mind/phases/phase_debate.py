@@ -177,7 +177,8 @@ class StrategicDebatePhase:
         self,
         task: str,
         comparison: AnalysisComparison,
-        complexity: TaskComplexity = TaskComplexity.MODERATE
+        complexity: TaskComplexity = TaskComplexity.MODERATE,
+        session_uuid: str = None  # V10: Session isolation
     ) -> DebatePhaseResult:
         """
         Execute Phase 2: Strategic Debate.
@@ -186,10 +187,12 @@ class StrategicDebatePhase:
             task: The original task
             comparison: Analysis comparison from Phase 1
             complexity: Task complexity for adaptive params
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             DebatePhaseResult with final approach
         """
+        self._session_uuid = session_uuid  # Store for driver calls
         # Check if debate should be skipped
         if not comparison.needs_debate:
             logger.info("Phase 2: Skipping debate (high agreement)")
@@ -421,7 +424,7 @@ class StrategicDebatePhase:
 
         # Call driver
         try:
-            response = await driver.send_message_async(prompt)
+            response = await driver.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):
@@ -503,7 +506,7 @@ class StrategicDebatePhase:
 
         # Use Gemini for consensus check (neutral)
         try:
-            response = await self.gemini.send_message_async(prompt)
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
             
             # Extract content if response is a dict
             if isinstance(response, dict):

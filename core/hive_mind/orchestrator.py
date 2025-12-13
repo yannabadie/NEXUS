@@ -294,7 +294,8 @@ class TrueHiveMind:
                 debate_result = await self.phase_debate.execute(
                     task=task,
                     comparison=analysis_result.comparison,
-                    complexity=complexity
+                    complexity=complexity,
+                    session_uuid=self._current_session_uuid  # V10: Context isolation
                 )
                 phases_completed.append("debate")
 
