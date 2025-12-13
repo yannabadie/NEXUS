@@ -53,14 +53,14 @@ class DashboardOrchestrator:
             try:
                 # Import here to avoid circular imports
                 from core.orchestration_v7 import OrchestratorV7
-                from core.config import NexusConfig
+                from core.config import Config
                 
                 # Determine paths
                 workspace_path = Path("workspace").resolve()
                 workspace_path.mkdir(parents=True, exist_ok=True)
                 
-                # Use NexusConfig for full compatibility
-                config = NexusConfig()
+                # Use Config for full compatibility
+                config = Config()
                 config.workspace_path = workspace_path
                 
                 # Agent info
