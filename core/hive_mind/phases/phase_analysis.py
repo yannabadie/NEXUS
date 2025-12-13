@@ -105,16 +105,18 @@ class IndependentAnalysisPhase:
         self.cost_estimator = cost_estimator
         self.context_manager = context_manager
 
-    async def execute(self, task: str) -> AnalysisPhaseResult:
+    async def execute(self, task: str, session_uuid: str = None) -> AnalysisPhaseResult:
         """
         Execute Phase 1: Independent Analysis.
 
         Args:
             task: The task to analyze
+            session_uuid: V10 - Session UUID for context isolation
 
         Returns:
             AnalysisPhaseResult with both analyses and comparison
         """
+        self._session_uuid = session_uuid  # Store for internal use
         logger.info("Phase 1: Starting Independent Analysis")
 
         # Add task to context
@@ -194,8 +196,8 @@ class IndependentAnalysisPhase:
         logger.debug("Requesting Gemini analysis...")
 
         try:
-            # Call Gemini driver
-            response = await self.gemini.send_message_async(prompt)
+            # Call Gemini driver with session_uuid for isolation
+            response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
 
             # Extract content if response is a dict
             if isinstance(response, dict):

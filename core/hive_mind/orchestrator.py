@@ -21,6 +21,7 @@ Usage:
 import asyncio
 import logging
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
@@ -260,6 +261,11 @@ class TrueHiveMind:
         start_time = time.time()
         phases_completed = []
         agents_spawned = []
+        
+        # V10: Generate session_uuid for context isolation
+        # Critical for: agent spawning, swarm, session persistence, context leakage prevention
+        self._current_session_uuid = str(uuid.uuid4())
+        logger.debug(f"HiveMind session started", session_uuid=self._current_session_uuid[:8])
 
         try:
             # Reset for new task
@@ -277,7 +283,7 @@ class TrueHiveMind:
             # PHASE 1: Independent Analysis
             # =========================================================
             self._set_state(HiveMindState.HIVE_ANALYZING_GEMINI)
-            analysis_result = await self.phase_analysis.execute(task)
+            analysis_result = await self.phase_analysis.execute(task, session_uuid=self._current_session_uuid)
             phases_completed.append("analysis")
 
             # =========================================================
