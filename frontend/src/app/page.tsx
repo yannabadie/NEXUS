@@ -10,6 +10,8 @@ import {
   type OrchestrationState,
   type BudgetStatus
 } from "@/lib/api";
+import { SwarmVisualization, type SwarmMode } from "@/components/SwarmVisualization";
+import { ChatPanel } from "@/components/ChatPanel";
 
 // ============================================================================
 // Status Panel Component
@@ -53,10 +55,10 @@ function HiveMindTracker({ currentPhase }: { currentPhase: number | null }) {
         <div
           key={phase.id}
           className={`flex-1 p-2 rounded-lg text-center transition-all ${phase.id === currentPhase
-              ? "bg-violet-600 text-white scale-105"
-              : phase.id < (currentPhase || 0)
-                ? "bg-zinc-700 text-zinc-300"
-                : "bg-zinc-800 text-zinc-500"
+            ? "bg-violet-600 text-white scale-105"
+            : phase.id < (currentPhase || 0)
+              ? "bg-zinc-700 text-zinc-300"
+              : "bg-zinc-800 text-zinc-500"
             }`}
           title={phase.name}
         >
@@ -198,27 +200,45 @@ export default function Dashboard() {
         <HiveMindTracker currentPhase={orchestration?.hive_mind_phase || null} />
       </StatusPanel>
 
-      {/* Agents Grid */}
-      <StatusPanel title="Active Agents">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <AgentCard name="Gemini" status="active" type="gemini" />
-          <AgentCard name="Claude" status="active" type="claude" />
-          {selfAwareness?.active_agents
-            ?.filter((a) => !["gemini", "claude"].includes(a.toLowerCase()))
-            .map((agent) => (
-              <AgentCard key={agent} name={agent} status="spawned" type="spawned" />
-            ))}
-        </div>
-      </StatusPanel>
+      {/* Middle Row: Swarm + Agents */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Swarm Visualization */}
+        <StatusPanel title="Swarm Mode">
+          <SwarmVisualization
+            mode={(orchestration?.swarm_mode as SwarmMode) || null}
+            agents={selfAwareness?.active_agents || ["Gemini", "Claude"]}
+          />
+        </StatusPanel>
 
-      {/* Last Message Debug */}
+        {/* Agents Grid */}
+        <StatusPanel title="Active Agents">
+          <div className="grid grid-cols-1 gap-3">
+            <AgentCard name="Gemini" status="active" type="gemini" />
+            <AgentCard name="Claude" status="active" type="claude" />
+            {selfAwareness?.active_agents
+              ?.filter((a) => !["gemini", "claude"].includes(a.toLowerCase()))
+              .map((agent) => (
+                <AgentCard key={agent} name={agent} status="spawned" type="spawned" />
+              ))}
+          </div>
+        </StatusPanel>
+      </div>
+
+      {/* Chat Panel */}
+      <ChatPanel className="min-h-[300px]" />
+
+      {/* Last Message Debug (collapsed by default) */}
       {lastMessage && (
-        <StatusPanel title="Last WebSocket Message">
-          <pre className="text-xs text-zinc-400 overflow-auto max-h-32 bg-zinc-800 p-2 rounded">
+        <details className="bg-zinc-900/50 border border-zinc-800 rounded-xl">
+          <summary className="p-4 text-sm font-medium text-zinc-400 cursor-pointer hover:text-zinc-300">
+            WebSocket Debug
+          </summary>
+          <pre className="text-xs text-zinc-400 overflow-auto max-h-32 bg-zinc-800 p-4 mx-4 mb-4 rounded">
             {JSON.stringify(lastMessage, null, 2)}
           </pre>
-        </StatusPanel>
+        </details>
       )}
     </div>
   );
 }
+
