@@ -27,8 +27,19 @@ interface AgentExchangesProps {
 function formatContent(content: string): React.ReactNode {
     if (!content) return <span className="text-zinc-500 italic">(empty response)</span>;
 
+    // Strip markdown code blocks
+    let trimmed = content.trim();
+    if (trimmed.startsWith('```json')) {
+        trimmed = trimmed.slice(7);
+    } else if (trimmed.startsWith('```')) {
+        trimmed = trimmed.slice(3);
+    }
+    if (trimmed.endsWith('```')) {
+        trimmed = trimmed.slice(0, -3);
+    }
+    trimmed = trimmed.trim();
+
     // Try to parse as JSON or Python dict
-    const trimmed = content.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         let parsed: Record<string, unknown> | null = null;
 
@@ -80,6 +91,11 @@ function formatContent(content: string): React.ReactNode {
             }
             if (parsed.consensus_score) formatted.push(`📈 Score: ${parsed.consensus_score}`);
 
+            // Architecture fields
+            if (parsed.agents_to_use) formatted.push(`🤖 Agents: ${Array.isArray(parsed.agents_to_use) ? parsed.agents_to_use.join(', ') : parsed.agents_to_use}`);
+            if (parsed.agents_to_spawn) formatted.push(`🆕 Spawning agents...`);
+            if (parsed.resolved_points) formatted.push(`✅ Resolved: ${Array.isArray(parsed.resolved_points) ? parsed.resolved_points.length + ' points' : parsed.resolved_points}`);
+
             if (formatted.length > 0) {
                 return <>{formatted.join('\n')}</>;
             }
@@ -89,7 +105,12 @@ function formatContent(content: string): React.ReactNode {
         }
     }
 
-    return content;
+    // Truncate long content
+    if (trimmed.length > 500) {
+        return trimmed.slice(0, 500) + '...';
+    }
+
+    return trimmed;
 }
 
 // ============================================================================
@@ -130,6 +151,14 @@ export function AgentExchanges({
                         };
 
                         setExchanges((prev) => {
+                            // Deduplicate by agent + content start (within 5 seconds)
+                            const contentHash = `${exchange.agent}-${exchange.content.slice(0, 100)}`;
+                            const isDuplicate = prev.some(e =>
+                                `${e.agent}-${e.content.slice(0, 100)}` === contentHash &&
+                                Math.abs(e.timestamp.getTime() - exchange.timestamp.getTime()) < 5000
+                            );
+                            if (isDuplicate) return prev;
+
                             const updated = [...prev, exchange];
                             // Keep only last N exchanges
                             return updated.slice(-maxExchanges);
