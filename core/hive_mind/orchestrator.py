@@ -616,7 +616,8 @@ class TrueHiveMind:
             - reason: str - Reason for decision
         """
         # Record this failure for stagnation tracking
-        self.stagnation_detector.add_message(diagnosis)
+        # V10.1: Convert FailureDiagnosis to string for stagnation detector
+        self.stagnation_detector.add_message(str(diagnosis))
         self.stagnation_detector.record_agent_failure(self._current_lead)
 
         # Check if swap is recommended

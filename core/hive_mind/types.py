@@ -82,6 +82,29 @@ class IssueSeverity(Enum):
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
+    
+    # V10.1: Add comparison methods for severity ordering
+    _order = {"info": 0, "warning": 1, "error": 2, "critical": 3}
+    
+    def __lt__(self, other):
+        if isinstance(other, IssueSeverity):
+            return self._order[self.value] < self._order[other.value]
+        return NotImplemented
+    
+    def __gt__(self, other):
+        if isinstance(other, IssueSeverity):
+            return self._order[self.value] > self._order[other.value]
+        return NotImplemented
+    
+    def __le__(self, other):
+        if isinstance(other, IssueSeverity):
+            return self._order[self.value] <= self._order[other.value]
+        return NotImplemented
+    
+    def __ge__(self, other):
+        if isinstance(other, IssueSeverity):
+            return self._order[self.value] >= self._order[other.value]
+        return NotImplemented
 
 
 class FailureType(Enum):
@@ -303,6 +326,10 @@ class FailureDiagnosis:
             "confidence": self.confidence,
             "missing_capability": self.missing_capability
         }
+    
+    def __str__(self) -> str:
+        """V10.1: String representation for stagnation detector."""
+        return f"{self.failure_type.value}: {self.root_cause}"
 
 
 # =============================================================================
