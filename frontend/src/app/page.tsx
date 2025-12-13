@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { SwarmVisualization, type SwarmMode } from "@/components/SwarmVisualization";
 import { ChatPanel } from "@/components/ChatPanel";
+import { AgentExchanges } from "@/components/AgentExchanges";
 
 // ============================================================================
 // Status Panel Component
@@ -226,6 +227,9 @@ export default function Dashboard() {
 
       {/* Chat Panel */}
       <ChatPanel className="min-h-[300px]" />
+
+      {/* Agent Exchanges - Live Stream */}
+      <AgentExchanges className="min-h-[300px]" />
 
       {/* Last Message Debug (collapsed by default) */}
       {lastMessage && (
