@@ -103,7 +103,7 @@ class ScopedContext:
             len(self.task_description) +
             len(self.parent_summary) +
             sum(len(f) for f in self.relevant_files) +
-            len(str(self.full_history)) if self.full_history else 0
+            (len(str(self.full_history)) if self.full_history else 0)
         )
         return total_chars // 4
 
@@ -119,8 +119,8 @@ class ScopedContext:
             # No context prefix for fresh sessions
             return ""
 
-        # Task description (unless MINIMAL/FRESH)
-        if self.scope not in [ContextScope.MINIMAL, ContextScope.FRESH]:
+        # Task description (unless MINIMAL/FRESH/RESULTS_ONLY)
+        if self.scope not in [ContextScope.MINIMAL, ContextScope.FRESH, ContextScope.RESULTS_ONLY]:
             if self.task_description:
                 parts.append(f"## Task\n{self.task_description}")
 
