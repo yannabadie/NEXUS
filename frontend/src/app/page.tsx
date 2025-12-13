@@ -84,6 +84,12 @@ function getPhaseNumber(phase: unknown): number | null {
   return null;
 }
 
+function getString(value: unknown, fallback: string = ''): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return fallback;
+}
+
 // ============================================================================
 // Main Dashboard Page
 // ============================================================================
@@ -141,9 +147,9 @@ export default function Dashboard() {
         <StatusPanel title="FSM State" className="md:col-span-2">
           <div className="flex items-center gap-4">
             <div className="text-3xl font-bold text-white">
-              {orchestration?.fsm_state || "IDLE"}
+              {getString(orchestration?.fsm_state, "IDLE")}
             </div>
-            {orchestration?.swarm_mode && (
+            {typeof orchestration?.swarm_mode === 'string' && orchestration.swarm_mode && (
               <div className="px-3 py-1 bg-violet-600/20 border border-violet-600 rounded-full text-sm text-violet-300">
                 SWARM: {orchestration.swarm_mode.toUpperCase()}
               </div>
@@ -180,8 +186,8 @@ export default function Dashboard() {
         {/* Swarm Visualization */}
         <StatusPanel title="Swarm Mode">
           <SwarmVisualization
-            mode={(orchestration?.swarm_mode as SwarmMode) || null}
-            agents={selfAwareness?.active_agents || ["Gemini", "Claude"]}
+            mode={typeof orchestration?.swarm_mode === 'string' ? (orchestration.swarm_mode as SwarmMode) : null}
+            agents={Array.isArray(selfAwareness?.active_agents) ? selfAwareness.active_agents.filter((a): a is string => typeof a === 'string') : ["Gemini", "Claude"]}
           />
         </StatusPanel>
 
