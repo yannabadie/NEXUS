@@ -20,27 +20,16 @@ from pathlib import Path
 import importlib.util
 from typing import Dict, Optional
 
-# Fix Windows ANSI colors - V9.1.1: Simplified approach
-# Let Rich handle ANSI auto-detection. Only enable VT100 mode via Windows API.
-# DO NOT use colorama - it conflicts with Rich's output handling.
-if sys.platform == 'win32':
-    import ctypes
-    try:
-        # Enable VT100 mode (ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004)
-        # This allows Windows 10+ terminals to interpret ANSI codes natively
-        kernel32 = ctypes.windll.kernel32
-        stdout_handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
-        stderr_handle = kernel32.GetStdHandle(-12)  # STD_ERROR_HANDLE
-        mode = ctypes.c_ulong()
-        if kernel32.GetConsoleMode(stdout_handle, ctypes.byref(mode)):
-            kernel32.SetConsoleMode(stdout_handle, mode.value | 0x0004)
-        if kernel32.GetConsoleMode(stderr_handle, ctypes.byref(mode)):
-            kernel32.SetConsoleMode(stderr_handle, mode.value | 0x0004)
-    except Exception:
-        pass  # Non-critical: Rich will fallback gracefully
-
 # Load version from .env (single source of truth)
 import os
+
+# Fix Windows ANSI colors - V9.1.2: Ultra-simple approach
+# Calling os.system('') triggers cmd.exe to initialize VT100 mode
+# This side-effect enables ANSI escape sequences in the console
+# Source: https://bugs.python.org/issue40134
+if sys.platform == 'win32':
+    os.system('')  # Enable ANSI escape codes (Windows 10 1607+)
+
 import logging
 from dotenv import load_dotenv
 load_dotenv()
