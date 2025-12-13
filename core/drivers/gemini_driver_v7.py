@@ -182,17 +182,50 @@ class GeminiDriverV7:
         """
         V10: Emit agent response to dashboard via EventBus.
         Fire-and-forget pattern - never blocks driver execution.
+        V10.1: Improved content extraction from various response structures.
         """
         try:
             from core.ui.event_bus import EventBus
+            
+            # V10.1: Extract content from various possible keys
+            # Priority order: content > argument > output > task_understanding > proposed_approach
+            content = ""
+            if isinstance(response, dict):
+                content = (
+                    response.get("content") or 
+                    response.get("argument") or 
+                    response.get("output") or
+                    response.get("task_understanding") or
+                    response.get("proposed_approach") or
+                    response.get("position") or
+                    # Fallback: stringify small objects, summarize large ones
+                    ""
+                )
+                # If still no content, try to create a summary
+                if not content and response:
+                    # Create a summary from available keys
+                    summary_parts = []
+                    for key in ["sender", "action_type", "status"]:
+                        if key in response:
+                            summary_parts.append(f"{key}: {response[key]}")
+                    content = ", ".join(summary_parts) if summary_parts else str(response)[:300]
+            elif isinstance(response, str):
+                content = response
+            
+            # Truncate long content for WebSocket
+            if len(content) > 500:
+                content = content[:500] + "..."
+            
             EventBus.publish_sync("AGENT_RESPONSE", {
                 "agent": "Gemini",
-                "content": response.get("content", "")[:500],  # Truncate for WebSocket
-                "action_type": response.get("action_type", "TALK"),
-                "tool": response.get("tool_use", {}).get("tool_name") if response.get("tool_use") else None
+                "content": content,
+                "action_type": response.get("action_type", "TALK") if isinstance(response, dict) else "TALK",
+                "tool": response.get("tool_use", {}).get("tool_name") if isinstance(response, dict) and response.get("tool_use") else None
             })
         except ImportError:
             pass  # EventBus not available
+        except Exception as e:
+            pass  # Never block driver execution
 
     def invoke(
         self,

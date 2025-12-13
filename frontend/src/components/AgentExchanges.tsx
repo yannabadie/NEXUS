@@ -21,6 +21,42 @@ interface AgentExchangesProps {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+function formatContent(content: string): React.ReactNode {
+    if (!content) return <span className="text-zinc-500 italic">(empty response)</span>;
+
+    // Try to detect and format JSON
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            // Format key fields nicely
+            const formatted: string[] = [];
+
+            // Common HiveMind response fields
+            if (parsed.task_understanding) formatted.push(`📋 ${parsed.task_understanding}`);
+            if (parsed.proposed_approach) formatted.push(`🎯 ${parsed.proposed_approach}`);
+            if (parsed.argument) formatted.push(`💬 ${parsed.argument}`);
+            if (parsed.position) formatted.push(`🔷 Position: ${parsed.position}`);
+            if (parsed.concession) formatted.push(`🤝 Concession: ${parsed.concession}`);
+            if (parsed.complexity_assessment) formatted.push(`📊 Complexity: ${parsed.complexity_assessment}`);
+
+            if (formatted.length > 0) {
+                return <>{formatted.join('\n')}</>;
+            }
+            // Fallback: pretty print JSON
+            return JSON.stringify(parsed, null, 2);
+        } catch {
+            // Not valid JSON, display as-is
+        }
+    }
+
+    return content;
+}
+
+// ============================================================================
 // Agent Exchanges Component
 // ============================================================================
 
@@ -104,8 +140,8 @@ export function AgentExchanges({
                 <button
                     onClick={() => setIsLive(!isLive)}
                     className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${isLive
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-zinc-700 text-zinc-400"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "bg-zinc-700 text-zinc-400"
                         }`}
                 >
                     <div className={`w-2 h-2 rounded-full ${isLive ? "bg-emerald-500 animate-pulse" : "bg-zinc-500"}`} />
@@ -151,9 +187,10 @@ export function AgentExchanges({
                                     {exchange.timestamp.toLocaleTimeString()}
                                 </span>
                             </div>
-                            <p className="text-zinc-300 text-sm whitespace-pre-wrap break-words">
-                                {exchange.content || "(empty response)"}
-                            </p>
+                            {/* Content with improved formatting */}
+                            <div className="text-zinc-300 text-sm whitespace-pre-wrap break-words">
+                                {formatContent(exchange.content)}
+                            </div>
                         </div>
                     </div>
                 ))}

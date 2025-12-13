@@ -258,16 +258,44 @@ class ClaudeDriverHybrid:
             parsed_response = self._parse_hybrid_response(raw_response)
             
             # V10: Emit agent response to dashboard
+            # V10.1: Improved content extraction from various response structures
             try:
                 from core.ui.event_bus import EventBus
+                # Extract content from various possible keys
+                content = ""
+                if isinstance(parsed_response, dict):
+                    content = (
+                        parsed_response.get("content") or 
+                        parsed_response.get("argument") or 
+                        parsed_response.get("output") or
+                        parsed_response.get("task_understanding") or
+                        parsed_response.get("proposed_approach") or
+                        parsed_response.get("position") or
+                        parsed_response.get("concession") or
+                        ""
+                    )
+                    if not content and parsed_response:
+                        summary_parts = []
+                        for key in ["sender", "action_type", "status"]:
+                            if key in parsed_response:
+                                summary_parts.append(f"{key}: {parsed_response[key]}")
+                        content = ", ".join(summary_parts) if summary_parts else str(parsed_response)[:300]
+                elif isinstance(parsed_response, str):
+                    content = parsed_response
+                
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                    
                 EventBus.publish_sync("AGENT_RESPONSE", {
                     "agent": "Claude",
-                    "content": parsed_response.get("content", "")[:500],
-                    "action_type": parsed_response.get("action_type", "TALK"),
-                    "tool": parsed_response.get("tool_use", {}).get("tool_name") if parsed_response.get("tool_use") else None
+                    "content": content,
+                    "action_type": parsed_response.get("action_type", "TALK") if isinstance(parsed_response, dict) else "TALK",
+                    "tool": parsed_response.get("tool_use", {}).get("tool_name") if isinstance(parsed_response, dict) and parsed_response.get("tool_use") else None
                 })
             except ImportError:
                 pass  # EventBus not available
+            except Exception:
+                pass  # Never block driver execution
             
             return parsed_response
 
