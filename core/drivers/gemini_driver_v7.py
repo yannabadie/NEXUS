@@ -413,27 +413,20 @@ class GeminiDriverV7:
         # - NO run_shell_command: Too dangerous for auto-approval
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # V7.5 Phase 7: Session isolation via explicit session_uuid
-        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage risk)
-        # --resume {uuid}: Isolates this task from other parallel tasks
-        # --approval-mode yolo: Auto-approve with --allowed-tools restriction (read-only safe)
+        # V10 FIX: REMOVED --resume {session_uuid} - IT NEVER WORKED!
+        # Gemini CLI can only resume sessions IT created, not NEXUS-generated UUIDs.
+        # The session_uuid is now used ONLY for NEXUS internal logging/tracking.
+        # 
+        # Previous broken behavior (V7.5-V10):
+        #   --resume {nexus_uuid} → "Invalid session identifier" error
         #
-        # REMOVED: --resume latest fallback - caused context leakage in multi-agent scenarios
-        # If no session_uuid provided, start FRESH session (safer default)
+        # New behavior (V10.1+):
+        #   Always start FRESH session (safe, isolated, works)
+        #
+        # session_uuid is still passed for logging/debugging purposes only
         if session_uuid:
-            # Phase 7: Explicit session UUID for isolation (Swarm parallel tasks)
-            resume_flag = f"--resume {session_uuid}"
-            _logger.debug("Using session isolation", session_uuid=session_uuid[:8])
-        else:
-            # V8.4.6: ALWAYS start fresh session if no UUID (security by default)
-            # This prevents context leakage between unrelated tasks
-            resume_flag = ""
-            if self._session_active:
-                _logger.warning(
-                    "No session_uuid provided but session was active. "
-                    "Starting FRESH session to prevent context leakage. "
-                    "Pass session_uuid for session persistence."
-                )
+            _logger.debug("Using session for tracking", session_uuid=session_uuid[:8])
+        
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
         if use_shell:
@@ -441,15 +434,11 @@ class GeminiDriverV7:
             # --allowed-tools: Only auto-approve read tools (write/shell require confirmation)
             # --include-directories: Give Gemini READ access to parent NEXUS code
             # FIX: Use context_file_relative to avoid double-path issue (cwd is already workspace)
-            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o json'
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" -p @"{context_file_relative}" -o json'
         else:
             # List format for Unix
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V7.5 Phase 7: Session isolation support
-            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
-            if session_uuid:
-                cmd_parts.extend(["--resume", session_uuid])
-            # REMOVED: --resume latest fallback (context leakage risk)
+            # V10 FIX: No --resume - always fresh session
             # FIX: Use context_file_relative to avoid double-path issue
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "json"])
             command = cmd_parts
@@ -719,27 +708,18 @@ class GeminiDriverV7:
 
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # Build resume flag
-        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage)
+        # V10 FIX: REMOVED --resume - Gemini CLI can only resume ITS sessions, not NEXUS UUIDs
         if session_uuid:
-            resume_flag = f"--resume {session_uuid}"
-        else:
-            # REMOVED: --resume latest fallback - start fresh to prevent leakage
-            resume_flag = ""
-            if self._session_active:
-                _logger.warning("invoke_stream: No session_uuid but session active. Starting FRESH.")
+            _logger.debug("Stream: session for tracking", session_uuid=session_uuid[:8])
 
         approval_mode = "--approval-mode yolo"
 
         # Build command with -o stream-json (CRITICAL: different from -o json)
         if use_shell:
-            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o stream-json'
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" -p @"{context_file_relative}" -o stream-json'
         else:
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
-            if session_uuid:
-                cmd_parts.extend(["--resume", session_uuid])
-            # REMOVED: --resume latest fallback (context leakage risk)
+            # V10 FIX: No --resume - always fresh session
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "stream-json"])
             command = cmd_parts
 
