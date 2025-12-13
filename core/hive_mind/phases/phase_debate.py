@@ -235,6 +235,12 @@ class StrategicDebatePhase:
             debate_history.append(argument)
             
             # V10: Display debate turn to user (visible output!)
+            # V10.1 Fix: Enable ANSI on Windows by calling os.system('')
+            import os
+            import sys
+            if sys.platform == 'win32':
+                os.system('')  # Enables ANSI escape sequences on Windows
+            
             speaker_color = "\033[36m" if current_speaker == "gemini" else "\033[32m"  # Cyan for Gemini, Green for Claude
             reset = "\033[0m"
             position_icon = "🗣️" if argument.position == "SUPPORT" else ("🤝" if argument.position == "CONCEDE" else "⚔️")

@@ -207,7 +207,7 @@ class IndependentAnalysisPhase:
             analysis_data = self._parse_analysis_response(content, "gemini")
 
             # Record cost
-            tokens = len(response) // 4  # Rough estimate
+            tokens = len(content) // 4 if content else 0  # V10 Fix: use content not response
             self.cost_estimator.record_cost("independent_analysis_gemini", tokens)
 
             return IndependentAnalysis(
@@ -237,7 +237,7 @@ class IndependentAnalysisPhase:
             analysis_data = self._parse_analysis_response(content, "claude")
 
             # Record cost
-            tokens = len(response) // 4
+            tokens = len(content) // 4 if content else 0  # V10 Fix: use content not response
             self.cost_estimator.record_cost("independent_analysis_claude", tokens)
 
             return IndependentAnalysis(
