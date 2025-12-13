@@ -75,7 +75,8 @@ class UserInteractionHandler:
         self,
         default_timeout: int = 60,
         enable_rich: bool = True,
-        auto_accept: bool = False
+        auto_accept: bool = False,
+        headless: bool = None
     ):
         """
         Initialize user interaction handler.
@@ -84,13 +85,26 @@ class UserInteractionHandler:
             default_timeout: Default timeout for breakpoints (seconds)
             enable_rich: Use rich console if available
             auto_accept: Auto-accept recommendations (for testing)
+            headless: Force headless mode (auto-detected if None)
         """
         self.default_timeout = default_timeout
         self.auto_accept = auto_accept
         self._history: List[BreakpointResponse] = []
 
+        # Auto-detect headless mode (no stdin available)
+        if headless is None:
+            import sys
+            import os
+            # Check if stdin is available and connected to a terminal
+            try:
+                self.headless = not (sys.stdin is not None and sys.stdin.isatty())
+            except Exception:
+                self.headless = True  # Assume headless on any error
+        else:
+            self.headless = headless
+
         # Initialize console
-        if enable_rich and RICH_AVAILABLE:
+        if enable_rich and RICH_AVAILABLE and not self.headless:
             self.console = Console()
             self._use_rich = True
         else:
@@ -139,6 +153,22 @@ class UserInteractionHandler:
                 breakpoint_type=breakpoint_type,
                 chosen_option=recommended.id if recommended else "accept",
                 was_timeout=True
+            )
+            self._history.append(response)
+            return response
+
+        # Headless mode - auto-accept with logging
+        if self.headless:
+            recommended = next(
+                (opt for opt in options if opt.is_recommended),
+                options[0] if options else None
+            )
+            logger.info(f"[HEADLESS] Auto-accepting breakpoint {breakpoint_type.value}: "
+                       f"{recommended.label if recommended else 'accept'}")
+            response = BreakpointResponse(
+                breakpoint_type=breakpoint_type,
+                chosen_option=recommended.id if recommended else "accept",
+                was_timeout=True  # Mark as timeout since no user interaction
             )
             self._history.append(response)
             return response
