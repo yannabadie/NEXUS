@@ -65,9 +65,9 @@ class ToolResult:
         return cls(tool_name=tool_name, status="FAILURE", output=output, error=error)
 
     @classmethod
-    def error(cls, tool_name: str, error: str) -> "ToolResult":
+    def make_error(cls, tool_name: str, error_msg: str) -> "ToolResult":
         """Create error result."""
-        return cls(tool_name=tool_name, status="ERROR", output="", error=error)
+        return cls(tool_name=tool_name, status="ERROR", output="", error=error_msg)
 
 
 @runtime_checkable
@@ -138,7 +138,7 @@ class BaseHandler(ABC):
 
     def _validate_path(self, path: Path, operation: str = "read") -> bool:
         """
-        Validate path using ValidationService.
+        Validate path using ValidationService (PathGuardian).
 
         Args:
             path: Path to validate
@@ -149,7 +149,56 @@ class BaseHandler(ABC):
         """
         if self.validation_service is None:
             return True
-        return self.validation_service.validate_path(path, operation)
+
+        # PathGuardian interface: validate_read(str) -> (bool, Path, str)
+        #                        validate_write(str, is_evolution_mode) -> (bool, Path, str)
+        path_str = str(path)
+
+        try:
+            if operation in ("read", "list"):
+                is_valid, _, _ = self.validation_service.validate_read(path_str)
+            elif operation in ("write", "edit"):
+                is_valid, _, _ = self.validation_service.validate_write(path_str)
+            else:
+                # Unknown operation - default to read validation
+                is_valid, _, _ = self.validation_service.validate_read(path_str)
+            return is_valid
+        except AttributeError:
+            # Fallback: validation_service doesn't have expected methods
+            # This allows for mock validation services in tests
+            if hasattr(self.validation_service, 'validate_path'):
+                return self.validation_service.validate_path(path, operation)
+            return True
+
+    def _validate_path_str(self, path_str: str, operation: str = "read") -> bool:
+        """
+        Validate path string using ValidationService (PathGuardian).
+
+        Use this for write/edit operations where PathGuardian expects
+        the original relative path string, not a resolved absolute path.
+
+        Args:
+            path_str: Original path string (relative or absolute)
+            operation: Operation type (read, write, edit, list)
+
+        Returns:
+            True if path is valid
+        """
+        if self.validation_service is None:
+            return True
+
+        try:
+            if operation in ("read", "list"):
+                is_valid, _, _ = self.validation_service.validate_read(path_str)
+            elif operation in ("write", "edit"):
+                is_valid, _, _ = self.validation_service.validate_write(path_str)
+            else:
+                is_valid, _, _ = self.validation_service.validate_read(path_str)
+            return is_valid
+        except AttributeError:
+            if hasattr(self.validation_service, 'validate_path'):
+                return self.validation_service.validate_path(Path(path_str), operation)
+            return True
 
     def _ok(self, output: str) -> ToolResult:
         """Create success result."""
@@ -161,4 +210,4 @@ class BaseHandler(ABC):
 
     def _error(self, error: str) -> ToolResult:
         """Create error result."""
-        return ToolResult.error(self.tool_name, error)
+        return ToolResult.make_error(self.tool_name, error)

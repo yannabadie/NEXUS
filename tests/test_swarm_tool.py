@@ -84,13 +84,14 @@ class TestSwarmToolRegistration:
         tm = ToolManager(tmp_path)
         assert "swarm_delegate" in tm.tools
 
-    def test_swarm_delegate_handler_is_callable(self, tmp_path):
-        """swarm_delegate handler should be a callable method."""
+    def test_swarm_delegate_handler_has_execute(self, tmp_path):
+        """swarm_delegate handler should have execute method."""
         from core.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         handler = tm.tools["swarm_delegate"]
-        assert callable(handler)
+        assert hasattr(handler, 'execute')
+        assert callable(handler.execute)
 
     def test_swarm_bridge_attribute_exists(self, tmp_path):
         """ToolManager should have swarm_bridge attribute."""
@@ -119,7 +120,7 @@ class TestSwarmToolErrorHandling:
         from core.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
-        result = tm._execute_swarm_delegate({"task": "test task", "mode": "parallel"})
+        result = tm.tools["swarm_delegate"].execute({"task": "test task", "mode": "parallel"})
 
         assert result.status == "ERROR"
         assert "SwarmBridge not configured" in result.error
@@ -131,7 +132,7 @@ class TestSwarmToolErrorHandling:
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = MagicMock()  # Mock bridge to pass first check
 
-        result = tm._execute_swarm_delegate({"mode": "parallel"})
+        result = tm.tools["swarm_delegate"].execute({"mode": "parallel"})
 
         assert result.status == "ERROR"
         assert "Missing 'task' argument" in result.error
@@ -143,7 +144,7 @@ class TestSwarmToolErrorHandling:
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = MagicMock()
 
-        result = tm._execute_swarm_delegate({"task": "", "mode": "parallel"})
+        result = tm.tools["swarm_delegate"].execute({"task": "", "mode": "parallel"})
 
         assert result.status == "ERROR"
         assert "Missing 'task' argument" in result.error
@@ -164,7 +165,7 @@ class TestSwarmToolErrorHandling:
             ),
             'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
         }):
-            result = tm._execute_swarm_delegate({
+            result = tm.tools["swarm_delegate"].execute({
                 "task": "test",
                 "mode": "invalid_mode"
             })
@@ -215,7 +216,7 @@ class TestSwarmToolDelegation:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                result = tm._execute_swarm_delegate({
+                result = tm.tools["swarm_delegate"].execute({
                     "task": "Run tests in parallel",
                     "mode": "parallel"
                 })
@@ -260,7 +261,7 @@ class TestSwarmToolFeedbackLoop:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                tm._execute_swarm_delegate({
+                tm.tools["swarm_delegate"].execute({
                     "task": "test",
                     "mode": "parallel"
                 })
@@ -302,7 +303,7 @@ class TestSwarmToolGuardrails:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                tm._execute_swarm_delegate({
+                tm.tools["swarm_delegate"].execute({
                     "task": "Security review",
                     "mode": "red_blue",
                     "phase": "debate"
@@ -350,7 +351,7 @@ class TestSwarmToolFallbackReporting:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                result = tm._execute_swarm_delegate({
+                result = tm.tools["swarm_delegate"].execute({
                     "task": "Complex task",
                     "mode": "parallel"
                 })
@@ -393,7 +394,7 @@ class TestSwarmToolContextCategories:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                tm._execute_swarm_delegate({
+                tm.tools["swarm_delegate"].execute({
                     "task": "Analyze with context",
                     "mode": "specialist",
                     "context_categories": ["task", "architecture"]
@@ -434,7 +435,7 @@ class TestSwarmToolDefaultMode:
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
                 # No mode specified - should default to specialist
-                result = tm._execute_swarm_delegate({
+                result = tm.tools["swarm_delegate"].execute({
                     "task": "Simple task"
                     # mode not specified
                 })
@@ -456,7 +457,7 @@ class TestSwarmToolIntegration:
         tm = ToolManager(tmp_path)
 
         # Test error case (no bridge)
-        result = tm._execute_swarm_delegate({"task": "test"})
+        result = tm.tools["swarm_delegate"].execute({"task": "test"})
         assert result.tool_name == "swarm_delegate"
 
     def test_failure_diagnostics_in_error(self, tmp_path):
@@ -487,7 +488,7 @@ class TestSwarmToolIntegration:
                 ),
                 'core.hive_mind.swarm_bridge': MagicMock(HivePhase=MockHivePhase)
             }):
-                result = tm._execute_swarm_delegate({
+                result = tm.tools["swarm_delegate"].execute({
                     "task": "test",
                     "mode": "parallel"
                 })

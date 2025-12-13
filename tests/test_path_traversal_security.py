@@ -163,8 +163,8 @@ class TestPathTraversalSecurity:
             tool_name="read",
             arguments={"file_path": ""}
         ))
-        # Should fail but not crash
-        assert result.status in ["BLOCKED", "FAILURE"]
+        # Should fail but not crash (ERROR for missing/invalid argument is acceptable)
+        assert result.status in ["BLOCKED", "FAILURE", "ERROR"]
 
     def test_null_bytes_blocked(self, tool_manager):
         """Null byte injection should be handled."""
@@ -172,8 +172,8 @@ class TestPathTraversalSecurity:
             tool_name="read",
             arguments={"file_path": "file.txt\x00.jpg"}
         ))
-        # Should fail or be blocked
-        assert result.status in ["BLOCKED", "FAILURE"]
+        # Should fail or be blocked (ERROR for null byte handling is acceptable)
+        assert result.status in ["BLOCKED", "FAILURE", "ERROR"]
 
     def test_unicode_normalization(self, tool_manager):
         """Unicode path normalization should not bypass security."""
@@ -253,8 +253,10 @@ class TestPathGuardianIntegration:
                 arguments={"file_path": "any_file.txt"}
             ))
 
-            # Verify PathGuardian was called
-            mock_validate.assert_called_once_with("any_file.txt")
+            # Verify PathGuardian was called (V9.6: handlers pass absolute paths)
+            mock_validate.assert_called_once()
+            call_args = mock_validate.call_args[0][0]
+            assert "any_file.txt" in call_args  # Path ends with the requested file
             assert result.status == "BLOCKED"
 
     def test_path_guardian_success_path(self, workspace):

@@ -157,7 +157,7 @@ class ExecutionEngine:
         handler = self.registry.get_handler(normalized_name)
         if handler is None:
             self._stats["failed"] += 1
-            return ToolResult.error(tool_name, f"Unknown tool: {tool_name}")
+            return ToolResult.make_error(tool_name, f"Unknown tool: {tool_name}")
 
         try:
             result = handler(arguments)
@@ -175,7 +175,7 @@ class ExecutionEngine:
         except Exception as e:
             self._stats["failed"] += 1
             logger.error(f"Tool execution error: {tool_name}: {e}")
-            return ToolResult.error(tool_name, str(e))
+            return ToolResult.make_error(tool_name, str(e))
 
     def register_handler(
         self,

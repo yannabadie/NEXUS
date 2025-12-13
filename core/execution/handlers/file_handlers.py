@@ -97,11 +97,11 @@ class WriteHandler(BaseHandler):
         if not file_path_str:
             return self._error("Missing required argument: file_path")
 
-        # Resolve and validate path
+        # Resolve path
         path = self._resolve_path(file_path_str)
 
-        # Security validation
-        if not self._validate_path(path, "write"):
+        # Security validation (use original relative path for PathGuardian)
+        if not self._validate_path_str(file_path_str, "write"):
             return ToolResult(
                 tool_name=self.tool_name,
                 status="BLOCKED",
@@ -153,11 +153,11 @@ class EditHandler(BaseHandler):
         if not old_string:
             return self._error("Missing required argument: old_string")
 
-        # Resolve and validate path
+        # Resolve path
         path = self._resolve_path(file_path_str)
 
-        # Security validation
-        if not self._validate_path(path, "edit"):
+        # Security validation (use original relative path for PathGuardian)
+        if not self._validate_path_str(file_path_str, "edit"):
             return ToolResult(
                 tool_name=self.tool_name,
                 status="BLOCKED",
