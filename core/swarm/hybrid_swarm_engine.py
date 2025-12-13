@@ -728,6 +728,50 @@ class HybridSwarmEngine:
             print(f"[SWARM] Warning: Failed to discover spawned agents: {e}", file=sys.stderr)
             return 0
 
+    def refresh_agents(self) -> dict:
+        """
+        V10: Hot-reload spawned agents during runtime.
+        
+        Call this after evolution creates new agents to integrate them
+        without requiring a NEXUS restart.
+        
+        Returns:
+            dict with 'discovered', 'new', 'total' counts
+        """
+        import sys
+        
+        if not self.spawned_agent_loader or not self.agent_pool:
+            return {"discovered": 0, "new": 0, "total": 0, "error": "Loader not available"}
+        
+        # Count existing spawned agents
+        existing = self._count_spawned_agents()
+        existing_ids = {a.agent_id for a in self._get_spawned_agents()}
+        
+        try:
+            # Discover all agents (including new ones)
+            agents = self.spawned_agent_loader.discover_spawned_agents()
+            new_count = 0
+            
+            for profile in agents:
+                if profile.agent_id not in existing_ids:
+                    # New agent - register it
+                    self.agent_pool.register(profile)
+                    new_count += 1
+                    print(f"[SWARM] Hot-loaded new agent: {profile.agent_id}", file=sys.stderr)
+            
+            total = self._count_spawned_agents()
+            
+            return {
+                "discovered": len(agents),
+                "new": new_count,
+                "total": total,
+                "hot_loaded": new_count > 0
+            }
+            
+        except Exception as e:
+            print(f"[SWARM] Warning: Failed to refresh agents: {e}", file=sys.stderr)
+            return {"discovered": 0, "new": 0, "total": existing, "error": str(e)}
+
     def _count_spawned_agents(self) -> int:
         """Count spawned agents in the pool."""
         if not self.agent_pool:
