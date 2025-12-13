@@ -83,11 +83,11 @@ class FSMHandlers:
         self._asyncio = asyncio
 
     def _emit(self, event_type: str, data: Dict):
-        """Helper to emit events asynchronously from sync context."""
+        """Helper to emit events from sync context using fire-and-forget."""
         if self._event_bus:
             try:
-                # Fire and forget
-                self._asyncio.create_task(self._event_bus.publish(event_type, data))
+                # Use sync version for fire-and-forget from sync context
+                self._event_bus.publish_sync(event_type, data)
             except Exception:
                 pass
 
