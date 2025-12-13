@@ -119,6 +119,11 @@ class HomeIsolator:
                 else:
                     env['HOMEDRIVE'] = 'C:'
                     env['HOMEPATH'] = str(isolated_home)
+
+                # V9.7.1-fix: Also override HOME on Windows
+                # HOME may be inherited from Git Bash, WSL, or MSYS2
+                # Node.js checks USERPROFILE, but Python/others may check HOME
+                env['HOME'] = str(isolated_home)
             else:
                 # Linux/macOS: Just set HOME
                 env['HOME'] = str(isolated_home)
