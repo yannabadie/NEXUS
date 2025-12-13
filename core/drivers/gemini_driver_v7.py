@@ -14,10 +14,11 @@ V7 Sprint 12: Session Resume Mode (DEFAULT)
 - Benefits: ~5s latency (vs ~15s without resume), cached context tokens
 - IMPORTANT: First call does NOT use --resume (creates new session)
 
-V7.5 Phase 7: Session Isolation via session_uuid
-- SwarmSessionManager generates unique session UUIDs per task+role
-- When session_uuid is provided, uses --resume {uuid} for isolation
-- Enables parallel task execution without context bleeding
+V9.7.1: Session Isolation via HOME Spoofing (replaces V9.7 CWD Isolation)
+- V9.7 CWD Isolation caused "ghost files" (writes to wrong directory)
+- V9.7.1 uses HOME spoofing: CWD stays at project root, HOME is isolated
+- Gemini CLI stores sessions in ~/.gemini/tmp/<hash(cwd)>/chats/
+- Different HOME = Different session storage = Isolation without ghost files
 
 Note: PTY mode was removed in V7.6 cleanup (never worked, gemini_pty_mode=False).
       Archived to: docs/archive/pty_mode_v7_archived.py
@@ -206,19 +207,22 @@ Rules:
     def invoke(
         self,
         context: str,
-        session_uuid: Optional[str] = None
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke Gemini CLI avec contexte markdown.
 
         V7 Sprint 12: Uses session resume for context persistence.
-        V7.5 Phase 7: Session isolation via session_uuid parameter.
+        V9.7.1: Session isolation via HOME spoofing (replaces V9.7 CWD isolation).
 
         Args:
             context: Contexte markdown avec system prompt
-            session_uuid: Optional session UUID for isolation (Phase 7).
-                         When provided, uses --resume {uuid} instead of --resume latest.
-                         This enables parallel task execution without context bleeding.
+            session_uuid: Optional session UUID for NEXUS tracking (file naming).
+            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
+                         When provided, subprocess uses this env and --resume latest.
+                         CWD stays at project root (no ghost files).
+                         Different HOME = Different session storage = Isolation.
 
         Returns:
             Dict structuré NEXUS (JSON parsé)
@@ -226,15 +230,15 @@ Rules:
         Raises:
             RuntimeError: Si Gemini CLI échoue
             TimeoutError: Si timeout dépassé
-            ValueError: Si session_uuid invalide (resume failed)
         """
-        return self._invoke_subprocess(context, session_uuid=session_uuid)
+        return self._invoke_subprocess(context, session_uuid=session_uuid, isolated_env=isolated_env)
 
     def invoke_stream(
         self,
         context: str,
         on_token: Callable[[str], None],
-        session_uuid: Optional[str] = None
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke Gemini CLI with streaming output (V7.7 Phase 15).
@@ -242,10 +246,13 @@ Rules:
         Streams text tokens in real-time via callback, then returns
         the full parsed JSON response.
 
+        V9.7.1: Session isolation via HOME spoofing.
+
         Args:
             context: Contexte markdown avec system prompt
             on_token: Callback called with each text chunk
-            session_uuid: Optional session UUID for isolation (Phase 7)
+            session_uuid: Optional session UUID for NEXUS tracking
+            isolated_env: V9.7.1 - Isolated environment for session isolation
 
         Returns:
             Dict structuré NEXUS (JSON parsé)
@@ -254,9 +261,14 @@ Rules:
             RuntimeError: Si Gemini CLI échoue
             TimeoutError: Si timeout dépassé
         """
-        return self._invoke_subprocess_stream(context, on_token, session_uuid=session_uuid)
+        return self._invoke_subprocess_stream(context, on_token, session_uuid=session_uuid, isolated_env=isolated_env)
 
-    async def send_message_async(self, prompt: str, session_uuid: Optional[str] = None) -> Dict:
+    async def send_message_async(
+        self,
+        prompt: str,
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
+    ) -> Dict:
         """
         Async bridge method for HiveMind phases compatibility (V8.4.5).
 
@@ -264,9 +276,12 @@ Rules:
         This allows HiveMind phases to call driver methods without blocking
         the event loop, enabling true concurrent execution.
 
+        V9.7.1: Session isolation via HOME spoofing.
+
         Args:
             prompt: Context markdown with system prompt
-            session_uuid: Optional session UUID for isolation (Phase 7)
+            session_uuid: Optional session UUID for NEXUS tracking
+            isolated_env: V9.7.1 - Isolated environment for session isolation
 
         Returns:
             Dict structured NEXUS response (same as invoke())
@@ -275,13 +290,14 @@ Rules:
             This is a bridge method for backward compatibility with async HiveMind
             phases. New code should use AsyncGeminiDriver for full async support.
         """
-        return await asyncio.to_thread(self.invoke, prompt, session_uuid)
+        return await asyncio.to_thread(self.invoke, prompt, session_uuid, isolated_env)
 
     def invoke_with_retry(
         self,
         context: str,
         max_retries: int = 3,
-        session_uuid: Optional[str] = None
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke with exponential backoff and jitter (V8.4.5).
@@ -289,10 +305,13 @@ Rules:
         Retries on transient failures (timeout, rate limit, server errors)
         with increasing delays and randomized jitter to prevent thundering herd.
 
+        V9.7.1: Session isolation via HOME spoofing.
+
         Args:
             context: Context markdown with system prompt
             max_retries: Maximum number of retry attempts (default: 3)
-            session_uuid: Optional session UUID for isolation
+            session_uuid: Optional session UUID for NEXUS tracking
+            isolated_env: V9.7.1 - Isolated environment for session isolation
 
         Returns:
             Dict structured NEXUS response
@@ -312,7 +331,7 @@ Rules:
 
         for attempt in range(max_retries):
             try:
-                return self.invoke(context, session_uuid=session_uuid)
+                return self.invoke(context, session_uuid=session_uuid, isolated_env=isolated_env)
 
             except (TimeoutError, RuntimeError) as e:
                 last_error = e
@@ -349,17 +368,22 @@ Rules:
     def _invoke_subprocess(
         self,
         context: str,
-        session_uuid: Optional[str] = None
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke Gemini using subprocess (original method).
 
-        V7.5 Phase 7: Session isolation support via session_uuid.
+        V9.7.1: HOME spoofing replaces V9.7 CWD isolation (which caused ghost files).
+        - CWD stays at project root (file operations work correctly)
+        - HOME is isolated via env parameter (session storage is isolated)
 
         Args:
             context: Context markdown
-            session_uuid: Optional session UUID for isolation.
-                         When provided, uses --resume {uuid} for session isolation.
+            session_uuid: Optional session UUID for NEXUS tracking (file naming)
+            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
+                         When provided, uses this env and --resume latest.
+                         CWD stays at project root (no ghost files).
 
         Returns:
             Dict structured NEXUS response
@@ -370,18 +394,22 @@ Rules:
         # V8.1.6: Generate unique ID for thread-safe file access
         unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
+        # V9.7.1: CWD always at project root (no ghost files)
+        # IO buffer in main workspace, not isolated
+        effective_io_buffer = self.workspace_path / "_IO_BUFFER"
+        effective_io_buffer.mkdir(parents=True, exist_ok=True)
+
         # V9.1.1: Enforce JSON format via prompt suffix
         enforced_context = self._enforce_json_format(context)
 
-        # Write context to file with unique ID
-        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
+        # Write context to file with unique ID (in main workspace's IO buffer)
+        context_file = effective_io_buffer / f"gemini_context_{unique_id}.md"
         context_file.write_text(enforced_context, encoding="utf-8")
 
-        # FIX: Use path relative to cwd (workspace) to avoid double-path issue
-        # The subprocess runs with cwd=workspace_path, so the path should be relative to that
+        # V9.7.1: Path relative to workspace (CWD is always workspace root now)
         context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
-        output_file = self.io_buffer / f"gemini_output_{unique_id}.json"
+        output_file = effective_io_buffer / f"gemini_output_{unique_id}.json"
 
         # Clear previous output file (now unique, so less likely to exist)
         if output_file.exists():
@@ -418,27 +446,27 @@ Rules:
         # - NO run_shell_command: Too dangerous for auto-approval
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # V7.5 Phase 7: Session isolation via explicit session_uuid
-        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage risk)
-        # --resume {uuid}: Isolates this task from other parallel tasks
-        # --approval-mode yolo: Auto-approve with --allowed-tools restriction (read-only safe)
+        # V9.7.1: HOME spoofing replaces V9.7 CWD isolation
+        # Gemini CLI stores sessions in ~/.gemini/tmp/<hash(cwd)>/chats/
+        # Different HOME = Different session storage = Isolation
+        # CWD stays at project root = No ghost files
         #
-        # REMOVED: --resume latest fallback - caused context leakage in multi-agent scenarios
-        # If no session_uuid provided, start FRESH session (safer default)
-        if session_uuid:
-            # Phase 7: Explicit session UUID for isolation (Swarm parallel tasks)
-            resume_flag = f"--resume {session_uuid}"
-            _logger.debug("Using session isolation", session_uuid=session_uuid[:8])
+        # If isolated_env: isolated HOME → --resume latest is safe
+        # Else: shared HOME → start fresh (no context leakage)
+        if isolated_env:
+            # V9.7.1: Isolated HOME - --resume latest is SAFE
+            # Different HOME = different Gemini CLI session storage
+            resume_flag = "--resume latest"
+            _logger.debug(
+                "V9.7.1 HOME spoofing: --resume latest with isolated HOME"
+            )
         else:
-            # V8.4.6: ALWAYS start fresh session if no UUID (security by default)
-            # This prevents context leakage between unrelated tasks
+            # Shared HOME - start fresh to prevent context leakage
             resume_flag = ""
             if self._session_active:
-                # V9.1: Downgrade to DEBUG - this is expected behavior for sequential FSM paths
-                # where context isolation isn't needed. Only Swarm parallel tasks need UUIDs.
                 _logger.debug(
-                    "Starting FRESH session (no session_uuid). "
-                    "Pass session_uuid for session persistence in parallel tasks."
+                    "Starting FRESH session (no isolated_env). "
+                    "Pass isolated_env for session persistence in parallel tasks."
                 )
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
@@ -446,17 +474,13 @@ Rules:
             # Shell command string for Windows
             # --allowed-tools: Only auto-approve read tools (write/shell require confirmation)
             # --include-directories: Give Gemini READ access to parent NEXUS code
-            # FIX: Use context_file_relative to avoid double-path issue (cwd is already workspace)
             command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o json'
         else:
             # List format for Unix
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V7.5 Phase 7: Session isolation support
-            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
-            if session_uuid:
-                cmd_parts.extend(["--resume", session_uuid])
-            # REMOVED: --resume latest fallback (context leakage risk)
-            # FIX: Use context_file_relative to avoid double-path issue
+            # V9.7.1: Add --resume latest only when using isolated HOME
+            if isolated_env:
+                cmd_parts.extend(["--resume", "latest"])
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "json"])
             command = cmd_parts
 
@@ -466,9 +490,11 @@ Rules:
                 _logger.debug("Command", cmd=command[:200] if len(str(command)) > 200 else command)
 
             # Use Popen with polling loop to allow CTRL+C interruption
+            # V9.7.1: CWD always at workspace root, env may be isolated
             proc = subprocess.Popen(
                 command,
-                cwd=str(self.workspace_path),
+                cwd=str(self.workspace_path),  # V9.7.1: Always at project root (no ghost files)
+                env=isolated_env,  # V9.7.1: Isolated HOME for session separation (None = inherit)
                 shell=use_shell,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -674,7 +700,8 @@ Rules:
         self,
         context: str,
         on_token: Callable[[str], None],
-        session_uuid: Optional[str] = None
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke Gemini with streaming output (V7.7 Phase 15).
@@ -682,10 +709,13 @@ Rules:
         Uses -o stream-json for JSONL streaming, parses each line,
         and calls on_token for text deltas.
 
+        V9.7.1: HOME spoofing replaces CWD isolation (which caused ghost files).
+
         Args:
             context: Context markdown
             on_token: Callback for each text chunk
-            session_uuid: Optional session UUID for isolation
+            session_uuid: Optional session UUID for NEXUS tracking
+            isolated_env: V9.7.1 - Isolated environment for session isolation
 
         Returns:
             Dict structured NEXUS response
@@ -696,11 +726,15 @@ Rules:
         # V8.1.6: Generate unique ID for thread-safe file access
         unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
+        # V9.7.1: CWD always at project root (no ghost files)
+        effective_io_buffer = self.workspace_path / "_IO_BUFFER"
+        effective_io_buffer.mkdir(parents=True, exist_ok=True)
+
         # V9.1.1: Enforce JSON format via prompt suffix
         enforced_context = self._enforce_json_format(context)
 
-        # Write context to file with unique ID
-        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
+        # Write context to file with unique ID (in main workspace's IO buffer)
+        context_file = effective_io_buffer / f"gemini_context_{unique_id}.md"
         context_file.write_text(enforced_context, encoding="utf-8")
         context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
@@ -722,15 +756,18 @@ Rules:
 
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # Build resume flag
-        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage)
-        if session_uuid:
-            resume_flag = f"--resume {session_uuid}"
+        # V9.7.1: HOME spoofing replaces CWD isolation
+        if isolated_env:
+            # Isolated HOME - --resume latest is SAFE
+            resume_flag = "--resume latest"
+            _logger.debug(
+                "V9.7.1 HOME spoofing (stream): --resume latest with isolated HOME"
+            )
         else:
-            # REMOVED: --resume latest fallback - start fresh to prevent leakage
+            # Shared HOME - start fresh to prevent context leakage
             resume_flag = ""
             if self._session_active:
-                _logger.warning("invoke_stream: No session_uuid but session active. Starting FRESH.")
+                _logger.debug("invoke_stream: No isolated_env. Starting FRESH.")
 
         approval_mode = "--approval-mode yolo"
 
@@ -739,19 +776,20 @@ Rules:
             command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o stream-json'
         else:
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest
-            if session_uuid:
-                cmd_parts.extend(["--resume", session_uuid])
-            # REMOVED: --resume latest fallback (context leakage risk)
+            # V9.7.1: Add --resume latest only when using isolated HOME
+            if isolated_env:
+                cmd_parts.extend(["--resume", "latest"])
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "stream-json"])
             command = cmd_parts
 
         try:
             print(f"[DEBUG] Invoking Gemini (streaming): {self.model}", file=sys.stderr)
 
+            # V9.7.1: CWD always at workspace root, env may be isolated
             proc = subprocess.Popen(
                 command,
-                cwd=str(self.workspace_path),
+                cwd=str(self.workspace_path),  # V9.7.1: Always at project root (no ghost files)
+                env=isolated_env,  # V9.7.1: Isolated HOME for session separation (None = inherit)
                 shell=use_shell,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

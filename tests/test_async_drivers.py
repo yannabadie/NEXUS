@@ -239,8 +239,31 @@ class TestAsyncGeminiDriver:
             assert "sender" in result
 
     @pytest.mark.asyncio
-    async def test_session_uuid_creates_resume_flag(self, driver, tmp_path):
-        """Session UUID should add --resume flag."""
+    async def test_isolated_env_creates_resume_flag(self, driver, tmp_path):
+        """V9.7.1: isolated_env should add --resume latest flag."""
+        output = ['{"response": "OK"}\n']
+        mock_proc = create_mock_process(output)
+
+        called_args = []
+
+        async def capture_args(*args, **kwargs):
+            called_args.extend(args)
+            return mock_proc
+
+        # V9.7.1: --resume latest only added when isolated_env is provided
+        isolated_env = {"HOME": "/tmp/isolated", "PATH": "/usr/bin"}
+
+        with patch('asyncio.create_subprocess_exec', side_effect=capture_args):
+            await driver.invoke("Test", session_uuid="session-123", isolated_env=isolated_env)
+
+            # Check that --resume latest was in the command
+            all_args = [str(a) for a in called_args]
+            assert "--resume" in all_args
+            assert "latest" in all_args
+
+    @pytest.mark.asyncio
+    async def test_no_isolated_env_no_resume_flag(self, driver, tmp_path):
+        """V9.7.1: Without isolated_env, --resume should NOT be added (prevents context leakage)."""
         output = ['{"response": "OK"}\n']
         mock_proc = create_mock_process(output)
 
@@ -251,12 +274,11 @@ class TestAsyncGeminiDriver:
             return mock_proc
 
         with patch('asyncio.create_subprocess_exec', side_effect=capture_args):
-            await driver.invoke("Test", session_uuid="session-123")
+            await driver.invoke("Test", session_uuid="session-123")  # No isolated_env
 
-            # Check that --resume was in the command
+            # V9.7.1: --resume should NOT be in command (shared HOME = no resume)
             all_args = [str(a) for a in called_args]
-            assert "--resume" in all_args
-            assert "session-123" in all_args
+            assert "--resume" not in all_args
 
 
 # ============================================================================

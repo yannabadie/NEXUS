@@ -138,6 +138,52 @@ class ExecutionContext:
         except Exception:
             return None
 
+    def get_workspace_path(self, role: str, agent_id: str) -> Optional[Path]:
+        """
+        V9.7: Get isolated workspace path for an agent-role combination.
+
+        DEPRECATED in V9.7.1: Use get_isolated_env() instead for HOME spoofing.
+        Kept for backward compatibility.
+
+        Args:
+            role: Agent's role in the collaboration
+            agent_id: Agent identifier
+
+        Returns:
+            Path to isolated workspace, or None if not using session isolation
+        """
+        if self.session_manager is None or self.task_id is None:
+            return None
+
+        try:
+            return self.session_manager.get_workspace_path(self.task_id, role)
+        except Exception:
+            return None
+
+    def get_isolated_env(self, role: str, agent_id: str) -> Optional[Dict[str, str]]:
+        """
+        V9.7.1: Get isolated environment for Gemini subprocess.
+
+        Uses HOME spoofing instead of CWD isolation to prevent ghost files.
+        The subprocess will have:
+        - Same CWD (project root) - file operations work correctly
+        - Different HOME - session storage is isolated
+
+        Args:
+            role: Agent's role in the collaboration
+            agent_id: Agent identifier
+
+        Returns:
+            Environment dict with isolated HOME/USERPROFILE, or None
+        """
+        if self.session_manager is None or self.task_id is None:
+            return None
+
+        try:
+            return self.session_manager.get_isolated_env(self.task_id, role)
+        except Exception:
+            return None
+
 
 @dataclass
 class ExecutionResult:
@@ -203,6 +249,8 @@ class ModeExecutor(ABC):
             agent_id: Agent identifier
             task_context: Task context string
             role: Agent's role for session isolation
+
+        V9.7.1: Now passes isolated_env for Gemini session isolation via HOME spoofing.
         """
         if context.invoke_agent is None:
             return AgentResponse(
@@ -213,10 +261,12 @@ class ModeExecutor(ABC):
 
         start_time = datetime.now()
 
-        # Get session UUID for isolation
+        # Get session UUID and isolated environment for session isolation
         session_uuid = None
+        isolated_env = None
         if role:
             session_uuid = context.get_session_uuid(role, agent_id)
+            isolated_env = context.get_isolated_env(role, agent_id)  # V9.7.1
             if session_uuid:
                 with _blackboard_lock:
                     context.blackboard[f"_session_uuid_{agent_id}"] = session_uuid
@@ -240,8 +290,10 @@ class ModeExecutor(ABC):
                     time_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
-            # Invoke agent
-            response = context.invoke_agent(agent_id, "execution", task_context, session_uuid)
+            # V9.7.1: Invoke agent with isolated_env for session isolation
+            response = context.invoke_agent(
+                agent_id, "execution", task_context, session_uuid, isolated_env
+            )
 
             if isinstance(response, str):
                 response = AgentResponse(
@@ -276,6 +328,7 @@ class ModeExecutor(ABC):
         Async invocation of an agent.
 
         Uses asyncio.to_thread() for sync driver compatibility.
+        V9.7.1: Now passes isolated_env for Gemini session isolation via HOME spoofing.
         """
         if context.invoke_agent is None:
             return AgentResponse(
@@ -286,8 +339,10 @@ class ModeExecutor(ABC):
 
         start_time = datetime.now()
         session_uuid = None
+        isolated_env = None  # V9.7.1
         if role:
             session_uuid = context.get_session_uuid(role, agent_id)
+            isolated_env = context.get_isolated_env(role, agent_id)  # V9.7.1
 
         try:
             # Async rate limiting
@@ -306,14 +361,15 @@ class ModeExecutor(ABC):
                     time_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
-            # Try async invoke first, fallback to sync
+            # V9.7.1: Try async invoke first, fallback to sync - both pass isolated_env
             if hasattr(context, 'invoke_agent_async') and context.invoke_agent_async:
                 response = await context.invoke_agent_async(
-                    agent_id, "execution", task_context, session_uuid
+                    agent_id, "execution", task_context, session_uuid, isolated_env
                 )
             else:
                 response = await asyncio.to_thread(
-                    context.invoke_agent, agent_id, "execution", task_context, session_uuid
+                    context.invoke_agent, agent_id, "execution", task_context,
+                    session_uuid, isolated_env
                 )
 
             if isinstance(response, str):

@@ -59,6 +59,7 @@ class AgentSession:
         status: Current session status
         mode: How the session was initialized
         parent_session_uuid: For BRANCH mode, the session this was forked from
+        workspace_path: V9.7 - Isolated workspace path for context bleeding fix
     """
     agent_id: str
     session_uuid: str
@@ -67,6 +68,7 @@ class AgentSession:
     status: SessionStatus = SessionStatus.ACTIVE
     mode: SessionMode = SessionMode.FRESH
     parent_session_uuid: Optional[str] = None
+    workspace_path: Optional[str] = None  # V9.7: Isolated workspace for Gemini CLI
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -77,7 +79,8 @@ class AgentSession:
             "created_at": self.created_at,
             "status": self.status.value if isinstance(self.status, SessionStatus) else self.status,
             "mode": self.mode.value if isinstance(self.mode, SessionMode) else self.mode,
-            "parent_session_uuid": self.parent_session_uuid
+            "parent_session_uuid": self.parent_session_uuid,
+            "workspace_path": self.workspace_path  # V9.7
         }
 
     @classmethod
@@ -90,7 +93,8 @@ class AgentSession:
             created_at=data.get("created_at", datetime.now().isoformat()),
             status=SessionStatus(data.get("status", "active")),
             mode=SessionMode(data.get("mode", "fresh")),
-            parent_session_uuid=data.get("parent_session_uuid")
+            parent_session_uuid=data.get("parent_session_uuid"),
+            workspace_path=data.get("workspace_path")  # V9.7
         )
 
 
@@ -182,6 +186,10 @@ class SwarmSessionManager:
 
         # In-memory cache for fast access
         self._tasks: Dict[str, TaskSession] = {}
+
+        # V9.7: Workspace isolation for context bleeding fix
+        from core.session import SessionWorkspaceManager
+        self._workspace_manager = SessionWorkspaceManager(workspace_path)
 
         # Load existing registry
         self._load_registry()
@@ -299,6 +307,8 @@ class SwarmSessionManager:
         This is the main method used by HybridSwarmEngine to obtain unique
         session UUIDs for passing to CLI drivers.
 
+        V9.7: Also creates isolated workspace. Use get_workspace_path() to retrieve it.
+
         Args:
             task_id: The task identifier
             role: The role in the task (e.g., "lead", "worker")
@@ -321,6 +331,12 @@ class SwarmSessionManager:
             if role in task.roles:
                 return task.roles[role].session_uuid
 
+            # V9.7: Create isolated workspace for this session
+            workspace_path = self._workspace_manager.get_or_create_workspace(
+                session_id=f"{task_id}_{role}",
+                session_type="swarm"
+            )
+
             # Create new session
             session_uuid = str(uuid.uuid4())
             session = AgentSession(
@@ -328,7 +344,8 @@ class SwarmSessionManager:
                 session_uuid=session_uuid,
                 role=role,
                 mode=mode,
-                parent_session_uuid=parent_session_uuid
+                parent_session_uuid=parent_session_uuid,
+                workspace_path=str(workspace_path)  # V9.7: Store workspace path
             )
 
             task.roles[role] = session
@@ -355,6 +372,55 @@ class SwarmSessionManager:
             if task is None:
                 return None
             return task.roles.get(role)
+
+    def get_workspace_path(self, task_id: str, role: str) -> Optional[Path]:
+        """
+        Get the isolated workspace path for a session.
+
+        V9.7: Context Bleeding Fix - Returns the isolated workspace path.
+        DEPRECATED in V9.7.1: Use get_isolated_env() instead for HOME spoofing.
+
+        Args:
+            task_id: The task identifier
+            role: The role in the task
+
+        Returns:
+            Path to isolated workspace if session exists, None otherwise
+        """
+        session = self.get_session(task_id, role)
+        if session and session.workspace_path:
+            return Path(session.workspace_path)
+        return None
+
+    def get_isolated_env(self, task_id: str, role: str) -> Optional[Dict[str, str]]:
+        """
+        V9.7.1: Get isolated environment for Gemini subprocess.
+
+        Uses HOME spoofing instead of CWD isolation to prevent ghost files.
+        The subprocess will have:
+        - Same CWD (project root) - file operations work correctly
+        - Different HOME - session storage is isolated
+
+        Args:
+            task_id: The task identifier
+            role: The role in the task
+
+        Returns:
+            Environment dict with isolated HOME/USERPROFILE, or None if no session
+
+        Example:
+            >>> env = manager.get_isolated_env("task_001", "lead")
+            >>> subprocess.Popen(cmd, env=env, cwd=workspace_path)
+        """
+        session = self.get_session(task_id, role)
+        if session is None:
+            return None
+
+        # Use workspace_manager's HOME spoofing
+        return self._workspace_manager.get_isolated_env(
+            session_id=f"{task_id}_{role}",
+            session_type="swarm"
+        )
 
     def get_session_by_uuid(self, session_uuid: str) -> Optional[AgentSession]:
         """
@@ -412,14 +478,18 @@ class SwarmSessionManager:
     def complete_task(
         self,
         task_id: str,
-        status: SessionStatus = SessionStatus.COMPLETED
+        status: SessionStatus = SessionStatus.COMPLETED,
+        cleanup_workspaces: bool = True
     ) -> bool:
         """
         Mark a task and all its sessions as completed.
 
+        V9.7.1: Also cleans up isolated HOME directories by default.
+
         Args:
             task_id: The task to complete
             status: Final status (COMPLETED, FAILED, CANCELLED)
+            cleanup_workspaces: V9.7.1 - Whether to cleanup isolated environments
 
         Returns:
             True if task was found and updated
@@ -432,9 +502,21 @@ class SwarmSessionManager:
             task.status = status
             task.completed_at = datetime.now().isoformat()
 
-            # Mark all sessions as completed
-            for session in task.roles.values():
+            # Mark all sessions as completed and cleanup
+            for role, session in task.roles.items():
                 session.status = status
+                # V9.7.1: Cleanup isolated HOME and workspace
+                if cleanup_workspaces:
+                    # Cleanup legacy workspace (V9.7)
+                    self._workspace_manager.cleanup_workspace(
+                        session_id=f"{task_id}_{role}",
+                        session_type="swarm"
+                    )
+                    # Cleanup isolated HOME (V9.7.1)
+                    self._workspace_manager.cleanup_isolated_env(
+                        session_id=f"{task_id}_{role}",
+                        session_type="swarm"
+                    )
 
             self._save_registry()
             return True

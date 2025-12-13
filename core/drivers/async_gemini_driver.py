@@ -2,27 +2,37 @@
 AsyncGeminiDriver - TRUE Non-blocking Gemini CLI Driver.
 
 NEXUS V9.0 Async-First Architecture
+V9.7.1 - Context Bleeding Fix via HOME Spoofing (replaces V9.7 CWD Isolation)
 
 Same architecture as AsyncClaudeDriver:
 - asyncio.create_subprocess_exec (NOT subprocess.Popen)
 - async for line in proc.stdout (NOT iter(readline))
 - AsyncProcessHandle tracking by session_uuid
-- session_uuid isolation via --resume {uuid}
+
+V9.7.1 HOME Spoofing (replaces V9.7 CWD Isolation):
+- V9.7 CWD Isolation caused "ghost files" (writes to wrong directory)
+- V9.7.1 uses HOME spoofing: CWD stays at project root, HOME is isolated
+- Gemini CLI stores sessions in ~/.gemini/tmp/<hash(cwd)>/chats/
+- Different HOME = Different session storage = Isolation without ghost files
 
 Key Gemini-specific features:
 - JSON strict mode (--output-format json)
-- Session persistence (--resume {uuid})
 - YOLO approval mode (--approval-mode yolo)
 - Tool restrictions (--allowed-tools)
+
+Session Isolation (V9.7.1):
+- When isolated_env is provided: use --resume latest (safe with isolated HOME)
+- Without isolated_env: start fresh (no context leakage in shared HOME)
+- CWD always stays at project root (no ghost files)
 
 Usage:
     driver = AsyncGeminiDriver(config)
 
-    # With session isolation
-    result = await driver.invoke(context, session_uuid="abc123")
+    # With HOME isolation (V9.7.1 - recommended for parallel execution)
+    result = await driver.invoke(context, isolated_env=isolated_env_dict)
 
-    # Streaming
-    async for chunk in driver.invoke_stream(context, session_uuid="abc123"):
+    # Streaming with isolation
+    async for chunk in driver.invoke_stream(context, isolated_env=isolated_env_dict):
         print(chunk, end="")
 """
 
@@ -102,6 +112,7 @@ class AsyncGeminiDriver:
         session_uuid: Optional[str] = None,
         token: Optional[CancellationToken] = None,
         task_id: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
         Non-blocking invoke that collects full response.
@@ -111,6 +122,10 @@ class AsyncGeminiDriver:
             session_uuid: Unique ID for session isolation (from SwarmSessionManager)
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
+            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
+                         When provided, subprocess uses this env and --resume latest.
+                         CWD stays at project root (no ghost files).
+                         Different HOME = Different session storage = Isolation.
 
         Returns:
             Dict structured NEXUS response (JSON parsed)
@@ -120,7 +135,8 @@ class AsyncGeminiDriver:
             context,
             session_uuid=session_uuid,
             token=token,
-            task_id=task_id
+            task_id=task_id,
+            isolated_env=isolated_env,
         ):
             chunks.append(chunk)
 
@@ -135,6 +151,7 @@ class AsyncGeminiDriver:
         token: Optional[CancellationToken] = None,
         task_id: Optional[str] = None,
         on_token: Optional[Callable[[str], None]] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
     ) -> AsyncIterator[str]:
         """
         TRUE Non-blocking streaming invoke.
@@ -145,18 +162,31 @@ class AsyncGeminiDriver:
             token: CancellationToken for graceful cancellation
             task_id: Optional task ID for tracking
             on_token: Optional callback for each token
+            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
+                         When provided, subprocess uses this env and --resume latest.
+                         CWD stays at project root (no ghost files).
 
         Yields:
             Text chunks as they arrive from Gemini CLI
+
+        V9.7.1 Session Isolation (HOME Spoofing):
+            - CWD stays at project root (file operations work correctly)
+            - HOME is isolated via env parameter (session storage is isolated)
+            - isolated_env provided: Use --resume latest (SAFE with isolated HOME)
+            - No isolated_env: Start fresh session (no context leakage)
         """
         token = token or CancellationToken()
         unique_id = session_uuid or str(uuid_module.uuid4())[:8]
 
-        # Write context to isolated file
-        context_file = self.io_buffer / f"gemini_context_{unique_id}.md"
+        # V9.7.1: CWD always at project root (no ghost files)
+        effective_io_buffer = self.workspace_path / "_IO_BUFFER"
+        effective_io_buffer.mkdir(parents=True, exist_ok=True)
+
+        # Write context to file in main workspace's IO buffer
+        context_file = effective_io_buffer / f"gemini_context_{unique_id}.md"
         context_file.write_text(context, encoding="utf-8")
 
-        # Use relative path for subprocess (cwd will be workspace)
+        # V9.7.1: Path relative to workspace (CWD is always workspace root)
         context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
 
         # Find CLI executable
@@ -176,13 +206,19 @@ class AsyncGeminiDriver:
             "--include-directories", str(nexus_root),
         ]
 
-        # Session isolation via --resume
-        # V8.4.6 SECURITY FIX: NEVER fall back to --resume latest (context leakage)
-        if session_uuid:
-            cmd.extend(["--resume", session_uuid])
+        # V9.7.1: HOME spoofing replaces V9.7 CWD isolation (which caused ghost files)
+        # Gemini CLI stores sessions in ~/.gemini/tmp/<hash(cwd)>/chats/
+        # Different HOME = Different session storage = Isolation
+        # CWD stays at project root = No ghost files
+        if isolated_env:
+            # Isolated HOME: --resume latest is SAFE (no context bleeding)
+            cmd.extend(["--resume", "latest"])
             if self.config.verbose:
-                print(f"[AsyncGeminiDriver] Using session isolation: {session_uuid[:8]}...", file=sys.stderr)
-        # REMOVED: --resume latest fallback (context leakage risk in multi-agent scenarios)
+                print(f"[AsyncGeminiDriver] V9.7.1: Isolated HOME, using --resume latest", file=sys.stderr)
+        else:
+            # Shared HOME: start fresh (no --resume to prevent context leakage)
+            if self.config.verbose:
+                print(f"[AsyncGeminiDriver] V9.7.1: Shared HOME, starting fresh session", file=sys.stderr)
 
         # Add prompt file and output format
         cmd.extend(["-p", f"@{context_file_relative}", "-o", "json"])
@@ -191,11 +227,13 @@ class AsyncGeminiDriver:
 
         try:
             # TRUE ASYNC: create_subprocess_exec
+            # V9.7.1: CWD always at workspace root, env may be isolated
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace_path),
+                cwd=str(self.workspace_path),  # V9.7.1: Always at project root (no ghost files)
+                env=isolated_env,  # V9.7.1: Isolated HOME for session separation (None = inherit)
             )
 
             # Track by UUID
@@ -389,6 +427,7 @@ class AsyncGeminiDriver:
         *,
         session_uuid: Optional[str] = None,
         task_id: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
         Synchronous invoke for backward compatibility.
@@ -402,6 +441,7 @@ class AsyncGeminiDriver:
             context: Markdown context with system prompt
             session_uuid: Unique ID for session isolation
             task_id: Optional task ID for tracking
+            isolated_env: V9.7.1 - Isolated environment for session isolation
 
         Returns:
             Dict structured NEXUS response (JSON parsed)
@@ -419,7 +459,8 @@ class AsyncGeminiDriver:
         return asyncio.run(self.invoke(
             context,
             session_uuid=session_uuid,
-            task_id=task_id
+            task_id=task_id,
+            isolated_env=isolated_env,
         ))
 
 
