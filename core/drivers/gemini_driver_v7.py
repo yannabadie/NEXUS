@@ -102,11 +102,7 @@ class GeminiDriverV7:
         agent_id: Optional[str] = None,
         persistent: Optional[bool] = None
     ):
-        warnings.warn(
-            "GeminiDriverV7 is deprecated and will be removed in V9.5. Use AsyncGeminiDriver instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+        # V10: CLI-based driver is the official approach (subprocess + gemini CLI)
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
@@ -585,10 +581,10 @@ class GeminiDriverV7:
                 # Wrap list in a standard message structure to satisfy Orchestrator
                 # V8.4.0: Use registry for display name
                 registry = get_registry()
-                return {
+                list_response = {
                     "sender": registry.get_display_name("gemini"),
                     "action_type": "TALK",
-                    "content": json.dumps(extracted_data), # Pass the list as a string content
+                    "content": json.dumps(extracted_data),  # Pass the list as a string content
                     "status": "FINISHED"
                 }
                 # V8.8: Validate output for leaks

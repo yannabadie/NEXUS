@@ -78,11 +78,17 @@ def verify_kernel_integrity():
     """
     Verify this file has not been tampered with.
     Called by nexus.py bootloader at startup.
+    
+    V10 SECURITY HARDENING:
+    - Priority 1: NEXUS_KERNEL_HASH env var (secure, external to filesystem)
+    - Priority 2: KERNEL_HASH.txt file (dev mode fallback only)
+    - Priority 3: Create hash file (first run only)
 
     Returns:
         bool: True if hash matches, False if corrupted
     """
     import hashlib
+    import os
     from pathlib import Path
 
     kernel_path = Path(__file__)
@@ -92,11 +98,26 @@ def verify_kernel_integrity():
     with open(kernel_path, 'rb') as f:
         current_hash = hashlib.sha256(f.read()).hexdigest()
 
-    # Load expected hash
+    # Priority 1: Environment variable (SECURE - external to agent filesystem access)
+    env_hash = os.environ.get("NEXUS_KERNEL_HASH")
+    if env_hash:
+        expected_hash = env_hash.replace("sha256:", "").strip()
+        if current_hash != expected_hash:
+            print(f"[SECURITY VIOLATION] KERNEL.py has been modified!")
+            print(f"  Expected (env): {expected_hash}")
+            print(f"  Current:        {current_hash}")
+            return False
+        return True
+
+    # Priority 2: File-based (DEV MODE ONLY - warn about security theater)
+    print("[SECURITY WARNING] NEXUS_KERNEL_HASH env var not set - using file fallback (dev mode)")
+    print("  → Set NEXUS_KERNEL_HASH in production for real integrity protection")
+    
     if not kernel_hash_path.exists():
         print(f"[SECURITY] KERNEL_HASH.txt not found! Creating initial hash...")
         with open(kernel_hash_path, 'w') as f:
             f.write(f"sha256:{current_hash}")
+        print(f"  → Add to .env: NEXUS_KERNEL_HASH={current_hash}")
         return True
 
     with open(kernel_hash_path, 'r') as f:
