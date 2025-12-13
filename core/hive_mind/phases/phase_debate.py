@@ -18,6 +18,7 @@ Key Features:
 """
 
 import asyncio
+import ast
 import json
 import logging
 import re
@@ -41,6 +42,32 @@ if TYPE_CHECKING:
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
+    """
+    V10.1: Parse JSON with fallback to ast.literal_eval for Python dict format.
+    
+    Gemini sometimes returns single-quoted Python dicts instead of double-quoted JSON.
+    This handles both formats gracefully.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Try ast.literal_eval for Python dict format (single quotes)
+        try:
+            result = ast.literal_eval(text)
+            if isinstance(result, dict):
+                return result
+        except (ValueError, SyntaxError):
+            pass
+        # Try replacing single quotes with double quotes
+        try:
+            fixed = text.replace("'", '"')
+            return json.loads(fixed)
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 # Debate prompt templates
@@ -470,9 +497,13 @@ class StrategicDebatePhase:
             return {"argument": response[:300]}
 
         try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            return {"argument": response[:300]}
+            # V10.1: Use safe JSON parse with fallback for Python dict format
+            result = _safe_json_parse(json_match.group())
+            if result:
+                return result
+        except Exception:
+            pass
+        return {"argument": response[:300]}
 
     def _format_debate_history(self, history: List[DebateArgument]) -> str:
         """Format debate history for prompts."""
@@ -519,7 +550,10 @@ class StrategicDebatePhase:
 
             json_match = re.search(r'\{[\s\S]*\}', content)
             if json_match:
-                return json.loads(json_match.group())
+                # V10.1: Use safe JSON parse with fallback for Python dict format
+                result = _safe_json_parse(json_match.group())
+                if result:
+                    return result
 
         except Exception as e:
             logger.error(f"Consensus check failed: {e}")

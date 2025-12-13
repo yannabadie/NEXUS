@@ -21,12 +21,36 @@ Key Innovation:
 """
 
 import asyncio
+import ast
 import json
 import logging
 import re
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
+    """
+    V10.1: Parse JSON with fallback to ast.literal_eval for Python dict format.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            result = ast.literal_eval(text)
+            if isinstance(result, dict):
+                return result
+        except (ValueError, SyntaxError):
+            pass
+        try:
+            fixed = text.replace("'", '"')
+            return json.loads(fixed)
+        except json.JSONDecodeError:
+            pass
+    return None
 
 from ..types import (
     AgentSpec,
@@ -308,7 +332,11 @@ class ArchitectureGenerationPhase:
             return self._create_fallback_architecture(capabilities)
 
         try:
-            data = json.loads(json_match.group())
+            # V10.1: Use safe JSON parse with fallback for Python dict format
+            data = _safe_json_parse(json_match.group())
+            if not data:
+                logger.warning(f"JSON parse error: Could not parse architecture response")
+                return self._create_fallback_architecture(capabilities)
 
             # Parse agents to spawn
             agents_to_spawn = []

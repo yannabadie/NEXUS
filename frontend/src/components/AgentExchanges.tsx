@@ -27,29 +27,65 @@ interface AgentExchangesProps {
 function formatContent(content: string): React.ReactNode {
     if (!content) return <span className="text-zinc-500 italic">(empty response)</span>;
 
-    // Try to detect and format JSON
+    // Try to parse as JSON or Python dict
     const trimmed = content.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        let parsed: Record<string, unknown> | null = null;
+
+        // Try standard JSON first
         try {
-            const parsed = JSON.parse(trimmed);
-            // Format key fields nicely
+            parsed = JSON.parse(trimmed);
+        } catch {
+            // Try Python dict format (single quotes → double quotes)
+            try {
+                // Replace single quotes with double quotes (simple approach)
+                const fixed = trimmed
+                    .replace(/'/g, '"')
+                    .replace(/True/g, 'true')
+                    .replace(/False/g, 'false')
+                    .replace(/None/g, 'null');
+                parsed = JSON.parse(fixed);
+            } catch {
+                // Not parseable, display as-is
+            }
+        }
+
+        if (parsed && typeof parsed === 'object') {
             const formatted: string[] = [];
 
-            // Common HiveMind response fields
+            // Analysis phase fields
             if (parsed.task_understanding) formatted.push(`📋 ${parsed.task_understanding}`);
             if (parsed.proposed_approach) formatted.push(`🎯 ${parsed.proposed_approach}`);
+            if (parsed.complexity_assessment) formatted.push(`📊 Complexity: ${parsed.complexity_assessment}`);
+
+            // Debate phase fields
             if (parsed.argument) formatted.push(`💬 ${parsed.argument}`);
             if (parsed.position) formatted.push(`🔷 Position: ${parsed.position}`);
             if (parsed.concession) formatted.push(`🤝 Concession: ${parsed.concession}`);
-            if (parsed.complexity_assessment) formatted.push(`📊 Complexity: ${parsed.complexity_assessment}`);
+            if (parsed.target_point) formatted.push(`🎯 Target: ${parsed.target_point}`);
+
+            // Failure/Diagnosis fields
+            if (parsed.failure_type) formatted.push(`⚠️ Failure: ${parsed.failure_type}`);
+            if (parsed.root_cause) formatted.push(`🔍 Root cause: ${parsed.root_cause}`);
+            if (parsed.contributing_factors) {
+                const factors = Array.isArray(parsed.contributing_factors)
+                    ? parsed.contributing_factors.join(', ')
+                    : parsed.contributing_factors;
+                formatted.push(`📝 Factors: ${factors}`);
+            }
+
+            // Consensus fields
+            if (parsed.consensus_reached !== undefined) {
+                formatted.push(`${parsed.consensus_reached ? '✅' : '❌'} Consensus: ${parsed.consensus_reached}`);
+            }
+            if (parsed.consensus_score) formatted.push(`📈 Score: ${parsed.consensus_score}`);
 
             if (formatted.length > 0) {
                 return <>{formatted.join('\n')}</>;
             }
-            // Fallback: pretty print JSON
-            return JSON.stringify(parsed, null, 2);
-        } catch {
-            // Not valid JSON, display as-is
+            // Fallback: pretty print JSON with truncation
+            const jsonStr = JSON.stringify(parsed, null, 2);
+            return jsonStr.length > 500 ? jsonStr.slice(0, 500) + '...' : jsonStr;
         }
     }
 
