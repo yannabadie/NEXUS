@@ -72,7 +72,7 @@ export interface OrchestrationState {
 }
 
 export async function getOrchestrationState() {
-    return fetchApi<OrchestrationState>("/api/orchestration");
+    return fetchApi<OrchestrationState>("/api/orchestration/state");
 }
 
 // ============================================================================
@@ -130,7 +130,7 @@ export async function getBudgetStatus() {
 export async function sendChatMessage(message: string) {
     return fetchApi<{ response: string }>("/api/chat", {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ content: message }),
     });
 }
 
