@@ -16,57 +16,11 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional, Any
-from dataclasses import dataclass
 
 logger = logging.getLogger("nexus.dashboard_orchestrator")
 
 # Global singleton instance
 _orchestrator_instance: Optional["DashboardOrchestrator"] = None
-
-
-@dataclass
-class DashboardConfig:
-    """Minimal config for dashboard orchestrator - mirrors core/config.py."""
-    workspace_path: Path
-    gemini_cli_path: str
-    claude_cli_path: str
-    # Models
-    gemini_opus_model: str = "gemini-3-pro-preview"
-    claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
-    # Orchestration
-    timeout: int = 120
-    cfl_timeout: int = 60
-    max_stalemate_count: int = 5
-    stagnation_similarity_threshold: float = 0.85
-    # Memory
-    compression_threshold_tokens: int = 100000
-    # Logging
-    log_level: str = "INFO"
-    # UI
-    streaming_enabled: bool = True
-    ui_verbose: bool = False
-    console_output_limit: int = 5000
-    # Version
-    nexus_version: str = "10.0"
-    nexus_codename: str = "SINGULARITY"
-    # Budget
-    budget_limit: float = 10.0
-    # Evolution (minimal, not used in dashboard)
-    max_generations_per_day: int = 10
-    min_hours_between_gen: float = 0.1
-    max_children_concurrent: int = 5
-    max_children_stable: int = 10
-    stable_mode_threshold: int = 5
-    fitness_metrics: dict = None
-    
-    def __post_init__(self):
-        if self.fitness_metrics is None:
-            self.fitness_metrics = {
-                "coding": 0.30,
-                "reasoning": 0.30,
-                "creativity": 0.25,
-                "scalability": 0.15
-            }
 
 
 class DashboardOrchestrator:
@@ -99,21 +53,19 @@ class DashboardOrchestrator:
             try:
                 # Import here to avoid circular imports
                 from core.orchestration_v7 import OrchestratorV7
+                from core.config import NexusConfig
                 
                 # Determine paths
                 workspace_path = Path("workspace").resolve()
                 workspace_path.mkdir(parents=True, exist_ok=True)
                 
-                # Create config
-                config = DashboardConfig(
-                    workspace_path=workspace_path,
-                    gemini_cli_path=os.getenv("GEMINI_CLI_PATH", "gemini"),
-                    claude_cli_path=os.getenv("CLAUDE_CLI_PATH", "claude"),
-                )
+                # Use NexusConfig for full compatibility
+                config = NexusConfig()
+                config.workspace_path = workspace_path
                 
                 # Agent info
                 gemini_info = {
-                    "model": config.gemini_opus_model,
+                    "model": config.gemini_default_model,
                     "cli_path": config.gemini_cli_path
                 }
                 
