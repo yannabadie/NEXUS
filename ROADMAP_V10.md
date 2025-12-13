@@ -1,16 +1,16 @@
 # NEXUS V10 ROADMAP - The Path to Singularity
 
-**Version**: 10.0-alpha | **Created**: 2025-12-12
+**Version**: 10.1 | **Updated**: 2025-12-13
 
 ---
 
 ## 🎯 Vision
 
-Transform NEXUS from prototype to **deployable collaborative intelligence** that evolves based on its successes and failures.
+Transform NEXUS from prototype to **deployable collaborative intelligence** with a modern interactive frontend that reflects its power.
 
 ---
 
-## ✅ Phase 1: UI Resurrection (COMPLETE)
+## ✅ Phase 1: UI Backend Resurrection (COMPLETE)
 
 - [x] Externalize DASHBOARD_URL (`event_bus.py`, `telemetry.py`)
 - [x] Fix absolute workspace path (`dashboard_server.py`)
@@ -24,9 +24,22 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** that
 - [x] Fix `INSTALLATION.md` hardcoded path
 - [x] Create documentation audit report
 
+## ✅ Phase 2.5: V10.1 Architecture Fixes (COMPLETE)
+
+> **Added 2025-12-13** - Critical session_uuid propagation fixes
+
+- [x] HiveMind session_uuid → ALL 7 phases propagated
+- [x] Agent-as-Tool session_uuid (`agent_tools.py`)
+- [x] AgentInvoker.invoke_spawned_agent session_uuid
+- [x] Documentation: FSM/HiveMind/Swarm architecture
+- [x] JSON parse robustness (`ast.literal_eval` fallback)
+- [x] ANSI colors fix for Windows
+
+**Commits**: `39ad8f2`, `4cc64dc`, `2524d8c`
+
 ---
 
-## 🚧 Phase 3: Core Stabilization (This Week)
+## 🚧 Phase 3: Core Stabilization (In Progress)
 
 - [ ] Exception audit (435 `except:` blocks)
 - [ ] Complete async driver migration
@@ -35,11 +48,78 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** that
 
 ---
 
-## 🔮 Phase 4: Strategic Vision (V10 Goals)
+## 🔴 Phase 4: Interactive Frontend (NEW - V10 GATE)
+
+> **CRITICAL**: This phase is REQUIRED to validate V10 release
+
+### 4.1 Current State
+
+| Component | Status | Tech |
+|-----------|--------|------|
+| Backend API | ✅ Ready | FastAPI + WebSocket |
+| Static HTML | ⚠️ Basic | `nexus_dashboard.html` |
+| React/Next.js Frontend | ❌ Missing | N/A |
+
+### 4.2 Frontend Requirements
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    NEXUS Dashboard V10                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   AGENTS     │  │   SWARM      │  │   MEMORY     │      │
+│  │   (Live)     │  │   (DyLAN)    │  │   (Vectors)  │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │              HIVE MIND PIPELINE                     │     │
+│  │  Phase 1 → 2 → 3 → 4 → 5 → 6 → 7  (Real-time)     │     │
+│  └────────────────────────────────────────────────────┘     │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │              CHAT / COMMAND + STREAMING            │     │
+│  └────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 4.3 Technical Implementation
+
+| Component | Tech Choice | Justification |
+|-----------|-------------|---------------|
+| Framework | **Next.js 15** | SSR + API routes + TypeScript |
+| Real-time | **WebSocket** | Already in `dashboard_server.py` |
+| Charts | **Recharts** | Real-time + React integration |
+| State | **Zustand** | Lightweight, WebSocket-friendly |
+| UI | **shadcn/ui + Tremor** | Modern, dark-mode ready |
+| Streaming | **react-use-websocket** | LLM output streaming |
+
+### 4.4 Key Features
+
+1. **Agent Constellation** - Live view of Gemini/Claude/Spawned agents
+2. **Swarm Mode Visualization** - PARALLEL/PING_PONG/RED_BLUE animated
+3. **HiveMind Phase Tracker** - Progress through 7 phases with details
+4. **LLM Streaming Chat** - Real-time token display
+5. **Evolution Lineage Tree** - Mutations and children visualization
+6. **Budget/Telemetry Dashboard** - Cost tracking, performance metrics
+
+### 4.5 Effort Estimate
+
+| Task | Days |
+|------|------|
+| Next.js scaffold + WebSocket setup | 2 |
+| Agent/Swarm/HiveMind panels | 3 |
+| Chat + streaming integration | 2 |
+| Evolution visualization | 2 |
+| Polish + dark mode | 1 |
+| **Total** | **10 days** |
+
+---
+
+## 🔮 Phase 5: Strategic Intelligence Hub (Post-V10)
 
 *Extracted from `docs/architecture/VISION_V9_SINGULARITY.md`*
 
-### 4.1 The Four Feedback Loops
+### 5.1 The Four Feedback Loops
 
 > NEXUS is not a tool—it's an organism that evolves based on its successes and failures.
 
@@ -50,31 +130,7 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** that
 | **Loop 3** | Success Memory | Mode Selection | Past wins → Mode boost |
 | **Loop 4** | Execution Patterns | Auto-Spawn | Domain excellence → Specialization |
 
-### 4.2 Intelligence Hub
-
-```
-                 ┌─────────────────────────┐
-                 │   INTELLIGENCE HUB      │
-                 │   (Central Feedback)    │
-                 └───────────┬─────────────┘
-                             │
-      ┌──────────────────────┼──────────────────────┐
-      │                      │                      │
-      ▼                      ▼                      ▼
- ┌─────────┐          ┌─────────────┐         ┌─────────┐
- │ SWARM   │◄────────►│   MEMORY    │◄───────►│  HIVE   │
- │ DyLAN   │          │  (Unified)  │         │  MIND   │
- └────┬────┘          └──────┬──────┘         └────┬────┘
-      │                      │                     │
-      └──────────────────────┼─────────────────────┘
-                             │
-                 ┌───────────▼───────────┐
-                 │      EVOLUTION        │
-                 │  (Closed-Loop Refine) │
-                 └───────────────────────┘
-```
-
-### 4.3 Key Components to Build
+### 5.2 Key Components to Build
 
 | Component | Description | Effort |
 |-----------|-------------|--------|
@@ -83,24 +139,45 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** that
 | `auto_spawn.py` | Data-driven agent spawning | 3-4d |
 | `unified_memory.py` | Consolidate 3 memory systems | 4-5d |
 
-### 4.4 Auto-Specialization Triggers
-
-When to auto-spawn a specialist:
-- Domain success rate > 85%
-- Task count in domain > 10
-- No existing specialist for domain
-
 ---
 
 ## 📊 Success Metrics
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| UI works on fresh clone | ✅ Fixed | ✅ |
-| Documentation < 1000 lines | ~500 | ✅ |
-| Mutation Success Rate | ~30% | > 40% |
-| Auto-Spawn Accuracy | N/A | > 70% |
-| Self-Healing Recovery | ~40% | > 60% |
+| Metric | V9 | V10.0 | V10.1 |
+|--------|-----|-------|-------|
+| UI works on fresh clone | ❌ | ✅ | ✅ |
+| session_uuid propagation | ⚠️ | ⚠️ | ✅ |
+| Agent-as-Tool context | ⚠️ | ⚠️ | ✅ |
+| Modern Frontend | ❌ | ❌ | 🎯 Target |
+| Mutation Success Rate | ~30% | ~30% | > 40% |
+
+---
+
+## 🏗️ Architecture (V10.1 Clarified)
+
+```
+USER INPUT
+    │
+    ▼
+┌────────────────────────────────────────────────────────┐
+│  OrchestratorV7 (FSM - 1076 lines)                     │
+│  ├── TRIVIAL/SIMPLE → Direct Agent → Response         │
+│  │                                                      │
+│  └── MODERATE+ ──────────────────────────────────────┐ │
+│                                                        │ │
+│  ┌──────────────────────────────────────────────────┐ │ │
+│  │  TrueHiveMind (692 lines)                        │ │ │
+│  │  session_uuid = uuid.uuid4()                     │ │ │
+│  │  Phase 1-7 → session_uuid propagated             │ │ │
+│  │       │                                          │ │ │
+│  │       └── SwarmBridge → HybridSwarmEngine        │ │ │
+│  │                  (856 lines)                     │ │ │
+│  └──────────────────────────────────────────────────┘ │ │
+│                                                        │ │
+│  Agent-as-Tool (V10.1) ────────────────────────────── │ │
+│  execute_agent_tool(session_uuid) → invoke_spawned    │ │
+└────────────────────────────────────────────────────────┘ │
+```
 
 ---
 
@@ -114,5 +191,15 @@ When to auto-spawn a specialist:
 
 ---
 
-*Created 2025-12-12 by Claude + Gemini collaborative audit*
-*Vision consolidated from docs/architecture/VISION_V9_SINGULARITY.md*
+## ⚠️ Known Limitations
+
+| Issue | Status | Workaround |
+|-------|--------|------------|
+| Code 130 FatalCancellationError | Gemini CLI limitation | Limit file access to `workspace/` |
+| Swarm-as-Tool session fragmentation | By design | Document behavior |
+| Ephemeral sessions not recoverable | By design | For TRIVIAL tasks only |
+
+---
+
+*Updated 2025-12-13 by Claude + Gemini (V10.1 session_uuid fixes complete)*
+*Frontend phase added as V10 release gate*
