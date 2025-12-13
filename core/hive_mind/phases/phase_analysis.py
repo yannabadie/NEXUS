@@ -253,6 +253,7 @@ class IndependentAnalysisPhase:
         """Parse agent's JSON response into analysis data."""
         import json
         import re
+        import ast
 
         # Try to extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response)
@@ -260,23 +261,48 @@ class IndependentAnalysisPhase:
             logger.warning(f"{agent_id} response not in JSON format, using defaults")
             return self._default_analysis_data()
 
+        json_str = json_match.group()
+        
+        # Method 1: Standard JSON parse
         try:
-            data = json.loads(json_match.group())
-
-            # Validate and normalize
-            return {
-                "task_understanding": data.get("task_understanding", "Unknown"),
-                "complexity_assessment": data.get("complexity_assessment", "MODERATE"),
-                "proposed_approach": data.get("proposed_approach", "Unknown"),
-                "required_capabilities": data.get("required_capabilities", []),
-                "potential_risks": data.get("potential_risks", []),
-                "confidence": float(data.get("confidence", 0.5)),
-                "reasoning": data.get("reasoning", "")
-            }
-
+            data = json.loads(json_str)
+            return self._normalize_analysis_data(data)
+        except json.JSONDecodeError:
+            pass  # Try next method
+        
+        # Method 2: V10 Fix - Handle Python dict repr (single quotes)
+        # Gemini sometimes returns {'key': 'val'} instead of {"key": "val"}
+        try:
+            # Use ast.literal_eval as safe dict parser
+            data = ast.literal_eval(json_str)
+            if isinstance(data, dict):
+                logger.debug(f"Parsed {agent_id} response as Python dict (single quotes)")
+                return self._normalize_analysis_data(data)
+        except (ValueError, SyntaxError):
+            pass  # Try next method
+        
+        # Method 3: V10 Fix - Replace single quotes with double quotes
+        try:
+            # Convert Python dict repr to JSON format
+            fixed_json = json_str.replace("'", '"')
+            data = json.loads(fixed_json)
+            logger.debug(f"Parsed {agent_id} response after quote fix")
+            return self._normalize_analysis_data(data)
         except json.JSONDecodeError as e:
             logger.warning(f"JSON parse error for {agent_id}: {e}")
             return self._default_analysis_data()
+    
+    def _normalize_analysis_data(self, data: Dict) -> Dict[str, Any]:
+        """Normalize analysis data from parsed dict."""
+        return {
+            "task_understanding": data.get("task_understanding", "Unknown"),
+            "complexity_assessment": data.get("complexity_assessment", "MODERATE"),
+            "proposed_approach": data.get("proposed_approach", "Unknown"),
+            "required_capabilities": data.get("required_capabilities", []),
+            "potential_risks": data.get("potential_risks", []),
+            "confidence": float(data.get("confidence", 0.5)),
+            "reasoning": data.get("reasoning", "")
+        }
 
     def _default_analysis_data(self) -> Dict[str, Any]:
         """Return default analysis data when parsing fails."""
