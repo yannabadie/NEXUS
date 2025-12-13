@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getBudgetStatus, type BudgetStatus } from "@/lib/api";
+import { BudgetGauge } from "@/components/BudgetGauge";
+import { EvolutionTree } from "@/components/EvolutionTree";
+import { MemoryPreview } from "@/components/MemoryPreview";
 
 // ============================================================================
 // Stat Card
@@ -50,6 +53,7 @@ function StatCard({
 export default function AnalyticsPage() {
     const [budget, setBudget] = useState<BudgetStatus | null>(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<"overview" | "evolution" | "memory">("overview");
 
     useEffect(() => {
         async function fetchData() {
@@ -78,7 +82,7 @@ export default function AnalyticsPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-white">📈 Analytics</h1>
                     <p className="text-sm text-zinc-400">
-                        Token usage, costs, and performance metrics
+                        System metrics, evolution history, and knowledge base
                     </p>
                 </div>
                 <button
@@ -89,125 +93,138 @@ export default function AnalyticsPage() {
                 </button>
             </div>
 
-            {/* Budget Overview */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                <h2 className="text-sm font-medium text-zinc-400 mb-4">Daily Budget</h2>
-                <div className="flex items-end gap-4 mb-4">
-                    <div className="text-4xl font-bold text-white">
-                        ${budget?.spent?.toFixed(2) || "0.00"}
-                    </div>
-                    <div className="text-zinc-400 pb-1">
-                        / ${budget?.limit?.toFixed(0) || "50"} limit
-                    </div>
-                </div>
-                <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full transition-all ${(budget?.percentage || 0) > 90 ? "bg-red-500" :
-                                (budget?.percentage || 0) > 75 ? "bg-yellow-500" :
-                                    "bg-gradient-to-r from-violet-500 to-fuchsia-500"
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-2 border-b border-zinc-800">
+                {[
+                    { id: "overview", label: "Overview", icon: "📊" },
+                    { id: "evolution", label: "Evolution", icon: "🧬" },
+                    { id: "memory", label: "Memory", icon: "🧠" },
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                                ? "border-violet-500 text-violet-300"
+                                : "border-transparent text-zinc-400 hover:text-zinc-200"
                             }`}
-                        style={{ width: `${budget?.percentage || 0}%` }}
-                    />
-                </div>
-                <div className="flex justify-between text-xs text-zinc-500 mt-2">
-                    <span>{budget?.percentage?.toFixed(0) || 0}% used</span>
-                    <span>${((budget?.limit || 50) - (budget?.spent || 0)).toFixed(2)} remaining</span>
-                </div>
+                    >
+                        {tab.icon} {tab.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    label="Total Tokens Today"
-                    value="125.4K"
-                    subValue="Input + Output"
-                    icon="🔤"
-                    trend="up"
-                />
-                <StatCard
-                    label="API Calls"
-                    value="47"
-                    subValue="Gemini + Claude"
-                    icon="📡"
-                    trend="neutral"
-                />
-                <StatCard
-                    label="Avg. Latency"
-                    value="2.3s"
-                    subValue="Per request"
-                    icon="⚡"
-                    trend="down"
-                />
-                <StatCard
-                    label="Success Rate"
-                    value="94%"
-                    subValue="Last 24h"
-                    icon="✅"
-                    trend="up"
-                />
-            </div>
+            {/* Tab Content */}
+            {activeTab === "overview" && (
+                <div className="space-y-6">
+                    {/* Budget Gauge */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <BudgetGauge
+                            spent={budget?.spent || 0}
+                            limit={budget?.limit || 50}
+                            size="lg"
+                            showBreakdown
+                            breakdown={{
+                                gemini: (budget?.spent || 0) * 0.4,
+                                claude: (budget?.spent || 0) * 0.55,
+                                spawned: (budget?.spent || 0) * 0.05,
+                            }}
+                        />
 
-            {/* Usage Breakdown */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* By Agent */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                    <h2 className="text-sm font-medium text-zinc-400 mb-4">Usage by Agent</h2>
-                    <div className="space-y-4">
-                        {[
-                            { name: "Gemini", tokens: 75200, cost: 4.51, color: "from-blue-500 to-cyan-500" },
-                            { name: "Claude", tokens: 50200, cost: 7.53, color: "from-orange-500 to-amber-500" },
-                        ].map((agent) => (
-                            <div key={agent.name}>
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-zinc-300">{agent.name}</span>
-                                    <span className="text-zinc-400">{(agent.tokens / 1000).toFixed(1)}K tokens • ${agent.cost.toFixed(2)}</span>
-                                </div>
-                                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full bg-gradient-to-r ${agent.color}`}
-                                        style={{ width: `${(agent.tokens / 125400) * 100}%` }}
-                                    />
-                                </div>
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <StatCard
+                                label="Total Tokens"
+                                value="125.4K"
+                                subValue="Today"
+                                icon="🔤"
+                                trend="up"
+                            />
+                            <StatCard
+                                label="API Calls"
+                                value="47"
+                                subValue="Gemini + Claude"
+                                icon="📡"
+                                trend="neutral"
+                            />
+                            <StatCard
+                                label="Avg. Latency"
+                                value="2.3s"
+                                subValue="Per request"
+                                icon="⚡"
+                                trend="down"
+                            />
+                            <StatCard
+                                label="Success Rate"
+                                value="94%"
+                                subValue="Last 24h"
+                                icon="✅"
+                                trend="up"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Usage Breakdown */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* By Agent */}
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+                            <h2 className="text-sm font-medium text-zinc-400 mb-4">Usage by Agent</h2>
+                            <div className="space-y-4">
+                                {[
+                                    { name: "Gemini", tokens: 75200, cost: 4.51, color: "from-blue-500 to-cyan-500" },
+                                    { name: "Claude", tokens: 50200, cost: 7.53, color: "from-orange-500 to-amber-500" },
+                                ].map((agent) => (
+                                    <div key={agent.name}>
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span className="text-zinc-300">{agent.name}</span>
+                                            <span className="text-zinc-400">{(agent.tokens / 1000).toFixed(1)}K • ${agent.cost.toFixed(2)}</span>
+                                        </div>
+                                        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full bg-gradient-to-r ${agent.color}`}
+                                                style={{ width: `${(agent.tokens / 125400) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        </div>
+
+                        {/* By Phase */}
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+                            <h2 className="text-sm font-medium text-zinc-400 mb-4">Usage by HiveMind Phase</h2>
+                            <div className="space-y-3">
+                                {[
+                                    { name: "Analysis", pct: 25, icon: "🔍" },
+                                    { name: "Debate", pct: 35, icon: "⚔️" },
+                                    { name: "Architecture", pct: 15, icon: "📐" },
+                                    { name: "Execution", pct: 20, icon: "⚡" },
+                                    { name: "Consolidation", pct: 5, icon: "📦" },
+                                ].map((phase) => (
+                                    <div key={phase.name} className="flex items-center gap-3">
+                                        <span className="text-lg w-6">{phase.icon}</span>
+                                        <span className="text-sm text-zinc-300 w-28">{phase.name}</span>
+                                        <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-violet-500"
+                                                style={{ width: `${phase.pct}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs text-zinc-500 w-10 text-right">{phase.pct}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* By Phase */}
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-                    <h2 className="text-sm font-medium text-zinc-400 mb-4">Usage by HiveMind Phase</h2>
-                    <div className="space-y-3">
-                        {[
-                            { name: "Analysis", pct: 25, icon: "🔍" },
-                            { name: "Debate", pct: 35, icon: "⚔️" },
-                            { name: "Architecture", pct: 15, icon: "📐" },
-                            { name: "Execution", pct: 20, icon: "⚡" },
-                            { name: "Consolidation", pct: 5, icon: "📦" },
-                        ].map((phase) => (
-                            <div key={phase.name} className="flex items-center gap-3">
-                                <span className="text-lg w-6">{phase.icon}</span>
-                                <span className="text-sm text-zinc-300 w-28">{phase.name}</span>
-                                <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-violet-500"
-                                        style={{ width: `${phase.pct}%` }}
-                                    />
-                                </div>
-                                <span className="text-xs text-zinc-500 w-10 text-right">{phase.pct}%</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            {activeTab === "evolution" && (
+                <EvolutionTree />
+            )}
 
-            {/* Coming Soon Notice */}
-            <div className="bg-zinc-800/30 border border-dashed border-zinc-700 rounded-xl p-6 text-center">
-                <div className="text-2xl mb-2 opacity-30">📊</div>
-                <div className="text-zinc-400">More analytics features coming soon</div>
-                <div className="text-xs text-zinc-600 mt-1">
-                    Time-series charts, comparison reports, anomaly detection
-                </div>
-            </div>
+            {activeTab === "memory" && (
+                <MemoryPreview />
+            )}
         </div>
     );
 }
