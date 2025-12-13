@@ -117,7 +117,12 @@ class GeminiDriverV7:
         # Sessions are automatically saved by Gemini CLI, --resume latest restores context
         # First call creates session, subsequent calls use --resume latest
         self.use_session_resume = getattr(config, 'gemini_persistent_mode', True)
-        self._session_active = False  # Track if we have a session to resume
+        
+        # V10.1: Per-task session tracking for parallel isolation
+        # Key = session_uuid (from NEXUS), Value = True (session started for this task)
+        # This allows different tasks to have independent sessions
+        self._active_sessions: Dict[str, bool] = {}
+        self._session_active = False  # Legacy: for calls without session_uuid
         self.config = config
 
         # Legacy persistent process (disabled - use session resume instead)
@@ -413,19 +418,35 @@ class GeminiDriverV7:
         # - NO run_shell_command: Too dangerous for auto-approval
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # V10 FIX: REMOVED --resume {session_uuid} - IT NEVER WORKED!
-        # Gemini CLI can only resume sessions IT created, not NEXUS-generated UUIDs.
-        # The session_uuid is now used ONLY for NEXUS internal logging/tracking.
-        # 
-        # Previous broken behavior (V7.5-V10):
-        #   --resume {nexus_uuid} → "Invalid session identifier" error
+        # V10.1 FIX: Per-task session management
+        # - NEVER use --resume {session_uuid} (broken - Gemini CLI can only resume ITS sessions)
+        # - USE --resume latest ONLY for subsequent calls with SAME session_uuid
+        # - Different session_uuids get fresh sessions (parallel task isolation)
         #
-        # New behavior (V10.1+):
-        #   Always start FRESH session (safe, isolated, works)
+        # Session flow per session_uuid:
+        # 1. First call with uuid X: Fresh session → mark _active_sessions[X] = True
+        # 2. Subsequent calls with uuid X: --resume latest → continues X's context
+        # 3. First call with uuid Y: Fresh session → mark _active_sessions[Y] = True
         #
-        # session_uuid is still passed for logging/debugging purposes only
+        # This maintains context within a HiveMind task while isolating parallel tasks
+        
+        # Determine if this session_uuid already has an active session
+        session_is_active = False
         if session_uuid:
-            _logger.debug("Using session for tracking", session_uuid=session_uuid[:8])
+            _logger.debug("Session for tracking", session_uuid=session_uuid[:8])
+            session_is_active = self._active_sessions.get(session_uuid, False)
+        else:
+            # No session_uuid: use legacy global flag
+            session_is_active = self._session_active
+        
+        # Determine resume flag based on per-task session state
+        if self.use_session_resume and session_is_active:
+            resume_flag = "--resume latest"
+            _logger.debug("Using --resume latest for session continuity", 
+                         session_uuid=session_uuid[:8] if session_uuid else "global")
+        else:
+            resume_flag = ""
+            _logger.debug("Starting fresh session (first call for this task)")
         
         approval_mode = "--approval-mode yolo"  # Safe: write ops sandboxed to workspace
 
@@ -434,11 +455,12 @@ class GeminiDriverV7:
             # --allowed-tools: Only auto-approve read tools (write/shell require confirmation)
             # --include-directories: Give Gemini READ access to parent NEXUS code
             # FIX: Use context_file_relative to avoid double-path issue (cwd is already workspace)
-            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" -p @"{context_file_relative}" -o json'
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o json'
         else:
             # List format for Unix
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V10 FIX: No --resume - always fresh session
+            if resume_flag:
+                cmd_parts.extend(resume_flag.split())  # Add "--resume", "latest"
             # FIX: Use context_file_relative to avoid double-path issue
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "json"])
             command = cmd_parts
@@ -578,8 +600,11 @@ class GeminiDriverV7:
                 extracted_data = self._extract_json(output_text)
 
             # V7 Sprint 12: Mark session as active for future --resume latest
+            # V10.1: Also track per-session_uuid for parallel task isolation
             if self.use_session_resume:
-                self._session_active = True
+                self._session_active = True  # Legacy global flag
+                if session_uuid:
+                    self._active_sessions[session_uuid] = True
 
             # CRITICAL FIX: Handle list response (Evolution Mutations)
             if isinstance(extracted_data, list):
@@ -708,18 +733,30 @@ class GeminiDriverV7:
 
         allowed_tools = "read_file,list_directory,grep,glob,read_many_files,google_web_search,web_fetch,write_file,edit_file"
 
-        # V10 FIX: REMOVED --resume - Gemini CLI can only resume ITS sessions, not NEXUS UUIDs
+        # V10.1 FIX: Per-task session management (same logic as non-stream)
+        # Determine if this session_uuid already has an active session
+        session_is_active = False
         if session_uuid:
             _logger.debug("Stream: session for tracking", session_uuid=session_uuid[:8])
+            session_is_active = self._active_sessions.get(session_uuid, False)
+        else:
+            session_is_active = self._session_active
+        
+        # Determine resume flag based on per-task session state
+        if self.use_session_resume and session_is_active:
+            resume_flag = "--resume latest"
+        else:
+            resume_flag = ""
 
         approval_mode = "--approval-mode yolo"
 
         # Build command with -o stream-json (CRITICAL: different from -o json)
         if use_shell:
-            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" -p @"{context_file_relative}" -o stream-json'
+            command = f'"{cli_executable}" -m {self.model} {approval_mode} --allowed-tools {allowed_tools} --include-directories "{nexus_root}" {resume_flag} -p @"{context_file_relative}" -o stream-json'
         else:
             cmd_parts = [cli_executable, "-m", self.model, "--approval-mode", "yolo", "--allowed-tools", allowed_tools, "--include-directories", str(nexus_root)]
-            # V10 FIX: No --resume - always fresh session
+            if resume_flag:
+                cmd_parts.extend(resume_flag.split())  # Add "--resume", "latest"
             cmd_parts.extend(["-p", f"@{context_file_relative}", "-o", "stream-json"])
             command = cmd_parts
 
@@ -777,8 +814,11 @@ class GeminiDriverV7:
                     raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {error_msg}")
 
                 # Mark session active for future resume
+                # V10.1: Also track per-session_uuid for parallel task isolation
                 if self.use_session_resume:
-                    self._session_active = True
+                    self._session_active = True  # Legacy global flag
+                    if session_uuid:
+                        self._active_sessions[session_uuid] = True
 
                 # Final newline after streaming
                 on_token("\n")
