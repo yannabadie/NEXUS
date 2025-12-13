@@ -98,7 +98,10 @@ NEXUS_V7_CHRYSALIS/
 │   │   ├── claude_driver_hybrid.py  # Claude CLI wrapper
 │   │   └── gemini_driver_v7.py      # Gemini CLI wrapper
 │   ├── execution/           # Tool execution layer
-│   │   └── tool_manager.py  # 11 tools management
+│   │   ├── handlers/        # Modular tool handlers
+│   │   └── tool_manager.py  # Tool routing & orchestration
+│   ├── resilience/          # System resilience & health
+│   │   └── system_health.py # Unified SystemHealth monitor
 │   ├── fsm/                 # State machine components
 │   │   ├── states.py        # State definitions
 │   │   ├── panic_system.py  # Fatal error handling
@@ -227,6 +230,11 @@ IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATIN
 - Agents communicate via file-based I/O buffer (`workspace/_IO_BUFFER/`)
 - Claude: `claude_context_in.md` → stdout parsed
 - Gemini: `gemini_context_in.md` → `gemini_output.json`
+
+### System Resilience
+- **SystemHealth**: Unified monitor checking all components (EventBus, SafeTaskManager, etc.)
+- **ContextScope**: Isolates execution contexts to prevent side-effect leakage
+- **CircuitBreaker**: Prevents cascading failures in external tools
 
 ### Model Routing
 | Task Type | Claude | Gemini |

@@ -1,11 +1,35 @@
-# NEXUS V8.0 "TRUE HIVE MIND" - Roadmap Opérationnelle
+# NEXUS V9.6 "HIVE MIND REFORGED" - Roadmap Opérationnelle
 
-**Version**: 8.5.0 | **Status**: Active | **Last Updated**: 2025-12-12
-**Maintainer**: Yann Abadie | **Branch**: N9AF (async features) / N8THM (main)
+**Version**: 9.6.0 | **Status**: Active | **Last Updated**: 2025-12-13
+**Maintainer**: Yann Abadie | **Branch**: N9AF
+**Focus**: Modularité, Résilience, Swarm Authority
 
 ---
 
-## Objectif V8.0
+## État Actuel (V9.6 Sprint 5.3)
+
+| Métrique | Valeur |
+|----------|--------|
+| Architecture | Modulaire (Handlers) |
+| Résilience | SystemHealth + ContextScope |
+| Swarm | Dictator Mode + SwarmTool |
+| Tests | 1,200+ |
+
+### V9.6 - Refactoring & Resilience ✅ COMPLETED (2025-12-13)
+
+**Objectif**: Sortir de la dette technique du "God Object" ToolManager et durcir la résilience.
+
+| Tâche | Status | Notes |
+|-------|--------|-------|
+| **Modular Tool Handlers** | ✅ Done | `core/execution/handlers/` (Bash, File, Git, etc.) |
+| **SystemHealth** | ✅ Done | Monitoring unifié (`core/resilience/`) |
+| **ContextScope** | ✅ Done | Isolation des contextes d'exécution |
+| **Swarm Dictator Mode** | ✅ Done | Forçage de mode via HiveMind |
+| **Swarm as Tool** | ✅ Done | Invocation récursive contrôlée |
+
+---
+
+## Objectif V8.0 (Legacy)
 
 Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable avant d'envisager des évolutions majeures.
 
@@ -165,7 +189,7 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 
 ---
 
-### V8.0.3 - EPHEMERAL Sessions [Priority: P2] ⚡ PARTIAL
+### V8.0.3 - EPHEMERAL Sessions [Priority: P2] ✅ COMPLETED
 
 **Objectif** : Skip persistence pour tâches TRIVIAL (<2s)
 
@@ -174,8 +198,8 @@ Stabiliser et durcir le système "TRUE HIVE MIND" pour un usage quotidien fiable
 | Activer SessionMode.EPHEMERAL | 2h | ✅ Done (`session_manager.py:46`) |
 | Fast-Track dans TaskAnalyzer | 2h | ✅ Done (complexity < TRIVIAL) |
 | Intégrer dans HybridSwarmEngine | 2h | ✅ Done (`hybrid_swarm_engine.py:272-275`) |
-| Tests EPHEMERAL | 2h | PLANNED |
-| Skip RAG pour EPHEMERAL | 1h | PLANNED |
+| Tests EPHEMERAL | 2h | ✅ Done (Verified in V9.6 audit) |
+| Skip RAG pour EPHEMERAL | 1h | ✅ Done |
 
 **Pattern Fast-Track** (Gemini Deep Think):
 ```python

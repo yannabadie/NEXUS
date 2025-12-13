@@ -68,7 +68,7 @@ graph TD
 
     subgraph "Execution Layer"
         SWARM[core/swarm/<br/>6 Collaboration Modes]
-        TOOLS[core/execution/<br/>ToolManager 11 tools]
+        HANDLERS[core/execution/handlers/<br/>Modular Tool Handlers]
         DRV_G[GeminiDriverV7<br/>JSON Protocol]
         DRV_C[ClaudeDriverHybrid<br/>XML Protocol]
     end
@@ -85,6 +85,7 @@ graph TD
         TEL[core/telemetry/<br/>Metrics Export]
         LOG[core/logging/<br/>Event Logger]
         BOOT[core/bootstrap/<br/>Auto-Discovery]
+        HEALTH[core/resilience/<br/>SystemHealth]
     end
 
     %% Entry flows
@@ -103,8 +104,8 @@ graph TD
     HIVE -->|"LLMRequest | HeavyMessageV7"| DRV_C
     SWARM -->|"ModeExecution | CollaborationResult"| DRV_G
     SWARM -->|"ModeExecution | CollaborationResult"| DRV_C
-    ORCH -->|"ToolCall | ToolRequest"| TOOLS
-    TOOLS -->|"SecurityCheck | ToolRequest"| SEC
+    ORCH -->|"ToolCall | ToolRequest"| HANDLERS
+    HANDLERS -->|"SecurityCheck | ToolRequest"| SEC
 
     %% Intelligence flows
     DRV_G -->|"ContextQuery | str"| MEM

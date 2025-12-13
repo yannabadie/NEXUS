@@ -1,4 +1,21 @@
-# NEXUS V7.0 "Chrysalis" - Changelog
+# NEXUS V9.6 - Changelog
+
+## Version 9.6 Sprint 5.3 (2025-12-13) - Refactoring & Resilience
+
+### Refactoring Majeur
+- **Modular Tool Handlers**: Découpage de la "God Class" `ToolManager` en handlers modulaires dans `core/execution/handlers/` (`base.py`, `bash_handler.py`, `file_handlers.py`, etc.).
+- **SystemHealth**: Ajout d'un moniteur unifié (`core/resilience/system_health.py`) pour surveiller tous les composants.
+- **ContextScope**: Isolation des contextes d'exécution pour prévenir les fuites de bord.
+
+### Swarm Features
+- **Dictator Mode**: Capacité de forcer un mode spécifique.
+- **Swarm as Tool**: Le Swarm Engine est maintenant invocable comme un outil standard.
+
+### Documentation
+- Mise à jour de `ARCHITECTURE_MAP.md` et `NEXUS.md` pour refléter la nouvelle architecture modulaire.
+- Ajout de documentation sur la résilience système.
+
+---
 
 ## Version 7.0.14 (2025-12-02) - Sprint 13: Structural Cleanup (Gemini Follow-up)
 

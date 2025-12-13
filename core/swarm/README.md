@@ -1,8 +1,13 @@
 # core/swarm - Hybrid Swarm Engine
 
-**Version:** V8.8 (GROK-004) | **Status:** Production
+**Version:** V9.6 (Sprint 5.3) | **Status:** Production
 
 Dynamic multi-agent collaboration system where agents negotiate optimal collaboration modes at runtime.
+
+**Key V9.6 Features:**
+- **Dictator Mode:** HiveMind can force a specific mode (e.g., forcing `RED_BLUE` for security checks).
+- **SwarmTool:** Swarm Engine invocable as a tool (`swarm_delegate`) by agents.
+- **Merge Strategies:** Intelligent merging for PARALLEL mode results.
 
 ---
 
