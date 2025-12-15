@@ -987,6 +987,21 @@ class FSMHandlers:
         # Build context (lighter than brainstorming)
         context = self._orch.context_builder.build_simple_context(user_input, task_analysis)
 
+        # V11.2 MEMORIA: Inject RAG context for SIMPLE tasks too
+        if hasattr(self._orch, 'project_memory') and self._orch.project_memory:
+            try:
+                chunks = self._orch.project_memory.retrieve(user_input, limit=2, min_score=0.1)
+                if chunks:
+                    rag_context = self._orch.project_memory.format_chunks_for_context(
+                        chunks, max_chars=1000
+                    )
+                    context = f"{rag_context}\n\n{context}"
+                    self._logger.debug(
+                        f"[SIMPLE MODE] Injected {len(rag_context)} chars of RAG context"
+                    )
+            except Exception as e:
+                self._logger.debug(f"[SIMPLE MODE] RAG injection failed: {e}")
+
         # Invoke agent
         invoke_start = time.time()
         max_tool_iterations = 5  # Safety limit for tool loops

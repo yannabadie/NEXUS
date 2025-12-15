@@ -1053,6 +1053,54 @@ class OrchestratorV7:
             return True
         return False
 
+    # =========================================================================
+    # V11.2 MEMORIA: Memory Consolidation
+    # =========================================================================
+
+    def consolidate_memory(self) -> Dict:
+        """
+        V11.2 MEMORIA: Consolidate episodic patterns into procedural memory.
+
+        Scans SuccessMemory for recurring patterns by domain and logs
+        insights that can be used to improve AutoMemory suggestions.
+
+        Should be called periodically (e.g., end of session or every N tasks).
+
+        Returns:
+            Dict with consolidation results
+        """
+        results = {
+            "success": False,
+            "patterns_found": 0,
+            "message": ""
+        }
+
+        # Try to access MemoryCoordinator through SwarmEngine's ModeSelector
+        coordinator = None
+        if self.swarm_engine and hasattr(self.swarm_engine, 'mode_selector'):
+            mode_selector = self.swarm_engine.mode_selector
+            if hasattr(mode_selector, 'memory_coordinator') and mode_selector.memory_coordinator:
+                coordinator = mode_selector.memory_coordinator
+
+        if not coordinator:
+            results["message"] = "MemoryCoordinator not available (cold start or disabled)"
+            self.logger.debug("[MEMORIA] Consolidation skipped - no coordinator")
+            return results
+
+        try:
+            patterns = coordinator.consolidate()
+            results["success"] = True
+            results["patterns_found"] = patterns
+            results["message"] = f"Consolidated {patterns} patterns from episodic to procedural memory"
+            self.logger.info("[MEMORIA] Memory consolidation completed", {
+                "patterns": patterns
+            })
+        except Exception as e:
+            results["message"] = f"Consolidation failed: {e}"
+            self.logger.warning(f"[MEMORIA] Consolidation error: {e}")
+
+        return results
+
     def start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode] = None) -> Dict:
         """Start Hybrid Swarm mode. V7.8: Delegates to SwarmBridge."""
         return self.swarm_bridge.start_swarm_mode(objective, force_mode)

@@ -40,6 +40,15 @@ except ImportError:
     AutoMemory = None
     get_auto_memory = None
 
+# V11.2 MEMORIA: Memory Coordinator (lazy import)
+_COORDINATOR_AVAILABLE = False
+try:
+    from ..memory.coordinator import MemoryCoordinator, UnifiedRecommendation
+    _COORDINATOR_AVAILABLE = True
+except ImportError:
+    MemoryCoordinator = None
+    UnifiedRecommendation = None
+
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -159,6 +168,23 @@ class ModeSelector:
         # V7.6 Phase 13d: Track auto-memory suggestions
         self._last_auto_memory_suggestion: Optional[Dict] = None
 
+        # V11.2 MEMORIA: Unified Memory Coordinator
+        self.memory_coordinator: Optional["MemoryCoordinator"] = None
+        if _COORDINATOR_AVAILABLE and MemoryCoordinator is not None:
+            if self.success_memory or self.auto_memory:
+                try:
+                    self.memory_coordinator = MemoryCoordinator(
+                        success_memory=self.success_memory,
+                        auto_memory=self.auto_memory
+                    )
+                    _logger.debug("V11.2 MEMORIA: MemoryCoordinator initialized")
+                except Exception as e:
+                    _logger.warning(f"Failed to initialize MemoryCoordinator: {e}")
+                    self.memory_coordinator = None
+
+        # V11.2 MEMORIA: Track unified recommendations
+        self._last_unified_recommendation: Optional[Dict] = None
+
     def select_mode(
         self,
         task_analysis: TaskAnalysis,
@@ -195,21 +221,39 @@ class ModeSelector:
             score = self._score_mode(mode, task_analysis, available_agents)
             mode_scores[mode] = score
 
-        # V7.6 Phase 10b: Memory-Augmented Selection (SuccessMemory - semantic similarity)
+        # V11.2 MEMORIA: Use unified coordinator if available
+        unified_info = None
+        unified_lead = None
         memory_boost_mode = None
         memory_boost_info = None
-        if self.success_memory:
-            memory_boost_mode, memory_boost_info = self._apply_memory_boost(
-                task_analysis, mode_scores
-            )
-
-        # V7.6 Phase 13d: AutoMemory Integration (task_type lookup with gradient confidence)
         auto_memory_info = None
         auto_memory_lead = None
-        if self.auto_memory:
-            auto_memory_info, auto_memory_lead = self._apply_auto_memory_boost(
+
+        if self.memory_coordinator:
+            # V11.2 MEMORIA: Unified memory boost (replaces separate methods)
+            boosted_mode, unified_lead, unified_info = self._apply_unified_memory_boost(
                 task_analysis, mode_scores
             )
+            if boosted_mode:
+                memory_boost_mode = next(
+                    (m for m in CollaborationMode if m.value == boosted_mode), None
+                )
+                memory_boost_info = unified_info  # Reuse for reasoning
+        else:
+            # V7.6 Phase 10b: Legacy - Memory-Augmented Selection (SuccessMemory)
+            if self.success_memory:
+                memory_boost_mode, memory_boost_info = self._apply_memory_boost(
+                    task_analysis, mode_scores
+                )
+
+            # V7.6 Phase 13d: Legacy - AutoMemory Integration
+            if self.auto_memory:
+                auto_memory_info, auto_memory_lead = self._apply_auto_memory_boost(
+                    task_analysis, mode_scores
+                )
+
+        # Combine leads (unified takes precedence)
+        effective_lead = unified_lead or auto_memory_lead
 
         # Select best mode
         best_mode = max(mode_scores, key=mode_scores.get)
@@ -223,9 +267,9 @@ class ModeSelector:
         )
         alternatives = [(m, s) for m, s in sorted_modes if m != best_mode]
 
-        # Assign agents (V7.6 Phase 13d: pass auto_memory_lead for lead bonus)
+        # Assign agents (V11.2 MEMORIA: pass effective_lead for lead bonus)
         assignments = self._assign_agents(
-            best_mode, task_analysis, available_agents, auto_memory_lead
+            best_mode, task_analysis, available_agents, effective_lead
         )
 
         # Generate reasoning (V7.6: include memory influence)
@@ -795,6 +839,104 @@ class ModeSelector:
         return_lead = suggested_lead if confidence > 0.7 else None
 
         return auto_memory_info, return_lead
+
+    # =========================================================================
+    # V11.2 MEMORIA: Unified Memory Boost
+    # =========================================================================
+
+    def _apply_unified_memory_boost(
+        self,
+        analysis: TaskAnalysis,
+        mode_scores: Dict[CollaborationMode, float]
+    ) -> Tuple[Optional[str], Optional[str], Optional[Dict]]:
+        """
+        Apply unified memory boost using MemoryCoordinator.
+
+        V11.2 MEMORIA: Replaces separate _apply_memory_boost and
+        _apply_auto_memory_boost when coordinator is available.
+
+        Args:
+            analysis: TaskAnalysis with raw_input and domains.
+            mode_scores: Dictionary of mode scores (modified in-place).
+
+        Returns:
+            Tuple of (boosted_mode_name, suggested_lead, unified_info) or (None, None, None).
+        """
+        if not self.memory_coordinator:
+            return None, None, None
+
+        # Get task description and type
+        description = getattr(analysis, "raw_input", "")
+        if not description:
+            return None, None, None
+
+        task_type = analysis.primary_domain.value.lower()
+
+        # Extract domains for query
+        domains = None
+        if hasattr(analysis, "domains") and analysis.domains:
+            domains = [
+                d.value if hasattr(d, "value") else str(d)
+                for d in analysis.domains
+            ]
+
+        # Get unified recommendation
+        try:
+            rec = self.memory_coordinator.get_recommendation(
+                task_description=description,
+                task_type=task_type,
+                domains=domains
+            )
+        except Exception as e:
+            _logger.warning(f"MemoryCoordinator.get_recommendation failed: {e}")
+            return None, None, None
+
+        # Check minimum confidence
+        if rec.confidence < 0.3:
+            _logger.debug(f"[MEMORIA] Unified confidence {rec.confidence:.2f} below threshold")
+            return None, None, None
+
+        # Apply boost to suggested mode
+        boosted_mode_name = None
+        original_score = None
+
+        if rec.mode:
+            for mode in CollaborationMode:
+                if mode.value.lower() == rec.mode.lower():
+                    if mode in mode_scores:
+                        original_score = mode_scores[mode]
+                        # Boost scales with confidence: 0.1 to 0.3
+                        boost = 0.1 + (rec.confidence * 0.2)
+                        mode_scores[mode] = min(1.0, original_score + boost)
+                        boosted_mode_name = mode.value
+                        _logger.debug(
+                            f"[MEMORIA] Boosted {mode.value}: {original_score:.3f} -> "
+                            f"{mode_scores[mode]:.3f} (conf={rec.confidence:.2f})"
+                        )
+                    break
+
+        # Apply penalties to modes to avoid
+        for mode_name in rec.modes_to_avoid:
+            for mode in CollaborationMode:
+                if mode.value.lower() == mode_name.lower():
+                    if mode in mode_scores:
+                        mode_scores[mode] = max(0.0, mode_scores[mode] - 0.15)
+                        _logger.debug(f"[MEMORIA] Penalized {mode.value} (-0.15)")
+                    break
+
+        # Store unified recommendation info
+        unified_info = rec.to_dict()
+        unified_info["original_score"] = round(original_score, 3) if original_score is not None else None
+        unified_info["new_score"] = round(mode_scores.get(
+            next((m for m in CollaborationMode if m.value == boosted_mode_name), None), 0
+        ), 3) if boosted_mode_name else None
+
+        self._last_unified_recommendation = unified_info
+
+        # Return lead if confidence > 0.5 (for agent assignment boost)
+        return_lead = rec.lead if rec.confidence > 0.5 else None
+
+        return boosted_mode_name, return_lead, unified_info
 
     def _generate_reasoning(
         self,

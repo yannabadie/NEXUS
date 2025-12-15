@@ -353,9 +353,17 @@ class TaskAnalyzer:
 
     V10 FIX F1: Enhanced with context-aware classification beyond keywords.
     V11 SENTINEL: 3-Stage cost-aware classification (Regex→Heuristic→LLM).
+    V11.2 MEMORIA: RAG-enriched classification for domain hints.
     """
 
-    def __init__(self):
+    def __init__(self, project_memory: Optional["ProjectMemory"] = None):
+        """
+        Initialize TaskAnalyzer.
+
+        Args:
+            project_memory: Optional ProjectMemory for RAG-enriched classification.
+                           If provided, RAG context helps classify task domains.
+        """
         self._domain_patterns = self._compile_patterns()
         self._trivial_patterns = self._compile_trivial_patterns()
         # V10 FIX F1: Compile context patterns
@@ -363,6 +371,8 @@ class TaskAnalyzer:
         self._context_patterns = self._compile_context_patterns()
         # V11 SENTINEL: Compile Stage 1 instant command patterns
         self._instant_command_patterns = self._compile_instant_commands()
+        # V11.2 MEMORIA: ProjectMemory for RAG-enriched classification
+        self.project_memory = project_memory
 
     def _compile_structure_patterns(self) -> Dict[str, List[re.Pattern]]:
         """V10 FIX F1: Compile task structure patterns."""
@@ -498,11 +508,26 @@ class TaskAnalyzer:
         # Detect domains
         domains, detected_keywords = self._detect_domains(user_input)
 
+        # V11.2 MEMORIA: Enrich with RAG context (if available)
+        rag_domains, complexity_boost = self._enrich_with_rag_context(user_input)
+        if rag_domains:
+            domains, detected_keywords = self._apply_rag_domain_hints(
+                domains, rag_domains, detected_keywords
+            )
+
         # Determine primary domain
         primary_domain = domains[0] if domains else TaskDomain.CODING
 
-        # Calculate complexity
-        complexity = self._calculate_complexity(input_lower, domains)
+        # Calculate complexity (V11.2: with RAG boost)
+        base_complexity = self._calculate_complexity(input_lower, domains)
+        # Apply RAG complexity boost (0.0-0.3 maps to 0-1 complexity levels)
+        if complexity_boost > 0:
+            boosted_value = min(5, base_complexity.value + int(complexity_boost * 3))
+            complexity = TaskComplexity(boosted_value)
+            if boosted_value != base_complexity.value:
+                detected_keywords.append(f"[RAG_COMPLEXITY:+{int(complexity_boost * 3)}]")
+        else:
+            complexity = base_complexity
 
         # Detect requirements
         requires_web = self._detect_web_requirement(input_lower)
@@ -905,6 +930,102 @@ class TaskAnalyzer:
             return False
 
         return True
+
+    # =========================================================================
+    # V11.2 MEMORIA: RAG-Enriched Classification
+    # =========================================================================
+
+    def _enrich_with_rag_context(
+        self,
+        user_input: str
+    ) -> Tuple[List[TaskDomain], float]:
+        """
+        V11.2 MEMORIA: Get RAG context to help classification.
+
+        Retrieves relevant code chunks from ProjectMemory and infers
+        domain hints based on file types and content patterns.
+
+        Args:
+            user_input: User's task description
+
+        Returns:
+            Tuple of (domain_hints, complexity_boost)
+                domain_hints: List of domains inferred from RAG context
+                complexity_boost: Additional complexity score (0.0-0.3)
+        """
+        if not self.project_memory:
+            return [], 0.0
+
+        try:
+            # Retrieve relevant chunks (limit=2 for speed)
+            chunks = self.project_memory.retrieve(user_input, limit=2, min_score=0.1)
+            if not chunks:
+                return [], 0.0
+
+            domain_hints: List[TaskDomain] = []
+            complexity_boost = 0.0
+
+            for chunk in chunks:
+                file_path = getattr(chunk, 'file_path', getattr(chunk, 'source_path', ''))
+                content = getattr(chunk, 'content', '')
+
+                # Infer domain from file extension
+                if file_path.endswith('.py'):
+                    if TaskDomain.CODING not in domain_hints:
+                        domain_hints.append(TaskDomain.CODING)
+                    if 'test_' in file_path or '/tests/' in file_path:
+                        if TaskDomain.TESTING not in domain_hints:
+                            domain_hints.append(TaskDomain.TESTING)
+                elif file_path.endswith('.md'):
+                    if TaskDomain.DOCUMENTATION not in domain_hints:
+                        domain_hints.append(TaskDomain.DOCUMENTATION)
+                elif file_path.endswith(('.js', '.ts', '.tsx', '.jsx')):
+                    if TaskDomain.CODING not in domain_hints:
+                        domain_hints.append(TaskDomain.CODING)
+
+                # Complexity hints from content patterns
+                if 'async' in content or 'await' in content:
+                    complexity_boost += 0.1
+                if 'class ' in content:
+                    complexity_boost += 0.05
+                if 'try:' in content or 'except' in content:
+                    complexity_boost += 0.05
+                if 'security' in content.lower() or 'auth' in content.lower():
+                    complexity_boost += 0.1
+                    if TaskDomain.SECURITY not in domain_hints:
+                        domain_hints.append(TaskDomain.SECURITY)
+
+            return domain_hints, min(0.3, complexity_boost)
+
+        except Exception:
+            # Fail silently - RAG enrichment is optional
+            return [], 0.0
+
+    def _apply_rag_domain_hints(
+        self,
+        detected_domains: List[TaskDomain],
+        rag_domains: List[TaskDomain],
+        detected_keywords: List[str]
+    ) -> Tuple[List[TaskDomain], List[str]]:
+        """
+        V11.2 MEMORIA: Merge RAG-inferred domains with keyword-detected domains.
+
+        Args:
+            detected_domains: Domains detected via keywords
+            rag_domains: Domains inferred from RAG context
+            detected_keywords: List of detected keywords (modified in-place)
+
+        Returns:
+            Tuple of (merged_domains, updated_keywords)
+        """
+        merged = list(detected_domains)
+
+        for domain in rag_domains:
+            if domain not in merged:
+                merged.append(domain)
+                detected_keywords.append(f"[RAG:{domain.value}]")
+
+        return merged, detected_keywords
 
 
 # =============================================================================

@@ -244,11 +244,15 @@ class DenseBackend(MemoryBackend):
             )
 
             # Prepare data for LanceDB
+            # V11.2 MEMORIA FIX: encode() returns List[List[float]], not numpy array
+            # embeddings[i] is already a list, no need for .tolist()
             data = []
             for i, chunk in enumerate(chunks):
+                # Handle both list (from EmbeddingEngine) and numpy array (legacy)
+                vector = embeddings[i] if isinstance(embeddings[i], list) else embeddings[i].tolist()
                 data.append({
                     "id": self._chunk_to_id(chunk),
-                    "vector": embeddings[i].tolist(),
+                    "vector": vector,
                     "metadata": self._chunk_to_metadata(chunk)
                 })
 

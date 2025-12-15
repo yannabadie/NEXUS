@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from collections import defaultdict
+import math
 
 
 @dataclass
@@ -189,9 +190,51 @@ class AutoMemory:
         with open(self.fitness_file, 'w', encoding='utf-8') as f:
             json.dump(fitness_data, f, indent=2, ensure_ascii=False)
 
-    def suggest_mode(self, task_type: str) -> Optional[str]:
+    def _apply_time_decay(
+        self,
+        score: float,
+        timestamp_str: str,
+        decay_coefficient: float = 0.003
+    ) -> float:
+        """
+        V11.2 MEMORIA: Apply exponential time decay to score.
+
+        Mirrors SuccessMemory's decay for consistency across memory systems.
+
+        Formula: decayed_score = score * exp(-decay_coefficient * age_days)
+
+        Decay examples with coefficient=0.003:
+        - 1 week old (7d):   0.98x (2% decay)
+        - 4 weeks old (28d): 0.92x (8% decay)
+        - 12 weeks old (84d): 0.78x (22% decay)
+
+        Args:
+            score: Original score to decay
+            timestamp_str: ISO timestamp string from entry
+            decay_coefficient: Decay rate per day (default 0.003)
+
+        Returns:
+            Decayed score (capped at original if parsing fails)
+        """
+        try:
+            entry_time = datetime.fromisoformat(timestamp_str)
+            now = datetime.now()
+            age_days = max(0, (now - entry_time).days)
+            decay_factor = math.exp(-decay_coefficient * age_days)
+            return score * decay_factor
+        except (ValueError, TypeError):
+            # If timestamp parsing fails, return original score
+            return score
+
+    def suggest_mode(self, task_type: str, apply_decay: bool = True) -> Optional[str]:
         """
         Suggest best swarm mode for a task type based on history.
+
+        V11.2 MEMORIA: Now applies time decay to weight recent successes more.
+
+        Args:
+            task_type: Task type to look up
+            apply_decay: Whether to apply time decay (default True)
 
         Returns:
             Best performing swarm mode or None if no data
@@ -200,13 +243,19 @@ class AutoMemory:
         if not successes:
             return None
 
-        # Count successes by mode, weighted by score
+        # Count successes by mode, weighted by score (V11.2: with time decay)
         mode_scores = defaultdict(float)
         mode_counts = defaultdict(int)
 
         for entry in successes:
             mode = entry.get("swarm_mode", "unknown")
             score = entry.get("score", 1.0)
+
+            # V11.2 MEMORIA: Apply time decay
+            if apply_decay:
+                timestamp = entry.get("timestamp", "")
+                score = self._apply_time_decay(score, timestamp)
+
             mode_scores[mode] += score
             mode_counts[mode] += 1
 
@@ -219,9 +268,15 @@ class AutoMemory:
         best_mode = max(mode_avg, key=mode_avg.get)
         return best_mode
 
-    def suggest_lead(self, task_type: str) -> Optional[str]:
+    def suggest_lead(self, task_type: str, apply_decay: bool = True) -> Optional[str]:
         """
         Suggest best lead agent for a task type based on history.
+
+        V11.2 MEMORIA: Now applies time decay to weight recent successes more.
+
+        Args:
+            task_type: Task type to look up
+            apply_decay: Whether to apply time decay (default True)
 
         Returns:
             Best performing agent or None if no data
@@ -236,6 +291,12 @@ class AutoMemory:
         for entry in successes:
             agent = entry.get("lead_agent", "unknown")
             score = entry.get("score", 1.0)
+
+            # V11.2 MEMORIA: Apply time decay
+            if apply_decay:
+                timestamp = entry.get("timestamp", "")
+                score = self._apply_time_decay(score, timestamp)
+
             agent_scores[agent] += score
             agent_counts[agent] += 1
 
