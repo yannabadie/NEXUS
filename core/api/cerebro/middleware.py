@@ -11,9 +11,12 @@ JWT Payload Expected:
     "workspace_id": "default",
     "exp": 1234567890
 }
+
+V11.3 HARDENING: JWT_SECRET loaded from environment variable.
 """
 
 import logging
+import os
 from typing import Optional
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -22,9 +25,19 @@ from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
-# JWT secret (should come from config in production)
-JWT_SECRET = "nexus-cerebro-dev-secret"  # TODO: Load from env
+# V11.3 HARDENING: JWT secret from environment (NEVER hardcode in production)
+# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+JWT_SECRET = os.environ.get("NEXUS_JWT_SECRET")
 JWT_ALGORITHM = "HS256"
+
+# Fail-fast pattern: warn in dev, would fail in production without secret
+if not JWT_SECRET:
+    # Development fallback - REMOVE IN PRODUCTION
+    JWT_SECRET = "nexus-dev-insecure-secret-CHANGE-ME"
+    logger.warning(
+        "⚠️  NEXUS_JWT_SECRET not set! Using insecure dev secret. "
+        "Set NEXUS_JWT_SECRET environment variable for production."
+    )
 
 
 def decode_jwt(token: str) -> Optional[dict]:

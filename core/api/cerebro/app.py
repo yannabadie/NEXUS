@@ -7,13 +7,16 @@ Creates the CEREBRO API application with:
 - WebSocket streaming endpoint
 - Health check endpoints
 
+V11.3 HARDENING: CORS origins from environment variable.
+
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +24,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.events.redis_bus import get_redis_bus
 
 logger = logging.getLogger(__name__)
+
+# V11.3 HARDENING: CORS origins from environment (comma-separated)
+# Example: NEXUS_CORS_ORIGINS=http://localhost:3000,https://nexus.example.com
+_cors_env = os.environ.get("NEXUS_CORS_ORIGINS", "http://localhost:3000")
+CORS_ORIGINS: List[str] = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
+
+if not CORS_ORIGINS:
+    CORS_ORIGINS = ["http://localhost:3000"]
+    logger.warning("NEXUS_CORS_ORIGINS not set, defaulting to localhost:3000")
 
 
 @asynccontextmanager
@@ -68,13 +80,14 @@ def create_cerebro_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # CORS middleware (allow all origins for development)
+    # V11.3 HARDENING: CORS with explicit origins (not wildcard)
+    # Note: allow_credentials=True requires explicit origins, not ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
     )
 
     # Tenant context middleware (HTTP only, not WebSocket)
