@@ -285,6 +285,9 @@ class ClaudeDriverHybrid:
                 
                 if len(content) > 500:
                     content = content[:500] + "..."
+                
+                # Debug: Log emission
+                logger.debug(f"[EMIT] Claude → Dashboard: {content[:100]}...")
                     
                 EventBus.publish_sync("AGENT_RESPONSE", {
                     "agent": "Claude",
@@ -294,8 +297,8 @@ class ClaudeDriverHybrid:
                 })
             except ImportError:
                 pass  # EventBus not available
-            except Exception:
-                pass  # Never block driver execution
+            except Exception as e:
+                logger.warning(f"[EMIT] Failed to emit dashboard event: {e}")
             
             return parsed_response
 

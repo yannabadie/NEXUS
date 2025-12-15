@@ -216,6 +216,9 @@ class GeminiDriverV7:
             if len(content) > 500:
                 content = content[:500] + "..."
             
+            # Debug: Log emission
+            logger.debug(f"[EMIT] Gemini → Dashboard: {content[:100]}...")
+            
             EventBus.publish_sync("AGENT_RESPONSE", {
                 "agent": "Gemini",
                 "content": content,
@@ -225,7 +228,7 @@ class GeminiDriverV7:
         except ImportError:
             pass  # EventBus not available
         except Exception as e:
-            pass  # Never block driver execution
+            logger.warning(f"[EMIT] Failed to emit dashboard event: {e}")
 
     def invoke(
         self,
