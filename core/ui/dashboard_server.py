@@ -153,12 +153,22 @@ async def create_agent(agent_data: Dict[str, Any]):
             "name": agent_data.get("name"),
             "provider": "spawned",
             "capabilities": agent_data.get("capabilities", []),
-            "system_prompt": agent_data.get("system_prompt", ""),
+            "system_prompt": agent_data.get("mission", agent_data.get("system_prompt", "")),
             "memory_paths": []
         }
         
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(agent_def, f, indent=2)
+        
+        # Broadcast AGENT_SPAWNED event via WebSocket
+        await manager.broadcast(json.dumps({
+            "type": "AGENT_SPAWNED",
+            "data": {
+                "agent_id": agent_id,
+                "name": agent_data.get("name"),
+                "capabilities": agent_data.get("capabilities", [])
+            }
+        }))
             
         return {"status": "created", "id": agent_id}
     except Exception as e:

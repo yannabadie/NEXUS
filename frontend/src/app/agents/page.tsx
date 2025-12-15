@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getSelfAwareness, type SelfAwareness } from "@/lib/api";
 import { AGENT_COLORS } from "@/lib/design-tokens";
 import { AgentConstellation, type AgentNode, type AgentConnection } from "@/components/AgentConstellation";
 import { AgentProfileCard, type AgentProfile } from "@/components/AgentProfileCard";
+import { SpawnAgentModal } from "@/components/SpawnAgentModal";
 
 // ============================================================================
 // Demo Data
@@ -28,18 +29,19 @@ export default function AgentsPage() {
     const [loading, setLoading] = useState(true);
     const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
     const [viewMode, setViewMode] = useState<"grid" | "constellation">("constellation");
+    const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        const { data } = await getSelfAwareness();
+        if (data) setSelfAwareness(data);
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
-        async function fetchData() {
-            const { data } = await getSelfAwareness();
-            if (data) setSelfAwareness(data);
-            setLoading(false);
-        }
-
         fetchData();
-        const interval = setInterval(fetchData, 5000);
+        const interval = setInterval(fetchData, 2000); // Faster refresh for dynamic agents
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchData]);
 
     if (loading) {
         return (
@@ -109,8 +111,8 @@ export default function AgentsPage() {
                         <button
                             onClick={() => setViewMode("constellation")}
                             className={`px-3 py-1 text-sm rounded transition-colors ${viewMode === "constellation"
-                                    ? "bg-violet-600 text-white"
-                                    : "text-zinc-400 hover:text-white"
+                                ? "bg-violet-600 text-white"
+                                : "text-zinc-400 hover:text-white"
                                 }`}
                         >
                             🌐 Constellation
@@ -118,8 +120,8 @@ export default function AgentsPage() {
                         <button
                             onClick={() => setViewMode("grid")}
                             className={`px-3 py-1 text-sm rounded transition-colors ${viewMode === "grid"
-                                    ? "bg-violet-600 text-white"
-                                    : "text-zinc-400 hover:text-white"
+                                ? "bg-violet-600 text-white"
+                                : "text-zinc-400 hover:text-white"
                                 }`}
                         >
                             📋 Grid
@@ -128,7 +130,7 @@ export default function AgentsPage() {
 
                     <button
                         className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
-                        onClick={() => alert("Spawn agent coming soon!")}
+                        onClick={() => setIsSpawnModalOpen(true)}
                     >
                         <span>✨</span>
                         <span>Spawn Agent</span>
@@ -206,6 +208,13 @@ export default function AgentsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Spawn Agent Modal */}
+            <SpawnAgentModal
+                isOpen={isSpawnModalOpen}
+                onClose={() => setIsSpawnModalOpen(false)}
+                onSuccess={fetchData}
+            />
         </div>
     );
 }

@@ -293,7 +293,7 @@ class ArchitectureGenerationPhase:
         capabilities: List[str],
         available_agents: str
     ) -> AgentArchitecture:
-        """Generate architecture using Gemini."""
+        """Generate architecture using Gemini, refined by Claude."""
         prompt = ARCHITECTURE_PROMPT.format(
             task=task,
             approach=approach,
@@ -302,20 +302,58 @@ class ArchitectureGenerationPhase:
         )
 
         try:
+            # Step 1: Gemini generates initial architecture
             response = await self.gemini.send_message_async(prompt, session_uuid=self._session_uuid)
 
             # Extract content if response is a dict
             if isinstance(response, dict):
-                content = response.get("content", response.get("text", str(response)))
+                gemini_content = response.get("content", response.get("text", str(response)))
             else:
-                content = str(response)
+                gemini_content = str(response)
 
-            # Record cost
-            tokens = len(content) // 4
+            # Record Gemini cost
+            tokens = len(gemini_content) // 4
             self.cost_estimator.record_cost("generate_architecture", tokens)
 
-            # Parse response
-            return self._parse_architecture_response(content, capabilities)
+            # Step 2: Claude reviews and refines (if budget allows)
+            if self.cost_estimator.can_afford("claude_review", tokens // 2):
+                try:
+                    claude_review_prompt = f"""Review and enhance this architecture plan for code quality and security.
+Original task: {task}
+
+Proposed architecture:
+{gemini_content}
+
+If improvements are needed, respond with the complete improved JSON.
+If the architecture is already optimal, respond with just: APPROVED
+Focus on: code security, execution efficiency, and agent capabilities match."""
+
+                    claude_response = await self.claude.call_async(
+                        claude_review_prompt,
+                        session_uuid=self._session_uuid
+                    )
+                    
+                    # Extract Claude's response
+                    if isinstance(claude_response, dict):
+                        claude_content = claude_response.get("content", claude_response.get("text", str(claude_response)))
+                    else:
+                        claude_content = str(claude_response)
+                    
+                    # Record Claude cost
+                    self.cost_estimator.record_cost("claude_review", len(claude_content) // 4)
+                    
+                    # If Claude provided improved JSON, use it
+                    if claude_content.strip() != "APPROVED" and "{" in claude_content:
+                        logger.info("Claude refined architecture")
+                        return self._parse_architecture_response(claude_content, capabilities)
+                    else:
+                        logger.info("Claude approved Gemini's architecture")
+                        
+                except Exception as e:
+                    logger.warning(f"Claude review failed, using Gemini's architecture: {e}")
+
+            # Parse Gemini's response
+            return self._parse_architecture_response(gemini_content, capabilities)
 
         except Exception as e:
             logger.error(f"Architecture generation failed: {e}")
