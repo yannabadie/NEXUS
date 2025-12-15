@@ -258,30 +258,60 @@ class AsyncGeminiDriver:
             if self.config.verbose:
                 print(f"[AsyncGeminiDriver] Started process pid={proc.pid}, uuid={unique_id[:8]}", file=sys.stderr)
 
+            # V11 SYNCHROTRON: Parallel stderr drain to prevent deadlock
+            # Problem: If stderr buffer fills (64KB) while we read stdout, subprocess blocks
+            # Solution: Background task drains stderr continuously
+            stderr_buffer = []
+
+            async def drain_stderr():
+                """Background task to drain stderr and prevent buffer fill deadlock."""
+                try:
+                    async for line_bytes in proc.stderr:
+                        stderr_buffer.append(line_bytes.decode('utf-8', errors='replace'))
+                except asyncio.CancelledError:
+                    pass  # Expected on cleanup
+
+            stderr_task = asyncio.create_task(drain_stderr())
+
             # TRUE ASYNC STREAMING
             start_time = datetime.now()
-            async for line_bytes in proc.stdout:
-                token.check()
+            try:
+                async for line_bytes in proc.stdout:
+                    token.check()
 
-                # Check timeout
-                elapsed = (datetime.now() - start_time).total_seconds()
-                if elapsed > self.config.timeout:
+                    # Check timeout
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    if elapsed > self.config.timeout:
+                        stderr_task.cancel()
+                        await handle.terminate_gracefully()
+                        raise TimeoutError(f"Gemini CLI timed out after {self.config.timeout}s")
+
+                    line = line_bytes.decode('utf-8', errors='replace')
+                    if line:
+                        yield line
+                        if on_token:
+                            on_token(line)
+
+                # Wait for process completion with timeout
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=10.0)
+                except asyncio.TimeoutError:
                     await handle.terminate_gracefully()
-                    raise TimeoutError(f"Gemini CLI timed out after {self.config.timeout}s")
 
-                line = line_bytes.decode('utf-8', errors='replace')
-                if line:
-                    yield line
-                    if on_token:
-                        on_token(line)
+                # Cancel stderr task (should be done by now)
+                stderr_task.cancel()
+                try:
+                    await stderr_task
+                except asyncio.CancelledError:
+                    pass
 
-            # Wait for process completion
-            await proc.wait()
+                if proc.returncode != 0:
+                    stderr_content = ''.join(stderr_buffer)
+                    raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {stderr_content}")
 
-            if proc.returncode != 0:
-                stderr_bytes = await proc.stderr.read()
-                stderr = stderr_bytes.decode('utf-8', errors='replace')
-                raise RuntimeError(f"Gemini CLI failed (code {proc.returncode}): {stderr}")
+            except asyncio.CancelledError:
+                stderr_task.cancel()
+                raise
 
             # Mark session as active for future --resume latest
             if self.config.use_session_resume:

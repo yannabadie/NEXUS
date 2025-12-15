@@ -26,6 +26,7 @@ from ..mode_selector import AgentAssignment
 from ...utils.artifact_verifier import ArtifactVerifier
 from ...agents.unified_registry import get_registry
 from ...api.rate_limiter import get_rate_limiter, RateLimitExceeded
+from ...api.concurrency_limiter import get_concurrency_limiter
 
 if TYPE_CHECKING:
     from ..merge_strategies import MergeStrategy, MergeResult
@@ -292,10 +293,24 @@ class ModeExecutor(ABC):
                     time_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
-            # V9.7.1: Invoke agent with isolated_env for session isolation
-            response = context.invoke_agent(
-                agent_id, "execution", task_context, session_uuid, isolated_env
-            )
+            # V11 SYNCHROTRON: Apply concurrency limiting to prevent resource starvation
+            concurrency_limiter = get_concurrency_limiter()
+            if not concurrency_limiter.acquire_sync(timeout=60.0):
+                return AgentResponse(
+                    agent_id=agent_id,
+                    content="",
+                    status="error",
+                    error="Concurrency limit reached: too many parallel agents",
+                    time_seconds=(datetime.now() - start_time).total_seconds()
+                )
+
+            try:
+                # V9.7.1: Invoke agent with isolated_env for session isolation
+                response = context.invoke_agent(
+                    agent_id, "execution", task_context, session_uuid, isolated_env
+                )
+            finally:
+                concurrency_limiter.release_sync()
 
             if isinstance(response, str):
                 response = AgentResponse(
@@ -363,16 +378,19 @@ class ModeExecutor(ABC):
                     time_seconds=(datetime.now() - start_time).total_seconds()
                 )
 
-            # V9.7.1: Try async invoke first, fallback to sync - both pass isolated_env
-            if hasattr(context, 'invoke_agent_async') and context.invoke_agent_async:
-                response = await context.invoke_agent_async(
-                    agent_id, "execution", task_context, session_uuid, isolated_env
-                )
-            else:
-                response = await asyncio.to_thread(
-                    context.invoke_agent, agent_id, "execution", task_context,
-                    session_uuid, isolated_env
-                )
+            # V11 SYNCHROTRON: Apply concurrency limiting to prevent resource starvation
+            concurrency_limiter = get_concurrency_limiter()
+            async with concurrency_limiter.acquire_async(timeout=60.0):
+                # V9.7.1: Try async invoke first, fallback to sync - both pass isolated_env
+                if hasattr(context, 'invoke_agent_async') and context.invoke_agent_async:
+                    response = await context.invoke_agent_async(
+                        agent_id, "execution", task_context, session_uuid, isolated_env
+                    )
+                else:
+                    response = await asyncio.to_thread(
+                        context.invoke_agent, agent_id, "execution", task_context,
+                        session_uuid, isolated_env
+                    )
 
             if isinstance(response, str):
                 response = AgentResponse(
