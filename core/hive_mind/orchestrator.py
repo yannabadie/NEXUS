@@ -49,6 +49,10 @@ from .saga_manager import SagaManager
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
+# V10 SYNAPSE: Telemetry instrumentation
+from core.events.telemetry_bridge import get_telemetry_bridge
+from core.events.types import CerebroEventType
+
 # V8.0.1: Hot-Swap Lead Agent
 from core.fsm.stagnation_detector import StagnationDetector
 
@@ -256,6 +260,13 @@ class TrueHiveMind:
         old_state = self.state
         self.state = new_state
         logger.debug(f"State: {old_state.value} -> {new_state.value}")
+
+        # V10 SYNAPSE: Emit state change telemetry
+        get_telemetry_bridge().emit_sync(
+            CerebroEventType.HIVE_STATE_CHANGE,
+            {"old_state": old_state.value, "new_state": new_state.value}
+        )
+
         if self.on_state_change:
             self.on_state_change(old_state, new_state)
 
@@ -282,7 +293,16 @@ class TrueHiveMind:
         phases_completed = []
         agents_spawned = []
 
+        # V10 SYNAPSE: Start correlation trace for this task
+        _telemetry_bridge = get_telemetry_bridge()
+        trace_id = _telemetry_bridge.start_trace()
+
         try:
+            # V10 SYNAPSE: Emit process_task start event
+            await _telemetry_bridge.emit(
+                CerebroEventType.HIVE_PHASE_START,
+                {"phase": "process_task", "task_preview": task[:100], "trace_id": trace_id}
+            )
             # Reset for new task
             self.cost_estimator.start_task()
             self.phase_retry.reset_retry_count()
@@ -609,6 +629,13 @@ class TrueHiveMind:
                 self._saga.cleanup()
                 logger.info(f"[Saga] Completed and cleaned up: {task_id}")
 
+            # V10 SYNAPSE: Emit process_task end event and end trace
+            await _telemetry_bridge.emit(
+                CerebroEventType.HIVE_PHASE_END,
+                {"phase": "process_task", "success": execution_success, "duration": time.time() - start_time}
+            )
+            _telemetry_bridge.end_trace()
+
             return HiveMindResult(
                 success=execution_success,
                 output=self._format_output(execution_result, consolidation_result),
@@ -625,6 +652,13 @@ class TrueHiveMind:
         except Exception as e:
             logger.error(f"Hive Mind error: {e}", exc_info=True)
             self._set_state(HiveMindState.HIVE_FAILED)
+
+            # V10 SYNAPSE: Emit failure event and end trace
+            _telemetry_bridge.emit_sync(
+                CerebroEventType.HIVE_PHASE_END,
+                {"phase": "process_task", "success": False, "error": str(e)[:200]}
+            )
+            _telemetry_bridge.end_trace()
 
             return HiveMindResult(
                 success=False,

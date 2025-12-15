@@ -57,6 +57,21 @@ class CerebroEventType(str, Enum):
     # =========================================================================
     SWARM_MODE_SELECTED = "swarm.mode_selected"
     SWARM_NEGOTIATION = "swarm.negotiation"
+    SWARM_PHASE_CHANGE = "swarm.phase_change"  # V10 SYNAPSE
+
+    # =========================================================================
+    # HiveMind Telemetry Events (V10 SYNAPSE)
+    # =========================================================================
+    HIVE_STATE_CHANGE = "hive.state_change"
+    HIVE_PHASE_START = "hive.phase_start"
+    HIVE_PHASE_END = "hive.phase_end"
+
+    # =========================================================================
+    # Graph Events for React Flow UI (V10 SYNAPSE)
+    # =========================================================================
+    GRAPH_NODE_SPAWN = "graph.node_spawn"
+    GRAPH_NODE_UPDATE = "graph.node_update"
+    GRAPH_EDGE_MESSAGE = "graph.edge_message"
 
     # =========================================================================
     # System Events
@@ -105,6 +120,9 @@ class CerebroEvent:
     payload: Dict[str, Any]
     timestamp: str = field(default_factory=_generate_timestamp)
     event_id: str = field(default_factory=_generate_event_id)
+    # V10 SYNAPSE: Correlation tracking for tracing related events
+    correlation_id: Optional[str] = None
+    sequence_number: Optional[int] = None
 
     def to_json(self) -> str:
         """
@@ -113,14 +131,20 @@ class CerebroEvent:
         Returns:
             JSON string representation of the event
         """
-        return json.dumps({
+        data = {
             "event_type": self.event_type.value,
             "tenant_id": self.tenant_id,
             "workspace_id": self.workspace_id,
             "payload": self.payload,
             "timestamp": self.timestamp,
             "event_id": self.event_id,
-        }, ensure_ascii=False)
+        }
+        # V10 SYNAPSE: Include correlation fields if present
+        if self.correlation_id is not None:
+            data["correlation_id"] = self.correlation_id
+        if self.sequence_number is not None:
+            data["sequence_number"] = self.sequence_number
+        return json.dumps(data, ensure_ascii=False)
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -129,7 +153,7 @@ class CerebroEvent:
         Returns:
             Dictionary representation of the event
         """
-        return {
+        data = {
             "event_type": self.event_type.value,
             "tenant_id": self.tenant_id,
             "workspace_id": self.workspace_id,
@@ -137,6 +161,12 @@ class CerebroEvent:
             "timestamp": self.timestamp,
             "event_id": self.event_id,
         }
+        # V10 SYNAPSE: Include correlation fields if present
+        if self.correlation_id is not None:
+            data["correlation_id"] = self.correlation_id
+        if self.sequence_number is not None:
+            data["sequence_number"] = self.sequence_number
+        return data
 
     @classmethod
     def from_json(cls, data: str) -> "CerebroEvent":
@@ -161,6 +191,9 @@ class CerebroEvent:
             payload=d["payload"],
             timestamp=d.get("timestamp", _generate_timestamp()),
             event_id=d.get("event_id", _generate_event_id()),
+            # V10 SYNAPSE: Correlation fields
+            correlation_id=d.get("correlation_id"),
+            sequence_number=d.get("sequence_number"),
         )
 
     @classmethod
@@ -181,6 +214,9 @@ class CerebroEvent:
             payload=d["payload"],
             timestamp=d.get("timestamp", _generate_timestamp()),
             event_id=d.get("event_id", _generate_event_id()),
+            # V10 SYNAPSE: Correlation fields
+            correlation_id=d.get("correlation_id"),
+            sequence_number=d.get("sequence_number"),
         )
 
     def channel_name(self) -> str:
