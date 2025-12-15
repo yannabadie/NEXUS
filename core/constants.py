@@ -1,5 +1,5 @@
 """
-NEXUS V9.5 - Centralized Constants
+NEXUS V9.8 - Centralized Constants
 
 This module consolidates all magic numbers previously scattered across the codebase.
 These are INTERNAL constants - not meant to be user-configurable.
@@ -15,6 +15,8 @@ Structure:
 - ExecutionLimits: Swarm and tool execution limits
 - SwarmDepthLimits: Anti-recursion (Inception Trap prevention)
 - ThresholdConstants: Scoring thresholds
+
+V9.8 DETOX: Added headless mode support (see core/interaction/)
 """
 
 from dataclasses import dataclass
@@ -155,4 +157,4 @@ COST_ESTIMATES = CostEstimates()
 
 
 # Version marker for migration
-CONSTANTS_VERSION = "9.5.0"
+CONSTANTS_VERSION = "9.8.0"
