@@ -358,33 +358,66 @@ Execute efficiently. You are the sole agent for this task.
         Retrieve relevant project knowledge for MODERATE+ complexity tasks.
 
         V7.8 Phase 10c: Project Memory RAG integration.
+        V11 DIAGNOSTIC: Added logging to trace RAG usage.
 
         Returns:
             Formatted markdown string with relevant chunks, or empty string.
         """
+        import logging
+        logger = logging.getLogger("nexus.rag_diagnostic")
+
         # Only inject for MODERATE+ complexity tasks
         complexity = getattr(self._orch, '_current_complexity', None)
         if not complexity or complexity.value < TaskComplexity.MODERATE.value:
+            logger.debug(f"[RAG] Skipped - complexity {complexity} < MODERATE")
             return ""
 
         # Check if project_memory is available
         if not hasattr(self._orch, 'project_memory'):
+            logger.warning("[RAG] ProjectMemory NOT AVAILABLE on orchestrator")
+            return ""
+
+        if self._orch.project_memory is None:
+            logger.warning("[RAG] ProjectMemory is None")
             return ""
 
         # Get objective for query
         objective = self._orch.blackboard.get("objective", "")
         if not objective:
+            logger.debug("[RAG] No objective in blackboard")
             return ""
 
         try:
-            # Retrieve relevant chunks
-            chunks = self._orch.project_memory.retrieve(objective, limit=3, min_score=0.05)
-            if not chunks:
+            # V11 DIAGNOSTIC: Log retrieval attempt
+            logger.info(f"[RAG] Retrieving for: '{objective[:80]}...'")
+
+            # Check index status
+            stats = self._orch.project_memory.get_stats()
+            logger.info(f"[RAG] Index stats: {stats.total_chunks} chunks, {stats.total_files} files indexed")
+
+            if stats.total_chunks == 0:
+                logger.warning("[RAG] Index is EMPTY - no chunks to retrieve")
                 return ""
 
-            # Format for context
-            return self._orch.project_memory.format_chunks_for_context(chunks, max_chars=2000)
+            # Retrieve relevant chunks
+            chunks = self._orch.project_memory.retrieve(objective, limit=3, min_score=0.05)
 
-        except Exception:
-            # Silently fail - don't break context building
+            if not chunks:
+                logger.info("[RAG] No chunks matched (score < 0.05)")
+                return ""
+
+            # V11 DIAGNOSTIC: Log retrieved chunks
+            logger.info(f"[RAG] Retrieved {len(chunks)} chunks:")
+            for i, chunk in enumerate(chunks):
+                source = getattr(chunk, 'file_path', getattr(chunk, 'source_path', 'unknown'))
+                logger.info(f"[RAG]   [{i+1}] {source}:{chunk.start_line}-{chunk.end_line}")
+
+            # Format for context
+            formatted = self._orch.project_memory.format_chunks_for_context(chunks, max_chars=2000)
+            logger.info(f"[RAG] Injecting {len(formatted)} chars into context")
+            return formatted
+
+        except Exception as e:
+            # V11 DIAGNOSTIC: Log exceptions instead of silent fail
+            logger.error(f"[RAG] Exception during retrieval: {e}", exc_info=True)
             return ""
