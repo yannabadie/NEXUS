@@ -348,6 +348,109 @@ class ServiceFactory:
         return cls._get_or_create("config", factory, ctx)
 
     # =========================================================================
+    # V10 MEMORY FORGE: MEMORY SERVICES
+    # =========================================================================
+
+    # Global embedding engine (NOT tenant-scoped - shared compute)
+    _embedding_engine = None
+    _embedding_engine_lock = threading.RLock()
+
+    @classmethod
+    def get_embedding_engine(cls):
+        """
+        Get the global EmbeddingEngine singleton.
+
+        NOTE: This is GLOBAL, not tenant-scoped. The embedding model
+        is shared across all tenants to save RAM (~500MB per model).
+
+        V10 MEMORY FORGE: Shared compute, isolated storage.
+
+        Returns:
+            EmbeddingEngine instance (global singleton)
+        """
+        with cls._embedding_engine_lock:
+            if cls._embedding_engine is None:
+                from .memory.embedding_engine import EmbeddingEngine
+                cls._embedding_engine = EmbeddingEngine()
+            return cls._embedding_engine
+
+    @classmethod
+    def get_project_memory(cls, ctx: Optional[SessionContext] = None):
+        """
+        Get the project memory for the current tenant.
+
+        V10 MEMORY FORGE: Uses shared EmbeddingEngine for encoding,
+        but storage is isolated per tenant.
+
+        Returns:
+            ProjectMemory instance with tenant-isolated storage
+        """
+        def factory(ctx: Optional[SessionContext]):
+            from .memory.project_memory import ProjectMemory
+            nexus_root = cls.get_nexus_root()
+
+            # Get shared embedding engine
+            engine = cls.get_embedding_engine()
+
+            # Create tenant-scoped ProjectMemory with shared engine
+            return ProjectMemory(nexus_root, embedding_engine=engine)
+
+        return cls._get_or_create("project_memory", factory, ctx)
+
+    @classmethod
+    def get_auto_memory(cls, ctx: Optional[SessionContext] = None):
+        """
+        Get the auto memory for the current tenant.
+
+        AutoMemory provides automatic context management for agents.
+
+        Returns:
+            AutoMemory instance scoped to tenant
+        """
+        def factory(ctx: Optional[SessionContext]):
+            from .memory.auto_memory import AutoMemory
+            nexus_root = cls.get_nexus_root()
+            workspace_path = cls.get_tenant_workspace_path(ctx)
+            return AutoMemory(nexus_root, workspace_path)
+
+        return cls._get_or_create("auto_memory", factory, ctx)
+
+    @classmethod
+    def get_success_memory(cls, ctx: Optional[SessionContext] = None):
+        """
+        Get the success memory for the current tenant.
+
+        SuccessMemory tracks successful tool executions for
+        learning and improvement.
+
+        Returns:
+            SuccessMemory instance scoped to tenant
+        """
+        def factory(ctx: Optional[SessionContext]):
+            from .memory.success_memory import SuccessMemory
+            workspace_path = cls.get_tenant_workspace_path(ctx)
+            return SuccessMemory(workspace_path)
+
+        return cls._get_or_create("success_memory", factory, ctx)
+
+    @classmethod
+    def get_spotlighter(cls, ctx: Optional[SessionContext] = None):
+        """
+        Get the spotlighter for the current tenant.
+
+        Spotlighter provides RAG content datamarking for
+        security (OWASP LLM01:2025 - Prompt Injection detection).
+
+        Returns:
+            Spotlighter instance scoped to tenant
+        """
+        def factory(ctx: Optional[SessionContext]):
+            from .memory.spotlighting import Spotlighter
+            return Spotlighter()
+
+        return cls._get_or_create("spotlighter", factory, ctx)
+
+    # =========================================================================
     # CACHE MANAGEMENT
     # =========================================================================
 

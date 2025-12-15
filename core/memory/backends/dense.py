@@ -1,14 +1,19 @@
 """
-NEXUS V7.9 - Dense Embeddings Backend (Phase 10g)
+NEXUS V10 MEMORY FORGE - Dense Embeddings Backend
 
-Semantic retrieval using LanceDB (vector storage) and Sentence-Transformers (embeddings).
+Semantic retrieval using LanceDB (vector storage) and shared EmbeddingEngine.
 Provides ~10% better recall than BM25S for semantic queries ("auth" ≈ "authentication").
 
-Optional dependencies: pip install lancedb sentence-transformers
+V10 Architecture:
+- Delegates encoding to global EmbeddingEngine singleton (shared compute)
+- Storage is tenant-isolated (each tenant has own LanceDB path)
+- Injection support: pass embedding_engine in __init__ for testing
+
+Optional dependencies: pip install lancedb sentence-transformers[onnx]
 Falls back gracefully if not installed.
 
 Model: all-MiniLM-L6-v2 (22MB, 384 dimensions, ~5k sentences/sec on CPU)
-Storage: .nexus/lancedb/ (embedded, serverless)
+Storage: .nexus/lancedb/ (embedded, serverless, per-tenant)
 """
 
 import json
@@ -20,6 +25,7 @@ from .base import MemoryBackend
 
 if TYPE_CHECKING:
     from ..types import Chunk
+    from ..embedding_engine import EmbeddingEngine
 
 # =============================================================================
 # Optional Dependencies (lazy import for startup performance)
@@ -54,18 +60,24 @@ BATCH_SIZE = 32  # Batch size for encoding
 
 class DenseBackend(MemoryBackend):
     """
-    Dense embeddings retrieval backend using LanceDB + Sentence-Transformers.
+    Dense embeddings retrieval backend using LanceDB + shared EmbeddingEngine.
+
+    V10 MEMORY FORGE Architecture:
+    - Encoding delegated to global EmbeddingEngine (shared across tenants)
+    - Storage isolated per tenant (each has own LanceDB path)
+    - Supports dependency injection for testing
 
     Features:
     - Semantic similarity (understands "auth" ≈ "authentication")
     - ~10% better recall than BM25S for conceptual queries
     - Persistent vector storage in .nexus/lancedb/
     - Lazy loading for zero startup impact
-    - GPU support when available (CUDA)
+    - ONNX acceleration when available (2-3x faster CPU)
 
     Dependencies:
     - lancedb>=0.4.0 (required)
-    - sentence-transformers>=2.2.0 (required)
+    - sentence-transformers>=3.2.0 (required)
+    - onnxruntime>=1.19.0 (optional, for ONNX acceleration)
 
     Storage Schema:
     - id: Unique chunk identifier (file_path:start-end)
@@ -73,21 +85,28 @@ class DenseBackend(MemoryBackend):
     - metadata: JSON-serialized Chunk data
     """
 
-    def __init__(self, storage_path: Path):
+    def __init__(
+        self,
+        storage_path: Path,
+        embedding_engine: Optional['EmbeddingEngine'] = None
+    ):
         """
         Initialize the Dense backend.
 
         Args:
             storage_path: Directory for LanceDB storage (e.g., .nexus/lancedb)
+            embedding_engine: Optional EmbeddingEngine instance (for DI/testing).
+                             If None, uses global singleton.
         """
         self._logger = logging.getLogger("nexus.memory.dense")
         self._storage_path = Path(storage_path)
 
-        # Lazy-loaded components
+        # V10 MEMORY FORGE: Use injected engine or get global singleton
+        self._engine: Optional['EmbeddingEngine'] = embedding_engine
+
+        # Lazy-loaded components (storage only - model is in engine)
         self._db: Optional[Any] = None
         self._table: Optional[Any] = None
-        self._model: Optional[Any] = None
-        self._device: Optional[str] = None
 
         self._index_built = False
         self._chunk_count = 0
@@ -105,38 +124,35 @@ class DenseBackend(MemoryBackend):
         """Check if Dense backend can be used."""
         return LANCEDB_AVAILABLE and SENTENCE_TRANSFORMERS_AVAILABLE
 
-    def _ensure_model(self) -> bool:
+    def _ensure_engine(self) -> bool:
         """
-        Lazy-load the embedding model.
+        Ensure the EmbeddingEngine is ready.
+
+        V10 MEMORY FORGE: Delegates to global singleton or injected engine.
 
         Returns:
-            True if model is ready, False otherwise
+            True if engine is ready, False otherwise
         """
-        if self._model is not None:
+        # Already have an engine
+        if self._engine is not None and self._engine.is_loaded:
             return True
 
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            self._logger.warning("sentence-transformers not installed")
-            return False
+        # Get global singleton if not injected
+        if self._engine is None:
+            if not SENTENCE_TRANSFORMERS_AVAILABLE:
+                self._logger.warning("sentence-transformers not installed")
+                return False
 
-        try:
-            # Import only when needed (slow import)
-            from sentence_transformers import SentenceTransformer
-
-            self._logger.info(f"Loading embedding model: {DEFAULT_MODEL}")
-            self._logger.info("First use may download model (~22MB from HuggingFace)...")
-
-            # Detect device
             try:
-                import torch
-                self._device = "cuda" if torch.cuda.is_available() else "cpu"
-            except ImportError:
-                self._device = "cpu"
+                from ..embedding_engine import get_embedding_engine
+                self._engine = get_embedding_engine()
+            except ImportError as e:
+                self._logger.error(f"Failed to import EmbeddingEngine: {e}")
+                return False
 
-            self._model = SentenceTransformer(DEFAULT_MODEL, device=self._device)
-            self._logger.info(f"Embedding model ready (device: {self._device})")
-            return True
-
+        # Ensure model is loaded (lazy loading in engine)
+        try:
+            return self._engine.preload()
         except Exception as e:
             self._logger.error(f"Failed to load embedding model: {e}")
             return False
@@ -194,12 +210,12 @@ class DenseBackend(MemoryBackend):
         """
         Build the dense index from chunks.
 
-        Uses batch encoding for efficiency.
+        Uses batch encoding for efficiency via shared EmbeddingEngine.
 
         Args:
             chunks: List of Chunk objects to index
         """
-        if not self._ensure_db() or not self._ensure_model():
+        if not self._ensure_db() or not self._ensure_engine():
             self._logger.warning("Dense backend not available, cannot build index")
             self._index_built = False
             return
@@ -219,13 +235,12 @@ class DenseBackend(MemoryBackend):
             # Extract texts for embedding
             texts = [chunk.content for chunk in chunks]
 
-            # Batch encode
+            # V10 MEMORY FORGE: Delegate encoding to shared engine
             self._logger.debug(f"Encoding {len(texts)} chunks (batch_size={BATCH_SIZE})...")
-            embeddings = self._model.encode(
+            embeddings = self._engine.encode(
                 texts,
                 batch_size=BATCH_SIZE,
-                show_progress_bar=False,
-                convert_to_numpy=True
+                show_progress=False
             )
 
             # Prepare data for LanceDB
@@ -278,22 +293,20 @@ class DenseBackend(MemoryBackend):
             self._logger.warning("raw_query required for dense retrieval")
             return []
 
-        if not self._ensure_db() or not self._ensure_model():
+        if not self._ensure_db() or not self._ensure_engine():
             return []
 
         if self._table is None or self._chunk_count == 0:
             return []
 
         try:
-            # Encode query
-            query_embedding = self._model.encode(
-                raw_query,
-                convert_to_numpy=True
-            )
+            # V10 MEMORY FORGE: Delegate query encoding to shared engine
+            query_embedding = self._engine.encode_single(raw_query)
 
             # Search LanceDB
             # LanceDB uses L2 distance by default, but we can use cosine via metric
-            results = self._table.search(query_embedding.tolist()).limit(limit).to_list()
+            # Note: query_embedding is already a list from engine.encode_single()
+            results = self._table.search(query_embedding).limit(limit).to_list()
 
             # Convert results to Chunk objects
             retrieved_chunks = []
@@ -330,15 +343,20 @@ class DenseBackend(MemoryBackend):
 
     def get_info(self) -> Dict[str, Any]:
         """Get Dense backend information."""
+        engine_info = {}
+        if self._engine is not None:
+            engine_info = self._engine.get_info()
+
         return {
             "backend": self.name,
             "lancedb_available": LANCEDB_AVAILABLE,
             "sentence_transformers_available": SENTENCE_TRANSFORMERS_AVAILABLE,
             "model": DEFAULT_MODEL,
             "embedding_dim": EMBEDDING_DIM,
-            "device": self._device,
             "index_built": self._index_built,
             "chunk_count": self._chunk_count,
             "storage_path": str(self._storage_path),
-            "dependencies": "lancedb>=0.4.0, sentence-transformers>=2.2.0"
+            "dependencies": "lancedb>=0.4.0, sentence-transformers>=3.2.0",
+            # V10 MEMORY FORGE: Include shared engine info
+            "engine": engine_info,
         }

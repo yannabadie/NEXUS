@@ -41,7 +41,13 @@ lancedb>=0.4.0
 # Sentence-Transformers: State-of-the-art text embeddings
 # Model: all-MiniLM-L6-v2 (22MB, 384 dim, ~5k sent/sec CPU)
 # Provides ~+10% recall vs BM25S for semantic queries
-sentence-transformers>=2.2.0
+# V10 MEMORY FORGE: Updated for ONNX backend support (2-3x faster CPU)
+sentence-transformers>=3.2.0
+
+# ONNX Runtime: Optimized inference for embeddings
+# V10 MEMORY FORGE: CPU acceleration for embedding model
+# Install with: pip install sentence-transformers[onnx] for full support
+onnxruntime>=1.19.0
 
 # =============================================================================
 # V10 SaaS: Multi-Tenant Data Layer (OPERATION PRISM)

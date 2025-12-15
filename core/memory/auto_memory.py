@@ -318,13 +318,57 @@ class AutoMemory:
         }
 
 
-# Singleton instance
+# =============================================================================
+# V10 PRISM: Multi-Tenant Auto Memory Access
+# =============================================================================
+
 _auto_memory: Optional[AutoMemory] = None
 
 
 def get_auto_memory(workspace_path: Path = None) -> AutoMemory:
-    """Get or create singleton AutoMemory instance."""
+    """
+    Get the AutoMemory for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped instance via ServiceFactory.
+    Falls back to global singleton if no context is active.
+
+    Args:
+        workspace_path: Workspace path (required on first call in legacy mode)
+
+    Returns:
+        AutoMemory instance scoped to current tenant
+    """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_auto_memory()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _auto_memory
     if _auto_memory is None:
         _auto_memory = AutoMemory(workspace_path)
     return _auto_memory
+
+
+def reset_auto_memory() -> None:
+    """
+    Reset the global AutoMemory instance (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
+    global _auto_memory
+    _auto_memory = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

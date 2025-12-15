@@ -861,23 +861,59 @@ class SuccessMemory:
         return count
 
 
-# Module-level singleton for convenience
+# =============================================================================
+# V10 PRISM: Multi-Tenant Success Memory Access
+# =============================================================================
+
 _default_memory: Optional[SuccessMemory] = None
 
 
 def get_success_memory(workspace_path: Optional[Path] = None) -> Optional[SuccessMemory]:
     """
-    Get the default SuccessMemory instance.
+    Get the SuccessMemory for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped instance via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     Args:
-        workspace_path: Required on first call to initialize.
+        workspace_path: Required on first call to initialize (legacy mode).
 
     Returns:
-        SuccessMemory instance, or None if not initialized.
+        SuccessMemory instance scoped to current tenant, or None if not initialized.
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_success_memory()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _default_memory
 
     if _default_memory is None and workspace_path is not None:
         _default_memory = SuccessMemory(workspace_path)
 
     return _default_memory
+
+
+def reset_success_memory() -> None:
+    """
+    Reset the global SuccessMemory instance (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
+    global _default_memory
+    _default_memory = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

@@ -306,7 +306,7 @@ class Spotlighter:
 
 
 # =============================================================================
-# Convenience Functions
+# V10 PRISM: Multi-Tenant Spotlighter Access
 # =============================================================================
 
 _default_spotlighter: Optional[Spotlighter] = None
@@ -317,7 +317,30 @@ def get_spotlighter(
     include_instruction: bool = True,
     enabled: bool = True
 ) -> Spotlighter:
-    """Get or create the default Spotlighter instance."""
+    """
+    Get the Spotlighter for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped instance via ServiceFactory.
+    Falls back to global singleton if no context is active.
+
+    Args:
+        technique: Spotlighting technique (DELIMITER, ENCODING, DATAMARK)
+        include_instruction: Include instruction header
+        enabled: Enable/disable spotlighting
+
+    Returns:
+        Spotlighter instance scoped to current tenant
+    """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_spotlighter()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _default_spotlighter
     if _default_spotlighter is None:
         _default_spotlighter = Spotlighter(
@@ -326,6 +349,26 @@ def get_spotlighter(
             enabled=enabled
         )
     return _default_spotlighter
+
+
+def reset_spotlighter() -> None:
+    """
+    Reset the global Spotlighter instance (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
+    global _default_spotlighter
+    _default_spotlighter = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass
 
 
 def spotlight_content(

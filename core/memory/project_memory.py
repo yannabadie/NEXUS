@@ -1,21 +1,21 @@
 """
-NEXUS V7.9 - Project Memory RAG (Phase 10c + 10e + 10f + 10g)
+NEXUS V10 MEMORY FORGE - Project Memory RAG
 
 Persistent project knowledge base with pluggable retrieval backends.
 Stores indexed code and documentation for context-aware responses.
 
-Architecture:
-- Storage: .nexus/project_knowledge.json (at NEXUS_ROOT, NOT in workspace/)
-- Persistence: Survives /workspace new (workspace is session, memory is project)
-- Sharing: All agents (Gemini, Claude, spawned) share the same factual knowledge
+V10 Architecture:
+- EmbeddingEngine: Global singleton for shared compute (DI support)
+- Storage: Tenant-isolated paths (multi-tenant support)
+- Backends: Dense (semantic) > BM25S (lexical) > TF-IDF (fallback)
 
 Chunking Strategy:
 - .py files: Split by function/class definitions
 - .md files: Split by sections (headers)
 - Other files: Split by lines (50 lines, 10 overlap)
 
-Backend Architecture (V7.9 Phase 10f + 10g):
-- SEMANTIC: Dense embeddings (LanceDB + Sentence-Transformers) - ~+10% recall
+Backend Architecture:
+- SEMANTIC: Dense embeddings (LanceDB + shared EmbeddingEngine) - ~+10% recall
 - LEXICAL: BM25S sparse retrieval (if installed) - ~15% better than TF-IDF
 - FALLBACK: TF-IDF weighted Jaccard similarity (built-in, no dependencies)
 - Pluggable: MemoryBackend ABC allows future backends (Hybrid, etc.)
@@ -37,7 +37,10 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Set, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .embedding_engine import EmbeddingEngine
 
 # V8.8: Spotlighter for RAG content protection (OWASP LLM01:2025)
 try:
@@ -80,29 +83,32 @@ class ProjectMemory:
     """
     Persistent project knowledge base for NEXUS.
 
-    Indexes code and documentation with pluggable retrieval backends:
-    - PRIMARY: BM25S sparse retrieval (if installed) - better recall
-    - FALLBACK: TF-IDF weighted Jaccard similarity (built-in)
+    V10 MEMORY FORGE Architecture:
+    - EmbeddingEngine injection for shared compute across tenants
+    - Storage paths are tenant-isolated (each tenant has own .nexus/)
+    - Pluggable backends: Dense (semantic) > BM25S (lexical) > TF-IDF
 
     Key Design Decisions:
     - Stored at NEXUS_ROOT/.nexus/project_knowledge.json (not in workspace/)
     - Shared by all agents (factual knowledge is universal)
     - Survives /workspace new (memory persists across sessions)
-
-    Phase 10c: V7.8 HIVE MIND (TF-IDF)
-    Phase 10e: V7.8.2 (BM25S upgrade)
-    Phase 10f: V7.9 (Backend abstraction)
     """
 
     STORAGE_FILE = "project_knowledge.json"
 
-    def __init__(self, nexus_root: Path):
+    def __init__(
+        self,
+        nexus_root: Path,
+        embedding_engine: Optional['EmbeddingEngine'] = None
+    ):
         """
         Initialize ProjectMemory.
 
         Args:
             nexus_root: Root directory of NEXUS/project installation.
                        Storage will be at nexus_root/.nexus/project_knowledge.json
+            embedding_engine: Optional EmbeddingEngine instance (for DI/testing).
+                             If None, DenseBackend will use global singleton.
         """
         self.nexus_root = Path(nexus_root)
         self.storage_dir = self.nexus_root / ".nexus"
@@ -110,11 +116,14 @@ class ProjectMemory:
 
         self._logger = logging.getLogger("nexus.project_memory")
 
+        # V10 MEMORY FORGE: Store engine for injection into DenseBackend
+        self._embedding_engine: Optional['EmbeddingEngine'] = embedding_engine
+
         # In-memory data
         self.chunks: List[Chunk] = []
         self.indexed_files: Set[str] = set()
 
-        # V7.9 Phase 10f: Backend abstraction
+        # V10: Backend abstraction with engine injection
         self._backend: MemoryBackend = self._select_backend()
         self._backend_dirty: bool = True  # Backend index needs rebuild
 
@@ -131,7 +140,7 @@ class ProjectMemory:
         """
         Select the best available backend.
 
-        V7.9 Phase 10g: Supports Dense embeddings backend.
+        V10 MEMORY FORGE: Passes embedding_engine to DenseBackend for shared compute.
 
         Environment variable PROJECT_MEMORY_BACKEND controls selection:
         - "auto" (default): Best available (Dense > BM25S > TF-IDF)
@@ -149,7 +158,8 @@ class ProjectMemory:
         if backend_pref == "dense":
             if DenseBackend.is_available():
                 self._logger.info("Using Dense backend (semantic search)")
-                return DenseBackend(lancedb_path)
+                # V10: Inject embedding engine
+                return DenseBackend(lancedb_path, embedding_engine=self._embedding_engine)
             else:
                 self._logger.warning("Dense backend requested but unavailable, falling back")
 
@@ -167,7 +177,8 @@ class ProjectMemory:
         # Auto selection: Dense > BM25S > TF-IDF
         if DenseBackend.is_available():
             self._logger.info("Using Dense backend (semantic search, best recall)")
-            return DenseBackend(lancedb_path)
+            # V10: Inject embedding engine
+            return DenseBackend(lancedb_path, embedding_engine=self._embedding_engine)
         elif Bm25Backend.is_available():
             self._logger.info("Using BM25S backend (lexical, +15% vs TF-IDF)")
             return Bm25Backend()
