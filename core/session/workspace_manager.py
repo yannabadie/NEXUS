@@ -359,20 +359,35 @@ class SessionWorkspaceManager:
         )
 
 
-# Singleton instance
+# =============================================================================
+# V10 PRISM: Multi-Tenant Workspace Manager Access
+# =============================================================================
 _workspace_manager: Optional[SessionWorkspaceManager] = None
 
 
 def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorkspaceManager:
     """
-    Get or create the global workspace manager.
+    Get the workspace manager for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped manager via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     Args:
-        base_workspace: Base workspace path (required on first call)
+        base_workspace: Base workspace path (required on first call in legacy mode)
 
     Returns:
-        SessionWorkspaceManager instance
+        SessionWorkspaceManager instance scoped to current tenant
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_workspace_manager()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _workspace_manager
     if _workspace_manager is None:
         if base_workspace is None:
@@ -382,6 +397,20 @@ def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorks
 
 
 def reset_workspace_manager() -> None:
-    """Reset the global workspace manager (for testing)."""
+    """
+    Reset the global workspace manager (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
     global _workspace_manager
     _workspace_manager = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

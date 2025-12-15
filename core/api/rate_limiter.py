@@ -326,8 +326,31 @@ class RateLimiterRegistry:
             limiter.reset()
 
 
+# =============================================================================
+# V10 PRISM: Multi-Tenant Rate Limiter Access
+# =============================================================================
+
+
 def get_rate_limiter_registry() -> RateLimiterRegistry:
-    """Get the global rate limiter registry singleton."""
+    """
+    Get the rate limiter registry for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
+    Falls back to global singleton if no context is active.
+
+    Returns:
+        RateLimiterRegistry instance scoped to current tenant
+    """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_rate_limiter_registry()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     return RateLimiterRegistry()
 
 
@@ -335,10 +358,12 @@ def get_rate_limiter(provider: str) -> APIRateLimiter:
     """
     Convenience function to get rate limiter for a provider.
 
+    V10 PRISM: Uses tenant-scoped registry.
+
     Args:
         provider: Provider name (gemini, claude, etc.)
 
     Returns:
-        APIRateLimiter instance
+        APIRateLimiter instance scoped to current tenant
     """
     return get_rate_limiter_registry().get_limiter(provider)

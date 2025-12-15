@@ -360,7 +360,12 @@ class UnifiedAgentRegistry:
         return len(self._agents)
 
 
-# Global singleton with thread-safe initialization (V9)
+# =============================================================================
+# V10 PRISM: Multi-Tenant Registry Access
+# =============================================================================
+# The registry is now tenant-scoped via ServiceFactory.
+# Legacy global singleton kept for backward compatibility.
+
 import threading
 _registry: Optional[UnifiedAgentRegistry] = None
 _registry_lock = threading.Lock()
@@ -368,18 +373,27 @@ _registry_lock = threading.Lock()
 
 def get_registry() -> UnifiedAgentRegistry:
     """
-    Get the global agent registry singleton.
+    Get the agent registry for the current tenant context.
 
-    V9: Thread-safe initialization with double-checked locking
-    to prevent race conditions during initialization.
+    V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
+    Falls back to global singleton if no context is active (backward compat).
 
     Returns:
-        UnifiedAgentRegistry instance
+        UnifiedAgentRegistry instance scoped to current tenant
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_registry()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _registry
     if _registry is None:
         with _registry_lock:
-            # Double-check inside lock
             if _registry is None:
                 _registry = UnifiedAgentRegistry()
     return _registry
@@ -388,6 +402,18 @@ def get_registry() -> UnifiedAgentRegistry:
 def reset_registry() -> None:
     """
     Reset the global registry (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
     """
     global _registry
     _registry = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

@@ -265,12 +265,32 @@ class ToolRegistry:
         }
 
 
-# Global registry instance
+# =============================================================================
+# V10 PRISM: Multi-Tenant Tool Registry Access
+# =============================================================================
 _global_registry: Optional[ToolRegistry] = None
 
 
 def get_tool_registry() -> ToolRegistry:
-    """Get or create global tool registry."""
+    """
+    Get the tool registry for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
+    Falls back to global singleton if no context is active.
+
+    Returns:
+        ToolRegistry instance scoped to current tenant
+    """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_tool_registry()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _global_registry
     if _global_registry is None:
         _global_registry = ToolRegistry()
@@ -278,6 +298,20 @@ def get_tool_registry() -> ToolRegistry:
 
 
 def reset_tool_registry() -> None:
-    """Reset global tool registry (for testing)."""
+    """
+    Reset global tool registry (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
     global _global_registry
     _global_registry = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

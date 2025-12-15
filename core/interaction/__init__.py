@@ -53,14 +53,19 @@ from .cli_provider import CLIProvider
 from .headless_provider import HeadlessProvider
 
 
-# Singleton instance and lock
+# =============================================================================
+# V10 PRISM: Multi-Tenant Interaction Provider Access
+# =============================================================================
 _provider: Optional[InteractionProvider] = None
 _provider_lock = threading.Lock()
 
 
 def get_interaction_provider() -> InteractionProvider:
     """
-    Get the global interaction provider singleton.
+    Get the interaction provider for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped provider via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     The provider type is determined by NEXUS_INTERACTION_MODE env var:
     - "cli": Interactive CLIProvider (default)
@@ -68,10 +73,21 @@ def get_interaction_provider() -> InteractionProvider:
     - "strict": HeadlessProvider with strict=True
 
     Returns:
-        The global InteractionProvider instance
+        InteractionProvider instance scoped to current tenant
 
     Thread-safe with double-checked locking.
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from .base import InteractionProvider as _IP  # avoid shadowing
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_interaction_provider()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _provider
 
     if _provider is None:
@@ -112,10 +128,22 @@ def reset_interaction_provider() -> None:
 
     The next call to get_interaction_provider() will create
     a new instance based on current environment settings.
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
     """
     global _provider
     with _provider_lock:
         _provider = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass
 
 
 __all__ = [
