@@ -355,9 +355,16 @@ class MonitoredExecutionPhase:
 
             # Add issues from response
             for issue_data in result_data.get("issues", []):
+                # Handle severity that might already be an enum or a string
+                raw_severity = issue_data.get("severity", "warning")
+                if isinstance(raw_severity, IssueSeverity):
+                    severity = raw_severity
+                else:
+                    severity = IssueSeverity(raw_severity)
+                
                 issues.append(ExecutionIssue(
                     issue_type=issue_data.get("type", "unknown"),
-                    severity=IssueSeverity(issue_data.get("severity", "warning")),
+                    severity=severity,
                     details=issue_data.get("details", ""),
                     step_name=step.name
                 ))
