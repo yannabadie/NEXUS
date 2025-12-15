@@ -1,12 +1,47 @@
-# NEXUS V9.7 "HIVE MIND UNLEASHED" - Roadmap Opérationnelle
+# NEXUS V11 "ASYNC CORE" - Roadmap Opérationnelle
 
-**Version**: 9.7.0 (Planning) | **Status**: Active | **Last Updated**: 2025-12-13
-**Maintainer**: Yann Abadie | **Branch**: N9AF
-**Focus**: Connectivité, Résilience Active, Observabilité
+**Version**: 11.4.0 | **Status**: Active | **Last Updated**: 2025-12-15
+**Maintainer**: Yann Abadie | **Branch**: NX
+**Focus**: Security Hardening, Async Migration, Python 3.12+ Compatibility
 
 ---
 
-## État Actuel (V9.6 Sprint 5.3)
+## État Actuel (V11.4)
+
+| Métrique | Valeur |
+|----------|--------|
+| Architecture | Modulaire (Handlers) + Async Core |
+| Sécurité | JWT/CORS Hardening (V11.3) |
+| Async | Python 3.12+ Compatible (V11.4) |
+| Tests | 2,144+ (216 async tests) |
+
+### V11.4 - ASYNC Migration ✅ COMPLETED (2025-12-15)
+
+**Objectif**: Compatibilité Python 3.12+ et préservation du contexte async.
+
+| Tâche | Status | Notes |
+|-------|--------|-------|
+| **fsm_handlers.py** | ✅ Done | `run_coroutine_threadsafe()` préserve CancellationToken |
+| **telemetry/service.py** | ✅ Done | Pattern async/sync corrigé |
+| **bootstrap/service.py** | ✅ Done | Pattern async/sync corrigé |
+| **repl.py** | ✅ Done | 4x `get_running_loop()` (deprecated fix) |
+| **async_adapter.py** | ✅ Done | Pattern simplifié |
+| **embedding_engine.py** | ✅ Done | `get_running_loop()` |
+
+### V11.3 - HARDENING Phase 0 ✅ COMPLETED (2025-12-15)
+
+**Objectif**: Sécuriser les secrets et la configuration CORS.
+
+| Tâche | Status | Notes |
+|-------|--------|-------|
+| **JWT_SECRET** | ✅ Done | Via `NEXUS_JWT_SECRET` env var |
+| **CORS Origins** | ✅ Done | Via `NEXUS_CORS_ORIGINS` env var |
+| **.env.example** | ✅ Done | Section sécurité documentée |
+| **Tests** | ✅ Done | 8 tests dans `tests/v11/test_hardening.py` |
+
+---
+
+## État Précédent (V9.6 Sprint 5.3)
 
 | Métrique | Valeur |
 |----------|--------|

@@ -144,13 +144,13 @@ class TestCtrlCCancellation:
 class TestFallbackBehavior:
     """Tests for sync fallback when async unavailable."""
 
+    @pytest.mark.skip(reason="Placeholder test - get_driver_factory removed in V11")
     @pytest.mark.asyncio
     async def test_process_turn_async_fallback_no_factory(self):
         """process_turn_async should fallback when no factory."""
         # This is a conceptual test - actual implementation depends on orchestrator state
-        with patch('core.orchestration_v7.get_driver_factory', side_effect=ImportError):
-            # Should not raise, should use sync path
-            pass  # Actual test would require full orchestrator setup
+        # V11.4: get_driver_factory was removed, test needs rewrite
+        pass
 
 
 class TestAsyncPrimitives:

@@ -220,7 +220,9 @@ class TestV95Integration:
         from core.resilience import CircuitBreaker, SystemHealth
 
         # All imports succeeded
-        assert CONSTANTS_VERSION.startswith("9.5")
+        # V11.4: Accept any 9.x or higher version
+        major_version = int(CONSTANTS_VERSION.split(".")[0])
+        assert major_version >= 9, f"Expected version >= 9, got {CONSTANTS_VERSION}"
 
     @pytest.mark.asyncio
     async def test_health_check_reports_all_components(self):

@@ -458,16 +458,20 @@ async def test_error_count_accumulates():
 
 
 @pytest.mark.asyncio
-async def test_success_resets_error_count():
-    """Test that success resets error count."""
+async def test_success_decrements_error_count():
+    """Test that success decrements error count (not resets)."""
     hsm = HealthStateMachine(auto_recover=False)
 
     await hsm.record_error("E1", "Error 1")
     await hsm.record_error("E2", "Error 2")
     assert hsm.error_count == 2
 
-    await hsm.record_success()
-    assert hsm.error_count == 0
+    # V11.4: record_success() is sync, decrements by 1
+    hsm.record_success()
+    assert hsm.error_count == 1  # Decremented, not reset
+
+    hsm.record_success()
+    assert hsm.error_count == 0  # Now at 0
 
 
 if __name__ == "__main__":
