@@ -33,6 +33,9 @@ from .service import (
     _get_budget_service,
 )
 
+# V10 CEREBRO: Redis Log Bridge
+from .redis_bridge import RedisLogHandler, create_redis_log_handler
+
 __all__ = [
     "TelemetryCollector",
     "MetricType",
@@ -47,4 +50,7 @@ __all__ = [
     "ServiceResult",
     "_get_telemetry_service",
     "_get_budget_service",
+    # V10 CEREBRO: Redis Log Bridge
+    "RedisLogHandler",
+    "create_redis_log_handler",
 ]

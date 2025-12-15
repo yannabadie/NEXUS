@@ -59,6 +59,24 @@ sqlmodel>=0.0.14
 sqlalchemy>=2.0
 
 # =============================================================================
+# V10 CEREBRO: Redis Event Bus & API (OPERATION CEREBRO: GENESIS)
+# =============================================================================
+# Redis: Async pub/sub for external UI observation
+redis>=5.0.0
+
+# FastAPI: High-performance ASGI framework for WebSocket API
+fastapi>=0.115.0
+
+# Uvicorn: ASGI server with WebSocket support
+uvicorn[standard]>=0.32.0
+
+# WebSockets: Low-level WebSocket implementation
+websockets>=13.0
+
+# Python-Jose: JWT encoding/decoding for API auth
+python-jose[cryptography]>=3.3.0
+
+# =============================================================================
 # Development Dependencies (REQUIRED for tests)
 # =============================================================================
 pytest>=7.0.0
