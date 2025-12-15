@@ -230,27 +230,37 @@ class CommandRegistry:
 
 
 # =============================================================================
-# Thread-safe Singleton
+# V10 PRISM: Multi-Tenant Command Registry Access
 # =============================================================================
+import threading
 
 _registry_instance: Optional[CommandRegistry] = None
-_registry_lock = None
+_registry_lock = threading.Lock()
 
 
 def get_registry() -> CommandRegistry:
     """
-    Get or create the global CommandRegistry singleton.
+    Get the command registry for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     Thread-safe with double-checked locking.
 
     Returns:
-        The global CommandRegistry instance
+        CommandRegistry instance scoped to current tenant
     """
-    global _registry_instance, _registry_lock
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ...context import has_active_session
+        if has_active_session():
+            from ...factory import ServiceFactory
+            return ServiceFactory.get_command_registry()
+    except ImportError:
+        pass  # context module not available, use legacy
 
-    if _registry_lock is None:
-        import threading
-        _registry_lock = threading.Lock()
+    # Legacy fallback: global singleton
+    global _registry_instance
 
     if _registry_instance is None:
         with _registry_lock:
@@ -261,6 +271,21 @@ def get_registry() -> CommandRegistry:
 
 
 def reset_registry() -> None:
-    """Reset the singleton (for testing)."""
+    """
+    Reset the global command registry (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
     global _registry_instance
-    _registry_instance = None
+    with _registry_lock:
+        _registry_instance = None
+
+    # V10: Also clear factory cache
+    try:
+        from ...context import get_current_session_or_none
+        from ...factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

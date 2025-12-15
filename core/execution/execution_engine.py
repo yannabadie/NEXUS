@@ -228,20 +228,35 @@ class ExecutionEngine:
         }
 
 
-# Singleton instance
+# =============================================================================
+# V10 PRISM: Multi-Tenant Execution Engine Access
+# =============================================================================
 _engine_instance: Optional[ExecutionEngine] = None
 
 
 def get_execution_engine(workspace_path: Optional[Path] = None) -> ExecutionEngine:
     """
-    Get or create the global execution engine.
+    Get the execution engine for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped engine via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     Args:
-        workspace_path: Workspace path (required on first call)
+        workspace_path: Workspace path (required on first call in legacy mode)
 
     Returns:
-        ExecutionEngine instance
+        ExecutionEngine instance scoped to current tenant
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_execution_engine()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _engine_instance
     if _engine_instance is None:
         if workspace_path is None:
@@ -251,6 +266,20 @@ def get_execution_engine(workspace_path: Optional[Path] = None) -> ExecutionEngi
 
 
 def reset_execution_engine() -> None:
-    """Reset the global execution engine (for testing)."""
+    """
+    Reset the global execution engine (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
     global _engine_instance
     _engine_instance = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

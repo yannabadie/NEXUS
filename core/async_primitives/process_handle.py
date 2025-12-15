@@ -299,7 +299,9 @@ class ProcessHandleRegistry:
         return len(self._handles)
 
 
-# Global registry instance with thread-safe initialization (V9)
+# =============================================================================
+# V10 PRISM: Multi-Tenant Process Registry Access
+# =============================================================================
 import threading
 _global_registry: Optional[ProcessHandleRegistry] = None
 _registry_lock = threading.Lock()
@@ -307,11 +309,24 @@ _registry_lock = threading.Lock()
 
 def get_process_registry() -> ProcessHandleRegistry:
     """
-    Get the global process handle registry.
+    Get the process handle registry for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
+    Falls back to global singleton if no context is active.
 
     V9: Thread-safe singleton with double-checked locking to prevent
     race conditions during initialization.
     """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_process_registry()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _global_registry
     if _global_registry is None:
         with _registry_lock:
@@ -319,3 +334,24 @@ def get_process_registry() -> ProcessHandleRegistry:
             if _global_registry is None:
                 _global_registry = ProcessHandleRegistry()
     return _global_registry
+
+
+def reset_process_registry() -> None:
+    """
+    Reset the global process registry (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
+    global _global_registry
+    with _registry_lock:
+        _global_registry = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass

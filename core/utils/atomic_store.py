@@ -268,7 +268,9 @@ class AtomicJsonStoreManager:
             self._stores.clear()
 
 
-# Module-level singleton for convenience
+# =============================================================================
+# V10 PRISM: Multi-Tenant Atomic Store Access
+# =============================================================================
 _default_manager: Optional[AtomicJsonStoreManager] = None
 
 
@@ -276,8 +278,8 @@ def get_store(filepath: Path) -> AtomicJsonStore:
     """
     Get an AtomicJsonStore from the default manager.
 
-    Convenience function for getting stores without explicitly
-    creating a manager instance.
+    V10 PRISM: The manager is tenant-scoped via ServiceFactory
+    when a session context is active.
 
     Args:
         filepath: Path to the JSON file.
@@ -289,3 +291,15 @@ def get_store(filepath: Path) -> AtomicJsonStore:
     if _default_manager is None:
         _default_manager = AtomicJsonStoreManager()
     return _default_manager.get_store(filepath)
+
+
+def reset_store_manager() -> None:
+    """
+    Reset the global store manager (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
+    global _default_manager
+    if _default_manager:
+        _default_manager.clear()
+    _default_manager = None

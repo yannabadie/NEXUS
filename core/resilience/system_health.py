@@ -338,7 +338,28 @@ _health_instance: Optional[SystemHealth] = None
 
 
 def get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth:
-    """Get or create system health monitor."""
+    """
+    Get the system health monitor for the current tenant context.
+
+    V10 PRISM: Returns tenant-scoped monitor via ServiceFactory.
+    Falls back to global singleton if no context is active.
+
+    Args:
+        workspace_path: Workspace path (optional in V10)
+
+    Returns:
+        SystemHealth instance scoped to current tenant
+    """
+    # V10: Try ServiceFactory first (tenant-scoped)
+    try:
+        from ..context import has_active_session
+        if has_active_session():
+            from ..factory import ServiceFactory
+            return ServiceFactory.get_system_health()
+    except ImportError:
+        pass  # context module not available, use legacy
+
+    # Legacy fallback: global singleton
     global _health_instance
     if _health_instance is None:
         _health_instance = SystemHealth(workspace_path)
@@ -346,6 +367,20 @@ def get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth:
 
 
 def reset_system_health() -> None:
-    """Reset system health monitor (for testing)."""
+    """
+    Reset system health monitor (for testing).
+
+    Note: In V10, also clears ServiceFactory cache for current tenant.
+    """
     global _health_instance
     _health_instance = None
+
+    # V10: Also clear factory cache
+    try:
+        from ..context import get_current_session_or_none
+        from ..factory import ServiceFactory
+        ctx = get_current_session_or_none()
+        if ctx:
+            ServiceFactory.clear_tenant_cache(ctx.tenant_id)
+    except ImportError:
+        pass
