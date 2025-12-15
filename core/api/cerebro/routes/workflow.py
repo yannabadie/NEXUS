@@ -1,10 +1,15 @@
 """
 NEXUS V11.5 CORTEX - Workflow Control Endpoints
+V11.6 KEYMAKER - Optional authentication support
 
 Enables task execution control for CEREBRO UI:
 - POST /api/workflow/start : Start a workflow (non-blocking)
 - GET /api/workflow/{id} : Get workflow status
 - POST /api/workflow/{id}/stop : Stop a running workflow
+
+Authentication:
+- V11.6: Optional auth - uses token tenant_id if provided, falls back to query param
+- Production: Change to require_auth for mandatory authentication
 
 Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
@@ -15,8 +20,10 @@ import logging
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from ..deps import AuthenticatedUser, get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +71,8 @@ def _get_orchestrator():
 async def start_workflow(
     body: WorkflowStartRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = Query(..., description="Tenant identifier"),
+    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
+    tenant_id: Optional[str] = Query(None, description="Tenant identifier (fallback if no auth)"),
     workspace_id: str = Query("default", description="Workspace identifier"),
 ) -> Dict[str, str]:
     """
@@ -82,13 +90,20 @@ async def start_workflow(
     Returns:
         {"workflow_id": "...", "status": "pending"}
     """
+    # V11.6: Resolve tenant_id from auth token or query param
+    actual_tenant_id = user.tenant_id if user else tenant_id
+    if not actual_tenant_id:
+        raise HTTPException(400, "tenant_id required (via auth token or query param)")
+
+    actual_workspace_id = user.workspace_id if user else workspace_id
+
     workflow_id = str(uuid4())[:12]
 
     _active_workflows[workflow_id] = {
         "status": "pending",
         "task": body.task,
-        "tenant_id": tenant_id,
-        "workspace_id": workspace_id,
+        "tenant_id": actual_tenant_id,
+        "workspace_id": actual_workspace_id,
         "complexity": body.complexity,
         "result": None,
         "error": None,
@@ -118,7 +133,7 @@ async def start_workflow(
 
     background_tasks.add_task(run_workflow)
 
-    logger.info(f"[CORTEX] Workflow {workflow_id} queued for tenant={tenant_id}")
+    logger.info(f"[CORTEX] Workflow {workflow_id} queued for tenant={actual_tenant_id}")
     return {"workflow_id": workflow_id, "status": "pending"}
 
 
@@ -188,7 +203,8 @@ async def stop_workflow(workflow_id: str) -> Dict[str, str]:
 
 @router.get("/")
 async def list_workflows(
-    tenant_id: Optional[str] = Query(None, description="Filter by tenant"),
+    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
+    tenant_id: Optional[str] = Query(None, description="Filter by tenant (fallback if no auth)"),
     status: Optional[str] = Query(None, description="Filter by status"),
 ) -> Dict[str, list]:
     """
@@ -201,11 +217,14 @@ async def list_workflows(
     Returns:
         {"workflows": [...list of workflow summaries...]}
     """
+    # V11.6: Resolve tenant_id from auth token or query param
+    actual_tenant_id = user.tenant_id if user else tenant_id
+
     workflows = []
 
     for wf_id, wf_data in _active_workflows.items():
         # Apply filters
-        if tenant_id and wf_data.get("tenant_id") != tenant_id:
+        if actual_tenant_id and wf_data.get("tenant_id") != actual_tenant_id:
             continue
         if status and wf_data.get("status") != status:
             continue

@@ -1,20 +1,25 @@
 """
 NEXUS V10 CEREBRO - FastAPI Dependencies
+V11.6 KEYMAKER - Added HTTP authentication dependencies
 
-Dependency injection for WebSocket authentication and context extraction.
+Dependency injection for WebSocket and HTTP authentication.
 
 WebSocket Auth Methods:
 1. Query params: ?tenant_id=xxx&token=yyy
 2. First message: {"type": "auth", "tenant_id": "xxx", "token": "yyy"}
 
-Note: HTTP requests use TenantContextMiddleware instead.
+HTTP Auth Methods (V11.6):
+1. Authorization header: Bearer <jwt>
+2. Optional: Falls back to anonymous if auth not required
+
+Note: Use require_auth() for protected routes, get_current_user_optional() for optional auth.
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import WebSocket, HTTPException, status
+from fastapi import WebSocket, HTTPException, Header, status
 
 logger = logging.getLogger(__name__)
 
@@ -140,3 +145,113 @@ def create_ws_url(
     if token:
         params.append(f"token={token}")
     return f"{base_url}?{'&'.join(params)}"
+
+
+# =============================================================================
+# V11.6 KEYMAKER - HTTP Authentication Dependencies
+# =============================================================================
+
+@dataclass
+class AuthenticatedUser:
+    """
+    Authenticated user context for HTTP requests.
+
+    Extracted from JWT token claims.
+    """
+
+    user_id: str
+    tenant_id: str
+    workspace_id: str
+
+    def __str__(self) -> str:
+        return f"AuthenticatedUser(user={self.user_id}, tenant={self.tenant_id})"
+
+
+async def require_auth(
+    authorization: Optional[str] = Header(None, description="Bearer <jwt>")
+) -> AuthenticatedUser:
+    """
+    Dependency that requires authentication.
+
+    Use with Depends() on routes that must be protected:
+
+        @router.get("/protected")
+        async def protected_route(user: AuthenticatedUser = Depends(require_auth)):
+            return {"tenant_id": user.tenant_id}
+
+    Args:
+        authorization: Authorization header (Bearer token)
+
+    Returns:
+        AuthenticatedUser with user_id, tenant_id, workspace_id
+
+    Raises:
+        HTTPException 401: If not authenticated or token invalid
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization format. Use: Bearer <token>",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = authorization[7:]
+    claims = _decode_token(token)
+
+    if not claims:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return AuthenticatedUser(
+        user_id=claims.get("sub", "anonymous"),
+        tenant_id=claims.get("tenant_id", "default"),
+        workspace_id=claims.get("workspace_id", "default"),
+    )
+
+
+async def get_current_user_optional(
+    authorization: Optional[str] = Header(None, description="Bearer <jwt>")
+) -> Optional[AuthenticatedUser]:
+    """
+    Dependency that optionally extracts authentication.
+
+    Use for routes that work with or without auth:
+
+        @router.get("/optional")
+        async def optional_auth_route(
+            user: Optional[AuthenticatedUser] = Depends(get_current_user_optional)
+        ):
+            if user:
+                return {"tenant_id": user.tenant_id}
+            return {"tenant_id": "anonymous"}
+
+    Args:
+        authorization: Authorization header (Bearer token)
+
+    Returns:
+        AuthenticatedUser if valid token, None otherwise
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization[7:]
+    claims = _decode_token(token)
+
+    if not claims:
+        return None
+
+    return AuthenticatedUser(
+        user_id=claims.get("sub", "anonymous"),
+        tenant_id=claims.get("tenant_id", "default"),
+        workspace_id=claims.get("workspace_id", "default"),
+    )

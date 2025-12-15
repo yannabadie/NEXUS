@@ -7,9 +7,11 @@ Creates the CEREBRO API application with:
 - WebSocket streaming endpoint
 - Health check endpoints
 - V11.5 CORTEX: State snapshot, interactions, workflow, files endpoints
+- V11.6 KEYMAKER: JWT authentication endpoints
 
 V11.3 HARDENING: CORS origins from environment variable.
 V11.5 CORTEX: API control & state persistence for CEREBRO UI.
+V11.6 KEYMAKER: Authentication endpoints (login, me, logout).
 
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
@@ -110,13 +112,17 @@ def create_cerebro_app() -> FastAPI:
     app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
     app.include_router(files.router, prefix="/api/files", tags=["files"])
 
+    # V11.6 KEYMAKER routers
+    from .routes import auth
+    app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root():
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "11.5.0",  # V11.5 CORTEX
+            "version": "11.6.0",  # V11.6 KEYMAKER
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
@@ -125,6 +131,8 @@ def create_cerebro_app() -> FastAPI:
             "interactions": "/api/interactions/pending",
             "workflow": "/api/workflow/start",
             "files": "/api/files/content",
+            # V11.6 KEYMAKER endpoints
+            "auth": "/api/auth/login",
         }
 
     return app

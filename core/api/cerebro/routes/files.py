@@ -1,5 +1,6 @@
 """
 NEXUS V11.5 CORTEX - Secure File Access Endpoints
+V11.6 KEYMAKER - Optional authentication support
 
 Enables secure file operations for CEREBRO UI:
 - GET /api/files/content : Read file content (size-limited, path-validated)
@@ -9,6 +10,7 @@ Security Features:
 - PathGuardian for path validation (prevents path traversal)
 - 1MB file size limit (OOM protection)
 - Sacred file protection (.env, KERNEL.py, etc.)
+- V11.6: Optional authentication for audit trail
 
 Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
@@ -16,10 +18,12 @@ Date: 2025-12-15
 
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from ..deps import AuthenticatedUser, get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +78,7 @@ def _get_guardian():
 @router.get("/content")
 async def read_file(
     path: str = Query(..., description="Relative path to file"),
+    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     workspace_id: str = Query("default", description="Workspace identifier"),
 ) -> Dict[str, Any]:
     """
@@ -131,7 +136,8 @@ async def read_file(
     # Read file content
     try:
         content = resolved_path.read_text(encoding="utf-8")
-        logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars)")
+        user_info = f"user={user.user_id}" if user else "anonymous"
+        logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars) by {user_info}")
         return {
             "path": path,
             "content": content,
@@ -147,6 +153,7 @@ async def read_file(
 @router.post("/save")
 async def save_file(
     body: FileWriteRequest,
+    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
     workspace_id: str = Query("default", description="Workspace identifier"),
 ) -> Dict[str, str]:
     """
@@ -185,7 +192,8 @@ async def save_file(
         # Write content
         resolved_path.write_text(body.content, encoding="utf-8")
 
-        logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars)")
+        user_info = f"user={user.user_id}" if user else "anonymous"
+        logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars) by {user_info}")
         return {"status": "saved", "path": body.path}
 
     except Exception as e:
