@@ -79,7 +79,8 @@
       "WebFetch(domain:galileo.ai)",
       "Bash(if not exist \"C:\\Code\\NEXUS\\NEXUS-N7A\\core\\resilience\" mkdir \"C:\\Code\\NEXUS\\NEXUS-N7A\\core\\resilience\")",
       "Bash(^d \")",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git rev-parse:*)"
     ],
     "deny": [],
     "ask": []
