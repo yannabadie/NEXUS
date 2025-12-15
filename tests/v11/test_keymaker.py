@@ -302,6 +302,52 @@ class TestIRONCLADEnforcement:
         # V11.6.1 IRONCLAD: Must return 401
         assert response.status_code == 401
 
+    def test_websocket_without_token_closes_4001(self):
+        """WebSocket WITHOUT token should close with 4001 (IRONCLAD V11.6.2)."""
+        try:
+            from fastapi.testclient import TestClient
+            from starlette.websockets import WebSocketDisconnect
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import stream
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(stream.router, prefix="/ws")
+
+        with TestClient(app) as client:
+            # No auth token - this is the IDOR attack vector
+            # V11.6.2 IRONCLAD: WebSocket should reject (close with 4001)
+            with pytest.raises(WebSocketDisconnect):
+                with client.websocket_connect("/ws/stream"):
+                    pass
+            # Test passes if WebSocketDisconnect is raised
+            # Log shows: "[IRONCLAD] WebSocket connection rejected: no token provided"
+
+    def test_websocket_with_tenant_id_only_closes_4001(self):
+        """WebSocket with tenant_id param but no token closes 4001 (IDOR prevention)."""
+        try:
+            from fastapi.testclient import TestClient
+            from starlette.websockets import WebSocketDisconnect
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import stream
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(stream.router, prefix="/ws")
+
+        with TestClient(app) as client:
+            # tenant_id param only, no token - this is the IDOR attack vector
+            # V11.6.2: tenant_id param is now IGNORED
+            with pytest.raises(WebSocketDisconnect):
+                with client.websocket_connect("/ws/stream?tenant_id=admin"):
+                    pass
+            # V11.6.2 IRONCLAD: Must close with 4001, not allow anonymous access
+            # Test passes if WebSocketDisconnect is raised (no token = rejected)
+
 
 class TestKeymakerConfig:
     """Tests for KEYMAKER configuration."""

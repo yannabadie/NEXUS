@@ -1,14 +1,15 @@
 """
-NEXUS V10 CEREBRO - WebSocket Streaming Endpoint
+NEXUS V11.6.2 IRONCLAD - WebSocket Streaming Endpoint
+MANDATORY authentication (Zero Trust)
 
 Streams NEXUS events to connected UI clients via WebSocket.
 
 Usage:
-    # Connect with tenant_id (dev mode)
-    ws://localhost:8080/ws/stream?tenant_id=tenant_1&workspace_id=default
+    # Connect with JWT token (MANDATORY)
+    ws://localhost:8080/ws/stream?token=<jwt>&workspace_id=default
 
-    # Connect with JWT token
-    ws://localhost:8080/ws/stream?token=<jwt>
+    # REMOVED: tenant_id query param fallback (IDOR prevention)
+    # This was the SAME vulnerability pattern fixed in REST endpoints
 
 Events are streamed as JSON:
     {
@@ -17,6 +18,10 @@ Events are streamed as JSON:
         "timestamp": "2025-12-15T10:30:00Z",
         "event_id": "abc123"
     }
+
+Authentication:
+    V11.6.2 IRONCLAD: JWT token is MANDATORY.
+    Anonymous tenant_id param REMOVED to prevent IDOR attacks.
 """
 
 import asyncio
@@ -36,32 +41,47 @@ router = APIRouter()
 
 async def _get_context_from_params(
     websocket: WebSocket,
-    tenant_id: Optional[str],
     workspace_id: str,
     token: Optional[str],
 ) -> Optional[WebSocketContext]:
-    """Extract context from query params."""
-    # Try JWT token first
-    if token:
-        try:
-            from ..deps import _decode_token
-            claims = _decode_token(token)
-            if claims:
-                return WebSocketContext(
-                    tenant_id=claims.get("tenant_id", "anonymous"),
-                    user_id=claims.get("sub", "anonymous"),
-                    workspace_id=claims.get("workspace_id", workspace_id),
-                )
-        except Exception:
-            pass
+    """
+    Extract context from JWT token.
 
-    # Fall back to simple tenant_id
-    if tenant_id:
-        return WebSocketContext(
-            tenant_id=tenant_id,
-            user_id="anonymous",
-            workspace_id=workspace_id,
-        )
+    V11.6.2 IRONCLAD: JWT token is MANDATORY.
+    The tenant_id query param fallback has been REMOVED to prevent IDOR attacks.
+    This is the same vulnerability pattern that was fixed in REST endpoints.
+
+    Args:
+        websocket: WebSocket connection
+        workspace_id: Workspace identifier (from query param, validated against JWT)
+        token: JWT authentication token (MANDATORY)
+
+    Returns:
+        WebSocketContext if valid JWT, None otherwise
+    """
+    if not token:
+        logger.warning("[IRONCLAD] WebSocket connection rejected: no token provided")
+        return None
+
+    try:
+        from ..deps import _decode_token
+        claims = _decode_token(token)
+        if claims:
+            # V11.6.2 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
+            jwt_tenant = claims.get("tenant_id")
+            jwt_workspace = claims.get("workspace_id", workspace_id)
+
+            if not jwt_tenant:
+                logger.warning("[IRONCLAD] WebSocket rejected: JWT missing tenant_id claim")
+                return None
+
+            return WebSocketContext(
+                tenant_id=jwt_tenant,
+                user_id=claims.get("sub", "anonymous"),
+                workspace_id=jwt_workspace,
+            )
+    except Exception as e:
+        logger.warning(f"[IRONCLAD] WebSocket rejected: invalid token - {e}")
 
     return None
 
@@ -69,24 +89,28 @@ async def _get_context_from_params(
 @router.websocket("/stream")
 async def websocket_stream(
     websocket: WebSocket,
-    tenant_id: Optional[str] = Query(None, description="Tenant identifier"),
     workspace_id: str = Query("default", description="Workspace identifier"),
-    token: Optional[str] = Query(None, description="JWT auth token"),
+    token: Optional[str] = Query(None, description="JWT auth token (MANDATORY)"),
     event_types: Optional[str] = Query(None, description="Comma-separated event types to filter"),
 ):
     """
     Stream events to connected WebSocket clients.
 
+    V11.6.2 IRONCLAD: MANDATORY authentication.
+    JWT token is REQUIRED - anonymous tenant_id param removed (IDOR prevention).
+
     Query Parameters:
-        tenant_id: Tenant identifier (required unless token provided)
         workspace_id: Workspace identifier (default: "default")
-        token: JWT authentication token
+        token: JWT authentication token (MANDATORY)
         event_types: Comma-separated list of event types to subscribe to
 
     Events are sent as JSON objects with event_type, payload, timestamp, event_id.
+
+    Raises:
+        4001: Authentication required (no token or invalid token)
     """
-    # Extract context
-    ctx = await _get_context_from_params(websocket, tenant_id, workspace_id, token)
+    # V11.6.2 IRONCLAD: Extract context from JWT ONLY
+    ctx = await _get_context_from_params(websocket, workspace_id, token)
 
     if not ctx:
         await websocket.close(code=4001, reason="Authentication required")
