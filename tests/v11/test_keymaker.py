@@ -187,53 +187,11 @@ class TestAuthenticatedUser:
         assert "default" in str_repr
 
 
-class TestCORTEXRoutesWithAuth:
-    """Tests for CORTEX routes with optional authentication."""
+class TestIRONCLADEnforcement:
+    """V11.6.1 IRONCLAD: Tests for mandatory authentication."""
 
-    def test_state_snapshot_with_query_param(self):
-        """State snapshot should work with query param (no auth)."""
-        try:
-            from fastapi.testclient import TestClient
-        except ImportError:
-            pytest.skip("fastapi[all] not installed")
-
-        from core.api.cerebro.routes import state
-        from unittest.mock import AsyncMock
-
-        # Mock Redis bus - patch at the source module
-        with patch('core.events.redis_bus.get_redis_bus') as mock_get_bus:
-            mock_bus = MagicMock()
-            mock_bus.is_connected.return_value = True
-
-            mock_redis = AsyncMock()
-            mock_redis.get.return_value = None
-            mock_redis.hgetall.return_value = {}
-            mock_redis.lrange.return_value = []
-            mock_bus._redis = mock_redis
-
-            mock_get_bus.return_value = mock_bus
-
-            # Mock interaction provider
-            with patch('core.interaction.get_interaction_provider') as mock_provider:
-                mock_provider.return_value.get_pending_requests.return_value = []
-
-                from fastapi import FastAPI
-                app = FastAPI()
-                app.include_router(state.router, prefix="/api/state")
-
-                with TestClient(app) as client:
-                    response = client.get(
-                        "/api/state/snapshot",
-                        params={"tenant_id": "test_tenant"}
-                    )
-
-                # Should work without auth token
-                assert response.status_code == 200
-                data = response.json()
-                assert data["tenant_id"] == "test_tenant"
-
-    def test_state_snapshot_requires_tenant_id(self):
-        """State snapshot should require tenant_id (via auth or query)."""
+    def test_state_snapshot_without_auth_returns_401(self):
+        """State snapshot WITHOUT token should return 401 (IRONCLAD)."""
         try:
             from fastapi.testclient import TestClient
         except ImportError:
@@ -246,12 +204,103 @@ class TestCORTEXRoutesWithAuth:
         app.include_router(state.router, prefix="/api/state")
 
         with TestClient(app) as client:
-            # No tenant_id, no auth
+            # No auth token
             response = client.get("/api/state/snapshot")
 
-        # Should fail without tenant_id
-        assert response.status_code == 400
-        assert "tenant_id required" in response.json()["detail"]
+        # V11.6.1 IRONCLAD: Must return 401, not 200 or 400
+        assert response.status_code == 401
+        assert "Authentication required" in response.json()["detail"]
+
+    def test_state_snapshot_with_query_param_only_returns_401(self):
+        """State snapshot with tenant_id query param but no token returns 401 (IDOR prevention)."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import state
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(state.router, prefix="/api/state")
+
+        with TestClient(app) as client:
+            # Query param only, no auth - this is the IDOR attack vector
+            response = client.get(
+                "/api/state/snapshot",
+                params={"tenant_id": "admin"}
+            )
+
+        # V11.6.1 IRONCLAD: Query params are IGNORED, must return 401
+        assert response.status_code == 401
+        assert "Authentication required" in response.json()["detail"]
+
+    def test_workflow_start_without_auth_returns_401(self):
+        """Workflow start WITHOUT token should return 401 (IRONCLAD)."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import workflow
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(workflow.router, prefix="/api/workflow")
+
+        with TestClient(app) as client:
+            # No auth token
+            response = client.post(
+                "/api/workflow/start",
+                json={"task": "test task"}
+            )
+
+        # V11.6.1 IRONCLAD: Must return 401
+        assert response.status_code == 401
+
+    def test_files_content_without_auth_returns_401(self):
+        """File read WITHOUT token should return 401 (IRONCLAD)."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import files
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(files.router, prefix="/api/files")
+
+        with TestClient(app) as client:
+            # No auth token - this is the attack vector the advisor mentioned
+            response = client.get(
+                "/api/files/content",
+                params={"path": ".env"}
+            )
+
+        # V11.6.1 IRONCLAD: Must return 401, not 403
+        # Note: 403 would be PathGuardian, but auth should fail first
+        assert response.status_code == 401
+
+    def test_interactions_pending_without_auth_returns_401(self):
+        """Interactions pending WITHOUT token should return 401 (IRONCLAD)."""
+        try:
+            from fastapi.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi[all] not installed")
+
+        from core.api.cerebro.routes import interactions
+
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.include_router(interactions.router, prefix="/api/interactions")
+
+        with TestClient(app) as client:
+            # No auth token
+            response = client.get("/api/interactions/pending")
+
+        # V11.6.1 IRONCLAD: Must return 401
+        assert response.status_code == 401
 
 
 class TestKeymakerConfig:

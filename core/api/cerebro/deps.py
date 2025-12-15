@@ -225,15 +225,20 @@ async def get_current_user_optional(
     """
     Dependency that optionally extracts authentication.
 
-    Use for routes that work with or without auth:
+    ⚠️ SECURITY WARNING (V11.6.1 IRONCLAD):
+    This function should ONLY be used for routes that are genuinely public.
+    For ANY route that accesses tenant-scoped data, use `require_auth` instead.
 
-        @router.get("/optional")
-        async def optional_auth_route(
-            user: Optional[AuthenticatedUser] = Depends(get_current_user_optional)
-        ):
-            if user:
-                return {"tenant_id": user.tenant_id}
-            return {"tenant_id": "anonymous"}
+    NEVER use this to accept tenant_id from query params as fallback.
+    That pattern creates IDOR vulnerabilities.
+
+    Safe use cases:
+    - Public health check with optional user info
+    - Analytics/telemetry that works anonymously
+
+    UNSAFE use cases (use require_auth instead):
+    - Accessing tenant state, workflows, files
+    - Any route that uses tenant_id/workspace_id for data isolation
 
     Args:
         authorization: Authorization header (Bearer token)

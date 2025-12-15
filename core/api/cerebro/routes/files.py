@@ -1,6 +1,6 @@
 """
 NEXUS V11.5 CORTEX - Secure File Access Endpoints
-V11.6 KEYMAKER - Optional authentication support
+V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
 
 Enables secure file operations for CEREBRO UI:
 - GET /api/files/content : Read file content (size-limited, path-validated)
@@ -10,7 +10,7 @@ Security Features:
 - PathGuardian for path validation (prevents path traversal)
 - 1MB file size limit (OOM protection)
 - Sacred file protection (.env, KERNEL.py, etc.)
-- V11.6: Optional authentication for audit trail
+- V11.6.1 IRONCLAD: MANDATORY authentication (audit trail + access control)
 
 Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
@@ -18,12 +18,12 @@ Date: 2025-12-15
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from ..deps import AuthenticatedUser, get_current_user_optional
+from ..deps import AuthenticatedUser, require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -78,25 +78,29 @@ def _get_guardian():
 @router.get("/content")
 async def read_file(
     path: str = Query(..., description="Relative path to file"),
-    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
-    workspace_id: str = Query("default", description="Workspace identifier"),
+    user: AuthenticatedUser = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
     Read file content with size limit and path validation.
+
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    All file operations are logged with authenticated user info.
 
     Security:
     - PathGuardian validates path is in allowed zones
     - 1MB file size limit prevents OOM
     - Sacred files (.env, KERNEL.py) are protected
+    - Authentication required for audit trail
 
     Args:
         path: Relative path to file (relative to workspace)
-        workspace_id: Workspace identifier (for future multi-workspace)
+        user: Authenticated user (from JWT token)
 
     Returns:
         {"path": "...", "content": "...", "size": ...}
 
     Raises:
+        401: Not authenticated
         403: Access denied (path traversal, sacred file)
         404: File not found
         413: File too large (> 1MB)
@@ -136,8 +140,8 @@ async def read_file(
     # Read file content
     try:
         content = resolved_path.read_text(encoding="utf-8")
-        user_info = f"user={user.user_id}" if user else "anonymous"
-        logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars) by {user_info}")
+        # V11.6.1 IRONCLAD: Always log with authenticated user
+        logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars) by user={user.user_id}")
         return {
             "path": path,
             "content": content,
@@ -153,25 +157,29 @@ async def read_file(
 @router.post("/save")
 async def save_file(
     body: FileWriteRequest,
-    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
-    workspace_id: str = Query("default", description="Workspace identifier"),
+    user: AuthenticatedUser = Depends(require_auth),
 ) -> Dict[str, str]:
     """
     Save file content with path validation.
+
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    All file operations are logged with authenticated user info.
 
     Security:
     - PathGuardian validates path is in workspace
     - Absolute paths are rejected
     - Sacred files (.env, KERNEL.py) are protected
+    - Authentication required for audit trail
 
     Args:
         body: FileWriteRequest with path and content
-        workspace_id: Workspace identifier (for future multi-workspace)
+        user: Authenticated user (from JWT token)
 
     Returns:
         {"status": "saved", "path": "..."}
 
     Raises:
+        401: Not authenticated
         403: Access denied (absolute path, sacred file, outside workspace)
         500: Write failed
     """
@@ -192,8 +200,8 @@ async def save_file(
         # Write content
         resolved_path.write_text(body.content, encoding="utf-8")
 
-        user_info = f"user={user.user_id}" if user else "anonymous"
-        logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars) by {user_info}")
+        # V11.6.1 IRONCLAD: Always log with authenticated user
+        logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars) by user={user.user_id}")
         return {"status": "saved", "path": body.path}
 
     except Exception as e:
@@ -204,19 +212,23 @@ async def save_file(
 @router.get("/info")
 async def file_info(
     path: str = Query(..., description="Relative path to file"),
+    user: AuthenticatedUser = Depends(require_auth),
 ) -> Dict[str, Any]:
     """
     Get file metadata without reading content.
 
+    V11.6.1 IRONCLAD: MANDATORY authentication.
     Useful for checking file size before reading.
 
     Args:
         path: Relative path to file
+        user: Authenticated user (from JWT token)
 
     Returns:
         {"path": "...", "exists": bool, "size": int, "is_file": bool, "can_read": bool}
 
     Raises:
+        401: Not authenticated
         403: Access denied
     """
     guardian = _get_guardian()

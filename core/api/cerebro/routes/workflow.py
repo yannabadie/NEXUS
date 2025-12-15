@@ -1,6 +1,6 @@
 """
 NEXUS V11.5 CORTEX - Workflow Control Endpoints
-V11.6 KEYMAKER - Optional authentication support
+V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
 
 Enables task execution control for CEREBRO UI:
 - POST /api/workflow/start : Start a workflow (non-blocking)
@@ -8,8 +8,8 @@ Enables task execution control for CEREBRO UI:
 - POST /api/workflow/{id}/stop : Stop a running workflow
 
 Authentication:
-- V11.6: Optional auth - uses token tenant_id if provided, falls back to query param
-- Production: Change to require_auth for mandatory authentication
+- V11.6.1 IRONCLAD: MANDATORY auth - tenant_id from JWT ONLY
+- Query param backdoors REMOVED to prevent IDOR attacks
 
 Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
@@ -23,7 +23,7 @@ from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from ..deps import AuthenticatedUser, get_current_user_optional
+from ..deps import AuthenticatedUser, require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +71,7 @@ def _get_orchestrator():
 async def start_workflow(
     body: WorkflowStartRequest,
     background_tasks: BackgroundTasks,
-    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
-    tenant_id: Optional[str] = Query(None, description="Tenant identifier (fallback if no auth)"),
-    workspace_id: str = Query("default", description="Workspace identifier"),
+    user: AuthenticatedUser = Depends(require_auth),
 ) -> Dict[str, str]:
     """
     Start a workflow (non-blocking).
@@ -81,29 +79,31 @@ async def start_workflow(
     Creates a background task to process the user's request.
     Returns immediately with a workflow_id for status tracking.
 
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    tenant_id from JWT token ONLY - prevents IDOR attacks.
+
     Args:
         body: WorkflowStartRequest with task description
         background_tasks: FastAPI background task manager
-        tenant_id: Tenant identifier (required)
-        workspace_id: Workspace identifier
+        user: Authenticated user (from JWT token)
 
     Returns:
         {"workflow_id": "...", "status": "pending"}
-    """
-    # V11.6: Resolve tenant_id from auth token or query param
-    actual_tenant_id = user.tenant_id if user else tenant_id
-    if not actual_tenant_id:
-        raise HTTPException(400, "tenant_id required (via auth token or query param)")
 
-    actual_workspace_id = user.workspace_id if user else workspace_id
+    Raises:
+        401: Not authenticated
+    """
+    # V11.6.1 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
+    tenant_id = user.tenant_id
+    workspace_id = user.workspace_id
 
     workflow_id = str(uuid4())[:12]
 
     _active_workflows[workflow_id] = {
         "status": "pending",
         "task": body.task,
-        "tenant_id": actual_tenant_id,
-        "workspace_id": actual_workspace_id,
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
         "complexity": body.complexity,
         "result": None,
         "error": None,
@@ -133,28 +133,42 @@ async def start_workflow(
 
     background_tasks.add_task(run_workflow)
 
-    logger.info(f"[CORTEX] Workflow {workflow_id} queued for tenant={actual_tenant_id}")
+    logger.info(f"[CORTEX] Workflow {workflow_id} queued for tenant={tenant_id}")
     return {"workflow_id": workflow_id, "status": "pending"}
 
 
 @router.get("/{workflow_id}")
-async def get_workflow_status(workflow_id: str) -> Dict[str, Any]:
+async def get_workflow_status(
+    workflow_id: str,
+    user: AuthenticatedUser = Depends(require_auth),
+) -> Dict[str, Any]:
     """
     Get workflow status.
 
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    Verifies the authenticated user owns the workflow.
+
     Args:
         workflow_id: The workflow ID from start_workflow
+        user: Authenticated user (from JWT token)
 
     Returns:
         Workflow state including status, task, result, error
 
     Raises:
+        401: Not authenticated
+        403: Workflow belongs to different tenant
         404: Workflow not found
     """
     if workflow_id not in _active_workflows:
         raise HTTPException(404, f"Workflow {workflow_id} not found")
 
     workflow = _active_workflows[workflow_id]
+
+    # V11.6.1 IRONCLAD: Verify tenant ownership
+    if workflow.get("tenant_id") != user.tenant_id:
+        raise HTTPException(403, "Access denied: workflow belongs to different tenant")
+
     return {
         "workflow_id": workflow_id,
         "status": workflow["status"],
@@ -165,20 +179,29 @@ async def get_workflow_status(workflow_id: str) -> Dict[str, Any]:
 
 
 @router.post("/{workflow_id}/stop")
-async def stop_workflow(workflow_id: str) -> Dict[str, str]:
+async def stop_workflow(
+    workflow_id: str,
+    user: AuthenticatedUser = Depends(require_auth),
+) -> Dict[str, str]:
     """
     Stop a running workflow.
 
     Currently marks workflow as cancelled. Full CancellationToken
-    integration is planned for V11.6.
+    integration is planned for V11.7.
+
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    Verifies the authenticated user owns the workflow.
 
     Args:
         workflow_id: The workflow ID to stop
+        user: Authenticated user (from JWT token)
 
     Returns:
         {"workflow_id": "...", "status": "cancelled"}
 
     Raises:
+        401: Not authenticated
+        403: Workflow belongs to different tenant
         404: Workflow not found
         400: Workflow not in stoppable state
     """
@@ -186,6 +209,10 @@ async def stop_workflow(workflow_id: str) -> Dict[str, str]:
         raise HTTPException(404, f"Workflow {workflow_id} not found")
 
     workflow = _active_workflows[workflow_id]
+
+    # V11.6.1 IRONCLAD: Verify tenant ownership
+    if workflow.get("tenant_id") != user.tenant_id:
+        raise HTTPException(403, "Access denied: workflow belongs to different tenant")
 
     if workflow["status"] not in ("pending", "running"):
         raise HTTPException(
@@ -203,28 +230,33 @@ async def stop_workflow(workflow_id: str) -> Dict[str, str]:
 
 @router.get("/")
 async def list_workflows(
-    user: Optional[AuthenticatedUser] = Depends(get_current_user_optional),
-    tenant_id: Optional[str] = Query(None, description="Filter by tenant (fallback if no auth)"),
+    user: AuthenticatedUser = Depends(require_auth),
     status: Optional[str] = Query(None, description="Filter by status"),
 ) -> Dict[str, list]:
     """
-    List all workflows (optionally filtered).
+    List workflows for the authenticated tenant.
+
+    V11.6.1 IRONCLAD: MANDATORY authentication.
+    Only shows workflows belonging to the authenticated tenant (IDOR prevention).
 
     Args:
-        tenant_id: Optional tenant filter
+        user: Authenticated user (from JWT token)
         status: Optional status filter (pending, running, completed, failed, cancelled)
 
     Returns:
         {"workflows": [...list of workflow summaries...]}
+
+    Raises:
+        401: Not authenticated
     """
-    # V11.6: Resolve tenant_id from auth token or query param
-    actual_tenant_id = user.tenant_id if user else tenant_id
+    # V11.6.1 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
+    tenant_id = user.tenant_id
 
     workflows = []
 
     for wf_id, wf_data in _active_workflows.items():
-        # Apply filters
-        if actual_tenant_id and wf_data.get("tenant_id") != actual_tenant_id:
+        # Filter by authenticated tenant (mandatory)
+        if wf_data.get("tenant_id") != tenant_id:
             continue
         if status and wf_data.get("status") != status:
             continue
