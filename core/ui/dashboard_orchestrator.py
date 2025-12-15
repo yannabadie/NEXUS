@@ -55,8 +55,10 @@ class DashboardOrchestrator:
                 from core.orchestration_v7 import OrchestratorV7
                 from core.config import Config
                 
-                # Determine paths
-                workspace_path = Path("workspace").resolve()
+                # Determine paths - use project root, not cwd
+                # dashboard_orchestrator.py is in core/ui/, so go up 2 levels
+                project_root = Path(__file__).resolve().parents[2]
+                workspace_path = project_root / "workspace"
                 workspace_path.mkdir(parents=True, exist_ok=True)
                 
                 # Use Config for full compatibility
