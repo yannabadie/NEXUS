@@ -44,6 +44,15 @@ lancedb>=0.4.0
 sentence-transformers>=2.2.0
 
 # =============================================================================
+# V10 SaaS: Multi-Tenant Data Layer (OPERATION PRISM)
+# =============================================================================
+# SQLModel: Pydantic + SQLAlchemy integration for type-safe ORM
+sqlmodel>=0.0.14
+
+# SQLAlchemy: Database toolkit (required by SQLModel)
+sqlalchemy>=2.0
+
+# =============================================================================
 # Development Dependencies (REQUIRED for tests)
 # =============================================================================
 pytest>=7.0.0
