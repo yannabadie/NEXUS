@@ -1,19 +1,29 @@
 """
 Task Analyzer - Sprint 9 Hybrid Swarm Engine
 
+V11 SENTINEL: 3-Stage Cost-Aware Classification (F1 Fix)
+
 Analyzes user input to determine:
 - Task complexity (TRIVIAL to EXPERT)
 - Task domains (CODING, RESEARCH, etc.)
 - Agent fit scores (Gemini vs Claude)
 - Requirements (web, code execution, deep reasoning)
 
+V11 3-Stage Classification:
+    Stage 1 (Regex)     : Instant commands (status, clear, exit). Cost: $0
+    Stage 2 (Heuristic) : Context + keywords. Cost: Low (CPU only)
+    Stage 3 (LLM)       : Fallback for ambiguous inputs. Cost: API tokens
+
 Used by ModeSelector to choose the optimal collaboration mode.
 """
 
+from __future__ import annotations
+
+import asyncio
 import re
 from dataclasses import dataclass, field
 from enum import IntEnum, Enum
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 
 
 class TaskComplexity(IntEnum):
@@ -23,6 +33,19 @@ class TaskComplexity(IntEnum):
     MODERATE = 3  # Standard multi-agent task
     COMPLEX = 4   # Requires careful coordination
     EXPERT = 5    # Requires RED_BLUE or specialist
+
+
+class AnalysisStage(IntEnum):
+    """
+    V11 SENTINEL: Which classification stage was used.
+
+    Stage 1: Regex instant commands (Cost: $0)
+    Stage 2: Heuristic classification (Cost: Low - CPU only)
+    Stage 3: LLM fallback for ambiguous (Cost: API tokens)
+    """
+    STAGE1_REGEX = 1
+    STAGE2_HEURISTIC = 2
+    STAGE3_LLM = 3
 
 
 class TaskDomain(Enum):
@@ -114,6 +137,25 @@ AGENT_DOMAIN_STRENGTHS: Dict[str, Dict[TaskDomain, float]] = {
     }
 }
 
+# =============================================================================
+# V11 SENTINEL: Stage 1 Instant Command Patterns (Cost: $0)
+# =============================================================================
+# These commands are recognized INSTANTLY via regex - no LLM needed
+STAGE1_INSTANT_COMMANDS = [
+    # System commands (exact match)
+    r'^/?(status|state|info)$',
+    r'^/?(clear|cls|reset)$',
+    r'^/?(exit|quit|bye|q)$',
+    r'^/?(help|\?)$',
+    r'^/?(version|ver|v)$',
+    r'^/?(config|settings|prefs)$',
+    r'^/?(history|hist|logs?)$',
+    r'^/?(cancel|stop|abort)$',
+    # Session commands
+    r'^/?(save|load|restore)$',
+    r'^/?(undo|redo)$',
+]
+
 # V7.5 HIVE MIND: Patterns for trivial conversational inputs (greetings, etc.)
 # These inputs should NOT trigger multi-agent collaboration
 CONVERSATIONAL_TRIVIAL_PATTERNS = [
@@ -136,6 +178,9 @@ CONVERSATIONAL_TRIVIAL_PATTERNS = [
     # Empty or whitespace-only (after strip)
     r'^\s*$',
 ]
+
+# V11 SENTINEL: Minimum confidence threshold for Stage 2 (below = Stage 3 LLM)
+STAGE2_CONFIDENCE_THRESHOLD = 0.6
 
 # Keywords that increase complexity
 COMPLEXITY_INDICATORS: Dict[str, int] = {
@@ -220,6 +265,8 @@ class TaskAnalysis:
     Complete analysis of a user task.
 
     Contains all information needed for mode selection and negotiation.
+
+    V11 SENTINEL: Added analysis_stage to track classification cost.
     """
     # Core analysis
     complexity: TaskComplexity
@@ -244,6 +291,12 @@ class TaskAnalysis:
 
     # Detected keywords
     detected_keywords: List[str] = field(default_factory=list)
+
+    # V11 SENTINEL: Classification stage used (1=Regex, 2=Heuristic, 3=LLM)
+    analysis_stage: AnalysisStage = AnalysisStage.STAGE2_HEURISTIC
+
+    # V11 SENTINEL: Instant command detected (Stage 1)
+    instant_command: Optional[str] = None
 
     @property
     def recommended_lead(self) -> str:
@@ -283,7 +336,11 @@ class TaskAnalysis:
             "should_skip_negotiation": self.should_skip_negotiation,
             "needs_adversarial_mode": self.needs_adversarial_mode,
             "confidence": round(self.confidence, 3),
-            "detected_keywords": self.detected_keywords
+            "detected_keywords": self.detected_keywords,
+            # V11 SENTINEL: Stage tracking
+            "analysis_stage": self.analysis_stage.name,
+            "analysis_cost": ["$0", "CPU", "API"][self.analysis_stage.value - 1],
+            "instant_command": self.instant_command,
         }
 
 
@@ -295,6 +352,7 @@ class TaskAnalyzer:
     for optimal mode selection.
 
     V10 FIX F1: Enhanced with context-aware classification beyond keywords.
+    V11 SENTINEL: 3-Stage cost-aware classification (Regex→Heuristic→LLM).
     """
 
     def __init__(self):
@@ -303,6 +361,8 @@ class TaskAnalyzer:
         # V10 FIX F1: Compile context patterns
         self._structure_patterns = self._compile_structure_patterns()
         self._context_patterns = self._compile_context_patterns()
+        # V11 SENTINEL: Compile Stage 1 instant command patterns
+        self._instant_command_patterns = self._compile_instant_commands()
 
     def _compile_structure_patterns(self) -> Dict[str, List[re.Pattern]]:
         """V10 FIX F1: Compile task structure patterns."""
@@ -321,6 +381,35 @@ class TaskAnalyzer:
     def _compile_trivial_patterns(self) -> list:
         """Compile regex patterns for trivial conversational inputs"""
         return [re.compile(p, re.IGNORECASE) for p in CONVERSATIONAL_TRIVIAL_PATTERNS]
+
+    def _compile_instant_commands(self) -> List[re.Pattern]:
+        """V11 SENTINEL: Compile Stage 1 instant command patterns."""
+        return [re.compile(p, re.IGNORECASE) for p in STAGE1_INSTANT_COMMANDS]
+
+    # =========================================================================
+    # V11 SENTINEL: Stage 1 - Instant Command Detection (Cost: $0)
+    # =========================================================================
+
+    def is_instant_command(self, text: str) -> Optional[str]:
+        """
+        V11 SENTINEL: Stage 1 - Check if input is an instant command.
+
+        Instant commands are recognized via regex with ZERO LLM cost.
+        Examples: status, clear, exit, help, version
+
+        Args:
+            text: User input
+
+        Returns:
+            Command name if matched, None otherwise
+        """
+        text_stripped = text.strip().lower()
+        for pattern in self._instant_command_patterns:
+            match = pattern.match(text_stripped)
+            if match:
+                # Extract the command from the match
+                return match.group(0).lstrip('/')
+        return None
 
     def is_conversational_trivial(self, text: str) -> bool:
         """
@@ -350,15 +439,40 @@ class TaskAnalyzer:
         """
         Analyze user input and return TaskAnalysis.
 
+        V11 SENTINEL: 3-Stage Cost-Aware Classification
+            Stage 1: Regex instant commands (Cost: $0)
+            Stage 2: Heuristic classification (Cost: Low - CPU only)
+            Stage 3: LLM fallback for ambiguous (Cost: API tokens)
+
         Args:
             user_input: Raw user request text
 
         Returns:
             TaskAnalysis with complexity, domains, and agent fit scores
         """
-        input_lower = user_input.lower()
+        # =====================================================================
+        # STAGE 1: Instant Command Detection (Cost: $0)
+        # =====================================================================
+        instant_cmd = self.is_instant_command(user_input)
+        if instant_cmd:
+            return TaskAnalysis(
+                complexity=TaskComplexity.TRIVIAL,
+                domains=[],
+                primary_domain=TaskDomain.CREATIVE,
+                requires_web=False,
+                requires_code_execution=False,
+                requires_deep_reasoning=False,
+                requires_iteration=False,
+                gemini_fit_score=0.5,
+                claude_fit_score=0.5,
+                raw_input=user_input,
+                confidence=1.0,
+                detected_keywords=[f"[INSTANT_CMD:{instant_cmd}]"],
+                analysis_stage=AnalysisStage.STAGE1_REGEX,
+                instant_command=instant_cmd,
+            )
 
-        # V7 FIX: Check for trivial conversational inputs FIRST
+        # V7 FIX: Check for trivial conversational inputs (also Stage 1)
         if self.is_conversational_trivial(user_input):
             return TaskAnalysis(
                 complexity=TaskComplexity.TRIVIAL,
@@ -372,8 +486,14 @@ class TaskAnalyzer:
                 claude_fit_score=0.5,
                 raw_input=user_input,
                 confidence=1.0,  # High confidence it's trivial
-                detected_keywords=["[TRIVIAL_CONVERSATIONAL]"]
+                detected_keywords=["[TRIVIAL_CONVERSATIONAL]"],
+                analysis_stage=AnalysisStage.STAGE1_REGEX,
             )
+
+        # =====================================================================
+        # STAGE 2: Heuristic Classification (Cost: Low - CPU only)
+        # =====================================================================
+        input_lower = user_input.lower()
 
         # Detect domains
         domains, detected_keywords = self._detect_domains(user_input)
@@ -404,6 +524,15 @@ class TaskAnalyzer:
             domains, detected_keywords, user_input
         )
 
+        # V11 SENTINEL: Stage 2 result (Heuristic)
+        # If confidence is below threshold, Stage 3 (LLM) could be triggered
+        # but we keep Stage 2 as the default to avoid API costs
+        analysis_stage = AnalysisStage.STAGE2_HEURISTIC
+
+        # Mark low-confidence results for potential Stage 3 escalation
+        if confidence < STAGE2_CONFIDENCE_THRESHOLD:
+            detected_keywords.append(f"[LOW_CONFIDENCE:{confidence:.2f}]")
+
         return TaskAnalysis(
             complexity=complexity,
             domains=domains if domains else [TaskDomain.CODING],
@@ -416,7 +545,8 @@ class TaskAnalyzer:
             claude_fit_score=claude_score,
             raw_input=user_input,
             confidence=confidence,
-            detected_keywords=detected_keywords
+            detected_keywords=detected_keywords,
+            analysis_stage=analysis_stage,
         )
 
     def _detect_domains(
@@ -725,3 +855,71 @@ class TaskAnalyzer:
             base_complexity += 1  # Debugging from error is non-trivial
 
         return base_complexity
+
+    # =========================================================================
+    # V11 SENTINEL: Async Analysis Methods
+    # =========================================================================
+
+    async def analyze_async(self, user_input: str) -> TaskAnalysis:
+        """
+        V11 SENTINEL: Async version of analyze() that yields control.
+
+        This method is designed for use in async contexts (like CEREBRO UI)
+        where the event loop must remain responsive.
+
+        For Stage 1 & 2: CPU-bound, runs in thread pool to yield control
+        For Stage 3 (future): Would call LLM asynchronously
+
+        Args:
+            user_input: Raw user request text
+
+        Returns:
+            TaskAnalysis with complexity, domains, and agent fit scores
+        """
+        # Run CPU-bound analysis in thread pool to yield event loop control
+        return await asyncio.to_thread(self.analyze, user_input)
+
+    def needs_stage3_escalation(self, analysis: TaskAnalysis) -> bool:
+        """
+        V11 SENTINEL: Check if analysis needs Stage 3 (LLM) escalation.
+
+        Returns True if confidence is below threshold AND task appears non-trivial.
+        Used by orchestrators to decide whether to spend API tokens on refinement.
+
+        Args:
+            analysis: Stage 2 analysis result
+
+        Returns:
+            True if LLM escalation recommended
+        """
+        # Don't escalate trivial tasks
+        if analysis.complexity == TaskComplexity.TRIVIAL:
+            return False
+
+        # Don't escalate if already high confidence
+        if analysis.confidence >= STAGE2_CONFIDENCE_THRESHOLD:
+            return False
+
+        # Don't escalate if clear domain detected
+        if len(analysis.domains) >= 2 and analysis.confidence > 0.4:
+            return False
+
+        return True
+
+
+# =============================================================================
+# V11 SENTINEL: Exports
+# =============================================================================
+
+__all__ = [
+    # Enums
+    "TaskComplexity",
+    "TaskDomain",
+    "AnalysisStage",
+    # Dataclasses
+    "TaskAnalysis",
+    # Analyzer
+    "TaskAnalyzer",
+    # Constants
+    "STAGE2_CONFIDENCE_THRESHOLD",
+]

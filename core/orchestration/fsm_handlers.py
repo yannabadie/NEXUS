@@ -1064,13 +1064,83 @@ class FSMHandlers:
                     context += f"\n\n## Tool Result [{tool_name}]\n✗ ERROR: {e}\n"
 
             elif message.get("status") == "FINISHED" or action_type == "FINISHED":
-                # Task complete
+                # V11 SENTINEL F3: Self-reflection before accepting FINISHED
+                # Only run reflection for non-trivial responses (code, file operations)
+                should_reflect = len(content) > 100 or "```" in content or any(
+                    kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                )
+
+                if should_reflect:
+                    corrected_content, score, should_escalate = self._reflection_loop_f3(
+                        content, user_input, agent, context
+                    )
+
+                    if should_escalate:
+                        # Score < 5: Escalate to Swarm
+                        self._logger.warning(f"[SIMPLE MODE] Reflection score {score}/10 - escalating to Swarm")
+                        return self._make_result(
+                            "INCOMPLETE",
+                            f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
+                            agent,
+                            False,
+                            escalate_reason=f"Reflection score {score}/10 below threshold"
+                        )
+
+                    # Use corrected content (may be same as original if score >= 8)
+                    content = corrected_content
+
+                # V11 SENTINEL F2: Validate artifacts before accepting FINISHED
+                validation_ok, validation_msg = self._validate_artifacts_f2(content, user_input)
+                if not validation_ok:
+                    self._logger.warning(f"[SIMPLE MODE] Artifact validation failed: {validation_msg}")
+                    # Escalate to MODERATE instead of accepting false FINISHED
+                    return self._make_result(
+                        "INCOMPLETE",
+                        f"{content}\n\n⚠️ Validation failed: {validation_msg}",
+                        agent,
+                        False,  # Not finished
+                        escalate_reason=validation_msg
+                    )
+                # Task complete with valid artifacts
                 return self._make_result("FINISHED", content, agent, True)
 
             else:
                 # TALK without tool - check if done
                 finish_keywords = ["done", "complete", "finished", "terminé", "fini"]
                 if any(kw in content.lower() for kw in finish_keywords):
+                    # V11 SENTINEL F3: Self-reflection for completion claims
+                    should_reflect = len(content) > 100 or "```" in content or any(
+                        kw in content.lower() for kw in ["def ", "class ", "function", "created", "wrote", "modified"]
+                    )
+
+                    if should_reflect:
+                        corrected_content, score, should_escalate = self._reflection_loop_f3(
+                            content, user_input, agent, context
+                        )
+
+                        if should_escalate:
+                            self._logger.warning(f"[SIMPLE MODE] Reflection score {score}/10 - escalating")
+                            return self._make_result(
+                                "INCOMPLETE",
+                                f"{content}\n\n⚠️ Self-reflection score: {score}/10 - Escalating to Swarm",
+                                agent,
+                                False,
+                                escalate_reason=f"Reflection score {score}/10 below threshold"
+                            )
+
+                        content = corrected_content
+
+                    # V11 SENTINEL F2: Validate before accepting completion claim
+                    validation_ok, validation_msg = self._validate_artifacts_f2(content, user_input)
+                    if not validation_ok:
+                        self._logger.warning(f"[SIMPLE MODE] Completion claim rejected: {validation_msg}")
+                        return self._make_result(
+                            "INCOMPLETE",
+                            f"{content}\n\n⚠️ Validation failed: {validation_msg}",
+                            agent,
+                            False,
+                            escalate_reason=validation_msg
+                        )
                     return self._make_result("FINISHED", content, agent, True)
 
                 # Not done but no tool - return what we have
@@ -1142,6 +1212,191 @@ class FSMHandlers:
             return False, "Tool mismatch: delete command without delete intent"
 
         return True, ""
+
+    def _validate_artifacts_f2(self, content: str, user_input: str) -> Tuple[bool, str]:
+        """
+        V11 SENTINEL F2: Physical validation of artifacts before accepting FINISHED.
+
+        Problem: Agents claim completion but files don't exist or have errors.
+        Solution: Parse paths from response, physically verify they exist.
+
+        Args:
+            content: Agent response claiming completion
+            user_input: Original user request (for context)
+
+        Returns:
+            Tuple of (is_valid, reason_if_invalid)
+        """
+        import asyncio
+        import os
+        from pathlib import Path
+
+        # Extract file creation/modification claims
+        file_action_patterns = [
+            # Created/wrote/saved patterns
+            r'(?:created|wrote|saved|generated|added)\s+(?:file\s+)?[`"\']?([^\s`"\']+\.(?:py|js|ts|md|json|yaml|yml|txt|html|css))',
+            # Modified/updated/edited patterns
+            r'(?:modified|updated|edited|changed)\s+(?:file\s+)?[`"\']?([^\s`"\']+\.(?:py|js|ts|md|json|yaml|yml|txt|html|css))',
+            # File path in backticks with action context
+            r'`([^`]+\.(?:py|js|ts|md|json|yaml|yml))`\s+(?:has been|was)\s+(?:created|modified|updated)',
+        ]
+
+        claimed_files = []
+        for pattern in file_action_patterns:
+            matches = re.findall(pattern, content, re.IGNORECASE)
+            claimed_files.extend(matches)
+
+        # If no file claims, validation passes (no artifacts to verify)
+        if not claimed_files:
+            return True, ""
+
+        # Physical verification
+        workspace = self._orch.workspace_path if hasattr(self._orch, 'workspace_path') else Path.cwd()
+        missing_files = []
+
+        for file_ref in set(claimed_files):
+            # Skip obvious placeholders
+            if any(p in file_ref.lower() for p in ['example', 'placeholder', 'your_', 'xxx']):
+                continue
+
+            # Resolve path
+            if Path(file_ref).is_absolute():
+                file_path = Path(file_ref)
+            else:
+                file_path = workspace / file_ref
+
+            # V11 SENTINEL: Physical existence check (async-compatible)
+            if not file_path.exists():
+                missing_files.append(file_ref)
+
+        if missing_files:
+            return False, f"Claimed files not found: {', '.join(missing_files[:3])}"
+
+        return True, ""
+
+    def _reflection_loop_f3(
+        self,
+        content: str,
+        user_input: str,
+        agent: str,
+        context: str
+    ) -> Tuple[str, int, bool]:
+        """
+        V11 SENTINEL F3: Self-Reflection Loop for single agent mode.
+
+        Problem: Escalating "Simple" tasks to Swarm is too expensive.
+        Solution: Silent self-review step before accepting completion.
+
+        Flow:
+        1. Agent generates response
+        2. Silent review: "Review your code for hallucinations/bugs. Score 0-10."
+        3. If Score < 8: Auto-correct WITHOUT user intervention
+        4. If Score < 5: Escalate to Swarm
+        5. If Score >= 8: Accept as FINISHED
+
+        Args:
+            content: Agent's response to review
+            user_input: Original user request
+            agent: Agent that generated the response
+            context: Current conversation context
+
+        Returns:
+            Tuple of (corrected_content, score, should_escalate)
+        """
+        from core.routing.model_router import TaskType
+
+        # Build reflection prompt
+        reflection_prompt = f"""## Self-Reflection Task
+
+You just generated a response to the following user request:
+**User Request:** {user_input[:500]}
+
+**Your Response:**
+```
+{content[:2000]}
+```
+
+## Instructions
+1. Review your response for:
+   - Hallucinations (made-up information, non-existent APIs, incorrect syntax)
+   - Logical bugs (edge cases, off-by-one errors, race conditions)
+   - Missing requirements (did you address all parts of the request?)
+   - Code quality issues (security vulnerabilities, inefficiency)
+
+2. Score your response from 0-10:
+   - 10: Perfect, no issues found
+   - 8-9: Minor issues, acceptable
+   - 5-7: Significant issues, needs correction
+   - 0-4: Major problems, needs complete rework
+
+3. Format your response EXACTLY as:
+```
+SCORE: [0-10]
+ISSUES: [List of issues found, or "None" if score >= 8]
+CORRECTED_RESPONSE: [Your corrected response if score < 8, or "N/A" if score >= 8]
+```
+
+Be brutally honest. It's better to catch issues now than have them fail in production.
+"""
+
+        try:
+            # Invoke agent for self-reflection (same agent that generated response)
+            if self._registry.is_claude(agent):
+                driver = self._get_claude_driver(TaskType.VALIDATION)
+                response = driver.invoke(reflection_prompt)
+            else:
+                response = self._orch.gemini_driver.invoke(reflection_prompt)
+
+            # Parse reflection response
+            reflection_content = ""
+            if isinstance(response, dict):
+                reflection_content = response.get("content", "")
+            else:
+                reflection_content = str(response)
+
+            # Extract score
+            import re
+            score_match = re.search(r'SCORE:\s*(\d+)', reflection_content)
+            score = int(score_match.group(1)) if score_match else 8  # Default to pass if parsing fails
+
+            self._logger.debug(f"[REFLECTION F3] Agent self-scored: {score}/10")
+
+            # Decision logic
+            if score >= 8:
+                # Accept as-is
+                return content, score, False
+
+            elif score >= 5:
+                # Score 5-7: Auto-correct without user intervention
+                self._logger.info(f"[REFLECTION F3] Auto-correcting (score={score})")
+
+                # Extract corrected response
+                corrected_match = re.search(
+                    r'CORRECTED_RESPONSE:\s*(.*?)(?:$|\n\n)',
+                    reflection_content,
+                    re.DOTALL
+                )
+
+                if corrected_match and corrected_match.group(1).strip() not in ["N/A", "None", ""]:
+                    corrected_content = corrected_match.group(1).strip()
+                    # Remove markdown code block if present
+                    if corrected_content.startswith("```"):
+                        corrected_content = re.sub(r'^```\w*\n?', '', corrected_content)
+                        corrected_content = re.sub(r'\n?```$', '', corrected_content)
+                    return corrected_content, score, False
+                else:
+                    # No corrected content provided, return original with warning
+                    return f"{content}\n\n[Self-review score: {score}/10 - Minor issues detected]", score, False
+
+            else:
+                # Score < 5: Escalate to Swarm
+                self._logger.warning(f"[REFLECTION F3] Escalating to Swarm (score={score})")
+                return content, score, True
+
+        except Exception as e:
+            self._logger.error(f"[REFLECTION F3] Error during reflection: {e}")
+            # On error, accept original response (fail-open for UX)
+            return content, 8, False
 
     def _handle_fast_path(self, user_input: str) -> Dict:
         """
