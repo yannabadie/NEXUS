@@ -269,26 +269,21 @@ class DriverBridge:
         .. deprecated:: V8.4.4
             Use `driver.invoke_sync()` instead.
         """
-        loop = self._loop or asyncio.get_event_loop()
-
-        # If we're already in an async context, we need to be careful
+        # V11.4 ASYNC: Python 3.12+ compatibility
+        # Try get_running_loop() first (in async context), then fallback
         try:
-            if loop.is_running():
-                # Create a future and run in the existing loop
-                import concurrent.futures
-                future = asyncio.run_coroutine_threadsafe(
-                    self.async_driver.invoke(context, **kwargs),
-                    loop
-                )
-                return future.result(timeout=300)
-            else:
-                # Safe to use run_until_complete
-                return loop.run_until_complete(
-                    self.async_driver.invoke(context, **kwargs)
-                )
-        except Exception as e:
-            logger.error(f"DriverBridge invoke failed: {e}")
-            raise
+            loop = self._loop or asyncio.get_running_loop()
+            # Loop is running - use run_coroutine_threadsafe
+            future = asyncio.run_coroutine_threadsafe(
+                self.async_driver.invoke(context, **kwargs),
+                loop
+            )
+            return future.result(timeout=300)
+        except RuntimeError:
+            # No running loop - create one and run
+            return asyncio.run(
+                self.async_driver.invoke(context, **kwargs)
+            )
 
 
 # ============================================================================

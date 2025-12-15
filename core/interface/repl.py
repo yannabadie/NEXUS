@@ -313,8 +313,9 @@ class InteractiveNexusV7:
             while True:
                 try:
                     # V9: Non-blocking input
+                    # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
                     if self._use_simple_input:
-                        loop = asyncio.get_event_loop()
+                        loop = asyncio.get_running_loop()
                         user_input = await loop.run_in_executor(
                             None, lambda: input("nexus7> ")
                         )
@@ -380,7 +381,8 @@ class InteractiveNexusV7:
             result = await self.orchestrator.process_turn_async(user_input)
         else:
             # Fallback: Run sync in executor (non-blocking for REPL)
-            loop = asyncio.get_event_loop()
+            # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
+            loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None, lambda: self.orchestrator.process_turn(user_input)
             )
@@ -400,7 +402,8 @@ class InteractiveNexusV7:
             if hasattr(self.orchestrator, 'process_turn_async'):
                 result = await self.orchestrator.process_turn_async()
             else:
-                loop = asyncio.get_event_loop()
+                # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
+                loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(
                     None, lambda: self.orchestrator.process_turn()
                 )
@@ -429,7 +432,8 @@ class InteractiveNexusV7:
                 self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
                 try:
                     # Async input for interjection
-                    loop = asyncio.get_event_loop()
+                    # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
+                    loop = asyncio.get_running_loop()
                     user_interjection = await loop.run_in_executor(None, lambda: input().strip())
                     if user_interjection:
                         self.console.print(f"[bold green]You:[/bold green] {user_interjection}")

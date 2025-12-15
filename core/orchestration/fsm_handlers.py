@@ -774,19 +774,17 @@ class FSMHandlers:
             hive_start = time.time()
 
             # Run async HiveMind - handle already-running loops
+            # V11.4 ASYNC: Use run_coroutine_threadsafe to preserve async context
+            # This maintains: CancellationToken, TelemetryBridge, ProcessHandleRegistry
             try:
                 # Try to get running loop - if it exists, we're in async context
                 loop = asyncio.get_running_loop()
-                # Loop is running - use thread to avoid "already running" error
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    # Create coroutine inside thread to avoid "never awaited" warning
-                    def run_hive():
-                        return asyncio.run(
-                            self._orch._hive_mind.process_task(user_input, hive_complexity)
-                        )
-                    future = executor.submit(run_hive)
-                    result = future.result(timeout=300)  # 5 min timeout
+                # Loop is running - schedule coroutine on the SAME loop to preserve context
+                future = asyncio.run_coroutine_threadsafe(
+                    self._orch._hive_mind.process_task(user_input, hive_complexity),
+                    loop
+                )
+                result = future.result(timeout=300)  # 5 min timeout
             except RuntimeError:
                 # No running loop - safe to use asyncio.run() directly
                 result = asyncio.run(

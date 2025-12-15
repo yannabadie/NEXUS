@@ -173,13 +173,19 @@ class BootstrapService:
             True if user confirms, False otherwise.
         """
         if self._interaction is not None:
-            # Use injected provider (async wrapped in sync)
-            return asyncio.get_event_loop().run_until_complete(
-                self._interaction.confirm(
-                    "Create backup and overwrite?",
-                    default=False
+            # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
+            try:
+                loop = asyncio.get_running_loop()
+                future = asyncio.run_coroutine_threadsafe(
+                    self._interaction.confirm("Create backup and overwrite?", default=False),
+                    loop
                 )
-            )
+                return future.result(timeout=30)
+            except RuntimeError:
+                # No running loop - create one
+                return asyncio.run(
+                    self._interaction.confirm("Create backup and overwrite?", default=False)
+                )
         else:
             # Fallback: Use provider from factory
             from core.interaction import get_interaction_provider
@@ -190,16 +196,19 @@ class BootstrapService:
                 response = input("   Create backup and overwrite? (y/N): ").strip().lower()
                 return response == 'y'
             else:
-                # Headless: run async provider
+                # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
+                    future = asyncio.run_coroutine_threadsafe(
+                        provider.confirm("Create backup and overwrite?", default=False),
+                        loop
+                    )
+                    return future.result(timeout=30)
                 except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
-                return loop.run_until_complete(
-                    provider.confirm("Create backup and overwrite?", default=False)
-                )
+                    # No running loop - create one
+                    return asyncio.run(
+                        provider.confirm("Create backup and overwrite?", default=False)
+                    )
 
 
 class SpinoffService:

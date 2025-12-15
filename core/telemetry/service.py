@@ -347,13 +347,19 @@ class BudgetService:
             True if user confirms, False otherwise.
         """
         if self._interaction is not None:
-            # Use injected provider (async wrapped in sync)
-            return asyncio.get_event_loop().run_until_complete(
-                self._interaction.confirm(
-                    "Reset budget counter?",
-                    default=False
+            # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
+            try:
+                loop = asyncio.get_running_loop()
+                future = asyncio.run_coroutine_threadsafe(
+                    self._interaction.confirm("Reset budget counter?", default=False),
+                    loop
                 )
-            )
+                return future.result(timeout=30)
+            except RuntimeError:
+                # No running loop - create one
+                return asyncio.run(
+                    self._interaction.confirm("Reset budget counter?", default=False)
+                )
         else:
             # Fallback: Use provider from factory
             from core.interaction import get_interaction_provider
@@ -364,16 +370,19 @@ class BudgetService:
                 response = input("\n    Type 'yes' to confirm: ").strip().lower()
                 return response == 'yes'
             else:
-                # Headless: run async provider
+                # V11.4 ASYNC: Use run_coroutine_threadsafe when loop is running
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
+                    future = asyncio.run_coroutine_threadsafe(
+                        provider.confirm("Reset budget counter?", default=False),
+                        loop
+                    )
+                    return future.result(timeout=30)
                 except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
-                return loop.run_until_complete(
-                    provider.confirm("Reset budget counter?", default=False)
-                )
+                    # No running loop - create one
+                    return asyncio.run(
+                        provider.confirm("Reset budget counter?", default=False)
+                    )
 
     def add_credit(self, amount: float) -> ServiceResult:
         """

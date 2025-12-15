@@ -56,10 +56,15 @@ def run_sync(
             stacklevel=2
         )
 
+    # V11.4 ASYNC: Detect if we're in an async context
+    # WARNING: run_sync() does NOT preserve async context (CancellationToken, etc.)
+    # This is why it's deprecated - use proper async patterns instead.
     try:
         loop = asyncio.get_running_loop()
-        # If we're already in an async context, we can't use run_until_complete
-        # Instead, create a new thread to run the coroutine
+        # Event loop exists - use ThreadPoolExecutor to avoid deadlock
+        # Note: This creates a NEW event loop in the thread, losing context
+        # For context-preserving async, use run_coroutine_threadsafe() directly
+        # (only safe when called from a DIFFERENT thread than the event loop)
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(asyncio.run, coro)

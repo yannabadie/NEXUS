@@ -309,7 +309,8 @@ class EmbeddingEngine:
         Returns:
             List of embeddings (each embedding is a list of floats)
         """
-        loop = asyncio.get_event_loop()
+        # V11.4 ASYNC: get_running_loop() for Python 3.12+ compatibility
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             self._executor,
             lambda: self.encode(texts, batch_size)
