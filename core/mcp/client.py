@@ -10,9 +10,13 @@ import json
 import threading
 import queue
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
+
+# V9 Cyborg Hardening: Logger for MCP debugging
+_logger = logging.getLogger(__name__)
 
 from .protocol import (
     MCPRequest,
@@ -486,16 +490,18 @@ class MCPClient:
                         data = json.loads(line)
                         self._response_queue.put(data)
                     except json.JSONDecodeError as e:
-                        # Log but don't crash
-                        pass
+                        # V9: Log JSON parse errors for debugging
+                        _logger.warning(
+                            f"[MCP] JSON parse error: {e} | Line preview: {line[:100]}"
+                        )
 
                 except Exception as e:
                     if not self._reader_stop.is_set():
                         self._response_queue.put(MCPConnectionError(f"Reader error: {e}"))
                     break
 
-        except Exception:
-            pass  # Thread exit
+        except Exception as e:
+            _logger.debug(f"[MCP] Reader thread exiting: {e}")
 
 
 # =============================================================================

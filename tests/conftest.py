@@ -160,6 +160,16 @@ class MockConfig(Config):
         # Fast Path
         self.fast_path_enabled = True
 
+        # V8.0 TRUE HIVE MIND
+        self.hive_mind_enabled = True
+        self.hive_mind_moderate = True
+        self.hive_mind_budget_limit = 50000
+        self.hive_mind_max_debate_turns = 10
+        self.hive_mind_min_debate_turns = 3
+        self.hive_mind_breakpoints_enabled = False  # Disabled for tests
+        self.hive_mind_max_retries = 3
+        self.hive_mind_agreement_threshold = 0.85
+
         # Gemini persistence (PTY removed in V7.6)
         self.gemini_persistent_mode = True
         self.gemini_approval_mode = "yolo"
@@ -244,9 +254,12 @@ def orchestrator_with_mocks(tmp_path):
         orch.agent_invoker.get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # Store drivers in a dict for easy access in tests
+    # V8.4.0: Use lowercase normalized IDs (but keep titlecase aliases for backwards compat)
     orch.drivers = {
-        "Gemini": mock_gemini,
-        "Claude": mock_claude
+        "gemini": mock_gemini,
+        "claude": mock_claude,
+        "Gemini": mock_gemini,  # Alias for backwards compat
+        "Claude": mock_claude   # Alias for backwards compat
     }
 
     return orch

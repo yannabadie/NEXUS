@@ -13,11 +13,17 @@ from typing import Optional
 
 
 class Config:
-    """NEXUS V7 Configuration"""
+    """NEXUS Configuration - Single source of truth for version"""
 
     def __init__(self):
         # Load .env if present
         load_dotenv()
+
+        # ====================================================================
+        # VERSION (Single Source of Truth - defined in .env)
+        # ====================================================================
+        self.nexus_version: str = os.getenv("NEXUS_VERSION", "8.3.1")
+        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
 
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")
@@ -89,6 +95,11 @@ class Config:
         # Set RED_TEAM_MANDATORY=True to enforce strict alignment validation
         self.red_team_mandatory: bool = os.getenv("RED_TEAM_MANDATORY", "False").lower() == "true"
         self.red_team_min_score: float = float(os.getenv("RED_TEAM_MIN_SCORE", "0.60"))
+
+        # V8.2.0c: Red Team validation for spawned agents
+        # Validates generated prompts for dangerous patterns before saving
+        self.redteam_spawn_enabled: bool = os.getenv("REDTEAM_SPAWN_ENABLED", "True").lower() == "true"
+        self.redteam_spawn_block_on_fail: bool = os.getenv("REDTEAM_SPAWN_BLOCK", "False").lower() == "true"
 
         # ====================================================================
         # NOTIFICATION SYSTEM
@@ -195,6 +206,42 @@ class Config:
         # V7.5 Phase 9: Fast Path for trivial conversational inputs
         # Bypasses FSM entirely for greetings, thanks, etc. Target: <2s response
         self.fast_path_enabled: bool = os.getenv("FAST_PATH_ENABLED", "True").lower() == "true"
+
+        # ====================================================================
+        # V8.0 TRUE HIVE MIND SETTINGS
+        # ====================================================================
+        # True Hive Mind: Collaborative intelligence for COMPLEX/EXPERT tasks
+        # - 7 phases: Analysis, Debate, Architecture, Execution, Diagnosis, Retry, Consolidation
+        # - 4 User Breakpoints: After debate, before spawn, after diagnosis, consolidation
+
+        # Enable/Disable V8 Hive Mind (falls back to V7 Swarm if disabled)
+        self.hive_mind_enabled: bool = os.getenv("HIVE_MIND_ENABLED", "True").lower() == "true"
+
+        # Route MODERATE complexity to Hive Mind (True) or V7 Swarm (False)
+        # COMPLEX/EXPERT always goes to Hive Mind when enabled
+        self.hive_mind_moderate: bool = os.getenv("HIVE_MIND_MODERATE", "True").lower() == "true"
+
+        # Token budget per Hive Mind task (prevents runaway costs)
+        self.hive_mind_budget_limit: int = int(os.getenv("HIVE_MIND_BUDGET", "50000"))
+
+        # Maximum debate turns before forced consensus
+        self.hive_mind_max_debate_turns: int = int(os.getenv("HIVE_MIND_MAX_DEBATE", "10"))
+
+        # Minimum debate turns (even if consensus reached early)
+        self.hive_mind_min_debate_turns: int = int(os.getenv("HIVE_MIND_MIN_DEBATE", "3"))
+
+        # Enable user breakpoints (pause for approval at key decisions)
+        self.hive_mind_breakpoints_enabled: bool = os.getenv(
+            "HIVE_MIND_BREAKPOINTS", "True"
+        ).lower() == "true"
+
+        # Maximum retry attempts before escalation
+        self.hive_mind_max_retries: int = int(os.getenv("HIVE_MIND_MAX_RETRIES", "3"))
+
+        # Agreement threshold to skip debate (0.0-1.0)
+        self.hive_mind_agreement_threshold: float = float(
+            os.getenv("HIVE_MIND_AGREEMENT_THRESHOLD", "0.85")
+        )
 
         # NOTE: PTY mode removed in V7.6 (never worked)
         # See: docs/archive/pty_mode_v7_archived.py

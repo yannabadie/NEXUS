@@ -1,23 +1,24 @@
-# Module: Utils - NEXUS V7.7 Utilities
+# Module: Utils - NEXUS V8.4.x Utilities
 
-**Version**: 7.7 (HIVE MIND)
-**Last Updated**: 2025-12-05
+**Version**: 8.4.4 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-10
 
 ---
 
 ## Role Architectural
 
-Utilitaires partagés pour NEXUS V7.7, incluant extraction JSON, parsing de streams, vérification d'artefacts, et persistance atomique.
+Utilitaires partagés pour NEXUS V8.4.x, incluant extraction JSON, parsing de streams, vérification d'artefacts, persistance atomique, et **sérialisation NEXUS** (V8.4.4).
 
 ---
 
-## Alignement ROADMAP V7.5+
+## Alignement ROADMAP V7.5+ / V8.4.x
 
 | Phase ROADMAP | Impact sur ce module |
 |---------------|---------------------|
 | **Phase 6** | `json_extractor.py` - Extraction JSON robuste (COMPLETE) |
 | **Phase 7: Session Isolation** | `atomic_store.py` - Persistance atomique thread-safe (COMPLETE) |
 | **Phase 15: Response Streaming** | `stream_parser.py` - Parsing JSONL pour streaming (COMPLETE) |
+| **V8.4.4: P0 Blind Spot** | `serialization.py` - NexusJSONEncoder (COMPLETE) |
 
 ---
 
@@ -114,6 +115,48 @@ verifier = ArtifactVerifier()
 is_valid = verifier.verify(artifact_path)
 ```
 
+### 5. NEXUS Serialization (`serialization.py`) - NEW V8.4.4
+
+**Problem Solved**: Standard `json.dumps()` fails on datetime, Enum, UUID, Path, dataclass, etc. SagaManager checkpoints need to serialize complex NEXUS types.
+
+**NexusJSONEncoder** handles:
+- `datetime` → ISO format string
+- `Enum` → `.value`
+- `UUID` → `str(uuid)`
+- `Path` → `str(path)`
+- `bytes` → base64 encoded
+- `set` → list
+- `dataclass` → via `asdict()`
+- Pydantic models → via `.model_dump()`
+- Objects with `to_dict()` method
+
+```python
+from core.utils import nexus_dumps, nexus_loads, NexusJSONEncoder
+from datetime import datetime
+from enum import Enum
+from uuid import uuid4
+
+# Serialize complex types
+data = {
+    "timestamp": datetime.now(),
+    "state": HiveMindState.HIVE_GATING,
+    "session_id": uuid4(),
+    "config_path": Path("/workspace/.nexus")
+}
+
+json_str = nexus_dumps(data, indent=2)
+# {"timestamp": "2024-12-10T15:30:00", "state": "hive_gating", "session_id": "abc-123", ...}
+
+# Deserialize with datetime parsing
+restored = nexus_loads(json_str)
+print(type(restored["timestamp"]))  # <class 'datetime.datetime'>
+```
+
+**Convenience Functions**:
+- `nexus_dumps(obj)` - Serialize with NexusJSONEncoder
+- `nexus_loads(json_str)` - Deserialize with ISO date parsing
+- `serialize_for_checkpoint(obj)` - Prepare object for SagaManager checkpoint
+
 ---
 
 ## Files
@@ -123,6 +166,7 @@ is_valid = verifier.verify(artifact_path)
 | `atomic_store.py` | Atomic JSON persistence | `AtomicJsonStore`, `get_store` |
 | `json_extractor.py` | Robust JSON parsing | `extract_json`, `extract_json_safe` |
 | `stream_parser.py` | JSONL stream parsing | `parse_stream_chunk`, `is_result_message`, `extract_stats` |
+| `serialization.py` | **V8.4.4** NEXUS JSON encoding | `NexusJSONEncoder`, `nexus_dumps`, `nexus_loads` |
 | `artifact_verifier.py` | File integrity | `ArtifactVerifier` |
 | `__init__.py` | Module exports | All public APIs |
 

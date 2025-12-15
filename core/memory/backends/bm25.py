@@ -24,8 +24,19 @@ BM25S_AVAILABLE = False
 STEMMER_AVAILABLE = False
 
 try:
-    import bm25s
-    BM25S_AVAILABLE = True
+    # Suppress bm25s benchmark.py warning about 'resource' module on Windows
+    import sys
+    import io
+    _stderr_backup = sys.stderr
+    sys.stderr = io.StringIO()
+    _stdout_backup = sys.stdout
+    sys.stdout = io.StringIO()
+    try:
+        import bm25s
+        BM25S_AVAILABLE = True
+    finally:
+        sys.stdout = _stdout_backup
+        sys.stderr = _stderr_backup
 except ImportError:
     bm25s = None  # type: ignore
 

@@ -14,9 +14,11 @@ from rich.markdown import Markdown
 from typing import Dict, Optional
 import os
 
+from core.agents.unified_registry import get_registry  # V8.4.0
+
 
 class ConsoleV7:
-    """Console UI minimaliste pour NEXUS V7"""
+    """Console UI minimaliste pour NEXUS"""
 
     def __init__(self, verbose: bool = False):
         """
@@ -25,20 +27,30 @@ class ConsoleV7:
         Args:
             verbose: Si True, affiche détails FSM et JSON
         """
+        # V9.1.1: Let Rich auto-detect terminal capabilities
+        # - Don't force legacy_windows=False (breaks on conhost.exe)
+        # - Don't force force_terminal=True (let Rich decide)
+        # Rich will use VT100 if available, fallback to Windows API otherwise
         self.console = Console()
         self.verbose = verbose
 
-    def print_banner(self, gemini_model: str, claude_model: str):
+    def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):
         """
-        Print NEXUS V7 banner au démarrage
+        Print NEXUS banner au démarrage
 
         Args:
             gemini_model: Nom du modèle Gemini détecté
             claude_model: Nom du modèle Claude détecté
+            version: Version from config (e.g., "8.3.1")
+            codename: Codename from config (e.g., "TRUE HIVE MIND")
         """
+        # Default values if not provided (backward compatibility)
+        version = version or "8.3.1"
+        codename = codename or "TRUE HIVE MIND"
+
         banner = f"""
 ╔═══════════════════════════════════════════════════════════╗
-║        NEXUS V7.0 "Chrysalis" - OMNISCIENT REPL           ║
+║        NEXUS V{version} "{codename}"           ║
 ║              Persistent FSM Orchestrator                  ║
 ╚═══════════════════════════════════════════════════════════╝
 
@@ -80,7 +92,9 @@ Type your task or use slash commands (/help for list)
         # Agent message
         if output and agent:
             # V7 FIX: Handle Swarm agent with distinct color
-            if agent == "Gemini":
+            # V8.4.0: Use registry for agent identification
+            registry = get_registry()
+            if registry.is_gemini(agent):
                 color = "cyan"
                 self.console.print(f"[{color}][{agent}][/{color}] {output}")
             elif agent == "Swarm":

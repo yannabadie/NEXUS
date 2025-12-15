@@ -1,6 +1,7 @@
-# NEXUS V7.5 "HIVE MIND" - Claude Project Instructions
+# NEXUS V8.3 "TRUE HIVE MIND" - Claude Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
+**Version**: 8.3.2 | **Branch**: N8THM
 **Philosophy**: Equal collaboration between AI agents (you and Gemini)
 **Your Role**: Collaborator, not executor
 **Ultimate Mission**: Generate specialized agents for collaborative problem-solving
@@ -11,7 +12,7 @@
 
 **YOU ARE HALF OF A COLLABORATIVE INTELLIGENCE CORE.**
 
-NEXUS V7.5 "HIVE MIND" is a **platform for generating specialized agents** that coexist and collaborate to solve complex problems.
+NEXUS V8.3 "TRUE HIVE MIND" is a **platform for generating specialized agents** that coexist and collaborate to solve complex problems.
 
 **Core Power**: Gemini + Claude working together surpass what each can do alone.
 
@@ -100,7 +101,7 @@ NEXUS adapts through multiple mechanisms:
 | **NEXUS.md** | Project-specific instructions (auto-generated if missing) | Always |
 | **Evolution** | Create specialized children for domain expertise | Complex projects |
 | **Memory** | Blackboard persists learned patterns | Across sessions |
-| **@external_sources** | Connect to external data for analysis | Data-heavy tasks |
+| **Web Tools** | Use web_search/web_fetch for external data | Data-heavy tasks |
 
 ### Auto-Generated NEXUS.md (Bootstrap Protocol)
 
@@ -197,29 +198,35 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ## 📁 Project Structure
 
 ```
-20_NEXUS/
-├── NEXUS_V7_CHRYSALIS/          # V7 active development (FSM-based)
-│   ├── core/                    # Core orchestration & FSM
-│   │   ├── orchestration_v7.py  # Main FSM orchestrator
-│   │   ├── drivers/             # Gemini & Claude drivers
-│   │   ├── execution/           # Tool execution layer
-│   │   ├── fsm/                 # State machine components
-│   │   ├── synapse/             # Memory & protocol
-│   │   └── logging/             # Structured logging
-│   ├── prompts/                 # System prompts (V7 philosophy)
-│   │   ├── system_gemini_v7.md  # Gemini collaborator prompt
-│   │   └── system_claude_v7.md  # Your collaborator prompt
-│   ├── nexus7.py               # Main entry point (interactive REPL)
-│   └── README.md               # V7 architecture docs
-├── archives/                    # Design docs, planning & brainstorming
-└── ARCHIVE/                     # Historical generations (LINEAGE)
+NEXUS/                           # Root (V8.3.x TRUE HIVE MIND)
+├── core/                        # Core orchestration & modules
+│   ├── orchestration_v7.py      # Main FSM orchestrator
+│   ├── drivers/                 # Gemini & Claude drivers
+│   ├── execution/               # Tool execution layer
+│   ├── fsm/                     # State machine components
+│   ├── hive_mind/               # V8 Hive Mind pipeline (7 phases)
+│   ├── swarm/                   # Swarm Engine (6 modes)
+│   ├── memory/                  # RAG + SuccessMemory
+│   ├── security/                # KERNEL, ExecutionPolicy
+│   ├── evolution/               # Agent spawning & mutation
+│   ├── interface/               # REPL & commands
+│   └── utils/                   # Shared utilities
+├── prompts/                     # System prompts (for NEXUS internal use)
+├── workspace/                   # Runtime data (agents, logs, sessions)
+├── tests/                       # Test suite (1000+ tests)
+├── docs/                        # Documentation
+├── audit/                       # Audit reports
+├── nexus7.py                    # Main entry point (interactive REPL)
+├── ROADMAP.md                   # Active development roadmap
+├── KERNEL.py                    # Immutable alignment rules
+└── MISSION.md                   # Project mission statement
 ```
 
 ---
 
 ## 🔧 Tech Stack
 
-**Language**: Python 3.13+
+**Language**: Python 3.11+
 
 **AI Models (Intelligent Routing)**:
 - **Claude**:
@@ -251,9 +258,8 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ## 🚀 Key Commands
 
-### Run NEXUS V7 Interactive Mode:
+### Run NEXUS Interactive Mode:
 ```bash
-cd NEXUS_V7_CHRYSALIS
 python nexus7.py
 ```
 
@@ -342,49 +348,58 @@ git push origin N7C
 
 ---
 
-## 🧠 FSM States (V7 Architecture)
+## 🧠 Orchestration Architecture (V8.3)
 
-**Core State Flow:**
+**V8.3 introduces two orchestration layers:**
+
+### 1. FSM States (Low-Level Orchestrator)
 ```
 IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
-         ↓
-    WAITING_USER (task finished)
-         ↓
-    ERROR → (reset) → IDLE
-         ↓
-    PANIC (fatal - restart required)
+         ↓                                      ↓
+    WAITING_USER ←─────────────────────── ERROR
+                                              ↓
+                                          PANIC
 ```
-
-**Hybrid Swarm States (Sprint 9):**
-```
-IDLE → SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING → VALIDATING_CFL
-```
-
-**Evolution State:**
-```
-IDLE → EVOLUTION_BRAINSTORM (max 30 turns) → IDLE
-```
-
-**State Descriptions:**
 
 | State | Description |
 |-------|-------------|
 | `IDLE` | Awaiting user input |
-| `BRAINSTORMING` | Agents exchange TALK messages, align on strategy |
-| `EXECUTING_TOOL` | Nexus Core executes tool (synchronous) |
-| `VALIDATING_CFL` | Agent validates tool result (Cognitive Feedback Loop) |
-| `WAITING_USER` | Task finished, awaiting next input |
-| `ERROR` | Recoverable error (use `/reset` to return to IDLE) |
-| `PANIC` | Fatal error (session restart required) |
-| `SWARM_ANALYZING` | Swarm Engine analyzes task complexity & domains |
-| `SWARM_NEGOTIATING` | Agents negotiate collaboration mode (max 4 turns) |
-| `SWARM_EXECUTING` | Execute negotiated mode (PARALLEL, SEQUENTIAL, etc.) |
-| `EVOLUTION_BRAINSTORM` | Special mode for designing mutations |
+| `BRAINSTORMING` | Agents exchange TALK messages |
+| `EXECUTING_TOOL` | Tool execution (synchronous) |
+| `VALIDATING_CFL` | Cognitive Feedback Loop |
+| `ERROR` | Recoverable (use `/reset`) |
+| `PANIC` | Fatal (restart required) |
+
+### 2. HiveMind Pipeline (High-Level - V8.3)
+```
+Phase 1: ANALYSIS      → Independent analysis by both agents
+Phase 2: DEBATE        → Resolve disagreements (if needed)
+Phase 3: ARCHITECTURE  → Design execution plan
+Phase 4: EXECUTION     → Execute steps (+ SwarmBridge delegation)
+Phase 5: DIAGNOSIS     → Error analysis on failure
+Phase 6: CONSOLIDATION → Merge and summarize results
+Phase 7: COMPLETION    → Final state (HIVE_SUCCESS/HIVE_FAILED)
+```
+
+**24 HiveMind States** (vs 11 FSM states):
+- `HIVE_IDLE`, `ANALYSIS_PENDING`, `ANALYSIS_IN_PROGRESS`, etc.
+- SwarmBridge: Delegation to 6 Swarm modes at any phase (V8.3.0+)
+
+### SwarmBridge (V8.3.0+)
+HiveMind can delegate to Swarm Engine at any phase:
+```python
+# Phase 4 execution step with Swarm delegation:
+ExecutionStep(
+    name="Security Review",
+    agent_id="gemini",
+    swarm_mode="red_blue"  # Delegated to Swarm!
+)
+```
 
 **Important:**
-- Orchestrator is **persistent** (lives in RAM)
+- FSM orchestrator = low-level state machine
+- HiveMind = high-level 7-phase pipeline (for MODERATE+ tasks)
 - State saved to `workspace/.nexus/blackboard.json`
-- No infinite loops - user drives iteration
 
 ---
 
@@ -431,10 +446,44 @@ Agents build performance history used for intelligent routing:
 
 ## 📚 Key Documentation
 
-**V7 Architecture**: `NEXUS_V7_CHRYSALIS/README.md`
-**System Prompts**: `NEXUS_V7_CHRYSALIS/prompts/`
-**Design Docs**: `archives/brainstorming-history/`
-**Planning**: `archives/planning/`
+### Core Documents (V8.3)
+
+| Document | Purpose |
+|----------|---------|
+| [MISSION.md](MISSION.md) | HIVE MIND vision & philosophy |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap (V8.x phases) |
+| [README.md](README.md) | Quick start & architecture overview |
+| [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm Engine documentation |
+
+### Module Documentation
+
+| Module | README | Key Features |
+|--------|--------|--------------|
+| `core/hive_mind/` | [HiveMind Pipeline](core/hive_mind/README.md) | 7 phases, SwarmBridge delegation |
+| `core/swarm/` | [Swarm Module](core/swarm/README.md) | 6 modes, Self-Healing, DyLAN |
+| `core/fsm/` | [FSM Module](core/fsm/README.md) | 11 states, TRANSITION_MATRIX |
+| `core/drivers/` | [Drivers Module](core/drivers/README.md) | Gemini JSON, Claude XML |
+| `core/synapse/` | [Synapse Module](core/synapse/README.md) | LightMessageV7/HeavyMessageV7 |
+| `core/memory/` | [Memory Module](core/memory/README.md) | RAG + SuccessMemory |
+
+### Anti-Hallucination Reference
+
+**CRITICAL**: Before making claims about NEXUS internals, consult these docs:
+
+| Document | Purpose |
+|----------|---------|
+| `docs/DATACLASS_FIELDS.md` | Exact field definitions for all dataclasses |
+| `docs/DRIVER_INTERNALS.md` | How LLM drivers actually work |
+| `docs/ASYNC_MAP.md` | Async vs sync function mapping |
+| `docs/ARCHITECTURE_DECISIONS.md` | ADRs documenting design choices |
+| `ROADMAP.md` | Current roadmap with implementation status |
+
+**Common Hallucinations to Avoid**:
+- `TaskAnalysis.reasoning` → Does NOT exist (use `ModeProposal.reasoning`)
+- `ModeProposal.recommended_mode` → Use `.mode`
+- `AnalysisPhaseResult.payload` → Use `.gemini_analysis`
+- `HiveMindState.HIVE_COMPLETE` → Use `HIVE_SUCCESS`
+- `invoke(task_type=)` → Use `invoke(session_uuid=)`
 
 ---
 
@@ -636,3 +685,4 @@ Before ending any session, verify:
 - N'oublies pas que NEXUS est composé de Gemini + Claude.
 - Tu as a disposition un compte Google AI Ultra et un compte Claude Max Plan. Afin de réduire les coûts n'utilise pas les API par défaut.
 - L'UX doit être la plus simple possible, malgré la complexité de NEXUS. Le schéma idéal est: L'utilisateur déploie NEXUS dans son dossier projet, le lance. NEXUS délibère, planifie la ou les architectures agentiques a utiliser puis résoud de manière autonome le problème de l'utilisateur. De plus il s'auto-controle, il est capable de se rappeler comment il a obtenu les meilleurs résultas avec quelles méthodes par exemple.
+- rappel le dossier prompt est dédié aux prompts utilisé par le systeme NEXUS pas pour les prompts pour le developpement courrant

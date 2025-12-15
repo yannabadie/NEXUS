@@ -44,10 +44,16 @@ class TestOrchestratorStates:
         states = list(OrchestratorState)
         assert states[0] == OrchestratorState.IDLE
 
-    def test_panic_has_no_transitions(self):
-        """PANIC state should have no outgoing transitions."""
+    def test_panic_has_recovery_transition(self):
+        """
+        V9.3 ISSUE-002: PANIC state now has recovery transition.
+
+        Before V9.3: PANIC was a dead-end, user had to restart session.
+        After V9.3: User can recover via /reset command.
+        """
         panic_transitions = TRANSITION_MATRIX.get(OrchestratorState.PANIC, {})
-        assert len(panic_transitions) == 0, "PANIC should have no transitions"
+        assert "recovery" in panic_transitions, "PANIC should have recovery transition"
+        assert panic_transitions["recovery"] == OrchestratorState.IDLE
 
 
 class TestTransitionGuard:

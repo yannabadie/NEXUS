@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional, Any
 
+from core.agents.unified_registry import get_registry
 from core.prompts import load_prompt
 from core.swarm import TaskAnalysis, TaskComplexity
 
@@ -49,6 +50,7 @@ class ContextBuilder:
             orchestrator: Parent OrchestratorV7 instance
         """
         self._orch = orchestrator
+        self._registry = get_registry()
 
     def build_context(self) -> str:
         """
@@ -66,12 +68,12 @@ class ContextBuilder:
         Returns:
             Markdown context string
         """
-        # Load system prompt (V7.5: with includes resolved)
-        prompt_name = "system_gemini_v7" if self._orch.active_agent == "Gemini" else "system_claude_v7"
+        # Load system prompt (V7.5: with includes resolved, V8.4.0: via registry)
+        prompt_name = "system_gemini_v7" if self._registry.is_gemini(self._orch.active_agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
         except Exception:
-            system_prompt = f"You are {self._orch.active_agent}."
+            system_prompt = f"You are {self._registry.get_display_name(self._orch.active_agent)}."
 
         # Get available tools from manager dynamically
         tools_list = list(self._orch.tool_manager.tools.keys())
@@ -222,14 +224,14 @@ User objective: {objective}
             Enriched markdown context
         """
         # Use target_agent if provided (thread-safe), otherwise fallback to active_agent
-        agent = target_agent or self._orch.active_agent or "Gemini"
+        agent = target_agent or self._orch.active_agent or "gemini"
 
-        # Load system prompt (V7.5: with includes resolved)
-        prompt_name = "system_gemini_v7" if agent == "Gemini" else "system_claude_v7"
+        # Load system prompt (V7.5: with includes resolved, V8.4.0: via registry)
+        prompt_name = "system_gemini_v7" if self._registry.is_gemini(agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
         except Exception:
-            system_prompt = f"You are {agent}, a collaborative AI agent."
+            system_prompt = f"You are {self._registry.get_display_name(agent)}, a collaborative AI agent."
 
         # Get available tools
         tools_list = list(self._orch.tool_manager.tools.keys())
@@ -299,12 +301,13 @@ Path: {self._orch.workspace_path}
         Returns:
             Markdown context for simple task
         """
+        # V8.4.0: Use registry for agent identification
         agent = self._orch.active_agent
-        prompt_name = "system_gemini_v7" if agent == "Gemini" else "system_claude_v7"
+        prompt_name = "system_gemini_v7" if self._registry.is_gemini(agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
         except Exception:
-            system_prompt = f"You are {agent}."
+            system_prompt = f"You are {self._registry.get_display_name(agent)}."
 
         tools_list = list(self._orch.tool_manager.tools.keys())
 

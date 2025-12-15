@@ -151,7 +151,8 @@ class PanicSystem:
 
         try:
             return json.loads(self.panic_file.read_text(encoding='utf-8'))
-        except:
+        except Exception:
+            # V8.5.0: Return None on JSON parse or file read error
             return None
 
     def clear_panic(self):
@@ -179,8 +180,9 @@ class PanicSystem:
         try:
             with open(self.panic_history, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(event) + '\n')
-        except:
-            pass  # Don't crash on logging failure
+        except Exception:
+            # V8.5.0: Silently ignore logging failures to prevent crash loops
+            pass
 
     def get_status(self) -> Dict:
         """

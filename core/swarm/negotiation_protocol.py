@@ -29,6 +29,7 @@ from enum import Enum
 from .collaboration_modes import CollaborationMode
 from .task_analyzer import TaskAnalysis
 from .mode_selector import ModeProposal, AgentAssignment
+from ..agents.unified_registry import get_registry  # V8.4.0
 
 
 class NegotiationStatus(Enum):
@@ -511,8 +512,15 @@ class NegotiationProtocol:
                     else:
                         role = "support"
 
+                # V8.4.0: Use registry for agent identification
+                registry = get_registry()
+                if registry.is_gemini(agent_id):
+                    full_agent_id = "gemini_primary"
+                else:
+                    full_agent_id = "claude_opus"
+
                 assignments.append(AgentAssignment(
-                    agent_id=agent_id.lower() + "_primary" if "gemini" in agent_id.lower() else agent_id.lower() + "_opus",
+                    agent_id=full_agent_id,
                     role=role,
                     subtask=subtask,
                     confidence=0.8

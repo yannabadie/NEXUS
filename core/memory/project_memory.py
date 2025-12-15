@@ -39,6 +39,13 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Set, Optional, Any
 
+# V8.8: Spotlighter for RAG content protection (OWASP LLM01:2025)
+try:
+    from core.security import get_spotlighter
+    SPOTLIGHTER_AVAILABLE = True
+except ImportError:
+    SPOTLIGHTER_AVAILABLE = False
+
 # V7.9 Phase 10f/10g: Import from modular types and backends
 from .types import Chunk, IndexStats
 from .backends import (
@@ -496,7 +503,8 @@ class ProjectMemory:
         self,
         query: str,
         limit: int = 5,
-        min_score: float = 0.05
+        min_score: float = 0.05,
+        apply_datamarking: bool = False
     ) -> List[Chunk]:
         """
         Retrieve relevant chunks using the active backend.
@@ -504,10 +512,16 @@ class ProjectMemory:
         V7.9 Phase 10f/10g: Uses pluggable backend architecture.
         Priority: Dense (semantic) > BM25S (lexical) > TF-IDF (fallback)
 
+        V8.8: Added Spotlighter datamarking for RAG content protection.
+        When apply_datamarking=True, chunks are wrapped with invisible
+        markers that help detect if the LLM is regurgitating RAG content
+        verbatim (potential data exfiltration or injection exploit).
+
         Args:
             query: Search query (raw string)
             limit: Maximum chunks to return
             min_score: Minimum similarity score threshold
+            apply_datamarking: Whether to apply Spotlighter datamarks (default False)
 
         Returns:
             List of relevant chunks, sorted by score descending
@@ -547,6 +561,23 @@ class ProjectMemory:
                     results = fallback.retrieve(
                         list(query_terms), self.chunks, limit, min_score, raw_query=query
                     )
+
+            # V8.8: Apply Spotlighter datamarking if requested
+            if apply_datamarking and results and SPOTLIGHTER_AVAILABLE:
+                spotlighter = get_spotlighter()
+                marked_results = []
+                for chunk in results:
+                    # Create a copy with datamarked content
+                    marked_content = spotlighter.spotlight(chunk.content, source=chunk.source)
+                    marked_chunk = Chunk(
+                        source=chunk.source,
+                        content=marked_content,
+                        chunk_id=chunk.chunk_id,
+                        score=chunk.score,
+                        metadata=chunk.metadata
+                    )
+                    marked_results.append(marked_chunk)
+                return marked_results
 
             return results
 

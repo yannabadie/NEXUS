@@ -164,7 +164,10 @@ TRANSITION_MATRIX = {
         "timeout": OrchestratorState.PANIC
     },
     OrchestratorState.PANIC: {
-        # Aucune transition - doit redémarrer
+        # V9.3 ISSUE-002: Recovery path via /reset command
+        # Before V9.3: No transitions - user must restart entire session (bad UX)
+        # After V9.3: User can recover via /reset without losing work
+        "recovery": OrchestratorState.IDLE,
     },
     # ====================================================================
     # HYBRID SWARM TRANSITIONS (Sprint 9)

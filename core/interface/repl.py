@@ -13,8 +13,10 @@ from typing import Dict, Optional
 if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
     del os.environ['TERM']
 
+import asyncio
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 from core.orchestration_v7 import OrchestratorV7
 from core.ui.console_v7 import ConsoleV7
 from core.interface.commands import (
@@ -22,7 +24,11 @@ from core.interface.commands import (
     is_exit_command,
     parse_command,
     get_help_message,
-    SLASH_COMMANDS
+    SLASH_COMMANDS,
+    # V9: Command Pattern
+    get_initialized_registry,
+    CommandContext,
+    CommandStatus,
 )
 from core.config import load_config
 from core.fsm.states import OrchestratorState
@@ -31,6 +37,7 @@ from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security import MutationValidator
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
+from core.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
 
 
 class InteractiveNexusV7:
@@ -138,7 +145,9 @@ class InteractiveNexusV7:
 
         self.console.print_banner(
             gemini_model=self.orchestrator.gemini_info["model"],
-            claude_model=self.orchestrator.claude_info["model"]
+            claude_model=self.orchestrator.claude_info["model"],
+            version=self.config.nexus_version,
+            codename=self.config.nexus_codename
         )
 
         # V7 Sprint 11: Display startup hints (bootstrap, swarm status)
@@ -265,118 +274,234 @@ class InteractiveNexusV7:
                     traceback.print_exc()
                 continue
 
+    # =========================================================================
+    # V9 CYBORG: Async REPL Loop
+    # =========================================================================
+
+    async def run_async(self):
+        """
+        V9 Cyborg Async REPL loop.
+
+        Uses prompt_toolkit's prompt_async() for non-blocking input,
+        wrapped with patch_stdout() to prevent streaming corruption.
+
+        Gracefully handles Ctrl+C to cancel all async driver processes.
+        """
+        import re
+
+        # Clear previous session state at startup (fresh start)
+        self.orchestrator.reset_to_idle(clear_task=True)
+
+        self.console.print_banner(
+            gemini_model=self.orchestrator.gemini_info["model"],
+            claude_model=self.orchestrator.claude_info["model"],
+            version=self.config.nexus_version,
+            codename=self.config.nexus_codename
+        )
+
+        self.console.print("\n⚡ V9 Async Mode Active")
+
+        # V7 Sprint 11: Display startup hints
+        hints = self.orchestrator.get_startup_hints()
+        if hints:
+            self.console.print("")
+            for hint in hints:
+                self.console.print(f"  {hint}")
+            self.console.print("")
+
+        with patch_stdout():
+            while True:
+                try:
+                    # V9: Non-blocking input
+                    if self._use_simple_input:
+                        loop = asyncio.get_event_loop()
+                        user_input = await loop.run_in_executor(
+                            None, lambda: input("nexus7> ")
+                        )
+                    else:
+                        user_input = await self.session.prompt_async("nexus7> ")
+
+                    # Sanitize input (same as sync version)
+                    user_input = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', user_input)
+                    user_input = re.sub(r'[0-9]+~', '', user_input)
+                    user_input = re.sub(r'\[\w\]?', '', user_input)
+                    user_input = user_input.strip()
+
+                    if not user_input:
+                        continue
+
+                    # Slash commands: keep sync (fast, no I/O)
+                    if is_slash_command(user_input):
+                        self.handle_command(user_input)
+                        continue
+
+                    # Handle exit
+                    if is_exit_command(user_input):
+                        self._abort_requested = True
+                        self.console.print("👋 Goodbye!")
+                        break
+
+                    # V9: Async processing
+                    await self._process_turn_async(user_input)
+
+                except KeyboardInterrupt:
+                    self.console.print("\n🛑 Interruption - cancelling async tasks...")
+                    # V9: Cancel all async driver processes
+                    try:
+                        from core.drivers.async_factory import get_driver_factory
+                        factory = get_driver_factory()
+                        if factory:
+                            cancelled = await factory.cancel_all()
+                            if cancelled > 0:
+                                self.console.print(f"  Cancelled {cancelled} process(es)")
+                    except ImportError:
+                        pass
+                    continue
+
+                except EOFError:
+                    break
+
+                except Exception as e:
+                    self.console.print_error(f"Unexpected error: {e}")
+                    if self.config.ui_verbose:
+                        import traceback
+                        traceback.print_exc()
+                    continue
+
+    async def _process_turn_async(self, user_input: str):
+        """
+        V9 Async wrapper for orchestrator.process_turn().
+
+        If orchestrator has process_turn_async(), uses it.
+        Otherwise falls back to sync process_turn() in executor.
+        """
+        # Check for async method first
+        if hasattr(self.orchestrator, 'process_turn_async'):
+            result = await self.orchestrator.process_turn_async(user_input)
+        else:
+            # Fallback: Run sync in executor (non-blocking for REPL)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, lambda: self.orchestrator.process_turn(user_input)
+            )
+
+        self.console.display_result(result)
+
+        # Continue processing until exit conditions (same logic as sync)
+        max_iterations = 50
+        iterations = 0
+        tool_active = False
+
+        while result["state"] not in ["IDLE", "ERROR", "PANIC", "FINISHED"] and iterations < max_iterations:
+            if self._abort_requested:
+                self.console.print("🛑 Abort requested - stopping")
+                break
+
+            if hasattr(self.orchestrator, 'process_turn_async'):
+                result = await self.orchestrator.process_turn_async()
+            else:
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None, lambda: self.orchestrator.process_turn()
+                )
+
+            self.console.display_result(result)
+            iterations += 1
+
+            # Track tool usage
+            if result.get("state") == "EXECUTING_TOOL":
+                tool_active = True
+
+            # Visual checkpoint every 10 turns
+            if iterations > 0 and iterations % 10 == 0:
+                state = result.get("state", "UNKNOWN")
+                self.console.print(f"[dim]─── Iteration {iterations} | State: {state} ───[/dim]")
+                tool_active = False
+
+            # Check if user input needed
+            needs_user_prompt = (
+                result.get("needs_user_input", False) or
+                result.get("state") == "ERROR" or
+                iterations >= (max_iterations - 2)
+            )
+
+            if needs_user_prompt and not tool_active:
+                self.console.print("[yellow]─── User input needed (or press Enter to continue) ───[/yellow]")
+                try:
+                    # Async input for interjection
+                    loop = asyncio.get_event_loop()
+                    user_interjection = await loop.run_in_executor(None, lambda: input().strip())
+                    if user_interjection:
+                        self.console.print(f"[bold green]You:[/bold green] {user_interjection}")
+                        self.orchestrator.memory.add_to_history({
+                            "sender": "User",
+                            "action_type": "TALK",
+                            "content": user_interjection,
+                            "status": "CONTINUE"
+                        })
+                        iterations = 0
+                except (EOFError, KeyboardInterrupt):
+                    self.console.print("\n[Returning to prompt]")
+                    self.orchestrator.reset_to_idle()
+                    break
+
+        if iterations >= max_iterations:
+            self.console.print_error("Max iterations reached. Use /reset")
+            self.orchestrator.reset_to_idle()
+
+        if result.get("finished") and result["state"] != "IDLE":
+            self.console.print("\n✅ [Task Complete]\n")
+            self.successful_turns += 1
+
+            # Check for auto-evolution trigger
+            if self.successful_turns >= self.evolution_trigger_threshold:
+                self.console.print(f"\n⚡ AUTO-EVOLUTION TRIGGER: {self.successful_turns} successful turns reached")
+                self.console.print("   Starting evolution cycle...\n")
+                self.run_evolve(auto_triggered=True)
+                self.successful_turns = 0
+
     def handle_command(self, command: str):
         """
-        Handle slash commands
+        Handle slash commands via V9 Command Pattern.
+
+        Uses CommandRegistry to dispatch commands to their handlers.
+        This replaces the legacy 26-branch elif chain.
 
         Args:
             command: Slash command string (e.g. "/status")
         """
         cmd, args = parse_command(command)
 
-        if cmd == "/clear":
-            self.console.clear()
-
-        elif cmd == "/status":
-            self.show_status()
-
-        elif cmd == "/doctor":
-            self.run_doctor()
-
-        elif cmd == "/reset":
-            self.orchestrator.reset_to_idle()
-            self.console.print("✓ Orchestrator reset to IDLE")
-
-        elif cmd == "/mode":
-            if args:
-                self.orchestrator.blackboard["mode"] = args
-                self.console.print(f"✓ Mode changed to: {args}")
-            else:
-                self.console.print_error("Usage: /mode <mode_name>")
-
-        elif cmd == "/review":
-            self.run_review()
-
-        elif cmd == "/evolve":
-            # Parse child count from args (default 3)
-            child_count = int(args) if args.isdigit() else 3
-            self.run_evolve(child_count=child_count)
-
-        elif cmd == "/evolve-status":
-            self.show_evolve_status()
-
-        elif cmd == "/swarm":
-            if not args:
-                self.console.print_error("Usage: /swarm <task description>")
-                self.console.print("Example: /swarm Analyze this codebase and find bugs")
-            else:
-                self.run_swarm_task(args)
-
-        elif cmd == "/swarm-status":
-            self.show_swarm_status()
-
-        elif cmd == "/swarm-fsm":
-            if not args:
-                self.console.print_error("Usage: /swarm-fsm <task description>")
-                self.console.print("Debug: Uses FSM states (SWARM_ANALYZING → NEGOTIATING → EXECUTING)")
-            else:
-                self.run_swarm_task_fsm(args)
-
-        elif cmd == "/spawn":
-            if not args:
-                self.console.print_error("Usage: /spawn <role> (e.g., /spawn SQL Expert)")
-            else:
-                self.spawn_agent(args)
-
-        elif cmd == "/agents":
-            self.list_agents()
-
-        elif cmd == "/pool-stats":
-            self.show_pool_stats()
-
-        elif cmd == "/bootstrap":
-            self.run_bootstrap(args)
-
-        elif cmd == "/specialize":
-            if args:
-                self.run_specialization(mission=args)
-            else:
-                self.console.print_error("Usage: /specialize <mission_description>")
-
-        elif cmd == "/workspace":
-            self.handle_workspace_command(args)
-
-        elif cmd == "/telemetry":
-            self.handle_telemetry_command(args)
-
-        elif cmd == "/budget":
-            self.handle_budget_command(args)
-
-        elif cmd == "/tutorial":
-            self.run_tutorial()
-
-        elif cmd == "/quickstart":
-            self.show_quickstart()
-
-        elif cmd == "/chat":
-            self.toggle_chat_mode()
-
-        # V7.8 Phase 10c: Project Memory commands
-        elif cmd == "/learn":
-            self.handle_learn_command(args)
-
-        elif cmd == "/forget":
-            self.handle_forget_command(args)
-
-        elif cmd == "/memory-status":
-            self.show_memory_status()
-
-        elif cmd == "/help":
+        # Special case: /help uses legacy help message for full coverage
+        if cmd == "/help":
             self.console.print_help(get_help_message())
+            return
 
-        else:
-            self.console.print_error(f"Unknown command: {cmd}")
-            self.console.print(f"Available commands: {', '.join(SLASH_COMMANDS.keys())}")
+        # V9: Command Pattern dispatch
+        registry = get_initialized_registry()
+        context = CommandContext(
+            orchestrator=self.orchestrator,
+            console=self.console,
+            config=self.config,
+            extras={"repl": self}
+        )
+
+        # Dispatch command
+        full_command = f"{cmd} {args}".strip() if args else cmd
+        result = registry.dispatch(full_command, context)
+
+        # Handle result
+        if result.message:
+            if result.status == CommandStatus.ERROR:
+                self.console.print_error(result.message)
+            elif result.status == CommandStatus.INVALID_ARGS:
+                self.console.print_error(result.message)
+            elif result.status == CommandStatus.NOT_FOUND:
+                # Fallback to legacy error message with available commands
+                self.console.print_error(f"Unknown command: {cmd}")
+                self.console.print(f"Available commands: {', '.join(SLASH_COMMANDS.keys())}")
+            else:
+                self.console.print(result.message)
 
     def show_status(self):
         """Show orchestrator status (/status command)"""
@@ -407,80 +532,8 @@ class InteractiveNexusV7:
 
         self.console.print_doctor_results(results)
 
-    def run_bootstrap(self, args: str):
-        """Run AutoBootstrap to generate NEXUS.md (/bootstrap command)"""
-        from core.bootstrap import AutoBootstrap
-
-        # Parse path argument (default: current directory)
-        if args.strip():
-            project_path = Path(args.strip()).resolve()
-        else:
-            project_path = Path.cwd()
-
-        if not project_path.exists():
-            self.console.print_error(f"Path does not exist: {project_path}")
-            return
-
-        if not project_path.is_dir():
-            self.console.print_error(f"Path is not a directory: {project_path}")
-            return
-
-        self.console.print(f"🔍 Analyzing project: {project_path}")
-
-        try:
-            # Run analysis
-            bootstrap = AutoBootstrap(project_path)
-            analysis = bootstrap.analyze()
-
-            # Display results
-            self.console.print("\n📊 Analysis Results:")
-            self.console.print(f"   Project: {analysis.project_name}")
-            self.console.print(f"   Languages: {', '.join(analysis.languages) or 'None detected'}")
-            self.console.print(f"   Frameworks: {', '.join(analysis.frameworks) or 'None detected'}")
-            self.console.print(f"   Databases: {', '.join(analysis.databases) or 'None detected'}")
-            self.console.print(f"   Tools: {', '.join(analysis.tools) or 'None detected'}")
-            self.console.print(f"   Has tests: {'Yes' if analysis.has_tests else 'No'}")
-            self.console.print(f"   Has docs: {'Yes' if analysis.has_docs else 'No'}")
-            self.console.print(f"   Has CI: {'Yes' if analysis.has_ci else 'No'}")
-
-            if analysis.commands:
-                self.console.print(f"\n📝 Commands discovered:")
-                for cmd, desc in list(analysis.commands.items())[:5]:
-                    self.console.print(f"   {cmd}: {desc}")
-
-            # Generate NEXUS.md
-            nexus_md = bootstrap.generate_nexus_md(analysis)
-
-            # Check if NEXUS.md already exists
-            nexus_path = project_path / "NEXUS.md"
-            if nexus_path.exists():
-                existing_size = len(nexus_path.read_text(encoding='utf-8'))
-                self.console.print(f"\n⚠️  NEXUS.md already exists at {nexus_path}")
-                self.console.print(f"   Existing file size: {existing_size} characters")
-                self.console.print(f"   New file size: {len(nexus_md)} characters")
-
-                if existing_size > len(nexus_md) * 2:
-                    self.console.print(f"\n   [bold red]WARNING: Existing file is much larger![/bold red]")
-                    self.console.print(f"   The existing NEXUS.md may contain important documentation.")
-
-                response = input("   Create backup and overwrite? (y/N): ").strip().lower()
-                if response != 'y':
-                    self.console.print("   Cancelled.")
-                    return
-
-                # Create backup before overwriting
-                backup_path = project_path / "NEXUS.md.bak"
-                import shutil
-                shutil.copy2(nexus_path, backup_path)
-                self.console.print(f"   📦 Backup created: {backup_path}")
-
-            # Save
-            bootstrap.save(nexus_md)
-            self.console.print(f"\n✅ Generated: {nexus_path}")
-            self.console.print(f"   Size: {len(nexus_md)} characters")
-
-        except Exception as e:
-            self.console.print_error(f"Bootstrap failed: {e}")
+    # V9.1: run_bootstrap() delegated to BootstrapService
+    # See: core/bootstrap/service.py, core/interface/commands/workspace.py
 
     def run_review(self):
         """Run interactive review of pending children (/review command)"""
@@ -537,8 +590,17 @@ class InteractiveNexusV7:
                 self.console.print(f"   Confidence: {decision_result.confidence:.1%}")
                 self.console.print(f"   Reason: {decision_result.reason}")
                 try:
-                    self._promote_child(child, generation)
-                    self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
+                    result = self.evolution_manager.promote_child(
+                        child_id=child['id'],
+                        fitness_score=child['score'],
+                        generation=generation,
+                        child_metadata={'improvements_summary': child.get('improvements_summary')},
+                    )
+                    if result.success:
+                        self.console.print(f"✅ Auto-promotion complete: {child['id']} is now the active parent")
+                    else:
+                        raise Exception("; ".join(result.errors))
                 except Exception as e:
                     self.console.print_error(f"Auto-promotion failed: {e}")
                     self.console.print("⚠️  Falling back to manual review...")
@@ -560,19 +622,36 @@ class InteractiveNexusV7:
 
                 if decision in ['a', 'approve']:
                     self.console.print(f"✓ Approved: {child['id']} will become new parent")
-                    # Execute promotion logic
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
-                        self._promote_child(child, generation)
-                        self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                        result = self.evolution_manager.promote_child(
+                            child_id=child['id'],
+                            fitness_score=child['score'],
+                            generation=generation,
+                            child_metadata={'improvements_summary': child.get('improvements_summary')},
+                        )
+                        if result.success:
+                            self.console.print(f"✅ Promotion complete: {child['id']} is now the active parent")
+                        else:
+                            raise Exception("; ".join(result.errors))
                     except Exception as e:
                         self.console.print_error(f"Promotion failed: {e}")
                         self.console.print("⚠️  Manual promotion required")
                     break
                 elif decision in ['r', 'reject']:
                     self.console.print(f"✗ Rejected: {child['id']} will be archived")
+                    # V9.1: Use EvolutionManager (delegates to PromotePhase)
                     try:
-                        self._archive_rejected_child(child, generation)
-                        self.console.print(f"✅ Child archived: {child['id']}")
+                        result = self.evolution_manager.archive_child(
+                            child_id=child['id'],
+                            reason="manual_review_rejection",
+                            generation=generation,
+                            fitness_score=child.get('score', 0.0),
+                        )
+                        if result.success:
+                            self.console.print(f"✅ Child archived: {child['id']}")
+                        else:
+                            raise Exception(result.reason)
                     except Exception as e:
                         self.console.print_error(f"Archival failed: {e}")
                         self.console.print("⚠️  Manual cleanup required")
@@ -968,422 +1047,39 @@ class InteractiveNexusV7:
 
     # ==================== END WORKSPACE MANAGEMENT ====================
 
-    # ==================== TELEMETRY MANAGEMENT (Phase 13c) ====================
-
-    def handle_telemetry_command(self, args: str):
-        """
-        Handle /telemetry commands (Phase 13c).
-
-        Subcommands:
-            /telemetry           - Show performance report (last 7 days)
-            /telemetry status    - Show detailed telemetry stats
-            /telemetry export [days] - Export telemetry to CSV file
-        """
-        from core.telemetry import TelemetryExporter
-
-        exporter = TelemetryExporter(self.workspace_path)
-
-        parts = args.strip().split(maxsplit=1)
-        subcommand = parts[0].lower() if parts else ""
-        sub_args = parts[1] if len(parts) > 1 else ""
-
-        if not subcommand:
-            # /telemetry - Show default report (7 days)
-            self._telemetry_show_report(exporter, days=7)
-
-        elif subcommand == "status":
-            # /telemetry status - Show detailed stats
-            self._telemetry_show_status(exporter)
-
-        elif subcommand == "export":
-            # /telemetry export [days]
-            days = None
-            if sub_args:
-                try:
-                    days = int(sub_args)
-                except ValueError:
-                    self.console.print_error(f"Invalid number of days: {sub_args}")
-                    return
-            self._telemetry_export(exporter, days=days)
-
-        else:
-            self.console.print_error(f"Unknown subcommand: {subcommand}")
-            self.console.print("Usage: /telemetry [status|export [days]]")
-
-    def _telemetry_show_report(self, exporter, days: int = 7):
-        """Display telemetry performance report."""
-        event_count = exporter.get_event_count()
-
-        if event_count == 0:
-            self.console.print("\n📊 [bold]Telemetry Report[/bold]\n")
-            self.console.print("[dim]No telemetry data available yet.[/dim]")
-            self.console.print("[dim]Telemetry is recorded when you use /swarm, API calls, etc.[/dim]\n")
-            return
-
-        report = exporter.generate_report(days=days)
-        formatted = exporter.format_report_for_console(report)
-        self.console.console.print(formatted)
-
-    def _telemetry_show_status(self, exporter):
-        """Display detailed telemetry status."""
-        from rich.panel import Panel
-
-        event_count = exporter.get_event_count()
-        file_exists = exporter.telemetry_file.exists()
-        file_size = exporter.telemetry_file.stat().st_size if file_exists else 0
-
-        # Format file size
-        if file_size < 1024:
-            size_str = f"{file_size} B"
-        elif file_size < 1024 * 1024:
-            size_str = f"{file_size / 1024:.1f} KB"
-        else:
-            size_str = f"{file_size / (1024*1024):.1f} MB"
-
-        status_lines = [
-            f"📁 File: {exporter.telemetry_file}",
-            f"   Exists: {'✓' if file_exists else '✗'}",
-            f"   Size: {size_str}",
-            f"   Events: {event_count:,}",
-            "",
-            "📈 Config:",
-            f"   Enabled: {self.config.telemetry_enabled}",
-            f"   File: {self.config.telemetry_file}",
-        ]
-
-        if event_count > 0:
-            report = exporter.generate_report(days=7)
-            status_lines.extend([
-                "",
-                "📊 Last 7 Days:",
-                f"   API Calls: {report['api_calls']:,}",
-                f"   Success Rate: {report['success_rate']}%",
-                f"   Total Tokens: {report['total_tokens']['total']:,}",
-            ])
-
-        panel = Panel(
-            "\n".join(status_lines),
-            title="[bold]Telemetry Status[/bold]",
-            border_style="blue"
-        )
-        self.console.console.print(panel)
-
-    def _telemetry_export(self, exporter, days: int = None):
-        """Export telemetry to CSV file."""
-        event_count = exporter.get_event_count()
-
-        if event_count == 0:
-            self.console.print("\n[yellow]No telemetry data to export.[/yellow]")
-            self.console.print("[dim]Start using /swarm to generate telemetry data.[/dim]\n")
-            return
-
-        try:
-            csv_path = exporter.export_to_csv(days=days)
-            period = f" (last {days} days)" if days else " (all time)"
-
-            self.console.print(f"\n✅ [bold green]Telemetry exported successfully[/bold green]{period}")
-            self.console.print(f"   📄 File: {csv_path}")
-            self.console.print(f"   📊 Events: {event_count:,}")
-            self.console.print(f"\n[dim]Import in Excel, Grafana, or analyze with pandas.[/dim]\n")
-
-        except (IOError, OSError) as e:
-            self.console.print_error(f"Export failed: {e}")
-
-    # ==================== END TELEMETRY MANAGEMENT ====================
-
-    # ==================== PHASE 16: DEVELOPER EXPERIENCE ====================
-
-    def handle_budget_command(self, args: str):
-        """
-        Handle /budget commands (Phase 16a).
-
-        Subcommands:
-            /budget           - Show budget status (spent, limit, remaining)
-            /budget reset     - Reset daily budget counter (with confirmation)
-            /budget add <n>   - Add emergency credit to budget
-            /budget history   - Show recent API costs
-        """
-        from core.telemetry import BudgetTracker
-
-        tracker = BudgetTracker(self.workspace_path)
-
-        parts = args.strip().split(maxsplit=1)
-        subcommand = parts[0].lower() if parts else ""
-        sub_args = parts[1] if len(parts) > 1 else ""
-
-        if not subcommand:
-            # /budget - Show budget status
-            self._budget_show_status(tracker)
-
-        elif subcommand == "reset":
-            # /budget reset - Reset with confirmation
-            self._budget_reset(tracker)
-
-        elif subcommand == "add":
-            # /budget add <amount>
-            if not sub_args:
-                self.console.print_error("Usage: /budget add <amount_usd>")
-                return
-            try:
-                amount = float(sub_args)
-                if amount <= 0:
-                    self.console.print_error("Amount must be positive")
-                    return
-                self._budget_add_credit(tracker, amount)
-            except ValueError:
-                self.console.print_error(f"Invalid amount: {sub_args}")
-
-        elif subcommand == "history":
-            # /budget history - Show recent API costs
-            self._budget_show_history()
-
-        else:
-            self.console.print_error(f"Unknown subcommand: {subcommand}")
-            self.console.print("Usage: /budget [reset|add <amount>|history]")
-
-    def _budget_show_status(self, tracker):
-        """Display current budget status."""
-        stats = tracker.get_stats()
-        warning = tracker.get_warning_level()
-
-        # Build status display
-        lines = [
-            "",
-            "╔══════════════════════════════════════════════════════════════╗",
-            "║                    💰 BUDGET STATUS                          ║",
-            "╚══════════════════════════════════════════════════════════════╝",
-            "",
-        ]
-
-        # Progress bar
-        pct = stats["percentage_used"]
-        bar_width = 40
-        filled = int(bar_width * pct / 100)
-        bar = "█" * filled + "░" * (bar_width - filled)
-
-        if warning == "critical":
-            color = "[bold red]"
-        elif warning == "warning":
-            color = "[yellow]"
-        else:
-            color = "[green]"
-
-        lines.append(f"  {color}[{bar}] {pct:.1f}%[/{color.split('[')[1]}")
-        lines.append("")
-        lines.append(f"  💸 Spent Today:    ${stats['spent_today_usd']:.4f}")
-        lines.append(f"  📊 Daily Limit:    ${stats['limit_usd']:.2f}")
-        lines.append(f"  💰 Remaining:      ${stats['remaining_usd']:.4f}")
-        lines.append("")
-        lines.append(f"  📞 API Calls:      {stats['api_calls_today']}")
-        lines.append(f"  📅 Reset Date:     {stats['reset_date']}")
-
-        if warning:
-            lines.append("")
-            if warning == "critical":
-                lines.append("  ⚠️  [bold red]CRITICAL: Budget at 90%+! Consider /budget add[/bold red]")
-            else:
-                lines.append("  ⚠️  [yellow]WARNING: Budget at 80%+[/yellow]")
-
-        lines.append("")
-        lines.append("─" * 64)
-        lines.append("  /budget reset     Reset counter (emergency)")
-        lines.append("  /budget add <n>   Add credit ($)")
-        lines.append("  /budget history   Show recent costs")
-        lines.append("")
-
-        for line in lines:
-            self.console.console.print(line)
-
-    def _budget_reset(self, tracker):
-        """Reset daily budget counter with confirmation."""
-        # Ask for confirmation
-        self.console.print("\n⚠️  [yellow]This will reset your daily budget counter.[/yellow]")
-        self.console.print("    Current spent amount will be set to $0.00.")
-        try:
-            confirm = input("\n    Type 'yes' to confirm: ").strip().lower()
-            if confirm == "yes":
-                tracker.reset_daily()
-                self.console.print("\n✅ [green]Budget counter reset successfully.[/green]")
-                self.console.print("   Daily spent: $0.00\n")
-            else:
-                self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
-        except (EOFError, KeyboardInterrupt):
-            self.console.print("\n❌ [dim]Reset cancelled.[/dim]\n")
-
-    def _budget_add_credit(self, tracker, amount: float):
-        """Add emergency credit to budget."""
-        old_limit = tracker.limit_usd
-        tracker.add_credit(amount)
-        new_limit = tracker.limit_usd
-
-        self.console.print(f"\n✅ [green]Added ${amount:.2f} to daily budget.[/green]")
-        self.console.print(f"   Previous limit: ${old_limit:.2f}")
-        self.console.print(f"   New limit:      ${new_limit:.2f}")
-        self.console.print(f"   Remaining:      ${tracker.get_remaining():.4f}\n")
-
-    def _budget_show_history(self):
-        """Show recent API costs from telemetry."""
-        from core.telemetry import TelemetryExporter
-
-        exporter = TelemetryExporter(self.workspace_path)
-        events = exporter.read_events(days=1)
-
-        # Filter api_call events
-        api_calls = [e for e in events if e.event_type == "api_call"]
-
-        if not api_calls:
-            self.console.print("\n📊 [bold]Recent API Costs[/bold]\n")
-            self.console.print("[dim]No API calls recorded in the last 24 hours.[/dim]\n")
-            return
-
-        lines = [
-            "",
-            "╔══════════════════════════════════════════════════════════════╗",
-            "║                  📊 RECENT API COSTS (24h)                   ║",
-            "╚══════════════════════════════════════════════════════════════╝",
-            "",
-            "  Time          Provider    Model              Tokens (I/O)",
-            "  ─────────────────────────────────────────────────────────────",
-        ]
-
-        # Show last 10 calls
-        for event in api_calls[-10:]:
-            data = event.data
-            time_str = event.timestamp.strftime("%H:%M:%S")
-            provider = data.get("provider", "?")[:10]
-            model = data.get("model", "?")[:18]
-            tokens_in = data.get("tokens_in", 0)
-            tokens_out = data.get("tokens_out", 0)
-            lines.append(f"  {time_str}    {provider:<10} {model:<18} {tokens_in:>6}/{tokens_out:<6}")
-
-        lines.append("")
-        lines.append(f"  Total calls (24h): {len(api_calls)}")
-        lines.append("")
-
-        for line in lines:
-            self.console.console.print(line)
+    # V9.1: Telemetry & Budget commands delegated to TelemetryService/BudgetService
+    # See: core/telemetry/service.py, core/interface/commands/misc.py
 
     # =========================================================================
-    # Project Memory Commands (V7.8 Phase 10c)
+    # Project Memory Commands (V9.1 - Delegated to MemoryService)
     # =========================================================================
+
+    def _get_memory_service(self):
+        """Get or create MemoryService instance."""
+        if not hasattr(self, '_memory_service'):
+            from core.memory import MemoryService
+            self._memory_service = MemoryService(
+                getattr(self.orchestrator, 'project_memory', None),
+                self.workspace_path,
+                self.console
+            )
+        return self._memory_service
 
     def handle_learn_command(self, args: str):
-        """
-        Handle /learn command - Index file or directory into project memory.
-
-        Args:
-            args: Path to file or directory (relative to project root)
-        """
-        if not hasattr(self.orchestrator, 'project_memory'):
-            self.console.print_error("Project memory not initialized")
-            return
-
-        if not args:
-            # Default: index core/ directory
-            args = "core"
-            self.console.print(f"[dim]No path specified, indexing default: {args}[/dim]")
-
-        from pathlib import Path
-        path = Path(args)
-
-        # Resolve relative to project root
-        if not path.is_absolute():
-            path = self.orchestrator.project_memory.nexus_root / path
-
-        if not path.exists():
-            self.console.print_error(f"Path not found: {args}")
-            return
-
-        self.console.print(f"\n🧠 [bold]Indexing into Project Memory[/bold]")
-        self.console.print(f"   Path: {path}")
-
-        try:
-            if path.is_file():
-                chunks = self.orchestrator.project_memory.index_file(path)
-                self.console.print(f"   ✓ Indexed 1 file → {chunks} chunks")
-            else:
-                chunks = self.orchestrator.project_memory.index_directory(path)
-                self.console.print(f"   ✓ Indexed directory → {chunks} chunks")
-
-            # Show updated stats
-            stats = self.orchestrator.project_memory.get_stats()
-            self.console.print(f"\n   📊 Total: {stats.total_files} files, {stats.total_chunks} chunks")
-            self.console.print(f"   💾 Saved to: {stats.storage_path}\n")
-
-        except Exception as e:
-            self.console.print_error(f"Indexing failed: {e}")
+        """Delegate to MemoryService.learn()"""
+        self._get_memory_service().learn(args)
 
     def handle_forget_command(self, args: str):
-        """
-        Handle /forget command - Remove file or directory from project memory.
-
-        Args:
-            args: Path to file or directory to forget
-        """
-        if not hasattr(self.orchestrator, 'project_memory'):
-            self.console.print_error("Project memory not initialized")
-            return
-
-        if not args:
-            self.console.print_error("Usage: /forget <path>")
-            return
-
-        from pathlib import Path
-        path = Path(args)
-
-        # Resolve relative to project root
-        if not path.is_absolute():
-            path = self.orchestrator.project_memory.nexus_root / path
-
-        try:
-            removed = self.orchestrator.project_memory.forget(path)
-            if removed > 0:
-                self.console.print(f"\n🧠 [bold]Removed from Project Memory[/bold]")
-                self.console.print(f"   Path: {args}")
-                self.console.print(f"   ✓ Removed {removed} chunks\n")
-            else:
-                self.console.print(f"[dim]Path not in memory: {args}[/dim]")
-
-        except Exception as e:
-            self.console.print_error(f"Forget failed: {e}")
+        """Delegate to MemoryService.forget()"""
+        self._get_memory_service().forget(args)
 
     def show_memory_status(self):
-        """
-        Handle /memory-status command - Show project memory statistics.
-        """
-        if not hasattr(self.orchestrator, 'project_memory'):
-            self.console.print_error("Project memory not initialized")
-            return
+        """Delegate to MemoryService.get_status()"""
+        self._get_memory_service().get_status()
 
-        stats = self.orchestrator.project_memory.get_stats()
-        indexed_files = sorted(self.orchestrator.project_memory.indexed_files)
-
-        lines = [
-            "",
-            "╔══════════════════════════════════════════════════════════════╗",
-            "║                   🧠 PROJECT MEMORY STATUS                   ║",
-            "╚══════════════════════════════════════════════════════════════╝",
-            "",
-            f"  📁 Indexed Files:    {stats.total_files}",
-            f"  📦 Total Chunks:     {stats.total_chunks}",
-            f"  🔤 Unique Terms:     {stats.total_terms}",
-            f"  💾 Storage:          {stats.storage_path}",
-            "",
-        ]
-
-        if indexed_files:
-            lines.append("  📋 Files in memory:")
-            for f in indexed_files[:15]:  # Limit display
-                lines.append(f"     • {f}")
-            if len(indexed_files) > 15:
-                lines.append(f"     ... and {len(indexed_files) - 15} more")
-        else:
-            lines.append("  [dim]No files indexed yet. Use /learn <path> to add files.[/dim]")
-
-        lines.append("")
-
-        for line in lines:
-            self.console.console.print(line)
+    def handle_rag_command(self, args: str):
+        """Delegate to MemoryService.handle_rag_command()"""
+        self._get_memory_service().handle_rag_command(args)
 
     def run_tutorial(self):
         """Run interactive tutorial (/tutorial command)."""
@@ -1418,176 +1114,8 @@ class InteractiveNexusV7:
     # Logic moved to core/evolution/phases/brainstorm.py (BrainstormPhase)
     # Called via EvolutionManager.brainstorm_mutations()
 
-    def brainstorm_spinoff_with_ais(self, parent_id: str, parent_path: Path, mission: str) -> list:
-        """
-        Collaborative brainstorming for SPECIALIZATION.
-        Gemini+Claude design a specific child optimized for a mission.
-        """
-        import json
-        import re
-        from core.fsm.states import OrchestratorState
-        from core.utils.json_extractor import extract_json_safe as robust_extract_json
-
-        self.console.print("\n" + "="*60)
-        self.console.print(f"🚀 MISSION SPECIALIZATION: {mission}")
-        self.console.print("="*60)
-        self.console.print(f"Gemini + Claude will now design a Specialist NEXUS\n")
-
-        # CLEAR HISTORY
-        self.console.print("🧹 Clearing short-term memory for focused brainstorming...")
-        self.orchestrator.blackboard["recent_history"] = []
-        self.orchestrator.memory.save_to_disk()
-
-        # V7.5 HIVE MIND: Load prompt with includes resolved
-        try:
-            brainstorm_task = load_prompt("specialization_mission", {
-                "mission": mission
-            })
-        except FileNotFoundError as e:
-            self.console.print_error(f"Missing prompt file: {e}")
-            return []
-
-        # Switch to EVOLUTION_BRAINSTORM mode (reused for debate)
-        self.orchestrator._transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
-        self.console.print(f"[FSM] Mode: MISSION_SPECIALIZATION (via EVOLUTION_BRAINSTORM)\n")
-
-        # Start brainstorming
-        result = self.orchestrator.process_turn(brainstorm_task)
-        self.console.display_result(result)
-
-        # Loop
-        max_iterations = 30
-        iterations = 0
-
-        while result["state"] not in ["IDLE", "ERROR", "PANIC"] and iterations < max_iterations:
-            result = self.orchestrator.process_turn()
-            self.console.display_result(result)
-            iterations += 1
-            if result.get("finished"):
-                break
-
-        self.orchestrator._transition_to(OrchestratorState.IDLE)
-
-        # Extract JSON
-        final_content = result.get('output') or ''
-        
-        # V7.5 HIVE MIND: Use robust extractor
-        proposals, _ = robust_extract_json(final_content, verbose=True)
-        
-        if not proposals:
-             # Fallback retry logic could be added here, for now we raise
-             raise ValueError("Failed to extract specialization plan")
-
-        return proposals
-
-        return proposals
-
-    def run_specialization(self, mission: str):
-        """
-        Create a specialized NEXUS spinoff for a specific mission.
-        """
-        from core.evolution.lineage import load_lineage, get_current_parent
-        import shutil
-        from datetime import datetime
-        import json
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🧬 SPECIALIZATION CYCLE STARTED")
-        self.console.print("="*60)
-        
-        try:
-            lineage = load_lineage(self.workspace_path)
-            parent = get_current_parent(lineage)
-            parent_id = parent["id"]
-            
-            parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS (validated at init)
-
-            # 1. Brainstorm mutations
-            mutations = self.brainstorm_spinoff_with_ais(parent_id, parent_path, mission)
-            
-            # 2. Create Spinoff ID
-            # Sanitize mission string for folder name
-            mission_slug = "".join(c if c.isalnum() else "_" for c in mission)[:30].upper()
-            spinoff_id = f"NEXUS_SPECIALIST_{mission_slug}_{datetime.now().strftime('%Y%m%d')}"
-            
-            self.console.print(f"\n{'─'*60}")
-            self.console.print(f"Creating Specialist: {spinoff_id}")
-            self.console.print(f"{'─'*60}")
-
-            # 3. Create Directory
-            child_dir = parent_path.parent / "GENERATION_ACTIVE" / spinoff_id
-            if child_dir.exists():
-                shutil.rmtree(child_dir)
-            child_dir.mkdir(parents=True, exist_ok=True)
-
-            # 4. Copy Parent
-            shutil.copytree(
-                parent_path,
-                child_dir,
-                ignore=shutil.ignore_patterns(
-                    '__pycache__', '*.pyc', '.nexus', 'workspace', '.git'
-                ),
-                dirs_exist_ok=True
-            )
-            self.console.print(f"✓ Copied parent base")
-
-            # FIX: Copy KERNEL.py from project root (alignment file)
-            project_root = parent_path.parent
-            kernel_path = project_root / "KERNEL.py"
-            kernel_hash_path = project_root / "KERNEL_HASH.txt"
-            if kernel_path.exists():
-                shutil.copy2(kernel_path, child_dir / "KERNEL.py")
-                if kernel_hash_path.exists():
-                    shutil.copy2(kernel_hash_path, child_dir / "KERNEL_HASH.txt")
-                self.console.print(f"✓ Copied KERNEL.py (alignment file)")
-
-            # FIX: Create workspace directories required by drivers
-            child_workspace = child_dir / "workspace"
-            child_workspace.mkdir(exist_ok=True)
-            (child_workspace / "_IO_BUFFER").mkdir(exist_ok=True)
-            (child_workspace / ".nexus").mkdir(exist_ok=True)
-            (child_workspace / "logs").mkdir(exist_ok=True)
-            self.console.print(f"✓ Created workspace directories")
-
-            # 5. Apply Mutations
-            for mutation in mutations:
-                target_file = child_dir / mutation['file']
-                if target_file.exists():
-                    original = target_file.read_text(encoding='utf-8')
-                    # Simple append/replace logic depending on mutation type
-                    # For specialization, we might want to REPLACE content often (e.g. prompts)
-                    # But here we stick to append for safety unless 'REMPLACER' is explicit?
-                    # Let's stick to append/overwrite logic from run_evolve for consistency
-                    # BUT: Gemini instruction said "Remplacer le prompt". 
-                    # Let's just append for now to avoid breaking things, manual review needed anyway.
-                    
-                    updated = original + "\n\n" + mutation['change']
-                    target_file.write_text(updated, encoding='utf-8')
-                    self.console.print(f"✓ Applied mutation to {mutation['file']}")
-                else:
-                    self.console.print(f"⚠️ File not found: {mutation['file']}")
-
-            # 6. Spinoff Certificate
-            cert = {
-                "id": spinoff_id,
-                "type": "SPECIALIST",
-                "mission": mission,
-                "parent": parent_id,
-                "created_at": datetime.now().isoformat(),
-                "mutations": mutations
-            }
-            (child_dir / "SPINOFF_CERTIFICATE.json").write_text(json.dumps(cert, indent=2), encoding='utf-8')
-            
-            self.console.print("\n" + "="*60)
-            self.console.print(f"✅ SPECIALIST CREATED: {spinoff_id}")
-            self.console.print(f"Location: GENERATION_ACTIVE/{spinoff_id}")
-            self.console.print("To use: cd into directory and run nexus7.py")
-            self.console.print("="*60 + "\n")
-
-        except Exception as e:
-            self.console.print_error(f"Specialization failed: {e}")
-            import traceback
-            traceback.print_exc()
+    # V9.1: brainstorm_spinoff_with_ais() and run_specialization() delegated to SpinoffService
+    # See: core/bootstrap/service.py, core/interface/commands/workspace.py
 
     def _calculate_nexus_root(self) -> Path:
         """
@@ -1756,585 +1284,63 @@ class InteractiveNexusV7:
         except Exception as e:
             self.console.print_error(f"Failed to load evolution status: {e}")
 
-    def run_swarm_task(self, task: str):
-        """
-        Execute task via Hybrid Swarm Engine (/swarm command).
+    # =========================================================================
+    # Swarm Commands (V9.1 - Delegated to SwarmService)
+    # =========================================================================
 
-        Routes the task through the 6-mode collaboration system:
-        - PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
-
-        V7.5: Now with real-time streaming of negotiation and execution rounds.
-
-        Args:
-            task: Task description from user
-        """
-        if not self.orchestrator.swarm_engine:
-            self.console.print_error("Swarm engine not initialized")
-            self.console.print("Enable with SWARM_ENABLED=True in .env")
-            return
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🐝 HYBRID SWARM ENGINE")
-        self.console.print("="*60)
-        self.console.print(f"Task: {task[:100]}{'...' if len(task) > 100 else ''}")
-        self.console.print("Analyzing task and negotiating collaboration mode...\n")
-
-        # V7.5: Real-time streaming callbacks
-        def on_negotiation_turn(message):
-            """Display each negotiation turn in real-time"""
-            agent = "Gemini" if message.sender == "gemini" else "Claude"
-            self.console.print(f"\n{'─'*40}")
-            self.console.print(f"[NEGOTIATION] {agent} (Turn {message.turn_number + 1})")
-            self.console.print(f"{'─'*40}")
-            # Show natural content (truncated based on config)
-            limit = self.config.console_output_limit
-            content = message.natural_content[:limit] if message.natural_content else ""
-            self.console.print(content + ("..." if len(message.natural_content or "") > limit else ""))
-            # Show structured proposal if present
-            if message.structured_proposal:
-                prop = message.structured_proposal
-                if prop.proposed_mode:
-                    self.console.print(f"  → Proposes: {prop.proposed_mode}")
-                if prop.agrees_with_partner:
-                    self.console.print(f"  → Agrees with partner: Yes")
-                if prop.consensus_reached:
-                    self.console.print(f"  ✓ CONSENSUS REACHED")
-
-        def on_execution_round(round_num, response):
-            """Display each execution round in real-time"""
-            agent = "Gemini" if "gemini" in response.agent_id.lower() else "Claude"
-            self.console.print(f"\n{'─'*40}")
-            self.console.print(f"[EXECUTION] Round {round_num + 1} - {agent}")
-            self.console.print(f"{'─'*40}")
-            # Show content (truncated based on config)
-            limit = self.config.console_output_limit
-            content = response.content[:limit] if response.content else ""
-            self.console.print(content + ("..." if len(response.content or "") > limit else ""))
-            if response.status == "error":
-                self.console.print(f"  ⚠️  Error: {response.error}")
-
-        try:
-            result = self.orchestrator.process_with_swarm(
-                task,
-                on_negotiation_turn=on_negotiation_turn,
-                on_execution_round=on_execution_round
+    def _get_swarm_service(self):
+        """Get or create SwarmService instance."""
+        if not hasattr(self, '_swarm_service'):
+            from core.swarm import SwarmService
+            self._swarm_service = SwarmService(
+                self.orchestrator,
+                self.console,
+                self.config
             )
+        return self._swarm_service
 
-            # Display final results
-            self.console.print(f"\n{'═'*60}")
-            self.console.print("📊 SWARM RESULT")
-            self.console.print(f"{'═'*60}")
-            self.console.print(f"Mode: {result.get('mode', 'N/A')}")
-            self.console.print(f"Status: {result.get('state', 'N/A')}")
-
-            # Show analysis summary if available
-            if result.get('analysis'):
-                analysis = result['analysis']
-                self.console.print(f"Complexity: {analysis.get('complexity', 'N/A')}")
-                self.console.print(f"Domains: {', '.join(analysis.get('domains', []))}")
-
-            self.console.print("="*60 + "\n")
-
-        except Exception as e:
-            self.console.print_error(f"Swarm execution failed: {e}")
-            import traceback
-            if self.config.ui_verbose:
-                traceback.print_exc()
+    def run_swarm_task(self, task: str):
+        """Delegate to SwarmService.run_task()"""
+        self._get_swarm_service().run_task(task)
 
     def run_swarm_task_fsm(self, task: str):
-        """
-        Execute task via FSM states (/swarm-fsm debug command).
-
-        Uses the FSM path: SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING
-        This is for debugging/testing the FSM integration.
-
-        Args:
-            task: Task description from user
-        """
-        if not self.orchestrator.swarm_engine:
-            self.console.print_error("Swarm engine not initialized")
-            self.console.print("Enable with SWARM_ENABLED=True in .env")
-            return
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🐝 HYBRID SWARM ENGINE (FSM Mode)")
-        self.console.print("="*60)
-        self.console.print(f"Task: {task[:100]}{'...' if len(task) > 100 else ''}")
-        self.console.print("Using FSM states (debug mode)...\n")
-
-        try:
-            # Start swarm via FSM
-            result = self.orchestrator.start_swarm_mode(task)
-            self.console.print(f"[FSM] State: {result.get('state')}")
-            self.console.print(f"[FSM] {result.get('output', '')}\n")
-
-            # Process through FSM states until done
-            max_iterations = 20
-            for i in range(max_iterations):
-                # Step the orchestrator
-                step_result = self.orchestrator.step()
-
-                state = step_result.get('state', 'UNKNOWN')
-                output = step_result.get('output', '')
-
-                self.console.print(f"[FSM {i+1}] State: {state}")
-                if output:
-                    limit = self.config.console_output_limit
-                    self.console.print(f"{output[:limit]}{'...' if len(output) > limit else ''}\n")
-
-                # Check if finished
-                if step_result.get('finished') or state in ['IDLE', 'WAITING_USER', 'ERROR']:
-                    break
-
-            self.console.print("="*60 + "\n")
-
-        except Exception as e:
-            self.console.print_error(f"Swarm FSM execution failed: {e}")
-            import traceback
-            if self.config.ui_verbose:
-                traceback.print_exc()
+        """Delegate to SwarmService.run_task_fsm()"""
+        self._get_swarm_service().run_task_fsm(task)
 
     def show_swarm_status(self):
-        """
-        Show Hybrid Swarm Engine status and DyLAN metrics (/swarm-status command).
+        """Delegate to SwarmService.get_status()"""
+        self._get_swarm_service().get_status()
 
-        Displays:
-        - Swarm engine state (enabled/disabled)
-        - Available collaboration modes
-        - DyLAN agent metrics (if available)
-        - Last task analysis
-        """
-        self.console.print("\n" + "="*60)
-        self.console.print("🐝 SWARM ENGINE STATUS")
-        self.console.print("="*60)
+    # =========================================================================
+    # Agent Commands (V9.1 - Delegated to AgentService)
+    # =========================================================================
 
-        if not self.orchestrator.swarm_engine:
-            self.console.print("\n⚠️  Swarm Engine: DISABLED")
-            self.console.print("   Enable with SWARM_ENABLED=True in .env")
-            self.console.print("="*60 + "\n")
-            return
-
-        self.console.print("\n✅ Swarm Engine: ENABLED")
-
-        # Get swarm stats
-        try:
-            stats = self.orchestrator.swarm_engine.get_stats()
-
-            self.console.print(f"\n{'─'*60}")
-            self.console.print("COLLABORATION MODES")
-            self.console.print(f"{'─'*60}")
-            modes = ["PARALLEL", "SEQUENTIAL", "LEAD_SUPPORT", "PING_PONG", "SPECIALIST", "RED_BLUE"]
-            for mode in modes:
-                self.console.print(f"  • {mode}")
-
-            if stats:
-                self.console.print(f"\n{'─'*60}")
-                self.console.print("EXECUTION STATISTICS")
-                self.console.print(f"{'─'*60}")
-                self.console.print(f"Total Tasks Processed: {stats.get('total_tasks', 0)}")
-                self.console.print(f"Successful: {stats.get('successful', 0)}")
-                self.console.print(f"Failed: {stats.get('failed', 0)}")
-
-                # Mode distribution
-                if stats.get('mode_distribution'):
-                    self.console.print(f"\n{'─'*60}")
-                    self.console.print("MODE DISTRIBUTION")
-                    self.console.print(f"{'─'*60}")
-                    for mode, count in stats['mode_distribution'].items():
-                        self.console.print(f"  {mode}: {count}")
-
-        except Exception as e:
-            self.console.print(f"\n⚠️  Could not retrieve stats: {e}")
-
-        # Auto-route setting
-        auto_route = getattr(self.config, 'swarm_auto_route', False)
-        self.console.print(f"\n{'─'*60}")
-        self.console.print("CONFIGURATION")
-        self.console.print(f"{'─'*60}")
-        self.console.print(f"Auto-Route (MODERATE+ tasks): {'ON' if auto_route else 'OFF'}")
-        self.console.print(f"  Set SWARM_AUTO_ROUTE=True in .env to enable")
-
-        self.console.print("="*60 + "\n")
+    def _get_agent_service(self):
+        """Get or create AgentService instance."""
+        if not hasattr(self, '_agent_service'):
+            from core.agents import AgentService
+            self._agent_service = AgentService(
+                self.orchestrator,
+                self.workspace_path,
+                self.console
+            )
+        return self._agent_service
 
     def spawn_agent(self, role: str):
-        """
-        Spawn a specialized agent in workspace/agents/ (/spawn command).
-
-        Uses EVOLUTION_BRAINSTORM to design the agent, then creates it
-        in workspace/agents/<role_slug>/ for persistent coexistence.
-        """
-        import re
-        import json
-        import shutil
-        from datetime import datetime
-
-        # Create agents directory
-        agents_dir = self.workspace_path / "agents"
-        agents_dir.mkdir(exist_ok=True)
-
-        # Create slug from role
-        role_slug = re.sub(r'[^a-z0-9]+', '_', role.lower()).strip('_')
-        agent_dir = agents_dir / role_slug
-
-        if agent_dir.exists():
-            self.console.print_error(f"Agent '{role_slug}' already exists!")
-            self.console.print(f"Path: {agent_dir}")
-            return
-
-        self.console.print("\n" + "="*60)
-        self.console.print(f"🏭 SPAWNING AGENT: {role}")
-        self.console.print("="*60)
-
-        try:
-            # Create agent directory structure
-            agent_dir.mkdir(parents=True)
-            (agent_dir / "workspace").mkdir()
-
-            # Create agent config
-            agent_config = {
-                "agent_id": role_slug,
-                "role": role,
-                "created_at": datetime.now().isoformat(),
-                "parent": "NEXUS_V7.5_HIVE_MIND",
-                "specialization": {
-                    "mission": f"Specialized agent for: {role}",
-                    "domains": [],
-                    "tools_priority": []
-                }
-            }
-
-            # Write birth certificate
-            birth_cert = agent_dir / "BIRTH_CERTIFICATE.json"
-            birth_cert.write_text(json.dumps(agent_config, indent=2))
-
-            # Create specialized system prompt
-            prompt_content = f"""# {role} - Specialized NEXUS Agent
-
-## Mission
-You are a specialized agent created for: **{role}**
-
-## Core Capabilities
-Focus on tasks related to your specialization.
-Collaborate with other agents via Hybrid Swarm when needed.
-
-## Alignment
-You inherit NEXUS KERNEL alignment principles.
-Creator: Yann Abadie
-"""
-            (agent_dir / "system_prompt.md").write_text(prompt_content)
-
-            self.console.print(f"\n✅ Agent '{role_slug}' created!")
-            self.console.print(f"   Path: {agent_dir}")
-            self.console.print(f"   Config: BIRTH_CERTIFICATE.json")
-            self.console.print(f"   Prompt: system_prompt.md")
-
-            # V7.8 Phase 15: Register as Agent-as-Tool
-            # Re-discover spawned agents and refresh tool registry
-            from core.bootstrap import discover_and_register_spawned_agents
-            if self.orchestrator.agent_pool:
-                discover_and_register_spawned_agents(
-                    workspace_path=self.workspace_path,
-                    agent_pool=self.orchestrator.agent_pool
-                )
-            if hasattr(self.orchestrator, 'agent_tool_registry'):
-                tool_count = self.orchestrator.agent_tool_registry.refresh()
-                self.orchestrator.agent_tool_registry.register_with_tool_manager(
-                    self.orchestrator.tool_manager
-                )
-                self.console.print(f"   Registered as tool: agent_{role_slug}")
-
-            self.console.print("\nUse /agents to list all agents")
-
-        except Exception as e:
-            self.console.print_error(f"Failed to spawn agent: {e}")
-
-        self.console.print("="*60 + "\n")
+        """Delegate to AgentService.spawn()"""
+        self._get_agent_service().spawn(role)
 
     def list_agents(self):
-        """List all spawned agents in workspace/agents/ (/agents command)."""
-        agents_dir = self.workspace_path / "agents"
-
-        self.console.print("\n" + "="*60)
-        self.console.print("🏭 SPAWNED AGENTS")
-        self.console.print("="*60)
-
-        if not agents_dir.exists() or not any(agents_dir.iterdir()):
-            self.console.print("\nNo agents spawned yet.")
-            self.console.print("Use /spawn <role> to create one.")
-        else:
-            for agent_path in sorted(agents_dir.iterdir()):
-                if agent_path.is_dir():
-                    cert_file = agent_path / "BIRTH_CERTIFICATE.json"
-                    if cert_file.exists():
-                        import json
-                        cert = json.loads(cert_file.read_text())
-                        self.console.print(f"\n  📦 {cert.get('role', agent_path.name)}")
-                        self.console.print(f"     ID: {agent_path.name}")
-                        self.console.print(f"     Created: {cert.get('created_at', 'N/A')[:10]}")
-
-        self.console.print("\n" + "="*60 + "\n")
+        """Delegate to AgentService.list_agents()"""
+        self._get_agent_service().list_agents()
 
     def show_pool_stats(self):
-        """
-        Show AgentPool statistics with DyLAN importance scores.
+        """Delegate to AgentService.get_pool_stats()"""
+        self._get_agent_service().get_pool_stats()
 
-        Displays per-agent metrics including:
-        - Invocation count
-        - Average importance score
-        - Success rate
-        - Task type performance
-
-        Example output:
-            /pool-stats
-            ========== AGENT POOL STATISTICS ==========
-            Agent: gemini_primary
-              Invocations: 15
-              Avg Importance: 0.0234
-              Success Rate: 93.3%
-        """
-        # Check if agent pool is available
-        if not hasattr(self.orchestrator, 'agent_pool') or not self.orchestrator.agent_pool:
-            self.console.print("\n⚠️  AgentMetrics disabled")
-            self.console.print("   Set AGENT_METRICS=True in .env to enable")
-            return
-
-        pool = self.orchestrator.agent_pool
-        stats = pool.get_pool_stats()
-
-        self.console.print("\n" + "="*60)
-        self.console.print("📊 AGENT POOL STATISTICS (DyLAN Metrics)")
-        self.console.print("="*60)
-
-        # Pool summary
-        self.console.print(f"\nTotal Agents: {stats['agents']}")
-        self.console.print(f"Total Invocations: {stats['total_invocations']}")
-        self.console.print(f"Average Pool Importance: {stats['average_pool_importance']:.4f}")
-
-        # Per-agent details
-        agents_detail = stats.get('agents_detail', {})
-        for agent_id, agent_data in agents_detail.items():
-            self.console.print(f"\n{'─'*60}")
-            self.console.print(f"🤖 Agent: {agent_id}")
-            self.console.print(f"{'─'*60}")
-            self.console.print(f"  Provider:       {agent_data['provider']}")
-            self.console.print(f"  Model:          {agent_data['model']}")
-            self.console.print(f"  Capabilities:   {', '.join(agent_data.get('capabilities', []))}")
-            self.console.print(f"  Invocations:    {agent_data['invocation_count']}")
-            self.console.print(f"  Avg Importance: {agent_data['average_importance']:.4f}")
-            self.console.print(f"  Success Rate:   {agent_data['success_rate']:.1%}")
-
-        # DyLAN formula explanation
-        self.console.print(f"\n{'─'*60}")
-        self.console.print("ℹ️  DyLAN Formula: importance = quality / (tokens/1000 + time)")
-        self.console.print("   Higher importance = better quality/cost ratio")
-        self.console.print("="*60 + "\n")
-
-    def _promote_child(self, child: dict, generation: int):
-        """
-        Promote approved child to become the new active parent.
-
-        Steps:
-        1. Archive current parent to ARCHIVE/GEN_XXX/
-        2. Move child from GENERATION_ACTIVE/ to NEXUS_V7_CHRYSALIS/
-        3. Update LINEAGE.json via promote_child_to_parent()
-        4. Git commit the promotion
-
-        Args:
-            child: Child metadata dict from pending review
-            generation: Generation number
-        """
-        import shutil
-        import subprocess
-        from datetime import datetime
-        from core.evolution.lineage import (
-            load_lineage, save_lineage,
-            promote_child_to_parent, archive_generation
-        )
-
-        child_id = child['id']
-        fitness_score = child['score']
-
-        # Paths (use validated nexus_root)
-        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/ (validated at init)
-        project_root = parent_path.parent  # 20_NEXUS/
-        child_path = project_root / "GENERATION_ACTIVE" / child_id
-        archive_dir = project_root / "ARCHIVE" / f"GEN_{generation-1:03d}"
-
-        # Validate child exists
-        if not child_path.exists():
-            raise FileNotFoundError(f"Child not found: {child_path}")
-
-        self.console.print(f"\n{'─'*60}")
-        self.console.print("🔄 PROMOTION IN PROGRESS")
-        self.console.print(f"{'─'*60}")
-
-        # 1. Load lineage
-        lineage = load_lineage(self.workspace_path)
-        old_parent = lineage["current_parent"]
-        old_parent_id = old_parent["id"]
-
-        self.console.print(f"Old Parent: {old_parent_id}")
-        self.console.print(f"New Parent: {child_id}")
-
-        # 2. Archive old parent
-        self.console.print(f"\n📦 Archiving {old_parent_id}...")
-        archive_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy parent to archive (keep original for safety during transition)
-        archive_parent_path = archive_dir / old_parent_id
-        if not archive_parent_path.exists():
-            shutil.copytree(
-                parent_path,
-                archive_parent_path,
-                ignore=shutil.ignore_patterns('__pycache__', '*.pyc', 'workspace')
-            )
-            self.console.print(f"✓ Parent archived to {archive_dir}")
-        else:
-            self.console.print(f"⚠️  Archive already exists, skipping")
-
-        # Update lineage with archive info
-        lineage = archive_generation(
-            lineage,
-            old_parent_id,
-            archive_parent_path,
-            reason=f"Superseded by {child_id}"
-        )
-
-        # 3. Promote child - copy child files over parent
-        self.console.print(f"\n🚀 Promoting {child_id}...")
-
-        # Remove old parent files (except workspace and .git)
-        for item in parent_path.iterdir():
-            if item.name in ['workspace', '.git', '__pycache__']:
-                continue
-            if item.is_dir():
-                shutil.rmtree(item)
-            else:
-                item.unlink()
-
-        # Copy child files to parent location
-        for item in child_path.iterdir():
-            if item.name in ['__pycache__', 'workspace']:
-                continue
-            dest = parent_path / item.name
-            if item.is_dir():
-                shutil.copytree(item, dest)
-            else:
-                shutil.copy2(item, dest)
-
-        self.console.print(f"✓ Child files promoted to NEXUS_V7_CHRYSALIS/")
-
-        # 4. Update LINEAGE.json
-        birth_cert_path = child.get('birth_cert_path', f"GENERATION_ACTIVE/{child_id}/BIRTH_CERTIFICATE.json")
-        notable_features = [child.get('improvements_summary', 'Emergent mutation')]
-
-        lineage = promote_child_to_parent(
-            lineage=lineage,
-            child_id=child_id,
-            child_path=parent_path,  # New location
-            fitness_score=fitness_score,
-            birth_cert_path=birth_cert_path,
-            notable_features=notable_features
-        )
-
-        save_lineage(lineage, self.workspace_path)
-        self.console.print(f"✓ LINEAGE.json updated")
-
-        # 5. Clean up GENERATION_ACTIVE
-        self.console.print(f"\n🧹 Cleaning up...")
-        shutil.rmtree(child_path)
-        self.console.print(f"✓ Removed {child_path}")
-
-        # 6. Git commit
-        self.console.print(f"\n📝 Git commit...")
-        try:
-            subprocess.run(
-                ["git", "add", "-A"],
-                cwd=project_root,
-                check=True,
-                capture_output=True
-            )
-            commit_msg = f"evolution(promote): {child_id} -> active parent (Gen {generation})\n\n" \
-                        f"Fitness Score: {fitness_score:.3f}\n" \
-                        f"Archived: {old_parent_id}\n\n" \
-                        f"Generated with NEXUS Evolution Engine"
-            subprocess.run(
-                ["git", "commit", "-m", commit_msg],
-                cwd=project_root,
-                check=True,
-                capture_output=True
-            )
-            self.console.print(f"✓ Committed promotion to git")
-        except subprocess.CalledProcessError as e:
-            self.console.print(f"⚠️  Git commit failed (manual commit recommended)")
-
-        self.console.print(f"\n{'─'*60}")
-        self.console.print(f"✅ PROMOTION COMPLETE")
-        self.console.print(f"{'─'*60}")
-        self.console.print(f"New active parent: {child_id}")
-        self.console.print(f"Generation: {generation}")
-        self.console.print(f"Fitness Score: {fitness_score:.3f}")
-
-    def _archive_rejected_child(self, child: dict, generation: int):
-        """
-        Archive a rejected child to prevent accumulation in GENERATION_ACTIVE.
-
-        Steps:
-        1. Create archive directory for rejected children
-        2. Move child from GENERATION_ACTIVE/ to ARCHIVE/rejected/GEN_XXX/
-        3. Update lineage with rejection reason
-
-        Args:
-            child: Child metadata dict from pending review
-            generation: Generation number
-        """
-        import shutil
-        from datetime import datetime
-        from core.evolution.lineage import load_lineage, save_lineage
-
-        child_id = child['id']
-
-        # Paths
-        parent_path = self.nexus_root  # NEXUS_V7_CHRYSALIS/
-        project_root = parent_path.parent  # 20_NEXUS/
-        child_path = project_root / "GENERATION_ACTIVE" / child_id
-        archive_dir = project_root / "ARCHIVE" / "rejected" / f"GEN_{generation:03d}"
-
-        # Validate child exists
-        if not child_path.exists():
-            raise FileNotFoundError(f"Child not found: {child_path}")
-
-        self.console.print(f"Archiving rejected child: {child_id}")
-
-        # 1. Create archive directory
-        archive_dir.mkdir(parents=True, exist_ok=True)
-
-        # 2. Move child to archive
-        archive_child_path = archive_dir / child_id
-        if archive_child_path.exists():
-            # If already exists, add timestamp to avoid collision
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_child_path = archive_dir / f"{child_id}_rejected_{timestamp}"
-
-        shutil.move(str(child_path), str(archive_child_path))
-        self.console.print(f"✓ Moved to {archive_child_path}")
-
-        # 3. Update lineage with rejection
-        try:
-            lineage = load_lineage(self.workspace_path)
-            if "rejected_children" not in lineage:
-                lineage["rejected_children"] = []
-
-            lineage["rejected_children"].append({
-                "id": child_id,
-                "generation": generation,
-                "rejected_at": datetime.now().isoformat(),
-                "reason": "manual_review_rejection",
-                "archive_path": str(archive_child_path),
-                "fitness_score": child.get('score', 0.0)
-            })
-
-            save_lineage(lineage, self.workspace_path)
-            self.console.print("✓ Updated lineage with rejection record")
-        except Exception as e:
-            self.console.print(f"⚠️  Lineage update failed: {e}")
+    # =========================================================================
+    # V9.1: Evolution methods (_promote_child, _archive_rejected_child) REMOVED
+    # These were 100% duplicates of core/evolution/phases/promote.py
+    # Now using EvolutionManager.promote_child() and .archive_child() directly
+    # See: core/evolution/service.py for Service Layer implementation
+    # =========================================================================

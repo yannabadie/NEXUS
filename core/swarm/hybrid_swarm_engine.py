@@ -288,6 +288,9 @@ class HybridSwarmEngine:
             # V7.9: Store task_analysis in blackboard for completion validation
             blackboard["task_analysis"] = analysis
             blackboard["workspace_path"] = self.workspace_path
+            # V8.5.0: Add domains/complexity for AdaptiveFallbackSelector
+            blackboard["domains"] = [d.value for d in analysis.domains]
+            blackboard["complexity"] = analysis.complexity.name
 
             execution_context = ExecutionContext(
                 task_input=task_input,
@@ -454,8 +457,12 @@ class HybridSwarmEngine:
         return str(response)
 
     def _wrap_invoke_agent(self) -> Callable:
-        """Wrap invoke_agent to return AgentResponse"""
-        def wrapper(agent_id: str, task_type: str, context: str) -> AgentResponse:
+        """Wrap invoke_agent to return AgentResponse.
+
+        V8.1.6: Added session_uuid parameter for thread-safe parallel execution.
+        """
+        def wrapper(agent_id: str, task_type: str, context: str,
+                    session_uuid: Optional[str] = None) -> AgentResponse:
             if self.invoke_agent is None:
                 return AgentResponse(
                     agent_id=agent_id,
@@ -469,7 +476,8 @@ class HybridSwarmEngine:
                 context += "\n\n<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
 
             start = datetime.now()
-            response = self.invoke_agent(agent_id, task_type, context)
+            # V8.1.6: Pass session_uuid for thread-safe file access
+            response = self.invoke_agent(agent_id, task_type, context, session_uuid=session_uuid)
             elapsed = (datetime.now() - start).total_seconds()
 
             if isinstance(response, AgentResponse):

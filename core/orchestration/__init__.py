@@ -36,6 +36,15 @@ from core.orchestration.agent_invoker import AgentInvoker
 from core.orchestration.swarm_bridge import SwarmBridge
 from core.orchestration.fsm_handlers import FSMHandlers
 
+# V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
+from core.orchestration.sync_bridge import (
+    OrchestratorSyncBridge,
+    SyncEvent,
+    SyncEventType,
+    get_sync_bridge,
+    reset_sync_bridge,
+)
+
 __all__ = [
     # Extracted modules (new in V7.8)
     'ContextBuilder',
@@ -45,4 +54,10 @@ __all__ = [
     'AgentInvoker',
     'SwarmBridge',
     'FSMHandlers',
+    # V9.4: Sync bridge
+    'OrchestratorSyncBridge',
+    'SyncEvent',
+    'SyncEventType',
+    'get_sync_bridge',
+    'reset_sync_bridge',
 ]

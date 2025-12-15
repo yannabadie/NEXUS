@@ -538,19 +538,79 @@ class SuccessMemory:
 
         return scored[:limit]
 
+    def _apply_time_decay(
+        self,
+        score: float,
+        timestamp_str: str,
+        decay_coefficient: float = 0.004,
+        domain_bonus: float = 0.0
+    ) -> float:
+        """
+        Apply exponential time decay to a score based on entry age.
+
+        V8.8: Changed from linear to exponential decay (GROK-002).
+        Exponential decay better captures the diminishing relevance of old data
+        and allows faster adaptation to evolving task patterns.
+
+        Formula: decayed_score = score * exp(-decay_coefficient * age_days) + domain_bonus
+
+        Decay examples with coefficient=0.004:
+        - 1 week old (7d):   0.97x (3% decay)
+        - 4 weeks old (28d): 0.89x (11% decay)
+        - 12 weeks old (84d): 0.71x (29% decay)
+        - 52 weeks old (364d): 0.23x (77% decay)
+
+        Args:
+            score: Original score to decay.
+            timestamp_str: ISO timestamp string from entry.
+            decay_coefficient: Exponential decay rate (default 0.004 per day).
+            domain_bonus: Optional bonus for domain matching (0.0-0.3).
+
+        Returns:
+            Decayed score (capped at 1.0).
+        """
+        from math import exp
+
+        try:
+            # Parse ISO timestamp
+            entry_time = datetime.fromisoformat(timestamp_str)
+            now = datetime.now()
+
+            # Calculate age in days
+            age_days = max(0, (now - entry_time).days)
+
+            # V8.8: Exponential decay (GROK-002)
+            decay_factor = exp(-decay_coefficient * age_days)
+            decayed = score * decay_factor + domain_bonus
+
+            return min(1.0, decayed)
+
+        except (ValueError, TypeError):
+            # If timestamp parsing fails, return original score
+            return score
+
     def get_best_mode_for_similar(
         self,
         query: str,
-        min_similarity: float = 0.2
+        min_similarity: float = 0.2,
+        apply_decay: bool = True,
+        query_domains: Optional[List[str]] = None,
+        domain_boost: float = 0.15
     ) -> Optional[Tuple[str, str, float]]:
         """
         Get the best mode based on similar successful tasks.
 
         Phase 10b: Memory-augmented mode selection helper.
+        V8.1.0: Added time decay - recent successes weighted more heavily.
+        V8.8: Added per-domain weighting (GROK-002) - domain-matched entries get boosted.
 
         Args:
             query: Task description to match.
             min_similarity: Minimum Jaccard score to consider.
+            apply_decay: Whether to apply time decay (default True).
+            query_domains: Optional list of domains for the query task (e.g., ["coding", "research"]).
+                          If provided, entries with matching domains get a score boost.
+            domain_boost: Boost amount for domain-matched entries (default 0.15).
 
         Returns:
             Tuple of (swarm_mode, task_id, similarity_score) or None.
@@ -563,10 +623,35 @@ class SuccessMemory:
         mode_scores: Dict[str, List[float]] = {}
         mode_best_match: Dict[str, Tuple[str, float]] = {}
 
+        # Normalize query domains for comparison
+        normalized_query_domains = set()
+        if query_domains:
+            normalized_query_domains = {d.lower() for d in query_domains}
+
         for entry, similarity in similar:
             mode = entry.swarm_mode
             # Weight by both similarity and quality
             weighted_score = similarity * entry.quality_score
+
+            # V8.8: Calculate domain bonus (GROK-002)
+            # Boost if entry domains overlap with query domains
+            entry_domain_bonus = 0.0
+            if normalized_query_domains and entry.domains:
+                entry_domains_lower = {d.lower() for d in entry.domains}
+                domain_overlap = len(normalized_query_domains & entry_domains_lower)
+                if domain_overlap > 0:
+                    # Partial boost for each matching domain
+                    entry_domain_bonus = min(domain_boost, domain_boost * domain_overlap / 2)
+
+            # V8.1.0/V8.8: Apply exponential time decay with domain bonus
+            if apply_decay:
+                weighted_score = self._apply_time_decay(
+                    weighted_score,
+                    entry.timestamp,
+                    domain_bonus=entry_domain_bonus
+                )
+            else:
+                weighted_score = min(1.0, weighted_score + entry_domain_bonus)
 
             if mode not in mode_scores:
                 mode_scores[mode] = []

@@ -19,10 +19,12 @@ Usage:
 
 import time
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional, Callable
 
 import tiktoken
 
+from core.agents.unified_registry import get_registry
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
@@ -59,6 +61,7 @@ class AgentInvoker:
         """
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.agent_invoker")
+        self._registry = get_registry()
 
     def get_claude_driver(
         self,
@@ -131,7 +134,8 @@ class AgentInvoker:
             self._orch.on_token is not None
         )
 
-        if self._orch.active_agent == "Claude":
+        # V8.4.0: Use registry for agent lookup
+        if self._registry.is_claude(self._orch.active_agent):
             driver = self.get_claude_driver(task_type)
             if use_streaming:
                 return driver.invoke_stream(context, self._orch.on_token)
@@ -141,30 +145,37 @@ class AgentInvoker:
                 return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
             return self._orch.gemini_driver.invoke(context)
 
-    def invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
+    def invoke_for_swarm(self, agent_id: str, task_type: str, context: str,
+                         session_uuid: Optional[str] = None,
+                         isolated_env: Optional[Dict[str, str]] = None) -> str:
         """
         Invoke agent for HybridSwarmEngine.
 
         V7 Sprint 9: Callback for swarm engine to invoke agents.
         V7.5 HIVE MIND: Extended to support spawned agents.
+        V8.1.6: Added session_uuid for thread-safe parallel execution.
+        V9.7.1: Added isolated_env for Gemini session isolation via HOME spoofing.
         Returns raw content string for negotiation/execution.
 
         Args:
             agent_id: "gemini_primary", "claude_opus", or spawned agent ID
             task_type: Task type string (negotiation, execution, etc.)
             context: Task context from swarm executor (will be enriched)
+            session_uuid: Optional session UUID for file isolation (V8.1.6)
+            isolated_env: V9.7.1 - Isolated environment for Gemini session isolation
 
         Returns:
             Agent response content as string
         """
         # V7.5 HIVE MIND: Check if this is a spawned agent
         if self.is_spawned_agent(agent_id):
-            return self.invoke_spawned_agent(agent_id, task_type, context)
+            return self.invoke_spawned_agent(agent_id, task_type, context, isolated_env)
 
-        is_claude = "claude" in agent_id.lower()
+        # V8.4.0: Use registry for agent identification
+        is_claude = self._registry.is_claude(agent_id)
         # V7 FIX: Use local variable instead of shared self.active_agent to avoid race condition
         # in parallel execution mode. Each thread must know which agent it's invoking.
-        target_agent = "Claude" if is_claude else "Gemini"
+        target_agent = self._registry.get_display_name(agent_id)
 
         try:
             # Map task type string to TaskType enum
@@ -186,7 +197,13 @@ class AgentInvoker:
                 enriched_context = self._orch._build_swarm_context(context, task_type, target_agent)
 
             # V7 FIX: Pass target_agent explicitly to avoid race condition
-            response = self.invoke_agent_direct(task_type_enum, enriched_context, target_agent)
+            # V8.1.6: Pass session_uuid for thread-safe file access
+            # V9.7.1: Pass isolated_env for Gemini session isolation
+            response = self.invoke_agent_direct(
+                task_type_enum, enriched_context, target_agent,
+                session_uuid=session_uuid,
+                isolated_env=isolated_env
+            )
             return response.get("content", str(response))
 
         except Exception as e:
@@ -211,17 +228,21 @@ class AgentInvoker:
             return False
         return self._orch.agent_pool.agents[agent_id].provider == "spawned"
 
-    def invoke_spawned_agent(self, agent_id: str, task_type: str, context: str) -> str:
+    def invoke_spawned_agent(self, agent_id: str, task_type: str, context: str,
+                              isolated_env: Optional[Dict[str, str]] = None) -> str:
         """
         Invoke a spawned agent with its specialized system prompt.
 
-        V7.5 HIVE MIND: Spawned agents are invoked via Claude with their
-        custom system_prompt.md prepended to the context.
+        V7.5 HIVE MIND: Spawned agents are invoked via their configured provider
+        with custom system_prompt.md prepended to the context.
+        V8.1.8-B: Provider routing based on BIRTH_CERTIFICATE inference config.
+        V9.7.1: Added isolated_env for Gemini session isolation via HOME spoofing.
 
         Args:
             agent_id: The spawned agent's ID
             task_type: Task type string (execution, etc.)
             context: Task context from swarm executor
+            isolated_env: V9.7.1 - Isolated environment for Gemini session isolation
 
         Returns:
             Agent response content as string
@@ -229,8 +250,16 @@ class AgentInvoker:
         try:
             # Load the agent's specialized system prompt
             system_prompt = None
+            agent_config = None
             if self._orch.spawned_agent_loader:
                 system_prompt = self._orch.spawned_agent_loader.load_system_prompt(agent_id)
+                agent_config = self._orch.spawned_agent_loader.load_agent_config(agent_id)
+
+            # V8.1.8-B: Determine target provider from inference config
+            target_agent = "Claude"  # Default
+            if agent_config and agent_config.inference:
+                provider = agent_config.inference.provider.lower()
+                target_agent = "Gemini" if provider == "gemini" else "Claude"
 
             # Build context with specialized prompt
             if system_prompt:
@@ -258,6 +287,7 @@ class AgentInvoker:
             self._logger.debug(f"Invoking spawned agent", {
                 "agent_id": agent_id,
                 "task_type": task_type,
+                "target_agent": target_agent,  # V8.1.8-B
                 "has_system_prompt": system_prompt is not None
             })
 
@@ -266,8 +296,12 @@ class AgentInvoker:
             if task_type == "brainstorm":
                 task_type_enum = TaskType.BRAINSTORM
 
-            # Invoke via Claude (spawned agents use Claude CLI)
-            response = self.invoke_agent_direct(task_type_enum, enriched_context, "Claude")
+            # V8.1.8-B: Route to configured provider (Claude or Gemini)
+            # V9.7.1: Pass isolated_env for session isolation
+            response = self.invoke_agent_direct(
+                task_type_enum, enriched_context, target_agent,
+                isolated_env=isolated_env
+            )
             return response.get("content", str(response))
 
         except Exception as e:
@@ -280,18 +314,26 @@ class AgentInvoker:
         self,
         task_type: TaskType,
         context: str,
-        target_agent: str
+        target_agent: str,
+        session_uuid: Optional[str] = None,
+        isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Invoke a specific agent directly without using shared state.
 
         Thread-safe version for parallel execution.
         V7.6 Phase 14d: Budget enforcement before invocation.
+        V8.1.6: Added session_uuid for thread-safe file access.
+        V9.7.1: Added isolated_env for Gemini session isolation via HOME spoofing.
 
         Args:
             task_type: Type of task for model routing
             context: Full context to send
             target_agent: "Claude" or "Gemini"
+            session_uuid: Optional session UUID for file isolation (V8.1.6)
+            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
+                         When provided, Gemini subprocess uses this env and --resume latest.
+                         CWD stays at project root (no ghost files).
 
         Returns:
             Response dict with content
@@ -315,15 +357,27 @@ class AgentInvoker:
             self._orch.on_token is not None
         )
 
-        if target_agent == "Claude":
+        # V8.4.0: Use registry for agent identification
+        if self._registry.is_claude(target_agent):
+            # Claude driver is stateless - no isolated_env needed
             driver = self.get_claude_driver(task_type)
             if use_streaming:
-                return driver.invoke_stream(context, self._orch.on_token)
-            return driver.invoke(context)
+                # V8.1.6: Pass session_uuid for thread-safe file access
+                return driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
+            return driver.invoke(context, session_uuid=session_uuid)
         else:
+            # V9.7.1: Gemini driver uses isolated_env for session isolation (HOME spoofing)
             if use_streaming:
-                return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
-            return self._orch.gemini_driver.invoke(context)
+                return self._orch.gemini_driver.invoke_stream(
+                    context, self._orch.on_token,
+                    session_uuid=session_uuid,
+                    isolated_env=isolated_env
+                )
+            return self._orch.gemini_driver.invoke(
+                context,
+                session_uuid=session_uuid,
+                isolated_env=isolated_env
+            )
 
     def record_invocation(
         self,
@@ -348,8 +402,8 @@ class AgentInvoker:
         if not self._orch.agent_pool:
             return
 
-        # Map agent name to agent_id
-        agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
+        # V8.4.0: Use registry for agent mapping
+        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
 
         # Count tokens using tiktoken (accurate) or fallback to estimate
         estimated_tokens = 500  # Default estimate

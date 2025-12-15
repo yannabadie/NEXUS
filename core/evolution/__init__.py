@@ -49,11 +49,22 @@ from .models import (
 )
 from .manager import EvolutionManager
 
+# V9.1: Service Layer
+from .service import (
+    EvolutionService,
+    EvolutionServiceResult,
+    _get_evolution_service,
+)
+
 # V7: mutator.py removed - evolution uses emergent JSON patches from AI debate
 
 __all__ = [
     # V7.5 Phase 0a: Evolution Manager
     "EvolutionManager",
+    # V9.1: Service Layer
+    "EvolutionService",
+    "EvolutionServiceResult",
+    "_get_evolution_service",
     # V7.5 Phase 0a: Models
     "MutationProposal",
     "BrainstormResult",

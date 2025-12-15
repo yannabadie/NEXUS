@@ -1,18 +1,18 @@
-# Module: Interface - NEXUS V7.7 User Interaction Layer
+# Module: Interface - NEXUS V9.0 User Interaction Layer
 
-**Version**: 7.7 (HIVE MIND)
-**Last Updated**: 2025-12-05
+**Version**: 9.0 (TRUE HIVE MIND)
+**Last Updated**: 2025-12-11
 **Phase 16**: Developer Experience (DX) - COMPLETE
 
 ---
 
 ## Role Architectural
 
-User interaction layer for NEXUS V7.7. Provides REPL, categorized slash commands, interactive tutorial, and budget management.
+User interaction layer for NEXUS V9.0. Provides REPL, categorized slash commands, interactive tutorial, budget management, and Strategy Pattern command system.
 
 ---
 
-## Alignement ROADMAP V7.5+
+## Alignement ROADMAP V7.5+ / V9.0
 
 | Phase ROADMAP | Impact sur ce module |
 |---------------|---------------------|
@@ -21,6 +21,7 @@ User interaction layer for NEXUS V7.7. Provides REPL, categorized slash commands
 | **Phase 16a** | `/budget` command with subcommands (COMPLETE) |
 | **Phase 16b** | Categorized help with 5 categories (COMPLETE) |
 | **Phase 16c** | Interactive tutorial `/tutorial` + `/quickstart` (COMPLETE) |
+| **V9.0** | CommandRegistry singleton + Strategy Pattern commands |
 
 ---
 
@@ -206,7 +207,96 @@ class TutorialStep:
 | `repl.py` | Main REPL loop | `REPL`, `run_repl()` |
 | `commands.py` | Categorized commands | `COMMAND_CATEGORIES`, `get_help_message()` |
 | `tutorial.py` | Interactive tutorial | `InteractiveTutorial`, `TUTORIAL_STEPS` |
+| `commands/registry.py` | **V9.0** Strategy Pattern commands | `CommandRegistry`, `get_registry()` |
+| `commands/system.py` | **V9.0** System commands | `StatusCommand`, `HelpCommand`, `QuitCommand` |
 | `__init__.py` | Module exports | All public APIs |
+
+---
+
+## CommandRegistry V9.0 (Strategy Pattern)
+
+Architecture extensible pour commandes REPL via Strategy Pattern.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    COMMAND REGISTRY V9.0                     │
+├─────────────────────────────────────────────────────────────┤
+│  User Input                                                  │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌──────────────────────────┐                               │
+│  │   CommandRegistry        │  ← Singleton (thread-safe)    │
+│  │   • register(command)    │                               │
+│  │   • execute(input, ctx)  │                               │
+│  │   • get_help_text()      │                               │
+│  └──────────────────────────┘                               │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌────────────┬────────────┬────────────┐                   │
+│  │  /status   │  /help     │  /quit     │                   │
+│  │  Strategy  │  Strategy  │  Strategy  │                   │
+│  └────────────┴────────────┴────────────┘                   │
+│       │                                                      │
+│       ▼                                                      │
+│  CommandResult(status, message, data, continue_session)     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Usage
+
+```python
+from core.interface.commands import get_registry, CommandContext
+
+# Get singleton registry
+registry = get_registry()
+
+# Create context
+context = CommandContext(orchestrator=orch, config=config)
+
+# Execute command
+result = registry.execute("/status detail", context)
+print(result.message)
+
+# Add custom command
+from core.interface.commands import Command, CommandResult, CommandStatus
+
+class MyCommand(Command):
+    @property
+    def name(self) -> str:
+        return "/mycommand"
+
+    @property
+    def description(self) -> str:
+        return "My custom command"
+
+    def execute(self, args: str, context: CommandContext) -> CommandResult:
+        return CommandResult(
+            status=CommandStatus.SUCCESS,
+            message="Done!"
+        )
+
+registry.register(MyCommand())
+```
+
+### Thread-Safe Singleton
+
+```python
+# Dans commands/registry.py
+_registry_instance: Optional[CommandRegistry] = None
+_registry_lock: Optional[threading.Lock] = None
+
+def get_registry() -> CommandRegistry:
+    global _registry_instance, _registry_lock
+    if _registry_lock is None:
+        _registry_lock = threading.Lock()
+    if _registry_instance is None:
+        with _registry_lock:
+            if _registry_instance is None:  # Double-checked locking
+                _registry_instance = CommandRegistry()
+    return _registry_instance
+```
 
 ---
 

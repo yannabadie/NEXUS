@@ -1,4 +1,90 @@
-# NEXUS V7.0 "Chrysalis" - Changelog
+# NEXUS Changelog
+
+## Version 9.8 (2025-12-13) - OPERATION DETOX: Headless Mode Support
+
+### Overview
+
+NEXUS can now run in headless mode for web servers, CI/CD pipelines, and multi-tenant SaaS deployments. This release eliminates "Server Killers" - patterns that crash web servers or hang automated pipelines.
+
+### New Module: `core/interaction/`
+
+Complete user interaction abstraction layer for CLI/Headless switching.
+
+| File | Description |
+|------|-------------|
+| `base.py` | `InteractionProvider` ABC + `Choice`, `InteractionLevel`, `InteractionRequiredError` |
+| `cli_provider.py` | Interactive CLI with `run_in_executor` (non-blocking async) |
+| `headless_provider.py` | Returns defaults immediately, logs for audit trail |
+| `__init__.py` | Factory with thread-safe singleton + `get_interaction_provider()` |
+| `README.md` | Comprehensive documentation with examples |
+
+### Configuration
+
+```bash
+export NEXUS_INTERACTION_MODE=cli      # Interactive (default)
+export NEXUS_INTERACTION_MODE=headless # Non-blocking, returns defaults
+export NEXUS_INTERACTION_MODE=strict   # Headless + raises on missing defaults
+```
+
+### Refactored Files
+
+| File | Change |
+|------|--------|
+| `core/bootstrap/service.py` | Added `_confirm_overwrite()` with InteractionProvider |
+| `core/telemetry/service.py` | Added `_confirm_reset()` with InteractionProvider |
+| `core/hive_mind/user_interaction.py` | Added `_headless_breakpoint()` for non-blocking breakpoints |
+| `core/drivers/gemini_driver_v7.py` | Thread-safe `_active_processes_lock` for multi-tenant |
+| `core/mcp/server.py` | `MCPNotAvailableError` exception replaces `sys.exit()` |
+
+### Server Killers Eliminated
+
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| `input()` | Wrapped | InteractionProvider pattern with fallback |
+| `sys.exit()` | Replaced | Exceptions in importable functions, kept in `__main__` |
+| `time.sleep()` | Analyzed | Acceptable - async drivers exist for async contexts |
+| Thread safety | Added | Module-level lock for `_active_processes` |
+
+### Documentation
+
+- `docs/DETOX_V9.8_STATUS.md` - Full operation status report
+- `core/interaction/README.md` - Module documentation with migration guide
+
+### Usage Example
+
+```python
+import os
+os.environ["NEXUS_INTERACTION_MODE"] = "headless"
+
+from fastapi import FastAPI
+from core.orchestration_v7 import OrchestratorV7
+
+app = FastAPI()
+
+@app.post("/process")
+async def process(task: str):
+    orchestrator = OrchestratorV7(...)
+    return orchestrator.process_turn(task)
+```
+
+---
+
+## Version 9.6 Sprint 5.3 (2025-12-13) - Refactoring & Resilience
+
+### Refactoring Majeur
+- **Modular Tool Handlers**: Découpage de la "God Class" `ToolManager` en handlers modulaires dans `core/execution/handlers/` (`base.py`, `bash_handler.py`, `file_handlers.py`, etc.).
+- **SystemHealth**: Ajout d'un moniteur unifié (`core/resilience/system_health.py`) pour surveiller tous les composants.
+- **ContextScope**: Isolation des contextes d'exécution pour prévenir les fuites de bord.
+
+### Swarm Features
+- **Dictator Mode**: Capacité de forcer un mode spécifique.
+- **Swarm as Tool**: Le Swarm Engine est maintenant invocable comme un outil standard.
+
+### Documentation
+- Mise à jour de `ARCHITECTURE_MAP.md` et `NEXUS.md` pour refléter la nouvelle architecture modulaire.
+- Ajout de documentation sur la résilience système.
+
+---
 
 ## Version 7.0.14 (2025-12-02) - Sprint 13: Structural Cleanup (Gemini Follow-up)
 

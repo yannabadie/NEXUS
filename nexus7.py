@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-NEXUS V7.0 "Chrysalis" - The Omniscient REPL
+NEXUS - The Omniscient REPL
 Persistent FSM Orchestrator with Hybrid Drivers
+(Version loaded from .env: NEXUS_VERSION, NEXUS_CODENAME)
 
 Architecture:
 - FSM (Finite State Machine) for persistent state management
@@ -11,26 +12,132 @@ Architecture:
 - Bootstrap verification at startup
 """
 import sys
+import signal
 import argparse
+import asyncio
+import atexit
 from pathlib import Path
 import importlib.util
+from typing import Dict, Optional
 
-# Fix Windows encoding for emojis
+# Load version from .env (single source of truth)
+import os
+
+# Fix Windows ANSI colors - V9.1.2: Ultra-simple approach
+# Calling os.system('') triggers cmd.exe to initialize VT100 mode
+# This side-effect enables ANSI escape sequences in the console
+# Source: https://bugs.python.org/issue40134
 if sys.platform == 'win32':
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    os.system('')  # Enable ANSI escape codes (Windows 10 1607+)
+
+import logging
+from dotenv import load_dotenv
+load_dotenv()
+NEXUS_VERSION = os.getenv("NEXUS_VERSION", "8.4.0")
+NEXUS_CODENAME = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
+
+# Configure logging EARLY - FORCE override any existing config
+# Default to WARNING to hide INFO messages in production
+_log_level = os.getenv("LOG_LEVEL", "WARNING").upper()
+_log_level_int = getattr(logging, _log_level, logging.WARNING)
+# Force reconfigure by clearing root logger handlers
+logging.root.handlers.clear()
+logging.basicConfig(
+    level=_log_level_int,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True  # Python 3.8+ - forces reconfiguration
+)
 
 # Constantes
-ENV_TEMPLATE = """# NEXUS V7.0 Chrysalis Configuration
+ENV_TEMPLATE = f"""# NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Configuration
 GEMINI_CLI_PATH=gemini
 CLAUDE_CLI_PATH=claude
 MAX_STALEMATE_COUNT=5
 STAGNATION_SIMILARITY_THRESHOLD=0.8
 WORKSPACE_PATH=./workspace
-LOG_LEVEL=INFO
+LOG_LEVEL=WARNING
 UI_VERBOSE=False
 """
+
+# =============================================================================
+# V8.4.5: Graceful Shutdown Handlers
+# =============================================================================
+
+_shutdown_requested = False
+_async_factory = None
+
+
+def _cleanup_processes():
+    """
+    Cleanup function called at exit.
+
+    V8.4.5: Ensures all subprocess and async processes are terminated.
+    """
+    global _async_factory
+
+    # Cleanup driver processes (Gemini and Claude)
+    try:
+        from core.drivers.gemini_driver_v7 import _cleanup_processes as cleanup_gemini
+        cleanup_gemini()
+    except Exception:
+        pass
+
+    try:
+        from core.drivers.claude_driver_hybrid import _cleanup_claude_processes
+        _cleanup_claude_processes()
+    except Exception:
+        pass
+
+    # Cleanup async factory if available
+    if _async_factory:
+        try:
+            # Run cleanup in a new event loop since atexit runs outside async context
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(_async_factory.cancel_all())
+            loop.close()
+        except Exception:
+            pass
+
+
+def _signal_handler(signum, frame):
+    """
+    Signal handler for graceful shutdown.
+
+    V8.4.5: Handles SIGINT and SIGTERM for graceful termination.
+    """
+    global _shutdown_requested
+
+    if _shutdown_requested:
+        # Second signal - force exit
+        print("\n[SHUTDOWN] Force exit requested", file=sys.stderr)
+        sys.exit(1)
+
+    _shutdown_requested = True
+    sig_name = signal.Signals(signum).name if hasattr(signal, 'Signals') else str(signum)
+    print(f"\n[SHUTDOWN] Received {sig_name}, cleaning up...", file=sys.stderr)
+
+    # Cleanup will happen via atexit or explicit call
+    raise KeyboardInterrupt
+
+
+def setup_signal_handlers():
+    """
+    Setup signal handlers for graceful shutdown.
+
+    V8.4.5: Cross-platform signal handling.
+    - Windows: SIGINT only (SIGTERM not supported)
+    - Unix: SIGINT and SIGTERM
+    """
+    # Register atexit handler first (always works)
+    atexit.register(_cleanup_processes)
+
+    # SIGINT (Ctrl+C) - works on all platforms
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    # SIGTERM - Unix only
+    if sys.platform != 'win32':
+        signal.signal(signal.SIGTERM, _signal_handler)
+
 
 def bootstrap():
     """
@@ -50,7 +157,7 @@ def bootstrap():
     Raises:
         SystemExit: Si bootstrap échoue
     """
-    print("🚀 NEXUS V7.0 Chrysalis Bootstrap...")
+    print(f"🚀 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap...")
 
     # 0. VERIFY KERNEL.PY INTEGRITY (CRITICAL SECURITY CHECK)
     # KERNEL.py location:
@@ -174,7 +281,7 @@ def bootstrap():
 
     # Success!
     print("\n" + "="*60)
-    print("✅ NEXUS V7.0 Chrysalis Bootstrap Complete")
+    print(f"✅ NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} Bootstrap Complete")
     print("="*60)
     print(f"\n📊 Gemini")
     print(f"   Model: {gemini_info['model']}")
@@ -189,16 +296,88 @@ def bootstrap():
     print(f"   Version: {claude_info.get('version', 'Unknown')}")
 
     print("\n" + "="*60)
+
+    # V9.1.1: Windows Terminal recommendation for best experience
+    if sys.platform == 'win32':
+        # Check if running in Windows Terminal (has WT_SESSION env var)
+        if not os.environ.get('WT_SESSION'):
+            print("\n💡 Tip: For best colors/Unicode, use Windows Terminal:")
+            print("   https://aka.ms/terminal")
+
     print()
 
     return gemini_info, claude_info
 
 
+# =============================================================================
+# V9 CYBORG: Async Entry Point
+# =============================================================================
+
+async def async_main(
+    workspace_path: Path,
+    gemini_info: Dict,
+    claude_info: Dict,
+    pending_metadata: Optional[Dict],
+    config
+):
+    """
+    V9 Cyborg Async Entry Point.
+
+    Wraps the V7 REPL in an async context, enabling:
+    - Non-blocking user input (prompt_async)
+    - Async LLM streaming
+    - Graceful Ctrl+C cancellation
+
+    Falls back to sync REPL if run_async() not available.
+    """
+    global _async_factory
+
+    from core.interface.repl import InteractiveNexusV7
+
+    # Initialize async driver factory for process management
+    try:
+        from core.drivers.async_factory import AsyncDriverFactory
+        # Create factory instance (will be accessible via get_driver_factory)
+        factory = AsyncDriverFactory(config, workspace_path)
+        # Store in module for global access
+        import core.drivers.async_factory as factory_module
+        factory_module._global_factory = factory
+        # V8.4.5: Store reference for graceful shutdown
+        _async_factory = factory
+    except ImportError:
+        # Async drivers not available, continue with sync
+        pass
+
+    # Display pending review alerts (sync, fast)
+    if pending_metadata:
+        from core.notifications.repl_alert import get_repl_alert_message, should_block_evolution
+        print(get_repl_alert_message(pending_metadata, config))
+        if should_block_evolution(pending_metadata, config):
+            print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
+            print("   Use /review command to evaluate children.\n")
+
+    repl = InteractiveNexusV7(
+        workspace_path=workspace_path,
+        gemini_info=gemini_info,
+        claude_info=claude_info
+    )
+
+    # V9 Cyborg: Prefer async, fallback to sync
+    if hasattr(repl, 'run_async'):
+        await repl.run_async()
+    else:
+        # Sync fallback (V7 mode)
+        repl.run()
+
+
 def main():
-    """Entry point NEXUS V7.0 Chrysalis"""
+    """Entry point for NEXUS interactive REPL."""
+    # V8.4.5: Setup graceful shutdown handlers early
+    setup_signal_handlers()
+
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
-        description="NEXUS V7.0 Chrysalis - The Omniscient REPL",
+        description=f"NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} - The Omniscient REPL",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -234,9 +413,9 @@ Documentation: https://github.com/nexus-ai/nexus-v7
 
     # Handle --version
     if args.version:
-        print("NEXUS V7.0 Chrysalis - The Omniscient REPL")
+        print(f"NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} - The Omniscient REPL")
         print("Persistent FSM Orchestrator with Hybrid Drivers")
-        print("https://github.com/yannabadie/NEXUS (branch: N7C)")
+        print("https://github.com/yannabadie/NEXUS")
         sys.exit(0)
 
     try:
@@ -246,13 +425,11 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         # Handle --verify (exit after bootstrap)
         if args.verify:
             print("\n✅ Bootstrap verification successful!")
-            print("   NEXUS V7.0 Chrysalis is ready to use.")
+            print(f"   NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} is ready to use.")
             sys.exit(0)
 
-        # Import and launch REPL
-        from core.interface.repl import InteractiveNexusV7
+        # Import config and check pending reviews
         from core.notifications import check_pending_review
-        from core.notifications.repl_alert import get_repl_alert_message, should_block_evolution
         from core.config import load_config
 
         workspace_path = Path(args.workspace).resolve()
@@ -262,27 +439,18 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         config = load_config()
         pending_metadata = check_pending_review(workspace_path)
 
-        if pending_metadata:
-            # Display colored alert
-            alert_message = get_repl_alert_message(pending_metadata, config)
-            print(alert_message)
-
-            # Block evolution if critical (72h+)
-            if should_block_evolution(pending_metadata, config):
-                print("\n⚠️  WARNING: Evolution is BLOCKED until review is completed.")
-                print("   Use /review command to evaluate children.\n")
-
-        repl = InteractiveNexusV7(
+        # V9 CYBORG: Launch via asyncio.run()
+        asyncio.run(async_main(
             workspace_path=workspace_path,
             gemini_info=gemini_info,
-            claude_info=claude_info
-        )
-
-        # Run interactive loop
-        repl.run()
+            claude_info=claude_info,
+            pending_metadata=pending_metadata,
+            config=config
+        ))
 
     except KeyboardInterrupt:
-        print("\n\n👋 NEXUS V7.0 Chrysalis terminated by user")
+        print(f"\n\n👋 NEXUS V{NEXUS_VERSION} {NEXUS_CODENAME} terminated by user")
+        # V8.4.5: Cleanup handled by atexit and signal handlers
         sys.exit(0)
 
     except Exception as e:

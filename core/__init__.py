@@ -1,2 +1,10 @@
-"""NEXUS V7.0 Chrysalis Core Module"""
-__version__ = "7.0.0"
+"""NEXUS Core Module - TRUE HIVE MIND"""
+import os
+from dotenv import load_dotenv
+
+# Load .env to get version
+load_dotenv()
+
+# Version from .env (single source of truth)
+__version__ = os.getenv("NEXUS_VERSION", "8.3.2")
+__codename__ = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")

@@ -98,10 +98,11 @@ class AgentProfile:
     Scales to N agents in Phase 6 Swarm.
     """
     agent_id: str
-    provider: str  # "gemini", "claude"
+    provider: str  # "gemini", "claude", "spawned"
     model: str
     capabilities: List[str] = field(default_factory=list)
     is_active: bool = True
+    uuid: Optional[str] = None  # V8.2.0: Unique identifier for spawned agents
     invocation_history: List[AgentInvocationResult] = field(default_factory=list)
     history_window: int = 100  # Keep last N invocations
 
@@ -148,6 +149,7 @@ class AgentProfile:
             "model": self.model,
             "capabilities": self.capabilities,
             "is_active": self.is_active,
+            "uuid": self.uuid,  # V8.2.0
             "average_importance": round(self.average_importance, 4),
             "success_rate": round(self.success_rate, 4),
             "invocation_count": len(self.invocation_history)

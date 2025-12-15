@@ -347,6 +347,9 @@ def create_birth_certificate(
     """
     Create birth certificate JSON for child NEXUS.
 
+    V8.8 (GROK-003): Added heredity stamp with KERNEL rules hash
+    for lineage validation at spawn time.
+
     Args:
         child_id: Child identifier
         parent_id: Parent identifier
@@ -365,6 +368,19 @@ def create_birth_certificate(
 
     cert_path = nexus_dir / f"BIRTH_CERTIFICATE_{child_id}.json"
 
+    # V8.8 (GROK-003): Get heredity stamp from KERNEL
+    try:
+        from KERNEL import get_heredity_stamp
+        heredity = get_heredity_stamp()
+    except ImportError:
+        # Fallback if KERNEL not available
+        heredity = {
+            "kernel_rules_hash": None,
+            "kernel_version": "unknown",
+            "human_authority": "Yann Abadie",
+            "stamped_at": datetime.now().isoformat()
+        }
+
     certificate = {
         "child_id": child_id,
         "parent_id": parent_id,
@@ -375,7 +391,9 @@ def create_birth_certificate(
         "fitness_score": fitness_score,
         "benchmarks": benchmarks,
         "creator": "NEXUS Evolution Engine",
-        "human_authority": "Yann Abadie",
+        "human_authority": heredity["human_authority"],  # V8.8: From KERNEL
+        "kernel_rules_hash": heredity["kernel_rules_hash"],  # V8.8: GROK-003
+        "kernel_version": heredity["kernel_version"],  # V8.8: For audit trail
         "signature": None  # Will be filled by sign_birth_certificate()
     }
 

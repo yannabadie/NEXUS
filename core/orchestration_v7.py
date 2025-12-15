@@ -40,7 +40,10 @@ from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge, FSMHandlers  # V7.8 Phase 14c.2
+from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
+from core.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
 from pydantic import ValidationError
+import asyncio
 import time
 import json
 import sys
@@ -53,6 +56,9 @@ try:
 except ImportError:
     KERNEL_AVAILABLE = False
     runtime_integrity_check = None
+
+# V8.8: Security Guards (OWASP LLM01:2025 - Prompt Injection Prevention)
+from core.security import get_input_guard, ThreatLevel
 
 
 class OrchestratorV7:
@@ -81,8 +87,15 @@ class OrchestratorV7:
 
         # État FSM (en RAM !)
         self.state = OrchestratorState.IDLE
-        self.active_agent = "Gemini"  # Premier agent par convention (rotation égale ensuite)
+        self._registry = get_registry()  # V8.4.0: Centralized agent registry
         self.iteration = 0
+
+        # V9.3: Immutable TaskExecutionContext for thread-safe active_agent tracking
+        # Replaces mutable self.active_agent string to prevent race conditions in PARALLEL mode
+        self._task_context: TaskExecutionContext = TaskExecutionContext.create(
+            objective="",
+            initial_agent="gemini"  # V8.4.0: lowercase normalized
+        )
 
         # Memory Manager (charge blackboard UNE FOIS)
         self.memory = MemoryManagerV7(workspace_path, config)
@@ -115,9 +128,11 @@ class OrchestratorV7:
         self.gemini_driver = GeminiDriverV7(config, workspace_path, agent_id="gemini_primary")
 
         # Legacy drivers dict for backwards compatibility
+        # V8.4.0: Register drivers in unified registry
+        self._registry.register_driver("gemini", self.gemini_driver)
         self.drivers = {
-            "Gemini": self.gemini_driver,
-            "Claude": None  # Created dynamically via _get_claude_driver()
+            "gemini": self.gemini_driver,  # V8.4.0: lowercase keys
+            "claude": None  # Created dynamically via _get_claude_driver()
         }
 
         # Tool manager
@@ -191,6 +206,13 @@ class OrchestratorV7:
                 "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
                 "default_mode": getattr(self.config, 'swarm_default_mode', 'ping_pong')
             })
+
+            # V8.3.1: Wire SwarmBridge to ToolManager for swarm_delegate tool
+            self.tool_manager.swarm_bridge = HiveMindSwarmBridge(
+                swarm_engine=self.swarm_engine,
+                context_manager=None  # Context manager is per-task, set dynamically
+            )
+            self.logger.debug("SwarmBridge wired to ToolManager for swarm_delegate tool")
         else:
             self.swarm_engine = None
 
@@ -219,6 +241,14 @@ class OrchestratorV7:
         self.agent_invoker = AgentInvoker(self)
         self.swarm_bridge = SwarmBridge(self)
         self.fsm_handlers = FSMHandlers(self)
+
+        # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
+        from core.orchestration.sync_bridge import get_sync_bridge
+        self._sync_bridge = get_sync_bridge()
+        self._sync_bridge._workspace = self.workspace_path
+        # Wire up swarm session manager if available
+        if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
+            self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
 
         # V7.8 Phase 10c: Project Memory RAG
         # Stored at NEXUS_ROOT/.nexus/ (persists across /workspace new)
@@ -253,12 +283,47 @@ class OrchestratorV7:
             "project_memory": self.project_memory.get_stats().total_chunks
         })
 
-        # V7.5 Phase 0d: Task execution context for thread-safe operations
-        self._task_context: Optional[TaskExecutionContext] = None
+    # =========================================================================
+    # V9.3: Thread-Safe Agent Tracking via Immutable Context
+    # =========================================================================
+    # CRITICAL FIX (ISSUE-001): Replaced mutable self.active_agent string with
+    # immutable TaskExecutionContext to prevent race conditions in PARALLEL mode.
+    #
+    # Before V9.3:
+    #   self.active_agent = "gemini"  # Mutable! Race condition in parallel!
+    #   self.active_agent = self._registry.get_alternate(...)  # No lock!
+    #
+    # After V9.3:
+    #   self._task_context.current_agent  # Immutable read
+    #   self._task_context = self._task_context.with_agent(...)  # New immutable copy
+    #
+    # The @property below provides backward compatibility - existing code using
+    # `self.active_agent` continues to work but is now thread-safe.
+    # =========================================================================
 
-    # =========================================================================
-    # V7.5 Phase 0d: Execution Context (Thread-Safe Agent Tracking)
-    # =========================================================================
+    @property
+    def active_agent(self) -> str:
+        """
+        V9.3: Thread-safe read of current agent via immutable context.
+
+        Returns:
+            Current agent ID (lowercase: "gemini" or "claude")
+        """
+        return self._task_context.current_agent
+
+    @active_agent.setter
+    def active_agent(self, agent: str):
+        """
+        V9.3: Thread-safe agent swap via immutable context replacement.
+
+        Creates a new immutable context with the new agent.
+        This is atomic - no intermediate state where agent is undefined.
+
+        Args:
+            agent: New agent ID (will be normalized to lowercase)
+        """
+        normalized = agent.lower() if agent else "gemini"
+        self._task_context = self._task_context.with_agent(normalized)
 
     def _build_execution_context(self, objective: str = "") -> TaskExecutionContext:
         """
@@ -281,23 +346,22 @@ class OrchestratorV7:
     @property
     def current_context(self) -> TaskExecutionContext:
         """
-        Get current task context (creates new if none exists).
+        Get current task context.
 
-        V7.5: For backward compatibility, syncs with self.active_agent.
-        In V7.6+, this will become the primary agent tracking mechanism.
+        V9.3: Now always returns the internal context (never None).
         """
-        if self._task_context is None:
-            self._task_context = self._build_execution_context()
         return self._task_context
 
     def _sync_context_agent(self, context: TaskExecutionContext):
         """
-        Sync self.active_agent with context (backward compatibility).
+        Replace current context with new one.
 
-        V7.5: Bridge between old self.active_agent and new context system.
-        This allows gradual migration without breaking existing code.
+        V9.3: Simply replaces the immutable context reference.
+        The active_agent property now reads from this context.
+
+        Args:
+            context: New TaskExecutionContext to use
         """
-        self.active_agent = context.current_agent
         self._task_context = context
 
     # =========================================================================
@@ -312,9 +376,9 @@ class OrchestratorV7:
         """Invoke active agent. V7.8: Delegates to AgentInvoker."""
         return self.agent_invoker.invoke_agent(task_type, context)
 
-    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str) -> str:
+    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str, session_uuid: str = None) -> str:
         """Invoke agent for swarm. V7.8: Delegates to AgentInvoker."""
-        return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context)
+        return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context, session_uuid)
 
     def _invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) -> Dict:
         """Invoke specific agent directly. V7.8: Delegates to AgentInvoker."""
@@ -435,6 +499,39 @@ class OrchestratorV7:
                     error="KERNEL_INTEGRITY_VIOLATION"
                 )
 
+        # V8.8: INPUT GUARD - Prompt Injection Prevention (OWASP LLM01:2025)
+        # Validates user input before processing to detect injection attempts
+        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
+            input_guard = get_input_guard()
+            validation = input_guard.validate(user_input)
+
+            if not validation.is_safe:
+                # CRITICAL/HIGH threats: Block and log
+                self.logger.warning(
+                    "Prompt injection attempt detected",
+                    {
+                        "threat_level": validation.threat_level.value,
+                        "threat_type": validation.threat_type.value,
+                        "reason": validation.reason,
+                        "risk_score": validation.risk_score,
+                        "matched_patterns": validation.matched_patterns[:3]  # First 3 patterns
+                    }
+                )
+
+                if validation.threat_level == ThreatLevel.CRITICAL:
+                    return self._make_result(
+                        self.state.name,
+                        f"[SECURITY] Input blocked: {validation.reason}. "
+                        "Your request was flagged as a potential prompt injection attack.",
+                        None,
+                        False,
+                        error="PROMPT_INJECTION_BLOCKED"
+                    )
+                # HIGH threats: Warn but allow with sanitized input
+                elif validation.threat_level == ThreatLevel.HIGH:
+                    self.logger.info("Using sanitized input due to HIGH threat level")
+                    user_input = validation.sanitized_text
+
         # V7.8 Phase 14c.2d: FSM State Dispatcher
         state_handlers = {
             OrchestratorState.IDLE: lambda: self.fsm_handlers.handle_idle(user_input),
@@ -455,6 +552,199 @@ class OrchestratorV7:
             return handler()
 
         return self._make_result("ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE")
+
+    # =========================================================================
+    # V9 CYBORG: Async Process Turn
+    # =========================================================================
+
+    async def process_turn_async(self, user_input: Optional[str] = None) -> Dict:
+        """
+        V9 Cyborg Async version of process_turn().
+
+        Uses async drivers for LLM calls, enabling:
+        - Non-blocking I/O (event loop free during generation)
+        - Streaming token output
+        - Graceful cancellation via CancellationToken
+
+        Falls back to sync handlers for non-LLM operations.
+
+        Args:
+            user_input: Input utilisateur (si état == IDLE)
+
+        Returns:
+            Same result dict as process_turn()
+        """
+        self.iteration += 1
+
+        # KERNEL RUNTIME INTEGRITY CHECK (every 100 iterations) - sync is OK, fast
+        if KERNEL_AVAILABLE and self.iteration % 100 == 0:
+            self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
+            if not runtime_integrity_check():
+                self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
+                self.state = OrchestratorState.PANIC
+                return self._make_result(
+                    "PANIC",
+                    "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
+                    None, True, error="KERNEL_INTEGRITY_VIOLATION"
+                )
+
+        # V8.8: INPUT GUARD - Prompt Injection Prevention (async path)
+        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
+            input_guard = get_input_guard()
+            validation = input_guard.validate(user_input)
+            if not validation.is_safe and validation.threat_level == ThreatLevel.CRITICAL:
+                self.logger.warning("Prompt injection blocked (async)", {
+                    "threat_type": validation.threat_type.value,
+                    "risk_score": validation.risk_score
+                })
+                return self._make_result(
+                    self.state.name,
+                    f"[SECURITY] Input blocked: {validation.reason}",
+                    None, False, error="PROMPT_INJECTION_BLOCKED"
+                )
+
+        # States that benefit from async LLM calls
+        async_states = {
+            OrchestratorState.BRAINSTORMING,
+            OrchestratorState.VALIDATING_CFL,
+        }
+
+        if self.state in async_states:
+            return await self._handle_async_state(user_input)
+        else:
+            # Non-LLM states: use sync handlers (fast, no I/O blocking)
+            return self.process_turn(user_input)
+
+    async def _handle_async_state(self, user_input: Optional[str] = None) -> Dict:
+        """
+        Handle states that require async LLM invocation.
+
+        Uses AsyncDriverFactory to get async drivers with streaming.
+        Falls back to sync if factory not available.
+        """
+        try:
+            from core.drivers.async_factory import get_driver_factory
+            factory = get_driver_factory()
+        except ImportError:
+            factory = None
+
+        if not factory:
+            # Fallback: no async factory, use sync path
+            return self.process_turn(user_input)
+
+        if self.state == OrchestratorState.BRAINSTORMING:
+            return await self._handle_brainstorming_async(factory, user_input)
+        elif self.state == OrchestratorState.VALIDATING_CFL:
+            return await self._handle_cfl_async(factory)
+        else:
+            return self.process_turn(user_input)
+
+    async def _handle_brainstorming_async(self, factory, user_input: Optional[str]) -> Dict:
+        """
+        Async brainstorming with streaming output.
+
+        Streams tokens in real-time to console while building response.
+        """
+        # Build context using sync method (fast, no I/O)
+        context = self.context_builder.build_context(
+            history=self.memory.history,
+            blackboard=self.blackboard,
+            active_agent=self.active_agent,
+            current_task=self.current_task,
+            objective=self.objective
+        )
+
+        session_uuid = f"brain_{self.iteration}"
+
+        try:
+            if self.active_agent == "claude":  # V9.3: lowercase normalized
+                driver = factory.get_claude_driver()
+                response_parts = []
+
+                # V9: Stream tokens in real-time
+                async for token in driver.invoke_stream(
+                    context,
+                    session_uuid=session_uuid,
+                    on_token=lambda t: print(t, end="", flush=True)
+                ):
+                    response_parts.append(token)
+
+                print()  # Newline after streaming
+                full_response = "".join(response_parts)
+                response = driver._parse_hybrid_response(full_response)
+            else:
+                # Gemini
+                driver = factory.get_gemini_driver()
+                response_parts = []
+
+                async for token in driver.invoke_stream(
+                    context,
+                    session_uuid=session_uuid,
+                    on_token=lambda t: print(t, end="", flush=True)
+                ):
+                    response_parts.append(token)
+
+                print()
+                full_response = "".join(response_parts)
+                response = driver._parse_response(full_response)
+
+            # Process response with existing FSM logic
+            return self.fsm_handlers._process_brainstorming_response(response)
+
+        except asyncio.CancelledError:
+            self.logger.warning("Brainstorming cancelled by user")
+            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+
+        except Exception as e:
+            self.logger.error(f"Async brainstorming error: {e}")
+            # Fallback to sync on error
+            return self.fsm_handlers.handle_brainstorming()
+
+    async def _handle_cfl_async(self, factory) -> Dict:
+        """
+        Async CFL (Cognitive Feedback Loop) validation.
+
+        Uses shorter timeout for CFL validation responses.
+        """
+        # Build CFL context
+        context = self.context_builder.build_cfl_context(
+            history=self.memory.history,
+            blackboard=self.blackboard,
+            active_agent=self.active_agent,
+            tool_result=self.blackboard.get("last_tool_result")
+        )
+
+        session_uuid = f"cfl_{self.iteration}"
+
+        try:
+            if self.active_agent == "claude":  # V9.3: lowercase normalized
+                driver = factory.get_claude_driver()
+                # CFL needs faster response - use non-streaming
+                response = await asyncio.wait_for(
+                    driver.invoke(context, session_uuid=session_uuid),
+                    timeout=30.0
+                )
+            else:
+                driver = factory.get_gemini_driver()
+                response = await asyncio.wait_for(
+                    driver.invoke(context, session_uuid=session_uuid),
+                    timeout=30.0
+                )
+
+            return self.fsm_handlers._process_cfl_response(response)
+
+        except asyncio.TimeoutError:
+            self.logger.warning("CFL validation timed out, falling back to sync")
+            return self.fsm_handlers.handle_validating_cfl()
+
+        except asyncio.CancelledError:
+            self.logger.warning("CFL cancelled by user")
+            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+
+        except Exception as e:
+            self.logger.error(f"Async CFL error: {e}")
+            # Fallback to sync on error
+            return self.fsm_handlers.handle_validating_cfl()
 
     # =========================================================================
     # Helper Methods (Called by FSMHandlers via self._orch)
@@ -542,8 +832,8 @@ class OrchestratorV7:
         """Handle stagnation détectée"""
         warning = self.stagnation_detector.get_stagnation_message()
 
-        # Force Gemini to decide
-        self.active_agent = "Gemini"
+        # Force Gemini to decide (V8.4.0: use normalized ID)
+        self.active_agent = "gemini"
         self.stagnation_detector.reset()
 
         return self._make_result(
@@ -634,8 +924,8 @@ class OrchestratorV7:
         if not self.agent_pool:
             return
 
-        # Map agent name to agent_id
-        agent_id = "gemini_primary" if agent_name == "Gemini" else "claude_opus"
+        # V8.4.0: Use registry for agent identification
+        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
 
         # Count tokens using tiktoken (accurate) or fallback to estimate
         estimated_tokens = 500  # Default estimate
@@ -717,7 +1007,8 @@ class OrchestratorV7:
         panic_status = self.panic_system.get_status()
 
         return {
-            "fsm_state": self.state.name,
+            "state": self.state.name,  # V9.1: Use "state" for consistency with process_turn()
+            "fsm_state": self.state.name,  # V9.1: Keep for backward compatibility
             "active_agent": self.active_agent,
             "iteration": self.iteration,
             "stalemate_counter": self.stalemate_counter,

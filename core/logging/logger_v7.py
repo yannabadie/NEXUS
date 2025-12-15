@@ -363,8 +363,10 @@ class NexusLogger:
                 timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                 with open(self.trace_file, 'a', encoding='utf-8') as f:
                     f.write(f"[{timestamp}] {message}\n")
-            except:
-                pass  # Ignore trace errors
+            except Exception:
+                # V9: Don't use bare except: - silently ignore trace write errors
+                # but allow SystemExit and KeyboardInterrupt to propagate
+                pass
 
     def end_session(self):
         """Termine session et écrit summary"""
@@ -381,8 +383,9 @@ class NexusLogger:
         try:
             with open(self.summary_file, 'w', encoding='utf-8') as f:
                 json.dump(self.metrics, f, indent=2, ensure_ascii=False)
-        except:
-            pass  # Ignore summary errors
+        except Exception:
+            # V9: Don't use bare except: - silently ignore summary write errors
+            pass
 
     def _log_error(self, event_type: EventType, data: Dict, level: LogLevel):
         """Log erreur dans error file (human-readable)"""
@@ -392,8 +395,9 @@ class NexusLogger:
                 f.write(f"[{timestamp}] [{level.value}] {event_type.value}\n")
                 f.write(f"  {json.dumps(data, indent=2, ensure_ascii=False)}\n")
                 f.write("-" * 80 + "\n")
-        except:
-            pass  # Ignore error log errors
+        except Exception:
+            # V9: Don't use bare except: - silently ignore error log write errors
+            pass
 
     def _should_log(self, level: LogLevel) -> bool:
         """Check si on doit logger ce niveau"""
@@ -416,13 +420,22 @@ class NexusLogger:
 
 
 # Singleton global logger (initialisé par orchestrator)
+# V9: Thread-safe initialization with double-checked locking
+import threading
 _global_logger: Optional[NexusLogger] = None
+_logger_lock = threading.Lock()
 
 
 def init_logger(workspace_path: Path, log_level: str = "INFO") -> NexusLogger:
-    """Initialize global logger"""
+    """
+    Initialize global logger.
+
+    V9: Thread-safe initialization to prevent race conditions.
+    """
     global _global_logger
-    _global_logger = NexusLogger(workspace_path, log_level)
+    with _logger_lock:
+        if _global_logger is None:
+            _global_logger = NexusLogger(workspace_path, log_level)
     return _global_logger
 
 
@@ -450,5 +463,6 @@ def cleanup_old_logs(workspace_path: Path, keep_days: int = 7):
             try:
                 if log_file.stat().st_mtime < cutoff_date:
                     log_file.unlink()
-            except:
-                pass  # Ignore cleanup errors
+            except Exception:
+                # V9: Don't use bare except: - silently ignore cleanup errors
+                pass

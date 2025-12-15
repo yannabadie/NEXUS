@@ -87,12 +87,14 @@ class ArchiveResult:
 
 @dataclass
 class BrainstormResult:
-    """Result of brainstorming mutations"""
+    """Result of brainstorming mutations or prompts (V8.1.8)"""
     mutations: List[MutationProposal]
     debate_turns: int
     consensus_reached: bool
     duration_seconds: float = 0.0
     errors: List[str] = field(default_factory=list)
+    # V8.1.8: Generated prompt for mode="prompt"
+    generated_prompt: Optional[str] = None
 
 
 @dataclass

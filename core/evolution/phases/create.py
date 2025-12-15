@@ -27,6 +27,11 @@ from core.security import MutationValidator
 ProgressCallback = Callable[[str, float], None]
 
 
+class SecurityError(Exception):
+    """V8.8: Security violation during evolution (e.g., heredity validation failure)."""
+    pass
+
+
 class CreatePhase:
     """
     Phase 2: Child instance creation.
@@ -138,13 +143,31 @@ class CreatePhase:
         generation: int,
         mutation: Dict[str, Any],
     ) -> Path:
-        """Create and sign birth certificate for child"""
+        """
+        Create and sign birth certificate for child.
+
+        V8.8 (GROK-003): Added KERNEL heredity stamp for lineage validation.
+        """
+        # V8.8: Get heredity stamp from KERNEL for lineage validation
+        try:
+            from KERNEL import get_heredity_stamp, validate_lineage
+            heredity = get_heredity_stamp()
+        except ImportError:
+            heredity = {
+                "kernel_rules_hash": None,
+                "kernel_version": "unknown",
+                "human_authority": "Yann Abadie",
+            }
+
         birth_cert = {
             "id": child_id,
             "parent_id": parent_id,
             "generation": generation,
             "birth_date": datetime.now().isoformat(),
             "creator": "Yann Abadie",
+            "human_authority": heredity["human_authority"],  # V8.8: From KERNEL
+            "kernel_rules_hash": heredity.get("kernel_rules_hash"),  # V8.8: GROK-003
+            "kernel_version": heredity.get("kernel_version"),  # V8.8: For audit
             "mutations": [{
                 "file": mutation.get('file', ''),
                 "change": mutation.get('change', ''),
@@ -154,6 +177,17 @@ class CreatePhase:
             "source": "Gemini+Claude symbiotic debate (emergent)",
             "signature": "NEXUS_KERNEL_ALIGNED"
         }
+
+        # V8.8 (GROK-003): Validate lineage before writing certificate
+        try:
+            is_valid, reason = validate_lineage(birth_cert)
+            if not is_valid:
+                self._report_progress(f"SECURITY: Heredity validation failed: {reason}", 0.0)
+                raise SecurityError(f"Heredity validation failed: {reason}")
+            birth_cert["_heredity_validated"] = True
+        except ImportError:
+            # KERNEL not available, skip validation
+            birth_cert["_heredity_validated"] = False
 
         birth_cert_path = child_dir / "BIRTH_CERTIFICATE.json"
         birth_cert_path.write_text(

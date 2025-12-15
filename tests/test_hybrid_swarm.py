@@ -540,6 +540,82 @@ class TestConfigSwarmOptions:
         assert config.swarm_default_mode == "ping_pong"
 
 
+# ============================================================================
+# V8.3.4 Audit Fix Tests
+# ============================================================================
+
+class TestAuditFixFL002:
+    """Tests for FL-002: Completion detection false positives fix"""
+
+    def test_completion_detection_word_boundaries(self):
+        """Should use word boundaries for completion detection"""
+        # These should NOT trigger completion (false positives before fix)
+        false_positive_cases = [
+            "I'm not DONE yet, still working",
+            "UNDONE tasks remain",
+            "The function isDone() returns false",
+            "ABANDONED the previous approach",
+        ]
+
+        for content in false_positive_cases:
+            response = AgentResponse(agent_id="test", content=content)
+            assert not response.is_finished, f"False positive: '{content}'"
+
+    def test_completion_detection_true_positives(self):
+        """Should correctly detect actual completion signals"""
+        # These SHOULD trigger completion
+        true_positive_cases = [
+            "FINISHED. All tasks complete.",
+            "TASK COMPLETE - everything is done",
+            "COMPLETED the implementation successfully",
+            "ALL DONE with the requested changes",
+        ]
+
+        for content in true_positive_cases:
+            # Note: These might still be blocked by ongoing_indicators check
+            # if they contain "will ", "going to", etc. - that's intentional
+            response = AgentResponse(agent_id="test", content=content)
+            # Just check that completion signal is detected (pattern match)
+            from core.swarm.mode_executors import COMPLETION_PATTERN
+            assert COMPLETION_PATTERN.search(content), f"Pattern not detected: '{content}'"
+
+    def test_completion_blocked_by_ongoing_work(self):
+        """Should block completion if ongoing work indicators present"""
+        # FINISHED but has ongoing work - should NOT be finished
+        response = AgentResponse(
+            agent_id="test",
+            content="FINISHED with step 1. Will continue with step 2 next."
+        )
+        assert not response.is_finished
+
+    def test_completion_pattern_case_insensitive(self):
+        """Pattern should be case insensitive"""
+        from core.swarm.mode_executors import COMPLETION_PATTERN
+
+        cases = ["finished", "FINISHED", "Finished", "FiNiShEd"]
+        for case in cases:
+            assert COMPLETION_PATTERN.search(case), f"Case failed: {case}"
+
+
+class TestAuditFixFL001:
+    """Tests for FL-001: ThreadPoolExecutor blackboard race condition fix"""
+
+    def test_blackboard_lock_imported(self):
+        """Should have _blackboard_lock defined"""
+        from core.swarm.mode_executors import _blackboard_lock
+        from threading import Lock
+        assert isinstance(_blackboard_lock, type(Lock()))
+
+    def test_parallel_executor_thread_safe(self):
+        """ParallelExecutor should use thread-safe blackboard access"""
+        import inspect
+        from core.swarm.mode_executors import ModeExecutor
+
+        # Read the source to verify _blackboard_lock is used
+        source = inspect.getsource(ModeExecutor._invoke)
+        assert "_blackboard_lock" in source, "FL-001: _blackboard_lock not used in _invoke"
+
+
 # Pytest entry point
 if __name__ == "__main__":
     import pytest

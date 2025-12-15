@@ -1,12 +1,6 @@
-# Module: Evolution - NEXUS V7.5 Agent Factory Engine
+# Evolution Module - NEXUS V9.0
 
-**Version**: 7.5 (HIVE MIND)
-**Status**: Production-ready (V7.5 Phase 0a extracted)
-**Last Updated**: 2025-12-04
-
----
-
-## Role Architectural
+## Rôle
 
 Le module Evolution est le coeur de la capacite NEXUS a generer des agents specialises via selection darwinienne.
 
@@ -22,7 +16,7 @@ Le module Evolution est le coeur de la capacite NEXUS a generer des agents speci
 
 ---
 
-## Alignement ROADMAP V7.5+
+## Alignement ROADMAP V7.5+ / V8.8+
 
 | Phase ROADMAP | Impact sur ce module |
 |---------------|---------------------|
@@ -30,10 +24,25 @@ Le module Evolution est le coeur de la capacite NEXUS a generer des agents speci
 | **Phase 7: Session Isolation** | Evolution utilisera sessions isolees |
 | **Phase 8: Self-Healing Swarm** | Brainstorm auto-declenche sur echec swarm |
 | **Phase 9: Fast Path** | TieredValidator permettra bypass |
+| **V8.8: GROK-003** | **KERNEL Heredity Check** - validation alignement avant spawn |
 
 **Task Fitness** remplace "ASI Score" - mesure la capacite a resoudre des taches specifiques.
 
----
+## Fichiers Clés
+
+| Fichier | Lignes | Responsabilité |
+|---------|--------|----------------|
+| `manager.py` | ~710 | Orchestrateur central évolution |
+| `evaluator.py` | ~450 | Benchmarks, Task Fitness |
+| `tiered_validator.py` | ~420 | Validation 4-tier fast-fail |
+| `lineage.py` | ~380 | LINEAGE.json, certificats |
+| `models.py` | ~350 | Dataclasses type-safe |
+| `mutation_parser.py` | ~280 | Parser SEARCH/REPLACE |
+| `rate_limiter.py` | ~250 | Protection anti-spam |
+| `validator.py` | ~230 | Validation legacy |
+| `phases/` | ~1,843 | Pipeline 5 phases |
+
+**Total**: ~4,913 lignes
 
 ## Architecture V7.5
 
@@ -284,6 +293,97 @@ EVOLUTION_TRIGGER_TURNS=50
 - Validation KERNEL.py a chaque boot
 - MutationValidator pour code malveillant
 - Review humain obligatoire avant promotion
+- **V8.8 KERNEL Heredity Check** (GROK-003): `validate_lineage()` avant spawn
+
+---
+
+## V8.8 KERNEL Heredity Check (GROK-003)
+
+### Concept
+
+Chaque agent spawnĂ© doit **hériter** de l'alignement KERNEL du parent. La validation s'effectue à la création du certificat de naissance.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  KERNEL HEREDITY CHECK (V8.8)                │
+├─────────────────────────────────────────────────────────────┤
+│  SpawnAgent Request                                          │
+│       │                                                      │
+│       ▼                                                      │
+│  CreatePhase._create_birth_certificate()                     │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌──────────────────────────┐                               │
+│  │  KERNEL.validate_lineage() │                              │
+│  │  • Check CREATOR immutable │                              │
+│  │  • Check ALIGNMENT present │                              │
+│  │  • Check no tampering      │                              │
+│  └──────────────────────────┘                               │
+│       │                                                      │
+│       ├── PASS → Create Certificate → Spawn Agent            │
+│       │                                                      │
+│       └── FAIL → Log Warning → Block Spawn                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+```python
+# Dans phases/create.py
+from KERNEL import validate_lineage
+
+class CreatePhase:
+    def _create_birth_certificate(self, child_id: str, ...) -> Dict:
+        # V8.8: KERNEL Heredity Check (GROK-003)
+        try:
+            if not validate_lineage(child_id, parent_id):
+                logger.warning(f"[KERNEL] Heredity check FAILED for {child_id}")
+                return None  # Block spawn
+        except Exception as e:
+            logger.error(f"[KERNEL] validate_lineage error: {e}")
+            # Fail-open: allow spawn but log warning
+
+        return {
+            "child_id": child_id,
+            "parent_id": parent_id,
+            "kernel_validated": True,
+            ...
+        }
+```
+
+### KERNEL.py Integration
+
+```python
+# KERNEL.py - Immutable alignment rules
+def validate_lineage(child_id: str, parent_id: str) -> bool:
+    """
+    Validate that spawned agent inherits KERNEL alignment.
+
+    Returns True if:
+    - CREATOR is immutable (Yann Abadie)
+    - ALIGNMENT is present and valid
+    - No core rules have been tampered with
+    """
+    # Implementation checks against NEXUS invariants
+    ...
+```
+
+### Configuration
+
+```python
+# Dans config ou .env
+KERNEL_HEREDITY_CHECK_ENABLED=True   # Activer (défaut)
+KERNEL_FAIL_OPEN=True                # Si True: warn + allow on error
+```
+
+### Tests
+
+```bash
+pytest tests/test_kernel_heredity.py -v
+# 15 tests covering heredity validation
+```
 
 ---
 

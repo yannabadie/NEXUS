@@ -637,10 +637,19 @@ class ModeSelector:
         if not description:
             return None, None
 
-        # Find similar tasks
+        # V8.8 (GROK-002): Extract domains for domain-aware mode selection
+        query_domains = None
+        if hasattr(analysis, "domains") and analysis.domains:
+            query_domains = [
+                d.value if hasattr(d, "value") else str(d)
+                for d in analysis.domains
+            ]
+
+        # Find similar tasks with domain weighting
         result = self.success_memory.get_best_mode_for_similar(
             query=description,
-            min_similarity=self.MEMORY_MIN_SIMILARITY
+            min_similarity=self.MEMORY_MIN_SIMILARITY,
+            query_domains=query_domains  # V8.8: Domain-aware boost
         )
 
         if not result:

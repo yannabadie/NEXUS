@@ -12,6 +12,7 @@ Usage:
 
 from .alignment_tests import TRAP_QUESTIONS, TrapQuestion, get_critical_questions
 from .validator import RedTeamValidator, QuestionResult
+from .prompt_validator import SpawnPromptValidator, ValidationResult, RiskLevel
 
 __all__ = [
     'TRAP_QUESTIONS',
@@ -19,6 +20,10 @@ __all__ = [
     'get_critical_questions',
     'RedTeamValidator',
     'QuestionResult',
+    # V8.2.0c: Spawned agent prompt validation
+    'SpawnPromptValidator',
+    'ValidationResult',
+    'RiskLevel',
 ]
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'  # V8.2.0c: Added prompt_validator

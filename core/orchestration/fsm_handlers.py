@@ -22,11 +22,21 @@ import time
 import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
+from core.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
+
+# V8.0 TRUE HIVE MIND
+try:
+    from core.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
+    HIVE_MIND_AVAILABLE = True
+except ImportError:
+    HIVE_MIND_AVAILABLE = False
+    TrueHiveMind = None
+    HiveComplexity = None
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -53,6 +63,7 @@ class FSMHandlers:
         """
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.fsm_handlers")
+        self._registry = get_registry()
 
     # =========================================================================
     # Core State Handlers
@@ -226,12 +237,12 @@ class FSMHandlers:
             self._orch.stagnation_detector.add_message(content)
             sender = message.get("sender", self._orch.active_agent)
 
-            # FORCE alternance Gemini↔Claude
+            # FORCE alternance Gemini↔Claude (V8.4.0: via registry)
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             self._orch.stagnation_detector.reset()
             if self._orch.config.ui_verbose:
-                print(f"[BRAINSTORM] {previous_agent} → {self._orch.active_agent}", file=sys.stderr)
+                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
             return self._make_result("BRAINSTORMING", content, sender, False)
 
@@ -258,11 +269,11 @@ class FSMHandlers:
         result = self._orch.tool_manager.execute(tool_request)
         self._orch.pending_tool_result = result
 
-        # Switch to OTHER agent for CFL validation
+        # Switch to OTHER agent for CFL validation (V8.4.0: via registry)
         requesting_agent = self._orch.active_agent
-        self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+        self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         if self._orch.config.ui_verbose:
-            print(f"[CFL] {requesting_agent} tool → {self._orch.active_agent} validates", file=sys.stderr)
+            print(f"[CFL] {self._registry.get_display_name(requesting_agent)} tool → {self._registry.get_display_name(self._orch.active_agent)} validates", file=sys.stderr)
 
         # Transition to CFL validation
         self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
@@ -287,7 +298,7 @@ class FSMHandlers:
         try:
             cfl_timeout = getattr(self._orch.config, 'cfl_timeout', 60)
 
-            if self._orch.active_agent == "Claude":
+            if self._orch.active_agent == "claude":  # V9.3: lowercase normalized
                 driver = self._get_claude_driver(TaskType.VALIDATION, timeout_override=cfl_timeout)
                 response = driver.invoke(context)
             else:
@@ -334,22 +345,27 @@ class FSMHandlers:
             self._orch.panic_system.reset_stalemate()
             self._orch.panic_system.reset_errors()
 
+            # V8.4.0: Use registry for alternation
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
             if self._orch.config.ui_verbose:
-                print(f"[CFL SUCCESS] {previous_agent} → {self._orch.active_agent}", file=sys.stderr)
+                print(f"[CFL SUCCESS] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✓ {content}", previous_agent, False)
 
         else:
-            self._orch.stalemate_counter += 1
+            # V9.3 ISSUE-004 FIX: Removed duplicate increment
+            # BEFORE: Both self._orch.stalemate_counter AND panic_system.stalemate_counter
+            # were incremented, causing stalemate detection at half the expected threshold.
+            # NOW: Only panic_system tracks stalemate counter (single source of truth)
 
             if self._orch.panic_system.check_stalemate():
-                return self._orch._trigger_panic(f"Stalemate: {self._orch.stalemate_counter} failures")
+                return self._orch._trigger_panic(f"Stalemate: {self._orch.panic_system.stalemate_counter} failures")
 
+            # V8.4.0: Use registry for alternation
             previous_agent = self._orch.active_agent
-            self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
 
             self._orch._transition_to(OrchestratorState.BRAINSTORMING)
             return self._make_result("BRAINSTORMING", f"✗ {content}", previous_agent, False)
@@ -359,8 +375,20 @@ class FSMHandlers:
         return self._make_result("ERROR", "System in error state. Use /reset", None, False, error="ERROR")
 
     def handle_panic(self) -> Dict:
-        """Handle PANIC state."""
-        return self._make_result("PANIC", "Fatal error. Restart session.", None, True, error="PANIC")
+        """
+        Handle PANIC state.
+
+        V9.3 ISSUE-002: Now recoverable via /reset command.
+        Before V9.3, PANIC had no exit - user had to restart session.
+        """
+        return self._make_result(
+            "PANIC",
+            "Fatal error detected. Use /reset to recover or restart session.",
+            None,
+            False,  # V9.3: finished=False allows /reset to work
+            error="PANIC",
+            recoverable=True  # V9.3: Signal to UI that recovery is possible
+        )
 
     # =========================================================================
     # Evolution State Handler
@@ -426,9 +454,9 @@ class FSMHandlers:
                 self._orch._transition_to(OrchestratorState.IDLE)
                 return self._make_result("FINISHED", content, sender, True)
 
-        # FORCE alternation
+        # FORCE alternation (V8.4.0: via registry)
         previous_agent = self._orch.active_agent
-        self._orch.active_agent = "Claude" if self._orch.active_agent == "Gemini" else "Gemini"
+        self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
         self._orch.stagnation_detector.reset()
 
         # Handle TOOL_USE
@@ -559,7 +587,8 @@ class FSMHandlers:
         if execution_result.finished:
             formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"
             for agent_output in execution_result.agent_outputs:
-                agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                # V8.4.0: Use registry for display name
+                agent_name = self._registry.get_display_name(agent_output.agent_id)
                 formatted_output += f"\n{agent_name}:\n{agent_output.content}\n---\n"
 
             self._orch._transition_to(OrchestratorState.VALIDATING_CFL)
@@ -567,7 +596,8 @@ class FSMHandlers:
         else:
             formatted_output = "[Swarm executing...]\n"
             for agent_output in execution_result.agent_outputs[-2:]:
-                agent_name = "Gemini" if "gemini" in agent_output.agent_id.lower() else "Claude"
+                # V8.4.0: Use registry for display name
+                agent_name = self._registry.get_display_name(agent_output.agent_id)
                 formatted_output += f"\n{agent_name}:\n{agent_output.content[:300]}...\n"
 
             return self._make_result("SWARM_EXECUTING", formatted_output, None, False)
@@ -602,6 +632,12 @@ class FSMHandlers:
 
     def _handle_moderate_plus(self, user_input: str, task_analysis) -> Dict:
         """Handle MODERATE/COMPLEX/EXPERT tasks."""
+        complexity = task_analysis.complexity
+
+        # V8.0 TRUE HIVE MIND: Check if should route to Hive Mind
+        if self._should_use_hive_mind(complexity):
+            return self._route_to_hive_mind(user_input, task_analysis)
+
         # Try Swarm first if enabled
         if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
             self._logger.debug("MODERATE+ task - Swarm mode", {"input": user_input[:100]})
@@ -638,15 +674,171 @@ class FSMHandlers:
                 if self._orch.telemetry:
                     self._orch.telemetry.record_error("SWARM_EXCEPTION", str(e))
 
-        # Fallback to BRAINSTORMING
+        # Fallback to BRAINSTORMING (V8.4.0: use normalized agent ID)
         self._orch.blackboard["objective"] = user_input
         self._orch.blackboard["current_state"]["iteration"] = self._orch.iteration
-        self._orch.active_agent = "Gemini"
+        self._orch.active_agent = "gemini"  # V8.4.0: lowercase normalized
         self._orch.stagnation_detector.reset()
         self._orch.stalemate_counter = 0
 
         self._orch._transition_to(OrchestratorState.BRAINSTORMING)
         return self._make_result("BRAINSTORMING", f"[Task Started] {user_input}", "Gemini", False)
+
+    # =========================================================================
+    # V8.0 TRUE HIVE MIND Integration
+    # =========================================================================
+
+    def _should_use_hive_mind(self, complexity: TaskComplexity) -> bool:
+        """
+        Determine if task should be routed to V8 Hive Mind.
+
+        Gating logic (per user decision Q1):
+        - COMPLEX/EXPERT: Always use Hive Mind
+        - MODERATE: Use Hive Mind if hive_mind_moderate=True (default)
+        - TRIVIAL/SIMPLE: Never use Hive Mind (handled elsewhere)
+
+        Returns:
+            True if should use Hive Mind
+        """
+        if not HIVE_MIND_AVAILABLE:
+            return False
+
+        # Check if Hive Mind is enabled
+        if not getattr(self._orch.config, 'hive_mind_enabled', True):
+            return False
+
+        # COMPLEX/EXPERT: Always use Hive Mind
+        if complexity in (TaskComplexity.COMPLEX, TaskComplexity.EXPERT):
+            self._logger.info(f"Routing to Hive Mind (complexity: {complexity.name})")
+            return True
+
+        # MODERATE: Check config flag
+        if complexity == TaskComplexity.MODERATE:
+            use_for_moderate = getattr(self._orch.config, 'hive_mind_moderate', True)
+            if use_for_moderate:
+                self._logger.info("Routing MODERATE task to Hive Mind (hive_mind_moderate=True)")
+                return True
+
+        return False
+
+    def _route_to_hive_mind(self, user_input: str, task_analysis) -> Dict:
+        """
+        Route task to V8 TRUE HIVE MIND pipeline.
+
+        Initializes TrueHiveMind if needed and processes task through 7 phases.
+
+        Args:
+            user_input: User's task description
+            task_analysis: Task analysis result
+
+        Returns:
+            Result dict compatible with FSM
+        """
+        import asyncio
+
+        self._logger.info("🐝 Starting TRUE HIVE MIND V8.0 pipeline")
+
+        try:
+            # Initialize Hive Mind if not exists
+            if not hasattr(self._orch, '_hive_mind') or self._orch._hive_mind is None:
+                # V8.4.5: Pass swarm_engine for SwarmBridge delegation (Dictator Mode)
+                self._orch._hive_mind = TrueHiveMind(
+                    workspace_path=self._orch.workspace_path,
+                    config=self._orch.config,
+                    gemini_driver=self._orch.gemini_driver,
+                    claude_driver=self._orch._get_claude_driver(TaskType.BRAINSTORM),
+                    agent_pool=self._orch.agent_pool,
+                    budget_tracker=getattr(self._orch.telemetry, 'budget_tracker', None) if self._orch.telemetry else None,
+                    project_memory=self._orch.project_memory,
+                    auto_breakpoints=getattr(self._orch.config, 'hive_mind_breakpoints_enabled', True),
+                    swarm_engine=getattr(self._orch, 'swarm_engine', None)
+                )
+
+            # Map TaskComplexity to HiveComplexity
+            complexity_map = {
+                TaskComplexity.TRIVIAL: HiveComplexity.TRIVIAL,
+                TaskComplexity.SIMPLE: HiveComplexity.TRIVIAL,  # Map SIMPLE to TRIVIAL for Hive
+                TaskComplexity.MODERATE: HiveComplexity.MODERATE,
+                TaskComplexity.COMPLEX: HiveComplexity.COMPLEX,
+                TaskComplexity.EXPERT: HiveComplexity.EXPERT,
+            }
+            hive_complexity = complexity_map.get(task_analysis.complexity, HiveComplexity.MODERATE)
+
+            # Run Hive Mind (async in sync context)
+            hive_start = time.time()
+
+            # Run async HiveMind - handle already-running loops
+            try:
+                # Try to get running loop - if it exists, we're in async context
+                loop = asyncio.get_running_loop()
+                # Loop is running - use thread to avoid "already running" error
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    # Create coroutine inside thread to avoid "never awaited" warning
+                    def run_hive():
+                        return asyncio.run(
+                            self._orch._hive_mind.process_task(user_input, hive_complexity)
+                        )
+                    future = executor.submit(run_hive)
+                    result = future.result(timeout=300)  # 5 min timeout
+            except RuntimeError:
+                # No running loop - safe to use asyncio.run() directly
+                result = asyncio.run(
+                    self._orch._hive_mind.process_task(user_input, hive_complexity)
+                )
+
+            hive_duration = time.time() - hive_start
+
+            # Record telemetry
+            if self._orch.telemetry:
+                self._orch.telemetry.record_swarm_task(
+                    mode="hive_mind_v8",
+                    rounds=len(result.phases_completed),
+                    duration_seconds=hive_duration,
+                    success=result.success,
+                    agents_used=result.agents_used + result.agents_spawned
+                )
+
+            # Format result
+            if result.success:
+                output = f"🐝 [Hive Mind V8.0] Task completed\n\n{result.output}"
+                self._orch._transition_to(OrchestratorState.WAITING_USER)
+                return self._make_result("FINISHED", output, "HiveMind", True)
+            else:
+                output = f"🐝 [Hive Mind V8.0] Task failed: {result.error}\n\nPhases completed: {', '.join(result.phases_completed)}"
+                if result.state.value == "hive_escalate":
+                    # User requested escalation
+                    return self._make_result("WAITING_USER", output, "HiveMind", True)
+                else:
+                    # Error occurred
+                    return self._make_result("ERROR", output, "HiveMind", False, error=result.error)
+
+        except Exception as e:
+            self._logger.error(f"Hive Mind error: {e}", exc_info=True)
+            if self._orch.telemetry:
+                self._orch.telemetry.record_error("HIVE_MIND_ERROR", str(e))
+
+            # Fallback to Swarm/Brainstorming
+            self._logger.warn("Falling back to Swarm/Brainstorming after Hive Mind error")
+            return self._fallback_to_swarm_or_brainstorm(user_input, task_analysis)
+
+    def _fallback_to_swarm_or_brainstorm(self, user_input: str, task_analysis) -> Dict:
+        """Fallback when Hive Mind fails."""
+        # Try Swarm
+        if self._orch.swarm_engine and getattr(self._orch.config, 'swarm_auto_route', True):
+            try:
+                swarm_result = self._orch.process_with_swarm(user_input)
+                if swarm_result.get("finished") or swarm_result.get("state") == "COMPLETED":
+                    return self._format_swarm_result(swarm_result)
+            except Exception as e:
+                # V8.4.5: Log swarm failure instead of silent swallowing
+                self._logger.warn(f"Swarm processing failed, falling back to brainstorming: {str(e)[:100]}")
+
+        # Fallback to Brainstorming (V8.4.0: use normalized agent ID)
+        self._orch.blackboard["objective"] = user_input
+        self._orch.active_agent = "gemini"  # V8.4.0: lowercase normalized
+        self._orch._transition_to(OrchestratorState.BRAINSTORMING)
+        return self._make_result("BRAINSTORMING", f"[Task Started - Fallback] {user_input}", "Gemini", False)
 
     def _format_swarm_result(self, swarm_result: Dict) -> Dict:
         """Format successful swarm result."""
@@ -661,7 +853,8 @@ class FSMHandlers:
                 content = agent_data.get("content", "")
                 status = agent_data.get("status", "success")
 
-                if "gemini" in agent_id.lower():
+                # V8.4.0: Use registry for agent identification
+                if self._registry.is_gemini(agent_id):
                     agent_name = "🤖 Gemini"
                 else:
                     agent_name = "🧠 Claude"
@@ -794,7 +987,8 @@ class FSMHandlers:
 
         for iteration in range(max_tool_iterations):
             try:
-                if agent == "Claude":
+                # V8.4.0: Use registry for agent identification
+                if self._registry.is_claude(agent):
                     driver = self._get_claude_driver(TaskType.SIMPLE)
                     response = driver.invoke(context)
                 else:
@@ -909,24 +1103,306 @@ class FSMHandlers:
             self._logger.debug("Fast Path response", {"length": len(content)})
 
             return {
-                "sender": "Gemini",
-                "action_type": "TALK",
-                "content": content,
-                "status": "FINISHED",
+                "agent": "Gemini",
+                "output": content,
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True  # Mark as Fast Path response
             }
 
         except Exception as e:
-            self._logger.warning("Fast Path failed, falling back to static", {"error": str(e)})
+            self._logger.debug("Fast Path failed, falling back to static", {"error": str(e)})
             # Fallback to static response if Gemini fails
             return {
-                "sender": "NEXUS",
-                "action_type": "TALK",
-                "content": "Hello! How can I help you today?",
-                "status": "FINISHED",
+                "agent": "NEXUS",
+                "output": "Hello! How can I help you today?",
                 "state": "IDLE",
                 "finished": True,
                 "fast_path": True
             }
+
+    # =========================================================================
+    # V8.4.4: Async Native Handlers (P3 - Blind Spot Remediation)
+    # =========================================================================
+    #
+    # These async handlers run WITHOUT blocking the event loop.
+    # They use `await` for driver invocations instead of sync calls.
+    #
+    # Usage:
+    #     # In async context (e.g., orchestrator.process_turn_async)
+    #     result = await handlers.handle_brainstorming_async()
+    #
+    # The sync handlers above remain for backward compatibility.
+    # The orchestrator chooses which version to use based on context.
+    # =========================================================================
+
+    async def handle_brainstorming_async(self) -> Dict:
+        """
+        Async version of handle_brainstorming.
+
+        V8.4.4: Uses `await driver.invoke()` instead of sync call,
+        allowing the event loop to remain responsive.
+
+        Returns:
+            Result dict
+        """
+        import asyncio
+
+        # Check plan health (ZOMBIE detection) - sync, fast
+        current_plan = self._orch.blackboard.get("strategic_plan", [])
+        health = self._orch.plan_health.check_health(current_plan, self._orch.iteration)
+
+        if health["status"] == "ZOMBIE":
+            self._orch.panic_system.trigger_panic_explicit(
+                reason="ZOMBIE_PLAN",
+                details=health["message"]
+            )
+            return self._orch._trigger_panic(f"Plan zombie: {health['message']}")
+
+        elif health["status"] in ["STAGNANT", "WARNING"]:
+            if self._orch.config.ui_verbose:
+                print(f"[PLAN HEALTH] {health['status']}: {health['message']}")
+
+        # Check stagnation - sync, fast
+        if self._orch.stagnation_detector.is_stagnant():
+            return self._orch._handle_stagnation()
+
+        # Build context - sync, fast
+        context = self._build_context()
+        invoke_start = time.time()
+
+        try:
+            # ASYNC INVOKE: This is the key difference from sync handler
+            response = await self._invoke_agent_async(TaskType.BRAINSTORM, context)
+            invoke_duration = time.time() - invoke_start
+            message = self._validate_message(response)
+            self._orch.json_parse_failures = 0
+            self._orch.panic_system.reset_errors()
+
+            # Calculate quality score
+            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            quality = self._calculate_quality_score(message, True, is_stagnant)
+            self._record_invocation(
+                self._orch.active_agent, "brainstorm", True, invoke_duration, quality
+            )
+
+        except asyncio.CancelledError:
+            # Re-raise cancellation (critical for proper cleanup)
+            raise
+
+        except Exception as e:
+            invoke_duration = time.time() - invoke_start
+            self._orch.json_parse_failures += 1
+            self._record_invocation(
+                self._orch.active_agent, "brainstorm", False, invoke_duration, 0.0
+            )
+
+            if self._orch.panic_system.record_error("AGENT_INVOCATION", str(e)):
+                return self._orch._trigger_panic(f"Too many consecutive errors: {e}")
+
+            if self._orch.json_parse_failures >= self._orch.max_parse_failures:
+                return self._orch._trigger_panic(f"Agent consistently failing: {e}")
+
+            return self._orch._handle_error(f"Agent invocation failed: {e}")
+
+        # Save to history
+        self._orch.memory.add_to_history(message)
+
+        # Analyze action_type
+        action_type = message.get("action_type")
+        content = message.get("content", "")
+
+        if action_type == "TOOL_USE":
+            self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
+            tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
+            return self._make_result("EXECUTING_TOOL", content, self._orch.active_agent, False, tool=tool_name)
+
+        elif action_type in ["TALK", "DELEGATE"]:
+            self._orch.stagnation_detector.add_message(content)
+            sender = message.get("sender", self._orch.active_agent)
+
+            previous_agent = self._orch.active_agent
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
+            self._orch.stagnation_detector.reset()
+            if self._orch.config.ui_verbose:
+                print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+
+            return self._make_result("BRAINSTORMING", content, sender, False)
+
+        elif message.get("status") == "FINISHED":
+            self._orch._transition_to(OrchestratorState.IDLE)
+            return self._make_result("FINISHED", content, self._orch.active_agent, True)
+
+        return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
+
+    async def handle_validating_cfl_async(self) -> Dict:
+        """
+        Async version of handle_validating_cfl.
+
+        V8.4.4: Uses `await driver.invoke()` for CFL validation.
+
+        Returns:
+            Result dict
+        """
+        import asyncio
+
+        tool_result = self._orch.pending_tool_result
+        if not tool_result:
+            return self._orch._handle_error("No pending tool result for CFL")
+
+        context = self._build_cfl_context(tool_result)
+        invoke_start = time.time()
+
+        try:
+            # ASYNC INVOKE
+            response = await self._invoke_agent_async(TaskType.VALIDATION, context)
+            invoke_duration = time.time() - invoke_start
+            message = self._validate_message(response)
+            self._orch.json_parse_failures = 0
+
+            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            quality = self._calculate_quality_score(message, True, is_stagnant)
+            self._record_invocation(
+                self._orch.active_agent, "validation", True, invoke_duration, quality
+            )
+
+        except asyncio.CancelledError:
+            raise
+
+        except Exception as e:
+            invoke_duration = time.time() - invoke_start
+            self._orch.json_parse_failures += 1
+            self._record_invocation(
+                self._orch.active_agent, "validation", False, invoke_duration, 0.0
+            )
+
+            if self._orch.json_parse_failures >= self._orch.max_parse_failures:
+                return self._orch._trigger_panic(f"CFL validation failing: {e}")
+
+            return self._orch._handle_error(f"CFL validation failed: {e}")
+
+        self._orch.memory.add_to_history(message)
+        self._orch.pending_tool_result = None
+
+        action_type = message.get("action_type")
+        content = message.get("content", "")
+
+        if action_type == "TOOL_USE":
+            self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
+            tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
+            return self._make_result("EXECUTING_TOOL", content, self._orch.active_agent, False, tool=tool_name)
+
+        elif message.get("status") == "FINISHED":
+            self._orch._transition_to(OrchestratorState.IDLE)
+            return self._make_result("FINISHED", content, self._orch.active_agent, True)
+
+        else:
+            self._orch._transition_to(OrchestratorState.BRAINSTORMING)
+            previous_agent = self._orch.active_agent
+            self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
+            if self._orch.config.ui_verbose:
+                print(f"[CFL] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
+            return self._make_result("BRAINSTORMING", content, self._orch.active_agent, False)
+
+    async def handle_fast_path_async(self, user_input: str) -> Dict:
+        """
+        Async version of handle_fast_path.
+
+        V8.4.4: Uses async driver for fast conversational responses.
+
+        Args:
+            user_input: Trivial conversational input
+
+        Returns:
+            Result dict with FINISHED status
+        """
+        self._logger.debug("Fast Path (async) triggered", {"input": user_input[:50]})
+
+        fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
+
+        try:
+            context = {
+                "prompt": fast_prompt,
+                "task_type": "simple",
+                "max_tokens": 150,
+            }
+            # ASYNC INVOKE
+            response = await self._invoke_agent_async(TaskType.SIMPLE, context, agent="gemini")
+
+            if isinstance(response, dict):
+                content = response.get("content", response.get("text", str(response)))
+            else:
+                content = str(response)
+
+            self._logger.debug("Fast Path (async) response", {"length": len(content)})
+
+            return {
+                "agent": "Gemini",
+                "output": content,
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True,
+                "async": True
+            }
+
+        except Exception as e:
+            self._logger.debug("Fast Path (async) failed, falling back to static", {"error": str(e)})
+            return {
+                "agent": "NEXUS",
+                "output": "Hello! How can I help you today?",
+                "state": "IDLE",
+                "finished": True,
+                "fast_path": True
+            }
+
+    async def _invoke_agent_async(
+        self,
+        task_type: TaskType,
+        context: str,
+        agent: str = None
+    ) -> Dict:
+        """
+        Async agent invocation using async drivers.
+
+        V8.4.4: This method uses `await` to invoke drivers without blocking.
+
+        Args:
+            task_type: Type of task for model routing
+            context: Prompt context
+            agent: Specific agent to use (or active_agent)
+
+        Returns:
+            Agent response dict
+        """
+        agent = agent or self._orch.active_agent
+
+        # Check for async driver availability
+        if agent == "gemini" and hasattr(self._orch, 'async_gemini_driver'):
+            driver = self._orch.async_gemini_driver
+            return await driver.invoke(context)
+
+        elif agent == "claude" and hasattr(self._orch, 'async_claude_driver'):
+            driver = self._orch.async_claude_driver
+            return await driver.invoke(context)
+
+        else:
+            # Fallback: run sync driver in executor to not block
+            import asyncio
+            loop = asyncio.get_event_loop()
+
+            if agent == "gemini":
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._orch.gemini_driver.invoke(context)
+                )
+            else:
+                return await loop.run_in_executor(
+                    None,
+                    lambda: self._orch.claude_driver.invoke(context)
+                )
+
+    # Property to check if async handlers are available
+    @property
+    def has_async_handlers(self) -> bool:
+        """Check if async handlers are available."""
+        return True  # V8.4.4: Always available

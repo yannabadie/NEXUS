@@ -102,6 +102,11 @@ class PathGuardian:
             if not in_allowed_zone:
                 return False, resolved, f"[SECURITY] Read outside allowed zones: {resolved}"
 
+            # V9 SECURITY: Check sacred files for READ operations too
+            # These files (like .env) contain credentials that should NEVER be readable by agents
+            if self._is_sacred(resolved):
+                return False, resolved, f"[SECURITY] Protected file cannot be read: {resolved.name}"
+
             return True, resolved, "OK"
 
         except Exception as e:
