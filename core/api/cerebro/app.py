@@ -6,8 +6,10 @@ Creates the CEREBRO API application with:
 - Tenant context middleware (HTTP only)
 - WebSocket streaming endpoint
 - Health check endpoints
+- V11.5 CORTEX: State snapshot, interactions, workflow, files endpoints
 
 V11.3 HARDENING: CORS origins from environment variable.
+V11.5 CORTEX: API control & state persistence for CEREBRO UI.
 
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
@@ -96,8 +98,17 @@ def create_cerebro_app() -> FastAPI:
 
     # Include routers
     from .routes import health, stream
+
+    # Core routers (V10)
     app.include_router(health.router, prefix="/health", tags=["health"])
     app.include_router(stream.router, prefix="/ws", tags=["websocket"])
+
+    # V11.5 CORTEX routers
+    from .routes import state, interactions, workflow, files
+    app.include_router(state.router, prefix="/api/state", tags=["state"])
+    app.include_router(interactions.router, prefix="/api/interactions", tags=["interactions"])
+    app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
+    app.include_router(files.router, prefix="/api/files", tags=["files"])
 
     # Root endpoint
     @app.get("/", tags=["root"])
@@ -105,10 +116,15 @@ def create_cerebro_app() -> FastAPI:
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "10.0.0",
+            "version": "11.5.0",  # V11.5 CORTEX
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
+            # V11.5 CORTEX endpoints
+            "state": "/api/state/snapshot",
+            "interactions": "/api/interactions/pending",
+            "workflow": "/api/workflow/start",
+            "files": "/api/files/content",
         }
 
     return app

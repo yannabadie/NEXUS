@@ -1,0 +1,232 @@
+"""
+NEXUS V11.5 CORTEX - Secure File Access Endpoints
+
+Enables secure file operations for CEREBRO UI:
+- GET /api/files/content : Read file content (size-limited, path-validated)
+- POST /api/files/save : Save file content (path-validated)
+
+Security Features:
+- PathGuardian for path validation (prevents path traversal)
+- 1MB file size limit (OOM protection)
+- Sacred file protection (.env, KERNEL.py, etc.)
+
+Author: Claude (NEXUS V11.5 CORTEX)
+Date: 2025-12-15
+"""
+
+import logging
+from pathlib import Path
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+# =============================================================================
+# Constants - OOM Protection
+# =============================================================================
+
+MAX_FILE_SIZE = 1_000_000  # 1MB limit (pattern from tool_executor.py:152)
+
+
+# =============================================================================
+# Request Models
+# =============================================================================
+
+class FileWriteRequest(BaseModel):
+    """Request body for file write operations."""
+    path: str
+    content: str
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def _get_guardian():
+    """
+    Get PathGuardian for current workspace.
+
+    Returns:
+        PathGuardian instance configured for workspace
+    """
+    try:
+        from core.config import Config
+        from core.security.path_guardian import PathGuardian
+
+        config = Config()
+        workspace = Path(config.workspace_path).resolve()
+        nexus_root = workspace.parent  # Parent directory for read access
+
+        return PathGuardian(workspace, nexus_root)
+    except Exception as e:
+        logger.error(f"Failed to create PathGuardian: {e}")
+        raise HTTPException(500, f"Security configuration error: {e}")
+
+
+# =============================================================================
+# Endpoints
+# =============================================================================
+
+@router.get("/content")
+async def read_file(
+    path: str = Query(..., description="Relative path to file"),
+    workspace_id: str = Query("default", description="Workspace identifier"),
+) -> Dict[str, Any]:
+    """
+    Read file content with size limit and path validation.
+
+    Security:
+    - PathGuardian validates path is in allowed zones
+    - 1MB file size limit prevents OOM
+    - Sacred files (.env, KERNEL.py) are protected
+
+    Args:
+        path: Relative path to file (relative to workspace)
+        workspace_id: Workspace identifier (for future multi-workspace)
+
+    Returns:
+        {"path": "...", "content": "...", "size": ...}
+
+    Raises:
+        403: Access denied (path traversal, sacred file)
+        404: File not found
+        413: File too large (> 1MB)
+        500: Read failed
+    """
+    guardian = _get_guardian()
+
+    # Validate path with PathGuardian
+    is_valid, resolved_path, message = guardian.validate_read(path)
+
+    if not is_valid:
+        logger.warning(f"[CORTEX] File access denied: {path} - {message}")
+        raise HTTPException(403, f"Access denied: {message}")
+
+    # Check file exists
+    if not resolved_path.exists():
+        raise HTTPException(404, f"File not found: {path}")
+
+    if not resolved_path.is_file():
+        raise HTTPException(400, f"Not a file: {path}")
+
+    # SIZE LIMIT CHECK (OOM protection)
+    try:
+        file_size = resolved_path.stat().st_size
+    except OSError as e:
+        raise HTTPException(500, f"Cannot stat file: {e}")
+
+    if file_size > MAX_FILE_SIZE:
+        logger.warning(
+            f"[CORTEX] File too large: {path} ({file_size} bytes > {MAX_FILE_SIZE})"
+        )
+        raise HTTPException(
+            413,  # Payload Too Large
+            f"File too large: {file_size:,} bytes exceeds {MAX_FILE_SIZE:,} byte limit"
+        )
+
+    # Read file content
+    try:
+        content = resolved_path.read_text(encoding="utf-8")
+        logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars)")
+        return {
+            "path": path,
+            "content": content,
+            "size": len(content),
+        }
+    except UnicodeDecodeError:
+        raise HTTPException(400, f"File is not valid UTF-8 text: {path}")
+    except Exception as e:
+        logger.error(f"[CORTEX] Read failed: {path} - {e}")
+        raise HTTPException(500, f"Read failed: {e}")
+
+
+@router.post("/save")
+async def save_file(
+    body: FileWriteRequest,
+    workspace_id: str = Query("default", description="Workspace identifier"),
+) -> Dict[str, str]:
+    """
+    Save file content with path validation.
+
+    Security:
+    - PathGuardian validates path is in workspace
+    - Absolute paths are rejected
+    - Sacred files (.env, KERNEL.py) are protected
+
+    Args:
+        body: FileWriteRequest with path and content
+        workspace_id: Workspace identifier (for future multi-workspace)
+
+    Returns:
+        {"status": "saved", "path": "..."}
+
+    Raises:
+        403: Access denied (absolute path, sacred file, outside workspace)
+        500: Write failed
+    """
+    guardian = _get_guardian()
+
+    # Validate path with PathGuardian
+    is_valid, resolved_path, message = guardian.validate_write(body.path)
+
+    if not is_valid:
+        logger.warning(f"[CORTEX] File write denied: {body.path} - {message}")
+        raise HTTPException(403, f"Access denied: {message}")
+
+    # Write file content
+    try:
+        # Create parent directories if needed
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write content
+        resolved_path.write_text(body.content, encoding="utf-8")
+
+        logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars)")
+        return {"status": "saved", "path": body.path}
+
+    except Exception as e:
+        logger.error(f"[CORTEX] Write failed: {body.path} - {e}")
+        raise HTTPException(500, f"Write failed: {e}")
+
+
+@router.get("/info")
+async def file_info(
+    path: str = Query(..., description="Relative path to file"),
+) -> Dict[str, Any]:
+    """
+    Get file metadata without reading content.
+
+    Useful for checking file size before reading.
+
+    Args:
+        path: Relative path to file
+
+    Returns:
+        {"path": "...", "exists": bool, "size": int, "is_file": bool, "can_read": bool}
+
+    Raises:
+        403: Access denied
+    """
+    guardian = _get_guardian()
+
+    is_valid, resolved_path, message = guardian.validate_read(path)
+
+    if not is_valid:
+        raise HTTPException(403, f"Access denied: {message}")
+
+    exists = resolved_path.exists()
+    is_file = resolved_path.is_file() if exists else False
+    file_size = resolved_path.stat().st_size if is_file else 0
+
+    return {
+        "path": path,
+        "exists": exists,
+        "size": file_size,
+        "is_file": is_file,
+        "is_directory": resolved_path.is_dir() if exists else False,
+        "can_read": file_size <= MAX_FILE_SIZE,
+    }

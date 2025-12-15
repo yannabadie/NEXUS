@@ -50,6 +50,7 @@ _sequence_counter: ContextVar[int] = ContextVar("sequence_counter", default=0)
 
 MAX_PAYLOAD_SIZE = 1024  # 1KB limit for payload
 EMIT_SYNC_TIMEOUT = 0.1  # 100ms max for sync emit
+STATE_TTL = 86400  # 24 hours - V11.5 CORTEX state persistence (F5 recovery)
 
 
 # =============================================================================
@@ -176,6 +177,74 @@ class TelemetryBridge:
         return payload_copy, True
 
     # =========================================================================
+    # V11.5 CORTEX - State Persistence for F5 Recovery
+    # =========================================================================
+
+    async def _persist_state(
+        self,
+        tenant_id: str,
+        workspace_id: str,
+        event_type: "CerebroEventType",
+        payload: Dict[str, Any]
+    ) -> None:
+        """
+        Persist stateful events to Redis for snapshot recovery (F5 recovery).
+
+        V11.5 CORTEX: Enables UI to recover state after browser refresh.
+        Persists phase state, graph nodes, and recent logs.
+
+        Args:
+            tenant_id: Tenant identifier
+            workspace_id: Workspace identifier
+            event_type: Event type to determine persistence behavior
+            payload: Event payload data
+        """
+        try:
+            from core.events.redis_bus import get_redis_bus
+            from core.events.types import CerebroEventType
+
+            bus = get_redis_bus()
+            if not bus.is_connected():
+                return
+
+            redis = bus._redis
+            if not redis:
+                return
+
+            base_key = f"nexus:{tenant_id}:{workspace_id}:state"
+
+            # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
+            if event_type in (CerebroEventType.HIVE_PHASE_START,
+                              CerebroEventType.HIVE_STATE_CHANGE):
+                await redis.set(
+                    f"{base_key}:phase",
+                    json.dumps(payload, default=str),
+                    ex=STATE_TTL
+                )
+
+            # Graph nodes (spawn/update)
+            elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
+                node_id = payload.get("node_id", "unknown")
+                await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
+                await redis.expire(f"{base_key}:nodes", STATE_TTL)
+
+            elif event_type == CerebroEventType.GRAPH_NODE_UPDATE:
+                node_id = payload.get("node_id", "unknown")
+                await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
+                # Refresh TTL on update
+                await redis.expire(f"{base_key}:nodes", STATE_TTL)
+
+            # Logs (capped list - max 100 entries)
+            elif event_type == CerebroEventType.LOG:
+                await redis.lpush(f"{base_key}:logs", json.dumps(payload, default=str))
+                await redis.ltrim(f"{base_key}:logs", 0, 99)  # Keep only 100 most recent
+                await redis.expire(f"{base_key}:logs", STATE_TTL)
+
+        except Exception as e:
+            # Fire-and-forget: never block, log at debug level
+            logger.debug(f"State persistence failed (non-blocking): {e}")
+
+    # =========================================================================
     # Emission Methods
     # =========================================================================
 
@@ -224,7 +293,17 @@ class TelemetryBridge:
 
             # Publish (fire-and-forget)
             bus = get_redis_bus()
-            return await bus.publish(event)
+            result = await bus.publish(event)
+
+            # V11.5 CORTEX: Persist stateful events for F5 recovery
+            await self._persist_state(
+                tenant_id=event.tenant_id,
+                workspace_id=event.workspace_id,
+                event_type=event_type,
+                payload=payload_final
+            )
+
+            return result
 
         except Exception as e:
             logger.debug(f"Telemetry emit failed (non-blocking): {e}")
