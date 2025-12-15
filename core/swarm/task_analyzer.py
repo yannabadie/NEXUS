@@ -521,11 +521,14 @@ class TaskAnalyzer:
         # Calculate complexity (V11.2: with RAG boost)
         base_complexity = self._calculate_complexity(input_lower, domains)
         # Apply RAG complexity boost (0.0-0.3 maps to 0-1 complexity levels)
+        # V11.2.1 FIX: Use round() instead of int() to avoid truncation
+        # int(0.3 * 3) = int(0.9) = 0 ← BUG! round(0.9) = 1 ← CORRECT
         if complexity_boost > 0:
-            boosted_value = min(5, base_complexity.value + int(complexity_boost * 3))
+            boost_levels = round(complexity_boost * 3.34)  # 0.3 * 3.34 = 1.0 → 1 level
+            boosted_value = min(5, base_complexity.value + boost_levels)
             complexity = TaskComplexity(boosted_value)
             if boosted_value != base_complexity.value:
-                detected_keywords.append(f"[RAG_COMPLEXITY:+{int(complexity_boost * 3)}]")
+                detected_keywords.append(f"[RAG_COMPLEXITY:+{boost_levels}]")
         else:
             complexity = base_complexity
 
