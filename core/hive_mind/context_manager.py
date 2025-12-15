@@ -107,6 +107,10 @@ class HiveMindContextManager:
         "default": 8000,
     }
 
+    # V10 FIX F12: Hard cap for CRITICAL items to prevent overflow
+    # CRITICAL items are never evicted, so large ones can saturate context
+    CRITICAL_MAX_TOKENS = 5000
+
     def __init__(self, max_tokens: int = 50000):
         """
         Initialize context manager.
@@ -154,6 +158,18 @@ class HiveMindContextManager:
             priority=priority,
             metadata=metadata or {}
         )
+
+        # V10 FIX F12: Truncate CRITICAL items if too large
+        # CRITICAL items are never evicted, so we must cap them upfront
+        if priority == ContextPriority.CRITICAL and item.token_estimate > self.CRITICAL_MAX_TOKENS:
+            logger.warning(
+                f"CRITICAL item too large ({item.token_estimate} tokens), "
+                f"truncating to {self.CRITICAL_MAX_TOKENS} tokens"
+            )
+            ratio = self.CRITICAL_MAX_TOKENS / item.token_estimate
+            new_len = int(len(item.content) * ratio * 0.95)  # 5% margin
+            item.content = item.content[:new_len] + "...[CRITICAL TRUNCATED]"
+            item.token_estimate = self.CRITICAL_MAX_TOKENS
 
         # Evict if needed before adding
         while self._current_tokens + item.token_estimate > self.max_tokens:

@@ -18,6 +18,7 @@ Date: 2025-12-04
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -27,6 +28,9 @@ from threading import RLock
 from typing import Any, Dict, List, Optional
 
 from core.utils.atomic_store import AtomicJsonStore
+
+# V10 FIX F9: Explicit logging for session operations
+logger = logging.getLogger(__name__)
 
 
 class SessionStatus(str, Enum):
@@ -197,11 +201,21 @@ class SwarmSessionManager:
     def _load_registry(self) -> None:
         """Load the session registry from disk."""
         with self._lock:
-            data = self._store.load_safe()
-            tasks_data = data.get("tasks", {})
+            try:
+                data = self._store.load_safe()
+                tasks_data = data.get("tasks", {})
 
-            for task_id, task_data in tasks_data.items():
-                self._tasks[task_id] = TaskSession.from_dict(task_data)
+                for task_id, task_data in tasks_data.items():
+                    self._tasks[task_id] = TaskSession.from_dict(task_data)
+
+                # V10 FIX F9: Log successful load
+                if tasks_data:
+                    logger.debug(f"Loaded {len(tasks_data)} tasks from registry")
+            except Exception as e:
+                # V10 FIX F9: Explicit logging fallback
+                logger.error(f"Failed to load session registry: {e}")
+                logger.warning("Starting with empty session registry (data may be lost)")
+                self._tasks = {}
 
     def _save_registry(self) -> None:
         """Save the session registry to disk atomically."""
@@ -214,7 +228,13 @@ class SwarmSessionManager:
                     for task_id, task in self._tasks.items()
                 }
             }
-            self._store.save(data)
+            try:
+                self._store.save(data)
+                logger.debug(f"Saved {len(self._tasks)} tasks to registry")
+            except Exception as e:
+                # V10 FIX F9: Explicit logging fallback - continue in memory
+                logger.error(f"Failed to save session registry: {e}")
+                logger.warning("Session data is in memory only - will be lost on restart")
 
     def create_task(
         self,
@@ -251,6 +271,9 @@ class SwarmSessionManager:
             )
 
             self._tasks[task_id] = task
+
+            # V10 FIX F9: Log task creation
+            logger.info(f"Created task {task_id} (mode={swarm_mode}, ephemeral={is_ephemeral})")
 
             # V7.8.2 Phase 7b: Skip persistence for ephemeral tasks
             if not is_ephemeral:
@@ -349,6 +372,9 @@ class SwarmSessionManager:
             )
 
             task.roles[role] = session
+
+            # V10 FIX F9: Log session creation
+            logger.info(f"Created session for {agent_id}/{role} in task {task_id} (uuid={session_uuid[:8]}...)")
 
             # V7.8.2 Phase 7b: Skip persistence for ephemeral tasks
             if not task.is_ephemeral:
@@ -578,6 +604,8 @@ class SwarmSessionManager:
 
             if to_remove:
                 self._save_registry()
+                # V10 FIX F9: Log cleanup
+                logger.info(f"Cleaned up {len(to_remove)} completed tasks older than {max_age_hours}h")
 
             return len(to_remove)
 

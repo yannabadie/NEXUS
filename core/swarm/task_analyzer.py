@@ -154,6 +154,65 @@ COMPLEXITY_INDICATORS: Dict[str, int] = {
     "just": -1, "only": -1, "trivial": -1,
 }
 
+# =============================================================================
+# V10 FIX F1: Context-Aware Classification Patterns
+# =============================================================================
+
+# Sentence structure patterns that indicate task type
+TASK_STRUCTURE_PATTERNS = {
+    # Multi-step tasks (complexity +1)
+    "multi_step": [
+        r'\b(first|then|after that|finally|next)\b',
+        r'\b(step\s*\d|phase\s*\d)\b',
+        r'\d+\.\s+\w+',  # Numbered lists
+        r'\band\s+then\b',
+    ],
+    # Questions (usually ANALYSIS domain)
+    "question": [
+        r'\?$',
+        r'^(what|why|how|where|when|which|who)\b',
+        r'^(is|are|do|does|can|could|should|would)\b.*\?',
+    ],
+    # Imperative commands (direct action)
+    "imperative": [
+        r'^(create|write|implement|add|remove|delete|fix|update|change)\b',
+        r'^(run|execute|test|build|deploy|install)\b',
+        r'^(find|search|look|check|verify|validate)\b',
+    ],
+    # Conditional tasks (complexity +1)
+    "conditional": [
+        r'\bif\s+.+\s+(then|do|create)\b',
+        r'\bwhen\s+.+\s+(then|do|should)\b',
+        r'\bunless\b',
+        r'\bdepending on\b',
+    ],
+}
+
+# Context clues that provide additional classification signals
+CONTEXT_CLUE_PATTERNS = {
+    # File references indicate CODING domain
+    "file_reference": [
+        r'\b[\w/\\]+\.(py|js|ts|go|rs|java|cpp|c|h|md|json|yaml|yml|toml)\b',
+        r'`[^`]+\.(py|js|ts|go|rs|java|cpp|c|h)`',
+    ],
+    # Code blocks indicate CODING domain
+    "code_block": [
+        r'```[\w]*\n',
+        r'`[^`]{10,}`',  # Inline code longer than 10 chars
+    ],
+    # URLs indicate WEB_INTERACTION domain
+    "url_reference": [
+        r'https?://[^\s]+',
+        r'\bapi\.[\w.]+\b',
+    ],
+    # Error messages indicate DEBUGGING domain
+    "error_message": [
+        r'\b(error|exception|traceback|stack trace)\b.*:',
+        r'\bline\s+\d+\b',
+        r'\b(TypeError|ValueError|KeyError|AttributeError|ImportError)\b',
+    ],
+}
+
 
 @dataclass
 class TaskAnalysis:
@@ -234,11 +293,30 @@ class TaskAnalyzer:
 
     Uses keyword matching and heuristics to classify tasks
     for optimal mode selection.
+
+    V10 FIX F1: Enhanced with context-aware classification beyond keywords.
     """
 
     def __init__(self):
         self._domain_patterns = self._compile_patterns()
         self._trivial_patterns = self._compile_trivial_patterns()
+        # V10 FIX F1: Compile context patterns
+        self._structure_patterns = self._compile_structure_patterns()
+        self._context_patterns = self._compile_context_patterns()
+
+    def _compile_structure_patterns(self) -> Dict[str, List[re.Pattern]]:
+        """V10 FIX F1: Compile task structure patterns."""
+        compiled = {}
+        for category, patterns in TASK_STRUCTURE_PATTERNS.items():
+            compiled[category] = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in patterns]
+        return compiled
+
+    def _compile_context_patterns(self) -> Dict[str, List[re.Pattern]]:
+        """V10 FIX F1: Compile context clue patterns."""
+        compiled = {}
+        for category, patterns in CONTEXT_CLUE_PATTERNS.items():
+            compiled[category] = [re.compile(p, re.IGNORECASE) for p in patterns]
+        return compiled
 
     def _compile_trivial_patterns(self) -> list:
         """Compile regex patterns for trivial conversational inputs"""
@@ -359,6 +437,13 @@ class TaskAnalyzer:
                 domain_scores[domain] = len(matches)
                 detected_keywords.extend(matches)
 
+        # V10 FIX F1: Merge context-inferred domains
+        context_domains = self._infer_domains_from_context(text)
+        for domain in context_domains:
+            if domain not in domain_scores:
+                domain_scores[domain] = 1  # Context inference counts as 1 match
+                detected_keywords.append(f"[CONTEXT:{domain.value}]")
+
         # Sort by score descending
         sorted_domains = sorted(
             domain_scores.keys(),
@@ -371,7 +456,7 @@ class TaskAnalyzer:
     def _calculate_complexity(
         self, text: str, domains: List[TaskDomain]
     ) -> TaskComplexity:
-        """Calculate task complexity based on indicators"""
+        """Calculate task complexity based on indicators and structure (V10 FIX F1)."""
         score = 3  # Start at MODERATE
 
         # Apply keyword modifiers
@@ -392,6 +477,9 @@ class TaskAnalyzer:
             score += 1
         elif len(text) < 50:
             score -= 1
+
+        # V10 FIX F1: Apply structure-based complexity adjustments
+        score = self._adjust_complexity_from_structure(score, text)
 
         # Clamp to valid range
         score = max(1, min(5, score))
@@ -515,4 +603,125 @@ class TaskAnalyzer:
         if 50 < len(text) < 1000:
             confidence += 0.1
 
+        # V10 FIX F1: Context clues boost confidence
+        context_clues = self._detect_context_clues(text)
+        if context_clues:
+            confidence += min(0.15, len(context_clues) * 0.05)
+
         return min(1.0, confidence)
+
+    # =========================================================================
+    # V10 FIX F1: Context-Aware Analysis Methods
+    # =========================================================================
+
+    def _analyze_task_structure(self, text: str) -> Dict[str, bool]:
+        """
+        V10 FIX F1: Analyze task structure beyond keywords.
+
+        Detects:
+        - Multi-step tasks (numbered lists, "first...then...")
+        - Questions vs commands
+        - Conditional logic
+        - Imperative style
+
+        Returns:
+            Dict with structure flags
+        """
+        structure = {
+            "is_multi_step": False,
+            "is_question": False,
+            "is_imperative": False,
+            "is_conditional": False,
+        }
+
+        for category, patterns in self._structure_patterns.items():
+            for pattern in patterns:
+                if pattern.search(text):
+                    structure[f"is_{category}"] = True
+                    break
+
+        return structure
+
+    def _detect_context_clues(self, text: str) -> List[str]:
+        """
+        V10 FIX F1: Detect context clues that inform classification.
+
+        Returns:
+            List of detected context clue types
+        """
+        clues = []
+
+        for category, patterns in self._context_patterns.items():
+            for pattern in patterns:
+                if pattern.search(text):
+                    clues.append(category)
+                    break
+
+        return clues
+
+    def _infer_domains_from_context(self, text: str) -> List[TaskDomain]:
+        """
+        V10 FIX F1: Infer domains from context clues, not just keywords.
+
+        Returns:
+            List of inferred domains
+        """
+        inferred = []
+        clues = self._detect_context_clues(text)
+
+        # Map context clues to domains
+        clue_domain_map = {
+            "file_reference": TaskDomain.CODING,
+            "code_block": TaskDomain.CODING,
+            "url_reference": TaskDomain.WEB_INTERACTION,
+            "error_message": TaskDomain.DEBUGGING,
+        }
+
+        for clue in clues:
+            if clue in clue_domain_map:
+                domain = clue_domain_map[clue]
+                if domain not in inferred:
+                    inferred.append(domain)
+
+        # Structure-based inference
+        structure = self._analyze_task_structure(text)
+        if structure.get("is_question") and not inferred:
+            inferred.append(TaskDomain.ANALYSIS)
+
+        return inferred
+
+    def _adjust_complexity_from_structure(
+        self,
+        base_complexity: int,
+        text: str
+    ) -> int:
+        """
+        V10 FIX F1: Adjust complexity based on task structure analysis.
+
+        Args:
+            base_complexity: Initial complexity score
+            text: Task text
+
+        Returns:
+            Adjusted complexity score
+        """
+        structure = self._analyze_task_structure(text)
+
+        # Multi-step tasks are more complex
+        if structure.get("is_multi_step"):
+            base_complexity += 1
+
+        # Conditional tasks are more complex
+        if structure.get("is_conditional"):
+            base_complexity += 1
+
+        # Pure questions without action verbs are simpler
+        if structure.get("is_question") and not structure.get("is_imperative"):
+            base_complexity -= 1
+
+        # Context clues that indicate complexity
+        clues = self._detect_context_clues(text)
+        if "error_message" in clues:
+            base_complexity += 1  # Debugging from error is non-trivial
+
+        return base_complexity

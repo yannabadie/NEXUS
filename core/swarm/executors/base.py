@@ -47,6 +47,8 @@ class ExecutionStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CONVERGED = "converged"
+    # V10 FIX F14: Max rounds reached without convergence
+    INCOMPLETE = "incomplete"
 
 
 @dataclass

@@ -61,6 +61,10 @@ from .mode_executors import (
 from .task_analyzer import TaskComplexity
 from .task_completion_validator import get_adaptive_max_rounds
 
+# V10 SYNAPSE: Telemetry instrumentation
+from core.events.telemetry_bridge import get_telemetry_bridge
+from core.events.types import CerebroEventType
+
 class SwarmPhase(Enum):
     """Current phase of swarm processing"""
     IDLE = "idle"
@@ -225,6 +229,11 @@ class HybridSwarmEngine:
         try:
             # Phase 1: Analyze task
             self.current_phase = SwarmPhase.ANALYZING
+            # V10 SYNAPSE: Emit phase change telemetry (sync)
+            get_telemetry_bridge().emit_sync(
+                CerebroEventType.SWARM_PHASE_CHANGE,
+                {"phase": self.current_phase.value, "task_id": task_id}
+            )
             analysis = self.task_analyzer.analyze(task_input)
             self._current_analysis = analysis
 
@@ -240,6 +249,11 @@ class HybridSwarmEngine:
 
             # Phase 2: Select mode (or use forced mode)
             self.current_phase = SwarmPhase.SELECTING
+            # V10 SYNAPSE: Emit phase change telemetry (sync)
+            get_telemetry_bridge().emit_sync(
+                CerebroEventType.SWARM_PHASE_CHANGE,
+                {"phase": self.current_phase.value, "task_id": task_id}
+            )
             if force_mode:
                 proposal = self._create_forced_proposal(force_mode, analysis)
             else:
@@ -252,6 +266,11 @@ class HybridSwarmEngine:
 
             if negotiation_enabled and not skip_negotiation and not force_mode:
                 self.current_phase = SwarmPhase.NEGOTIATING
+                # V10 SYNAPSE: Emit phase change telemetry (sync)
+                get_telemetry_bridge().emit_sync(
+                    CerebroEventType.SWARM_PHASE_CHANGE,
+                    {"phase": self.current_phase.value, "task_id": task_id}
+                )
                 negotiation_result = self._run_negotiation(
                     analysis, proposal, on_turn=on_negotiation_turn
                 )
@@ -276,6 +295,11 @@ class HybridSwarmEngine:
 
             # Phase 4: Execute
             self.current_phase = SwarmPhase.EXECUTING
+            # V10 SYNAPSE: Emit phase change telemetry (sync)
+            get_telemetry_bridge().emit_sync(
+                CerebroEventType.SWARM_PHASE_CHANGE,
+                {"phase": self.current_phase.value, "task_id": task_id, "mode": final_mode.value}
+            )
 
             # V7.9: Adaptive max_rounds based on task complexity
             config_max_rounds = self._get_config("swarm_max_rounds", None)
@@ -325,6 +349,11 @@ class HybridSwarmEngine:
             # Complete
             self.current_phase = SwarmPhase.COMPLETED
             total_time = (datetime.now() - start_time).total_seconds()
+            # V10 SYNAPSE: Emit phase change telemetry (sync)
+            get_telemetry_bridge().emit_sync(
+                CerebroEventType.SWARM_PHASE_CHANGE,
+                {"phase": self.current_phase.value, "task_id": task_id, "duration": total_time}
+            )
 
             result = SwarmResult(
                 status=SwarmPhase.COMPLETED,
@@ -366,6 +395,11 @@ class HybridSwarmEngine:
         except Exception as e:
             self.current_phase = SwarmPhase.FAILED
             total_time = (datetime.now() - start_time).total_seconds()
+            # V10 SYNAPSE: Emit phase change telemetry (sync) (sync since we're in except)
+            get_telemetry_bridge().emit_sync(
+                CerebroEventType.SWARM_PHASE_CHANGE,
+                {"phase": self.current_phase.value, "task_id": task_id, "error": str(e)[:200]}
+            )
 
             # Create error result
             return SwarmResult(

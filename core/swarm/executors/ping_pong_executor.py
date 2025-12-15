@@ -155,12 +155,13 @@ class PingPongExecutor(ModeExecutor):
 
             current_idx += 1
 
-        # Max rounds reached
+        # Max rounds reached without convergence
+        # V10 FIX F14: Use INCOMPLETE instead of COMPLETED
         final_output = outputs[-1].content if outputs else ""
 
         return ExecutionResult(
             mode=self.mode,
-            status=ExecutionStatus.COMPLETED,
+            status=ExecutionStatus.INCOMPLETE,  # V10: Max rounds != completion
             final_output=final_output,
             agent_outputs=outputs,
             total_rounds=context.max_rounds,
@@ -169,6 +170,7 @@ class PingPongExecutor(ModeExecutor):
             metadata={
                 "execution_type": "ping_pong",
                 "max_rounds_reached": True,
-                "false_finish_count": false_finish_count
+                "false_finish_count": false_finish_count,
+                "reason": "max_rounds_exceeded_without_convergence"  # V10: Explicit reason
             }
         )

@@ -20,7 +20,7 @@ Usage:
 import sys
 import time
 import logging
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 from core.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
@@ -328,7 +328,9 @@ class FSMHandlers:
         elif "✗" in content or "error" in content.lower() or "failed" in content.lower():
             validation_success = False
         else:
-            validation_success = True
+            # V10 FIX F8: Conservative default - ambiguity = failure
+            validation_success = False
+            logger.warning("CFL validation ambiguous (no success/error markers), defaulting to failure")
 
         # Reset pending result
         self._orch.pending_tool_result = None
@@ -610,7 +612,11 @@ class FSMHandlers:
         """Handle TRIVIAL complexity tasks."""
         if getattr(self._orch.config, 'fast_path_enabled', True):
             self._logger.debug("TRIVIAL task - Fast Path enabled", {"input": user_input})
-            return self._handle_fast_path(user_input)
+            result = self._handle_fast_path(user_input)
+            # V10 FIX F2: Fast Path can return None to escalate
+            if result is not None:
+                return result
+            self._logger.debug("Fast Path escalated to normal flow")
 
         # Static fallback responses
         self._logger.debug("TRIVIAL task - static fallback", {"input": user_input})
@@ -1018,11 +1024,23 @@ class FSMHandlers:
             content = message.get("content", "")
 
             if action_type == "TOOL_USE":
-                # Execute tool directly (NO CFL validation for simple tasks)
+                # V10 FIX F3: Light CFL validation for simple tasks
                 tool_use = message.get("tool_use", {})
                 tool_name = tool_use.get("tool_name", "unknown")
 
-                self._logger.debug(f"[SIMPLE MODE] Executing tool: {tool_name}")
+                # Light validation: check for dangerous patterns
+                light_cfl_ok, light_cfl_reason = self._light_cfl_validate(tool_use, user_input)
+                if not light_cfl_ok:
+                    self._logger.warning(f"[SIMPLE MODE] Light CFL blocked: {light_cfl_reason}")
+                    return self._make_result(
+                        "ERROR",
+                        f"Tool execution blocked by safety check: {light_cfl_reason}",
+                        agent,
+                        True,
+                        error=light_cfl_reason
+                    )
+
+                self._logger.debug(f"[SIMPLE MODE] Executing tool: {tool_name} (light CFL: OK)")
 
                 try:
                     tool_request = ToolUse(**tool_use)
@@ -1067,12 +1085,72 @@ class FSMHandlers:
             True
         )
 
+    def _light_cfl_validate(self, tool_use: Dict, user_input: str) -> Tuple[bool, str]:
+        """
+        V10 FIX F3: Light CFL validation for SIMPLE tasks.
+
+        Performs basic safety checks without full agent alternation.
+        Checks for:
+        - Dangerous shell commands
+        - Path traversal attempts
+        - Misaligned tool/task combinations
+
+        Args:
+            tool_use: Tool use request dict
+            user_input: Original user input for context
+
+        Returns:
+            Tuple of (is_safe, reason_if_blocked)
+        """
+        tool_name = tool_use.get("tool_name", "").lower()
+        args = tool_use.get("arguments", {})
+
+        # Check 1: Dangerous bash commands
+        if tool_name == "bash":
+            command = args.get("command", "")
+            dangerous_patterns = [
+                r'\brm\s+(-rf?|--force)',  # Destructive rm
+                r'\bsudo\b',                # Privilege escalation
+                r'\bchmod\s+777\b',         # Insecure permissions
+                r'\bcurl\s+.*\|\s*sh',      # Pipe to shell
+                r'\bwget\s+.*\|\s*sh',      # Pipe to shell
+                r'\beval\s+',               # Eval injection
+                r'>\s*/etc/',               # Write to system dirs
+                r'\bdd\s+.*of=/dev/',       # Low-level disk write
+            ]
+            import re
+            for pattern in dangerous_patterns:
+                if re.search(pattern, command, re.IGNORECASE):
+                    return False, f"Dangerous command pattern: {pattern}"
+
+        # Check 2: Path traversal in file operations
+        if tool_name in ["read", "write", "edit"]:
+            path = args.get("file_path", args.get("path", ""))
+            if ".." in path or path.startswith("/etc/") or path.startswith("/root/"):
+                return False, f"Suspicious path: {path}"
+
+        # Check 3: Task/tool alignment sanity check
+        # If user asked about reading but agent wants to write, flag it
+        input_lower = user_input.lower()
+        read_intent = any(w in input_lower for w in ["read", "show", "display", "cat", "what is", "list"])
+        write_intent = any(w in input_lower for w in ["write", "create", "edit", "modify", "delete", "remove"])
+
+        if tool_name == "write" and read_intent and not write_intent:
+            return False, "Tool mismatch: user asked to read but agent wants to write"
+
+        if tool_name == "bash" and "rm " in args.get("command", "") and not any(w in input_lower for w in ["delete", "remove", "clean"]):
+            return False, "Tool mismatch: delete command without delete intent"
+
+        return True, ""
+
     def _handle_fast_path(self, user_input: str) -> Dict:
         """
         V7.5 Phase 9: Fast Path for trivial conversational inputs.
 
         Bypasses FSM entirely for greetings, thanks, etc.
         Target: <2s response time.
+
+        V10 FIX F2: Added light validation to catch misclassified tasks.
 
         Args:
             user_input: Trivial conversational input (greeting, thanks, etc.)
@@ -1081,6 +1159,12 @@ class FSMHandlers:
             Standard result dict with FINISHED status
         """
         self._logger.debug("Fast Path triggered", {"input": user_input[:50]})
+
+        # V10 FIX F2: Quick check - is this REALLY a trivial input?
+        # If input looks like an actual task, escalate to normal FSM
+        if self._is_actual_task(user_input):
+            self._logger.debug("Fast Path rejected - input looks like actual task")
+            return None  # Signal to escalate to normal flow
 
         # Use Gemini driver for fast response (cheaper/faster than Opus)
         fast_prompt = f"Tu es NEXUS, un assistant intelligent. Réponds brièvement et poliment à: {user_input}"
@@ -1102,13 +1186,19 @@ class FSMHandlers:
 
             self._logger.debug("Fast Path response", {"length": len(content)})
 
-            return {
-                "agent": "Gemini",
-                "output": content,
-                "state": "IDLE",
-                "finished": True,
-                "fast_path": True  # Mark as Fast Path response
-            }
+            # V10 FIX F2: Light validation - response should be conversational
+            if self._fast_path_validation(user_input, content):
+                return {
+                    "agent": "Gemini",
+                    "output": content,
+                    "state": "IDLE",
+                    "finished": True,
+                    "fast_path": True,  # Mark as Fast Path response
+                    "validated": True   # V10: Validation passed
+                }
+            else:
+                self._logger.debug("Fast Path validation failed, escalating")
+                return None  # Escalate to normal flow
 
         except Exception as e:
             self._logger.debug("Fast Path failed, falling back to static", {"error": str(e)})
@@ -1120,6 +1210,59 @@ class FSMHandlers:
                 "finished": True,
                 "fast_path": True
             }
+
+    def _is_actual_task(self, user_input: str) -> bool:
+        """
+        V10 FIX F2: Check if input looks like an actual task vs greeting.
+
+        Returns True if input should NOT use Fast Path.
+        """
+        input_lower = user_input.lower().strip()
+
+        # Task indicators - should NOT use Fast Path
+        task_indicators = [
+            "fix", "create", "write", "implement", "add", "remove", "delete",
+            "update", "modify", "change", "debug", "test", "deploy", "build",
+            "analyze", "review", "check", "find", "search", "explain", "help me",
+            "can you", "could you", "would you", "please", "i need", "i want"
+        ]
+
+        # Check for task indicators
+        for indicator in task_indicators:
+            if indicator in input_lower:
+                return True
+
+        # Check for file references
+        if re.search(r'\.\w{1,5}\b', user_input):  # File extension
+            return True
+
+        # Check for code patterns
+        if re.search(r'[{}\[\]()<>]|def |class |function|import ', user_input):
+            return True
+
+        # Check minimum length (greetings are usually short)
+        if len(user_input) > 100:
+            return True
+
+        return False
+
+    def _fast_path_validation(self, user_input: str, response: str) -> bool:
+        """
+        V10 FIX F2: Light validation for Fast Path responses.
+
+        Ensures response is appropriate for a greeting/trivial input.
+        """
+        # Response should be reasonably short for trivial inputs
+        if len(response) > 500:
+            return False
+
+        # Response should not contain task-related content
+        task_patterns = ["```", "file:", "error:", "warning:", "traceback"]
+        for pattern in task_patterns:
+            if pattern.lower() in response.lower():
+                return False
+
+        return True
 
     # =========================================================================
     # V8.4.4: Async Native Handlers (P3 - Blind Spot Remediation)

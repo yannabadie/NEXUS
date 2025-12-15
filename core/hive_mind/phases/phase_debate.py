@@ -52,6 +52,130 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# V10 FIX F11: Misalignment Detection
+# =============================================================================
+
+@dataclass
+class MisalignmentFlag:
+    """Flag indicating potential inter-agent misalignment."""
+    flag_type: str  # e.g., "silent_dissent", "input_dismissal", "premature_closure"
+    pattern_matched: str
+    severity: str  # "LOW", "MEDIUM", "HIGH"
+    agent_id: str
+    turn_number: int
+    context: str  # Snippet of the problematic text
+
+
+class MisalignmentDetector:
+    """
+    V10 FIX F11: Detects inter-agent misalignment patterns.
+
+    Based on MASFT taxonomy:
+    - Information withholding
+    - Input dismissal
+    - Reasoning-action mismatch
+    - Premature closure
+    """
+
+    # Patterns indicating misalignment (from MASFT research)
+    MISALIGNMENT_PATTERNS = {
+        "silent_dissent": [
+            r"I disagree but will proceed",
+            r"against my better judgment",
+            r"I have concerns but",
+            r"not ideal but acceptable",
+        ],
+        "input_dismissal": [
+            r"ignoring.*input",
+            r"disregard.*previous",
+            r"regardless of.*said",
+            r"irrelevant.*point",
+        ],
+        "premature_closure": [
+            r"already decided",
+            r"no need to discuss",
+            r"conclusion is obvious",
+            r"let's just proceed",
+            r"debate is unnecessary",
+        ],
+        "reasoning_action_mismatch": [
+            r"even though.*should.*I will",
+            r"better approach.*but doing",
+            r"recommended.*but implementing",
+        ],
+    }
+
+    # Severity levels by pattern type
+    SEVERITY_MAP = {
+        "silent_dissent": "MEDIUM",
+        "input_dismissal": "HIGH",
+        "premature_closure": "HIGH",
+        "reasoning_action_mismatch": "HIGH",
+    }
+
+    def __init__(self):
+        self._flags: List[MisalignmentFlag] = []
+
+    def check_argument(
+        self,
+        argument: "DebateArgument",
+        agent_id: str,
+        turn_number: int,
+        previous_context: str = ""
+    ) -> List[MisalignmentFlag]:
+        """
+        Check an argument for misalignment patterns.
+
+        Args:
+            argument: The debate argument to check
+            agent_id: Agent that produced the argument
+            turn_number: Current debate turn
+            previous_context: Context from previous turns
+
+        Returns:
+            List of MisalignmentFlag if patterns detected
+        """
+        new_flags = []
+        text_to_check = argument.argument + " " + (argument.concession or "")
+
+        for pattern_type, patterns in self.MISALIGNMENT_PATTERNS.items():
+            for pattern in patterns:
+                if re.search(pattern, text_to_check, re.IGNORECASE):
+                    flag = MisalignmentFlag(
+                        flag_type=pattern_type,
+                        pattern_matched=pattern,
+                        severity=self.SEVERITY_MAP.get(pattern_type, "LOW"),
+                        agent_id=agent_id,
+                        turn_number=turn_number,
+                        context=text_to_check[:200]
+                    )
+                    new_flags.append(flag)
+                    self._flags.append(flag)
+                    logger.warning(
+                        f"V10 MISALIGNMENT DETECTED: {pattern_type} by {agent_id} "
+                        f"at turn {turn_number} (pattern: {pattern})"
+                    )
+
+        return new_flags
+
+    def get_all_flags(self) -> List[MisalignmentFlag]:
+        """Get all detected misalignment flags."""
+        return self._flags.copy()
+
+    def get_high_severity_count(self) -> int:
+        """Count HIGH severity flags."""
+        return sum(1 for f in self._flags if f.severity == "HIGH")
+
+    def should_escalate(self, threshold: int = 2) -> bool:
+        """Check if misalignment level requires escalation."""
+        return self.get_high_severity_count() >= threshold
+
+    def reset(self):
+        """Clear all flags."""
+        self._flags.clear()
+
+
 # Debate prompt templates
 DEBATE_OPENER_PROMPT = """You are participating in a NEXUS Hive Mind debate.
 
@@ -149,6 +273,8 @@ class DebatePhaseResult:
     final_mode: str
     was_skipped: bool = False
     skip_reason: Optional[str] = None
+    # V10 FIX F11: Misalignment tracking
+    misalignment_flags: Optional[List[MisalignmentFlag]] = None
 
 
 class StrategicDebatePhase:
@@ -192,6 +318,9 @@ class StrategicDebatePhase:
         self._task_id = task_id or generate_hivemind_task_id("debate")
         self._session_manager = session_manager
         self._session_integration: Optional[HiveMindSessionIntegration] = None
+
+        # V10 FIX F11: Misalignment detector
+        self._misalignment_detector = MisalignmentDetector()
 
     async def execute(
         self,
@@ -270,6 +399,35 @@ class StrategicDebatePhase:
                 current_speaker,
                 argument.argument
             )
+
+            # V10 FIX F11: Check for inter-agent misalignment
+            misalignment_flags = self._misalignment_detector.check_argument(
+                argument=argument,
+                agent_id=current_speaker,
+                turn_number=turn_number,
+                previous_context=self._format_debate_history(debate_history[:-1]) if len(debate_history) > 1 else ""
+            )
+            if misalignment_flags:
+                logger.warning(f"Phase 2: {len(misalignment_flags)} misalignment flag(s) detected at turn {turn_number}")
+
+            # V10 FIX F11: Escalate if too many HIGH severity flags
+            if self._misalignment_detector.should_escalate(threshold=2):
+                logger.error("Phase 2: Misalignment escalation - too many HIGH severity flags")
+                return self._create_result(
+                    debate_history=debate_history,
+                    consensus={
+                        "consensus_reached": False,
+                        "consensus_score": 0.3,
+                        "resolved_points": [],
+                        "unresolved_points": ["misalignment_escalation"],
+                        "final_approach": "ESCALATE: Manual review required due to inter-agent misalignment",
+                        "final_capabilities": [],
+                        "gemini_satisfaction": 0.2,
+                        "claude_satisfaction": 0.2,
+                        "reasoning": f"Misalignment detected: {len(self._misalignment_detector.get_all_flags())} flags"
+                    },
+                    status="MISALIGNMENT_ESCALATION"
+                )
 
             # Record agent behavior for learning
             self.debate_config.record_agent_argument(
@@ -660,5 +818,7 @@ class StrategicDebatePhase:
             final_approach=debate_result.final_approach,
             final_capabilities=debate_result.final_capabilities,
             final_mode=mode,
-            was_skipped=False
+            was_skipped=False,
+            # V10 FIX F11: Include misalignment flags
+            misalignment_flags=self._misalignment_detector.get_all_flags() if hasattr(self, '_misalignment_detector') else None
         )

@@ -100,6 +100,8 @@ class PhaseCheckpoint:
         timestamp: When checkpoint was created
         context_index: Index in conversation history (for rollback truncation)
         compensation_name: Name of compensation function to run on rollback
+        conversation_summary: V10 FIX F10 - Compressed conversation for LLM context restoration
+        agent_states: V10 FIX F10 - Per-agent state snapshots
     """
     phase: str
     result: Dict[str, Any]
@@ -107,10 +109,13 @@ class PhaseCheckpoint:
     timestamp: datetime
     context_index: int = 0
     compensation_name: Optional[str] = None
+    # V10 FIX F10: LLM context restoration support
+    conversation_summary: Optional[str] = None
+    agent_states: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize checkpoint to dict for JSON storage."""
-        return {
+        data = {
             "phase": self.phase,
             "result": self.result,
             "state": self.state,
@@ -118,6 +123,12 @@ class PhaseCheckpoint:
             "context_index": self.context_index,
             "compensation_name": self.compensation_name,
         }
+        # V10 FIX F10: Include LLM context if present
+        if self.conversation_summary:
+            data["conversation_summary"] = self.conversation_summary
+        if self.agent_states:
+            data["agent_states"] = self.agent_states
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PhaseCheckpoint":
@@ -129,6 +140,9 @@ class PhaseCheckpoint:
             timestamp=datetime.fromisoformat(data["timestamp"]),
             context_index=data.get("context_index", 0),
             compensation_name=data.get("compensation_name"),
+            # V10 FIX F10: Restore LLM context
+            conversation_summary=data.get("conversation_summary"),
+            agent_states=data.get("agent_states"),
         )
 
 
@@ -390,6 +404,8 @@ class SagaManager:
         state: "HiveMindState",
         context_index: int,
         compensation: Optional[Callable] = None,
+        conversation_summary: Optional[str] = None,
+        agent_states: Optional[Dict[str, str]] = None,
     ) -> PhaseCheckpoint:
         """
         Create a checkpoint after successful phase completion.
@@ -400,6 +416,8 @@ class SagaManager:
             state: Current HiveMindState
             context_index: Index in conversation history for rollback truncation
             compensation: Optional compensation function for rollback
+            conversation_summary: V10 FIX F10 - Summary of conversation for LLM context
+            agent_states: V10 FIX F10 - Per-agent state snapshots
 
         Returns:
             Created PhaseCheckpoint
@@ -415,6 +433,9 @@ class SagaManager:
             timestamp=datetime.now(),
             context_index=context_index,
             compensation_name=phase if compensation else None,
+            # V10 FIX F10: LLM context for recovery
+            conversation_summary=conversation_summary,
+            agent_states=agent_states,
         )
 
         # Store in memory
@@ -633,6 +654,118 @@ class SagaManager:
             True if file was deleted
         """
         return self._store.delete()
+
+    # -------------------------------------------------------------------------
+    # V10 FIX F10: LLM Context Management
+    # -------------------------------------------------------------------------
+
+    def get_recovery_context(self) -> Optional[Dict[str, Any]]:
+        """
+        V10 FIX F10: Get LLM context from last checkpoint for recovery.
+
+        Returns:
+            Dict with 'conversation_summary' and 'agent_states' if available
+        """
+        if not self._recovery_point:
+            return None
+
+        checkpoint = self._checkpoints.get(self._recovery_point)
+        if not checkpoint:
+            return None
+
+        return {
+            "phase": checkpoint.phase,
+            "conversation_summary": checkpoint.conversation_summary,
+            "agent_states": checkpoint.agent_states,
+            "timestamp": checkpoint.timestamp.isoformat(),
+        }
+
+    @staticmethod
+    def create_conversation_summary(
+        context_manager: Any,
+        max_tokens: int = 1000
+    ) -> str:
+        """
+        V10 FIX F10: Create a compressed summary of conversation for checkpointing.
+
+        Args:
+            context_manager: HiveMindContextManager instance
+            max_tokens: Maximum tokens for summary
+
+        Returns:
+            Compressed conversation summary string
+        """
+        if context_manager is None:
+            return ""
+
+        try:
+            # Use context_manager's summarize method if available
+            if hasattr(context_manager, 'summarize_for_inheritance'):
+                return context_manager.summarize_for_inheritance(max_tokens=max_tokens)
+
+            # Fallback: extract key items
+            if hasattr(context_manager, '_items'):
+                summary_parts = []
+                for item in list(context_manager._items)[-10:]:  # Last 10 items
+                    summary_parts.append(f"[{item.category}:{item.source}] {item.content[:200]}")
+                return "\n".join(summary_parts)
+
+            return ""
+        except Exception as e:
+            logger.warning(f"Failed to create conversation summary: {e}")
+            return ""
+
+    @staticmethod
+    def create_agent_states(agents: Dict[str, Any]) -> Dict[str, str]:
+        """
+        V10 FIX F10: Capture current state of each agent for checkpoint.
+
+        Args:
+            agents: Dict of agent_id -> agent instance
+
+        Returns:
+            Dict of agent_id -> state summary string
+        """
+        states = {}
+        for agent_id, agent in agents.items():
+            try:
+                if hasattr(agent, 'get_state_summary'):
+                    states[agent_id] = agent.get_state_summary()
+                elif hasattr(agent, 'last_response'):
+                    states[agent_id] = f"Last response: {str(agent.last_response)[:500]}"
+                else:
+                    states[agent_id] = "active"
+            except Exception as e:
+                states[agent_id] = f"error: {e}"
+        return states
+
+    def build_recovery_prompt(self, task: str) -> str:
+        """
+        V10 FIX F10: Build a prompt that includes recovery context for agents.
+
+        Args:
+            task: Original task description
+
+        Returns:
+            Enhanced prompt with recovery context
+        """
+        context = self.get_recovery_context()
+        if not context:
+            return task
+
+        recovery_prompt = f"""[RECOVERY MODE - Resuming from checkpoint]
+
+Original Task: {task}
+
+Last Successful Phase: {context['phase']}
+Checkpoint Time: {context['timestamp']}
+
+Previous Progress Summary:
+{context.get('conversation_summary', 'No summary available')}
+
+Please continue from where we left off. The task was partially completed up to the {context['phase']} phase.
+"""
+        return recovery_prompt
 
     # -------------------------------------------------------------------------
     # Status & Debugging

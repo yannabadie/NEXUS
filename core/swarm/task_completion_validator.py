@@ -9,6 +9,7 @@ Validation Layers:
 2. Artifact Verification - Files mentioned actually exist
 3. Semantic Completion Check - Did the agent address the task?
 4. Tool Usage Validation - Were appropriate tools used for the task type?
+5. V10 FIX F13: Task Requirement Alignment - Are task requirements addressed?
 
 Usage:
     validator = TaskCompletionValidator(workspace_path)
@@ -85,6 +86,17 @@ class TaskCompletionValidator:
         "created", "modified", "updated", "fixed", "implemented",
         "added", "removed", "refactored", "wrote", "edited"
     }
+
+    # V10 FIX F13: Action verbs that indicate task requirements
+    ACTION_VERBS = {
+        "create", "write", "implement", "add", "fix", "update", "modify",
+        "delete", "remove", "refactor", "test", "validate", "check",
+        "build", "deploy", "configure", "setup", "install", "migrate",
+        "analyze", "review", "audit", "debug", "optimize", "document"
+    }
+
+    # V10 FIX F13: Minimum semantic alignment score (0.0-1.0)
+    SEMANTIC_ALIGNMENT_THRESHOLD = 0.3
 
     def __init__(self, workspace_path: Optional[Path] = None):
         """
@@ -186,6 +198,18 @@ class TaskCompletionValidator:
                 f"Response depth doesn't match {task_analysis.complexity.name} complexity"
             )
 
+        # V10 FIX F13: Check 7 - Semantic alignment (task requirements addressed?)
+        total_checks += 1
+        alignment_score, unaddressed_reqs = self._calculate_semantic_alignment(
+            task_input, agent_response
+        )
+        if alignment_score >= self.SEMANTIC_ALIGNMENT_THRESHOLD:
+            checks_passed += 1
+        else:
+            missing_criteria.append(
+                f"Semantic alignment too low ({alignment_score:.0%}): {unaddressed_reqs[:2]}"
+            )
+
         # Calculate confidence
         confidence = checks_passed / total_checks if total_checks > 0 else 0.0
 
@@ -269,6 +293,114 @@ class TaskCompletionValidator:
             TaskComplexity.EXPERT: 0.8
         }
         return thresholds.get(complexity, 0.6)
+
+    # =========================================================================
+    # V10 FIX F13: Semantic Alignment Validation
+    # =========================================================================
+
+    def _extract_task_requirements(self, task_input: str) -> Dict[str, Set[str]]:
+        """
+        Extract key requirements from task description.
+
+        V10 FIX F13: Goes beyond keywords to extract semantic requirements.
+
+        Returns:
+            Dict with 'actions', 'targets', 'key_terms'
+        """
+        task_lower = task_input.lower()
+        words = set(re.findall(r'\b\w+\b', task_lower))
+
+        # Extract action verbs from task
+        actions = words & self.ACTION_VERBS
+
+        # Extract potential targets (nouns after action verbs)
+        # Simple heuristic: words near action verbs
+        targets = set()
+        for match in re.finditer(r'\b(' + '|'.join(self.ACTION_VERBS) + r')\s+(?:the\s+)?(\w+)', task_lower):
+            targets.add(match.group(2))
+
+        # Extract file patterns
+        file_patterns = set(re.findall(r'\b[\w/\\]+\.\w{1,5}\b', task_input))
+        targets.update(file_patterns)
+
+        # Extract quoted strings (specific requirements)
+        quoted = set(re.findall(r'["\']([^"\']+)["\']', task_input))
+        key_terms = set()
+        for q in quoted:
+            key_terms.update(re.findall(r'\b\w+\b', q.lower()))
+
+        # Add important nouns (excluding common words)
+        common_words = {
+            'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+            'could', 'should', 'may', 'might', 'must', 'shall', 'can',
+            'this', 'that', 'these', 'those', 'it', 'its', 'to', 'for',
+            'in', 'on', 'at', 'by', 'with', 'from', 'of', 'and', 'or'
+        }
+        key_terms.update(words - common_words - self.ACTION_VERBS)
+
+        return {
+            'actions': actions,
+            'targets': targets,
+            'key_terms': key_terms
+        }
+
+    def _calculate_semantic_alignment(
+        self,
+        task_input: str,
+        response: str
+    ) -> Tuple[float, List[str]]:
+        """
+        Calculate semantic alignment between task and response.
+
+        V10 FIX F13: Checks if response addresses task requirements.
+
+        Returns:
+            Tuple of (alignment_score, unaddressed_requirements)
+        """
+        requirements = self._extract_task_requirements(task_input)
+        response_lower = response.lower()
+        response_words = set(re.findall(r'\b\w+\b', response_lower))
+
+        unaddressed = []
+        scores = []
+
+        # Check actions: Were requested actions performed?
+        if requirements['actions']:
+            # Look for past tense or related words
+            action_matches = 0
+            for action in requirements['actions']:
+                # Check action or its past tense variants
+                past_forms = {action, action + 'd', action + 'ed', action[:-1] + 'ied' if action.endswith('y') else action}
+                if any(form in response_lower for form in past_forms):
+                    action_matches += 1
+                else:
+                    unaddressed.append(f"action:{action}")
+
+            action_score = action_matches / len(requirements['actions'])
+            scores.append(action_score * 2)  # Weight actions higher
+
+        # Check targets: Were targets mentioned?
+        if requirements['targets']:
+            target_matches = sum(1 for t in requirements['targets'] if t in response_lower)
+            target_score = target_matches / len(requirements['targets'])
+            scores.append(target_score)
+            if target_score < 0.5:
+                unaddressed.append(f"targets:{list(requirements['targets'] - response_words)[:3]}")
+
+        # Check key terms overlap
+        if requirements['key_terms']:
+            overlap = requirements['key_terms'] & response_words
+            term_score = len(overlap) / len(requirements['key_terms'])
+            scores.append(term_score)
+
+        # Calculate weighted average
+        if scores:
+            alignment = sum(scores) / len(scores)
+        else:
+            alignment = 0.5  # No requirements extracted, neutral score
+
+        return min(alignment, 1.0), unaddressed
 
     def quick_validate(self, response: str) -> Tuple[bool, str]:
         """

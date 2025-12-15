@@ -548,10 +548,63 @@ class MonitoredExecutionPhase:
         return issues
 
     async def _verify_artifacts(self, artifacts: List[str]) -> bool:
-        """Verify that artifacts exist."""
-        # TODO: Implement actual file verification via tool_executor
-        # For now, assume verified if tool_executor is set
-        return self.tool_executor is not None
+        """
+        Verify that artifacts actually exist on filesystem.
+
+        V10 FIX F15: Implements real verification instead of always True.
+
+        Args:
+            artifacts: List of artifact paths or descriptors.
+                       Supports formats: "file:path", "path", or bare filenames.
+
+        Returns:
+            True if ALL artifacts verified, False if ANY missing.
+        """
+        from pathlib import Path
+
+        if not artifacts:
+            return True  # No artifacts to verify
+
+        verified_count = 0
+        failed_artifacts = []
+
+        for artifact in artifacts:
+            # Normalize artifact path
+            if artifact.startswith("file:"):
+                path_str = artifact[5:]
+            elif artifact.startswith("created:"):
+                path_str = artifact[8:]
+            else:
+                path_str = artifact
+
+            # Skip non-file artifacts (URLs, etc.)
+            if path_str.startswith(("http://", "https://", "data:")):
+                verified_count += 1
+                continue
+
+            # Verify file exists
+            try:
+                path = Path(path_str)
+                if path.exists():
+                    verified_count += 1
+                    logger.debug(f"Artifact verified: {path_str}")
+                else:
+                    failed_artifacts.append(path_str)
+                    logger.warning(f"Artifact NOT FOUND: {path_str}")
+            except Exception as e:
+                failed_artifacts.append(f"{path_str} (error: {e})")
+                logger.warning(f"Artifact verification error: {path_str} - {e}")
+
+        # Log summary
+        if failed_artifacts:
+            logger.error(
+                f"Artifact verification FAILED: {len(failed_artifacts)}/{len(artifacts)} missing. "
+                f"Missing: {failed_artifacts[:5]}{'...' if len(failed_artifacts) > 5 else ''}"
+            )
+            return False
+
+        logger.info(f"All {verified_count} artifacts verified successfully")
+        return True
 
     def get_execution_summary(self, result: ExecutionPhaseResult) -> Dict[str, Any]:
         """Get a summary of execution for diagnosis."""

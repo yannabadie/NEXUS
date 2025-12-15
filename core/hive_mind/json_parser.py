@@ -23,6 +23,87 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def _smart_quote_replace(json_str: str) -> str:
+    """
+    V10 FIX F6: Smart single-to-double quote replacement.
+
+    Replaces single quotes used as JSON string delimiters,
+    but preserves apostrophes within strings (e.g., "It's working").
+
+    Args:
+        json_str: JSON-like string with single quotes
+
+    Returns:
+        String with smart quote replacement
+    """
+    result = []
+    i = 0
+    in_string = False
+    string_char = None
+
+    while i < len(json_str):
+        c = json_str[i]
+
+        if not in_string:
+            if c == '"':
+                # Start of double-quoted string
+                in_string = True
+                string_char = '"'
+                result.append(c)
+            elif c == "'":
+                # Single quote as string delimiter - check context
+                # Look for pattern: {'key': or , 'value' or ['item'
+                prev_non_ws = _find_prev_non_ws(json_str, i)
+                if prev_non_ws in ('{', ',', '[', ':'):
+                    # This is likely a string delimiter, convert to "
+                    in_string = True
+                    string_char = "'"
+                    result.append('"')
+                else:
+                    # Keep as-is (might be in content)
+                    result.append(c)
+            else:
+                result.append(c)
+        else:
+            # Inside a string
+            if c == '\\':
+                # Escape sequence - keep next char as-is
+                result.append(c)
+                if i + 1 < len(json_str):
+                    i += 1
+                    result.append(json_str[i])
+            elif c == string_char:
+                # End of string
+                if string_char == "'":
+                    result.append('"')  # Convert closing quote too
+                else:
+                    result.append(c)
+                in_string = False
+                string_char = None
+            elif c == "'" and string_char == '"':
+                # Apostrophe inside double-quoted string - keep it
+                result.append(c)
+            elif c == '"' and string_char == "'":
+                # Double quote inside single-quoted string - escape it
+                result.append('\\"')
+            else:
+                result.append(c)
+
+        i += 1
+
+    return ''.join(result)
+
+
+def _find_prev_non_ws(s: str, pos: int) -> str:
+    """Find previous non-whitespace character before position."""
+    pos -= 1
+    while pos >= 0:
+        if not s[pos].isspace():
+            return s[pos]
+        pos -= 1
+    return ''
+
+
 def parse_json_response(
     response: Any,
     agent_id: str = "unknown",
@@ -74,11 +155,9 @@ def parse_json_response(
     except (ValueError, SyntaxError):
         pass
 
-    # Strategy 3: Fix common JSON issues
+    # Strategy 3: Fix common JSON issues (V10 FIX F6: Smart quote handling)
     try:
-        fixed = json_str
-        # Replace single quotes with double quotes (naive but often works)
-        fixed = fixed.replace("'", '"')
+        fixed = _smart_quote_replace(json_str)
         # Fix Python booleans/None
         fixed = re.sub(r'\bTrue\b', 'true', fixed)
         fixed = re.sub(r'\bFalse\b', 'false', fixed)
@@ -104,8 +183,8 @@ def parse_json_response(
                     try:
                         return json.loads(candidate)
                     except json.JSONDecodeError:
-                        # Try with fixes
-                        fixed = candidate.replace("'", '"')
+                        # Try with fixes (V10 FIX F6: Use smart quote replace)
+                        fixed = _smart_quote_replace(candidate)
                         fixed = re.sub(r'\bTrue\b', 'true', fixed)
                         fixed = re.sub(r'\bFalse\b', 'false', fixed)
                         fixed = re.sub(r'\bNone\b', 'null', fixed)

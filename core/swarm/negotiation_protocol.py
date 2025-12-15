@@ -199,6 +199,8 @@ class NegotiationProtocol:
     3. Agent 2 (Claude) reacts/accepts
     4. Repeat until consensus or max_turns
     5. Fallback to initial proposal if no consensus
+
+    V10 FIX F7: Adaptive max_turns based on task complexity.
     """
 
     # Regex to extract <negotiate> JSON
@@ -207,27 +209,65 @@ class NegotiationProtocol:
         re.DOTALL | re.IGNORECASE
     )
 
+    # V10 FIX F7: Adaptive max_turns by complexity
+    ADAPTIVE_MAX_TURNS = {
+        1: 2,   # TRIVIAL: Quick consensus or skip
+        2: 3,   # SIMPLE: Brief negotiation
+        3: 4,   # MODERATE: Standard negotiation
+        4: 6,   # COMPLEX: Extended discussion
+        5: 8,   # EXPERT: Thorough deliberation
+    }
+
     def __init__(
         self,
         max_turns: int = 4,
         consensus_threshold: float = 0.6,
         skip_trivial: bool = True,
-        timeout_seconds: Optional[float] = 60.0
+        timeout_seconds: Optional[float] = 60.0,
+        adaptive_turns: bool = True  # V10 FIX F7
     ):
         """
         Initialize NegotiationProtocol.
 
         Args:
-            max_turns: Maximum negotiation turns before timeout
+            max_turns: Maximum negotiation turns before timeout (base value)
             consensus_threshold: Minimum confidence for consensus
             skip_trivial: Skip negotiation for trivial tasks
             timeout_seconds: Maximum time in seconds for negotiation (None = no limit)
+            adaptive_turns: V10 FIX F7 - Adjust max_turns based on task complexity
         """
-        self.max_turns = max_turns
+        self.base_max_turns = max_turns
+        self.max_turns = max_turns  # Will be adjusted per-task if adaptive
         self.consensus_threshold = consensus_threshold
         self.skip_trivial = skip_trivial
         self.timeout_seconds = timeout_seconds
+        self.adaptive_turns = adaptive_turns  # V10 FIX F7
         self.negotiation_log: List[Dict] = []
+
+    def _get_adaptive_max_turns(self, task_analysis: TaskAnalysis) -> int:
+        """
+        V10 FIX F7: Calculate adaptive max_turns based on task complexity.
+
+        Complex tasks get more negotiation rounds, trivial tasks get fewer.
+
+        Args:
+            task_analysis: Task analysis with complexity level
+
+        Returns:
+            Adjusted max_turns value
+        """
+        if not self.adaptive_turns:
+            return self.base_max_turns
+
+        complexity_value = task_analysis.complexity.value if hasattr(task_analysis.complexity, 'value') else int(task_analysis.complexity)
+        adaptive = self.ADAPTIVE_MAX_TURNS.get(complexity_value, self.base_max_turns)
+
+        # Log adjustment if different from base
+        if adaptive != self.base_max_turns:
+            import sys
+            print(f"[NEGOTIATION] Adaptive max_turns: {adaptive} (complexity={complexity_value})", file=sys.stderr)
+
+        return adaptive
 
     def run_negotiation(
         self,
@@ -264,10 +304,13 @@ class NegotiationProtocol:
         current_proposal = initial_proposal
         start_time = time.time()
 
+        # V10 FIX F7: Use adaptive max_turns based on complexity
+        effective_max_turns = self._get_adaptive_max_turns(task_analysis)
+
         # Agents alternate: Gemini starts
         agents = ["gemini", "claude"]
 
-        while current_turn < self.max_turns:
+        while current_turn < effective_max_turns:
             # Check time-based timeout
             if self.timeout_seconds is not None:
                 elapsed = time.time() - start_time
