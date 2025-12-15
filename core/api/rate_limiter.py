@@ -154,6 +154,21 @@ class APIRateLimiter:
 
         return max(0.0, time_until_expire)
 
+    async def acquire(self, timeout: float = 30.0) -> None:
+        """
+        V11 FIX F16: Async acquire alias for acquire_async().
+
+        This method exists because base.py:356 calls acquire() but only
+        acquire_async() and acquire_sync() existed before.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+
+        Raises:
+            RateLimitExceeded: If timeout reached without acquiring token
+        """
+        await self.acquire_async(timeout)
+
     async def acquire_async(self, timeout: float = 30.0) -> None:
         """
         Acquire a rate limit token (async version).

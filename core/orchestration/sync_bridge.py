@@ -59,6 +59,9 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
+# V11 FIX F20: AsyncRWLock for async methods (prevents event loop blocking)
+from core.async_primitives.rwlock import AsyncRWLock
+
 if TYPE_CHECKING:
     from core.hive_mind.saga_manager import SagaManager
     from core.swarm.session_manager import SwarmSessionManager
@@ -169,7 +172,10 @@ class OrchestratorSyncBridge:
         self._saga: Optional["SagaManager"] = saga_manager
         self._session: Optional["SwarmSessionManager"] = session_manager
         self._workspace = Path(workspace_path) if workspace_path else None
-        self._lock = RLock()
+        self._lock = RLock()  # For sync methods
+
+        # V11 FIX F20: Async lock for async methods (prevents event loop blocking)
+        self._async_lock = AsyncRWLock()
 
         # Event history for audit
         self._events: List[SyncEvent] = []
@@ -179,6 +185,9 @@ class OrchestratorSyncBridge:
 
         # Task ID mapping: HiveMind task_id → Swarm task_id correlation
         self._task_correlation: Dict[str, Dict[str, str]] = {}
+
+        # V10 SYNAPSE: Setup telemetry hook
+        self._setup_telemetry()
 
         logger.debug("OrchestratorSyncBridge initialized")
 
@@ -356,7 +365,8 @@ class OrchestratorSyncBridge:
         Returns:
             True if propagation succeeded
         """
-        with self._lock:
+        # V11 FIX F20: Use async lock instead of threading RLock
+        async with self._async_lock.write():
             checkpoint_data = checkpoint_data or {}
 
             if source == "hivemind" and self._session:
@@ -458,7 +468,8 @@ class OrchestratorSyncBridge:
         Returns:
             True if both rollbacks succeeded
         """
-        with self._lock:
+        # V11 FIX F20: Use async lock instead of threading RLock
+        async with self._async_lock.write():
             self._record_event(SyncEvent(
                 event_type=SyncEventType.ROLLBACK_STARTED,
                 source="sync_bridge",
@@ -642,6 +653,38 @@ class OrchestratorSyncBridge:
             callback: Function called for each sync event
         """
         self._on_sync_callbacks.append(callback)
+
+    def _setup_telemetry(self) -> None:
+        """
+        Wire telemetry to sync events (V10 SYNAPSE).
+
+        Registers a callback that emits GRAPH_EDGE_MESSAGE events
+        for each sync event between HiveMind and Swarm.
+        """
+        try:
+            from core.events.telemetry_bridge import get_telemetry_bridge
+            from core.events.types import CerebroEventType
+
+            bridge = get_telemetry_bridge()
+
+            def telemetry_callback(event: SyncEvent) -> None:
+                """Emit telemetry for sync events."""
+                bridge.emit_sync(
+                    CerebroEventType.GRAPH_EDGE_MESSAGE,
+                    {
+                        "source": event.source,
+                        "target": "sync_bridge",
+                        "event_type": event.event_type.value,
+                        "task_id": event.task_id[:12] if event.task_id else "unknown",
+                        "payload_preview": str(event.data)[:100] if event.data else "",
+                    }
+                )
+
+            self.on_sync(telemetry_callback)
+            logger.debug("V10 SYNAPSE: Telemetry hook registered")
+        except ImportError:
+            # Telemetry not available (optional dependency)
+            logger.debug("V10 SYNAPSE: Telemetry not available (import error)")
 
     def get_events(
         self,

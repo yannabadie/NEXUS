@@ -363,6 +363,8 @@ class SessionWorkspaceManager:
 # V10 PRISM: Multi-Tenant Workspace Manager Access
 # =============================================================================
 _workspace_manager: Optional[SessionWorkspaceManager] = None
+# V11 FIX F30: Thread-safe singleton lock
+_workspace_manager_lock = RLock()
 
 
 def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorkspaceManager:
@@ -388,11 +390,15 @@ def get_workspace_manager(base_workspace: Optional[Path] = None) -> SessionWorks
         pass  # context module not available, use legacy
 
     # Legacy fallback: global singleton
+    # V11 FIX F30: Thread-safe singleton initialization
     global _workspace_manager
     if _workspace_manager is None:
-        if base_workspace is None:
-            raise ValueError("base_workspace required for first initialization")
-        _workspace_manager = SessionWorkspaceManager(base_workspace)
+        with _workspace_manager_lock:
+            # Double-check locking pattern
+            if _workspace_manager is None:
+                if base_workspace is None:
+                    raise ValueError("base_workspace required for first initialization")
+                _workspace_manager = SessionWorkspaceManager(base_workspace)
     return _workspace_manager
 
 

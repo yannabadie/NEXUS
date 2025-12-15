@@ -440,6 +440,11 @@ class SwarmSessionManager:
         """
         session = self.get_session(task_id, role)
         if session is None:
+            # V11 FIX F25: Log warning instead of silent None
+            logger.warning(
+                f"[ISOLATION] No session for task={task_id}, role={role} - "
+                f"isolation disabled! Context may bleed between agents."
+            )
             return None
 
         # Use workspace_manager's HOME spoofing

@@ -35,11 +35,25 @@ class StagnationDetector:
             # Force decision
     """
 
+    # V11 FIX F5: Action verbs that indicate progress
+    _PROGRESS_INDICATORS = {
+        # Tool usage (strong progress)
+        "<tool_use", "</tool_use>", "tool_use",
+        # Action verbs
+        "executing", "running", "reading", "writing", "editing",
+        "created", "modified", "deleted", "found", "result:",
+        # Decision markers
+        "decided", "agreed", "confirmed", "proceeding", "done",
+        # Artifact indicators
+        "output:", "response:", "error:", "success:",
+    }
+
     def __init__(
         self,
         similarity_threshold: float = 0.8,
         window_size: int = 3,
-        strategy_blacklist: Optional["StrategyBlacklist"] = None
+        strategy_blacklist: Optional["StrategyBlacklist"] = None,
+        semantic_progress_threshold: float = 0.2  # V11 F5
     ):
         """
         Initialize detector
@@ -49,11 +63,15 @@ class StagnationDetector:
                                 0.8 = 80% similaire
             window_size: Nombre de messages à comparer (3 = derniers 3 messages)
             strategy_blacklist: V8.0 - Optional blacklist for stagnation reporting
+            semantic_progress_threshold: V11 F5 - Minimum semantic progress to avoid stagnation
         """
         self.similarity_threshold = similarity_threshold
         self.window_size = window_size
         self.message_history: List[str] = []
         self._stagnation_count = 0  # V8.0: Track stagnation occurrences
+
+        # V11 FIX F5: Semantic progress tracking
+        self.semantic_progress_threshold = semantic_progress_threshold
 
         # V8.0: StrategyBlacklist integration
         self._strategy_blacklist: Optional["StrategyBlacklist"] = strategy_blacklist
@@ -86,6 +104,10 @@ class StagnationDetector:
         """
         Détecte si la conversation stagne
 
+        V11 FIX F5: Now uses BOTH text similarity AND semantic progress.
+        Stagnation = high text similarity AND low semantic progress.
+        This prevents false positives during productive brainstorming.
+
         Returns:
             True si les messages se répètent (stagnation)
 
@@ -93,7 +115,12 @@ class StagnationDetector:
             Message 1: "Je pense qu'on devrait lire auth.py"
             Message 2: "Oui, lisons auth.py d'abord"
             Message 3: "D'accord, lire auth.py"
-            → Similarité élevée entre les 3 → stagnation = True
+            → Similarité élevée + no tool usage + no progress → stagnation = True
+
+            Message 1: "Je pense qu'on devrait lire auth.py"
+            Message 2: "Oui, lisons auth.py d'abord"
+            Message 3: "<tool_use>reading auth.py...</tool_use>"
+            → Even if similar, tool usage detected → stagnation = False
         """
         if len(self.message_history) < self.window_size:
             return False
@@ -107,10 +134,16 @@ class StagnationDetector:
                 sim = self._similarity(recent[i], recent[j])
                 similarities.append(sim)
 
-        # Si au moins 2 paires sont très similaires → stagnation
+        # Si au moins 2 paires sont très similaires → potentielle stagnation
         high_similarity_pairs = [s for s in similarities if s > self.similarity_threshold]
+        text_similarity_high = len(high_similarity_pairs) >= 2
 
-        return len(high_similarity_pairs) >= 2
+        # V11 FIX F5: Also check semantic progress
+        semantic_progress = self._compute_semantic_progress()
+        semantic_progress_low = semantic_progress < self.semantic_progress_threshold
+
+        # Stagnation = high text similarity AND low semantic progress
+        return text_similarity_high and semantic_progress_low
 
     def _similarity(self, text1: str, text2: str) -> float:
         """
@@ -130,6 +163,56 @@ class StagnationDetector:
             _similarity("lire auth.py", "écrire test.py") → 0.30
         """
         return SequenceMatcher(None, text1, text2).ratio()
+
+    def _compute_semantic_progress(self) -> float:
+        """
+        V11 FIX F5: Compute semantic progress in recent messages.
+
+        Analyzes messages for:
+        1. Tool usage indicators (<tool_use>, etc.)
+        2. Action verbs (executing, reading, created, etc.)
+        3. New unique words (vocabulary expansion)
+        4. Length changes (longer messages may indicate elaboration)
+
+        Returns:
+            Progress score 0.0 - 1.0 (0 = no progress, 1 = high progress)
+        """
+        if len(self.message_history) < 2:
+            return 1.0  # Not enough history, assume progress
+
+        recent = self.message_history[-self.window_size:]
+        progress_score = 0.0
+
+        # 1. Check for progress indicators (strong signal)
+        for msg in recent:
+            for indicator in self._PROGRESS_INDICATORS:
+                if indicator in msg:
+                    progress_score += 0.3
+                    break  # Only count once per message
+
+        # 2. Check vocabulary expansion (new words in recent vs older)
+        if len(recent) >= 2:
+            older_words = set(recent[0].split())
+            newer_words = set(recent[-1].split())
+            new_words = newer_words - older_words
+
+            # More new words = more progress
+            if len(newer_words) > 0:
+                expansion_ratio = len(new_words) / len(newer_words)
+                progress_score += expansion_ratio * 0.3
+
+        # 3. Check for significant length variation (discussion evolving)
+        if len(recent) >= 2:
+            lengths = [len(msg) for msg in recent]
+            avg_length = sum(lengths) / len(lengths)
+            if avg_length > 0:
+                variance = sum((l - avg_length) ** 2 for l in lengths) / len(lengths)
+                # High variance = evolving discussion
+                normalized_variance = min(variance / (avg_length ** 2), 1.0)
+                progress_score += normalized_variance * 0.2
+
+        # Cap at 1.0
+        return min(progress_score, 1.0)
 
     def reset(self):
         """Reset détecteur (appelé après switch agent ou action)"""

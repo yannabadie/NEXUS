@@ -260,9 +260,281 @@ class CircuitBreaker:
         }
 
 
-# Global circuit breaker registry
+# =============================================================================
+# V11 FIX F17: HIERARCHICAL CIRCUIT BREAKER
+# =============================================================================
+
+
+class HierarchicalCircuitBreaker:
+    """
+    V11 FIX F17: Hierarchical circuit breaker with global parent.
+
+    Problem: Independent circuit breakers don't detect global network failures.
+    If all providers fail simultaneously (network down), each breaker opens
+    independently, causing N separate recovery attempts.
+
+    Solution: Two-level hierarchy:
+    - Global breaker: Trips on widespread failures (e.g., network down)
+    - Per-provider breakers: Trip on provider-specific issues
+
+    When global breaker is OPEN, all calls are rejected immediately without
+    checking per-provider breakers.
+
+    Usage:
+        hcb = HierarchicalCircuitBreaker()
+
+        # This checks global first, then provider-specific
+        result = await hcb.call("gemini", agent.invoke, prompt)
+
+    Cascade Detection:
+        When multiple providers fail within a short window (cascade_window),
+        the global breaker trips to prevent further cascade damage.
+    """
+
+    def __init__(
+        self,
+        global_failure_threshold: int = 10,
+        global_recovery_timeout: float = 60.0,
+        cascade_window: float = 30.0,
+        cascade_threshold: int = 3
+    ):
+        """
+        Initialize hierarchical circuit breaker.
+
+        Args:
+            global_failure_threshold: Failures to trip global breaker
+            global_recovery_timeout: Global breaker recovery time
+            cascade_window: Window (seconds) to detect cascade failures
+            cascade_threshold: Provider failures in window to trip global
+        """
+        self._global = CircuitBreaker(
+            name="global",
+            failure_threshold=global_failure_threshold,
+            recovery_timeout=global_recovery_timeout,
+            max_backoff=600.0  # 10 min max for global
+        )
+
+        self._per_provider: Dict[str, CircuitBreaker] = {}
+        self._lock = Lock()
+
+        # Cascade detection
+        self._cascade_window = cascade_window
+        self._cascade_threshold = cascade_threshold
+        self._recent_failures: list[tuple[str, float]] = []  # (provider, timestamp)
+
+        logger.info(
+            f"HierarchicalCircuitBreaker initialized: "
+            f"global_threshold={global_failure_threshold}, "
+            f"cascade_threshold={cascade_threshold}"
+        )
+
+    def _get_provider_breaker(self, provider: str) -> CircuitBreaker:
+        """Get or create per-provider circuit breaker."""
+        with self._lock:
+            if provider not in self._per_provider:
+                self._per_provider[provider] = CircuitBreaker(
+                    name=provider,
+                    failure_threshold=3,
+                    recovery_timeout=30.0,
+                    max_backoff=300.0
+                )
+                logger.debug(f"Created provider breaker: {provider}")
+            return self._per_provider[provider]
+
+    def _check_cascade(self, provider: str) -> bool:
+        """
+        Check if we're in a cascade failure scenario.
+
+        Returns True if cascade detected (should trip global breaker).
+        """
+        now = time.time()
+
+        # Add this failure
+        self._recent_failures.append((provider, now))
+
+        # Clean old failures outside window
+        self._recent_failures = [
+            (p, t) for p, t in self._recent_failures
+            if (now - t) <= self._cascade_window
+        ]
+
+        # Count unique providers that failed in window
+        failed_providers = set(p for p, t in self._recent_failures)
+
+        if len(failed_providers) >= self._cascade_threshold:
+            logger.warning(
+                f"CASCADE DETECTED: {len(failed_providers)} providers failed "
+                f"in {self._cascade_window}s window: {failed_providers}"
+            )
+            return True
+
+        return False
+
+    async def call(
+        self,
+        provider: str,
+        func: Callable,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Execute function through hierarchical circuit breaker.
+
+        Checks global breaker first, then provider-specific breaker.
+
+        Args:
+            provider: Provider name (gemini, claude, etc.)
+            func: Async or sync function to call
+            *args, **kwargs: Arguments to pass to function
+
+        Returns:
+            Function result if successful
+
+        Raises:
+            CircuitOpenError: If global or provider circuit is OPEN
+            Exception: Original exception from function
+        """
+        # 1. Check global breaker first
+        if self._global.state == CircuitState.OPEN:
+            if not self._global._should_attempt_recovery():
+                raise CircuitOpenError(
+                    name="global",
+                    time_until_retry=self._global._get_time_until_retry(),
+                    failure_count=self._global.failure_count
+                )
+            # Allow recovery attempt
+            logger.info("Global circuit: Attempting recovery (HALF_OPEN)")
+            self._global._state = CircuitState.HALF_OPEN
+
+        # 2. Get provider-specific breaker
+        provider_breaker = self._get_provider_breaker(provider)
+
+        # 3. Execute through provider breaker
+        try:
+            result = await provider_breaker.call(func, *args, **kwargs)
+
+            # Success - also signal global recovery
+            if self._global.state == CircuitState.HALF_OPEN:
+                self._global._on_success()
+
+            return result
+
+        except CircuitOpenError:
+            # Provider breaker is open - re-raise
+            raise
+
+        except Exception as e:
+            # Failure - check for cascade
+            if self._check_cascade(provider):
+                # Cascade detected - trip global breaker
+                self._global._on_failure(e)
+
+            raise
+
+    def call_sync(
+        self,
+        provider: str,
+        func: Callable,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Synchronous version of call().
+
+        Args:
+            provider: Provider name
+            func: Sync function to call
+            *args, **kwargs: Arguments
+
+        Returns:
+            Function result
+
+        Raises:
+            CircuitOpenError: If circuit is OPEN
+            Exception: Original exception
+        """
+        # 1. Check global breaker
+        if self._global.state == CircuitState.OPEN:
+            if not self._global._should_attempt_recovery():
+                raise CircuitOpenError(
+                    name="global",
+                    time_until_retry=self._global._get_time_until_retry(),
+                    failure_count=self._global.failure_count
+                )
+            self._global._state = CircuitState.HALF_OPEN
+
+        # 2. Get provider breaker
+        provider_breaker = self._get_provider_breaker(provider)
+
+        # 3. Execute
+        try:
+            result = provider_breaker.call_sync(func, *args, **kwargs)
+
+            if self._global.state == CircuitState.HALF_OPEN:
+                self._global._on_success()
+
+            return result
+
+        except CircuitOpenError:
+            raise
+
+        except Exception as e:
+            if self._check_cascade(provider):
+                self._global._on_failure(e)
+            raise
+
+    def reset_all(self):
+        """Reset global and all provider breakers."""
+        with self._lock:
+            self._global.reset()
+            for breaker in self._per_provider.values():
+                breaker.reset()
+            self._recent_failures.clear()
+            logger.info("HierarchicalCircuitBreaker: All breakers reset")
+
+    def reset_provider(self, provider: str):
+        """Reset specific provider breaker."""
+        if provider in self._per_provider:
+            self._per_provider[provider].reset()
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get hierarchical breaker status."""
+        with self._lock:
+            return {
+                "global": self._global.get_status(),
+                "providers": {
+                    name: breaker.get_status()
+                    for name, breaker in self._per_provider.items()
+                },
+                "cascade_detection": {
+                    "window_seconds": self._cascade_window,
+                    "threshold": self._cascade_threshold,
+                    "recent_failures": len(self._recent_failures)
+                }
+            }
+
+    @property
+    def global_state(self) -> CircuitState:
+        """Get global circuit state."""
+        return self._global.state
+
+    def get_provider_state(self, provider: str) -> CircuitState:
+        """Get specific provider circuit state."""
+        if provider in self._per_provider:
+            return self._per_provider[provider].state
+        return CircuitState.CLOSED  # Not created yet = healthy
+
+
+# =============================================================================
+# GLOBAL REGISTRIES
+# =============================================================================
+
+# Global circuit breaker registry (legacy - per-provider independent)
 _circuit_breakers: Dict[str, CircuitBreaker] = {}
 _registry_lock = Lock()
+
+# V11: Hierarchical circuit breaker singleton
+_hierarchical_breaker: Optional[HierarchicalCircuitBreaker] = None
 
 
 def get_circuit_breaker(
@@ -311,3 +583,47 @@ def get_all_circuit_status() -> Dict[str, Dict[str, Any]]:
             name: breaker.get_status()
             for name, breaker in _circuit_breakers.items()
         }
+
+
+# =============================================================================
+# V11 FIX F17: HIERARCHICAL BREAKER ACCESS
+# =============================================================================
+
+
+def get_hierarchical_breaker() -> HierarchicalCircuitBreaker:
+    """
+    V11 FIX F17: Get the global hierarchical circuit breaker.
+
+    Creates one if it doesn't exist. Use this for cascade-aware
+    circuit breaking across multiple providers.
+
+    Returns:
+        HierarchicalCircuitBreaker singleton instance
+    """
+    global _hierarchical_breaker
+    with _registry_lock:
+        if _hierarchical_breaker is None:
+            _hierarchical_breaker = HierarchicalCircuitBreaker()
+        return _hierarchical_breaker
+
+
+def reset_hierarchical_breaker():
+    """Reset the hierarchical circuit breaker (for testing)."""
+    global _hierarchical_breaker
+    with _registry_lock:
+        if _hierarchical_breaker is not None:
+            _hierarchical_breaker.reset_all()
+        _hierarchical_breaker = None
+
+
+__all__ = [
+    "CircuitState",
+    "CircuitOpenError",
+    "CircuitBreaker",
+    "HierarchicalCircuitBreaker",
+    "get_circuit_breaker",
+    "get_hierarchical_breaker",
+    "reset_all_circuits",
+    "reset_hierarchical_breaker",
+    "get_all_circuit_status",
+]
