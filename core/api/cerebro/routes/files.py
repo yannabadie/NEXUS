@@ -209,6 +209,105 @@ async def save_file(
         raise HTTPException(500, f"Write failed: {e}")
 
 
+@router.get("/tree")
+async def file_tree(
+    path: str = Query(".", description="Root path for tree"),
+    max_depth: int = Query(3, ge=1, le=5, description="Max directory depth"),
+    user: AuthenticatedUser = Depends(require_auth),
+) -> Dict[str, Any]:
+    """
+    Get directory tree structure.
+
+    V11.6.2 IRONCLAD: MANDATORY authentication.
+    V12.0 RETINA VISUALS: FileCommander support.
+
+    Security:
+    - PathGuardian validates root path
+    - Authentication required for audit trail
+    - Excludes sensitive directories (.git, node_modules, etc.)
+
+    Args:
+        path: Root path for tree (relative to workspace)
+        max_depth: Maximum depth to traverse (1-5)
+        user: Authenticated user (from JWT token)
+
+    Returns:
+        {"name": "...", "type": "directory", "path": "...", "children": [...]}
+
+    Raises:
+        401: Not authenticated
+        403: Access denied (path traversal)
+    """
+    guardian = _get_guardian()
+
+    # Validate root path
+    is_valid, resolved_path, message = guardian.validate_read(path)
+    if not is_valid:
+        logger.warning(f"[CORTEX] Tree access denied: {path} - {message}")
+        raise HTTPException(403, f"Access denied: {message}")
+
+    # Directories to exclude (performance + security)
+    EXCLUDED_DIRS = {
+        '.git', '__pycache__', 'node_modules', 'venv', '.venv',
+        'site-packages', 'dist', 'build', '.nexus', '.pytest_cache',
+        '.mypy_cache', '.ruff_cache', 'egg-info', '.eggs'
+    }
+
+    def build_tree(p: Path, current_depth: int, base_path: Path) -> Dict[str, Any] | None:
+        """Recursively build directory tree."""
+        if current_depth > max_depth:
+            return None
+
+        if not p.exists():
+            return None
+
+        # Calculate relative path from base
+        try:
+            rel_path = str(p.relative_to(base_path.parent))
+        except ValueError:
+            rel_path = p.name
+
+        if p.is_file():
+            return {
+                "name": p.name,
+                "type": "file",
+                "path": rel_path.replace("\\", "/"),
+            }
+
+        # Directory
+        children = []
+        try:
+            for child in sorted(p.iterdir(), key=lambda x: (x.is_file(), x.name.lower())):
+                # Skip hidden and excluded
+                if child.name.startswith('.') and child.name not in {'.env.example'}:
+                    continue
+                if child.name in EXCLUDED_DIRS:
+                    continue
+                if child.name.endswith('.egg-info'):
+                    continue
+
+                subtree = build_tree(child, current_depth + 1, base_path)
+                if subtree:
+                    children.append(subtree)
+        except PermissionError:
+            logger.warning(f"[CORTEX] Permission denied reading: {p}")
+
+        return {
+            "name": p.name,
+            "type": "directory",
+            "path": rel_path.replace("\\", "/"),
+            "children": children,
+        }
+
+    tree = build_tree(resolved_path, 1, resolved_path)
+
+    if tree is None:
+        return {"name": path, "type": "directory", "path": path, "children": []}
+
+    logger.debug(f"[CORTEX] Tree built: {path} (depth={max_depth}) by user={user.user_id}")
+    return tree
+
+
 @router.get("/info")
 async def file_info(
     path: str = Query(..., description="Relative path to file"),
