@@ -190,19 +190,126 @@ workspace/.nexus/
 | SuccessMemory | core/memory/success_memory.py |
 | ProjectMemory RAG | core/memory/project_memory.py |
 | Thread-safe locks | memory_v7.py |
-| TaskScopedBlackboard | (partial) |
+| SwarmBridge Dictator Mode | core/hive_mind/swarm_bridge.py |
+| SwarmTool delegate | core/execution/tool_manager.py |
+| Depth Guard Anti-Recursion | core/execution/tool_manager.py |
+| Dynamic Spawn Brainstorming | core/interface/repl.py |
+
+---
+
+## Additional Ideas from ROADMAP_V8.md
+
+### 11. Prometheus Metrics Exporter 🟡
+**Source**: V8.1.2 (lines 370-386)
+**Status**: ❌ Planned
+
+```python
+# Métriques clés
+nexus_tasks_total (counter)
+nexus_task_duration_seconds (histogram)
+nexus_swarm_mode_selected (counter by mode)
+nexus_hive_mind_phase_duration (histogram by phase)
+```
+
+**Feasibility**: 🟡 MEDIUM - Requires prometheus_client library
+
+---
+
+### 12. Rate Limiting with Token Bucket 🟢
+**Source**: V8.1.4 (lines 426-478)
+**Status**: ❌ Planned
+
+Pure asyncio implementation (no external deps):
+```python
+class ProviderGuard:
+    _buckets = {
+        "claude": {"tokens": 50.0, "rate": 0.83},  # ~50 RPM
+        "gemini": {"tokens": 60.0, "rate": 1.00}   # ~60 RPM
+    }
+```
+
+**Feasibility**: 🟢 EASY - Pure Python implementation shown
+
+---
+
+### 13. Intent Resolver (3-Layer) 🟡
+**Source**: V8.1.5 (lines 481-548)
+**Status**: ❌ Planned
+
+Replace `if "keyword" in msg` with intelligent router:
+- Layer 1: Fast-Path (O(1) command lookup)
+- Layer 2: LRU Cache
+- Layer 3: Semantic (RAG)
+
+**Feasibility**: 🟡 MEDIUM - Architecture well defined
+
+---
+
+### 14. TaskAnalysis.reasoning Field 🟢
+**Source**: V8.1.7 (lines 629-662)
+**Status**: ❌ Enhancement suggested
+
+Add `reasoning: str = ""` to TaskAnalysis for traceability.
+
+**Feasibility**: 🟢 EASY - Simple field addition
+
+---
+
+### 15. Unified Analysis Adapter 🟢
+**Source**: V8.2.0a (lines 850-910)
+**Status**: ❌ Planned
+
+Bidirectional adapter between Swarm TaskAnalysis and HiveMind IndependentAnalysis.
+
+**Feasibility**: 🟢 EASY - Mapping logic already defined
+
+---
+
+### 16. RedTeam Post-Spawn Validation 🟡
+**Source**: V8.2.0c (lines 933-963)
+**Status**: ❌ Planned
+
+Validate alignment of spawned agents (not just evolved ones).
+Config: `REDTEAM_SPAWN_MANDATORY=True`
+
+**Feasibility**: 🟡 MEDIUM - RedTeam exists, needs integration
+
+---
+
+### 17. Torture Protocol V8 🟡
+**Source**: V8.2.0d (lines 966-1006)
+**Status**: ❌ Planned
+
+Stress test scenarios:
+- `parallel_flood` (10 concurrent tasks)
+- `stagnation_loop` (tests hot-swap)
+- `budget_drain` (20 expensive tasks)
+- `chaos_monkey` (random failures)
+
+Targets: >95% success rate, <1% panic rate
+
+**Feasibility**: 🟡 MEDIUM - Test framework design complete
 
 ---
 
 ## Recommended Priority for ROADMAP_V10
 
-1. **Fast Path** 🟢 - Immediate UX win
-2. **EPHEMERAL mode** 🟢 - Performance + cleanup
-3. **Cold Storage** 🟢 - Debug capability
-4. **Shared Memory Files** 🟢 - Better handover
-5. **BM25S Retrieval** 🟢 - Better RAG
-6. **Recovery Manager** 🟡 - Resilience
-7. **Session Branching** 🟡 - Better parallelism
-8. **Memory Backend Abstraction** 🟡 - Extensibility
-9. **Agent Persistence** 🟢 - Agent memory
-10. **Agent-as-MCP-Tool** 🔴 - Future vision
+### Quick Wins 🟢 (1-2 days each)
+1. **Fast Path** - Immediate UX win
+2. **EPHEMERAL mode** - Performance + cleanup
+3. **Cold Storage** - Debug capability
+4. **Rate Limiting** - Prevent 429 errors
+5. **TaskAnalysis.reasoning** - Traceability
+6. **Unified Analysis Adapter** - Cross-domain fix
+
+### Medium Effort 🟡 (3-5 days each)
+7. **Recovery Manager** - Resilience
+8. **Session Branching** - Better parallelism
+9. **Intent Resolver** - Cleaner routing
+10. **RedTeam Post-Spawn** - Security
+11. **Prometheus Metrics** - Observability
+12. **Torture Protocol V8** - Validation
+
+### Long Term 🔴 (1+ week)
+13. **Agent-as-MCP-Tool** - Future vision
+14. **Memory Backend Abstraction** - Extensibility
