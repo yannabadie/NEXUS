@@ -1,5 +1,5 @@
 """
-NEXUS V12.1 CEREBRO - FastAPI Application Factory
+NEXUS V12.2 CEREBRO - FastAPI Application Factory
 
 Creates the CEREBRO API application with:
 - Redis connection lifecycle management
@@ -9,11 +9,13 @@ Creates the CEREBRO API application with:
 - V11.5 CORTEX: State snapshot, interactions, workflow, files endpoints
 - V11.6 KEYMAKER: JWT authentication endpoints
 - V12.1 RETINA: HTTP rate limiting (Conseiller 1 feedback)
+- V12.2 IRONCLAD: User management API, RBAC enforcement
 
 V11.3 HARDENING: CORS origins from environment variable.
 V11.5 CORTEX: API control & state persistence for CEREBRO UI.
 V11.6 KEYMAKER: Authentication endpoints (login, me, logout, refresh).
 V12.1 RETINA: Rate limiting on sensitive endpoints.
+V12.2 IRONCLAD: User management (invite, remove, change role).
 
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
@@ -130,13 +132,17 @@ def create_cerebro_app() -> FastAPI:
     from .routes import auth
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
+    # V12.2 IRONCLAD routers
+    from .routes import users
+    app.include_router(users.router, prefix="/api/users", tags=["users"])
+
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root():
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "12.1.0",  # V12.1 RETINA
+            "version": "12.2.0",  # V12.2 IRONCLAD
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
@@ -147,7 +153,10 @@ def create_cerebro_app() -> FastAPI:
             "files": "/api/files/content",
             # V11.6 KEYMAKER endpoints
             "auth": "/api/auth/login",
-            "auth_refresh": "/api/auth/refresh",  # V12.1 RETINA
+            "auth_refresh": "/api/auth/refresh",
+            # V12.2 IRONCLAD endpoints
+            "users": "/api/users",
+            "users_invite": "/api/users/invite",
         }
 
     return app

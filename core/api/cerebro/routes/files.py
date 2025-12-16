@@ -1,7 +1,8 @@
 """
-NEXUS V12.1 CORTEX - Secure File Access Endpoints
+NEXUS V12.2 IRONCLAD - Secure File Access Endpoints
 V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
 V12.1 RETINA - FileCommander support with directory tree
+V12.2 IRONCLAD - RBAC enforcement + audit logging
 
 Enables secure file operations for CEREBRO UI:
 - GET /api/files/content : Read file content (size-limited, path-validated)
@@ -15,19 +16,22 @@ Security Features:
 - Sacred file protection (.env, KERNEL.py, etc.)
 - V11.6.1 IRONCLAD: MANDATORY authentication (audit trail + access control)
 - V12.1 RETINA: Rate limiting on sensitive endpoints (Conseiller 1)
+- V12.2 IRONCLAD: RBAC permission checks + audit logging
 
-Author: Claude (NEXUS V12.1 RETINA)
+Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
 import logging
 from pathlib import Path
 from typing import Any, Dict
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from ..deps import AuthenticatedUser, require_auth
+from ..deps import AuthenticatedUser
+from ..rbac import require_permission, Permission
 
 logger = logging.getLogger(__name__)
 
@@ -75,28 +79,70 @@ def _get_guardian():
         raise HTTPException(500, f"Security configuration error: {e}")
 
 
+async def _audit_file_access(
+    user: AuthenticatedUser,
+    path: str,
+    action: str,
+    success: bool,
+    request: Request = None,
+) -> None:
+    """
+    V12.2 IRONCLAD: Audit log file access.
+
+    Args:
+        user: Authenticated user
+        path: File path
+        action: "read", "write", or "delete"
+        success: Whether operation succeeded
+        request: Optional FastAPI request for IP/user-agent
+    """
+    try:
+        from core.audit import AuditLogger, AuditAction
+
+        action_map = {
+            "read": AuditAction.FILE_READ,
+            "write": AuditAction.FILE_WRITE,
+            "delete": AuditAction.FILE_DELETE,
+        }
+
+        await AuditLogger.log_file(
+            tenant_id=UUID(user.tenant_id),
+            user_id=UUID(user.user_id),
+            action=action_map.get(action, AuditAction.FILE_READ),
+            file_path=path,
+            success=success,
+            request=request,
+        )
+    except Exception as e:
+        # Don't fail the request if audit logging fails
+        logger.warning(f"[CORTEX] Audit log failed: {e}")
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
 
 @router.get("/content")
 async def read_file(
+    request: Request,
     path: str = Query(..., description="Relative path to file"),
-    user: AuthenticatedUser = Depends(require_auth),
+    user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
 ) -> Dict[str, Any]:
     """
     Read file content with size limit and path validation.
 
     V11.6.1 IRONCLAD: MANDATORY authentication.
+    V12.2 IRONCLAD: RBAC permission check + audit logging.
     All file operations are logged with authenticated user info.
 
     Security:
     - PathGuardian validates path is in allowed zones
     - 1MB file size limit prevents OOM
     - Sacred files (.env, KERNEL.py) are protected
-    - Authentication required for audit trail
+    - RBAC: Requires FILE_READ permission
 
     Args:
+        request: FastAPI request (for audit logging)
         path: Relative path to file (relative to workspace)
         user: Authenticated user (from JWT token)
 
@@ -105,7 +151,7 @@ async def read_file(
 
     Raises:
         401: Not authenticated
-        403: Access denied (path traversal, sacred file)
+        403: Access denied (path traversal, sacred file, no permission)
         404: File not found
         413: File too large (> 1MB)
         500: Read failed
@@ -117,6 +163,8 @@ async def read_file(
 
     if not is_valid:
         logger.warning(f"[CORTEX] File access denied: {path} - {message}")
+        # V12.2: Audit log the denial
+        await _audit_file_access(user, path, "read", success=False, request=request)
         raise HTTPException(403, f"Access denied: {message}")
 
     # Check file exists
@@ -144,7 +192,8 @@ async def read_file(
     # Read file content
     try:
         content = resolved_path.read_text(encoding="utf-8")
-        # V11.6.1 IRONCLAD: Always log with authenticated user
+        # V12.2: Audit log successful read
+        await _audit_file_access(user, path, "read", success=True, request=request)
         logger.debug(f"[CORTEX] File read: {path} ({len(content)} chars) by user={user.user_id}")
         return {
             "path": path,
@@ -160,22 +209,25 @@ async def read_file(
 
 @router.post("/save")
 async def save_file(
+    request: Request,
     body: FileWriteRequest,
-    user: AuthenticatedUser = Depends(require_auth),
+    user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "file")),
 ) -> Dict[str, str]:
     """
     Save file content with path validation.
 
     V11.6.1 IRONCLAD: MANDATORY authentication.
+    V12.2 IRONCLAD: RBAC permission check + audit logging.
     All file operations are logged with authenticated user info.
 
     Security:
     - PathGuardian validates path is in workspace
     - Absolute paths are rejected
     - Sacred files (.env, KERNEL.py) are protected
-    - Authentication required for audit trail
+    - RBAC: Requires FILE_WRITE permission
 
     Args:
+        request: FastAPI request (for audit logging)
         body: FileWriteRequest with path and content
         user: Authenticated user (from JWT token)
 
@@ -184,7 +236,7 @@ async def save_file(
 
     Raises:
         401: Not authenticated
-        403: Access denied (absolute path, sacred file, outside workspace)
+        403: Access denied (absolute path, sacred file, outside workspace, no permission)
         500: Write failed
     """
     guardian = _get_guardian()
@@ -194,6 +246,8 @@ async def save_file(
 
     if not is_valid:
         logger.warning(f"[CORTEX] File write denied: {body.path} - {message}")
+        # V12.2: Audit log the denial
+        await _audit_file_access(user, body.path, "write", success=False, request=request)
         raise HTTPException(403, f"Access denied: {message}")
 
     # Write file content
@@ -204,7 +258,8 @@ async def save_file(
         # Write content
         resolved_path.write_text(body.content, encoding="utf-8")
 
-        # V11.6.1 IRONCLAD: Always log with authenticated user
+        # V12.2: Audit log successful write
+        await _audit_file_access(user, body.path, "write", success=True, request=request)
         logger.info(f"[CORTEX] File saved: {body.path} ({len(body.content)} chars) by user={user.user_id}")
         return {"status": "saved", "path": body.path}
 
@@ -217,7 +272,7 @@ async def save_file(
 async def file_tree(
     path: str = Query(".", description="Root path for tree"),
     max_depth: int = Query(3, ge=1, le=5, description="Max directory depth"),
-    user: AuthenticatedUser = Depends(require_auth),
+    user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
 ) -> Dict[str, Any]:
     """
     Get directory tree structure.
@@ -317,7 +372,7 @@ async def file_tree(
 @router.get("/info")
 async def file_info(
     path: str = Query(..., description="Relative path to file"),
-    user: AuthenticatedUser = Depends(require_auth),
+    user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
 ) -> Dict[str, Any]:
     """
     Get file metadata without reading content.

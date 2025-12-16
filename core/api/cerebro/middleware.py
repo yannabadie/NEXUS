@@ -122,15 +122,17 @@ def create_jwt_token(
     user_id: str = "anonymous",
     workspace_id: str = "default",
     expires_in_seconds: int = 3600,
+    extra_claims: Optional[dict] = None,
 ) -> str:
     """
-    Create a JWT token for testing.
+    Create a JWT token.
 
     Args:
         tenant_id: Tenant identifier
         user_id: User identifier
         workspace_id: Workspace identifier
         expires_in_seconds: Token expiration time
+        extra_claims: V12.2 IRONCLAD - Additional claims (e.g., role)
 
     Returns:
         JWT token string
@@ -146,5 +148,9 @@ def create_jwt_token(
         "iat": now,
         "exp": now + timedelta(seconds=expires_in_seconds),
     }
+
+    # V12.2 IRONCLAD: Merge extra claims (e.g., role)
+    if extra_claims:
+        claims.update(extra_claims)
 
     return jwt.encode(claims, JWT_SECRET, algorithm=JWT_ALGORITHM)

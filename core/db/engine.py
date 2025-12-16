@@ -41,6 +41,19 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from .models import Tenant, User, Workspace, Quota  # Import all models
 
+# V12.2 IRONCLAD: Import audit models for table creation
+try:
+    from core.audit.models import AuditLog, HITLRequest
+except ImportError:
+    AuditLog = None
+    HITLRequest = None
+
+# V12.2 IRONCLAD: Import hibernation model for table creation
+try:
+    from core.fsm.hibernation_manager import HibernationState
+except ImportError:
+    HibernationState = None
+
 
 # =============================================================================
 # DATABASE CONFIGURATION

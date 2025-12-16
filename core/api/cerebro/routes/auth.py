@@ -1,5 +1,5 @@
 """
-NEXUS V12.1 KEYMAKER - Authentication Endpoints
+NEXUS V12.2 IRONCLAD - Authentication Endpoints
 
 Provides JWT authentication for CEREBRO UI:
 - POST /api/auth/login : Authenticate and get JWT token
@@ -7,18 +7,20 @@ Provides JWT authentication for CEREBRO UI:
 - POST /api/auth/refresh : Refresh token before expiration (V12.1 RETINA)
 - POST /api/auth/logout : Logout (client-side token removal)
 
-Security Notes (MVP):
-- Single admin password via NEXUS_ADMIN_PASSWORD env var
+Security Notes:
+- V12.2: Database-backed user authentication with bcrypt
+- Fallback to NEXUS_ADMIN_PASSWORD env var for backward compatibility
 - 24h token expiration
 - V12.1 RETINA: Refresh token mechanism (Conseiller 2 feedback)
 
-Author: Claude (NEXUS V12.1 RETINA)
+Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, Tuple
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Header, status
 from pydantic import BaseModel
@@ -31,16 +33,116 @@ router = APIRouter()
 # Configuration
 # =============================================================================
 
-# MVP: Single admin password from environment
-# Production: Replace with user database
-ADMIN_PASSWORD = os.environ.get("NEXUS_ADMIN_PASSWORD", "nexus")
+# Fallback: Single admin password from environment (backward compatibility)
+FALLBACK_ADMIN_PASSWORD = os.environ.get("NEXUS_ADMIN_PASSWORD", "nexus")
 TOKEN_EXPIRE_HOURS = 24
 
 # Warn if using default password
-if ADMIN_PASSWORD == "nexus":
+if FALLBACK_ADMIN_PASSWORD == "nexus":
     logger.warning(
         "NEXUS_ADMIN_PASSWORD not set! Using default 'nexus'. "
         "Set NEXUS_ADMIN_PASSWORD environment variable for security."
+    )
+
+
+# =============================================================================
+# Database Authentication (V12.2 IRONCLAD)
+# =============================================================================
+
+def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[dict]]:
+    """
+    Authenticate user against database.
+
+    Args:
+        username: Username to authenticate
+        password: Plaintext password to verify
+
+    Returns:
+        Tuple of (success, user_info_dict or None)
+        user_info contains: user_id, tenant_id, role
+    """
+    try:
+        from sqlmodel import select
+        from core.db import get_session, User
+        from core.security.password import verify_password
+
+        with get_session() as session:
+            statement = select(User).where(
+                User.username == username,
+                User.is_active == True
+            )
+            user = session.exec(statement).first()
+
+            if user and verify_password(password, user.hashed_password):
+                return True, {
+                    "user_id": str(user.id),
+                    "tenant_id": str(user.tenant_id),
+                    "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
+                }
+
+        return False, None
+
+    except Exception as e:
+        logger.debug(f"[KEYMAKER] DB auth failed, will try fallback: {e}")
+        return False, None
+
+
+def authenticate_user_fallback(username: str, password: str) -> Tuple[bool, Optional[dict]]:
+    """
+    Fallback authentication using environment variable.
+
+    For backward compatibility when:
+    - Database not initialized
+    - User not in database
+
+    Args:
+        username: Username (any accepted for MVP)
+        password: Password to check against NEXUS_ADMIN_PASSWORD
+
+    Returns:
+        Tuple of (success, user_info_dict or None)
+    """
+    if password == FALLBACK_ADMIN_PASSWORD:
+        return True, {
+            "user_id": username,
+            "tenant_id": "default",
+            "role": "admin",  # Fallback users get admin role
+        }
+    return False, None
+
+
+def authenticate_user(username: str, password: str) -> Tuple[bool, dict]:
+    """
+    Authenticate user: try DB first, fallback to env var.
+
+    Args:
+        username: Username to authenticate
+        password: Password to verify
+
+    Returns:
+        Tuple of (success, user_info_dict)
+
+    Raises:
+        HTTPException 401 if authentication fails
+    """
+    # Try database authentication first
+    success, user_info = authenticate_user_db(username, password)
+    if success:
+        logger.info(f"[KEYMAKER] DB auth successful for user: {username}")
+        return True, user_info
+
+    # Fallback to environment variable
+    success, user_info = authenticate_user_fallback(username, password)
+    if success:
+        logger.info(f"[KEYMAKER] Fallback auth successful for user: {username}")
+        return True, user_info
+
+    # Authentication failed
+    logger.warning(f"[KEYMAKER] Failed login attempt for user: {username}")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
@@ -80,10 +182,10 @@ async def login(body: LoginRequest) -> TokenResponse:
     """
     Authenticate user and return JWT token.
 
-    MVP Implementation:
-    - Single admin password (NEXUS_ADMIN_PASSWORD env var)
-    - Username becomes user_id in token
-    - Default tenant_id = "default"
+    V12.2 IRONCLAD Implementation:
+    - Try database authentication first (bcrypt hashed passwords)
+    - Fallback to NEXUS_ADMIN_PASSWORD env var for backward compatibility
+    - Returns user's actual tenant_id and role from database
 
     Args:
         body: LoginRequest with username and password
@@ -94,14 +196,9 @@ async def login(body: LoginRequest) -> TokenResponse:
     Raises:
         401: Invalid credentials
     """
-    # Validate password (MVP: single admin password)
-    if body.password != ADMIN_PASSWORD:
-        logger.warning(f"[KEYMAKER] Failed login attempt for user: {body.username}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Authenticate user (DB first, then fallback)
+    # This will raise HTTPException 401 if both fail
+    _, user_info = authenticate_user(body.username, body.password)
 
     # Generate JWT token
     try:
@@ -109,19 +206,19 @@ async def login(body: LoginRequest) -> TokenResponse:
 
         expires_seconds = TOKEN_EXPIRE_HOURS * 3600
         token = create_jwt_token(
-            tenant_id="default",  # MVP: single tenant
-            user_id=body.username,
+            tenant_id=user_info["tenant_id"],
+            user_id=user_info["user_id"],
             workspace_id="default",
             expires_in_seconds=expires_seconds,
+            # V12.2: Include role in token claims
+            extra_claims={"role": user_info["role"]},
         )
-
-        logger.info(f"[KEYMAKER] Login successful for user: {body.username}")
 
         return TokenResponse(
             access_token=token,
             expires_in=expires_seconds,
-            tenant_id="default",
-            user_id=body.username,
+            tenant_id=user_info["tenant_id"],
+            user_id=user_info["user_id"],
         )
 
     except ImportError as e:

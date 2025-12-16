@@ -1,6 +1,7 @@
 """
-NEXUS V11.6.2 IRONCLAD - WebSocket Streaming Endpoint
+NEXUS V12.2 IRONCLAD - WebSocket Streaming Endpoint
 MANDATORY authentication (Zero Trust)
+HIBERNATE state recovery on reconnect
 
 Streams NEXUS events to connected UI clients via WebSocket.
 
@@ -22,11 +23,17 @@ Events are streamed as JSON:
 Authentication:
     V11.6.2 IRONCLAD: JWT token is MANDATORY.
     Anonymous tenant_id param REMOVED to prevent IDOR attacks.
+
+V12.2 IRONCLAD:
+    - Check for hibernated state on connect
+    - Emit state.restored event if recovering from hibernation
+    - Enter HIBERNATE state on disconnect (if active workflow)
 """
 
 import asyncio
 import logging
 from typing import List, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
@@ -119,6 +126,40 @@ async def websocket_stream(
     # Accept connection
     await websocket.accept()
     logger.info(f"CEREBRO: WebSocket connected for {ctx}")
+
+    # V12.2 IRONCLAD: Check for hibernated state
+    hibernate_state = None
+    try:
+        from core.fsm.hibernation_manager import HibernationManager
+        hibernate_state = await HibernationManager.get_hibernation(
+            tenant_id=UUID(ctx.tenant_id),
+            workspace_id=ctx.workspace_id,
+        )
+        if hibernate_state:
+            # Restore state and notify client
+            restored = await HibernationManager.exit_hibernate(
+                tenant_id=UUID(ctx.tenant_id),
+                workspace_id=ctx.workspace_id,
+            )
+            if restored:
+                await websocket.send_json({
+                    "event_type": "state.restored",
+                    "payload": {
+                        "previous_state": restored["previous_state"],
+                        "hibernated_at": restored["entered_at"].isoformat(),
+                        "fsm_context": restored.get("fsm_context"),
+                        "active_agent": restored.get("active_agent"),
+                        "turn_count": restored.get("turn_count", 0),
+                    },
+                })
+                logger.info(
+                    f"CEREBRO: Restored from hibernation: {ctx.tenant_id}/{ctx.workspace_id} "
+                    f"previous_state={restored['previous_state']}"
+                )
+    except ImportError:
+        logger.debug("CEREBRO: Hibernation manager not available")
+    except Exception as e:
+        logger.warning(f"CEREBRO: Failed to check hibernation: {e}")
 
     # Parse event type filter
     filter_types: Optional[List[CerebroEventType]] = None

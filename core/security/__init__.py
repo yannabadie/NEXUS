@@ -43,6 +43,9 @@ from .output_guard import (
     get_output_guard,
 )
 
+# V12.2 IRONCLAD: Password hashing
+from .password import hash_password, verify_password, needs_rehash
+
 # V8.8: Spotlighter for RAG content datamarking (from memory module)
 try:
     from core.memory.spotlighting import Spotlighter, get_spotlighter, SpotlightTechnique
@@ -78,5 +81,9 @@ __all__ = [
     'get_spotlighter',
     'SpotlightTechnique',
     'SPOTLIGHTER_AVAILABLE',
+    # V12.2 IRONCLAD: Password hashing
+    'hash_password',
+    'verify_password',
+    'needs_rehash',
 ]
 

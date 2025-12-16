@@ -157,14 +157,16 @@ class AuthenticatedUser:
     Authenticated user context for HTTP requests.
 
     Extracted from JWT token claims.
+    V12.2 IRONCLAD: Added role field for RBAC.
     """
 
     user_id: str
     tenant_id: str
     workspace_id: str
+    role: str = "viewer"  # V12.2: Default to most restrictive role
 
     def __str__(self) -> str:
-        return f"AuthenticatedUser(user={self.user_id}, tenant={self.tenant_id})"
+        return f"AuthenticatedUser(user={self.user_id}, tenant={self.tenant_id}, role={self.role})"
 
 
 async def require_auth(
@@ -216,6 +218,7 @@ async def require_auth(
         user_id=claims.get("sub", "anonymous"),
         tenant_id=claims.get("tenant_id", "default"),
         workspace_id=claims.get("workspace_id", "default"),
+        role=claims.get("role", "viewer"),  # V12.2 IRONCLAD: Extract role from JWT
     )
 
 
@@ -259,4 +262,5 @@ async def get_current_user_optional(
         user_id=claims.get("sub", "anonymous"),
         tenant_id=claims.get("tenant_id", "default"),
         workspace_id=claims.get("workspace_id", "default"),
+        role=claims.get("role", "viewer"),  # V12.2 IRONCLAD
     )
