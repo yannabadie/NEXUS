@@ -154,16 +154,36 @@
 
 ## Backlog (Non-Prioritized)
 
-*Ideas extracted from legacy documentation for future consideration.*
+*Ideas extracted from legacy documentation (V7-V10) for future consideration.*
 
-| Feature | Source | Feasibility | Notes |
-|---------|--------|-------------|-------|
-| Agent Reaper | V9.7.2 docs | HIGH | Garbage collection for spawned agents |
-| MCP Client | V9.6 docs | MEDIUM | Client-side MCP integration |
-| Chaos Testing | audit/ | LOW | Requires infrastructure |
-| Hot-Swap Actuation | V9.7.1 docs | MEDIUM | Connect StagnationDetector to ModeExecutors |
-| N-Agent Agnosticism | Gemini proposal | HIGH | Extend spawned to ALL 6 modes |
-| Self-Healing Swarm | Gemini proposal | MEDIUM | Mode-level fallback |
+### High Feasibility
+
+| Feature | Source | Notes |
+|---------|--------|-------|
+| Agent Reaper | V9.7.2 | Garbage collection for spawned agents based on DyLAN scores |
+| N-Agent Agnosticism | Gemini proposal | Extend spawned agents to ALL 6 modes |
+| Intelligence Hub | V9 Singularity | Central brain connecting 4 memory systems |
+| Auto-Specialization | V9.3 vision | Data-driven agent spawning (trigger: 85% success in domain) |
+| Ollama Driver | V9 risk analysis | Local LLM support to reduce vendor lock-in |
+
+### Medium Feasibility
+
+| Feature | Source | Notes |
+|---------|--------|-------|
+| MCP Client | V9.6 | Client-side MCP integration |
+| Hot-Swap Actuation | V9.7.1 | Connect StagnationPredictor to ModeExecutors for real-time swap |
+| Self-Healing Swarm | Gemini proposal | Mode-level fallback beyond current chain |
+| Unified Memory Layer | V9.4 vision | Consolidate SuccessMemory + AutoMemory + ProjectMemory |
+| Closed-Loop Refinement | V9.2 vision | Monotonic improvement guarantee with hypothesis testing |
+| Encryption at Rest | V9 audit | AES-256 for blackboard.json, birth certificates |
+
+### Low Feasibility
+
+| Feature | Source | Notes |
+|---------|--------|-------|
+| Chaos Testing | audit/ | Requires dedicated infrastructure |
+| CI/CD Pipeline | V9 risk analysis | Full test automation (currently manual) |
+| EPHEMERAL Sessions | V9 Phase 7b | One-shot sessions without persistence for TRIVIAL tasks |
 
 ---
 
