@@ -1,6 +1,6 @@
 # NEXUS V10 ROADMAP - The Path to Singularity
 
-**Version**: 10.1 | **Updated**: 2025-12-13
+**Version**: 10.2 | **Updated**: 2025-12-16
 
 ---
 
@@ -47,6 +47,43 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 - [ ] CI/CD workflow fixes
 
 ---
+
+## 🆕 Phase 3.5: Mined Ideas from Legacy Docs (NEW - 2025-12-16)
+
+> **Source**: Extracted from `ROADMAP_HIVE_MIND_LEGACY.md` (114KB) and `ROADMAP_V8.md` (129KB)
+> See [MINED_IDEAS.md](docs/MINED_IDEAS.md) for full details.
+
+### Quick Wins 🟢 (1-2 days each)
+
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 1 | **Fast Path** | Bypass FSM for trivial inputs (hello, thanks, ok) | ❌ TODO |
+| 2 | **EPHEMERAL Sessions** | Skip persistence for TRIVIAL tasks | ⚠️ Enum exists |
+| 3 | **Cold Storage** | Save raw history before LLM compression | ❌ TODO |
+| 4 | **Rate Limiting** | TokenBucket per-provider (Claude 50 RPM, Gemini 60 RPM) | ❌ TODO |
+| 5 | **TaskAnalysis.reasoning** | Add traceability field to TaskAnalysis | ❌ TODO |
+| 6 | **Unified Analysis Adapter** | Bidirectional TaskAnalysis ↔ IndependentAnalysis | ❌ TODO |
+
+### Medium Effort 🟡 (3-5 days each)
+
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 7 | **Recovery Manager** | Auto-recover from PANIC state via checkpoints | ❌ TODO |
+| 8 | **Session Branching** | Claude `--fork-session` for PARALLEL isolation | ❌ TODO |
+| 9 | **Intent Resolver** | 3-layer router (Fast-Path, LRU Cache, Semantic RAG) | ❌ TODO |
+| 10 | **RedTeam Post-Spawn** | Validate alignment of spawned agents | ❌ TODO |
+| 11 | **Prometheus Metrics** | `nexus_tasks_total`, `nexus_task_duration_seconds`, etc. | ❌ TODO |
+| 12 | **Torture Protocol V8** | Stress test: parallel_flood, stagnation_loop, chaos_monkey | ❌ TODO |
+
+### Long Term 🔴 (1+ week)
+
+| # | Feature | Description | Status |
+|---|---------|-------------|--------|
+| 13 | **Shared Memory Files** | `workspace/.nexus/shared_memory/` for cross-agent handover | ❌ TODO |
+| 14 | **BM25S Retrieval** | Replace TF-IDF with BM25S for +15% recall | ❌ TODO |
+| 15 | **Memory Backend Abstraction** | Strategy pattern for swappable backends | ❌ TODO |
+| 16 | **Agent Session Persistence** | Spawned agents remember past tasks via UUID | ❌ TODO |
+| 17 | **Agent-as-MCP-Tool** | Agents invoke each other as MCP tools | ❌ TODO |
 
 ## 🔴 Phase 4: Interactive Frontend (NEW - V10 GATE)
 
