@@ -593,7 +593,8 @@ class SagaManager:
 
         # Use AtomicJsonStore for crash-safe write
         # Note: AtomicJsonStore.save() is sync, run in executor to not block
-        loop = asyncio.get_event_loop()
+        # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._store.save, data)
         logger.debug(f"Saga persisted to {self._store.filepath}")
 

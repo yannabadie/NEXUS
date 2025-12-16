@@ -64,19 +64,21 @@ class HomeIsolator:
     # V11 FIX F27: Regex pattern for session_id sanitization
     _SESSION_ID_PATTERN = re.compile(r'[^a-zA-Z0-9_-]')
 
-    def __init__(self, base_path: Path, use_workspace_prefix: bool = False):
+    # V12.4 FIX F24: Enable workspace prefix by default for collision prevention
+    def __init__(self, base_path: Path, use_workspace_prefix: bool = True):
         """
         Initialize HomeIsolator.
 
         Args:
             base_path: Base workspace path (project root)
             use_workspace_prefix: V11 F24 - Add workspace hash prefix to mitigate collisions
+                                  V12.4: Enabled by default for safety
         """
         self.base_path = Path(base_path)
         self.homes_dir = self.base_path / ".session_homes"
         self.homes_dir.mkdir(parents=True, exist_ok=True)
 
-        # V11 FIX F24: Optional workspace prefix for collision mitigation
+        # V11 FIX F24: Workspace prefix for collision mitigation (V12.4: enabled by default)
         self._use_workspace_prefix = use_workspace_prefix
 
         # Thread safety for concurrent session creation

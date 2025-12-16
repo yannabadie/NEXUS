@@ -296,8 +296,9 @@ class LocalToolExecutor(ToolExecutor):
         try:
             # Execute with timeout
             handler = self._handlers[tool_name]
+            # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
             result = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
+                asyncio.get_running_loop().run_in_executor(
                     None, lambda: handler(arguments)
                 ),
                 timeout=timeout,

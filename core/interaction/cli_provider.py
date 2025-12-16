@@ -56,7 +56,8 @@ class CLIProvider(InteractionProvider):
         required: bool = False
     ) -> str:
         """Ask user for input via terminal."""
-        loop = asyncio.get_event_loop()
+        # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Build display prompt
         display = f"{self.prefix}{prompt}"

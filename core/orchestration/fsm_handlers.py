@@ -1800,7 +1800,8 @@ Be brutally honest. It's better to catch issues now than have them fail in produ
         else:
             # Fallback: run sync driver in executor to not block
             import asyncio
-            loop = asyncio.get_event_loop()
+            # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
+            loop = asyncio.get_running_loop()
 
             if agent == "gemini":
                 return await loop.run_in_executor(

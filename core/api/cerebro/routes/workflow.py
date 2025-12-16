@@ -159,7 +159,8 @@ async def start_workflow(
 
             # V12.0: Run sync process_turn in executor to avoid blocking event loop
             # This allows WebSocket events to be processed during workflow execution
-            loop = asyncio.get_event_loop()
+            # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
+            loop = asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 result = await loop.run_in_executor(
                     executor,

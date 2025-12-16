@@ -39,6 +39,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
@@ -781,7 +782,8 @@ class ArchitectureGenerationPhase:
                     "capabilities": spec.capabilities,
                     "tools_priority": spec.tools_priority,
                     "created_by": "hive_mind_v8",
-                    "created_at": str(asyncio.get_event_loop().time())
+                    # V12.4 FIX F19: Use time.time() instead of deprecated get_event_loop().time()
+                    "created_at": str(time.time())
                 }
 
                 agent_path.write_text(

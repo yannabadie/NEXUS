@@ -174,7 +174,16 @@ class ClaudeDriverHybrid:
 
         # Invoke Claude (mode naturel, PAS de flag JSON!)
         # @file syntax reads prompt from file
-        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions'
+        # V12.4 SECURITY FIX: Add tool restrictions (parity with Gemini driver)
+        # Allowed tools for NEXUS operations:
+        # - File: Read, Write, Edit, Glob, Grep
+        # - Shell: Bash (with NEXUS security layer)
+        # - Web: WebFetch, WebSearch
+        # - Task: TodoWrite, Task (subagents)
+        # - Notebooks: NotebookEdit
+        # NOTE: AskUserQuestion excluded - NEXUS has its own user interaction layer
+        allowed_tools = "Read,Write,Edit,Bash,Glob,Grep,WebFetch,WebSearch,TodoWrite,Task,NotebookEdit"
+        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --allowed-tools "{allowed_tools}"'
 
         try:
             # Use Popen with polling loop to allow CTRL+C interruption
@@ -336,7 +345,10 @@ class ClaudeDriverHybrid:
             pass  # Windows may not support chmod, but file is in user-owned temp dir
 
         # Claude streaming requires: --verbose --output-format stream-json --include-partial-messages
-        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --verbose --output-format stream-json --include-partial-messages'
+        # V12.4 SECURITY FIX: Add tool restrictions (same as invoke)
+        # NOTE: AskUserQuestion excluded - NEXUS has its own user interaction layer
+        allowed_tools = "Read,Write,Edit,Bash,Glob,Grep,WebFetch,WebSearch,TodoWrite,Task,NotebookEdit"
+        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --allowed-tools "{allowed_tools}" --verbose --output-format stream-json --include-partial-messages'
 
         try:
             print(f"[DEBUG] Invoking Claude (streaming)", file=sys.stderr)

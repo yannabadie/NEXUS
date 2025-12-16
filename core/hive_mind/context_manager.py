@@ -35,6 +35,7 @@ Usage:
 """
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
@@ -122,6 +123,9 @@ class HiveMindContextManager:
         self._items: deque[ContextItem] = deque()
         self._current_tokens = 0
         self._archived_insights: List[Dict] = []  # Insights to index in RAG
+        # V12.4 FIX F23: RLock for thread-safe concurrent access
+        # RLock allows reentrant calls (e.g., add_analysis -> add_item)
+        self._lock = threading.RLock()
 
     @property
     def current_tokens(self) -> int:
@@ -151,52 +155,54 @@ class HiveMindContextManager:
             priority: Priority level
             metadata: Additional metadata
         """
-        item = ContextItem(
-            category=category,
-            source=source,
-            content=content,
-            priority=priority,
-            metadata=metadata or {}
-        )
-
-        # V10 FIX F12: Truncate CRITICAL items if too large
-        # CRITICAL items are never evicted, so we must cap them upfront
-        if priority == ContextPriority.CRITICAL and item.token_estimate > self.CRITICAL_MAX_TOKENS:
-            logger.warning(
-                f"CRITICAL item too large ({item.token_estimate} tokens), "
-                f"truncating to {self.CRITICAL_MAX_TOKENS} tokens"
+        # V12.4 FIX F23: Thread-safe access to shared state
+        with self._lock:
+            item = ContextItem(
+                category=category,
+                source=source,
+                content=content,
+                priority=priority,
+                metadata=metadata or {}
             )
-            ratio = self.CRITICAL_MAX_TOKENS / item.token_estimate
-            new_len = int(len(item.content) * ratio * 0.95)  # 5% margin
-            item.content = item.content[:new_len] + "...[CRITICAL TRUNCATED]"
-            item.token_estimate = self.CRITICAL_MAX_TOKENS
 
-        # Evict if needed before adding
-        while self._current_tokens + item.token_estimate > self.max_tokens:
-            if not self._evict_one():
-                # Can't evict anything, truncate new item
+            # V10 FIX F12: Truncate CRITICAL items if too large
+            # CRITICAL items are never evicted, so we must cap them upfront
+            if priority == ContextPriority.CRITICAL and item.token_estimate > self.CRITICAL_MAX_TOKENS:
                 logger.warning(
-                    f"Cannot fit item ({item.token_estimate} tokens), "
-                    f"truncating content"
+                    f"CRITICAL item too large ({item.token_estimate} tokens), "
+                    f"truncating to {self.CRITICAL_MAX_TOKENS} tokens"
                 )
-                # Truncate to fit
-                available = self.max_tokens - self._current_tokens
-                if available > 100:
-                    ratio = available / item.token_estimate
-                    new_len = int(len(item.content) * ratio * 0.9)
-                    item.content = item.content[:new_len] + "... [truncated]"
-                    item.token_estimate = available
-                else:
-                    logger.error("No space for item even after truncation")
-                    return
-                break
+                ratio = self.CRITICAL_MAX_TOKENS / item.token_estimate
+                new_len = int(len(item.content) * ratio * 0.95)  # 5% margin
+                item.content = item.content[:new_len] + "...[CRITICAL TRUNCATED]"
+                item.token_estimate = self.CRITICAL_MAX_TOKENS
 
-        self._items.append(item)
-        self._current_tokens += item.token_estimate
-        logger.debug(
-            f"Added context item: {category}/{source} "
-            f"({item.token_estimate} tokens, total: {self._current_tokens})"
-        )
+            # Evict if needed before adding
+            while self._current_tokens + item.token_estimate > self.max_tokens:
+                if not self._evict_one():
+                    # Can't evict anything, truncate new item
+                    logger.warning(
+                        f"Cannot fit item ({item.token_estimate} tokens), "
+                        f"truncating content"
+                    )
+                    # Truncate to fit
+                    available = self.max_tokens - self._current_tokens
+                    if available > 100:
+                        ratio = available / item.token_estimate
+                        new_len = int(len(item.content) * ratio * 0.9)
+                        item.content = item.content[:new_len] + "... [truncated]"
+                        item.token_estimate = available
+                    else:
+                        logger.error("No space for item even after truncation")
+                        return
+                    break
+
+            self._items.append(item)
+            self._current_tokens += item.token_estimate
+            logger.debug(
+                f"Added context item: {category}/{source} "
+                f"({item.token_estimate} tokens, total: {self._current_tokens})"
+            )
 
     def _evict_one(self) -> bool:
         """
@@ -477,16 +483,18 @@ Timestamp: {insight['timestamp']}
         Args:
             keep_critical: Whether to keep CRITICAL items
         """
-        if keep_critical:
-            critical = [
-                item for item in self._items
-                if item.priority == ContextPriority.CRITICAL
-            ]
-            self._items = deque(critical)
-            self._current_tokens = sum(item.token_estimate for item in critical)
-        else:
-            self._items.clear()
-            self._current_tokens = 0
+        # V12.4 FIX F23: Thread-safe access to shared state
+        with self._lock:
+            if keep_critical:
+                critical = [
+                    item for item in self._items
+                    if item.priority == ContextPriority.CRITICAL
+                ]
+                self._items = deque(critical)
+                self._current_tokens = sum(item.token_estimate for item in critical)
+            else:
+                self._items.clear()
+                self._current_tokens = 0
 
     def get_stats(self) -> Dict:
         """Get context statistics."""

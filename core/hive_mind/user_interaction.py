@@ -218,8 +218,9 @@ class UserInteractionHandler:
 
         try:
             # Run sync version with timeout
+            # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
             response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
+                asyncio.get_running_loop().run_in_executor(
                     None,
                     lambda: self.request_breakpoint_sync(
                         breakpoint_type,
