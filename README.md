@@ -4,7 +4,7 @@
 
 <h1 align="center">
   <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V9.4 "SYNC BRIDGE"
+  NEXUS V12.0 "RETINA VISUALS"
 </h1>
 
 <p align="center">
@@ -20,8 +20,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-9.4-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-12.0-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
+  <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
   <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
@@ -70,22 +71,39 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
 ```
 
 <a name="features"></a>
-## V8.3 Features
+## V12.0 Features
 
-### Phase Highlights
+### Recent Operations
+
+| Version | Codename | Feature | Status |
+|---------|----------|---------|--------|
+| **V12.0** | RETINA VISUALS | Mission Cockpit UI (HiveMap, FileCommander, MissionControl) | ✅ COMPLETE |
+| **V11.7** | RETINA FOUNDATION | React 19 Frontend (CEREBRO) | ✅ COMPLETE |
+| **V11.6.2** | IRONCLAD | Zero Trust WebSocket Auth (IDOR fix) | ✅ COMPLETE |
+| **V11.6** | KEYMAKER | JWT Authentication | ✅ COMPLETE |
+| **V11.5** | CORTEX | API Control & State Persistence | ✅ COMPLETE |
+
+### CEREBRO Web Interface (V12.0)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ CEREBRO V12.0 - Mission Cockpit                             │
+├───────────────────────────────────┬─────────────────────────┤
+│ Tabs: [Hive Map] [Files]          │ Mission Control         │
+│                                   │ - 6 Swarm Modes         │
+│ - HiveMap: SVG Graph Viz          │ - ENGAGE / ABORT        │
+│ - FileCommander: Monaco Editor    ├─────────────────────────┤
+│ - Graph Events: Real-time         │ Event Stream            │
+│                                   │ - WebSocket Live        │
+└───────────────────────────────────┴─────────────────────────┘
+```
+
+### Classic Phase Highlights (V8-V10)
 
 | Phase | Feature | Status |
 |-------|---------|--------|
-| **Phase 5b** | N-Agent Agnosticism (Spawned Agents) | ✅ COMPLETE |
-| **Phase 7** | Session Isolation (SwarmSessionManager) | ✅ COMPLETE |
 | **Phase 8** | Self-Healing Swarm (Fallback Chain) | ✅ COMPLETE |
-| **Phase 10a** | Success Memory | ✅ COMPLETE |
-| **Phase 10b** | Memory-Augmented Mode Selection | ✅ COMPLETE |
 | **Phase 10d** | Session-Aware Agent Selection | ✅ COMPLETE |
-| **Phase 12.3** | Workspace File Management | ✅ COMPLETE |
-| **Phase 12.5** | Dynamic Tool Generation | ✅ COMPLETE |
-| **Phase 13b** | Workspace Commands Activation | ✅ COMPLETE |
-| **Phase 13c** | Telemetry Export | ✅ COMPLETE |
 | **Phase 14e** | Force Chain-of-Thought (EXPERT) | ✅ COMPLETE |
 
 ### Hybrid Swarm Engine
@@ -126,11 +144,11 @@ nexus> /review         # Review pending children
 ```
 
 <a name="architecture"></a>
-## Architecture (V8.3)
+## Architecture (V12.0)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                        NEXUS V8.3 TRUE HIVE MIND                          │
+│                   NEXUS V12.0 RETINA VISUALS                              │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   USER INPUT                                                         │
@@ -196,35 +214,29 @@ nexus> /review         # Review pending children
 ```
 NEXUS-N7A/
 ├── core/                     # Core orchestration
+│   ├── api/cerebro/          # CEREBRO REST API (V11.5+)
 │   ├── drivers/              # Claude & Gemini CLI drivers
 │   ├── fsm/                  # Finite State Machine (11 states)
 │   ├── swarm/                # Hybrid Swarm Engine (6 modes)
 │   ├── synapse/              # Memory & Protocol (LightMessageV7/HeavyMessageV7)
 │   ├── evolution/            # Agent generation & mutation
-│   ├── bootstrap/            # Project analysis & agent discovery
 │   ├── execution/            # Tool execution layer
-│   ├── routing/              # Model routing (Opus/Sonnet/Pro)
 │   ├── memory/               # Success memory (Phase 10)
-│   ├── security/             # Defense-in-depth
-│   ├── logging/              # Structured event logging
-│   ├── interface/            # REPL interface
-│   └── utils/                # Utilities (AtomicJsonStore, etc.)
+│   ├── security/             # Defense-in-depth (IRONCLAD)
+│   └── ...                   # 36 modules total
+├── interface/ui/cerebro/     # CEREBRO Frontend (V12.0)
+│   ├── src/components/       # React 19 components
+│   │   ├── views/            # HiveMap, FileCommander
+│   │   └── controls/         # MissionControl
+│   └── src/stores/           # Zustand stores
 ├── prompts/                  # System prompts
 ├── workspace/                # Runtime data
-│   ├── agents/               # Spawned specialists
-│   ├── _IO_BUFFER/           # CLI communication buffers
-│   └── .nexus/               # Blackboard & state
-├── config/                   # Configuration
 ├── tests/                    # Test suite (667+ tests)
 ├── docs/                     # Documentation
-│   ├── archive/              # Archived roadmaps
-│   └── sessions/             # Session logs
 ├── CLAUDE.md                 # Claude instructions
-├── GEMINI.md                 # Gemini instructions
 ├── MISSION.md                # HIVE MIND vision
 ├── KERNEL.py                 # Alignment kernel (immutable)
-├── ROADMAP_HIVE_MIND.md      # Development roadmap
-└── LINEAGE.json              # Evolution history
+└── ROADMAP.md                # Development roadmap
 ```
 
 ## Documentation
@@ -234,13 +246,12 @@ NEXUS-N7A/
 |----------|---------|
 | [MISSION.md](MISSION.md) | HIVE MIND vision & philosophy |
 | [CLAUDE.md](CLAUDE.md) | Claude agent instructions |
-| [GEMINI.md](GEMINI.md) | Gemini agent instructions |
-| [ROADMAP_HIVE_MIND.md](ROADMAP_HIVE_MIND.md) | Development roadmap |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap |
+| [docs/README.md](docs/README.md) | Documentation index |
 | [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm documentation |
-| [docs/EVOLUTION_GUIDE.md](docs/EVOLUTION_GUIDE.md) | Evolution guide |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | V9.4 Technical Audit (Strengths, Weaknesses, Resolutions) |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Latest technical audit |
 
-### The Nexus Map (V9.4 Architecture)
+### The Nexus Map (V12.0 Architecture)
 
 ```mermaid
 graph TB
@@ -292,7 +303,7 @@ graph TB
     ORCH --> LOG
 ```
 
-### Navigation Tree (V9.4 - 34 Modules Documented)
+### Navigation Tree (V12.0 - 36 Modules Documented)
 
 <details>
 <summary><b>📁 core/ - Main Engine (176 Python files)</b></summary>
