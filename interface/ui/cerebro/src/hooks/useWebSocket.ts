@@ -30,6 +30,10 @@ export function useWebSocket(options: WebSocketOptions = {}) {
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
 
+  // Store options in ref to avoid infinite re-renders
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   const connect = useCallback(() => {
     // Don't connect if not authenticated
     if (!token || !isAuthenticated) {
@@ -44,20 +48,21 @@ export function useWebSocket(options: WebSocketOptions = {}) {
 
     // V11.6.2 IRONCLAD: Correct WebSocket URL format
     // Token is MANDATORY, no tenant_id fallback
+    const opts = optionsRef.current;
     const params = new URLSearchParams({
-      workspace_id: options.workspace || 'default',
+      workspace_id: opts.workspace || 'default',
       token: token,
     });
 
-    if (options.eventTypes?.length) {
-      params.set('event_types', options.eventTypes.join(','));
+    if (opts.eventTypes?.length) {
+      params.set('event_types', opts.eventTypes.join(','));
     }
 
     // Build WebSocket URL (Vite proxy handles /ws -> ws://localhost:8080)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/stream?${params}`;
 
-    console.log('[WebSocket] Connecting...', { workspace: options.workspace });
+    console.log('[WebSocket] Connecting...', { workspace: opts.workspace });
     setStatus('connecting');
 
     ws.current = new WebSocket(wsUrl);
@@ -66,7 +71,7 @@ export function useWebSocket(options: WebSocketOptions = {}) {
       console.log('[WebSocket] Connected');
       retries.current = 0; // Reset retry counter on successful connection
       setStatus('connected');
-      options.onConnect?.();
+      optionsRef.current.onConnect?.();
     };
 
     ws.current.onmessage = (event) => {
@@ -86,7 +91,7 @@ export function useWebSocket(options: WebSocketOptions = {}) {
     ws.current.onclose = (event) => {
       console.log('[WebSocket] Disconnected', { code: event.code, reason: event.reason });
       setStatus('disconnected');
-      options.onDisconnect?.();
+      optionsRef.current.onDisconnect?.();
 
       // Code 4001 = IRONCLAD auth required - don't reconnect
       if (event.code === 4001) {
@@ -114,9 +119,9 @@ export function useWebSocket(options: WebSocketOptions = {}) {
     ws.current.onerror = (error) => {
       console.error('[WebSocket] Error:', error);
       setStatus('error');
-      options.onError?.(error);
+      optionsRef.current.onError?.(error);
     };
-  }, [token, isAuthenticated, options, addEvent]);
+  }, [token, isAuthenticated, addEvent]);
 
   // Connect when authenticated
   useEffect(() => {

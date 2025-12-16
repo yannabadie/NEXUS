@@ -7,7 +7,8 @@ Fire-and-forget publishing with graceful degradation.
 Architecture:
 - Singleton via __new__ + RLock (thread-safe)
 - Connection pool with Redis.from_url()
-- Graceful degradation: if Redis unavailable, continue without blocking
+- Graceful degradation: if Redis unavailable, uses IN-MEMORY pub/sub
+- V12.0: Added in-memory fallback for development without Redis
 
 Channel Format: nexus:{tenant_id}:{workspace_id}:{event_type}
 
@@ -28,8 +29,9 @@ Usage:
 
 import asyncio
 import logging
+import uuid
 from threading import RLock
-from typing import Any, AsyncIterator, Dict, List, Optional, Set
+from typing import Any, AsyncIterator, Dict, List, Optional, Set, Tuple
 
 from .types import CerebroEvent, CerebroEventType
 
@@ -67,6 +69,18 @@ class RedisEventBus:
         self._connected: bool = False
         self._subscriptions: Set[str] = set()
         self._initialized = True
+
+        # V12.0: In-memory pub/sub fallback (when Redis unavailable)
+        # Key: (tenant_id, workspace_id), Value: dict of {subscriber_id: asyncio.Queue}
+        self._memory_subscribers: Dict[Tuple[str, str], Dict[str, asyncio.Queue]] = {}
+        # Store reference to main event loop for thread-safe queue operations
+        self._main_loop: Optional[asyncio.AbstractEventLoop] = None
+        logger.info("CEREBRO: RedisEventBus initialized with in-memory fallback support")
+
+    def set_main_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Set the main event loop for thread-safe operations."""
+        self._main_loop = loop
+        logger.info(f"CEREBRO: Main event loop registered for in-memory pub/sub")
 
     async def connect(self, url: str = "redis://localhost:6379") -> bool:
         """
@@ -131,7 +145,9 @@ class RedisEventBus:
 
     async def publish(self, event: CerebroEvent) -> bool:
         """
-        Publish event to Redis (fire-and-forget).
+        Publish event to Redis or in-memory subscribers.
+
+        V12.0: Falls back to in-memory pub/sub when Redis unavailable.
 
         Args:
             event: CerebroEvent to publish
@@ -139,19 +155,64 @@ class RedisEventBus:
         Returns:
             True if published successfully, False otherwise (graceful degradation)
         """
-        if not self._connected or self._redis is None:
-            logger.debug(f"CEREBRO: Redis unavailable, dropping event: {event.event_type.value}")
+        # Try Redis first
+        if self._connected and self._redis is not None:
+            try:
+                channel = event.channel_name()
+                await self._redis.publish(channel, event.to_json())
+                logger.debug(f"CEREBRO: Published {event.event_type.value} to Redis")
+                return True
+            except Exception as e:
+                logger.warning(f"CEREBRO: Failed to publish to Redis: {e}")
+                # Fall through to in-memory
+
+        # V12.0: In-memory fallback
+        key = (event.tenant_id, event.workspace_id)
+        subscribers = self._memory_subscribers.get(key, {})
+
+        logger.debug(f"CEREBRO: In-memory publish attempt - key={key}, subscribers={len(subscribers)}, event={event.event_type.value}")
+
+        if not subscribers:
+            # Log at INFO level for debugging this issue
+            logger.info(f"CEREBRO: No subscribers for {key}, available keys: {list(self._memory_subscribers.keys())}")
             return False
 
+        # Push to all subscriber queues
+        # NOTE: asyncio.Queue is NOT thread-safe, so we use call_soon_threadsafe
+        published_count = 0
+
+        # Determine if we're in the main loop or a worker thread
         try:
-            channel = event.channel_name()
-            await self._redis.publish(channel, event.to_json())
-            logger.debug(f"CEREBRO: Published {event.event_type.value} to {channel}")
+            current_loop = asyncio.get_running_loop()
+            in_main_loop = (self._main_loop is None or current_loop == self._main_loop)
+        except RuntimeError:
+            # No running loop - we're in a worker thread
+            in_main_loop = False
+
+        for sub_id, queue in list(subscribers.items()):
+            try:
+                if in_main_loop:
+                    # Same loop - direct put
+                    queue.put_nowait(event)
+                    published_count += 1
+                    logger.debug(f"CEREBRO: Event {event.event_type.value} queued for {sub_id[:8]}...")
+                elif self._main_loop and self._main_loop.is_running():
+                    # Different thread - use thread-safe call
+                    self._main_loop.call_soon_threadsafe(queue.put_nowait, event)
+                    published_count += 1
+                    logger.debug(f"CEREBRO: Event {event.event_type.value} queued (threadsafe) for {sub_id[:8]}...")
+                else:
+                    logger.warning(f"CEREBRO: Main loop not available for thread-safe publish")
+            except asyncio.QueueFull:
+                logger.warning(f"CEREBRO: Queue full for subscriber {sub_id}, dropping event")
+            except Exception as e:
+                logger.warning(f"CEREBRO: Failed to queue event for {sub_id}: {e}")
+
+        if published_count > 0:
+            logger.info(f"CEREBRO: Published {event.event_type.value} to {published_count} in-memory subscriber(s)")
             return True
 
-        except Exception as e:
-            logger.warning(f"CEREBRO: Failed to publish event: {e}")
-            return False
+        return False
 
     async def subscribe(
         self,
@@ -161,6 +222,8 @@ class RedisEventBus:
     ) -> AsyncIterator[CerebroEvent]:
         """
         Subscribe to events for a tenant/workspace.
+
+        V12.0: Uses in-memory pub/sub when Redis unavailable.
 
         Args:
             tenant_id: Tenant identifier
@@ -174,54 +237,133 @@ class RedisEventBus:
             async for event in bus.subscribe("t1", "ws1"):
                 print(event.payload)
         """
-        if not self._connected or self._redis is None:
-            logger.warning("CEREBRO: Cannot subscribe - Redis not connected")
+        # Try Redis first
+        if self._connected and self._redis is not None:
+            pubsub = None
+            try:
+                import redis.asyncio as aioredis
+
+                pubsub = self._redis.pubsub()
+
+                # Build patterns
+                if event_types:
+                    patterns = [
+                        CerebroEvent.wildcard_channel(tenant_id, workspace_id, et)
+                        for et in event_types
+                    ]
+                else:
+                    patterns = [CerebroEvent.wildcard_channel(tenant_id, workspace_id)]
+
+                # Subscribe to patterns
+                for pattern in patterns:
+                    await pubsub.psubscribe(pattern)
+                    self._subscriptions.add(pattern)
+                    logger.debug(f"CEREBRO: Subscribed to Redis pattern: {pattern}")
+
+                # Yield events from Redis
+                async for message in pubsub.listen():
+                    if message["type"] == "pmessage":
+                        try:
+                            event = CerebroEvent.from_json(message["data"])
+                            yield event
+                        except Exception as e:
+                            logger.warning(f"CEREBRO: Failed to parse event: {e}")
+
+            except asyncio.CancelledError:
+                logger.debug("CEREBRO: Redis subscription cancelled")
+                raise
+            except Exception as e:
+                logger.error(f"CEREBRO: Redis subscription error: {e}")
+            finally:
+                if pubsub:
+                    try:
+                        await pubsub.close()
+                    except Exception:
+                        pass
             return
 
+        # V12.0: In-memory fallback
+        logger.info(f"CEREBRO: Entering in-memory subscription mode for ({tenant_id}, {workspace_id})")
+
+        key = (tenant_id, workspace_id)
+        sub_id = str(uuid.uuid4())
+        queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
+
+        # Register subscriber
+        if key not in self._memory_subscribers:
+            self._memory_subscribers[key] = {}
+        self._memory_subscribers[key][sub_id] = queue
+        logger.info(f"CEREBRO: In-memory subscriber registered: {sub_id} for {key}, total subs: {len(self._memory_subscribers[key])}")
+
         try:
-            import redis.asyncio as aioredis
+            # Filter event types if specified
+            filter_types = set(et.value for et in event_types) if event_types else None
 
-            pubsub = self._redis.pubsub()
+            logger.info(f"CEREBRO: In-memory subscriber {sub_id[:8]}... entering event loop")
 
-            # Build patterns
-            if event_types:
-                patterns = [
-                    CerebroEvent.wildcard_channel(tenant_id, workspace_id, et)
-                    for et in event_types
-                ]
-            else:
-                patterns = [CerebroEvent.wildcard_channel(tenant_id, workspace_id)]
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=60.0)
 
-            # Subscribe to patterns
-            for pattern in patterns:
-                await pubsub.psubscribe(pattern)
-                self._subscriptions.add(pattern)
-                logger.debug(f"CEREBRO: Subscribed to pattern: {pattern}")
+                    # Apply event type filter
+                    if filter_types and event.event_type.value not in filter_types:
+                        logger.debug(f"CEREBRO: Event {event.event_type.value} filtered out for {sub_id[:8]}")
+                        continue
 
-            # Yield events
-            async for message in pubsub.listen():
-                if message["type"] == "pmessage":
-                    try:
-                        event = CerebroEvent.from_json(message["data"])
-                        yield event
-                    except Exception as e:
-                        logger.warning(f"CEREBRO: Failed to parse event: {e}")
+                    logger.info(f"CEREBRO: Yielding event {event.event_type.value} to subscriber {sub_id[:8]}...")
+                    yield event
+                except asyncio.TimeoutError:
+                    # No events for 60s, continue waiting
+                    logger.debug(f"CEREBRO: No events for 60s, subscriber {sub_id[:8]} still waiting...")
+                    continue
 
         except asyncio.CancelledError:
-            logger.debug("CEREBRO: Subscription cancelled")
+            logger.debug(f"CEREBRO: In-memory subscription cancelled: {sub_id}")
             raise
         except Exception as e:
-            logger.error(f"CEREBRO: Subscription error: {e}")
+            logger.error(f"CEREBRO: In-memory subscription error: {e}")
         finally:
-            if pubsub:
-                try:
-                    await pubsub.close()
-                except Exception:
-                    pass
+            # Unregister subscriber
+            if key in self._memory_subscribers and sub_id in self._memory_subscribers[key]:
+                del self._memory_subscribers[key][sub_id]
+                if not self._memory_subscribers[key]:
+                    del self._memory_subscribers[key]
+                logger.info(f"CEREBRO: In-memory subscriber unregistered: {sub_id}")
 
     def is_connected(self) -> bool:
         """Check if connected to Redis."""
         return self._connected
+
+    def can_stream(self) -> bool:
+        """
+        Check if event streaming is available (Redis or in-memory).
+
+        V12.0: Always returns True since in-memory fallback is available.
+
+        Returns:
+            True (streaming always available via Redis or in-memory)
+        """
+        return True
+
+    def get_subscriber_count(self, tenant_id: str = None, workspace_id: str = None) -> int:
+        """
+        Get count of in-memory subscribers.
+
+        Args:
+            tenant_id: Filter by tenant (optional)
+            workspace_id: Filter by workspace (optional)
+
+        Returns:
+            Number of active in-memory subscribers
+        """
+        if tenant_id and workspace_id:
+            key = (tenant_id, workspace_id)
+            return len(self._memory_subscribers.get(key, {}))
+
+        total = 0
+        for subs in self._memory_subscribers.values():
+            total += len(subs)
+        return total
 
     async def health_check(self) -> Dict[str, Any]:
         """

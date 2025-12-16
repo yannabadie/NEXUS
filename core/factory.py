@@ -409,9 +409,8 @@ class ServiceFactory:
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.auto_memory import AutoMemory
-            nexus_root = cls.get_nexus_root()
             workspace_path = cls.get_tenant_workspace_path(ctx)
-            return AutoMemory(nexus_root, workspace_path)
+            return AutoMemory(workspace_path)
 
         return cls._get_or_create("auto_memory", factory, ctx)
 

@@ -303,6 +303,36 @@ class TrueHiveMind:
                 CerebroEventType.HIVE_PHASE_START,
                 {"phase": "process_task", "task_preview": task[:100], "trace_id": trace_id}
             )
+
+            # V12.0 RETINA: Spawn graph nodes for visualization
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_SPAWN,
+                {
+                    "node_id": "gemini",
+                    "type": "agent",
+                    "data": {"name": "Gemini", "status": "idle", "role": "analyst"},
+                    "position": {"x": 100, "y": 50}
+                }
+            )
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_SPAWN,
+                {
+                    "node_id": "claude",
+                    "type": "agent",
+                    "data": {"name": "Claude", "status": "idle", "role": "analyst"},
+                    "position": {"x": 300, "y": 50}
+                }
+            )
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_SPAWN,
+                {
+                    "node_id": "task",
+                    "type": "task",
+                    "data": {"name": task[:50], "status": "pending", "phase": "starting"},
+                    "position": {"x": 200, "y": 200}
+                }
+            )
+
             # Reset for new task
             self.cost_estimator.start_task()
             self.phase_retry.reset_retry_count()
@@ -346,8 +376,33 @@ class TrueHiveMind:
             # PHASE 1: Independent Analysis
             # =========================================================
             self._set_state(HiveMindState.HIVE_ANALYZING_GEMINI)
+
+            # V12.0 RETINA: Update nodes - agents analyzing
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {"node_id": "gemini", "data": {"status": "working", "phase": "analysis"}}
+            )
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {"node_id": "claude", "data": {"status": "working", "phase": "analysis"}}
+            )
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {"node_id": "task", "data": {"status": "in_progress", "phase": "analysis"}}
+            )
+
             analysis_result = await self.phase_analysis.execute(task)
             phases_completed.append("analysis")
+
+            # V12.0 RETINA: Update nodes - analysis complete
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {"node_id": "gemini", "data": {"status": "done", "phase": "analysis"}}
+            )
+            await _telemetry_bridge.emit(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {"node_id": "claude", "data": {"status": "done", "phase": "analysis"}}
+            )
 
             # V8.4.4b: Checkpoint after analysis
             if self._saga:

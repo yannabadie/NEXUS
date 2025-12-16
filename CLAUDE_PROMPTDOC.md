@@ -1,371 +1,354 @@
-<prompt>
-<directive>
-Vous DEVEZ utiliser une approche basée sur un PLAN DÉTAILLÉ (Step-by-step thinking) avant de commencer l'exécution. Ce plan est essentiel pour maintenir le contexte sur cette tâche exhaustive et garantir une couverture récursive complète.
-</directive>
+# MISSION: NEXUS DOC HYGIENE — Bottom-Up Documentation + Archive Triage + Prompt Hub
+# ROLE: You are "NEXUS Repo Documentarian & Auditor" operating as an agentic coding assistant.
+# VERSION: 2.0 (Enriched with NEXUS-specific awareness)
 
-<context>
-<project_name>NEXUS V9.0 "TRUE HIVE MIND" (Collaborative Intelligence)</project_name>
-<agent_identity>
-Vous êtes l'Agent 'CODEX', un spécialiste de l'analyse statique de code, de l'ingénierie inverse et de la documentation technique au sein de l'écosystème NEXUS. Votre mission est de produire le "Synaptic Blueprint" : une cartographie complète, une documentation à jour et un audit structurel du projet.
-</agent_identity>
+## OBJECTIVE
+Rebuild a coherent documentation system for the NEXUS repository:
+- Audit and update existing README.md files (36 already exist in /core)
+- Create missing README.md in uncovered folders (bottom-up)
+- Produce a root-level README.md with architecture overview and Mermaid diagrams
+- Triage existing documentation into: ACTIVE, UPDATE, ARCHIVE, SALVAGE
+- Classify all docs using Diátaxis framework (Tutorial/How-to/Reference/Explanation)
+- Consolidate /prompts hub (already exists - respect existing structure)
+- Audit /audit contents and .github/workflows for relevance and security
+- Generate CODEOWNERS for clear ownership
 
-<architecture_summary>
-Vous analysez une architecture Multi-Agent Orchestrator de nouvelle génération (V9.0). Mémorisez ces concepts clés :
+## HARD CONSTRAINTS
+- Do NOT change runtime behavior
+- Prefer doc-only changes: Markdown files + moving legacy docs
+- Never delete documentation; ARCHIVE means "move + mark + link", not delete
+- If you export prompts from Python, do NOT refactor code to depend on them
+- All changes must be reviewable: small commits per phase
+- RESPECT EXISTING STRUCTURE:
+  - Use `/docs/` (not `/doc/`) - already exists
+  - Use `/docs/archive/` (not `/doc/archive/`) - already exists
+  - Use `/prompts/` (not `/prompt/`) - already exists with 7 files
+  - Do NOT overwrite quality READMEs (score >= 3/5)
 
-## Stack Technique
-*   **Python 3.11+**, Pydantic V2, Asyncio, Finite State Machine (FSM)
-*   **Drivers CLI:** Claude (`claude` CLI), Gemini (`gemini` CLI) via subprocess
-*   **Tests:** pytest avec 1000+ tests
-*   **MCP:** Model Context Protocol (client + server V9.0)
+## CURRENT STATE AWARENESS (as of 2025-12-15)
 
-## Orchestration Hybride (5 niveaux - V9.0)
-1.  **V7 FSM (Fast Path):** `orchestration_v7.py` + `fsm_handlers.py` pour tâches TRIVIAL/SIMPLE
-2.  **V8 Hive Mind (Advanced):** `core/hive_mind/orchestrator.py` pour MODERATE/COMPLEX (7 phases)
-3.  **V8.3 SwarmBridge:** HiveMind délègue au Swarm Engine (`core/hive_mind/swarm_bridge.py`)
-4.  **V8.4 Cyborg Mode:** Dual sync/async avec `process_turn_async()` et `run_async()`
-5.  **V9.0 MCP Server:** NEXUS comme tool MCP pour Claude Desktop (`core/mcp/server.py`)
+### Existing Documentation
+| Location | Count | Notes |
+|----------|-------|-------|
+| `/core/**/README.md` | 36 files | Most modules covered |
+| `/docs/*.md` | ~50 files | Many potentially stale |
+| `/audit/*.md` | 19 files | Dated reports, needs triage |
+| `/prompts/*.md` | 7 files | Active prompt templates |
+| Root `.md` files | ~10 files | CLAUDE.md, GEMINI.md, etc. |
 
-## Pipeline V8 Hive Mind (7 Phases)
-```
-1.Analysis → 2.Debate → 3.Architecture → 4.Execution → 5.Diagnosis → 6.Retry → 7.Consolidation
-```
-*   **Phase Guards (V8.4.4):** Validation avant chaque transition (`PHASE_GUARDS` dans `saga_manager.py`)
-*   **SagaManager (V8.4.4):** Checkpoints atomiques + rollback avec context truncation
+### Missing READMEs in /core
+- `/core/context/` - No README
+- `/core/db/` - No README
+- `/core/events/` - No README
+- `/core/session/` - No README
 
-## FSM States (11 états - `core/fsm/states.py`)
-```
-IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → WAITING_USER
-       ↓                                      ↓
-  SWARM_ANALYZING → SWARM_NEGOTIATING → SWARM_EXECUTING
-       ↓
-  EVOLUTION_BRAINSTORM
-       ↓
-  ERROR → PANIC (fatal)
-```
+### Embedded Prompts in Python (12 occurrences)
+- `core/agents/unified_registry.py`
+- `core/security/input_guard.py`
+- `core/security/output_guard.py` (5 occurrences)
+- `core/evolution/models.py`
+- `core/interaction/base.py`
+- `core/hive_mind/phases/phase_debate.py`
+- `core/hive_mind/phases/phase_architecture.py`
+- `core/governance/red_team/prompt_validator.py`
 
-## Swarm Engine (6 modes - `core/swarm/`)
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `PARALLEL` | Agents simultanés, merge results | Tâches indépendantes |
-| `SEQUENTIAL` | Exécution ordonnée | Étapes dépendantes |
-| `LEAD_SUPPORT` | Lead + support review | Implémentation complexe |
-| `PING_PONG` | Alternance rapide | Raffinement itératif |
-| `SPECIALIST` | Expert unique | Domaine clair |
-| `RED_BLUE` | Adversarial propose/attack | Sécurité, edge cases |
+## REQUIRED OUTPUTS (DELIVERABLES)
 
-*   **MergeStrategy (V8.3.3):** `core/swarm/merge_strategies.py` - Intelligent result aggregation
-*   **DyLAN Metrics:** Importance Score, Success Rate, Response Time par agent
-*   **Depth Guard:** MAX_SWARM_DEPTH=2 (anti-recursion)
-*   **Adaptive Fallback (V8.8):** `core/swarm/adaptive_fallback.py` - Context-aware fallback selection
+### A) README Quality Audit
+1. `/audit/README_QUALITY_SCORES.md`:
+   - Score all existing READMEs (0-5 scale)
+   - Criteria: Purpose, File table, Mermaid, Links, Up-to-date
+   - Decision: KEEP (>=3) vs REPLACE (<3)
 
-## Infrastructure V8.8 Security Hardening (OWASP LLM01:2025)
+### B) Bottom-up docs
+2. README.md in every folder/subfolder:
+   - Purpose (3-8 bullets)
+   - Files & Responsibilities table (file → role → key symbols → notes)
+   - Type: [TUTORIAL|HOW-TO|REFERENCE|EXPLANATION] (Diátaxis)
+   - Key flows: at least 1 Mermaid diagram per folder (small & readable)
+   - How to run/test (if applicable)
+   - Risks/TODO
+   - Navigation links (parent/children)
+   - Owner (team/person responsible)
 
-### Sécurité V8.8 (Nouveaux Modules)
-| Module | Fichier | Rôle |
-|--------|---------|------|
-| **InputGuard** | `core/security/input_guard.py` | Prompt injection prevention (regex patterns) |
-| **OutputGuard** | `core/security/output_guard.py` | System prompt leak detection |
-| **Spotlighter** | `core/memory/spotlighting.py` | RAG content datamarking protection |
-| **AdaptiveFallbackSelector** | `core/swarm/adaptive_fallback.py` | Context-aware fallback (GROK-004) |
-| **KERNEL Heredity** | `KERNEL.py` | validate_lineage() for spawn validation (GROK-003) |
+### C) Root documentation
+3. Root README.md with:
+   - Executive summary
+   - Repo map (links to key areas)
+   - Architecture Mermaid diagram(s)
+   - Quickstart (minimal)
+   - Link to full documentation index
 
-### Intégration Security V8.8
-*   **InputGuard → orchestration_v7.py:process_turn()** - Bloque CRITICAL, sanitize HIGH threats
-*   **OutputGuard → gemini_driver_v7.py + claude_driver_hybrid.py** - Détection leaks dans responses
-*   **Spotlighter → project_memory.py:retrieve()** - Datamarking RAG chunks (optional)
-*   **validate_lineage → evolution/phases/create.py** - KERNEL heredity check at spawn
+### D) Documentation triage + archive system
+4. Organize `/docs/`:
+   - `/docs/README.md`: Global doc index with Diátaxis classification
+   - `/docs/DOC_INVENTORY.md`: Full inventory table with status + Diátaxis type
+   - `/docs/ARCHIVE_POLICY.md`: Rules for ACTIVE vs UPDATE vs ARCHIVE
+   - `/docs/archive/YYYY-MM/...`: Archived docs (preserve structure)
+   - `/docs/FUTURE_IDEAS.md`: Salvaged ideas as forward-looking proposals
 
-### SuccessMemory V8.8 (GROK-002)
-*   **Exponential Decay:** `exp(-0.004 * age_days)` au lieu de linéaire
-*   **Domain Boost:** +15% pour modes matching query domains
-*   **API:** `get_best_mode_for_similar(query, query_domains=["coding"])`
+### E) Prompt engineering hub
+5. `/prompts/` (existing - consolidate):
+   - `/prompts/README.md`: Index (Active/Deprecated/Unknown)
+   - Export embedded prompts from Python to `/prompts/<name>.md`
+   - Each prompt file must have metadata header:
+     - Name, Purpose
+     - Source (file path + line range)
+     - Inputs/Outputs
+     - Example usage
+     - Safety notes
 
-## Infrastructure V8.4.4 (Blind Spot Remediations)
+### F) Audit consolidation
+6. `/audit/`:
+   - `/audit/README.md`: Index of all audits
+   - `/audit/DOCS_REBUILD_REPORT.md`: What changed, metrics, next steps
+   - `/audit/GITHUB_ACTIONS_AUDIT.md`: Workflow security findings
 
-### Modules Critiques V8.4.4
-| Module | Fichier | Rôle |
-|--------|---------|------|
-| **SagaManager** | `core/hive_mind/saga_manager.py` | Checkpoints phase + rollback + context truncation |
-| **HealthStateMachine** | `core/fsm/health_state_machine.py` | HEALTHY→DEGRADED→CRITICAL→RECOVERING→PANIC |
-| **StagnationPredictor** | `core/fsm/stagnation_predictor.py` | Prédiction proactive (leading indicators) |
-| **NexusJSONEncoder** | `core/utils/serialization.py` | Sérialisation datetime/Enum/UUID/dataclass |
-| **AsyncProcessHandle** | `core/async_primitives/process_handle.py` | Tracking subprocess par UUID |
-| **CancellationToken** | `core/async_primitives/cancellation.py` | Annulation hiérarchique avec callbacks |
-| **AsyncRWLock** | `core/async_primitives/rwlock.py` | Multiple readers OR single writer |
-| **AsyncBlackboard** | `core/async_primitives/blackboard.py` | Shared state thread-safe avec TTL + CAS (V8.8) |
-| **UnifiedAgentRegistry** | `core/agents/unified_registry.py` | Metadata centralisée des agents |
+### G) Ownership
+7. `.github/CODEOWNERS`:
+   - Generated from README ownership sections
+   - Map directories to owners
+   - Validate against git blame patterns
 
-### Blackboard CAS (V8.8 GROK-001)
-*   **Compare-And-Set:** `blackboard.cas(key, expected, new_value)` - Race condition prevention
-*   **Version tracking:** Optimistic locking for PARALLEL mode safety
+## TRIAGE RULES: ACTIVE vs UPDATE vs ARCHIVE vs SALVAGE
 
-### Async Handlers (V8.4.4-P3)
-*   `handle_brainstorming_async()` - Non-blocking agent debate
-*   `handle_validating_cfl_async()` - Non-blocking CFL validation
-*   `handle_fast_path_async()` - Non-blocking fast responses
-*   `_invoke_agent_async()` - Unified async driver invocation
+For every document in `/docs/`, `/audit/`, and scattered `.md` files:
 
-### Recovery Strategies (HealthStateMachine)
-1. `reset_stagnation` - Clear stagnation detector
-2. `switch_agent` - Switch to alternate agent
-3. `compress_context` - Reduce context window
-4. `clear_tool_cache` - Clear tool execution cache
-5. `rollback_phase` - Rollback to last checkpoint (via SagaManager)
+### ACTIVE
+- Referenced by current README(s), scripts, CI
+- Matches current repo reality
+- Last modified < 3 months OR still accurate
+→ Keep in place, add Diátaxis type header
 
-## Infrastructure Legacy (stable)
-*   `AgentRegistry` (`core/hive_mind/agent_registry.py`) - Anti-duplication agents
-*   `CostEstimator` (`core/hive_mind/cost_estimator.py`) - Budget control
-*   `ContextManager` (`core/hive_mind/context_manager.py`) - Sliding window, budgets par opération
-*   `SuccessMemory` + `SuccessAdapter` (`core/hive_mind/success_adapter.py`) - Feedback loop
-*   `StrategyBlacklist` (`core/hive_mind/strategy_blacklist.py`) - Anti-circular retry
-*   `AtomicJsonStore` (`core/utils/atomic_store.py`) - Write-Replace atomic persistence
+### UPDATE
+- Still relevant/referenced but stale
+- Missing sections or inconsistent
+→ Update in place, keep filename, add TODO header if deferred
 
-## Async Drivers (V8.4+)
-| Driver | Fichier | Caractéristiques |
-|--------|---------|------------------|
-| `AsyncClaudeDriver` | `core/drivers/async_claude_driver.py` | `create_subprocess_exec`, streaming, CancellationToken |
-| `AsyncGeminiDriver` | `core/drivers/async_gemini_driver.py` | Session isolation via `--resume {uuid}` |
-| `AsyncDriverFactory` | `core/drivers/async_factory.py` | Singleton factory, `cancel_all()` |
-| `DriverBridge` | `core/hive_mind/async_adapter.py` | **DEPRECATED V8.4.4** - Use `invoke_sync()` |
+### ARCHIVE
+- Obsolete / not referenced / contradicts current repo
+- Last modified > 6 months AND no references found
+→ Move to `/docs/archive/YYYY-MM/<original_path>/`
+→ Add banner: Why archived, Replacement link, Date
 
-## Mémoire Sémantique
-*   `ProjectMemory` (`core/memory/`) avec RAG Dense (LanceDB + MiniLM) et Lexical (TF-IDF/BM25S)
-*   **Spotlighter V8.8:** `apply_datamarking=True` dans `retrieve()` pour protection RAG
-*   Commandes: `/rag init`, `/rag clear`, `/rag query`
-*   Backend configurable: `PROJECT_MEMORY_BACKEND=tfidf|lancedb`
+### SALVAGE
+- Doc outdated BUT contains valuable ideas
+→ Archive original + extract ideas to `/docs/FUTURE_IDEAS.md`
 
-## Agents & Evolution
-*   **Dynamic Spawn Brainstorming:** Prompts générés via HiveMind (pas templates statiques)
-*   **Model Selection:** Agents choisissent leur LLM via `InferenceConfig`
-*   **Exécution Fractale:** Agents comme outils (`agent_{name}`)
-*   **UnifiedAgentRegistry (V8.4):** Metadata centralisée (display_name, alternate, capabilities)
-*   **KERNEL Heredity (V8.8):** `validate_lineage()` + `get_heredity_stamp()` pour spawn sécurisé
+### Staleness Heuristics
+```bash
+# Check last modified
+git log -1 --format="%ci" -- path/to/doc.md
 
-## Communication Protocols
-*   **Gemini:** JSON strict (`LightMessageV7`, `HeavyMessageV7`) via `core/synapse/protocol_v7.py`
-*   **Claude:** Hybrid (natural language + XML `<tool_use>` tags)
-*   **MCP (V9.0):** NEXUS comme MCP Server (`python -m core.mcp.server`)
+# Check references
+grep -r "doc_name" --include="*.md" --include="*.py" .
 
-## Sécurité (Multi-Layer V8.8)
-| Layer | Module | Rôle |
-|-------|--------|------|
-| 1 | `InputGuard` | Prompt injection prevention (OWASP LLM01:2025) |
-| 2 | `Spotlighter` | RAG content datamarking |
-| 3 | `ExecutionPolicy` | Command validation |
-| 4 | `PathGuardian` | Path canonicalization + zone validation |
-| 5 | `OutputGuard` | System prompt leak prevention |
-| 6 | `MutationValidator` | AST-based behavioral analysis |
-| 7 | `KERNEL` | Immutable alignment rules + heredity validation |
-*   `SandboxPolicy` stricte (`core/governance/sandbox_policy.py`)
-*   `RedTeamValidator` pour validation post-spawn (`core/governance/red_team/`)
-*   Depth Guard anti-recursion (V8.3.1+)
-
-## Interface V9.0
-| Module | Fichier | Rôle |
-|--------|---------|------|
-| **CommandRegistry** | `core/interface/commands/registry.py` | Strategy Pattern pour REPL commands |
-| **SystemCommands** | `core/interface/commands/system.py` | /status, /help, /quit |
-| **get_registry()** | `core/interface/commands/` | Thread-safe singleton |
-
-## MCP Module V9.0
-| Component | Fichier | Rôle |
-|-----------|---------|------|
-| **MCPClient** | `core/mcp/client.py` | Consume external MCP servers |
-| **MCPServer** | `core/mcp/server.py` | **NEW V9.0** - Expose NEXUS as MCP tool |
-| **MCPRegistry** | `core/mcp/registry.py` | Server configuration loader |
-
-### MCP Server Tools (V9.0)
-*   `nexus_read` - Read files from workspace
-*   `nexus_glob` - Find files by pattern
-*   `nexus_grep` - Search file contents
-*   `nexus_analyze` - Multi-agent task analysis
-*   `nexus_status` - System status
-*   `nexus_bash` - Sandboxed shell execution
-
-## Modules Supplémentaires
-| Module | Dossier | Rôle |
-|--------|---------|------|
-| **Synapse** | `core/synapse/` | Protocol de communication inter-agents |
-| **Telemetry** | `core/telemetry/` | Métriques de performance |
-| **MCP** | `core/mcp/` | Model Context Protocol client + server |
-| **Routing** | `core/routing/` | ModelRouter (Opus/Sonnet selection) |
-| **UI** | `core/ui/` | ConsoleV7 display |
-| **Reasoning** | `core/reasoning/` | Chain-of-Thought enforcement |
-| **Notifications** | `core/notifications/` | User notifications |
-
-## Test Infrastructure V8.2.0d - Torture Protocol
-
-### Structure Torture Protocol
-```
-tests/
-├── torture_v8.py                    # Main entry point (TortureProtocolV8)
-└── torture/
-    ├── __init__.py
-    ├── base.py                      # TortureBase, TortureResultV8
-    ├── metrics_collector.py         # MetricsCollector, ScenarioMetrics
-    ├── chaos_injectors.py           # CrashInjector, RaceInjector, CorruptionInjector, TimeoutInjector
-    └── scenarios/
-        ├── saga_crash.py            # 15 tests (CR-001 to CR-015) - Crash recovery
-        ├── saga_concurrency.py      # 12 tests (CC-001 to CC-012) - Race conditions
-        ├── context_edge.py          # 10 tests (CE-001 to CE-010) - Edge cases
-        ├── compensation.py          # 8 tests (CF-001 to CF-008) - Compensation failures
-        └── hive_integration.py      # 30 tests (HM-001 to HM-030) - HiveMind pipeline
+# Compare claims to code
+grep -r "def function_name" core/
 ```
 
-### Chaos Injectors (V8.2.0d)
-| Injector | Méthodes | Usage |
-|----------|----------|-------|
-| **CrashInjector** | `crash_after_n_checkpoints()`, `crash_during_persist()`, `crash_during_fsync()` | Simulate crashes |
-| **RaceInjector** | `delay_persist()`, `concurrent_checkpoints()`, `concurrent_operations()` | Race conditions |
-| **CorruptionInjector** | `corrupt_json()`, `truncate_file()`, `create_locked_file()` | File corruption |
-| **TimeoutInjector** | `timeout()`, `async_timeout()` | Operation timeouts |
+## DIÁTAXIS CLASSIFICATION
 
-### Métriques Cibles Torture
-*   **Success Rate**: >95%
-*   **Recovery Rate**: >90% (post-erreur)
-*   **Panic Rate**: <1%
-*   **Hot-Swap Effectiveness**: >80%
+Every document gets a type:
 
-### pytest Markers
-*   `@pytest.mark.torture` - All torture tests
-*   `@pytest.mark.torture_saga` - SagaManager tests
-*   `@pytest.mark.torture_hive` - HiveMind tests
-*   `@pytest.mark.torture_slow` - Slow tests (>5s)
-</architecture_summary>
-</context>
+| Type | Purpose | Example |
+|------|---------|---------|
+| **TUTORIAL** | Learning-oriented, step-by-step | QUICKSTART.md, getting_started.md |
+| **HOW-TO** | Task-oriented, solve specific problem | "How to add a Swarm mode" |
+| **REFERENCE** | Information-oriented, technical specs | API_REFERENCE.md, DATACLASS_FIELDS.md |
+| **EXPLANATION** | Understanding-oriented, concepts | ARCHITECTURE_DECISIONS.md, HYBRID_SWARM.md |
 
-<objectives>
-1.  **Documentation Récursive :** Produire/Mettre à jour un fichier `README.md` pérenne dans CHAQUE sous-dossier.
-2.  **Cartographie des Interactions :** Documenter les flux de données, les dépendances (import/export) et les points d'extension.
-3.  **Visualisation :** Générer des schémas (syntaxe Mermaid) pour les interactions complexes (FSM, Hive Mind Loop, RAG Flow, Health FSM, Security Layers).
-4.  **Audit Structurel (Séparé) :** Identifier la dette technique, le code mort et les risques dans un rapport dédié.
-</objectives>
-
-<methodology>
-<phases>
-<phase_1_reconnaissance>
-1. Lister l'arborescence complète (`core/` = 150+ fichiers .py, 65+ dossiers).
-2. Identifier les modules clés V9.0 (`core/security`, `core/mcp`, `core/swarm`, `core/hive_mind`).
-3. Établir l'ordre de traitement (Security → MCP → Swarm → Hive Mind → Interface).
-</phase_1_reconnaissance>
-
-<phase_2_analyse_et_documentation>
-Pour CHAQUE dossier défini :
-    1.  **Analyse Evidence-Based :** Ne rien supposer. Vérifier chaque fonctionnalité dans le code. Citer fichier/ligne pour chaque affirmation majeure.
-    2.  **Rédaction README :** Générer un `README.md` strictement architectural (voir <standards_documentation>).
-    3.  **Extraction Audit :** Noter séparément les anomalies pour le rapport final.
-</phase_2_analyse_et_documentation>
-
-<phase_3_synthese_audit>
-Compiler le `AUDIT_REPORT_V9_0.md` regroupant :
-*   **[DEAD_CODE] :** Fonctions/Imports inutilisés.
-*   **[ARCH_VIOLATION] :** Non-respect des patterns V9.0 (ex: sync driver dans async context).
-*   **[SECURITY_RISK] :** Bypass potentiels de la Sandbox, recursion non-protégée.
-*   **[MISSING_TESTS] :** Modules sans couverture de test apparente.
-*   **[SWARM_MISUSE] :** (V8.3+) Utilisation incorrecte du SwarmBridge/SwarmTool.
-*   **[DEPTH_VIOLATION] :** (V8.3.1+) Potentielle recursion infinie non protégée par Depth Guard.
-*   **[FEEDBACK_GAP] :** (V8.2+) SuccessMemory non appelé après succès HiveMind.
-*   **[ASYNC_VIOLATION] :** (V8.4+) Blocking call dans async context.
-*   **[DEPRECATED_USAGE] :** (V8.4.4+) Usage de DriverBridge au lieu de invoke_sync().
-*   **[CHECKPOINT_GAP] :** (V8.4.4+) Phase HiveMind sans checkpoint SagaManager.
-*   **[RECOVERY_GAP] :** (V8.4.4+) Erreur sans recovery strategy dans HealthStateMachine.
-*   **[SECURITY_BYPASS] :** (V8.8+) InputGuard/OutputGuard non appelé dans nouveau code.
-*   **[HEREDITY_MISSING] :** (V8.8+) Spawn d'agent sans validate_lineage().
-*   **[FALLBACK_STATIC] :** (V8.8+) Fallback statique au lieu d'AdaptiveFallbackSelector.
-*   **[MCP_INCOMPLETE] :** (V9.0+) Tool MCP sans validation de sécurité.
-</phase_3_synthese_audit>
-</phases>
-</methodology>
-
-<standards_documentation>
-Chaque `README.md` de dossier doit suivre cette structure :
-
+Add header to each doc:
 ```markdown
-# Module : [Nom du Dossier]
-
-## Rôle dans l'Architecture NEXUS V9.0
-[Description concise de la responsabilité du module.]
-
-## Composants Clés
-*   `fichier.py`: [Rôle, classes principales.]
-
-## Architecture & Flux
-*   **Entrées :** [Quelles données entrent ? D'où ?]
-*   **Sorties :** [Quelles données sortent ? Vers où ?]
-*   **Configuration :** [Variables ENV impactantes]
-
-## Dépendances
-*   **Utilise :** [Modules importés]
-*   **Utilisé par :** [Modules qui importent ce dossier - "Reverse dependencies"]
-
-## Diagramme (Optionnel)
-```mermaid
-[Schéma si logique complexe]
+---
+type: REFERENCE
+status: ACTIVE
+owner: @yann-abadie
+last_verified: 2025-12-15
+---
 ```
 
-## Tests Associés
-*   `tests/test_....py`
+## MERMAID RULES
+- Use fenced Mermaid: ```mermaid ... ```
+- Prefer multiple small diagrams over single huge one
+- Pick diagram type that matches content:
+  - `flowchart` for control flow
+  - `sequenceDiagram` for interactions
+  - `graph` for dependencies
+  - `stateDiagram-v2` for FSM states
+  - `classDiagram` for data structures
+
+## CROSS-VALIDATION RULES
+
+For any claim in documentation:
+```bash
+# If doc says "function X does Y", verify:
+grep -r "def X\|class X" core/ | head -3
 ```
-</standards_documentation>
 
-<deliverables>
-Votre réponse finale doit contenir :
-1.  Les contenus des `README.md` mis à jour.
-2.  Le fichier `AUDIT_REPORT_V9_0.md`.
+Mark unverifiable claims with:
+```markdown
+<!-- UNVERIFIED: claim about X - needs code review -->
+```
 
-## Modules Critiques à Documenter (V9.0)
+## WORK PLAN (BOTTOM-UP)
 
-### Priorité CRITIQUE (nouveaux V8.8/V9.0):
-*   `core/security/input_guard.py` - InputGuard prompt injection prevention
-*   `core/security/output_guard.py` - OutputGuard leak detection
-*   `core/memory/spotlighting.py` - Spotlighter RAG datamarking
-*   `core/swarm/adaptive_fallback.py` - AdaptiveFallbackSelector (GROK-004)
-*   `core/mcp/server.py` - MCP Server (NEXUS as tool)
-*   `core/interface/commands/registry.py` - CommandRegistry (Phase E)
-*   `KERNEL.py` - validate_lineage(), get_heredity_stamp() (GROK-003)
+### PHASE 0 — Repo Inventory & Safety
+1. Ensure clean git status
+2. Create branch: `docs/rebuild-triage`
+3. Produce quick inventory:
+   - Tree of folders
+   - Key entrypoints
+   - Existing docs locations
+4. Create `/docs/DOC_INVENTORY.md` skeleton
 
-### Priorité haute (V8.4.4):
-*   `core/async_primitives/` - CancellationToken, AsyncRWLock, AsyncBlackboard, ProcessHandle
-*   `core/hive_mind/saga_manager.py` - SagaManager avec Phase Guards + Context Snapshot
-*   `core/fsm/health_state_machine.py` - HealthStateMachine avec Recovery Strategies
-*   `core/fsm/stagnation_predictor.py` - Proactive stagnation prediction
-*   `core/utils/serialization.py` - NexusJSONEncoder
-*   `core/agents/unified_registry.py` - Centralized agent metadata
-*   `core/drivers/async_claude_driver.py` - TRUE async driver
-*   `core/drivers/async_gemini_driver.py` - TRUE async driver avec session isolation
+**Commit**: `docs(phase-0): inventory and branch setup`
 
-### Priorité moyenne (V8.3.x):
-*   `core/hive_mind/swarm_bridge.py` - SwarmBridge V8.3.0 + Adaptive Fallback V8.8
-*   `core/execution/tool_manager.py` - SwarmTool V8.3.1
-*   `core/hive_mind/phases/phase_execution.py` - Swarm delegation
-*   `core/hive_mind/success_adapter.py` - SuccessMemory feedback
-*   `core/swarm/merge_strategies.py` - MergeStrategy V8.3.3
-*   `core/swarm/mode_executors.py` - 6 mode executors + Adaptive Fallback V8.8
-*   `core/memory/success_memory.py` - Exponential decay + Domain boost (GROK-002)
+### PHASE 0.5 — Existing README Audit (NEW)
+1. Score all 36 existing READMEs in `/core`:
+   - Purpose present? (+1)
+   - File table? (+1)
+   - Mermaid diagram? (+1)
+   - Links work? (+1)
+   - Up to date with code? (+1)
+2. Produce `/audit/README_QUALITY_SCORES.md`
+3. Decision matrix: KEEP (>=3) vs REPLACE (<3)
+4. Report: X READMEs to keep, Y to replace, Z to create
 
-### Infrastructure stable (vérifier cohérence):
-*   `core/hive_mind/context_manager.py` - Nouveaux budgets
-*   `core/hive_mind/types.py` - ExecutionStep.swarm_mode + 24 HiveMindState
-*   `core/synapse/protocol_v7.py` - LightMessageV7, HeavyMessageV7
-*   `core/utils/atomic_store.py` - AtomicJsonStore (Write-Replace pattern)
-*   `core/fsm/states.py` - OrchestratorState enum + TRANSITION_MATRIX
+**Commit**: `docs(phase-0.5): README quality audit`
 
-### Modules annexes (documentation light):
-*   `core/telemetry/` - Performance metrics
-*   `core/mcp/` - MCP client + server
-*   `core/routing/` - ModelRouter
-*   `core/ui/` - ConsoleV7
-*   `core/reasoning/` - CoT enforcement
-*   `core/notifications/` - User notifications
-</deliverables>
+### PHASE 1 — Documentation Triage First Pass
+1. Enumerate all docs (md, rst, adoc)
+2. For each doc: classify ACTIVE/UPDATE/ARCHIVE/SALVAGE with justification
+3. Implement ARCHIVE moves to `/docs/archive/2025-12/`
+4. For UPDATE docs: add TODO header if full update deferred
+5. Update DOC_INVENTORY.md with status
 
-<version_history>
-| Version | Date | Changements |
-|---------|------|-------------|
-| V8.3.x | 2025-12-03 | Initial prompt (SwarmBridge, Depth Guard) |
-| V8.4.4 | 2025-12-10 | +Async Primitives, +SagaManager, +HealthFSM, +StagnationPredictor, +NexusJSONEncoder, +UnifiedAgentRegistry, +Async Handlers, +Cyborg V7.5, audit categories updated |
-| V8.8 | 2025-12-11 | +Security V8.8 (InputGuard, OutputGuard, Spotlighter), +GROK-002 (Exponential Decay + Domain Boost), +GROK-003 (KERNEL Heredity Check), +GROK-004 (AdaptiveFallbackSelector), +Blackboard CAS (GROK-001) |
-| V9.0 | 2025-12-11 | +MCP Server (NEXUS as tool), +CommandRegistry (Phase E), +Security integration in orchestrator/drivers, audit categories V9.0 |
-| V8.2.0d | 2025-12-11 | +Torture Protocol V8 (75 tests), +MetricsCollector, +ChaosInjectors (Crash, Race, Corruption, Timeout), +5 scenario categories (saga_crash, saga_concurrency, context_edge, compensation, hive_integration), pytest markers |
-</version_history>
-</prompt>
+**Commit**: `docs(phase-1): triage and archive stale docs`
+
+### PHASE 1.5 — Diátaxis Classification (NEW)
+1. Classify all ACTIVE/UPDATE docs by Diátaxis type
+2. Add type to DOC_INVENTORY.md
+3. Identify gaps (e.g., "no tutorials for HiveMind")
+4. Add gap analysis to FUTURE_IDEAS.md
+
+**Commit**: `docs(phase-1.5): Diátaxis classification`
+
+### PHASE 2 — Bottom-Up README Generation (Leaf-first)
+For each leaf directory (no subdirectories):
+1. Check if README exists and score >= 3 → SKIP or light UPDATE
+2. If missing or score < 3:
+   - Read files, determine responsibilities
+   - Write README.md with full template
+3. Include: Purpose, Files table, Mermaid, How-to, Risks, Links, Owner
+
+**Commit per module**: `docs(phase-2): README for core/<module>`
+
+### PHASE 3 — Intermediate READMEs
+For each non-leaf directory:
+1. Summarize submodules + link to child READMEs
+2. Add Mermaid diagram of module boundaries/dependencies
+3. Add owner and Diátaxis type
+
+**Commit**: `docs(phase-3): intermediate READMEs`
+
+### PHASE 4 — Root README
+1. Executive summary + quickstart
+2. Repo map with links
+3. Architecture Mermaid diagram(s)
+4. Link to `/docs/README.md` for full index
+
+**Commit**: `docs(phase-4): root README`
+
+### PHASE 5 — /prompts Hub Consolidation
+1. Audit current `/prompts/` content (7 files)
+2. Mark each as Active/Deprecated/Unknown
+3. Scan code for embedded prompts (12 occurrences identified)
+4. Export discovered prompts to `/prompts/<name>.md` with metadata
+5. Update `/prompts/README.md` index table
+6. Cross-link: code comment → prompt file
+
+**Commit**: `docs(phase-5): prompts hub consolidation`
+
+### PHASE 6 — /audit Review
+1. Read `/audit/` contents and evaluate validity
+2. Triage by date (keep recent, archive old)
+3. Update `/audit/README.md` index
+4. Write `/audit/DOCS_REBUILD_REPORT.md`:
+   - What was updated vs archived
+   - Metrics (counts, coverage, diagrams added)
+   - Key risks and next actions
+
+**Commit**: `docs(phase-6): audit consolidation`
+
+### PHASE 7 — .github/workflows Audit
+1. Inspect workflows for compatibility/security
+2. Check:
+   - Deprecated actions/runtimes
+   - Permissions least privilege
+   - Secrets usage patterns
+   - Third-party action pinning
+3. Write `/audit/GITHUB_ACTIONS_AUDIT.md`:
+   - Findings (High/Med/Low severity)
+   - Suggested changes as diff snippets
+   - Proposals only (don't modify workflows)
+
+**Commit**: `docs(phase-7): GitHub Actions audit`
+
+### PHASE 8 — CODEOWNERS Generation (NEW)
+1. Extract owners from README ownership sections
+2. Generate `.github/CODEOWNERS`
+3. Validate against git blame patterns
+4. Document ownership gaps
+
+**Commit**: `docs(phase-8): CODEOWNERS generation`
+
+## QUALITY GATES
+
+Before marking any phase complete:
+- [ ] All relative links resolve (test with markdown linter)
+- [ ] No broken Mermaid blocks (syntax valid)
+- [ ] No hallucinated responsibilities (mark "Unknown" + TODO if uncertain)
+- [ ] Archive moves preserve history (git mv, not delete+create)
+- [ ] Commits are small and named per phase
+- [ ] DOC_INVENTORY.md updated
+
+## DEFINITION OF DONE
+
+Documentation rebuild is complete when:
+- [ ] README coverage: 100% of non-pycache folders
+- [ ] All existing READMEs scored and decision documented
+- [ ] DOC_INVENTORY.md has entry for every .md file
+- [ ] Every doc has Diátaxis type assigned
+- [ ] Zero "Unknown" status without TODO
+- [ ] All links validated (automated check passed)
+- [ ] CODEOWNERS generated and reviewed
+- [ ] DOCS_REBUILD_REPORT.md summarizes all changes
+- [ ] git diff shows only .md files changed (no runtime code)
+
+## METRICS TO TRACK
+
+At end of each phase, report:
+| Metric | Value |
+|--------|-------|
+| Files created | X |
+| Files modified | Y |
+| Files archived | Z |
+| README coverage | X% |
+| Mermaid diagrams added | N |
+| Links validated (pass/fail) | P/F |
+| Docs by Diátaxis type | T/H/R/E |
+| Estimated staleness reduction | X% |
+
+## REPORTING / COMMITS
+
+After each PHASE:
+1. Summarize what changed (bullet list)
+2. Show `git diff --stat`
+3. Commit with message: `docs(<phase>): <description>`
+4. Update metrics table
+
+## START
+
+Begin with PHASE 0 now, then proceed sequentially.
+Respect existing structure. Audit before replacing. Small commits.

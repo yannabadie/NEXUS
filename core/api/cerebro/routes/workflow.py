@@ -111,25 +111,75 @@ async def start_workflow(
 
     async def run_workflow():
         """Background task to execute the workflow."""
+        import concurrent.futures
+        from core.events.telemetry_bridge import get_telemetry_bridge
+        from core.events.types import CerebroEventType
+
+        bridge = get_telemetry_bridge()
+
         try:
             _active_workflows[workflow_id]["status"] = "running"
             logger.info(f"[CORTEX] Workflow {workflow_id} started: {body.task[:50]}...")
 
-            # Get orchestrator and process turn
+            # V12.0 RETINA: Emit workflow start event
+            await bridge.emit(
+                CerebroEventType.HIVE_PHASE_START,
+                {"phase": "WORKFLOW", "workflow_id": workflow_id, "task": body.task[:100]},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+
+            # V12.0 RETINA: Emit graph nodes for agents
+            await bridge.emit(
+                CerebroEventType.GRAPH_NODE_SPAWN,
+                {"node_id": "gemini", "type": "agent", "data": {"name": "Gemini", "status": "idle"}, "position": {"x": 100, "y": 50}},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+            await bridge.emit(
+                CerebroEventType.GRAPH_NODE_SPAWN,
+                {"node_id": "claude", "type": "agent", "data": {"name": "Claude", "status": "idle"}, "position": {"x": 300, "y": 50}},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+
+            # Get orchestrator
             orchestrator = _get_orchestrator()
 
-            # V11.5: Use sync process_turn (async available but requires more setup)
-            # TODO: Switch to process_turn_async when CancellationToken is integrated
-            result = orchestrator.process_turn(body.task)
+            # V12.0: Run sync process_turn in executor to avoid blocking event loop
+            # This allows WebSocket events to be processed during workflow execution
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                result = await loop.run_in_executor(
+                    executor,
+                    orchestrator.process_turn,
+                    body.task
+                )
 
             _active_workflows[workflow_id]["status"] = "completed"
             _active_workflows[workflow_id]["result"] = result
             logger.info(f"[CORTEX] Workflow {workflow_id} completed")
 
+            # V12.0 RETINA: Emit workflow complete event
+            await bridge.emit(
+                CerebroEventType.HIVE_PHASE_END,
+                {"phase": "WORKFLOW", "workflow_id": workflow_id, "status": "completed"},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+
         except Exception as e:
             _active_workflows[workflow_id]["status"] = "failed"
             _active_workflows[workflow_id]["error"] = str(e)
             logger.error(f"[CORTEX] Workflow {workflow_id} failed: {e}")
+
+            # V12.0 RETINA: Emit workflow failed event
+            await bridge.emit(
+                CerebroEventType.HIVE_PHASE_END,
+                {"phase": "WORKFLOW", "workflow_id": workflow_id, "status": "failed", "error": str(e)},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
 
     background_tasks.add_task(run_workflow)
 

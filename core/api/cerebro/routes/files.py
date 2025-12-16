@@ -261,9 +261,11 @@ async def file_tree(
         if not p.exists():
             return None
 
-        # Calculate relative path from base
+        # Calculate relative path from base (relative to workspace for API compatibility)
         try:
-            rel_path = str(p.relative_to(base_path.parent))
+            rel_path = str(p.relative_to(base_path))
+            if rel_path == ".":
+                rel_path = "."  # Root directory
         except ValueError:
             rel_path = p.name
 

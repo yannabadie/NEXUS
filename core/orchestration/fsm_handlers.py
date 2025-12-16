@@ -17,6 +17,7 @@ Usage:
     result = handlers.handle_idle(user_input)
 """
 
+import re
 import sys
 import time
 import logging

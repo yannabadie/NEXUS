@@ -131,26 +131,21 @@ async def websocket_stream(
         except ValueError as e:
             await websocket.send_json({"error": f"Invalid event_type: {e}"})
 
-    # Get Redis bus
+    # Get event bus
     bus = get_redis_bus()
 
+    # V12.0: Inform client about streaming mode (Redis or in-memory)
+    streaming_mode = "redis" if bus.is_connected() else "memory"
     if not bus.is_connected():
         await websocket.send_json({
-            "event_type": "system.warning",
-            "payload": {"message": "Redis not connected, streaming unavailable"},
+            "event_type": "system.info",
+            "payload": {
+                "message": "Running in development mode (in-memory event bus)",
+                "mode": streaming_mode,
+            },
         })
-        # Keep connection open for potential reconnect
-        try:
-            while True:
-                # Wait for client messages (e.g., ping/pong)
-                data = await websocket.receive_text()
-                if data == "ping":
-                    await websocket.send_text("pong")
-        except WebSocketDisconnect:
-            logger.info(f"CEREBRO: WebSocket disconnected (no Redis): {ctx}")
-            return
 
-    # Stream events from Redis
+    # Stream events (from Redis or in-memory)
     try:
         # Send initial connected message
         await websocket.send_json({
@@ -159,8 +154,11 @@ async def websocket_stream(
                 "tenant_id": ctx.tenant_id,
                 "workspace_id": ctx.workspace_id,
                 "filter": [et.value for et in filter_types] if filter_types else "all",
+                "mode": streaming_mode,
             },
         })
+
+        logger.info(f"CEREBRO: Starting event subscription for {ctx.tenant_id}/{ctx.workspace_id} (mode={streaming_mode})")
 
         # Subscribe and stream events
         async for event in bus.subscribe(

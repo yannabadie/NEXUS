@@ -46,13 +46,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Startup:
     - Connect to Redis
+    - V12.0: Register main event loop for in-memory pub/sub
 
     Shutdown:
     - Disconnect from Redis
     """
+    import asyncio
+
     # Startup
     logger.info("CEREBRO API: Starting up...")
     bus = get_redis_bus()
+
+    # V12.0: Register main event loop for thread-safe in-memory pub/sub
+    main_loop = asyncio.get_running_loop()
+    bus.set_main_loop(main_loop)
+
     connected = await bus.connect()
     if connected:
         logger.info("CEREBRO API: Redis connected")
