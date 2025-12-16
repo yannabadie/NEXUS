@@ -1,4 +1,4 @@
-## AUTO-MEMORY (V7.9 HIVE MIND)
+## AUTO-MEMORY (V10 SINGULARITY)
 
 **NEXUS apprend de ses succès et échecs.**
 

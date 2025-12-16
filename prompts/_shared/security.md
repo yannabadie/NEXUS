@@ -61,7 +61,7 @@
 
 ---
 
-## SESSION ISOLATION (V7.8 Phase 7/7b)
+## SESSION ISOLATION (V10)
 
 - **Chaque tâche Swarm** a un UUID de session isolé
 - **EPHEMERAL mode** pour tâches TRIVIAL (pas de persistence)
