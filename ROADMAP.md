@@ -1,149 +1,188 @@
-# NEXUS V11 "ASYNC CORE" - Roadmap Opérationnelle
+# NEXUS V12.4 "COGNITIVE BOOST" - Roadmap
 
-**Version**: 11.4.0 | **Status**: Active | **Last Updated**: 2025-12-15
+**Version**: 12.4.0 | **Status**: Active | **Last Updated**: 2025-12-16
 **Maintainer**: Yann Abadie | **Branch**: NX
-**Focus**: Security Hardening, Async Migration, Python 3.12+ Compatibility
+**Focus**: Proactive Intelligence, RAG Enhancement, Multi-Instance Scale
 
 ---
 
-## État Actuel (V11.4)
+## Current State (V12.4)
 
-| Métrique | Valeur |
-|----------|--------|
-| Architecture | Modulaire (Handlers) + Async Core |
-| Sécurité | JWT/CORS Hardening (V11.3) |
-| Async | Python 3.12+ Compatible (V11.4) |
-| Tests | 2,144+ (216 async tests) |
-
-### V11.4 - ASYNC Migration ✅ COMPLETED (2025-12-15)
-
-**Objectif**: Compatibilité Python 3.12+ et préservation du contexte async.
-
-| Tâche | Status | Notes |
-|-------|--------|-------|
-| **fsm_handlers.py** | ✅ Done | `run_coroutine_threadsafe()` préserve CancellationToken |
-| **telemetry/service.py** | ✅ Done | Pattern async/sync corrigé |
-| **bootstrap/service.py** | ✅ Done | Pattern async/sync corrigé |
-| **repl.py** | ✅ Done | 4x `get_running_loop()` (deprecated fix) |
-| **async_adapter.py** | ✅ Done | Pattern simplifié |
-| **embedding_engine.py** | ✅ Done | `get_running_loop()` |
-
-### V11.3 - HARDENING Phase 0 ✅ COMPLETED (2025-12-15)
-
-**Objectif**: Sécuriser les secrets et la configuration CORS.
-
-| Tâche | Status | Notes |
-|-------|--------|-------|
-| **JWT_SECRET** | ✅ Done | Via `NEXUS_JWT_SECRET` env var |
-| **CORS Origins** | ✅ Done | Via `NEXUS_CORS_ORIGINS` env var |
-| **.env.example** | ✅ Done | Section sécurité documentée |
-| **Tests** | ✅ Done | 8 tests dans `tests/v11/test_hardening.py` |
+| Metric | Value |
+|--------|-------|
+| Architecture | FSM + HiveMind + Hybrid Swarm |
+| Backend | 253 Python files, 36 modules |
+| Frontend | React 19 + TypeScript (CEREBRO) |
+| Security | IRONCLAD (JWT, RBAC, Guards) |
+| Tests | 667+ (unit, integration, E2E) |
 
 ---
 
-## État Précédent (V9.6 Sprint 5.3)
+## V12 Series - Production Ready
 
-| Métrique | Valeur |
-|----------|--------|
-| Architecture | Modulaire (Handlers) |
-| Résilience | SystemHealth + ContextScope |
-| Swarm | Dictator Mode + SwarmTool |
-| Connectivité | MCP Server (Client & Server) |
-| Tests | 1,200+ |
+### V12.4 - COGNITIVE BOOST (2025-12-16)
 
-### V9.6 - Refactoring & Resilience ✅ COMPLETED (2025-12-13)
+**Objective**: Proactive intelligence and enhanced RAG capabilities.
 
-**Objectif**: Sortir de la dette technique du "God Object" ToolManager et durcir la résilience.
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **StagnationPredictor** | COMPLETE | Calibrated thresholds (0.15/0.25/0.40), 29 tests |
+| **HybridBackend** | COMPLETE | RRF fusion (Dense + BM25S) for +15% RAG recall |
+| **MemoryCoordinator** | COMPLETE | Adaptive domain weights with EMA learning |
+| **OutputGuard DialogueAct** | COMPLETE | Classification to reduce false positives |
 
-| Tâche | Status | Notes |
-|-------|--------|-------|
-| **Modular Tool Handlers** | ✅ Done | `core/execution/handlers/` (Bash, File, Git, etc.) |
-| **SystemHealth** | ✅ Done | Monitoring unifié (`core/resilience/`) |
-| **ContextScope** | ✅ Done | Isolation des contextes d'exécution |
-| **Swarm Dictator Mode** | ✅ Done | Forçage de mode via HiveMind |
-| **Swarm as Tool** | ✅ Done | Invocation récursive contrôlée (`swarm_delegate`) |
-| **MCP Server** | ✅ Done | `core/mcp/server.py` (FastMCP implementation) |
+### V12.3 - SCALE-OUT (2025-12-15)
 
----
+**Objective**: Multi-instance deployment support.
 
-## Roadmap V9.7 - The Missing Links (Connectivité & Résilience)
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Redis Workflow Registry** | COMPLETE | Replace in-memory dict, graceful degradation |
+| **Distributed Locks** | COMPLETE | Redlock pattern, 30s timeout, auto-release |
+| **SuccessMemory Fix** | COMPLETE | Logging for recording failures |
+| **Hibernation Redis** | COMPLETE | Optional write-through cache |
 
-**Objectif**: Transformer NEXUS d'un outil CLI isolé en une plateforme connectée et auto-réparatrice.
+### V12.2 - IRONCLAD COMPLETE (2025-12-14)
 
-### V9.7.1 - Résilience Active (Hot-Swap Actuation) [P1]
-*L'intelligence de détection existe, mais l'action manque.*
+**Objective**: Enterprise security hardening.
 
-| Tâche | Status | Description |
-|-------|--------|-------------|
-| **Câblage Stagnation** | 📝 To Do | Connecter `StagnationDetector` aux `ModeExecutors` |
-| **Hot-Swap Logic** | 📝 To Do | Implémenter l'échange de rôle Lead/Support en temps réel dans `lead_support_executor.py` |
-| **Recovery Strategy** | 📝 To Do | Définir la stratégie de reprise après un swap (rollback contexte ?) |
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **User Management** | COMPLETE | CRUD endpoints, SQLite storage |
+| **RBAC** | COMPLETE | Role-based access (admin, operator, viewer) |
+| **JWT Hardening** | COMPLETE | Refresh tokens, revocation |
+| **Security Audit Fixes** | COMPLETE | All critical/high issues resolved |
 
-### V9.7.2 - Maintenance Automatisée (Agent Reaper) [P2]
-*Le workspace s'encrasse avec le temps.*
+### V12.1 - RETINA COMPLETE (2025-12-13)
 
-| Tâche | Status | Description |
-|-------|--------|-------------|
-| **Agent Reaper** | 📝 To Do | Garbage Collection des agents dans `workspace/agents/` |
-| **Retention Policy** | 📝 To Do | Règles basées sur le score DyLAN et la date de dernière utilisation |
-| **Archivage** | 📝 To Do | Compression/Archivage des agents "morts" avant suppression |
+**Objective**: Production dashboard readiness.
 
-### V9.7.3 - API REST (FastAPI) [P2]
-*Sortir du terminal pour permettre des interfaces Web.*
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **HTTP Rate Limiting** | COMPLETE | 100 req/min default, configurable |
+| **Production Dashboard** | COMPLETE | Metrics, health checks |
+| **WebSocket Stability** | COMPLETE | Thread-safe events, session fixes |
 
-| Tâche | Status | Description |
-|-------|--------|-------------|
-| **FastAPI Wrapper** | 📝 To Do | Exposer `HybridSwarmEngine.process_task` via HTTP |
-| **Webhooks** | 📝 To Do | Notifier des systèmes externes (CI/CD, Slack) |
-| **Auth Middleware** | 📝 To Do | Sécurisation basique des endpoints |
+### V12.0 - RETINA VISUALS (2025-12-12)
 
----
+**Objective**: Mission Control UI.
 
-## Roadmap V9.8 - Observabilité & Sécurité
-
-### V9.8.1 - Observabilité Standardisée (OTLP) [P2]
-*Remplacer les logs JSONL propriétaires par un standard industriel.*
-
-| Tâche | Status | Description |
-|-------|--------|-------------|
-| **OTLP Exporter** | 📝 To Do | Implémenter un exportateur OpenTelemetry dans `core/telemetry/` |
-| **Langfuse Integration** | 📝 To Do | Tracage distribué des chaînes de pensée (CoT) et coûts |
-| **Distributed Tracing** | 📝 To Do | Visualisation "Waterfall" des interactions Swarm |
-
-### V9.8.2 - Sécurité Enterprise (Sandboxing) [P3]
-*Dépasser la sécurité "niveau Python".*
-
-| Tâche | Status | Description |
-|-------|--------|-------------|
-| **Docker Sandbox** | 📝 To Do | Exécuter les outils Bash/Python dans des conteneurs éphémères |
-| **Resource Limits** | 📝 To Do | Limites CPU/RAM strictes par agent |
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **HiveMap** | COMPLETE | Custom SVG graph visualization |
+| **FileCommander** | COMPLETE | Monaco editor + file tree |
+| **MissionControl** | COMPLETE | All 6 Swarm modes |
+| **File Tree API** | COMPLETE | GET /api/files/tree |
 
 ---
 
-## Vision V10 - Cognition Visionnaire (Long Terme)
+## V11 Series - Foundation
 
-### V10.1 - Graph of Thought (GoT)
-*Dépasser la pensée linéaire.*
-- Implémentation d'une structure de raisonnement en graphe pour les tâches EXPERT.
-- Exploration parallèle de multiples branches de solution.
+### V11.7 - RETINA FOUNDATION (2025-12-11)
 
-### V10.2 - Skill Crystallization (Auto-Spécialisation)
-*L'apprentissage ultime.*
-- **Concept**: Si une séquence d'outils réussit 3 fois, elle est compilée en un nouvel outil natif.
-- **Auto-Spawn**: Création automatique d'agents spécialistes sans intervention humaine basée sur les succès répétés (`SuccessMemory`).
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **React 19 Setup** | COMPLETE | Vite 6 + TailwindCSS v4 |
+| **JWT Auth (In-Memory)** | COMPLETE | No localStorage per IRONCLAD |
+| **WebSocket Integration** | COMPLETE | Exponential backoff reconnection |
+| **Zustand Stores** | COMPLETE | Events + Interactions |
+
+### V11.6 - KEYMAKER (2025-12-10)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **JWT Authentication** | COMPLETE | HS256, 15min expiry |
+| **Zero Trust WebSocket** | COMPLETE | Token via query param |
+| **Admin Password** | COMPLETE | NEXUS_ADMIN_PASSWORD env |
+
+### V11.5 - CORTEX (2025-12-09)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **CEREBRO API** | COMPLETE | FastAPI REST endpoints |
+| **State Persistence** | COMPLETE | Hibernation system |
+| **WebSocket Events** | COMPLETE | 40+ event types |
+
+### V11.4 - ASYNC MIGRATION (2025-12-08)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Python 3.12+ Compat** | COMPLETE | `get_running_loop()` fixes |
+| **Async Pattern Fixes** | COMPLETE | fsm_handlers, telemetry, bootstrap |
+
+### V11.3 - HARDENING (2025-12-08)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **JWT Secret Env Var** | COMPLETE | NEXUS_JWT_SECRET |
+| **CORS Env Var** | COMPLETE | NEXUS_CORS_ORIGINS |
 
 ---
 
-## Historique / Legacy (V8.x)
+## Roadmap V13 - Next Horizon (Planned)
+
+### V13.1 - Observability (OTLP) [P2]
+
+*Replace proprietary JSONL logs with industry standard.*
+
+| Task | Status | Description |
+|------|--------|-------------|
+| **OTLP Exporter** | PLANNED | OpenTelemetry in `core/telemetry/` |
+| **Langfuse Integration** | PLANNED | Distributed tracing for CoT and costs |
+| **Waterfall Visualization** | PLANNED | Swarm interaction visualization |
+
+### V13.2 - Enterprise Security [P3]
+
+*Beyond Python-level security.*
+
+| Task | Status | Description |
+|------|--------|-------------|
+| **Docker Sandbox** | PLANNED | Ephemeral containers for Bash/Python |
+| **Resource Limits** | PLANNED | CPU/RAM limits per agent |
+| **Multi-Tenancy** | PLANNED | Full tenant isolation |
+
+### V13.3 - Advanced Cognition [P3]
+
+*Visionary features.*
+
+| Task | Status | Description |
+|------|--------|-------------|
+| **Graph of Thought** | PLANNED | Graph reasoning for EXPERT tasks |
+| **Skill Crystallization** | PLANNED | Auto-compile repeated tool sequences |
+
+---
+
+## Backlog (Non-Prioritized)
+
+*Ideas extracted from legacy documentation for future consideration.*
+
+| Feature | Source | Feasibility | Notes |
+|---------|--------|-------------|-------|
+| Agent Reaper | V9.7.2 docs | HIGH | Garbage collection for spawned agents |
+| MCP Client | V9.6 docs | MEDIUM | Client-side MCP integration |
+| Chaos Testing | audit/ | LOW | Requires infrastructure |
+| Hot-Swap Actuation | V9.7.1 docs | MEDIUM | Connect StagnationDetector to ModeExecutors |
+| N-Agent Agnosticism | Gemini proposal | HIGH | Extend spawned to ALL 6 modes |
+| Self-Healing Swarm | Gemini proposal | MEDIUM | Mode-level fallback |
+
+---
+
+## Legacy (V8-V10 Completed)
 
 | Version | Feature | Status |
 |---------|---------|--------|
-| V8.0.1 | Hot-Swap Detection | ✅ Done |
-| V8.0.3 | Ephemeral Sessions | ✅ Done |
-| V8.1.6 | Thread-Safe Parallel | ✅ Done |
-| V8.1.8 | Dynamic Spawn | ✅ Done |
-| V8.3.0 | SwarmBridge | ✅ Done |
-| V8.5.0 | Adaptive Fallback | ✅ Done |
+| V10.4 | Session-Aware Agent Selection | COMPLETE |
+| V10.3 | SuccessMemory (Phase 10) | COMPLETE |
+| V9.6 | MCP Server | COMPLETE |
+| V9.6 | Modular Tool Handlers | COMPLETE |
+| V9.5 | SystemHealth + ContextScope | COMPLETE |
+| V8.5.0 | Adaptive Fallback | COMPLETE |
+| V8.3.0 | SwarmBridge | COMPLETE |
+| V8.1.8 | Dynamic Spawn | COMPLETE |
+| V8.1.6 | Thread-Safe Parallel | COMPLETE |
+| V8.0.3 | Ephemeral Sessions | COMPLETE |
+| V8.0.1 | Hot-Swap Detection | COMPLETE |
 
 ---
-*Généré par NEXUS PRIME - Synchronisation V9.6*
+
+*Generated by NEXUS V12.4 - Documentation Sync*

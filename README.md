@@ -4,7 +4,7 @@
 
 <h1 align="center">
   <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V12.0 "RETINA VISUALS"
+  NEXUS V12.4 "COGNITIVE BOOST"
 </h1>
 
 <p align="center">
@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-12.0-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-12.4-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
   <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square" alt="React"/>
   <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
@@ -71,16 +71,19 @@ GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
 ```
 
 <a name="features"></a>
-## V12.0 Features
+## V12.4 Features
 
 ### Recent Operations
 
 | Version | Codename | Feature | Status |
 |---------|----------|---------|--------|
+| **V12.4** | COGNITIVE BOOST | StagnationPredictor, HybridBackend RAG, OutputGuard DialogueAct | ✅ COMPLETE |
+| **V12.3** | SCALE-OUT | Redis workflow registry, multi-instance support | ✅ COMPLETE |
+| **V12.2** | IRONCLAD COMPLETE | User management, RBAC, security hardening | ✅ COMPLETE |
+| **V12.1** | RETINA COMPLETE | HTTP rate limiting, production dashboard | ✅ COMPLETE |
 | **V12.0** | RETINA VISUALS | Mission Cockpit UI (HiveMap, FileCommander, MissionControl) | ✅ COMPLETE |
 | **V11.7** | RETINA FOUNDATION | React 19 Frontend (CEREBRO) | ✅ COMPLETE |
-| **V11.6.2** | IRONCLAD | Zero Trust WebSocket Auth (IDOR fix) | ✅ COMPLETE |
-| **V11.6** | KEYMAKER | JWT Authentication | ✅ COMPLETE |
+| **V11.6** | KEYMAKER | JWT Authentication + Zero Trust WebSocket | ✅ COMPLETE |
 | **V11.5** | CORTEX | API Control & State Persistence | ✅ COMPLETE |
 
 ### CEREBRO Web Interface (V12.0)
@@ -144,11 +147,11 @@ nexus> /review         # Review pending children
 ```
 
 <a name="architecture"></a>
-## Architecture (V12.0)
+## Architecture (V12.4)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                   NEXUS V12.0 RETINA VISUALS                              │
+│                   NEXUS V12.4 COGNITIVE BOOST                             │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   USER INPUT                                                         │
@@ -251,7 +254,7 @@ NEXUS-N7A/
 | [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm documentation |
 | [AUDIT_REPORT.md](AUDIT_REPORT.md) | Latest technical audit |
 
-### The Nexus Map (V12.0 Architecture)
+### The Nexus Map (V12.4 Architecture)
 
 ```mermaid
 graph TB
@@ -303,7 +306,7 @@ graph TB
     ORCH --> LOG
 ```
 
-### Navigation Tree (V12.0 - 36 Modules Documented)
+### Navigation Tree (V12.4 - 36 Modules Documented)
 
 <details>
 <summary><b>📁 core/ - Main Engine (176 Python files)</b></summary>
