@@ -1,9 +1,13 @@
 /**
  * NEXUS CEREBRO MissionControl
- * V12.0 RETINA VISUALS: Task Launch & Swarm Mode Selector
+ * V12.1 RETINA: Task Launch & Swarm Mode Selector
  *
  * Exposes all 6 NEXUS Swarm collaboration modes:
  * PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
+ *
+ * V12.1 Improvements (Conseiller 2 feedback):
+ * - Responsive grid: 3x2 on desktop, 2x3 on mobile
+ * - Lucide icons for each mode
  */
 import { useState, useCallback } from 'react';
 import {
@@ -14,6 +18,14 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  // V12.1: Icons for Swarm modes
+  Layers,
+  ListOrdered,
+  Users,
+  RefreshCw,
+  Target,
+  Swords,
+  type LucideIcon,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useEventStore } from '../../stores/eventStore';
@@ -41,42 +53,43 @@ interface WorkflowStartResponse {
 // Constants
 // =============================================================================
 
-const SWARM_MODES: { value: SwarmMode; label: string; description: string; icon: string }[] = [
+// V12.1: Swarm modes with Lucide icons (Conseiller 2 feedback)
+const SWARM_MODES: { value: SwarmMode; label: string; description: string; Icon: LucideIcon }[] = [
   {
     value: 'parallel',
     label: 'PARALLEL',
     description: 'Simultaneous work, merge results',
-    icon: '||',
+    Icon: Layers,
   },
   {
     value: 'sequential',
     label: 'SEQUENTIAL',
     description: 'Ordered execution (A then B)',
-    icon: '>>',
+    Icon: ListOrdered,
   },
   {
     value: 'lead_support',
     label: 'LEAD_SUPPORT',
     description: 'Lead drives, support reviews',
-    icon: 'LS',
+    Icon: Users,
   },
   {
     value: 'ping_pong',
     label: 'PING_PONG',
     description: 'Rapid alternation until convergence',
-    icon: '<>',
+    Icon: RefreshCw,
   },
   {
     value: 'specialist',
     label: 'SPECIALIST',
     description: 'Single expert handles all',
-    icon: '*1',
+    Icon: Target,
   },
   {
     value: 'red_blue',
     label: 'RED_BLUE',
     description: 'Adversarial propose/attack/defend',
-    icon: 'RB',
+    Icon: Swords,
   },
 ];
 
@@ -204,34 +217,39 @@ export function MissionControl() {
           />
         </div>
 
-        {/* Mode Selector */}
+        {/* Mode Selector - V12.1: Responsive grid 2x3 mobile, 3x2 desktop */}
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1.5">
             Swarm Mode
           </label>
-          <div className="grid grid-cols-2 gap-2">
-            {SWARM_MODES.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => setMode(m.value)}
-                disabled={isInputDisabled}
-                title={m.description}
-                className={`
-                  px-2 py-2 rounded border text-xs font-medium transition-all
-                  flex items-center gap-2
-                  ${
-                    mode === m.value
-                      ? 'bg-cyan-900/50 border-cyan-500 text-cyan-300'
-                      : isInputDisabled
-                      ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
-                      : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-                  }
-                `}
-              >
-                <span className="w-5 text-[10px] font-mono opacity-70">{m.icon}</span>
-                <span className="truncate">{m.label}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {SWARM_MODES.map((m) => {
+              const IconComponent = m.Icon;
+              return (
+                <button
+                  key={m.value}
+                  onClick={() => setMode(m.value)}
+                  disabled={isInputDisabled}
+                  title={m.description}
+                  data-testid={`mode-${m.value.toUpperCase()}`}
+                  className={`
+                    px-2 py-2 rounded border text-xs font-medium transition-all
+                    flex items-center gap-2
+                    ${
+                      mode === m.value
+                        ? 'bg-cyan-900/50 border-cyan-500 text-cyan-300'
+                        : isInputDisabled
+                        ? 'bg-gray-800 border-gray-700 text-gray-600 cursor-not-allowed'
+                        : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500 hover:text-gray-300'
+                    }
+                  `}
+                >
+                  <IconComponent size={14} className="flex-shrink-0 opacity-70" />
+                  <span className="truncate hidden md:inline">{m.label}</span>
+                  <span className="truncate md:hidden">{m.label.split('_')[0]}</span>
+                </button>
+              );
+            })}
           </div>
           <p className="mt-1.5 text-xs text-gray-500 flex items-center gap-1">
             <Info size={10} />

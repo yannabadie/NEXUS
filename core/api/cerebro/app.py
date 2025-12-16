@@ -1,5 +1,5 @@
 """
-NEXUS V10 CEREBRO - FastAPI Application Factory
+NEXUS V12.1 CEREBRO - FastAPI Application Factory
 
 Creates the CEREBRO API application with:
 - Redis connection lifecycle management
@@ -8,10 +8,12 @@ Creates the CEREBRO API application with:
 - Health check endpoints
 - V11.5 CORTEX: State snapshot, interactions, workflow, files endpoints
 - V11.6 KEYMAKER: JWT authentication endpoints
+- V12.1 RETINA: HTTP rate limiting (Conseiller 1 feedback)
 
 V11.3 HARDENING: CORS origins from environment variable.
 V11.5 CORTEX: API control & state persistence for CEREBRO UI.
-V11.6 KEYMAKER: Authentication endpoints (login, me, logout).
+V11.6 KEYMAKER: Authentication endpoints (login, me, logout, refresh).
+V12.1 RETINA: Rate limiting on sensitive endpoints.
 
 Usage:
     uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
@@ -106,6 +108,10 @@ def create_cerebro_app() -> FastAPI:
     from .middleware import TenantContextMiddleware
     app.add_middleware(TenantContextMiddleware)
 
+    # V12.1 RETINA: Rate limiting middleware (Conseiller 1 feedback)
+    from .rate_limit import setup_rate_limiting
+    setup_rate_limiting(app)
+
     # Include routers
     from .routes import health, stream
 
@@ -130,7 +136,7 @@ def create_cerebro_app() -> FastAPI:
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "11.6.0",  # V11.6 KEYMAKER
+            "version": "12.1.0",  # V12.1 RETINA
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
@@ -141,6 +147,7 @@ def create_cerebro_app() -> FastAPI:
             "files": "/api/files/content",
             # V11.6 KEYMAKER endpoints
             "auth": "/api/auth/login",
+            "auth_refresh": "/api/auth/refresh",  # V12.1 RETINA
         }
 
     return app

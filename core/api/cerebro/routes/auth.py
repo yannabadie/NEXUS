@@ -1,18 +1,19 @@
 """
-NEXUS V11.6 KEYMAKER - Authentication Endpoints
+NEXUS V12.1 KEYMAKER - Authentication Endpoints
 
 Provides JWT authentication for CEREBRO UI:
 - POST /api/auth/login : Authenticate and get JWT token
 - GET /api/auth/me : Verify token and get user info
-- POST /api/auth/refresh : Refresh token (future)
+- POST /api/auth/refresh : Refresh token before expiration (V12.1 RETINA)
+- POST /api/auth/logout : Logout (client-side token removal)
 
 Security Notes (MVP):
 - Single admin password via NEXUS_ADMIN_PASSWORD env var
-- 24h token expiration (consider shorter for production)
-- No refresh token (TODO V11.7)
+- 24h token expiration
+- V12.1 RETINA: Refresh token mechanism (Conseiller 2 feedback)
 
-Author: Claude (NEXUS V11.6 KEYMAKER)
-Date: 2025-12-15
+Author: Claude (NEXUS V12.1 RETINA)
+Date: 2025-12-16
 """
 
 import logging
@@ -219,3 +220,88 @@ async def logout() -> dict:
     # MVP: No server-side token invalidation
     # Future: Add token to blacklist in Redis
     return {"status": "logged_out", "message": "Remove token from client storage"}
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    authorization: Optional[str] = Header(None, description="Bearer token")
+) -> TokenResponse:
+    """
+    V12.1 RETINA: Refresh JWT token before expiration.
+
+    Returns a new access_token with extended expiry (24h from now).
+    The original token must still be valid (not expired).
+
+    Frontend should call this ~5 minutes before token expiration:
+    ```typescript
+    const decoded = jwtDecode(token);
+    const refreshAt = (decoded.exp - 300) * 1000; // 5min before
+    setTimeout(() => refreshToken(), refreshAt - Date.now());
+    ```
+
+    Args:
+        authorization: Bearer token in Authorization header
+
+    Returns:
+        TokenResponse with new access_token
+
+    Raises:
+        401: Not authenticated or token expired
+    """
+    # Check Authorization header
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header format. Use: Bearer <token>",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Extract and decode token
+    token = authorization[7:]
+
+    try:
+        from ..middleware import decode_jwt, create_jwt_token
+
+        claims = decode_jwt(token)
+
+        if not claims:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token. Please login again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Generate new token with same claims but fresh expiration
+        expires_seconds = TOKEN_EXPIRE_HOURS * 3600
+        new_token = create_jwt_token(
+            tenant_id=claims.get("tenant_id", "default"),
+            user_id=claims.get("sub", "anonymous"),
+            workspace_id=claims.get("workspace_id", "default"),
+            expires_in_seconds=expires_seconds,
+        )
+
+        logger.info(f"[KEYMAKER] Token refreshed for user: {claims.get('sub')}")
+
+        return TokenResponse(
+            access_token=new_token,
+            expires_in=expires_seconds,
+            tenant_id=claims.get("tenant_id", "default"),
+            user_id=claims.get("sub", "anonymous"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[KEYMAKER] Token refresh failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token refresh failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

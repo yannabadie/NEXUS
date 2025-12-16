@@ -1,19 +1,23 @@
 """
-NEXUS V11.5 CORTEX - Secure File Access Endpoints
+NEXUS V12.1 CORTEX - Secure File Access Endpoints
 V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
+V12.1 RETINA - FileCommander support with directory tree
 
 Enables secure file operations for CEREBRO UI:
 - GET /api/files/content : Read file content (size-limited, path-validated)
 - POST /api/files/save : Save file content (path-validated)
+- GET /api/files/tree : Get directory tree structure (V12.0 RETINA)
+- GET /api/files/info : Get file metadata
 
 Security Features:
 - PathGuardian for path validation (prevents path traversal)
 - 1MB file size limit (OOM protection)
 - Sacred file protection (.env, KERNEL.py, etc.)
 - V11.6.1 IRONCLAD: MANDATORY authentication (audit trail + access control)
+- V12.1 RETINA: Rate limiting on sensitive endpoints (Conseiller 1)
 
-Author: Claude (NEXUS V11.5 CORTEX)
-Date: 2025-12-15
+Author: Claude (NEXUS V12.1 RETINA)
+Date: 2025-12-16
 """
 
 import logging

@@ -1,20 +1,33 @@
 /**
  * NEXUS CEREBRO Dashboard Page
- * V12.0 RETINA VISUALS: Mission Cockpit with HiveMap, FileCommander, MissionControl
+ * V12.1 RETINA: Mission Cockpit with HiveMap, FileCommander, MissionControl
  *
- * Layout:
+ * V12.1 Improvements (Conseiller 2 feedback):
+ * - Mobile responsive layout with Events as tab
+ *
+ * Desktop Layout (md+):
  * ┌───────────────────────────────────────────────────────────┐
  * │ Header                                                     │
  * ├───────────────────────────────────┬───────────────────────┤
  * │ Tabs: [Hive Map] [Files]          │ MissionControl        │
  * ├───────────────────────────────────┤                       │
- * │                                   ├───────────────────────┤
- * │ Tab Content                       │ EventStream           │
- * │                                   │                       │
+ * │ Tab Content                       ├───────────────────────┤
+ * │                                   │ EventStream           │
  * └───────────────────────────────────┴───────────────────────┘
+ *
+ * Mobile Layout:
+ * ┌───────────────────────────────────────────────────────────┐
+ * │ Header                                                     │
+ * ├───────────────────────────────────────────────────────────┤
+ * │ MissionControl (collapsible)                               │
+ * ├───────────────────────────────────────────────────────────┤
+ * │ Tabs: [Hive] [Files] [Events]                              │
+ * ├───────────────────────────────────────────────────────────┤
+ * │ Tab Content                                                │
+ * └───────────────────────────────────────────────────────────┘
  */
 import { useEffect, useState, useMemo } from 'react';
-import { Map, FolderTree, Activity } from 'lucide-react';
+import { Map, FolderTree, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
 import { useEventStore } from '../stores/eventStore';
@@ -33,12 +46,15 @@ import type { StateSnapshot, PendingInteraction } from '../types/api';
 // Types
 // =============================================================================
 
-type TabId = 'hive' | 'files';
+// V12.1: Added 'events' tab for mobile layout
+type TabId = 'hive' | 'files' | 'events';
 
 interface Tab {
   id: TabId;
   label: string;
+  shortLabel: string;  // V12.1: For mobile
   icon: React.ReactNode;
+  mobileOnly?: boolean;  // V12.1: Show only on mobile
 }
 
 // =============================================================================
@@ -46,8 +62,9 @@ interface Tab {
 // =============================================================================
 
 const TABS: Tab[] = [
-  { id: 'hive', label: 'Hive Map', icon: <Map size={16} /> },
-  { id: 'files', label: 'Files', icon: <FolderTree size={16} /> },
+  { id: 'hive', label: 'Hive Map', shortLabel: 'Hive', icon: <Map size={16} /> },
+  { id: 'files', label: 'Files', shortLabel: 'Files', icon: <FolderTree size={16} /> },
+  { id: 'events', label: 'Events', shortLabel: 'Events', icon: <Activity size={16} />, mobileOnly: true },
 ];
 
 // =============================================================================
@@ -80,6 +97,9 @@ export function Dashboard() {
   const [snapshot, setSnapshot] = useState<StateSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+
+  // V12.1: Mobile MissionControl collapse state
+  const [missionControlCollapsed, setMissionControlCollapsed] = useState(true);
 
   // ---------------------------------------------------------------------------
   // Load State Snapshot (F5 Recovery)
@@ -202,19 +222,40 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-[1fr_340px] gap-4 h-[calc(100vh-120px)]">
+        {/* V12.1: Mobile MissionControl (collapsible) */}
+        <div className="md:hidden mb-4">
+          <button
+            onClick={() => setMissionControlCollapsed(!missionControlCollapsed)}
+            className="w-full flex items-center justify-between px-4 py-2 bg-gray-800 rounded-lg border border-gray-700"
+          >
+            <span className="text-sm font-medium text-gray-300">Mission Control</span>
+            {missionControlCollapsed ? (
+              <ChevronDown size={16} className="text-gray-400" />
+            ) : (
+              <ChevronUp size={16} className="text-gray-400" />
+            )}
+          </button>
+          {!missionControlCollapsed && (
+            <div className="mt-2">
+              <MissionControl />
+            </div>
+          )}
+        </div>
+
+        {/* Main Grid Layout - V12.1: Responsive (single column mobile, two columns desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-4 h-[calc(100vh-120px)] md:h-[calc(100vh-120px)]">
           {/* Left: Tabs + Content */}
           <div className="flex flex-col min-h-0">
             {/* Tab Bar */}
-            <div className="flex items-center gap-1 mb-2">
+            <div className="flex items-center gap-1 mb-2 overflow-x-auto">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium
-                    transition-colors border-b-2
+                    flex items-center gap-1.5 md:gap-2 px-2 md:px-4 py-2 rounded-t-lg text-xs md:text-sm font-medium
+                    transition-colors border-b-2 whitespace-nowrap
+                    ${tab.mobileOnly ? 'md:hidden' : ''}
                     ${
                       activeTab === tab.id
                         ? 'bg-gray-800 text-white border-cyan-500'
@@ -223,12 +264,13 @@ export function Dashboard() {
                   `}
                 >
                   {tab.icon}
-                  {tab.label}
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.shortLabel}</span>
                 </button>
               ))}
 
-              {/* Status indicators */}
-              <div className="ml-auto flex items-center gap-3 text-xs text-gray-500">
+              {/* Status indicators - hidden on mobile */}
+              <div className="ml-auto hidden md:flex items-center gap-3 text-xs text-gray-500">
                 {user && (
                   <span>
                     Tenant: <span className="text-gray-300">{user.tenant_id}</span>
@@ -251,11 +293,28 @@ export function Dashboard() {
             <div className="flex-1 min-h-0">
               {activeTab === 'hive' && <HiveMap />}
               {activeTab === 'files' && <FileCommander />}
+              {/* V12.1: Events tab for mobile */}
+              {activeTab === 'events' && (
+                <div className="h-full flex flex-col bg-nexus-dark rounded-lg border border-gray-700 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-gray-700 flex items-center gap-2">
+                    <Activity size={14} className="text-cyan-400" />
+                    <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                      Event Stream
+                    </span>
+                    <span className="ml-auto text-xs text-gray-500">
+                      {events.length} events
+                    </span>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <EventStream />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right: Sidebar */}
-          <div className="flex flex-col gap-4 min-h-0">
+          {/* Right: Sidebar - Desktop only */}
+          <div className="hidden md:flex flex-col gap-4 min-h-0">
             {/* Mission Control */}
             <MissionControl />
 

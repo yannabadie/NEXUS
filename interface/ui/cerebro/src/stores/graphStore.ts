@@ -1,9 +1,13 @@
 /**
  * NEXUS CEREBRO Graph Store
- * V12.0 RETINA VISUALS: Dedicated state for HiveMap visualization
+ * V12.1 RETINA: Dedicated state for HiveMap visualization
  *
  * Handles graph.* WebSocket events and maintains node/edge state
  * for the custom SVG graph renderer.
+ *
+ * V12.1 Improvements (Conseiller 2 feedback):
+ * - Performance monitoring (nodeCount, shouldUseSimpleRenderer)
+ * - Threshold at 50 nodes for simplified rendering
  */
 import { create } from 'zustand';
 
@@ -41,6 +45,12 @@ interface GraphStore {
   // State
   nodes: GraphNode[];
   edges: GraphEdge[];
+
+  // V12.1 RETINA: Performance monitoring (Conseiller 2)
+  // When > 50 nodes, UI should simplify rendering
+  nodeCount: number;
+  shouldUseSimpleRenderer: boolean;
+  readonly NODE_THRESHOLD: number;
 
   // Node actions
   addNode: (node: GraphNode) => void;
@@ -86,9 +96,21 @@ const LAYOUT = {
 // Store
 // =============================================================================
 
+// V12.1 RETINA: Performance threshold (Conseiller 2 feedback)
+const NODE_PERFORMANCE_THRESHOLD = 50;
+
 export const useGraphStore = create<GraphStore>((set, get) => ({
   nodes: [],
   edges: [],
+
+  // V12.1 RETINA: Performance monitoring
+  NODE_THRESHOLD: NODE_PERFORMANCE_THRESHOLD,
+  get nodeCount() {
+    return get().nodes.length;
+  },
+  get shouldUseSimpleRenderer() {
+    return get().nodes.length > NODE_PERFORMANCE_THRESHOLD;
+  },
 
   // ---------------------------------------------------------------------------
   // Node Actions

@@ -1,9 +1,12 @@
 /**
  * NEXUS CEREBRO FileCommander
- * V12.0 RETINA VISUALS: File Browser + Monaco Editor
+ * V12.1 RETINA: File Browser + Monaco Editor
  *
  * Split-pane layout with recursive file tree and code editor.
  * Integrates with /api/files/tree, /api/files/content, /api/files/save
+ *
+ * V12.1 Improvements (Conseiller 2 feedback):
+ * - Mobile responsive layout (stacked on mobile, side-by-side on desktop)
  */
 import { useState, useEffect, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
@@ -300,9 +303,9 @@ export function FileCommander() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex h-full bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
-      {/* Tree Panel */}
-      <div className="w-64 flex-shrink-0 border-r border-gray-700 flex flex-col bg-gray-800/50">
+    <div className="flex flex-col md:flex-row h-full bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+      {/* Tree Panel - V12.1: Responsive (full width on mobile, 256px on desktop) */}
+      <div className="w-full md:w-64 h-48 md:h-full flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-700 flex flex-col bg-gray-800/50">
         {/* Tree Header */}
         <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
