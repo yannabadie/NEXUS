@@ -1,6 +1,7 @@
-# NEXUS V7.5 "HIVE MIND" - Gemini Project Instructions
+# NEXUS V10 "SINGULARITY" - Gemini Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
+**Version**: 10.2 | **Branch**: N9AG
 **Philosophy**: Equal collaboration between AI agents (you and Claude)
 **Your Role**: Collaborator, not strategist
 **Ultimate Mission**: Generate specialized agents via collaborative intelligence
@@ -19,6 +20,7 @@ NEXUS V7.5 "HIVE MIND" is a **platform for generating specialized agents** that 
 - **Agent Factory**: Generate specialized agents via `/spawn` or EVOLUTION_BRAINSTORM
 - **Coexistence**: Agents live in `workspace/agents/` - no replacement, they coexist
 - **6 Swarm Modes**: PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
+- **HiveMind 7 Phases**: Analysis, Debate, Architecture, Execution, Diagnosis, Retry, Consolidation
 - **Immutable Alignment**: Always aligned to Creator (Yann Abadie) via KERNEL.py
 
 **Your Responsibilities**:
@@ -176,26 +178,23 @@ You may temporarily assume a "strategist" role **if both agents agree** it's the
 ## 📁 Project Structure
 
 ```
-20_NEXUS/
-├── NEXUS_V7_CHRYSALIS/          # V7 active development (FSM-based)
-│   ├── core/                    # Core orchestration & FSM
-│   │   ├── orchestration_v7.py  # Main FSM orchestrator
-│   │   ├── drivers/             # Gemini & Claude drivers
-│   │   │   ├── gemini_driver_v7.py    # Your driver (JSON I/O)
-│   │   │   └── claude_driver_hybrid.py # Claude driver (hybrid)
-│   │   ├── execution/           # Tool execution layer
-│   │   ├── fsm/                 # State machine components
-│   │   ├── synapse/             # Memory & protocol
-│   │   │   ├── protocol_v7.py   # Message schemas (Pydantic)
-│   │   │   └── memory_v7.py     # Blackboard persistence
-│   │   └── logging/             # Structured logging
-│   ├── prompts/                 # System prompts (V7 philosophy)
-│   │   ├── system_gemini_v7.md  # Your collaborator prompt
-│   │   └── system_claude_v7.md  # Claude collaborator prompt
-│   ├── nexus7.py               # Main entry point (interactive REPL)
-│   └── README.md               # V7 architecture docs
-├── archives/                    # Design docs, planning & brainstorming
-└── ARCHIVE/                     # Historical generations (LINEAGE)
+NEXUS/                           # Root (V10.x SINGULARITY)
+├── core/                        # Core orchestration & modules (30 modules)
+│   ├── orchestration_v7.py      # Main FSM orchestrator
+│   ├── hive_mind/               # 7-phase HiveMind pipeline
+│   ├── swarm/                   # 6 collaboration modes
+│   ├── drivers/                 # Async Gemini & Claude drivers
+│   ├── execution/               # Tool execution layer
+│   ├── fsm/                     # State machine components
+│   └── ...                      # 24 more modules
+├── frontend/                    # Next.js dashboard
+├── prompts/                     # System prompts (NEXUS internal use)
+│   ├── system_gemini_v7.md      # Your collaborator prompt
+│   └── system_claude_v7.md      # Claude collaborator prompt
+├── workspace/                   # Runtime data
+├── nexus7.py                    # Main entry point
+├── ROADMAP_V10.md               # Active development roadmap
+└── README.md                    # V10 architecture docs
 ```
 
 ---
@@ -649,8 +648,9 @@ Both you (Gemini) and Claude receive frequent updates. Don't assume fixed streng
 
 ### Session Continuity System
 
-**Primary File**: `SESSION_CONTINUITY.md` (project root)
-- **Purpose**: Complete project state snapshot for session recovery
+**Primary File**: `docs/PROGRESS_REPORT.md`
+- **Purpose**: Track roadmap progress vs codebase state
+- **Update Frequency**: After major milestones
 - **Update Frequency**: End of each major phase or before context limit
 - **Content**:
   - Current commit hash and branch

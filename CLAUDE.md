@@ -1,7 +1,7 @@
-# NEXUS V8.5 "TRUE HIVE MIND" - Claude Project Instructions
+# NEXUS V10 "SINGULARITY" - Claude Project Instructions
 
 **Project**: NEXUS Multi-Agent Orchestrator
-**Version**: 8.5.2 | **Branch**: N9AG (stabilization)
+**Version**: 10.2 | **Branch**: N9AG
 **Philosophy**: Equal collaboration between AI agents (you and Gemini)
 **Your Role**: Collaborator, not executor
 **Ultimate Mission**: Generate specialized agents for collaborative problem-solving
@@ -20,6 +20,7 @@ NEXUS V8.5 "TRUE HIVE MIND" is a **platform for generating specialized agents** 
 - **Agent Factory**: Generate specialized agents via `/spawn` or EVOLUTION_BRAINSTORM
 - **Coexistence**: Agents live in `workspace/agents/` - no replacement, they coexist
 - **6 Swarm Modes**: PARALLEL, SEQUENTIAL, LEAD_SUPPORT, PING_PONG, SPECIALIST, RED_BLUE
+- **HiveMind 7 Phases**: Analysis, Debate, Architecture, Execution, Diagnosis, Retry, Consolidation
 - **Immutable Alignment**: Always aligned to Creator (Yann Abadie) via KERNEL.py
 - **Async Core**: Fully asynchronous I/O for high-performance parallel execution
 
@@ -199,27 +200,27 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ## 📁 Project Structure
 
 ```
-NEXUS/                           # Root (V8.5.x TRUE HIVE MIND)
-├── core/                        # Core orchestration & modules
+NEXUS/                           # Root (V10.x SINGULARITY)
+├── core/                        # Core orchestration & modules (30 modules)
 │   ├── orchestration_v7.py      # Main FSM orchestrator (Async)
+│   ├── hive_mind/               # V10 Hive Mind pipeline (7 phases)
+│   ├── swarm/                   # Swarm Engine (6 modes)
 │   ├── drivers/                 # Async Drivers (Gemini & Claude)
 │   ├── async_primitives/        # Async Core (ProcessHandle, Cancellation)
 │   ├── execution/               # Tool execution layer
 │   ├── fsm/                     # State machine components
-│   ├── hive_mind/               # V8 Hive Mind pipeline (7 phases)
-│   ├── swarm/                   # Swarm Engine (6 modes)
 │   ├── memory/                  # RAG + SuccessMemory
 │   ├── security/                # KERNEL, ExecutionPolicy
 │   ├── evolution/               # Agent spawning & mutation
 │   ├── interface/               # Async REPL & commands
 │   └── utils/                   # Shared utilities
+├── frontend/                    # Next.js dashboard
 ├── prompts/                     # System prompts (for NEXUS internal use)
 ├── workspace/                   # Runtime data (agents, logs, sessions)
 ├── tests/                       # Test suite (1000+ tests)
 ├── docs/                        # Documentation
-├── audit/                       # Audit reports
 ├── nexus7.py                    # Main entry point (Async)
-├── ROADMAP.md                   # Active development roadmap
+├── ROADMAP_V10.md               # Active development roadmap
 ├── KERNEL.py                    # Immutable alignment rules
 └── MISSION.md                   # Project mission statement
 ```
@@ -537,8 +538,9 @@ Gemini, do you agree with this analysis? Should we also check test_auth.py?
 
 ### Session Continuity System
 
-**Primary File**: `SESSION_CONTINUITY.md` (project root)
-- **Purpose**: Complete project state snapshot for session recovery
+**Primary File**: `docs/PROGRESS_REPORT.md`
+- **Purpose**: Track roadmap progress vs codebase state
+- **Update Frequency**: After major milestones
 - **Update Frequency**: End of each major phase or before context limit
 - **Content**:
   - Current commit hash and branch
