@@ -12,9 +12,16 @@ V9.2 Enhancement: Session Isolation + Scoped Context
 - Spawned agents get isolated sessions with TASK_ONLY context
 - Model-change detection for architecture decisions
 
+V12.4 Enhancement: Collaborative Architecture (Claude + Gemini)
+- Phase 3a: Claude (Opus) generates initial architecture (planning strength)
+- Phase 3b: Gemini validates and optimizes (speed + fresh context)
+- Feature flag: COLLABORATIVE_ARCHITECTURE for rollback
+
 Flow:
 1. Check Agent Registry for existing agents
 2. Generate architecture based on debate outcome (session: uuid-arch)
+   2a. Claude generates initial architecture
+   2b. Gemini validates/optimizes
 3. User Breakpoint: BEFORE_SPAWN (if spawning agents)
 4. Spawn new agents if approved (each with isolated session)
 5. Return execution-ready architecture
@@ -24,15 +31,20 @@ Key Innovation:
 - Prevents duplicate spawning via Registry
 - User can intervene before spawning
 - V9.2: Session isolation for spawned agents
+- V12.4: Dual-agent architecture for better planning
 """
 
 import asyncio
 import json
 import logging
+import os
 import re
 from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
+
+# V12.4: Feature flag for collaborative architecture
+COLLABORATIVE_ARCHITECTURE = os.environ.get("NEXUS_COLLABORATIVE_ARCHITECTURE", "true").lower() == "true"
 
 from ..types import (
     AgentSpec,
@@ -59,7 +71,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Architecture generation prompt
+# Architecture generation prompt (legacy - used when collaborative disabled)
 ARCHITECTURE_PROMPT = """You are designing an agent architecture for NEXUS Hive Mind.
 
 TASK: {task}
@@ -108,6 +120,117 @@ Respond in JSON format:
     }},
     "reasoning": "Why this architecture"
 }}
+"""
+
+# V12.4: Claude architecture generation prompt (Phase 3a)
+CLAUDE_ARCHITECTURE_PROMPT = """You are the ARCHITECT for NEXUS Hive Mind. Your role is to design
+the optimal execution architecture for a complex task.
+
+## TASK
+{task}
+
+## AGREED APPROACH (from debate)
+{approach}
+
+## REQUIRED CAPABILITIES
+{capabilities}
+
+## AVAILABLE AGENTS
+{available_agents}
+
+## YOUR MISSION
+
+Design a precise, efficient architecture. You excel at:
+- Breaking complex problems into clear execution steps
+- Identifying dependencies between steps
+- Assigning the right agent to each step
+- Anticipating failure modes
+
+## GUIDELINES
+
+1. **Prefer existing agents** - Only spawn new agents if truly necessary
+2. **Clear step boundaries** - Each step should have one clear objective
+3. **Minimize dependencies** - Prefer parallel execution where possible
+4. **Assign agents thoughtfully**:
+   - Claude: Complex reasoning, code generation, analysis
+   - Gemini: Research, summarization, creative tasks
+5. **Be specific** - Actions should be concrete, not vague
+
+Respond in JSON format:
+{{
+    "agents_to_use": ["agent_id1", "agent_id2"],
+    "agents_to_spawn": [
+        {{
+            "role": "specialist_name",
+            "mission": "What this agent does",
+            "capabilities": ["cap1", "cap2"],
+            "tools_priority": ["tool1", "tool2"],
+            "estimated_cost": 500
+        }}
+    ],
+    "execution_strategy": "parallel" | "sequential" | "pipeline",
+    "execution_steps": [
+        {{
+            "name": "step_name",
+            "agent_id": "claude" | "gemini" | "spawned_agent_id",
+            "action": "Specific action to perform",
+            "expected_duration": 30,
+            "depends_on": ["previous_step_name"],
+            "verification_required": true
+        }}
+    ],
+    "rag_config": {{
+        "enabled": true,
+        "depth": "shallow" | "standard" | "deep",
+        "sources": ["codebase", "docs", "memory"],
+        "max_chunks": 10
+    }},
+    "reasoning": "Why this architecture is optimal"
+}}
+"""
+
+# V12.4: Gemini validation prompt (Phase 3b)
+GEMINI_VALIDATION_PROMPT = """You are validating and optimizing an architecture proposed by Claude.
+
+## ORIGINAL TASK
+{task}
+
+## PROPOSED ARCHITECTURE
+```json
+{architecture_json}
+```
+
+## YOUR MISSION
+
+Review this architecture with fresh eyes. Check for:
+1. **Feasibility** - Can each step actually be executed?
+2. **Efficiency** - Are there unnecessary steps? Can steps be parallelized?
+3. **Agent assignment** - Is the right agent assigned to each step?
+4. **Dependencies** - Are dependencies correctly identified?
+5. **Completeness** - Does this cover the full task?
+
+## OUTPUT
+
+If the architecture is GOOD, respond:
+```json
+{{
+    "validation": "APPROVED",
+    "optimizations": ["list of minor improvements applied"],
+    "architecture": {{ ... the architecture, possibly with minor tweaks ... }}
+}}
+```
+
+If the architecture needs CHANGES, respond:
+```json
+{{
+    "validation": "OPTIMIZED",
+    "issues_found": ["list of issues"],
+    "optimizations": ["list of changes made"],
+    "architecture": {{ ... the improved architecture ... }}
+}}
+```
+
+Be constructive - improve, don't reject.
 """
 
 
@@ -298,7 +421,191 @@ class ArchitectureGenerationPhase:
         capabilities: List[str],
         available_agents: str
     ) -> AgentArchitecture:
-        """Generate architecture using Gemini."""
+        """
+        Generate architecture using collaborative or legacy approach.
+
+        V12.4: Collaborative mode (default):
+        - Phase 3a: Claude generates initial architecture
+        - Phase 3b: Gemini validates and optimizes
+
+        Legacy mode (NEXUS_COLLABORATIVE_ARCHITECTURE=false):
+        - Gemini generates architecture alone
+        """
+        if COLLABORATIVE_ARCHITECTURE:
+            logger.info("Phase 3: Using COLLABORATIVE architecture (Claude → Gemini)")
+            return await self._generate_collaborative(
+                task, approach, capabilities, available_agents
+            )
+        else:
+            logger.info("Phase 3: Using LEGACY architecture (Gemini only)")
+            return await self._generate_legacy(
+                task, approach, capabilities, available_agents
+            )
+
+    async def _generate_collaborative(
+        self,
+        task: str,
+        approach: str,
+        capabilities: List[str],
+        available_agents: str
+    ) -> AgentArchitecture:
+        """
+        V12.4: Collaborative architecture generation.
+
+        Phase 3a: Claude generates initial architecture (planning strength)
+        Phase 3b: Gemini validates and optimizes (speed + fresh perspective)
+        """
+        # Phase 3a: Claude generates architecture
+        logger.info("  Phase 3a: Claude generating architecture...")
+        claude_arch = await self._generate_with_claude(
+            task, approach, capabilities, available_agents
+        )
+
+        # Check budget for validation step
+        if not self.cost_estimator.can_afford("validate_architecture"):
+            logger.warning("  Budget insufficient for Phase 3b - using Claude architecture directly")
+            return claude_arch
+
+        # Phase 3b: Gemini validates and optimizes
+        logger.info("  Phase 3b: Gemini validating architecture...")
+        try:
+            final_arch = await self._validate_with_gemini(claude_arch, task, capabilities)
+            return final_arch
+        except Exception as e:
+            logger.warning(f"  Gemini validation failed: {e} - using Claude architecture")
+            return claude_arch
+
+    async def _generate_with_claude(
+        self,
+        task: str,
+        approach: str,
+        capabilities: List[str],
+        available_agents: str
+    ) -> AgentArchitecture:
+        """Phase 3a: Claude generates initial architecture."""
+        prompt = CLAUDE_ARCHITECTURE_PROMPT.format(
+            task=task,
+            approach=approach,
+            capabilities=", ".join(capabilities),
+            available_agents=available_agents
+        )
+
+        # Get session for Claude
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session("claude")
+            logger.debug(f"Claude architecture using session {session_uuid[:8] if session_uuid else 'none'}")
+
+        try:
+            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
+
+            # Record cost
+            tokens = len(str(response)) // 4
+            self.cost_estimator.record_cost("generate_architecture_claude", tokens)
+
+            return self._parse_architecture_response(response, capabilities)
+
+        except Exception as e:
+            logger.error(f"Claude architecture generation failed: {e}")
+            return self._create_fallback_architecture(capabilities)
+
+    async def _validate_with_gemini(
+        self,
+        claude_arch: AgentArchitecture,
+        task: str,
+        capabilities: List[str]
+    ) -> AgentArchitecture:
+        """Phase 3b: Gemini validates and optimizes Claude's architecture."""
+        # Serialize architecture to JSON for prompt
+        arch_dict = {
+            "agents_to_use": claude_arch.agents_to_use,
+            "agents_to_spawn": [
+                {
+                    "role": spec.role,
+                    "mission": spec.mission,
+                    "capabilities": spec.capabilities,
+                    "tools_priority": spec.tools_priority,
+                    "estimated_cost": spec.estimated_cost
+                }
+                for spec in claude_arch.agents_to_spawn
+            ],
+            "execution_strategy": claude_arch.collaboration_mode,
+            "execution_steps": [
+                {
+                    "name": step.name,
+                    "agent_id": step.agent_id,
+                    "action": step.action,
+                    "expected_duration": step.expected_duration,
+                    "depends_on": step.depends_on,
+                    "verification_required": step.verification_required
+                }
+                for step in claude_arch.execution_plan.steps
+            ],
+            "rag_config": {
+                "enabled": claude_arch.rag_config.enabled,
+                "depth": claude_arch.rag_config.depth,
+                "sources": claude_arch.rag_config.sources,
+                "max_chunks": claude_arch.rag_config.max_chunks
+            },
+            "reasoning": claude_arch.reasoning
+        }
+
+        prompt = GEMINI_VALIDATION_PROMPT.format(
+            task=task,
+            architecture_json=json.dumps(arch_dict, indent=2)
+        )
+
+        # Get session for Gemini
+        session_uuid = None
+        if self._session_integration:
+            session_uuid = self._session_integration.get_agent_session("gemini")
+            logger.debug(f"Gemini validation using session {session_uuid[:8] if session_uuid else 'none'}")
+
+        response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+
+        # Record cost
+        tokens = len(str(response)) // 4
+        self.cost_estimator.record_cost("validate_architecture_gemini", tokens)
+
+        # Parse validation response
+        from ..json_parser import parse_json_response
+        data = parse_json_response(response, "validation", default=None)
+
+        if data is None:
+            logger.warning("  Gemini validation parse failed - using Claude architecture")
+            return claude_arch
+
+        validation_status = data.get("validation", "APPROVED")
+        optimizations = data.get("optimizations", [])
+
+        if optimizations:
+            logger.info(f"  Gemini optimizations: {', '.join(optimizations[:3])}")
+
+        # Extract the (possibly optimized) architecture
+        arch_data = data.get("architecture", arch_dict)
+
+        # Parse the validated architecture
+        validated_arch = self._parse_architecture_response(
+            json.dumps(arch_data),  # Re-serialize for parser
+            capabilities
+        )
+
+        # Update reasoning to reflect collaboration
+        validated_arch.reasoning = (
+            f"[Collaborative V12.4] Claude designed, Gemini {validation_status.lower()}. "
+            f"{validated_arch.reasoning}"
+        )
+
+        return validated_arch
+
+    async def _generate_legacy(
+        self,
+        task: str,
+        approach: str,
+        capabilities: List[str],
+        available_agents: str
+    ) -> AgentArchitecture:
+        """Legacy architecture generation using Gemini only."""
         prompt = ARCHITECTURE_PROMPT.format(
             task=task,
             approach=approach,
