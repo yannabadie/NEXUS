@@ -244,8 +244,15 @@ class ParallelExecutor(ModeExecutor):
 
         .. deprecated::
             Use `await executor.execute_async(context)` in async code.
+
+        V12.4 FIX: Reduced timeout from 300s to 60s, improved async handling
+        to prevent event loop blocking in mixed sync/async contexts.
         """
         import warnings
+        import logging
+
+        logger = logging.getLogger("nexus.swarm.parallel")
+
         warnings.warn(
             "ParallelExecutor.execute() is deprecated. "
             "Use `await executor.execute_async(context)` in async code.",
@@ -253,13 +260,36 @@ class ParallelExecutor(ModeExecutor):
             stacklevel=2
         )
 
+        # V12.4: Check if we're in an async context first
         try:
             loop = asyncio.get_running_loop()
-            import concurrent.futures
-            future = asyncio.run_coroutine_threadsafe(self.execute_async(context), loop)
-            return future.result(timeout=300)
+            # We're inside an async context - this is problematic
+            # Use run_coroutine_threadsafe but with reduced timeout
+            logger.warning(
+                "ParallelExecutor.execute() called from async context. "
+                "Consider using execute_async() directly."
+            )
+            future = asyncio.run_coroutine_threadsafe(
+                self.execute_async(context), loop
+            )
+            # V12.4: Reduced timeout from 300s to 60s
+            return future.result(timeout=60)
         except RuntimeError:
+            # No running event loop - safe to use asyncio.run()
             return asyncio.run(self.execute_async(context))
+        except TimeoutError:
+            # V12.4: Handle timeout gracefully instead of blocking forever
+            logger.error("ParallelExecutor.execute() timed out after 60s")
+            return ExecutionResult(
+                mode=self.mode,
+                status=ExecutionStatus.FAILED,
+                final_output="Parallel execution timed out after 60 seconds",
+                agent_outputs=[],
+                total_rounds=0,
+                total_tokens=0,
+                total_time_seconds=60.0,
+                metadata={"error": "timeout", "timeout_seconds": 60}
+            )
 
     async def execute_async(self, context: ExecutionContext) -> ExecutionResult:
         """

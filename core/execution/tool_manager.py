@@ -212,9 +212,15 @@ class ToolManager:
         Forbidden:
         - NEXUS_V5_PRAGMATIC
         - .env, .git, __pycache__
+
+        V12.4 Security: Uses resolve() to prevent symlink-based path traversal.
         """
         try:
-            relative = path.relative_to(self.parent_path)
+            # V12.4: Resolve symlinks and normalize path before validation
+            resolved = path.resolve()
+            parent_resolved = self.parent_path.resolve()
+
+            relative = resolved.relative_to(parent_resolved)
             path_str = str(relative).replace("\\", "/")
 
             allowed_prefixes = ["core/", "prompts/", "benchmarks/"]
@@ -228,7 +234,7 @@ class ToolManager:
             if path_str in allowed_root_files:
                 return True
             return False
-        except ValueError:
+        except (ValueError, OSError):
             return False
 
     def _is_evolution_safe_list(self, path: Path) -> bool:
@@ -239,9 +245,15 @@ class ToolManager:
         - ../core/ (parent project code)
         - ../prompts/ (parent prompts)
         - ../benchmarks/ (benchmark scripts)
+
+        V12.4 Security: Uses resolve() to prevent symlink-based path traversal.
         """
         try:
-            relative = path.relative_to(self.parent_path)
+            # V12.4: Resolve symlinks and normalize path before validation
+            resolved = path.resolve()
+            parent_resolved = self.parent_path.resolve()
+
+            relative = resolved.relative_to(parent_resolved)
             path_str = str(relative).replace("\\", "/")
 
             allowed_prefixes = ["core", "prompts", "benchmarks"]
@@ -253,7 +265,7 @@ class ToolManager:
                    for prefix in allowed_prefixes):
                 return True
             return False
-        except ValueError:
+        except (ValueError, OSError):
             return False
 
     def _is_evolution_safe_write(self, path: Path) -> bool:
@@ -264,11 +276,17 @@ class ToolManager:
         - ../../GENERATION_ACTIVE/** (children only)
 
         Everything else is FORBIDDEN.
+
+        V12.4 Security: Uses resolve() to prevent symlink-based path traversal.
         """
         try:
-            path.relative_to(self.generation_active)
+            # V12.4: Resolve symlinks and normalize path before validation
+            resolved = path.resolve()
+            generation_resolved = self.generation_active.resolve()
+
+            resolved.relative_to(generation_resolved)
             return True
-        except ValueError:
+        except (ValueError, OSError):
             return False
 
     # =========================================================================
