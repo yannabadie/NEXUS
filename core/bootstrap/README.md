@@ -1,178 +1,135 @@
-# Module: Bootstrap - Project Analysis & Agent Discovery
+# bootstrap
 
-**Version**: 7.5 (HIVE MIND)
-**Last Updated**: 2025-12-04
+NEXUS V9.1 - Bootstrap Module
 
----
+Components:
+- AutoBootstrap: Generates NEXUS.md when deployed to a new project
+- SpawnedAgentLoader: Discovers spawned agents from workspace/agents/
+- BootstrapService: Service layer for bootstrap operations (V9.1)
+- SpinoffService: Service layer for specialization/spinoff operations (V9.1)
 
-## Role Architectural
+## Overview
 
-Le module Bootstrap gere l'initialisation de NEXUS dans un nouvel environnement:
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\bootstrap` |
+| **Modules** | 4 |
+| **Total Lines** | 1906 |
+| **Classes** | 7 |
+| **Functions** | 4 |
 
-1. **Auto-Bootstrap**: Analyse un projet existant pour generer `NEXUS.md`
-2. **Agent Discovery**: Decouvre les agents spawnes pour integration au Swarm
+## Architecture
 
----
-
-## Alignement ROADMAP V7.5+
-
-| Phase ROADMAP | Impact sur ce module |
-|---------------|---------------------|
-| **Phase 5: Agent Factory** | `agent_loader.py` integre agents spawnes au Swarm |
-| **Phase 5b: N-Agent Agnosticism** | Agent loader supportera N providers |
-
-**Vision HIVE MIND**: Ce module permet a NEXUS de s'adapter automatiquement a tout projet ET de charger dynamiquement les agents specialises crees via `/spawn`.
-
----
-
-## Composants Cles
-
-### Fichier: `auto_bootstrap.py`
-
-**Classe**: `AutoBootstrap`
-
-* **Fonction**: Analyse automatique de projet et generation NEXUS.md
-* **Interaction FSM**: Aucune directe (utilitaire)
-* **Notes d'Audit**: OK - Implementation complete
-
-**Capacites de detection**:
-| Type | Exemples |
-|------|----------|
-| Langages | Python, JavaScript, TypeScript, Go, Rust, Java, C#, Ruby, PHP |
-| Frameworks | FastAPI, Django, Flask, React, Next.js, Vue, Express |
-| Databases | PostgreSQL, MySQL, MongoDB, Redis |
-| Outils | pytest, npm, make, docker-compose |
-
-**Dataclass**: `ProjectAnalysis`
-- `languages`, `frameworks`, `databases`, `tools`
-- `directories`, `key_files`, `commands`
-- `has_tests`, `has_docs`, `has_ci`
-
-**Usage**:
-```python
-bootstrap = AutoBootstrap(project_path)
-analysis = bootstrap.analyze()
-nexus_md = bootstrap.generate_nexus_md(analysis)
-bootstrap.save(nexus_md)
+```mermaid
+classDiagram
+    class InferenceConfig {
+        +str provider
+        +str model
+        +Optional[str] reasoning
+    }
+    class SpawnedAgentConfig {
+        +str agent_id
+        +str role
+        +str created_at
+        +str parent
+        +str mission
+        +List[str] domains
+        +List[str] tools_priority
+        +Path workspace_path
+        +Optional[Path] system_prompt_path
+        +Optional[str] uuid
+        +Optional[InferenceConfig] inference
+    }
+    class SpawnedAgentLoader {
+        +PROVIDER_SPAWNED
+        +workspace_path
+        +agents_dir
+        -__init__(self, workspace_path: Path)
+        +discover_spawned_agents(self) List[AgentProfile]
+        -_load_agent_from_dir(self, agent_dir: Path) Optional[AgentProfile]
+        -_parse_birth_certificate(self, cert_data: Dict[str, Any], agent_dir: Path) Optional[SpawnedAgentConfig]
+        +load_agent_config(self, agent_id: str) Optional[SpawnedAgentConfig]
+        +load_system_prompt(self, agent_id: str) Optional[str]
+        +get_agent_workspace(self, agent_id: str) Optional[Path]
+    }
+    class ProjectAnalysis {
+        +List[str] languages
+        +List[str] frameworks
+        +List[str] databases
+        +List[str] tools
+        +List[str] directories
+        +List[str] key_files
+        +Dict[str, str] commands
+        +str indentation
+        +str naming_style
+        +bool has_tests
+        +bool has_docs
+        +bool has_ci
+        +str project_name
+        +str analysis_date
+    }
+    class AutoBootstrap {
+        +LANGUAGE_PATTERNS
+        +FRAMEWORK_PATTERNS
+        +DATABASE_PATTERNS
+        +TOOL_PATTERNS
+        +project_path
+        -__init__(self, project_path: Path)
+        +analyze(self) ProjectAnalysis
+        -_analyze_directories(self) List[str]
+        -_find_key_files(self) List[str]
+        -_detect_languages(self) List[str]
+        -_detect_frameworks(self) List[str]
+        -_detect_databases(self) List[str]
+        -_detect_tools(self) List[str]
+        -_discover_commands(self) Dict[str, str]
+        -_detect_indentation(self) str
+        -_detect_naming_style(self) str
+        -_has_tests(self) bool
+        -_has_docs(self) bool
+        -_has_ci(self) bool
+        +generate_nexus_md(self, analysis: Optional[ProjectAnalysis]=...) str
+        -_extract_project_description(self) Optional[str]
+        -_detect_language_version(self, language: str) Optional[str]
+        -_detect_entry_points(self) Dict[str, str]
+        -_detect_test_framework(self) str
+        -_detect_ci_type(self) str
+        -_detect_protected_files(self) Dict[str, str]
+        -_get_framework_rules(self, frameworks: List[str]) List[str]
+        -_detect_architecture_patterns(self) List[str]
+        -_detect_important_files(self) Dict[str, str]
+        +save(self, content: Optional[str]=..., path: Optional[Path]=...) Path
+        +needs_bootstrap(self) bool
+    }
+    class BootstrapService {
+        +console
+        -_interaction
+        -__init__(self, console: 'ConsoleV7', interaction: Optional['InteractionProvider']=...)
+        +bootstrap(self, project_path: Optional[Path]=...) ServiceResult
+        -_confirm_overwrite(self) bool
+    }
+    class SpinoffService {
+        +orchestrator
+        +console
+        +workspace_path
+        +nexus_root
+        -__init__(self, orchestrator: 'OrchestratorV7', console: 'ConsoleV7', workspace_path: Path, nexus_root: Path)
+        +specialize(self, mission: str) ServiceResult
+        -_brainstorm_spinoff(self, parent_id: str, parent_path: Path, mission: str) List[Dict[str, Any]]
+    }
 ```
 
----
+## Modules
 
-### Fichier: `agent_loader.py` [NOUVEAU V7.5]
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [agent_loader](agent_loader.py) | Spawned Agent Loader - NEXUS V7.5 HIVE MIND | 3 | 1 |
+| [auto_bootstrap](auto_bootstrap.py) | AutoBootstrap - Automatic NEXUS.md Generation | 2 | 1 |
+| [service](service.py) | NEXUS V9.1 - BootstrapService & SpinoffService | 2 | 2 |
 
-**Classe**: `SpawnedAgentLoader`
 
-* **Fonction**: Decouverte et chargement des agents spawnes depuis `workspace/agents/`
-* **Interaction FSM**: Appele au demarrage par OrchestratorV7
-* **Protocoles Utilises**:
-  - `BIRTH_CERTIFICATE.json` pour config agent
-  - `system_prompt.md` pour prompt specialise
-  - `AgentProfile` pour integration AgentPool
-* **Notes d'Audit**: Implemente Phase 5 (Agent Factory)
 
-**Dataclass**: `SpawnedAgentConfig`
-- `agent_id`, `role`, `mission`
-- `domains`, `tools_priority`
-- `system_prompt_path`
 
-**Methodes principales**:
-| Methode | Description |
-|---------|-------------|
-| `discover_spawned_agents()` | Scanne workspace/agents/ et retourne List[AgentProfile] |
-| `load_agent_config()` | Charge config d'un agent specifique |
-| `load_system_prompt()` | Charge prompt specialise |
-| `get_agent_workspace()` | Retourne workspace de l'agent |
-
-**Fonction utilitaire**: `discover_and_register_spawned_agents()`
-
-**Usage**:
-```python
-from core.bootstrap.agent_loader import SpawnedAgentLoader
-
-loader = SpawnedAgentLoader(workspace_path)
-agents = loader.discover_spawned_agents()
-
-for profile in agents:
-    agent_pool.register(profile)
-```
 
 ---
-
-### Fichier: `__init__.py`
-
-* **Fonction**: Exports publics du module
-* **Notes d'Audit**: OK
-
----
-
-## Structure Agent Spawne
-
-Chaque agent spawne via `/spawn` cree cette structure:
-
-```
-workspace/agents/<agent_id>/
-+-- BIRTH_CERTIFICATE.json   # Config obligatoire
-+-- system_prompt.md         # Prompt specialise (optionnel)
-+-- workspace/               # Espace de travail agent
-```
-
-**Format BIRTH_CERTIFICATE.json**:
-```json
-{
-  "agent_id": "sql_expert",
-  "role": "SQL Expert",
-  "created_at": "2025-12-04T10:00:00Z",
-  "parent": "NEXUS_V7.5",
-  "specialization": {
-    "mission": "Optimize SQL queries",
-    "domains": ["DATABASE", "OPTIMIZATION"],
-    "tools_priority": ["read", "bash", "edit"]
-  }
-}
-```
-
----
-
-## Dependances et Interactions (Synapses)
-
-```
-                     OrchestratorV7.__init__()
-                           |
-                           v
-                    SpawnedAgentLoader
-                           |
-                           v
-                    AgentPool.register()
-                           |
-                           v
-                    ModeSelector.select_mode()
-                    (inclut agents spawnes)
-```
-
-**Imports**:
-- `core.swarm.agent_metrics.AgentProfile`
-- Standard library: `json`, `pathlib`, `dataclasses`
-
----
-
-## Usage REPL
-
-```bash
-# Bootstrap nouveau projet
-nexus7> /bootstrap .
-# Genere NEXUS.md adapte au projet
-
-# Les agents spawnes sont charges automatiquement au demarrage
-# Visible via:
-nexus7> /pool-stats
-# Affiche Gemini, Claude, ET agents spawnes
-```
-
----
-
-## Tests
-
-**Recommandes**:
-- `test_auto_bootstrap_detects_python()`
-- `test_agent_loader_discovers_spawned()`
-- `test_agent_loader_handles_missing_cert()`
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

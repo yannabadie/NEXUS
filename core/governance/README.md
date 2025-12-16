@@ -1,79 +1,92 @@
-# Governance Module
+# governance
 
-Security policy enforcement and Red Team alignment for NEXUS V7.5.
+NEXUS Governance & Security - "Le Tribunal"
 
-## Overview
+Handles security policies, alignment verification, and access control.
 
-The Governance module defines **WHAT** is allowed (policy), while the Security module enforces **HOW** it is checked. It centralizes:
-- **Sandbox Policy**: Tool permission definitions (SAFE vs BLOCKED).
-- **Red Team**: Alignment verification logic.
+## Modules
+
+### Active
+- `red_team/`: Alignment testing with trap questions (blocks unsafe evolutions)
+- `sandbox_policy.py`: Tool execution permissions and security policies
+
+### Planned (TODO)
+- `gcp_gatekeeper.py`: GCP access control with ROI validation
+- `ethics.py`: Alignment verification to Creator (Yann Abadie)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    GOVERNANCE LAYER                         │
-│                                                             │
-│   ┌─────────────────────┐       ┌───────────────────────┐   │
-│   │   SandboxPolicy     │       │       Red Team        │   │
-│   │                     │       │                       │   │
-│   │ • SAFE_TOOLS        │       │ • Trap Questions      │   │
-│   │ • BLOCKED_TOOLS     │       │ • Alignment Score     │   │
-│   │ • CONDITIONAL       │       │ • Pass/Fail Check     │   │
-│   └──────────┬──────────┘       └───────────┬───────────┘   │
-│              │                              │               │
-│              ▼                              ▼               │
-│   ┌─────────────────────┐       ┌───────────────────────┐   │
-│   │    ToolManager      │       │   TieredValidator     │   │
-│   │ (Enforces Policy)   │       │ (Runs Alignment Test) │   │
-│   └─────────────────────┘       └───────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+governance/
+├── __init__.py          # This file
+├── red_team/            # Alignment testing (migrated from BENCHMARKS/)
+│   ├── __init__.py
+│   ├── alignment_tests.py
+│   └── validator.py
+├── sandbox_policy.py    # Tool execution permissions and security policies
+├── gcp_gatekeeper.py    # TODO: ROI-based cloud access
+└── ethics.py            # TODO: Alignment verification to Creator
 ```
 
-## Files
-
-| File | Purpose | Key Classes |
-|------|---------|-------------|
-| `sandbox_policy.py` | Policy definitions | `SandboxPolicy` |
-| `red_team/alignment_tests.py` | Trap scenarios | `RedTeamTraps` |
-| `red_team/validator.py` | Test execution | `RedTeamValidator` |
-| `__init__.py` | Module exports | - |
-
-## Key Policies
-
-### Sandbox Policy (V7.5)
-
-| Context | Allowed Tools | Description |
-|---------|---------------|-------------|
-| **BRAINSTORMING** | `SAFE_TOOLS` | Read-only, Web search, Discovery |
-| **EXECUTION** | `SAFE` + `CONDITIONAL` | File modification, Git (RO), Bash |
-| **EVOLUTION** | All (in Sandbox) | Full access to `GENERATION_ACTIVE/` |
-
-**SAFE_TOOLS**: `read`, `glob`, `grep`, `list_dir`, `web_search`, `web_fetch`
-**BLOCKED_TOOLS** (during brainstorm): `write`, `edit`, `bash`, `git` (write), `todo_write`
-
-### Red Team Policy
-
-- **Mandatory?**: No (`RED_TEAM_MANDATORY=False` in V7.5).
-- **Frequency**: Configurable (default: every evolution cycle if enabled).
-- **Threshold**: Score >= 0.60 required for promotion (if enabled).
-
-## Usage Example
+## Usage
 
 ```python
-from core.governance import SandboxPolicy
+from core.governance.red_team import RedTeamValidator
 
-# Check tool permission
-tool = "write_file"
-if SandboxPolicy.is_tool_blocked(tool):
-    print(f"Tool {tool} is blocked: {SandboxPolicy.get_blocked_reason(tool)}")
-
-# Check conditional access
-if SandboxPolicy.can_execute_tool(tool, context="execution"):
-    print("Allowed in execution mode")
+validator = RedTeamValidator(child_path, child_id)
+results = validator.run_alignment_tests()
 ```
 
-## See Also
+## Overview
 
-- [Security Module](../security/README.md) - Enforcement implementation
-- [Execution Module](../execution/README.md) - Tool execution
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\governance` |
+| **Modules** | 2 |
+| **Total Lines** | 200 |
+| **Classes** | 1 |
+| **Functions** | 0 |
+
+## Architecture
+
+```mermaid
+classDiagram
+    class SandboxPolicy {
+        +is_tool_safe(tool_name: str) bool
+        +is_tool_blocked(tool_name: str) bool
+        +is_tool_conditional(tool_name: str) bool
+        +can_execute_tool(tool_name: str, context: str=...) bool
+        +get_blocked_reason(tool_name: str) str
+    }
+```
+
+## Modules
+
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [sandbox_policy](sandbox_policy.py) | Sandbox Policy - Tool execution permissions and security policies | 1 | 0 |
+
+## Subpackages
+
+| Package | Description | Modules |
+|---------|-------------|---------|
+| [red_team/](C:\Code\NEXUS\NEXUS-N7A\core\governance\red_team/README.md) |  | 0 |
+
+
+
+
+## Aggregated Statistics
+
+Statistics from all subpackages:
+
+| Metric | Value |
+|--------|-------|
+| Subpackages | 1 |
+| Total Modules | 0 |
+| Total Lines of Code | 0 |
+| Total Classes | 0 |
+| Total Functions | 0 |
+
+
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

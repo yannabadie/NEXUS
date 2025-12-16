@@ -1,187 +1,186 @@
-# Module: MCP (CORTEX) - Client & Server
+# mcp
 
-**Version**: 9.0 (TRUE HIVE MIND)
-**Last Updated**: 2025-12-11
+NEXUS V9.0 - MCP Module (Client + Server)
 
-## Rôle Architectural
+Model Context Protocol support for bidirectional agent communication.
 
-Model Context Protocol (MCP) module bidirectionnel:
-- **Client**: NEXUS consomme des outils depuis des serveurs MCP externes
-- **Server V9.0**: NEXUS exposé comme serveur MCP pour Claude Desktop, VSCode, etc.
+Components:
+- protocol.py: JSON-RPC 2.0 types (Request, Response, Tool, etc.)
+- client.py: MCPClient class for consuming external MCP servers
+- registry.py: Server configuration loader
+- server.py: V9.0 - NEXUS as MCP Server (for Claude Desktop, etc.)
 
-Implémentation zero-dependency (client) + FastMCP SDK (server).
+Usage (Client - consume external servers):
+    from core.mcp import MCPClient, MCPRegistry
 
-**Phase ROADMAP**: 12.3 - CORTEX (MCP Client), V9.0 - MCP Server
+    registry = MCPRegistry(workspace_path)
+    client = MCPClient(command=["npx", "-y", "@modelcontextprotocol/server-filesystem"])
+    client.initialize()
+    result = client.call_tool("read_file", {"path": "/tmp/test.txt"})
 
-## Alignement ROADMAP V7.6+ / V9.0
+Usage (Server - expose NEXUS to external clients):
+    # Run NEXUS as MCP server:
+    python -m core.mcp.server
 
-Ce module implémente:
-- **Phase 12.3**: Infrastructure client MCP
-- **V9.0**: NEXUS MCP Server (expose NEXUS comme outil externe)
-
-Capacités:
-- Intégration dynamique des outils MCP dans ToolManager (client)
-- Support des serveurs MCP via stdio (transport standard)
-- Exposition de NEXUS à Claude Desktop, VSCode, etc. (server)
-
-## Composants Clés
-
-### Fichier: `protocol.py`
-* **Fonction**: Types JSON-RPC 2.0 pour le protocole MCP
-* **Classes**:
-  - `MCPRequest` / `MCPResponse` - Messages JSON-RPC 2.0
-  - `MCPTool` / `MCPToolResult` - Définitions et résultats d'outils
-  - `MCPCapabilities` - Capacités serveur
-  - `MCPError` - Erreurs protocole
-* **Zero-Dep**: Aucune dépendance externe, sérialisation JSON native
-
-### Fichier: `client.py`
-* **Fonction**: Client MCP gérant la communication subprocess
-* **Classe principale**: `MCPClient`
-* **Responsabilités**:
-  - Gestion du cycle de vie (start, initialize, close)
-  - Communication stdio avec le serveur
-  - Thread de lecture asynchrone
-  - Handshake protocolaire MCP
-* **Timeout**: 30s par défaut, 10s pour l'initialisation
-
-### Fichier: `registry.py`
-* **Fonction**: Chargement de la configuration des serveurs MCP
-* **Classe principale**: `MCPRegistry`
-* **Configuration**: `workspace/.nexus/mcp_servers.json`
-* **Fonctionnalités**:
-  - Chargement paresseux des configs
-  - Cache des clients connectés
-  - Gestion automatique des reconnexions
-
-### Fichier: `server.py` (V9.0 - NOUVEAU)
-* **Fonction**: Expose NEXUS comme serveur MCP pour Claude Desktop/VSCode
-* **Framework**: FastMCP SDK (`pip install mcp`)
-* **Transport**: stdio (standard JSON-RPC 2.0)
-* **Outils exposés**:
-  - `nexus_read` - Lecture fichiers workspace
-  - `nexus_glob` - Pattern matching fichiers
-  - `nexus_grep` - Recherche regex dans code
-  - `nexus_analyze` - Analyse tâche multi-agent (Gemini+Claude)
-  - `nexus_status` - État système NEXUS
-  - `nexus_bash` - Exécution shell sandboxée
-* **Resources**:
-  - `nexus://config` - Configuration NEXUS
-  - `nexus://agents` - Liste des agents enregistrés
-
-## Format de Configuration
-
-```json
-{
-  "servers": {
-    "filesystem": {
-      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem"],
-      "args": ["/tmp"],
-      "env": {"DEBUG": "true"},
-      "enabled": true,
-      "description": "File system access via MCP"
-    }
-  }
-}
-```
-
-## Intégration ToolManager
-
-Les outils MCP sont automatiquement enregistrés dans `ToolManager` avec le préfixe:
-```
-mcp_{server}_{tool}
-```
-
-Exemple: `mcp_filesystem_read_file`
-
-## Dépendances et Interactions
-
-```
-┌─────────────────┐      ┌──────────────────┐
-│  ToolManager    │─────▶│   MCPRegistry    │
-└────────┬────────┘      └────────┬─────────┘
-         │                        │
-         │ execute()              │ get_client()
-         ▼                        ▼
-┌─────────────────┐      ┌──────────────────┐
-│   MCPClient     │◀─────│  ServerConfig    │
-└────────┬────────┘      └──────────────────┘
-         │
-         │ JSON-RPC 2.0 (stdio)
-         ▼
-┌─────────────────┐
-│   MCP Server    │ (subprocess)
-│   (external)    │
-└─────────────────┘
-```
-
-## Usage
-
-### Client (consommer des outils MCP externes)
-
-```python
-from core.mcp import MCPClient, MCPRegistry
-
-# Via Registry (recommandé)
-registry = MCPRegistry(workspace_path)
-client = registry.get_client("filesystem")
-tools = client.list_tools()
-result = client.call_tool("read_file", {"path": "/tmp/test.txt"})
-
-# Directement
-with MCPClient(command=["npx", "-y", "server-name"]) as client:
-    tools = client.list_tools()
-    result = client.call_tool("tool_name", {"arg": "value"})
-```
-
-### Server V9.0 (exposer NEXUS comme outil)
-
-**Lancement standalone:**
-```bash
-python -m core.mcp.server
-```
-
-**Configuration Claude Desktop** (`claude_desktop_config.json`):
-```json
-{
-    "mcpServers": {
-        "nexus": {
-            "command": "python",
-            "args": ["-m", "core.mcp.server"],
-            "cwd": "/path/to/nexus"
+    # Configure in Claude Desktop (claude_desktop_config.json):
+    {
+        "mcpServers": {
+            "nexus": {
+                "command": "python",
+                "args": ["-m", "core.mcp.server"],
+                "cwd": "/path/to/nexus"
+            }
         }
     }
-}
+
+## Overview
+
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\mcp` |
+| **Modules** | 5 |
+| **Total Lines** | 1775 |
+| **Classes** | 22 |
+| **Functions** | 6 |
+
+## Architecture
+
+```mermaid
+classDiagram
+    class MCPClientError {
+    }
+    Exception <|-- MCPClientError
+    class MCPConnectionError {
+    }
+    MCPClientError <|-- MCPConnectionError
+    class MCPTimeoutError {
+    }
+    MCPClientError <|-- MCPTimeoutError
+    class MCPServerError {
+        +error
+        -__init__(self, error: MCPError)
+    }
+    MCPClientError <|-- MCPServerError
+    class MCPClientState {
+        +bool initialized
+        +Optional[Dict] server_info
+        +Optional[MCPCapabilities] capabilities
+        +List[MCPTool] available_tools
+    }
+    class MCPClient {
+        +CLIENT_NAME
+        +CLIENT_VERSION
+        +PROTOCOL_VERSION
+        +DEFAULT_TIMEOUT
+        +INIT_TIMEOUT
+        +command
+        +env
+        +cwd
+        +timeout
+        -_state
+        -_request_id
+        -_lock
+        -_reader_stop
+        -__init__(self, command: List[str], env: Optional[Dict[str, str]]=..., cwd: Optional[Path]=..., timeout: float=...)
+        -__enter__(self) 'MCPClient'
+        -__exit__(self, exc_type, exc_val, exc_tb) None
+        +start(self) None
+        +initialize(self) MCPInitializeResult
+        +close(self) None
+        +is_connected(self) bool
+        +is_initialized(self) bool
+        +list_tools(self) List[MCPTool]
+        +call_tool(self, name: str, arguments: Optional[Dict[str, Any]]=..., timeout: Optional[float]=...) MCPToolResult
+        +get_tool(self, name: str) Optional[MCPTool]
+        -_ensure_initialized(self) None
+        -_next_request_id(self) int
+        -_send_request(self, method: str, params: Optional[Dict[str, Any]]=..., timeout: Optional[float]=...) MCPResponse
+        -_send_notification(self, method: str, params: Optional[Dict[str, Any]]=...) None
+        -_reader_loop(self) None
+    }
+    class MCPRequest {
+        +str method
+        +int id
+        +Optional[Dict[str, Any]] params
+        +str jsonrpc
+        +to_json(self) str
+        +from_dict(cls, data: Dict) 'MCPRequest'
+    }
+    class MCPError {
+        +int code
+        +str message
+        +Optional[Any] data
+        +to_dict(self) Dict
+        +from_dict(cls, data: Dict) 'MCPError'
+    }
+    class MCPResponse {
+        +int id
+        +Optional[Any] result
+        +Optional[MCPError] error
+        +str jsonrpc
+        +is_error(self) bool
+        +is_success(self) bool
+        +to_json(self) str
+        +from_dict(cls, data: Dict) 'MCPResponse'
+        +from_json(cls, json_str: str) 'MCPResponse'
+    }
+    class MCPToolInputSchema {
+        +str type
+        +Dict[str, Any] properties
+        +List[str] required
+        +to_dict(self) Dict
+        +from_dict(cls, data: Dict) 'MCPToolInputSchema'
+    }
+    class MCPTool {
+        +str name
+        +str description
+        +Optional[MCPToolInputSchema] inputSchema
+        +to_dict(self) Dict
+        +from_dict(cls, data: Dict) 'MCPTool'
+    }
+    class MCPContentType {
+        +TEXT
+        +IMAGE
+        +RESOURCE
+    }
+    Enum <|-- MCPContentType
+    class MCPContent {
+        +str type
+        +Optional[str] text
+        +Optional[str] data
+        +Optional[str] mimeType
+        +Optional[str] uri
+        +to_dict(self) Dict
+        +from_dict(cls, data: Dict) 'MCPContent'
+    }
+    class MCPToolResult {
+        +List[MCPContent] content
+        +bool isError
+        +text(self) str
+        +to_dict(self) Dict
+        +from_dict(cls, data: Dict) 'MCPToolResult'
+    }
+    class MCPCapabilities {
+        +bool tools
+        +bool resources
+        +bool prompts
+        +bool logging
+        +from_dict(cls, data: Dict) 'MCPCapabilities'
+    }
 ```
 
-**Usage dans Claude Desktop:**
-```
-Utilisateur: Analyse le fichier auth.py avec NEXUS
-Claude: <uses nexus_read tool to read auth.py>
-Claude: <uses nexus_analyze tool for multi-agent analysis>
-```
+## Modules
 
-**Prérequis:**
-```bash
-pip install mcp  # FastMCP SDK
-```
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [client](client.py) | MCP Client - Subprocess communication with MCP servers | 6 | 1 |
+| [protocol](protocol.py) | MCP Protocol Types - JSON-RPC 2.0 over stdio | 13 | 0 |
+| [registry](registry.py) | MCP Registry - Server configuration loader | 2 | 1 |
+| [server](server.py) | NEXUS V9.0 MCP Server - Expose NEXUS as a Tool for External Agents | 1 | 4 |
 
-## Tests
 
-```bash
-pytest tests/test_mcp_client.py -v
-```
 
-Tests incluent:
-- Types protocole (serialization/deserialization)
-- Cycle de vie client (start, initialize, close)
-- Opérations sur les outils (list, call)
-- Gestion des erreurs
-- Intégration ToolManager
 
-## Notes d'Audit
 
-- **Thread Safety**: Reader thread pour les réponses asynchrones
-- **Timeouts**: Configurables, défaut raisonnable (30s)
-- **Error Handling**: Exceptions spécifiques (MCPClientError, MCPServerError)
-- **Zero-Dep**: Pas de dépendance au SDK MCP officiel
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

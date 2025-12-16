@@ -1,196 +1,125 @@
-# Module : agents
+# agents
 
-## Role dans l'Architecture NEXUS V8.4.x
+NEXUS V9.1 - Agents Module
 
-Ce module centralise la **gestion des agents** en unifiant plusieurs composants precedemment disperses:
-- `AgentRegistry` (hive_mind/) - Anti-duplication pour spawns
-- `AgentPool` (swarm/) - DyLAN scoring + metriques
-- `SpawnedAgentLoader` (bootstrap/) - Decouverte workspace/agents/
-- `AgentInvoker` (orchestration/) - Routing task → driver
+Centralized agent management, registry, and services.
 
-**Probleme resolu**: Remplace 41+ chains `if/else` hardcodees:
-```python
-# AVANT (anti-pattern)
-if "gemini" in agent_id.lower():
-    ...
-elif agent == "Claude":
-    ...
+## Overview
 
-# APRES (O(1) lookup)
-agent = registry.get(agent_id)
-if registry.is_gemini(agent_id):
-    ...
-```
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\agents` |
+| **Modules** | 3 |
+| **Total Lines** | 1130 |
+| **Classes** | 9 |
+| **Functions** | 2 |
 
-**Version**: 8.4.0 | **Ajoute**: V8.4.0
-
-## Composants Cles
-
-| Fichier | Export | Role |
-|---------|--------|------|
-| `unified_registry.py` | `UnifiedAgentRegistry` | Singleton central pour tous les agents |
-| | `AgentDescriptor` | Metadata complete d'un agent |
-| | `AgentProvider` | Enum: GEMINI, CLAUDE, OLLAMA, SPAWNED |
-| | `AgentCapability` | Enum: CODING, RESEARCH, CREATIVE, ANALYSIS, GENERAL |
-| | `DriverProtocol` | Interface que les drivers doivent implementer |
-| | `get_registry()` | Singleton accessor |
-
-### UnifiedAgentRegistry
-
-```python
-from core.agents import get_registry
-
-registry = get_registry()
-
-# Get agent info (O(1))
-agent = registry.get("gemini")
-name = registry.get_display_name("gemini")  # "Gemini"
-
-# Check provider
-if registry.is_gemini(agent_id):
-    # Use Gemini-specific logic
-
-# Get driver
-driver = registry.get_driver(agent_id)
-await driver.invoke(prompt)
-
-# Alternation (BRAINSTORMING mode)
-next_agent = registry.get_alternate("gemini")  # "claude"
-
-# DyLAN score
-score = registry.get_dylan_score("claude", AgentCapability.CODING)
-```
-
-**Methodes principales**:
-| Methode | Return | Description |
-|---------|--------|-------------|
-| `get(id)` | `AgentDescriptor?` | Lookup O(1) par ID ou alias |
-| `get_display_name(id)` | `str` | Nom UI ("Gemini", "Claude") |
-| `get_alternate(id)` | `str?` | Agent alternatif pour alternation |
-| `get_driver(id)` | `DriverProtocol?` | Driver associe |
-| `is_gemini(id)` | `bool` | Check provider Gemini |
-| `is_claude(id)` | `bool` | Check provider Claude |
-| `is_spawned(id)` | `bool` | Check agent custom |
-| `list_all()` | `List[AgentDescriptor]` | Tous les agents |
-| `list_available()` | `List[AgentDescriptor]` | Agents disponibles |
-
-### AgentDescriptor
-
-```python
-@dataclass
-class AgentDescriptor:
-    id: str                           # "gemini", "security_expert"
-    provider: AgentProvider           # GEMINI, CLAUDE, SPAWNED
-    display_name: str                 # "Gemini", "Security Expert"
-    capabilities: List[AgentCapability]
-    dylan_scores: Dict[str, float]    # Performance par capability
-    config_path: Optional[Path]       # Pour agents spawned
-    is_available: bool = True
-```
-
-### AgentProvider (Enum)
-
-| Value | Description |
-|-------|-------------|
-| `GEMINI` | Agent Gemini (builtin) |
-| `CLAUDE` | Agent Claude (builtin) |
-| `OLLAMA` | Models locaux (V8.4.3+) |
-| `SPAWNED` | Agents custom dans workspace/agents/ |
-
-### AgentCapability (Enum)
-
-| Value | Agents typiques |
-|-------|-----------------|
-| `CODING` | Claude (fort), Gemini |
-| `RESEARCH` | Gemini (fort), Claude |
-| `CREATIVE` | Claude (fort) |
-| `ANALYSIS` | Gemini (fort), Claude |
-| `GENERAL` | Les deux |
-
-## Architecture & Flux
+## Architecture
 
 ```mermaid
-graph TB
-    subgraph "Agent Registration"
-        BUILTIN[Builtin: Gemini, Claude]
-        SPAWNED[Spawned: workspace/agents/]
-        OLLAMA[Ollama: Local models]
-    end
-
-    UAR[UnifiedAgentRegistry<br/>Singleton]
-
-    BUILTIN --> |register| UAR
-    SPAWNED --> |load_spawned_agents| UAR
-    OLLAMA --> |register| UAR
-
-    subgraph "Consumers"
-        ORC[OrchestratorV7]
-        HM[TrueHiveMind]
-        SW[SwarmEngine]
-        INV[AgentInvoker]
-    end
-
-    UAR --> |get, is_*| ORC
-    UAR --> |get_alternate| HM
-    UAR --> |get_driver| INV
-    UAR --> |get_dylan_score| SW
+classDiagram
+    class SpawnResult {
+        +bool success
+        +Optional[str] agent_id
+        +Optional[str] agent_uuid
+        +Optional[Path] agent_path
+        +Optional[str] error
+        +int prompt_lines
+    }
+    class AgentInfo {
+        +str agent_id
+        +str role
+        +str created_at
+        +str uuid
+        +Path path
+    }
+    class PoolStats {
+        +int total_agents
+        +int total_invocations
+        +float average_importance
+        +Dict[str, Dict[str, Any]] agents_detail
+    }
+    class AgentService {
+        +orchestrator
+        +workspace_path
+        +console
+        -_agents_dir
+        -__init__(self, orchestrator: 'OrchestratorV7', workspace_path: Path, console: 'ConsoleV7')
+        +spawn(self, role: str, force: bool=...) SpawnResult
+        +list_agents(self) List[AgentInfo]
+        +get_pool_stats(self) Optional[PoolStats]
+        -_detect_domains_from_role(self, role: str) List[str]
+        -_brainstorm_agent_prompt(self, role: str, agent_uuid: str, domains: List[str]) Optional[str]
+        -_extract_inference_config(self, prompt: str) Optional[Dict[str, str]]
+        -_validate_prompt_tools(self, prompt: str) List[str]
+        -_static_agent_template(self, role: str, agent_uuid: str, domains: List[str]) str
+        -_run_redteam_validation(self, prompt: str) bool
+        -_create_agent_config(self, role_slug: str, agent_uuid: str, role: str, domains: List[str], inference_config: Dict[str, str], generated_prompt: str) Dict[str, Any]
+        -_register_agent_as_tool(self, role_slug: str) None
+    }
+    class AgentProvider {
+        +GEMINI
+        +CLAUDE
+        +OLLAMA
+        +SPAWNED
+    }
+    Enum <|-- AgentProvider
+    class AgentCapability {
+        +CODING
+        +RESEARCH
+        +CREATIVE
+        +ANALYSIS
+        +GENERAL
+    }
+    Enum <|-- AgentCapability
+    class AgentDescriptor {
+        +str id
+        +AgentProvider provider
+        +str display_name
+        +List[AgentCapability] capabilities
+        +Dict[str, float] dylan_scores
+        +Optional[Path] config_path
+        +bool is_available
+        +is_builtin(self) bool
+    }
+    class DriverProtocol {
+        +invoke(self, prompt: str, **kwargs) str
+    }
+    Protocol <|-- DriverProtocol
+    class UnifiedAgentRegistry {
+        -__init__(self) None
+        -_register_builtins(self) None
+        +register(self, agent: AgentDescriptor) None
+        +unregister(self, agent_id: str) bool
+        +register_driver(self, agent_id: str, driver: DriverProtocol) None
+        -_normalize_id(self, agent_id: str) str
+        +get(self, agent_id: str) Optional[AgentDescriptor]
+        +get_driver(self, agent_id: str) Optional[DriverProtocol]
+        +get_display_name(self, agent_id: str) str
+        +get_alternate(self, agent_id: str) Optional[str]
+        +is_gemini(self, agent_id: str) bool
+        +is_claude(self, agent_id: str) bool
+        +is_builtin(self, agent_id: str) bool
+        +list_available(self) List[AgentDescriptor]
+        +list_builtins(self) List[AgentDescriptor]
+        +list_spawned(self) List[AgentDescriptor]
+        +select_for_capability(self, capability: AgentCapability, exclude: Optional[List[str]]=...) Optional[AgentDescriptor]
+        +update_dylan_score(self, agent_id: str, capability: str, score: float) bool
+        -__contains__(self, agent_id: str) bool
+        -__len__(self) int
+    }
 ```
 
-### Entrees
-- **Builtins**: Gemini et Claude enregistres au demarrage
-- **Spawned agents**: Charges depuis `workspace/agents/*.json`
-- **Drivers**: Enregistres par `AsyncDriverFactory` ou `OrchestratorV7`
+## Modules
 
-### Sorties
-- **AgentDescriptor**: Metadata consommee par orchestration
-- **Drivers**: Retournes pour invocation
-- **DyLAN scores**: Utilises par `ModeSelector` pour routing
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [service](service.py) | NEXUS V9.1 - AgentService | 4 | 0 |
+| [unified_registry](unified_registry.py) | UnifiedAgentRegistry - Centralized Agent Management for NEXUS V8.4.0 | 5 | 2 |
 
-### Configuration
 
-| Variable ENV | Default | Description |
-|--------------|---------|-------------|
-| `AGENTS_DIR` | `workspace/agents/` | Dossier des agents spawned |
-| `ENABLE_OLLAMA` | `False` | Activer support Ollama (V8.4.3+) |
 
-## Dependances
 
-### Utilise
-- `dataclasses` (stdlib) - Structures de donnees
-- `typing.Protocol` (stdlib) - Interface DriverProtocol
-- `pathlib` (stdlib) - Chemins config
 
-### Utilise par
-- `core/orchestration_v7.py` - Alternation, display names
-- `core/orchestration/agent_invoker.py` - Driver lookup
-- `core/hive_mind/agent_registry.py` - Anti-duplication (wrap)
-- `core/swarm/agent_pool.py` - DyLAN metrics
-- `core/swarm/mode_selector.py` - Capability routing
-- `core/bootstrap/agent_loader.py` - Spawn discovery
-
-## Migration depuis Ancien Code
-
-| Ancien pattern | Nouveau pattern |
-|----------------|-----------------|
-| `if "gemini" in id.lower()` | `registry.is_gemini(id)` |
-| `if agent == "Claude"` | `registry.is_claude(id)` |
-| `driver_map[agent]` | `registry.get_driver(agent)` |
-| `AGENT_NAMES["gemini"]` | `registry.get_display_name("gemini")` |
-| `get_alternate_agent()` | `registry.get_alternate(agent)` |
-
-## Tests Associes
-
-- `tests/test_unified_registry.py` - Tests unitaires
-  - Registration/unregistration
-  - O(1) lookup
-  - Alias resolution
-  - Driver association
-  - DyLAN score retrieval
-  - Spawned agent loading
-
-## Version History
-
-| Version | Date | Changements |
-|---------|------|-------------|
-| 8.4.0 | 2024-12-10 | Creation initiale (unifie AgentRegistry, AgentPool, SpawnedAgentLoader) |
-| 8.4.3 | TBD | Support Ollama prevu |
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

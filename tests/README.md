@@ -1,256 +1,122 @@
-# Module: Tests - NEXUS V7.5 Test Suite
+# tests
 
-**Version**: 7.5 (HIVE MIND)
-**Last Updated**: 2025-12-04
+## Python Files
+
+- `benchmark_professional.py`
+- `benchmark_realworld.py`
+- `conftest.py`
+- `stress_test_torture.py`
+- `test_adaptive_fallback.py`
+- `test_agent_agnosticism.py`
+- `test_agent_alternation.py`
+- `test_agent_as_tool.py`
+- `test_agent_service.py`
+- `test_analysis_adapter.py`
+- `test_async_drivers.py`
+- `test_async_hive_mind.py`
+- `test_async_primitives.py`
+- `test_atomic_store.py`
+- `test_auto_bootstrap.py`
+- `test_automemory_integration.py`
+- `test_bootstrap_service.py`
+- `test_budget_service.py`
+- `test_budget_tracker.py`
+- `test_circuit_breaker.py`
+- `test_constants.py`
+- `test_context_scope.py`
+- `test_cot_enforcement.py`
+- `test_cyborg_v75.py`
+- `test_dense_backend.py`
+- `test_dynamic_tools.py`
+- `test_ephemeral_sessions.py`
+- `test_event_bus.py`
+- `test_evolution_core.py`
+- `test_execution_engine.py`
+- `test_executors_base.py`
+- `test_fast_path.py`
+- `test_fsm_transitions.py`
+- `test_gemini_driver_session.py`
+- `test_global_integration.py`
+- `test_graph_of_thought.py`
+- `test_health_state_machine.py`
+- `test_hive_mind_e2e.py`
+- `test_hive_mind_execution.py`
+- `test_hive_mind_execution_v2.py`
+- `test_hot_swap_lead.py`
+- `test_hybrid_swarm.py`
+- `test_integration.py`
+- `test_kernel_heredity.py`
+- `test_llm_context_isolation.py`
+- `test_mcp_client.py`
+- `test_mcp_server.py`
+- `test_memory_retrieval.py`
+- `test_memory_service.py`
+- `test_merge_strategies.py`
+- `test_model_router.py`
+- `test_mutation_parser.py`
+- `test_path_traversal_security.py`
+- `test_phase16_dx.py`
+- `test_project_memory.py`
+- `test_prompt_injection.py`
+- `test_prompt_validator.py`
+- `test_rate_limiter.py`
+- `test_safe_task_manager.py`
+- `test_saga_manager.py`
+- `test_security.py`
+- `test_security_execution_policy.py`
+- `test_self_healing.py`
+- `test_session_manager.py`
+- `test_session_metrics.py`
+- `test_simple.py`
+- `test_spinoff_service.py`
+- `test_stream_parser.py`
+- `test_success_memory.py`
+- `test_swarm_bridge.py`
+- `test_swarm_session_integration.py`
+- `test_swarm_tool.py`
+- `test_sync_bridge.py`
+- `test_system_health.py`
+- `test_task_completion_validator.py`
+- `test_telemetry_export.py`
+- `test_telemetry_service.py`
+- `test_tiered_validator.py`
+- `test_tool_manager.py`
+- `test_tool_registry.py`
+- `test_unified_registry.py`
+- `test_v8_integrations.py`
+- `test_validation_service.py`
+- `test_workspace_isolation.py`
+- `test_workspace_manager.py`
+- `torture_v8.py`
+- `verify_hive_mind.py`
+- `verify_hive_mind_routing.py`
+- `verify_stability.py`
+
+## Subdirectories
+
+- [api/](api/)
+- [audit/](audit/)
+- [fixtures/](fixtures/)
+- [fsm/](fsm/)
+- [interaction/](interaction/)
+- [proofs/](proofs/)
+- [torture/](torture/)
+- [v10/](v10/)
+- [v11/](v11/)
+- [workflow/](workflow/)
+
+## Aggregated Statistics
+
+Statistics from all subpackages:
+
+| Metric | Value |
+|--------|-------|
+| Subpackages | 10 |
+| Total Modules | 0 |
+| Total Lines of Code | 0 |
+| Total Classes | 0 |
+| Total Functions | 0 |
+
 
 ---
-
-## Role Architectural
-
-Suite de tests pour NEXUS V7.5 incluant tests unitaires, integration, et validation.
-
----
-
-## Alignement ROADMAP V7.5+
-
-| Phase ROADMAP | Tests Associes |
-|---------------|----------------|
-| **Phase 0a** | `test_evolution_phases.py` (recommande) |
-| **Phase 5** | `test_hive_mind_execution.py` |
-| **Phase 7** | Tests session isolation (a creer) |
-
-**Tests V7.5 recents**:
-- `test_tiered_validator.py` - Validation 4-tier (22 tests)
-- `test_hive_mind_execution.py` - Integration HIVE MIND
-- `verify_hive_mind.py` - Verification complete
-
----
-
-## Overview
-
-The Tests module provides:
-- **Unit tests** for individual components
-- **Integration tests** for module interactions
-- **Stability verification** for runtime checks
-
-## Test Categories
-
-### V7 Core Tests
-
-Located in `tests/`:
-
-| File | Purpose | Tests |
-|------|---------|-------|
-| `test_simple.py` | Basic functionality | Import tests, config loading |
-| `verify_stability.py` | Runtime stability | Memory, state, panic recovery |
-
-### Validation Tests
-
-Located in project root `tests/`:
-
-| File | Purpose | Tests |
-|------|---------|-------|
-| `validate_evolution.py` | Evolution module | Imports, Fitness calculation, benchmarks |
-| `validate_integrity.py` | System integrity | File structure, dependencies |
-
-## Running Tests
-
-### Full Suite
-
-```bash
-cd NEXUS_V7_CHRYSALIS
-pytest tests/ -v
-```
-
-### Specific Test
-
-```bash
-pytest tests/test_simple.py -v
-pytest tests/verify_stability.py::test_memory_persistence -v
-```
-
-### Validation Tests
-
-```bash
-# From project root
-python tests/validate_evolution.py
-python tests/validate_integrity.py
-```
-
-## Test Structure
-
-### Unit Test Example
-
-```python
-# tests/test_simple.py
-import pytest
-from core.config import Config
-from core.fsm import OrchestratorState
-
-def test_config_loading():
-    """Config loads without errors"""
-    config = Config()
-    assert config.timeout > 0
-    assert config.workspace_path is not None
-
-def test_fsm_states_exist():
-    """All FSM states are defined"""
-    assert OrchestratorState.IDLE is not None
-    assert OrchestratorState.BRAINSTORMING is not None
-    assert OrchestratorState.SWARM_ANALYZING is not None
-```
-
-### Validation Test Example
-
-```python
-# tests/validate_evolution.py
-def test_module_imports():
-    """T5.1 - Evolution modules import without errors"""
-    from NEXUS_V7_CHRYSALIS.core.evolution import lineage, evaluator
-    from NEXUS_V7_CHRYSALIS.core.evolution import TieredValidator
-    print("[PASS] All evolution modules imported")
-    return True
-
-def test_asi_calculation():
-    """T5.2 - Task Fitness Score calculation is correct"""
-    from NEXUS_V7_CHRYSALIS.core.evolution.evaluator import calculate_asi_proximity
-
-    test_benchmarks = {
-        'scores': {
-            'coding': 0.80,
-            'reasoning': 0.75,
-            'creativity': 0.70,
-            'scalability': 0.65
-        }
-    }
-
-    expected = 0.30 * 0.80 + 0.30 * 0.75 + 0.25 * 0.70 + 0.15 * 0.65
-    result = calculate_asi_proximity(test_benchmarks)
-
-    assert abs(result - expected) < 0.001
-    return True
-```
-
-## Test Coverage
-
-### Core Modules
-
-| Module | Coverage | Status |
-|--------|----------|--------|
-| `config` | Basic | Tested |
-| `fsm` | States | Tested |
-| `synapse` | Schemas | Partial |
-| `drivers` | Invocation | Manual |
-| `evolution` | Full | Validated |
-| `swarm` | Basic | Sprint 9 |
-
-### Validation Phases
-
-| Phase | Tests | Status |
-|-------|-------|--------|
-| Phase 1 | Dependencies | Pass |
-| Phase 2 | Config | Pass |
-| Phase 3 | FSM | Pass |
-| Phase 4 | Drivers | Pass |
-| Phase 5 | Evolution | Pass |
-
-## CI/CD Integration
-
-### Pre-commit Checks
-
-```bash
-# Run before committing
-pytest tests/ -v
-python tests/validate_integrity.py
-```
-
-### GitHub Actions
-
-```yaml
-# .github/workflows/test.yml
-- name: Run Tests
-  run: |
-    pytest tests/ -v
-    python tests/validate_evolution.py
-```
-
-## Test Configuration
-
-### pytest.ini
-
-```ini
-[pytest]
-testpaths = tests
-python_files = test_*.py
-python_functions = test_*
-```
-
-### conftest.py
-
-```python
-import pytest
-from pathlib import Path
-
-@pytest.fixture
-def workspace():
-    return Path(__file__).parent.parent / "workspace"
-
-@pytest.fixture
-def config():
-    from core.config import Config
-    return Config()
-```
-
-## Writing Tests
-
-### Naming Convention
-
-```
-test_<module>_<feature>.py
-test_<what>_<expected>.py
-```
-
-### Test Structure
-
-```python
-def test_feature_description():
-    """
-    Brief description of what is being tested.
-
-    Tests:
-    - Specific behavior 1
-    - Specific behavior 2
-    """
-    # Arrange
-    setup_data = ...
-
-    # Act
-    result = function_under_test(setup_data)
-
-    # Assert
-    assert result == expected
-```
-
-## Dependencies
-
-### Internal
-- All `core/` modules
-
-### External
-- `pytest` - Test framework
-- Standard library
-
-## Test Results Summary
-
-Current test counts:
-- **pytest tests/**: 97 tests
-- **validate_evolution.py**: 5 tests
-- **validate_integrity.py**: 4 tests
-
-All tests passing as of commit `06c0e66`.
-
-## See Also
-
-- [Core README](../core/README.md) - Architecture overview
-- [Evolution README](../core/evolution/README.md) - Evolution tests
-- [VERIFICATION_PROTOCOL.md](../VERIFICATION_PROTOCOL.md) - Full verification guide
+*Auto-generated by nexus-doc-generator - 2025-12-16*

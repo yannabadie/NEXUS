@@ -1,100 +1,117 @@
-# Module: Workspace Management
+# workspace
 
-## Rôle Architectural
+NEXUS V7.6 - Workspace Management Module
 
-Gestion multi-workspace pour NEXUS permettant de créer, archiver et basculer entre différents environnements de travail isolés.
+Provides multi-workspace support for NEXUS sessions.
+Allows creating, archiving, and switching between workspaces.
 
-**Phase ROADMAP**: 13b - Workspace Commands Activation
+Components:
+- manager.py: WorkspaceManager class
+- models.py: WorkspaceInfo, WorkspaceMetrics dataclasses
+- exceptions.py: Workspace-related exceptions
 
-## Alignement ROADMAP V7.6+
+Usage:
+    from core.workspace import WorkspaceManager
 
-Ce module active les commandes `/workspace` dans le REPL:
-- `/workspace` - Affiche le workspace actuel
-- `/workspace new [name]` - Crée un nouveau workspace
-- `/workspace list` - Liste tous les workspaces
-- `/workspace switch <name>` - Bascule vers un autre workspace
+    manager = WorkspaceManager(nexus_root)
+    current = manager.get_current()
+    workspaces = manager.list_workspaces()
+    new_ws = manager.create_workspace("my-project")
+    manager.switch_workspace("old-project")
 
-## Composants Clés
+## Overview
 
-### Fichier: `manager.py`
-* **Classe**: `WorkspaceManager`
-* **Responsabilités**:
-  - Gestion du cycle de vie des workspaces
-  - Archivage et restauration
-  - Recherche et suggestions
-* **Méthodes principales**:
-  - `get_current()` - Workspace actif
-  - `list_workspaces()` - Tous les workspaces
-  - `create_workspace(name)` - Création
-  - `switch_workspace(name)` - Basculement
-  - `archive_current()` - Archivage
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\workspace` |
+| **Modules** | 4 |
+| **Total Lines** | 628 |
+| **Classes** | 7 |
+| **Functions** | 0 |
 
-### Fichier: `models.py`
-* **Classes**: `WorkspaceInfo`, `WorkspaceMetrics`
-* **Responsabilités**:
-  - Métadonnées des workspaces
-  - Statistiques d'utilisation
-  - Sérialisation JSON
+## Architecture
 
-### Fichier: `exceptions.py`
-* **Exceptions**:
-  - `WorkspaceError` - Base
-  - `WorkspaceNotFoundError` - Workspace introuvable
-  - `WorkspaceExistsError` - Workspace déjà existant
-
-## Structure des Répertoires
-
+```mermaid
+classDiagram
+    class WorkspaceError {
+    }
+    Exception <|-- WorkspaceError
+    class WorkspaceNotFoundError {
+        +name
+        -__init__(self, name: str)
+    }
+    WorkspaceError <|-- WorkspaceNotFoundError
+    class WorkspaceExistsError {
+        +name
+        -__init__(self, name: str)
+    }
+    WorkspaceError <|-- WorkspaceExistsError
+    class WorkspaceCorruptedError {
+        +name
+        +reason
+        -__init__(self, name: str, reason: str=...)
+    }
+    WorkspaceError <|-- WorkspaceCorruptedError
+    class WorkspaceManager {
+        +WORKSPACE_DIR
+        +ARCHIVE_DIR
+        +METADATA_FILE
+        +nexus_root
+        +workspace_path
+        +archive_path
+        -_logger
+        -__init__(self, nexus_root: Path)
+        +get_current(self) Optional[WorkspaceInfo]
+        +has_current(self) bool
+        +list_workspaces(self) List[WorkspaceInfo]
+        +find_workspace(self, name: str) Optional[WorkspaceInfo]
+        +get_suggestions(self, name: str, n: int=...) List[str]
+        +create_workspace(self, name: Optional[str]=..., archive_current: bool=...) WorkspaceInfo
+        -_generate_workspace_name(self) str
+        -_sanitize_name(self, name: str) str
+        +archive_current(self, name: Optional[str]=...) Path
+        +switch_workspace(self, name: str, save_current: bool=...) WorkspaceInfo
+        +update_current_task(self, task: str) None
+        +delete_archive(self, name: str) bool
+        +get_archive_size(self) str
+    }
+    class WorkspaceMetrics {
+        +int iterations
+        +int files_count
+        +int total_tokens
+        +int tasks_completed
+        +to_dict(self) dict
+        +from_dict(cls, data: dict) 'WorkspaceMetrics'
+    }
+    class WorkspaceInfo {
+        +str name
+        +Path path
+        +datetime created_at
+        +datetime last_used
+        +str last_task
+        +bool is_current
+        +WorkspaceMetrics metrics
+        +get_relative_time(self) str
+        +get_size_human(self) str
+        +update_files_count(self) int
+        +to_dict(self) dict
+        +from_dict(cls, data: dict) 'WorkspaceInfo'
+        +save_metadata(self) None
+        +load_from_path(cls, path: Path) Optional['WorkspaceInfo']
+    }
 ```
-nexus_root/
-├── workspace/                 # Workspace actif
-│   ├── .nexus/
-│   │   └── workspace.json     # Métadonnées
-│   ├── logs/
-│   └── memory/
-└── workspace_archive/         # Archives
-    ├── project-alpha/
-    ├── project-beta/
-    └── ...
-```
 
-## Usage
+## Modules
 
-```python
-from core.workspace import WorkspaceManager
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [exceptions](exceptions.py) | Workspace Exceptions | 4 | 0 |
+| [manager](manager.py) | WorkspaceManager - Multi-workspace management for NEXUS | 1 | 0 |
+| [models](models.py) | Workspace Models | 2 | 0 |
 
-manager = WorkspaceManager(nexus_root)
 
-# Workspace actuel
-current = manager.get_current()
-print(f"Current: {current.name}")
 
-# Lister tous
-for ws in manager.list_workspaces():
-    status = "ACTIF" if ws.is_current else ""
-    print(f"{status} {ws.name} - {ws.get_relative_time()}")
 
-# Créer nouveau (archive l'actuel)
-new_ws = manager.create_workspace("my-project")
 
-# Basculer
-manager.switch_workspace("old-project")
-```
-
-## Tests
-
-```bash
-pytest tests/test_workspace_manager.py -v
-```
-
-33 tests couvrant:
-- Création/archivage de workspaces
-- Listing et recherche
-- Gestion des erreurs
-- Sérialisation des métadonnées
-
-## Notes d'Audit
-
-- **Isolation**: Chaque workspace a son propre blackboard et logs
-- **Archivage**: Utilise `shutil.move` pour efficacité
-- **Nettoyage**: Noms sanitisés pour le filesystem
-- **Suggestions**: Utilise `difflib.get_close_matches` pour les typos
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

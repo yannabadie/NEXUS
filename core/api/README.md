@@ -1,84 +1,126 @@
-# API Module - NEXUS V9.0
+# api
 
-## Rôle
+API Module - Rate Limiting and API Management
 
-Gère les interactions avec les APIs externes (Gemini, Claude). Fournit un rate limiter token-bucket pour éviter les erreurs 429 en mode PARALLEL.
+NEXUS V8.4.5 - Bug Fixes Phase
 
-## Fichiers Clés
+Provides:
+- APIRateLimiter: Token bucket rate limiter for API calls
+- Prevents 429 Too Many Requests errors in PARALLEL mode
 
-| Fichier | Lignes | Responsabilité |
-|---------|--------|----------------|
-| `rate_limiter.py` | ~345 | Token bucket rate limiting (async + sync) |
-| `__init__.py` | ~14 | Exports publics |
+## Overview
 
-## API Publique
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\api` |
+| **Modules** | 3 |
+| **Total Lines** | 796 |
+| **Classes** | 6 |
+| **Functions** | 5 |
 
-```python
-from core.api import APIRateLimiter, RateLimitExceeded
+## Architecture
 
-# Usage direct
-limiter = APIRateLimiter(requests_per_minute=60, burst_size=10)
-await limiter.acquire_async()  # Async (asyncio)
-limiter.acquire_sync()          # Sync (ThreadPoolExecutor)
-
-# Via registry (recommandé - singleton par provider)
-from core.api.rate_limiter import get_rate_limiter
-limiter = get_rate_limiter("gemini")
-await limiter.acquire_async(timeout=30.0)
+```mermaid
+classDiagram
+    class ConcurrencyStats {
+        +int total_acquisitions
+        +int total_releases
+        +int total_timeouts
+        +float total_wait_time_ms
+        +int max_concurrent_observed
+        +int current_active
+        +Optional[datetime] last_acquisition
+    }
+    class ConcurrencyLimiter {
+        -Optional['ConcurrencyLimiter'] _instance
+        -_init_lock
+        -_max_concurrent
+        -_async_semaphore
+        -_sync_semaphore
+        -_stats
+        -_stats_lock
+        -_active_count
+        -_initialized
+        -__new__(cls) 'ConcurrencyLimiter'
+        -__init__(self)
+        +max_concurrent(self) int
+        +active_count(self) int
+        +available_permits(self) int
+        +acquire_async(self, timeout: float=...)
+        +acquire_async_nowait(self) bool
+        +release_async(self)
+        +acquire_sync_context(self, timeout: float=...)
+        +acquire_sync(self, timeout: float=...) bool
+        +release_sync(self)
+        +get_stats(self) dict
+        +reset_stats(self)
+    }
+    class RateLimitExceeded {
+    }
+    Exception <|-- RateLimitExceeded
+    class RateLimitConfig {
+        +int requests_per_minute
+        +int burst_size
+        +float retry_after_seconds
+    }
+    class APIRateLimiter {
+        +rpm
+        +burst
+        +provider
+        -_token_interval
+        -_async_lock
+        -_sync_lock
+        -_total_requests
+        -_total_waits
+        -_total_wait_time
+        -__init__(self, requests_per_minute: int=..., burst_size: int=..., provider: str=...)
+        -_refill_tokens(self) int
+        -_try_acquire(self) bool
+        -_time_until_available(self) float
+        +acquire(self, timeout: float=...) None
+        +acquire_async(self, timeout: float=...) None
+        +acquire_sync(self, timeout: float=...) None
+        +get_stats(self) Dict
+        +reset(self) None
+    }
+    class RateLimiterRegistry {
+        -Optional['RateLimiterRegistry'] _instance
+        -_lock
+        -__new__(cls)
+        +get_limiter(self, provider: str) APIRateLimiter
+        +get_all_stats(self) Dict[str, Dict]
+        +reset_all(self) None
+    }
 ```
 
-## Flux de Données
+## Modules
 
-```
-┌──────────────────┐     acquire()      ┌─────────────────┐
-│  Swarm Executor  │ ─────────────────► │  APIRateLimiter │
-│  (mode_executors)│                    │                 │
-│                  │ ◄───────────────── │  Token Bucket   │
-└──────────────────┘     token granted  └─────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │  External API   │
-                    │  (Gemini/Claude)│
-                    └─────────────────┘
-```
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [concurrency_limiter](concurrency_limiter.py) | V11 SYNCHROTRON: Global Concurrency Limiting for Agent Invocations. | 2 | 3 |
+| [rate_limiter](rate_limiter.py) | API Rate Limiter - Token Bucket Implementation | 4 | 2 |
 
-## Classes Principales
+## Subpackages
 
-### `APIRateLimiter`
-- **Token bucket algorithm** avec refill automatique
-- **Dual-safe**: `asyncio.Lock` + `threading.Lock`
-- **Statistics**: `get_stats()` retourne requests, waits, avg_wait_time
+| Package | Description | Modules |
+|---------|-------------|---------|
+| [cerebro/](C:\Code\NEXUS\NEXUS-N7A\core\api\cerebro/README.md) |  | 0 |
 
-### `RateLimiterRegistry`
-- **Singleton** - une instance par provider
-- **Auto-configuration** via `DEFAULT_LIMITS`
 
-### `RateLimitExceeded`
-- Exception levée si timeout atteint sans token disponible
 
-## Dépendances
 
-**Importe**:
-- Standard library uniquement (`asyncio`, `threading`, `time`, `collections`)
+## Aggregated Statistics
 
-**Importé par**:
-- `core/swarm/mode_executors.py:31` - Rate limiting en PARALLEL mode
+Statistics from all subpackages:
 
-## Configuration
+| Metric | Value |
+|--------|-------|
+| Subpackages | 1 |
+| Total Modules | 0 |
+| Total Lines of Code | 0 |
+| Total Classes | 0 |
+| Total Functions | 0 |
 
-| Provider | RPM | Burst | Source |
-|----------|-----|-------|--------|
-| `gemini` | 60 | 10 | DEFAULT_LIMITS |
-| `claude` | 50 | 8 | DEFAULT_LIMITS |
-| `default` | 30 | 5 | Fallback |
 
-## Tests
-
-- Pas de fichier de test dédié (TODO: `tests/test_rate_limiter.py`)
-
-## Notes
-
-- Ajouté en V8.4.5 pour résoudre les erreurs 429 en PARALLEL
-- Token bucket sliding window de 60 secondes
-- Compatible avec `ThreadPoolExecutor` (sync) et `asyncio` (async)
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

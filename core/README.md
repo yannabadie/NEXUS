@@ -1,246 +1,270 @@
-# NEXUS V8.0 Core Module
+# core
 
-Le module `core/` est le coeur de NEXUS V8.0 "TRUE HIVE MIND" - un systeme d'orchestration multi-agent collaboratif qui genere des agents specialises pour resoudre des problemes complexes.
+NEXUS Core Module - TRUE HIVE MIND
 
-**Version**: 8.0 | **Last Updated**: 2025-12-08
+## Overview
 
-## V8.0 TRUE HIVE MIND - Nouveaute Majeure
-
-V8.0 introduit le **TRUE HIVE MIND** : un pipeline de collaboration intelligent en 7 phases pour les taches MODERATE, COMPLEX et EXPERT.
-
-```
-V7 Swarm (TRIVIAL/SIMPLE)  vs  V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
-         |                              |
-    Fast execution               7-phase pipeline
-    - PARALLEL                   - Independent Analysis
-    - PING_PONG                  - Strategic Debate
-    - SEQUENTIAL                 - Architecture Generation
-                                 - Monitored Execution
-                                 - Failure Diagnosis
-                                 - Adaptive Retry
-                                 - Knowledge Consolidation
-```
-
-| Composant | Module | Role |
-|-----------|--------|------|
-| **TrueHiveMind** | `hive_mind/orchestrator.py` | Orchestrateur 7 phases |
-| **CostEstimator** | `hive_mind/cost_estimator.py` | Budget tokens + USD |
-| **StrategyBlacklist** | `hive_mind/strategy_blacklist.py` | Anti-retry circulaire |
-| **UserInteractionHandler** | `hive_mind/user_interaction.py` | Breakpoints utilisateur |
-
-## Vue d'ensemble
-
-Le module core implémente une **Finite State Machine (FSM)** qui orchestre la collaboration entre les agents AI Claude et Gemini. Il fournit:
-
-- **Orchestration multi-agent** avec négociation dynamique des rôles
-- **Capacités d'auto-évolution** avec validation de sécurité
-- **Mémoire persistante** et gestion d'état
-- **Routage dynamique de modèles** (Opus/Sonnet/Pro/Flash)
-- **Hybrid Swarm Engine** pour modes de collaboration adaptatifs
-- **Force Chain-of-Thought** pour tâches EXPERT (Phase 14e)
-- **Project Memory RAG** pour injection de contexte (Phase 10c) **[V7.8]**
-- **Agent-as-Tool** pour invocation fractale (Phase 15) **[V7.8]**
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core` |
+| **Modules** | 5 |
+| **Total Lines** | 2161 |
+| **Classes** | 11 |
+| **Functions** | 4 |
 
 ## Architecture
 
-```
-                           USER INPUT
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATION V7 (FSM)                        │
-│                    783 lignes (-65% depuis V7.6)                 │
-│                                                                  │
-│   ┌─────────┐    ┌──────────┐    ┌────────────┐    ┌─────────┐  │
-│   │  IDLE   │───▶│BRAINSTORM│───▶│EXECUTE_TOOL│───▶│VALIDATE │  │
-│   └─────────┘    └──────────┘    └────────────┘    └─────────┘  │
-│        ▲                                                  │      │
-│        └──────────────────────────────────────────────────┘      │
-│                                                                  │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │                  HYBRID SWARM ENGINE                    │    │
-│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
-│   │  │ PARALLEL │ │SEQUENTIAL│ │PING_PONG │ │ RED_BLUE  │  │    │
-│   │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
-│   └────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-        ┌──────────┐    ┌──────────┐    ┌──────────┐
-        │  CLAUDE  │    │  GEMINI  │    │  TOOLS   │
-        │  DRIVER  │    │  DRIVER  │    │ MANAGER  │
-        └──────────┘    └──────────┘    └──────────┘
-```
-
-## Structure des Modules
-
-| Repertoire | Fonction | Fichiers cles |
-|------------|----------|---------------|
-| [`hive_mind/`](hive_mind/README.md) | **[V8.0]** TRUE HIVE MIND pipeline | `orchestrator.py`, `phases/*.py`, `cost_estimator.py` |
-| [`orchestration/`](orchestration/README.md) | **[V7.8]** Package modulaire extrait | `context_builder.py`, `fsm_handlers.py`, `swarm_bridge.py` |
-| [`drivers/`](drivers/README.md) | Interfaces modèles AI | `claude_driver_hybrid.py`, `gemini_driver_v7.py` |
-| [`fsm/`](fsm/README.md) | Composants FSM | `states.py`, `panic_system.py` |
-| [`synapse/`](synapse/README.md) | Mémoire & protocole | `protocol_v7.py`, `memory_v7.py` |
-| [`swarm/`](swarm/README.md) | Collaboration multi-agent | `hybrid_swarm_engine.py`, `mode_selector.py` |
-| [`memory/`](memory/README.md) | **[V7.8]** AutoMemory + ProjectMemory RAG | `auto_memory.py`, `project_memory.py` |
-| [`execution/`](execution/README.md) | **[V7.8]** Tools + Agent-as-Tool | `tool_manager.py`, `agent_tools.py` |
-| [`evolution/`](evolution/README.md) | Moteur d'auto-modification | `lineage.py`, `tiered_validator.py` |
-| [`routing/`](routing/README.md) | Sélection dynamique modèles | `model_router.py` |
-| [`interface/`](interface/README.md) | Interaction utilisateur | `repl.py`, `commands.py` |
-| [`telemetry/`](telemetry/README.md) | Métriques & budget | `metrics.py`, `budget_tracker.py` |
-| [`security/`](security/README.md) | Validation & politiques | `mutation_validator.py`, `path_guardian.py` |
-| [`workspace/`](workspace/README.md) | Gestion sessions | `manager.py` |
-
-## Fichiers Core
-
-### `orchestration_v7.py` (783 lignes)
-
-Orchestrateur principal implémentant la FSM. Utilise pattern composition:
-
-```python
-class OrchestratorV7:
-    def __init__(self, ...):
-        # V7.8 Phase 14c: Extracted modules
-        self.context_builder = ContextBuilder(self)
-        self.agent_invoker = AgentInvoker(self)
-        self.swarm_bridge = SwarmBridge(self)
-        self.fsm_handlers = FSMHandlers(self)
-
-        # V7.8 Phase 10c: Project Memory
-        self.project_memory = ProjectMemory(nexus_root)
-
-    def process_turn(self, user_input=None) -> Dict:
-        # Dispatcher pattern
-        return self.fsm_handlers.handle_state(self.state, user_input)
-```
-
-### `config.py`
-
-Gestion configuration via `.env`, variables d'environnement, et valeurs par défaut.
-
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `TIMEOUT` | 120 | Timeout requête (secondes) |
-| `SWARM_ENABLED` | True | Activer Hybrid Swarm Engine |
-| `SWARM_AUTO_ROUTE` | True | Auto-route MODERATE+ vers swarm |
-| `VALIDATION_TIER` | 4 | Profondeur validation (1-4) |
-
-## États FSM (11)
-
-| État | Description | États suivants |
-|------|-------------|----------------|
-| `IDLE` | Attente entrée | `BRAINSTORMING`, `SWARM_ANALYZING` |
-| `BRAINSTORMING` | Débat agents | `EXECUTING_TOOL`, `VALIDATING_CFL` |
-| `EXECUTING_TOOL` | Outil en cours | `VALIDATING_CFL` |
-| `VALIDATING_CFL` | Boucle feedback | `IDLE`, `BRAINSTORMING` |
-| `SWARM_ANALYZING` | Analyse tâche | `SWARM_NEGOTIATING` |
-| `SWARM_NEGOTIATING` | Négociation mode | `SWARM_EXECUTING` |
-| `SWARM_EXECUTING` | Exécution mode | `VALIDATING_CFL` |
-| `EVOLUTION_BRAINSTORM` | Création enfants | `VALIDATING_CFL` |
-| `WAITING_USER` | Attente utilisateur | `IDLE` |
-| `ERROR` | Erreur récupérable | `IDLE` |
-| `PANIC` | Erreur fatale | - |
-
-## Phases V7.8 Implémentées
-
-| Phase | Feature | Module |
-|-------|---------|--------|
-| **10c** | Project Memory RAG | `memory/project_memory.py` |
-| **14c** | Orchestrator Refactoring (-65%) | `orchestration/*.py` |
-| **14e** | Force CoT (EXPERT) | `swarm/mode_executors.py` |
-| **15** | Agent-as-Tool | `execution/agent_tools.py` |
-| **12.5** | Dynamic Tools | `execution/dynamic_tools.py` |
-
-## Flux de Données V7.8
-
 ```mermaid
-graph TB
-    UI[User Input] --> REPL[REPL]
-    REPL --> OV7[OrchestratorV7]
-
-    OV7 --> CB[ContextBuilder]
-    CB --> PM[ProjectMemory]
-    PM -->|RAG chunks| CB
-
-    OV7 --> FH[FSMHandlers]
-    FH --> AI[AgentInvoker]
-    AI --> CD[ClaudeDriver]
-    AI --> GD[GeminiDriver]
-
-    OV7 --> SB[SwarmBridge]
-    SB --> HSE[HybridSwarmEngine]
-    HSE --> MS[ModeSelector]
-    HSE --> ME[ModeExecutors]
-
-    ME --> ATR[AgentToolRegistry]
-    ATR --> AI
+classDiagram
+    class Config {
+        +fitness_metrics
+        +min_hours_between_generations
+        +max_children_per_generation
+        -__init__(self)
+        +to_dict(self) dict
+    }
+    class Timeouts {
+        +float BASH_COMMAND
+        +float BASH_LONG_RUNNING
+        +float GIT_COMMAND
+        +float WEB_SEARCH
+        +float WEB_FETCH
+        +float TODO_WRITE
+        +float CFL_VALIDATION
+        +float HIVE_MIND_ASYNC
+        +float FSM_ITERATION
+        +float BREAKPOINT_USER
+        +float PROCESS_GRACEFUL_TERMINATION
+        +float MCP_PROCESS_WAIT
+        +float CLI_VERSION_CHECK
+        +float RATE_LIMITER_ACQUIRE
+    }
+    class RetryLimits {
+        +int MAX_PARSE_FAILURES
+        +int MAX_TOOL_ITERATIONS
+        +int MAX_FSM_ITERATIONS
+        +int MAX_CFL_ITERATIONS
+        +int MAX_LEAD_SWAPS
+    }
+    class SagaLimits {
+        +int MAX_ROLLBACK_ATTEMPTS
+        +float ROLLBACK_TIMEOUT
+        +int CHECKPOINT_RETENTION_HOURS
+        +int MAX_CHECKPOINTS_PER_TASK
+    }
+    class DebateLimits {
+        +int MIN_TURNS
+        +int MAX_TURNS
+        +int COMPLEX_TURNS_MIN
+        +int COMPLEX_TURNS_MAX
+        +int EXPERT_TURNS_MIN
+        +int EXPERT_TURNS_MAX
+        +int ADAPTIVE_TURN_CAP
+        +int NEGOTIATION_MAX_TURNS
+    }
+    class MemoryLimits {
+        +int RAG_CHUNKS_RETRIEVE
+        +int RAG_CHUNKS_MAX
+        +int SIMILAR_TASKS_LIMIT
+        +int CONTEXT_WINDOW_TOKENS
+        +float MIN_SIMILARITY_SCORE
+    }
+    class ExecutionLimits {
+        +int SWARM_MAX_ROUNDS
+        +int MAX_SWARM_DEPTH
+        +int MAX_PARALLEL_AGENTS
+        +int MAX_EXECUTION_STEPS
+    }
+    class ThresholdConstants {
+        +float DEFAULT_CONFIDENCE
+        +float FALLBACK_QUALITY_PENALTY
+        +float STAGNATION_SIMILARITY
+        +float HIVE_MIND_AGREEMENT
+        +float RED_TEAM_PASS
+    }
+    class CostEstimates {
+        +int ANALYSIS_COMPARE
+        +int CONSENSUS_CHECK
+        +int EXECUTION_STEP
+        +int DIAGNOSIS_SINGLE
+        +int DIAGNOSIS_SYNTHESIS
+        +int CHANGES_APPLY
+        +int RETENTION_DECIDE
+        +int CONSOLIDATION
+        +int RAG_INJECTION
+        +int DEFAULT_OPERATION
+    }
+    class ServiceFactory {
+        -Dict[str, Dict[str, Any]] _instances
+        -_lock
+        -Optional[Path] _nexus_root
+        -_embedding_engine
+        -_embedding_engine_lock
+        +initialize(cls, nexus_root: Path) None
+        +get_nexus_root(cls) Path
+        -_get_tenant_cache(cls, tenant_id: str) Dict[str, Any]
+        -_get_or_create(cls, service_name: str, factory_func, ctx: Optional[SessionContext]=...) Any
+        +get_tenant_workspace_path(cls, ctx: Optional[SessionContext]=...) Path
+        +get_registry(cls, ctx: Optional[SessionContext]=...)
+        +get_workspace_manager(cls, ctx: Optional[SessionContext]=...)
+        +get_tool_registry(cls, ctx: Optional[SessionContext]=...)
+        +get_rate_limiter_registry(cls, ctx: Optional[SessionContext]=...)
+        +get_interaction_provider(cls, ctx: Optional[SessionContext]=...)
+        +get_execution_engine(cls, ctx: Optional[SessionContext]=...)
+        +get_system_health(cls, ctx: Optional[SessionContext]=...)
+        +get_budget_tracker(cls, ctx: Optional[SessionContext]=...)
+        +get_path_guardian(cls, ctx: Optional[SessionContext]=...)
+        +get_config(cls, ctx: Optional[SessionContext]=...)
+        +get_embedding_engine(cls)
+        +get_project_memory(cls, ctx: Optional[SessionContext]=...)
+        +get_auto_memory(cls, ctx: Optional[SessionContext]=...)
+        +get_success_memory(cls, ctx: Optional[SessionContext]=...)
+        +get_spotlighter(cls, ctx: Optional[SessionContext]=...)
+        +clear_tenant_cache(cls, tenant_id: str) None
+        +clear_all_caches(cls) None
+        +get_cache_stats(cls) Dict[str, int]
+    }
+    class OrchestratorV7 {
+        +workspace_path
+        +config
+        +logger
+        +state
+        -_registry
+        +iteration
+        +memory
+        +blackboard
+        +stagnation_detector
+        +plan_health
+        +panic_system
+        +model_router
+        +gemini_driver
+        +drivers
+        +tool_manager
+        +pending_tool_result
+        +json_parse_failures
+        +max_parse_failures
+        +stalemate_counter
+        +gemini_info
+        +claude_info
+        +task_analyzer
+        +auto_memory
+        +context_builder
+        +mutation_detector
+        +agent_invoker
+        +swarm_bridge
+        +fsm_handlers
+        -_sync_bridge
+        +project_memory
+        +agent_tool_registry
+        +agent_pool
+        +spawned_agent_loader
+        +swarm_engine
+        +telemetry
+        -__init__(self, workspace_path: Path, config, gemini_info: Dict, claude_info: Dict)
+        +active_agent(self) str
+        +active_agent(self, agent: str)
+        -_build_execution_context(self, objective: str=...) TaskExecutionContext
+        +current_context(self) TaskExecutionContext
+        -_sync_context_agent(self, context: TaskExecutionContext)
+        -_get_claude_driver(self, task_type: TaskType, timeout_override: int=...) ClaudeDriverHybrid
+        -_invoke_agent(self, task_type: TaskType, context: str) Dict
+        -_invoke_for_swarm(self, agent_id: str, task_type: str, context: str, session_uuid: str=...) str
+        -_invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) Dict
+        -_build_swarm_context(self, task_context: str, task_type: str, target_agent: str=...) str
+        +check_project_context(self, project_path: Optional[Path]=...) Dict
+        +get_startup_hints(self) list
+        +process_turn(self, user_input: Optional[str]=...) Dict
+        +process_turn_async(self, user_input: Optional[str]=...) Dict
+        -_handle_async_state(self, user_input: Optional[str]=...) Dict
+        -_handle_brainstorming_async(self, factory, user_input: Optional[str]) Dict
+        -_handle_cfl_async(self, factory) Dict
+        -_build_simple_context(self, user_input: str, task_analysis: TaskAnalysis) str
+        -_transition_to(self, new_state: OrchestratorState)
+        -_make_result(self, state: str, output: Optional[str], agent: Optional[str], finished: bool, error: Optional[str]=..., tool: Optional[str]=...) Dict
+        -_detect_mutation_complete(self, content: str) bool
+        -_handle_stagnation(self) Dict
+        -_handle_error(self, error_msg: str) Dict
+        -_trigger_panic(self, reason: str) Dict
+        -_calculate_quality_score(self, message: dict, validation_ok: bool, is_stagnant: bool) float
+        -_record_invocation(self, agent_name: str, task_type: str, success: bool, duration: float, quality_score: float=..., response_text: Optional[str]=...)
+        -_build_context(self) str
+        -_build_context_with_tool_result(self) str
+        -_format_tool_result(self, result) str
+        -_validate_message(self, response: Dict, expect_heavy: bool=...) Dict
+        +reset_to_idle(self, clear_task: bool=...)
+        +get_system_status(self) Dict
+        +rollback_to_backup(self, backup_file: Path=...) bool
+        +consolidate_memory(self) Dict
+        +start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode]=...) Dict
+        +process_with_swarm(self, task_input: str, force_mode: Optional[CollaborationMode]=..., skip_negotiation: bool=..., on_negotiation_turn: Optional[Callable]=..., on_execution_round: Optional[Callable]=...) Dict
+    }
 ```
 
-## Intégrations Clés
+## Modules
 
-### Synapse Protocol
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [config](config.py) | Configuration Management - NEXUS V7 | 1 | 1 |
+| [constants](constants.py) | NEXUS V9.8 - Centralized Constants | 8 | 0 |
+| [factory](factory.py) | ServiceFactory - Context-Aware Service Instantiation. | 1 | 3 |
+| [orchestration_v7](orchestration_v7.py) | Orchestrator V7 - FSM Persistent | 1 | 0 |
 
-```python
-from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7
-```
+## Subpackages
 
-### Memory System
+| Package | Description | Modules |
+|---------|-------------|---------|
+| [adapters/](C:\Code\NEXUS\NEXUS-N7A\core\adapters/README.md) |  | 0 |
+| [agents/](C:\Code\NEXUS\NEXUS-N7A\core\agents/README.md) |  | 0 |
+| [api/](C:\Code\NEXUS\NEXUS-N7A\core\api/README.md) |  | 0 |
+| [async_primitives/](C:\Code\NEXUS\NEXUS-N7A\core\async_primitives/README.md) |  | 0 |
+| [audit/](C:\Code\NEXUS\NEXUS-N7A\core\audit/README.md) |  | 0 |
+| [bootstrap/](C:\Code\NEXUS\NEXUS-N7A\core\bootstrap/README.md) |  | 0 |
+| [context/](C:\Code\NEXUS\NEXUS-N7A\core\context/README.md) |  | 0 |
+| [db/](C:\Code\NEXUS\NEXUS-N7A\core\db/README.md) |  | 0 |
+| [drivers/](C:\Code\NEXUS\NEXUS-N7A\core\drivers/README.md) |  | 0 |
+| [events/](C:\Code\NEXUS\NEXUS-N7A\core\events/README.md) |  | 0 |
+| [evolution/](C:\Code\NEXUS\NEXUS-N7A\core\evolution/README.md) |  | 0 |
+| [execution/](C:\Code\NEXUS\NEXUS-N7A\core\execution/README.md) |  | 0 |
+| [fsm/](C:\Code\NEXUS\NEXUS-N7A\core\fsm/README.md) |  | 0 |
+| [governance/](C:\Code\NEXUS\NEXUS-N7A\core\governance/README.md) |  | 0 |
+| [hive_mind/](C:\Code\NEXUS\NEXUS-N7A\core\hive_mind/README.md) |  | 0 |
+| [interaction/](C:\Code\NEXUS\NEXUS-N7A\core\interaction/README.md) |  | 0 |
+| [interface/](C:\Code\NEXUS\NEXUS-N7A\core\interface/README.md) |  | 0 |
+| [logging/](C:\Code\NEXUS\NEXUS-N7A\core\logging/README.md) |  | 0 |
+| [mcp/](C:\Code\NEXUS\NEXUS-N7A\core\mcp/README.md) |  | 0 |
+| [memory/](C:\Code\NEXUS\NEXUS-N7A\core\memory/README.md) |  | 0 |
+| [meta/](C:\Code\NEXUS\NEXUS-N7A\core\meta/README.md) |  | 0 |
+| [notifications/](C:\Code\NEXUS\NEXUS-N7A\core\notifications/README.md) |  | 0 |
+| [orchestration/](C:\Code\NEXUS\NEXUS-N7A\core\orchestration/README.md) |  | 0 |
+| [prompts/](C:\Code\NEXUS\NEXUS-N7A\core\prompts/README.md) |  | 0 |
+| [reasoning/](C:\Code\NEXUS\NEXUS-N7A\core\reasoning/README.md) |  | 0 |
+| [resilience/](C:\Code\NEXUS\NEXUS-N7A\core\resilience/README.md) |  | 0 |
+| [routing/](C:\Code\NEXUS\NEXUS-N7A\core\routing/README.md) |  | 0 |
+| [security/](C:\Code\NEXUS\NEXUS-N7A\core\security/README.md) |  | 0 |
+| [session/](C:\Code\NEXUS\NEXUS-N7A\core\session/README.md) |  | 0 |
+| [swarm/](C:\Code\NEXUS\NEXUS-N7A\core\swarm/README.md) |  | 0 |
+| [synapse/](C:\Code\NEXUS\NEXUS-N7A\core\synapse/README.md) |  | 0 |
+| [telemetry/](C:\Code\NEXUS\NEXUS-N7A\core\telemetry/README.md) |  | 0 |
+| [ui/](C:\Code\NEXUS\NEXUS-N7A\core\ui/README.md) |  | 0 |
+| [utils/](C:\Code\NEXUS\NEXUS-N7A\core\utils/README.md) |  | 0 |
+| [workflow/](C:\Code\NEXUS\NEXUS-N7A\core\workflow/README.md) |  | 0 |
+| [workspace/](C:\Code\NEXUS\NEXUS-N7A\core\workspace/README.md) |  | 0 |
 
-```python
-from core.memory import get_auto_memory, ProjectMemory
 
-# AutoMemory - apprentissage opérationnel
-memory = get_auto_memory()
-rec = memory.get_recommendation("code_review")
 
-# ProjectMemory - RAG codebase
-pm = ProjectMemory(nexus_root)
-pm.index_directory(Path("core/"))
-chunks = pm.retrieve("FSM state handling")
-```
 
-### Agent-as-Tool
+## Aggregated Statistics
 
-```python
-from core.execution.agent_tools import AgentToolRegistry
+Statistics from all subpackages:
 
-registry.refresh()  # Découvre agents spawnés
-registry.execute_agent_tool("security_expert", {"task": "..."})
-```
+| Metric | Value |
+|--------|-------|
+| Subpackages | 36 |
+| Total Modules | 0 |
+| Total Lines of Code | 0 |
+| Total Classes | 0 |
+| Total Functions | 0 |
 
-## Configuration
 
-```bash
-# Core
-TIMEOUT=300
-LOG_LEVEL=DEBUG
-
-# Swarm
-SWARM_ENABLED=True
-SWARM_AUTO_ROUTE=True
-SWARM_DEFAULT_MODE=ping_pong
-
-# Evolution
-VALIDATION_TIER=4
-
-# Routing
-GEMINI_MODEL=gemini-3-pro-preview
-```
-
-## Métriques V7.8
-
-| Composant | Lignes V7.6 | Lignes V7.8 | Delta |
-|-----------|-------------|-------------|-------|
-| orchestration_v7.py | 2223 | 783 | -65% |
-| orchestration/*.py | 0 | 1527 | NEW |
-| memory/*.py | 450 | 1135 | +152% |
-| execution/*.py | 800 | 1310 | +64% |
-| **Total core/** | ~15000 | ~14500 | -3% |
-
-## Voir Aussi
-
-- [Main README](../README.md) - Documentation complète V7.8
-- [ROADMAP_HIVE_MIND.md](../ROADMAP_HIVE_MIND.md) - Roadmap phases
-- [docs/FEATURE_INVENTORY_V7.8.md](../docs/FEATURE_INVENTORY_V7.8.md) - Inventaire fonctionnalités
-- [docs/HYBRID_SWARM.md](../docs/HYBRID_SWARM.md) - Documentation Swarm
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

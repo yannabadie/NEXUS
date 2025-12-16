@@ -1,117 +1,140 @@
-# Module : Torture Protocol V8
+# torture
 
-## Role dans l'Architecture NEXUS V9.0
+NEXUS V8.2.0d Torture Protocol Module
 
-Le module Torture Protocol V8 (V8.2.0d) fournit une suite de tests de stress complète pour valider la robustesse de l'intégration SagaManager + HiveMind. Il simule des conditions adverses (crashes, race conditions, corruptions) pour s'assurer que le système récupère correctement.
+Comprehensive stress testing for SagaManager + HiveMind integration.
 
-## Composants Clés
+Usage:
+    pytest tests/torture_v8.py -m torture -v
+    python tests/torture_v8.py
 
-### Core Classes
+## Overview
 
-* `base.py`:
-  - `TortureBase`: Classe de base pour tous les tests torture
-  - `TortureResultV8`: Dataclass pour les résultats de test
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\tests\torture` |
+| **Modules** | 4 |
+| **Total Lines** | 949 |
+| **Classes** | 8 |
+| **Functions** | 3 |
 
-* `metrics_collector.py`:
-  - `MetricsCollector`: Collecte et calcule les métriques de torture
-  - `ScenarioMetrics`: Dataclass pour les métriques par scénario
-
-* `chaos_injectors.py`:
-  - `CrashInjector`: Simule des crashes à des points spécifiques
-  - `RaceInjector`: Introduit des race conditions via des délais
-  - `CorruptionInjector`: Corrompt des fichiers saga de diverses manières
-  - `TimeoutInjector`: Injecte des timeouts dans les opérations
-
-### Scenarios (5 catégories, 75+ tests)
-
-| Fichier | Tests | Description |
-|---------|-------|-------------|
-| `saga_crash.py` | 15 (CR-001 to CR-015) | Crash recovery - Partial writes, corrupted JSON, fsync crashes |
-| `saga_concurrency.py` | 12 (CC-001 to CC-012) | Race conditions - Parallel checkpoints, high contention |
-| `context_edge.py` | 10 (CE-001 to CE-010) | Edge cases - Truncation, missing estimates, deque/list |
-| `compensation.py` | 8 (CF-001 to CF-008) | Compensation failures - Exceptions, partial chains, timeouts |
-| `hive_integration.py` | 30 (HM-001 to HM-030) | HiveMind pipeline - Full pipeline, phase failures, hot-swap |
-
-## Architecture & Flux
-
-### Entrées
-- Configuration pytest (markers, fixtures)
-- SagaManager instance (via fixtures)
-- Mock drivers pour LLM
-
-### Sorties
-- `TortureResultV8` avec success/failure
-- `MetricsCollector` avec rates calculés
-- Rapport JSONL dans `workspace/torture_v8/`
-
-### Configuration
-- `SKIP_LLM_TESTS`: Skip tests nécessitant API réelles
-- pytest markers: `@torture`, `@torture_saga`, `@torture_hive`, `@torture_slow`
-
-## Dépendances
-
-### Utilise
-- `core/hive_mind/saga_manager.py`: SagaManager pour checkpoints
-- `core/hive_mind/types.py`: HiveMindState, dataclasses
-- `pytest-asyncio`: Tests async
-- `unittest.mock`: Mocking
-
-### Utilisé par
-- `.github/workflows/ci.yml`: Nightly torture tests
-- Développeurs pour validation pre-release
-
-## Diagramme
+## Architecture
 
 ```mermaid
-graph TD
-    subgraph TortureProtocol["Torture Protocol V8"]
-        ENTRY[torture_v8.py] --> METRICS[MetricsCollector]
-        ENTRY --> CHAOS[ChaosInjectors]
-
-        subgraph Categories["5 Test Categories"]
-            CR[Saga Crash<br/>15 tests]
-            CC[Concurrency<br/>12 tests]
-            CE[Context Edge<br/>10 tests]
-            CF[Compensation<br/>8 tests]
-            HM[HiveMind<br/>30 tests]
-        end
-
-        CHAOS --> CR
-        CHAOS --> CC
-        CHAOS --> CE
-        CHAOS --> CF
-        CHAOS --> HM
-
-        METRICS --> REPORT[Report]
-    end
+classDiagram
+    class TortureResultV8 {
+        +str scenario
+        +str test_id
+        +bool success
+        +float duration_ms
+        +bool recovery_attempted
+        +bool recovery_succeeded
+        +bool panic_occurred
+        +Optional[str] error
+        +Dict[str, Any] metrics
+        +str timestamp
+    }
+    class TortureBase {
+        +workspace
+        +metrics
+        +lock
+        +log_file
+        -__init__(self, workspace_name: str=...)
+        +sagas_dir(self) Path
+        +log_result(self, result: TortureResultV8)
+        +run_test(self, scenario: str, test_id: str, test_func, expect_recovery: bool=...) TortureResultV8
+        +generate_report(self)
+        +assert_targets(self, success_target: float=..., recovery_target: float=..., panic_target: float=..., hot_swap_target: float=...)
+        +cleanup(self)
+    }
+    class CrashInjector {
+        +crash_count
+        +crash_at
+        -__init__(self)
+        +crash_after_n_checkpoints(self, n: int)
+        +crash_during_persist(self)
+        +crash_during_fsync(self)
+        +crash_during_rename(self)
+        +crash_at_phase(self, phase: str)
+    }
+    class RaceInjector {
+        +delays
+        -__init__(self)
+        +delay_persist(self, delay_ms: int)
+        +delay_operation(self, delay_ms: int)
+        +concurrent_checkpoints(self, saga, phases: list, delay_between_ms: int=...)
+        +concurrent_operations(self, operations: list, stagger_ms: int=...)
+    }
+    class CorruptionInjector {
+        +CORRUPTION_TYPES
+        +corrupt_json(self, filepath: Path, corruption_type: str=...)
+        +truncate_file(self, filepath: Path, bytes_to_keep: int=...)
+        +create_empty_file(self, filepath: Path)
+        +create_locked_file(self, filepath: Path)
+        +create_saga_with_unknown_phase(self, saga_dir: Path, task_id: str)
+        +create_saga_with_future_timestamp(self, saga_dir: Path, task_id: str)
+        +create_incomplete_saga(self, saga_dir: Path, task_id: str)
+    }
+    class TimeoutInjector {
+        +timeout(self, timeout_ms: int)
+        +async_timeout(self, coro, timeout_ms: int)
+    }
+    class ScenarioMetrics {
+        +str name
+        +bool success
+        +float duration_ms
+        +bool recovery_attempted
+        +bool recovery_succeeded
+        +bool panic_occurred
+        +Optional[str] error_message
+        +str timestamp
+        +to_dict(self) Dict[str, Any]
+    }
+    class MetricsCollector {
+        +List[ScenarioMetrics] scenarios
+        +datetime start_time
+        +record_test(self, name: str, success: bool, duration_ms: float, recovery_attempted: bool=..., recovery_succeeded: bool=..., panic_occurred: bool=..., error: Optional[str]=...)
+        +calculate_rates(self) Dict[str, Any]
+        -_calculate_hot_swap_rate(self) float
+        +get_failures(self) List[ScenarioMetrics]
+        +get_panics(self) List[ScenarioMetrics]
+        +get_slowest(self, n: int=...) List[ScenarioMetrics]
+        +to_jsonl(self, filepath: Path)
+        +to_dict(self) Dict[str, Any]
+        +summary(self) str
+        +assert_targets(self, success_target: float=..., recovery_target: float=..., panic_target: float=..., hot_swap_target: float=...)
+    }
 ```
 
-## Métriques Cibles
+## Modules
 
-| Metric | Target |
-|--------|--------|
-| Success Rate | >95% |
-| Recovery Rate | >90% |
-| Panic Rate | <1% |
-| Hot-Swap Effectiveness | >80% |
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [base](base.py) | Torture Protocol V8 - Base Classes and Fixtures | 2 | 3 |
+| [chaos_injectors](chaos_injectors.py) | Torture Protocol V8 - Chaos Injectors | 4 | 0 |
+| [metrics_collector](metrics_collector.py) | Torture Protocol V8 - Metrics Collector | 2 | 0 |
 
-## Tests Associés
+## Subpackages
 
-```bash
-# Run all torture tests
-pytest tests/torture_v8.py -m torture -v --tb=short
+| Package | Description | Modules |
+|---------|-------------|---------|
+| [scenarios/](C:\Code\NEXUS\NEXUS-N7A\tests\torture\scenarios/README.md) |  | 0 |
 
-# Run by category
-pytest tests/torture_v8.py -m torture_saga -v   # Saga tests
-pytest tests/torture_v8.py -m torture_hive -v   # HiveMind tests
-pytest tests/torture_v8.py -m torture_slow -v   # Slow tests (>5s)
 
-# Standalone check
-python tests/torture_v8.py
-```
 
-## Version History
 
-| Version | Date | Changes |
-|---------|------|---------|
-| V8.2.0d | 2025-12-11 | Initial implementation - 75 tests across 5 categories |
+## Aggregated Statistics
+
+Statistics from all subpackages:
+
+| Metric | Value |
+|--------|-------|
+| Subpackages | 1 |
+| Total Modules | 0 |
+| Total Lines of Code | 0 |
+| Total Classes | 0 |
+| Total Functions | 0 |
+
+
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

@@ -1,232 +1,124 @@
-# Logging Module - NEXUS V7.6 "HIVE MIND"
+# logging
 
-Structured event-based logging system for NEXUS operations.
+Logging module for NEXUS V7
 
-## Role in Architecture
+Exports:
+- NexusLogger: Main logger class
+- LogLevel: Log level enum
+- EventType: Event type enum
+- init_logger: Initialize global logger
+- get_logger: Get global logger instance
+- cleanup_old_logs: Cleanup old log files
+- get_driver_logger: Get lightweight driver logger (V8.4.5)
+- configure_driver_logging: Configure driver log level (V8.4.5)
 
-The Logging module provides **operational telemetry** at the technical level:
-- FSM state transitions
-- Agent invocations and responses
-- Tool executions
-- Stagnation detection
-- Panic events
-- Session metrics
+## Overview
 
-While `core.memory.AutoMemory` tracks **functional** outcomes (success/failure), the Logger captures **technical** execution details.
+| Metric | Value |
+|--------|-------|
+| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\logging` |
+| **Modules** | 3 |
+| **Total Lines** | 636 |
+| **Classes** | 4 |
+| **Functions** | 7 |
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     LOGGING SYSTEM V7                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ┌──────────────────────┐    ┌───────────────────────────────┐│
-│   │    NexusLogger       │    │         Log Files             ││
-│   │                      │    │                               ││
-│   │  • log_event()       │───▶│  events_YYYYMMDD.jsonl        ││
-│   │  • log_fsm_*()       │    │  errors_YYYYMMDD.log          ││
-│   │  • log_agent_*()     │    │  trace_YYYYMMDD.log           ││
-│   │  • log_tool_*()      │    │  summary_YYYYMMDD.json        ││
-│   │  • get_session_*()   │    │                               ││
-│   └──────────────────────┘    └───────────────────────────────┘│
-│                                                                 │
-│   ┌──────────────────────┐    ┌───────────────────────────────┐│
-│   │     EventType        │    │       LogLevel                ││
-│   │                      │    │                               ││
-│   │  • FSM_TRANSITION    │    │  DEBUG   (trace)              ││
-│   │  • AGENT_INVOKE      │    │  INFO    (normal ops)         ││
-│   │  • AGENT_RESPONSE    │    │  WARNING (stagnation)         ││
-│   │  • TOOL_EXECUTE      │    │  ERROR   (failures)           ││
-│   │  • PANIC_TRIGGERED   │    │  CRITICAL (panic)             ││
-│   └──────────────────────┘    └───────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Files
-
-| File | Purpose | Key Classes |
-|------|---------|-------------|
-| `logger_v7.py` | Main implementation | `NexusLogger`, `EventType`, `LogLevel` |
-| `__init__.py` | Module exports | `init_logger`, `get_logger`, `cleanup_old_logs` |
-
-## Key Classes
-
-### NexusLogger (logger_v7.py:70-415)
-
-Main logger class with structured event logging.
-
-```python
-from core.logging import init_logger, get_logger
-from pathlib import Path
-
-# Initialize (once at startup)
-logger = init_logger(Path("./workspace"), log_level="INFO")
-
-# Or get existing instance
-logger = get_logger()
-
-# Log events
-logger.log_fsm_transition("IDLE", "BRAINSTORMING", iteration=1)
-logger.log_agent_invocation("Gemini", iteration=1, context_size=5000)
-logger.log_tool_execution("read", {"file_path": "auth.py"}, iteration=1)
-logger.log_stagnation(similarity=0.85, window_size=3)
-logger.log_panic("Stalemate", "Max stalemate count reached")
-
-# Get session metrics
-summary = logger.get_session_summary()
-```
-
-### EventType Enum (logger_v7.py:35-68)
-
-| Event | Description | Level |
-|-------|-------------|-------|
-| `FSM_TRANSITION` | State change | DEBUG |
-| `FSM_STATE` | Generic state info | varies |
-| `AGENT_INVOKE` | Agent called | INFO |
-| `AGENT_RESPONSE` | Agent returned | INFO |
-| `AGENT_ERROR` | Agent failed | ERROR |
-| `TOOL_EXECUTE` | Tool started | INFO |
-| `TOOL_RESULT` | Tool completed | INFO |
-| `TOOL_ERROR` | Tool failed | ERROR |
-| `STAGNATION_DETECTED` | Loop detected | WARNING |
-| `PLAN_HEALTH` | Plan status | varies |
-| `PANIC_TRIGGERED` | Panic state | CRITICAL |
-| `PANIC_CLEARED` | Panic resolved | INFO |
-| `BACKUP_CREATED` | State backup | DEBUG |
-| `STATE_ROLLBACK` | State restored | WARNING |
-| `SESSION_START` | Session began | INFO |
-| `SESSION_END` | Session ended | INFO |
-| `USER_INPUT` | User message | DEBUG |
-| `ITERATION_COMPLETE` | Turn finished | DEBUG |
-
-### LogLevel Enum (logger_v7.py:26-32)
-
-```python
-class LogLevel(Enum):
-    DEBUG = "DEBUG"      # Trace-level detail
-    INFO = "INFO"        # Normal operations (default)
-    WARNING = "WARNING"  # Potential issues (stagnation)
-    ERROR = "ERROR"      # Recoverable errors
-    CRITICAL = "CRITICAL" # Panic state
-```
-
-## Log Files
-
-All logs stored in `workspace/logs/`:
-
-| File | Format | Content |
-|------|--------|---------|
-| `events_YYYYMMDD.jsonl` | JSONL | All structured events |
-| `errors_YYYYMMDD.log` | Text | Human-readable errors |
-| `trace_YYYYMMDD.log` | Text | Verbose debug traces |
-| `summary_YYYYMMDD.json` | JSON | Session metrics |
-
-### JSONL Event Format
-
-```json
-{
-  "timestamp": "2025-12-04T10:30:22.123456Z",
-  "session_id": "20251204_103022",
-  "event_type": "agent_invoke",
-  "level": "INFO",
-  "data": {
-    "agent": "Gemini",
-    "iteration": 5,
-    "context_size": 12000
-  }
-}
-```
-
-## Session Metrics
-
-The logger tracks session-wide metrics (logger_v7.py:112-124):
-
-```python
-metrics = {
-    "session_id": "20251204_103022",
-    "start_time": "2025-12-04T10:30:22",
-    "total_iterations": 15,
-    "total_tool_executions": 8,
-    "total_errors": 2,
-    "fsm_transitions": {"IDLE→BRAINSTORMING": 5, "BRAINSTORMING→EXECUTING_TOOL": 8},
-    "agent_invocations": {"Gemini": 10, "Claude": 8},
-    "tools_used": {"read": 5, "write": 2, "bash": 1},
-    "panic_count": 0,
-    "stagnation_count": 1
-}
-```
-
-## Log Rotation
-
-- **Daily rotation**: Files include date in name (`YYYYMMDD`)
-- **Auto-cleanup**: `cleanup_old_logs(workspace, keep_days=7)`
-
-```python
-from core.logging import cleanup_old_logs
-from pathlib import Path
-
-# Keep only last 7 days of logs
-cleanup_old_logs(Path("./workspace"), keep_days=7)
-```
-
-## Integration Points
-
-### FSM Integration
-
-```python
-# In orchestration_v7.py
-def _transition_to(self, new_state):
-    if self.logger:
-        self.logger.log_fsm_transition(
-            self.state.name,
-            new_state.name,
-            self.iteration
-        )
-    self.state = new_state
-```
-
-### Driver Integration
-
-```python
-# In driver invocation
-start = time.time()
-response = driver.invoke(context)
-if self.logger:
-    self.logger.log_agent_response(
-        agent="Gemini",
-        action_type=response.get("action_type"),
-        has_tool=response.get("tool_use") is not None,
-        duration_ms=(time.time() - start) * 1000
-    )
-```
-
-## Configuration
-
-```bash
-# Log level
-LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-
-# Log retention
-LOG_RETENTION_DAYS=7
-```
-
-## Interaction with Other Modules
-
 ```mermaid
-flowchart LR
-    O[Orchestrator] --> L[NexusLogger]
-    D[Drivers] --> L
-    E[Execution] --> L
-    F[FSM] --> L
-    L --> EF[events.jsonl]
-    L --> ER[errors.log]
-    L --> TR[trace.log]
-    L --> SU[summary.json]
+classDiagram
+    class DriverLogger {
+        +name
+        -_logger
+        -__init__(self, name: str, level: int=...)
+        +debug(self, message: str, **kwargs) None
+        +info(self, message: str, **kwargs) None
+        +warning(self, message: str, **kwargs) None
+        +error(self, message: str, **kwargs) None
+        +critical(self, message: str, **kwargs) None
+        +set_level(self, level: int) None
+    }
+    class LogLevel {
+        +DEBUG
+        +INFO
+        +WARNING
+        +ERROR
+        +CRITICAL
+    }
+    Enum <|-- LogLevel
+    class EventType {
+        +FSM_TRANSITION
+        +FSM_STATE
+        +AGENT_INVOKE
+        +AGENT_RESPONSE
+        +AGENT_ERROR
+        +TOOL_EXECUTE
+        +TOOL_RESULT
+        +TOOL_ERROR
+        +STAGNATION_DETECTED
+        +PLAN_HEALTH
+        +PANIC_TRIGGERED
+        +PANIC_CLEARED
+        +BACKUP_CREATED
+        +STATE_ROLLBACK
+        +SESSION_START
+        +SESSION_END
+        +USER_INPUT
+        +ITERATION_COMPLETE
+    }
+    Enum <|-- EventType
+    class NexusLogger {
+        +workspace_path
+        +log_dir
+        +current_date
+        +events_file
+        +errors_file
+        +trace_file
+        +summary_file
+        +session_start
+        +session_id
+        +metrics
+        +log_level
+        -__init__(self, workspace_path: Path, log_level: str=...)
+        +log_event(self, event_type: EventType, data: Dict[str, Any], level: LogLevel=...)
+        +log_fsm_transition(self, from_state: str, to_state: str, iteration: int)
+        +log_agent_invocation(self, agent: str, iteration: int, context_size: int=...)
+        +log_agent_response(self, agent: str, action_type: str, has_tool: bool, duration_ms: float)
+        +log_agent_error(self, agent: str, error_type: str, error_msg: str)
+        +log_tool_execution(self, tool_name: str, args: Dict, iteration: int)
+        +log_tool_result(self, tool_name: str, status: str, duration_ms: float, output_size: int)
+        +log_tool_error(self, tool_name: str, error_msg: str)
+        +log_stagnation(self, similarity: float, window_size: int)
+        +log_plan_health(self, status: str, message: str, turns_since_progress: int, turns_since_completion: int)
+        +log_panic(self, reason: str, details: str)
+        +log_panic_cleared(self)
+        +log_backup(self, reason: str, backup_file: str)
+        +log_rollback(self, backup_file: str, success: bool)
+        +log_user_input(self, input_text: str, iteration: int)
+        +log_iteration_complete(self, iteration: int, state: str, duration_ms: float, success: bool)
+        +debug(self, message: str, context: Optional[Dict]=...)
+        +info(self, message: str, context: Optional[Dict]=...)
+        +warning(self, message: str, context: Optional[Dict]=...)
+        +error(self, message: str, context: Optional[Dict]=...)
+        +critical(self, message: str, context: Optional[Dict]=...)
+        +trace(self, message: str)
+        +end_session(self)
+        -_log_error(self, event_type: EventType, data: Dict, level: LogLevel)
+        -_should_log(self, level: LogLevel) bool
+        -_update_metrics(self, event_type: EventType, data: Dict)
+        +get_session_summary(self) Dict
+    }
 ```
 
-## See Also
+## Modules
 
-- [Memory Module](../memory/README.md) - Functional outcome tracking (AutoMemory)
-- [Telemetry Module](../telemetry/README.md) - Metrics export
-- [FSM Module](../fsm/README.md) - State transitions logged
+| Module | Description | Classes | Functions |
+|--------|-------------|---------|-----------|
+| [driver_logger](driver_logger.py) | Driver Logger - Lightweight logging for driver modules. | 1 | 4 |
+| [logger_v7](logger_v7.py) | Logging System V7 - Structured logging pour development et runtime | 3 | 3 |
+
+
+
+
+
+---
+*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*

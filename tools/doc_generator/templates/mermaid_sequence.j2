@@ -1,0 +1,25 @@
+sequenceDiagram
+{% for participant in participants %}
+    participant {{ participant.id }}{% if participant.alias %} as {{ participant.alias }}{% endif %}
+
+{% endfor %}
+
+{% for step in steps %}
+{% if step.type == 'message' %}
+    {{ step.from }} {% if step.style == 'async' %}->>{% elif step.style == 'reply' %}-->>{% else %}->>{% endif %} {{ step.to }}: {{ step.label }}
+{% elif step.type == 'activate' %}
+    activate {{ step.target }}
+{% elif step.type == 'deactivate' %}
+    deactivate {{ step.target }}
+{% elif step.type == 'note' %}
+    Note {% if step.position == 'left' %}left of{% elif step.position == 'right' %}right of{% else %}over{% endif %} {{ step.target }}: {{ step.text }}
+{% elif step.type == 'loop' %}
+    loop {{ step.label }}
+{% elif step.type == 'alt' %}
+    alt {{ step.label }}
+{% elif step.type == 'else' %}
+    else {{ step.label }}
+{% elif step.type == 'end' %}
+    end
+{% endif %}
+{% endfor %}
