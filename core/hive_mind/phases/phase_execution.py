@@ -306,8 +306,25 @@ class MonitoredExecutionPhase:
         )
 
         # Select driver (V8.4.0: use registry for agent identification)
+        # V10.2: Prefer Claude for code-heavy tasks (better at coding)
         registry = get_registry()
-        driver = self.claude if registry.is_claude(step.agent_id) else self.gemini
+        
+        # Detect code-heavy actions where Claude excels
+        code_heavy_keywords = ["code", "implement", "write", "fix", "refactor", 
+                               "debug", "test", "create file", "modify", "edit",
+                               "function", "class", "script", "transform"]
+        action_lower = step.action.lower()
+        is_code_heavy = any(kw in action_lower for kw in code_heavy_keywords)
+        
+        # Route to Claude if: already Claude OR code-heavy task
+        if registry.is_claude(step.agent_id) or is_code_heavy:
+            driver = self.claude
+            driver_name = "Claude"
+        else:
+            driver = self.gemini
+            driver_name = "Gemini"
+        
+        logger.debug(f"Step '{step.name}' routed to {driver_name} (code_heavy={is_code_heavy})")
 
         # Execute with timeout
         start_time = time.time()
