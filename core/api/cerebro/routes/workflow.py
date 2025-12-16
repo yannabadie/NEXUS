@@ -1,6 +1,7 @@
 """
-NEXUS V11.5 CORTEX - Workflow Control Endpoints
+NEXUS V12.3 SCALE-OUT - Workflow Control Endpoints
 V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
+V12.3 SCALE-OUT - Redis-backed workflow registry for multi-instance
 
 Enables task execution control for CEREBRO UI:
 - POST /api/workflow/start : Start a workflow (non-blocking)
@@ -11,7 +12,11 @@ Authentication:
 - V11.6.1 IRONCLAD: MANDATORY auth - tenant_id from JWT ONLY
 - Query param backdoors REMOVED to prevent IDOR attacks
 
-Author: Claude (NEXUS V11.5 CORTEX)
+Storage:
+- V12.3: Redis-backed registry with graceful degradation to in-memory
+- Multi-instance support: workflows visible across all NEXUS instances
+
+Author: Claude (NEXUS V11.5 CORTEX, V12.3 SCALE-OUT)
 Date: 2025-12-15
 """
 
@@ -25,12 +30,15 @@ from pydantic import BaseModel
 
 from ..deps import AuthenticatedUser, require_auth
 
+# V12.3 SCALE-OUT: Redis-backed workflow registry
+from core.workflow import get_workflow_registry, WorkflowStatus
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# In-memory workflow registry (TODO: Move to Redis for multi-instance support)
-_active_workflows: Dict[str, Dict[str, Any]] = {}
+# V12.3: Get shared registry instance (Redis or in-memory fallback)
+_registry = get_workflow_registry()
 
 
 class WorkflowStartRequest(BaseModel):
@@ -99,15 +107,17 @@ async def start_workflow(
 
     workflow_id = str(uuid4())[:12]
 
-    _active_workflows[workflow_id] = {
-        "status": "pending",
-        "task": body.task,
-        "tenant_id": tenant_id,
-        "workspace_id": workspace_id,
-        "complexity": body.complexity,
-        "result": None,
-        "error": None,
-    }
+    # V12.3 SCALE-OUT: Connect to Redis (if configured)
+    await _registry.connect()
+
+    # V12.3: Create workflow in shared registry
+    await _registry.create_workflow(
+        workflow_id=workflow_id,
+        tenant_id=tenant_id,
+        task=body.task,
+        workspace_id=workspace_id,
+        complexity=body.complexity,
+    )
 
     async def run_workflow():
         """Background task to execute the workflow."""
@@ -118,7 +128,8 @@ async def start_workflow(
         bridge = get_telemetry_bridge()
 
         try:
-            _active_workflows[workflow_id]["status"] = "running"
+            # V12.3: Update status in shared registry
+            await _registry.update_status(workflow_id, tenant_id, WorkflowStatus.RUNNING.value)
             logger.info(f"[CORTEX] Workflow {workflow_id} started: {body.task[:50]}...")
 
             # V12.0 RETINA: Emit workflow start event
@@ -156,8 +167,10 @@ async def start_workflow(
                     body.task
                 )
 
-            _active_workflows[workflow_id]["status"] = "completed"
-            _active_workflows[workflow_id]["result"] = result
+            # V12.3: Update status in shared registry
+            await _registry.update_status(
+                workflow_id, tenant_id, WorkflowStatus.COMPLETED.value, result=result
+            )
             logger.info(f"[CORTEX] Workflow {workflow_id} completed")
 
             # V12.0 RETINA: Emit workflow complete event
@@ -169,8 +182,10 @@ async def start_workflow(
             )
 
         except Exception as e:
-            _active_workflows[workflow_id]["status"] = "failed"
-            _active_workflows[workflow_id]["error"] = str(e)
+            # V12.3: Update status in shared registry
+            await _registry.update_status(
+                workflow_id, tenant_id, WorkflowStatus.FAILED.value, error=str(e)
+            )
             logger.error(f"[CORTEX] Workflow {workflow_id} failed: {e}")
 
             # V12.0 RETINA: Emit workflow failed event
@@ -210,14 +225,16 @@ async def get_workflow_status(
         403: Workflow belongs to different tenant
         404: Workflow not found
     """
-    if workflow_id not in _active_workflows:
+    # V12.3 SCALE-OUT: Connect to registry
+    await _registry.connect()
+
+    # V12.3: Get from shared registry (tenant-scoped)
+    workflow = await _registry.get_workflow(workflow_id, user.tenant_id)
+
+    if not workflow:
         raise HTTPException(404, f"Workflow {workflow_id} not found")
 
-    workflow = _active_workflows[workflow_id]
-
-    # V11.6.1 IRONCLAD: Verify tenant ownership
-    if workflow.get("tenant_id") != user.tenant_id:
-        raise HTTPException(403, "Access denied: workflow belongs to different tenant")
+    # V11.6.1 IRONCLAD: Tenant ownership verified by registry query
 
     return {
         "workflow_id": workflow_id,
@@ -255,14 +272,16 @@ async def stop_workflow(
         404: Workflow not found
         400: Workflow not in stoppable state
     """
-    if workflow_id not in _active_workflows:
+    # V12.3 SCALE-OUT: Connect to registry
+    await _registry.connect()
+
+    # V12.3: Get from shared registry (tenant-scoped)
+    workflow = await _registry.get_workflow(workflow_id, user.tenant_id)
+
+    if not workflow:
         raise HTTPException(404, f"Workflow {workflow_id} not found")
 
-    workflow = _active_workflows[workflow_id]
-
-    # V11.6.1 IRONCLAD: Verify tenant ownership
-    if workflow.get("tenant_id") != user.tenant_id:
-        raise HTTPException(403, "Access denied: workflow belongs to different tenant")
+    # V11.6.1 IRONCLAD: Tenant ownership verified by registry query
 
     if workflow["status"] not in ("pending", "running"):
         raise HTTPException(
@@ -270,9 +289,11 @@ async def stop_workflow(
             f"Workflow {workflow_id} is {workflow['status']}, cannot stop"
         )
 
-    # Mark as cancelled
+    # V12.3: Mark as cancelled in shared registry
     # TODO: Integrate CancellationToken for graceful cancellation
-    workflow["status"] = "cancelled"
+    await _registry.update_status(
+        workflow_id, user.tenant_id, WorkflowStatus.CANCELLED.value
+    )
     logger.info(f"[CORTEX] Workflow {workflow_id} cancelled")
 
     return {"workflow_id": workflow_id, "status": "cancelled"}
@@ -302,19 +323,20 @@ async def list_workflows(
     # V11.6.1 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
     tenant_id = user.tenant_id
 
+    # V12.3 SCALE-OUT: Connect to registry
+    await _registry.connect()
+
+    # V12.3: List from shared registry (tenant-scoped)
+    workflow_list = await _registry.list_workflows(tenant_id, status=status)
+
+    # Format response
     workflows = []
-
-    for wf_id, wf_data in _active_workflows.items():
-        # Filter by authenticated tenant (mandatory)
-        if wf_data.get("tenant_id") != tenant_id:
-            continue
-        if status and wf_data.get("status") != status:
-            continue
-
+    for wf_data in workflow_list:
+        task = wf_data.get("task", "")
         workflows.append({
-            "workflow_id": wf_id,
+            "workflow_id": wf_data["workflow_id"],
             "status": wf_data["status"],
-            "task": wf_data["task"][:50] + "..." if len(wf_data["task"]) > 50 else wf_data["task"],
+            "task": task[:50] + "..." if len(task) > 50 else task,
             "tenant_id": wf_data.get("tenant_id"),
         })
 

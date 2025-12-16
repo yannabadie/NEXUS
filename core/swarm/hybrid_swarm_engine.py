@@ -18,11 +18,14 @@ Usage:
     result = engine.process_task("Fix the auth bug", blackboard)
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Callable, Any, List
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from .agent_metrics import AgentPool, AgentInvocationResult, AgentProfile, create_default_pool
 from .collaboration_modes import CollaborationMode
@@ -382,8 +385,10 @@ class HybridSwarmEngine:
                         result=result
                     )
                 except Exception as mem_err:
-                    # Don't fail the task due to memory recording error
-                    pass
+                    # V12.3: Log memory recording errors (was silent pass)
+                    logger.warning(
+                        f"[SWARM] SuccessMemory recording failed for task {task_id}: {mem_err}"
+                    )
 
             # V7.5 Phase 7: Mark task as completed
             if self.session_manager:

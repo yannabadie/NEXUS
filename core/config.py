@@ -295,6 +295,26 @@ class Config:
             os.getenv("GEMINI_PERSISTENT_TIMEOUT", "300")
         )
 
+        # ====================================================================
+        # V12.3 SCALE-OUT - Multi-Instance Support
+        # ====================================================================
+
+        # Redis URL for shared state
+        self.redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+        # Use Redis for workflow registry (enables multi-instance)
+        self.use_redis_workflows: bool = os.getenv(
+            "USE_REDIS_WORKFLOWS", "True"
+        ).lower() == "true"
+
+        # Use Redis for hibernation state (opt-in, SQLite default)
+        self.use_redis_hibernation: bool = os.getenv(
+            "USE_REDIS_HIBERNATION", "False"
+        ).lower() == "true"
+
+        # TTL for completed/failed workflows (hours)
+        self.workflow_ttl_hours: int = int(os.getenv("WORKFLOW_TTL_HOURS", "24"))
+
     def to_dict(self) -> dict:
         """Export config as dict"""
         return {

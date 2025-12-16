@@ -29,12 +29,15 @@ Date: 2025-12-04
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..utils.atomic_store import AtomicJsonStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -370,6 +373,12 @@ class SuccessMemory:
         }
 
         self._store.save(data)
+
+        # V12.3: Log successful write
+        logger.debug(
+            f"[MEMORY] SuccessMemory recorded task {entry.task_id} "
+            f"(mode={entry.swarm_mode}, quality={entry.quality_score:.2f})"
+        )
 
     def get_all(self) -> List[SuccessEntry]:
         """
