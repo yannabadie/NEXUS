@@ -84,6 +84,18 @@ pytest-cov>=4.0.0
 pytest-asyncio>=0.21.0
 
 # =============================================================================
+# V13.0 MEMORIA UNIVERSALIS: Multi-Format Document Ingestion
+# =============================================================================
+# Docling: IBM's universal document converter
+# Supports: PDF, DOCX, PPTX, XLSX, HTML, images, audio
+# 100% local processing, no cloud API required
+# MIT License
+docling>=2.15.0
+
+# Python-multipart: File upload support for FastAPI
+python-multipart>=0.0.9
+
+# =============================================================================
 # Notes
 # =============================================================================
 # Standard library modules used (no install needed):

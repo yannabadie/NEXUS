@@ -1,5 +1,5 @@
 """
-NEXUS V9.1 Memory Module
+NEXUS V13.0 MEMORIA UNIVERSALIS Memory Module
 
 Memory systems for NEXUS:
 - AutoMemory: Learning from task execution patterns (V7.5)
@@ -8,6 +8,8 @@ Memory systems for NEXUS:
 - Backend Abstraction: Pluggable retrieval backends (V7.9 Phase 10f)
 - Dense Embeddings: Semantic retrieval (V7.9 Phase 10g)
 - MemoryService: Service Layer for memory operations (V9.1)
+- UniversalIngestor: Multi-format document ingestion (V13.0)
+- RAGNamespaceManager: Multi-namespace RAG support (V13.0)
 """
 
 from .auto_memory import AutoMemory, get_auto_memory, MemoryEntry
@@ -29,6 +31,16 @@ from .service import (
     ForgetResult,
     QueryResult,
 )
+
+# V13.0 MEMORIA UNIVERSALIS: Multi-format ingestion
+try:
+    from .ingestors import UniversalIngestor, DOCLING_AVAILABLE
+except ImportError:
+    UniversalIngestor = None
+    DOCLING_AVAILABLE = False
+
+# V13.0 MEMORIA UNIVERSALIS: Multi-namespace RAG
+from .namespace_manager import RAGNamespaceManager, NamespaceInfo
 
 __all__ = [
     # Auto-Memory (V7.5)
@@ -57,4 +69,9 @@ __all__ = [
     "LearnResult",
     "ForgetResult",
     "QueryResult",
+    # V13.0 MEMORIA UNIVERSALIS
+    "UniversalIngestor",
+    "DOCLING_AVAILABLE",
+    "RAGNamespaceManager",
+    "NamespaceInfo",
 ]

@@ -1,13 +1,26 @@
 /**
  * NEXUS CEREBRO Event Stream Component
+ * V13.0 OPERATION POLISH: Auto-scroll + pause on hover
  * Displays live WebSocket events with color coding
  */
+import { useRef, useState, useEffect } from 'react';
 import { useEventStore } from '../stores/eventStore';
 import { getEventColor } from '../types/events';
 
 export function EventStream() {
   const events = useEventStore((s) => s.events);
   const clearEvents = useEventStore((s) => s.clearEvents);
+
+  // V13.0: Auto-scroll refs and state
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
+
+  // V13.0: Auto-scroll to bottom when new events arrive (unless hovering)
+  useEffect(() => {
+    if (!isHovering && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [events, isHovering]);
 
   return (
     <div className="bg-nexus-dark rounded-lg border border-gray-700 h-96 flex flex-col">
@@ -19,6 +32,12 @@ export function EventStream() {
         </h2>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">{events.length} events</span>
+          {/* V13.0: Auto-scroll indicator */}
+          {isHovering && (
+            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded">
+              Paused
+            </span>
+          )}
           <button
             onClick={clearEvents}
             className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -28,8 +47,13 @@ export function EventStream() {
         </div>
       </div>
 
-      {/* Event List */}
-      <div className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1">
+      {/* Event List - V13.0: Auto-scroll with pause on hover */}
+      <div
+        ref={scrollRef}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-1"
+      >
         {events.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500 italic">
             Waiting for events...

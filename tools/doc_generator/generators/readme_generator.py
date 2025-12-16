@@ -48,6 +48,19 @@ class ReadmeGenerator:
             all_modules: All analyzed modules
             dep_graph: Dependency graph
         """
+        # Build relative path for protection check
+        readme_rel_path = str(folder.path / "README.md").replace("\\", "/")
+        if readme_rel_path.startswith("./"):
+            readme_rel_path = readme_rel_path[2:]
+
+        # V13.0: Check protected READMEs
+        if self.config.respect_protected:
+            # Full protection - never touch these files
+            if readme_rel_path in self.config.protected_readmes:
+                if self.config.verbose:
+                    print(f"  [PROTECTED] Skipping {readme_rel_path}")
+                return
+
         # Find modules in this folder
         folder_modules = [
             m for m in all_modules
@@ -60,13 +73,32 @@ class ReadmeGenerator:
         # Determine if this is a package or a single-file folder
         is_package = folder.is_python_package
 
-        if is_package:
-            content = self._generate_package_readme(folder, folder_modules, dep_graph)
+        # V13.0: Check preserve header READMEs
+        readme_path = self.config.repo_root / folder.path / "README.md"
+        if (self.config.respect_protected and
+            readme_rel_path in self.config.preserve_header_readmes and
+            readme_path.exists()):
+            # Preserve existing header, only update stats section
+            existing_content = readme_path.read_text(encoding="utf-8")
+            header = self._extract_header(existing_content)
+            if header:
+                stats = self._generate_stats_only(folder, folder_modules)
+                content = header + "\n\n---\n\n## Auto-Generated Statistics\n\n" + stats
+                if self.config.verbose:
+                    print(f"  [PRESERVE HEADER] Updating stats only for {readme_rel_path}")
+            else:
+                # No header found, generate normally
+                if is_package:
+                    content = self._generate_package_readme(folder, folder_modules, dep_graph)
+                else:
+                    content = self._generate_simple_readme(folder, folder_modules)
         else:
-            content = self._generate_simple_readme(folder, folder_modules)
+            if is_package:
+                content = self._generate_package_readme(folder, folder_modules, dep_graph)
+            else:
+                content = self._generate_simple_readme(folder, folder_modules)
 
         # Write README
-        readme_path = self.config.repo_root / folder.path / "README.md"
         readme_path.write_text(content, encoding="utf-8")
 
     def _module_in_folder(self, module: ModuleInfo, folder_path: Path) -> bool:
@@ -254,3 +286,73 @@ class ReadmeGenerator:
             template = self.env.get_template(template_name)
             return template.render(**context)
         return ""
+
+    def _extract_header(self, content: str) -> Optional[str]:
+        """
+        Extract the header section from an existing README.
+
+        The header is everything before the first '---' separator
+        or before '## Overview' / '## Auto-Generated'.
+
+        Returns None if no clear header is found.
+        """
+        if not content:
+            return None
+
+        lines = content.split("\n")
+        header_lines = []
+
+        for i, line in enumerate(lines):
+            # Stop at horizontal rule
+            if line.strip() == "---":
+                break
+            # Stop at auto-generated section markers
+            if line.startswith("## Overview") or line.startswith("## Auto-Generated"):
+                break
+            # Stop at Mermaid diagrams (typically auto-generated)
+            if line.strip() == "```mermaid":
+                break
+            header_lines.append(line)
+
+        # Only return header if it has meaningful content
+        header = "\n".join(header_lines).strip()
+        if header and len(header) > 20:  # At least a title
+            return header
+        return None
+
+    def _generate_stats_only(
+        self,
+        folder: FolderInfo,
+        modules: list[ModuleInfo]
+    ) -> str:
+        """Generate only the statistics section without header."""
+        total_loc = sum(m.loc for m in modules)
+        total_classes = sum(m.class_count for m in modules)
+        total_functions = sum(m.function_count for m in modules)
+
+        lines = [
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| **Path** | `{folder.path}` |",
+            f"| **Modules** | {len(modules)} |",
+            f"| **Lines of Code** | {total_loc:,} |",
+            f"| **Classes** | {total_classes} |",
+            f"| **Functions** | {total_functions} |",
+            "",
+        ]
+
+        if modules:
+            lines.extend([
+                "### Modules",
+                "",
+                "| Module | Classes | Functions | LOC |",
+                "|--------|---------|-----------|-----|",
+            ])
+            for m in sorted(modules, key=lambda x: x.name):
+                if m.name != "__init__":
+                    lines.append(f"| `{m.name}` | {m.class_count} | {m.function_count} | {m.loc} |")
+            lines.append("")
+
+        lines.append(f"*Updated by nexus-doc-generator - {datetime.now().strftime('%Y-%m-%d')}*")
+
+        return "\n".join(lines)

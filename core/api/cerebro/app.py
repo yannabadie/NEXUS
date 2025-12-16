@@ -136,13 +136,17 @@ def create_cerebro_app() -> FastAPI:
     from .routes import users
     app.include_router(users.router, prefix="/api/users", tags=["users"])
 
+    # V13.0 MEMORIA UNIVERSALIS routers
+    from .routes import memory
+    app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
+
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root():
         """Root endpoint with API info."""
         return {
             "service": "NEXUS CEREBRO API",
-            "version": "12.2.0",  # V12.2 IRONCLAD
+            "version": "13.0.0",  # V13.0 MEMORIA UNIVERSALIS
             "docs": "/docs",
             "health": "/health",
             "websocket": "/ws/stream",
@@ -157,6 +161,10 @@ def create_cerebro_app() -> FastAPI:
             # V12.2 IRONCLAD endpoints
             "users": "/api/users",
             "users_invite": "/api/users/invite",
+            # V13.0 MEMORIA UNIVERSALIS endpoints
+            "memory": "/api/memory/stats",
+            "memory_namespaces": "/api/memory/namespaces",
+            "memory_ingest": "/api/memory/ingest",
         }
 
     return app

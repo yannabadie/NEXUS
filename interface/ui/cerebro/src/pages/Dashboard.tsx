@@ -27,7 +27,7 @@
  * └───────────────────────────────────────────────────────────┘
  */
 import { useEffect, useState, useMemo } from 'react';
-import { Map, FolderTree, Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { Map, FolderTree, Activity, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
 import { useEventStore } from '../stores/eventStore';
@@ -40,6 +40,7 @@ import { InteractionModal } from '../components/InteractionModal';
 import { HiveMap } from '../components/views/HiveMap';
 import { FileCommander } from '../components/views/FileCommander';
 import { MissionControl } from '../components/controls/MissionControl';
+import { MemoryPanel } from '../components/MemoryPanel';
 import type { StateSnapshot, PendingInteraction } from '../types/api';
 
 // =============================================================================
@@ -47,7 +48,8 @@ import type { StateSnapshot, PendingInteraction } from '../types/api';
 // =============================================================================
 
 // V12.1: Added 'events' tab for mobile layout
-type TabId = 'hive' | 'files' | 'events';
+// V13.0: Added 'memory' tab for MEMORIA UNIVERSALIS
+type TabId = 'hive' | 'files' | 'memory' | 'events';
 
 interface Tab {
   id: TabId;
@@ -64,6 +66,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'hive', label: 'Hive Map', shortLabel: 'Hive', icon: <Map size={16} /> },
   { id: 'files', label: 'Files', shortLabel: 'Files', icon: <FolderTree size={16} /> },
+  { id: 'memory', label: 'Memory', shortLabel: 'Memory', icon: <Brain size={16} /> },
   { id: 'events', label: 'Events', shortLabel: 'Events', icon: <Activity size={16} />, mobileOnly: true },
 ];
 
@@ -293,6 +296,12 @@ export function Dashboard() {
             <div className="flex-1 min-h-0">
               {activeTab === 'hive' && <HiveMap />}
               {activeTab === 'files' && <FileCommander />}
+              {/* V13.0: Memory tab for MEMORIA UNIVERSALIS */}
+              {activeTab === 'memory' && (
+                <div className="h-full overflow-auto">
+                  <MemoryPanel />
+                </div>
+              )}
               {/* V12.1: Events tab for mobile */}
               {activeTab === 'events' && (
                 <div className="h-full flex flex-col bg-nexus-dark rounded-lg border border-gray-700 overflow-hidden">

@@ -77,6 +77,35 @@ class DocGeneratorConfig:
     # Verbosity
     verbose: bool = False
 
+    # README Protection (V13.0 - CRITICAL)
+    # These files will NEVER be overwritten by doc generator
+    protected_readmes: list[str] = field(default_factory=lambda: [
+        "README.md",           # Root - NEVER overwrite
+        "docs/README.md",      # Docs index - NEVER overwrite
+        "CLAUDE.md",           # Claude instructions
+        "GEMINI.md",           # Gemini instructions
+        "MISSION.md",          # Mission statement
+        "ROADMAP.md",          # Development roadmap
+    ])
+
+    # READMEs that keep their existing header but receive updated stats
+    preserve_header_readmes: list[str] = field(default_factory=lambda: [
+        "core/README.md",
+        "core/swarm/README.md",
+        "core/memory/README.md",
+        "core/hive_mind/README.md",
+        "core/fsm/README.md",
+        "core/drivers/README.md",
+        "core/security/README.md",
+        "core/evolution/README.md",
+        "core/synapse/README.md",
+        "interface/README.md",
+        "interface/ui/cerebro/README.md",
+    ])
+
+    # Respect protection lists (can be disabled with CLI flag for testing)
+    respect_protected: bool = True
+
     def __post_init__(self):
         """Initialize derived paths."""
         if self.output_dir is None:

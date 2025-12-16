@@ -56,12 +56,32 @@ from .backends import (
     BM25S_AVAILABLE, STEMMER_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
 )
 
+# V13.0 MEMORIA UNIVERSALIS: Multi-format document ingestion
+try:
+    from .ingestors import UniversalIngestor, DOCLING_AVAILABLE, DOCLING_EXTENSIONS
+    INGESTOR_AVAILABLE = True
+except ImportError:
+    INGESTOR_AVAILABLE = False
+    DOCLING_AVAILABLE = False
+    DOCLING_EXTENSIONS = {}
+    UniversalIngestor = None
+
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
-DEFAULT_EXTENSIONS = [".py", ".md", ".txt", ".yaml", ".yml", ".json", ".toml"]
+# V13.0: Extended extensions including Docling formats
+DEFAULT_EXTENSIONS = [
+    # Code
+    ".py", ".js", ".ts", ".tsx", ".jsx",
+    # Markup & Config
+    ".md", ".txt", ".yaml", ".yml", ".json", ".toml", ".xml", ".html", ".htm",
+    # Documents (via Docling)
+    ".pdf", ".docx", ".doc", ".pptx", ".xlsx",
+    # Images (via Docling OCR)
+    ".png", ".jpg", ".jpeg",
+]
 EXCLUDED_DIRS = ["__pycache__", ".git", "node_modules", ".venv", "venv",
                  "workspace", "workspace_archive", ".pytest_cache", "dist", "build"]
 
@@ -119,6 +139,9 @@ class ProjectMemory:
         # V10 MEMORY FORGE: Store engine for injection into DenseBackend
         self._embedding_engine: Optional['EmbeddingEngine'] = embedding_engine
 
+        # V13.0 MEMORIA UNIVERSALIS: Universal document ingestor
+        self._ingestor: Optional['UniversalIngestor'] = None
+
         # In-memory data
         self.chunks: List[Chunk] = []
         self.indexed_files: Set[str] = set()
@@ -135,6 +158,22 @@ class ProjectMemory:
 
         # Load existing index
         self._load()
+
+    @property
+    def ingestor(self) -> Optional['UniversalIngestor']:
+        """
+        V13.0 MEMORIA UNIVERSALIS: Lazy-load universal document ingestor.
+
+        Returns:
+            UniversalIngestor instance or None if not available
+        """
+        if self._ingestor is None and INGESTOR_AVAILABLE:
+            try:
+                self._ingestor = UniversalIngestor()
+                self._logger.info("UniversalIngestor initialized")
+            except Exception as e:
+                self._logger.warning(f"Failed to initialize ingestor: {e}")
+        return self._ingestor
 
     def _select_backend(self) -> MemoryBackend:
         """
@@ -224,12 +263,28 @@ class ProjectMemory:
         if force and rel_path in self.indexed_files:
             self.forget(path)
 
-        # Read file content
-        try:
-            content = path.read_text(encoding="utf-8", errors="ignore")
-        except Exception as e:
-            self._logger.warning(f"Failed to read {path}: {e}")
-            return 0
+        # V13.0 MEMORIA UNIVERSALIS: Use ingestor for non-text formats
+        suffix = path.suffix.lower()
+        docling_formats = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls",
+                          ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
+
+        if suffix in docling_formats and self.ingestor is not None:
+            # Use Docling for documents and images
+            try:
+                content = self.ingestor.ingest(path)
+                if content is None:
+                    self._logger.warning(f"Docling failed to ingest {path}")
+                    return 0
+            except Exception as e:
+                self._logger.warning(f"Docling ingest error for {path}: {e}")
+                return 0
+        else:
+            # Standard text file reading
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except Exception as e:
+                self._logger.warning(f"Failed to read {path}: {e}")
+                return 0
 
         # Skip empty or tiny files
         if len(content.strip()) < MIN_CHUNK_SIZE:
@@ -240,11 +295,11 @@ class ProjectMemory:
             self._logger.warning(f"Chunk limit reached ({MAX_CHUNKS}), skipping {rel_path}")
             return 0
 
-        # Chunk based on file type
-        suffix = path.suffix.lower()
+        # Chunk based on file type (after potential Docling conversion to markdown)
         if suffix == ".py":
             new_chunks = self._chunk_python(content, rel_path)
-        elif suffix == ".md":
+        elif suffix == ".md" or suffix in docling_formats:
+            # Docling outputs markdown, use markdown chunker
             new_chunks = self._chunk_markdown(content, rel_path)
         else:
             new_chunks = self._chunk_by_lines(content, rel_path)

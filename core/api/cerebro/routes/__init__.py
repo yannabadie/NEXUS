@@ -1,7 +1,8 @@
 """
-NEXUS V10 CEREBRO - API Routes Package
+NEXUS V13.0 MEMORIA UNIVERSALIS - API Routes Package
 V11.5 CORTEX: Extended with state, interactions, workflow, files endpoints
 V11.6 KEYMAKER: Authentication endpoints
+V13.0 MEMORIA: Memory management endpoints
 
 Routes:
 - health: Health check endpoints (/health, /health/ready)
@@ -11,8 +12,9 @@ Routes:
 - workflow: Task execution control (/api/workflow/start)
 - files: Secure file access (/api/files/content)
 - auth: Authentication (V11.6) (/api/auth/login, /api/auth/me)
+- memory: RAG memory management (V13.0) (/api/memory/*)
 """
 
-from . import health, stream, state, interactions, workflow, files, auth
+from . import health, stream, state, interactions, workflow, files, auth, memory
 
-__all__ = ["health", "stream", "state", "interactions", "workflow", "files", "auth"]
+__all__ = ["health", "stream", "state", "interactions", "workflow", "files", "auth", "memory"]
