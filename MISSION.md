@@ -1,7 +1,7 @@
 # MISSION.md – NEXUS KERNEL VISION
 
 **Date de création**: 21 novembre 2025
-**Mise à jour**: 3 décembre 2025 (V7.5 "HIVE MIND")
+**Mise à jour**: 16 décembre 2025 (V12.4 "COGNITIVE BOOST")
 **Auteur**: Yann Abadie (Créateur)
 **Version**: 2.0 – Collaborative Intelligence Core
 **Statut**: Loi Fondamentale – Tout NEXUS doit respecter ce document
