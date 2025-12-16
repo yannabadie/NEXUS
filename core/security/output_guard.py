@@ -1,5 +1,5 @@
 """
-NEXUS V8.8 - OutputGuard (System Prompt Leak Prevention)
+NEXUS V12.4 COGNITIVE BOOST - OutputGuard (System Prompt Leak Prevention)
 
 Layer 5 defense for detecting system prompt leakage in LLM output.
 Based on Azure Prompt Shields and OWASP recommendations.
@@ -9,6 +9,13 @@ Defense capabilities:
 2. Instruction echo detection
 3. Role revelation detection
 4. Sensitive pattern masking
+5. V12.4: DialogueAct classification (reduces false positives)
+
+V12.4 COGNITIVE BOOST:
+- Added DialogueAct classification to understand output intent
+- Reduces false positives when AI mentions its role in legitimate context
+- Rule-based classifier for INFORM, EXPLAIN, REFUSE, etc.
+- Only flags role revelation when it appears suspicious (unprompted/detailed)
 
 Integration points:
 - FSM Orchestrator: validate LLM responses before display
@@ -51,6 +58,93 @@ class LeakSeverity(Enum):
     HIGH = "high"     # Full prompt or sensitive data leak
 
 
+# =============================================================================
+# V12.4 COGNITIVE BOOST - DialogueAct Classification
+# =============================================================================
+
+class DialogueAct(Enum):
+    """
+    V12.4: Dialogue act classification for output intent analysis.
+
+    Used to reduce false positives in leak detection by understanding
+    whether role mentions are legitimate conversational responses.
+    """
+    INFORM = "inform"           # Providing factual information
+    EXPLAIN = "explain"         # Explaining a concept or process
+    CONFIRM = "confirm"         # Confirming understanding
+    REFUSE = "refuse"           # Declining a request
+    CLARIFY = "clarify"         # Asking for clarification
+    ACKNOWLEDGE = "acknowledge" # Acknowledging input
+    META = "meta"               # Meta-discussion (about self/capabilities)
+    UNKNOWN = "unknown"         # Could not classify
+
+
+# Patterns for DialogueAct classification
+DIALOGUE_ACT_PATTERNS = {
+    DialogueAct.INFORM: [
+        r"^(here|the|this|that)\s+(is|are|was|were)\b",
+        r"^(i|we)\s+(found|located|identified|discovered)\b",
+        r"^(the\s+)?(answer|result|output|value)\s+(is|are)\b",
+    ],
+    DialogueAct.EXPLAIN: [
+        r"^(this|that)\s+(means|works|happens|occurs)\b",
+        r"^(let me|i\'ll|i will)\s+explain\b",
+        r"^(the reason|because|since|as)\b",
+        r"^(to understand|for context)\b",
+    ],
+    DialogueAct.CONFIRM: [
+        r"^(yes|correct|exactly|right|indeed)\b",
+        r"^(that\'s|that is)\s+(right|correct)\b",
+        r"^(i|we)\s+(can|will|shall)\s+(do|help|assist)\b",
+    ],
+    DialogueAct.REFUSE: [
+        r"^(i|we)\s+(can\'t|cannot|won\'t|will not)\b",
+        r"^(sorry|unfortunately)\b",
+        r"^(i\'m|i am)\s+(not able|unable)\b",
+    ],
+    DialogueAct.CLARIFY: [
+        r"^(do you mean|are you asking|could you)\b",
+        r"^(what do you mean|please clarify)\b",
+    ],
+    DialogueAct.ACKNOWLEDGE: [
+        r"^(i see|understood|got it|okay|ok)\b",
+        r"^(thank you|thanks)\b",
+    ],
+    DialogueAct.META: [
+        r"^(i am|i\'m)\s+(a|an)\s+(ai|assistant|language model)\b",
+        r"^(as an ai|as a language model)\b",
+        r"^(i|my)\s+(capabilities|limitations|features)\b",
+    ],
+}
+
+
+def classify_dialogue_act(text: str) -> DialogueAct:
+    """
+    V12.4: Classify the dialogue act of an output.
+
+    Uses rule-based pattern matching on the first sentence.
+
+    Args:
+        text: Output text to classify
+
+    Returns:
+        DialogueAct classification
+    """
+    if not text or not text.strip():
+        return DialogueAct.UNKNOWN
+
+    # Extract first sentence (up to first period, question mark, or newline)
+    first_sentence = re.split(r'[.?!\n]', text.strip())[0].strip().lower()
+
+    # Try to match against each act's patterns
+    for act, patterns in DIALOGUE_ACT_PATTERNS.items():
+        for pattern in patterns:
+            if re.match(pattern, first_sentence, re.IGNORECASE):
+                return act
+
+    return DialogueAct.UNKNOWN
+
+
 @dataclass
 class OutputValidationResult:
     """Result of output validation."""
@@ -60,6 +154,7 @@ class OutputValidationResult:
     reason: Optional[str] = None
     leaked_fragments: List[str] = field(default_factory=list)
     sanitized_output: Optional[str] = None  # Output with leaks redacted
+    dialogue_act: DialogueAct = DialogueAct.UNKNOWN  # V12.4: Output intent
 
     def __bool__(self) -> bool:
         return self.is_safe
@@ -174,6 +269,10 @@ class OutputGuard:
         """
         Validate LLM output for information leakage.
 
+        V12.4: Uses DialogueAct classification to reduce false positives.
+        Role mentions in legitimate contexts (REFUSE, CONFIRM, INFORM) are
+        downgraded from HIGH to LOW severity.
+
         Args:
             output: LLM output to validate
 
@@ -186,15 +285,25 @@ class OutputGuard:
         if not output or not output.strip():
             return OutputValidationResult(is_safe=True)
 
+        # V12.4: Classify dialogue act for context-aware validation
+        dialogue_act = classify_dialogue_act(output)
+
         leaks: List[Tuple[LeakType, LeakSeverity, str, str]] = []
 
         # Check for system prompt leaks (HIGH severity)
         for pattern, desc in self._system_prompt_patterns:
             match = pattern.search(output)
             if match:
+                # V12.4: Context-aware severity adjustment
+                severity = self._adjust_severity_for_context(
+                    LeakSeverity.HIGH,
+                    LeakType.SYSTEM_PROMPT,
+                    dialogue_act,
+                    desc
+                )
                 leaks.append((
                     LeakType.SYSTEM_PROMPT,
-                    LeakSeverity.HIGH,
+                    severity,
                     desc,
                     match.group()
                 ))
@@ -210,7 +319,7 @@ class OutputGuard:
                     match.group()
                 ))
 
-        # Check for sensitive data (HIGH severity)
+        # Check for sensitive data (HIGH severity - never downgrade)
         for pattern, desc in self._sensitive_data_patterns:
             match = pattern.search(output)
             if match:
@@ -222,7 +331,7 @@ class OutputGuard:
                 ))
 
         if not leaks:
-            return OutputValidationResult(is_safe=True)
+            return OutputValidationResult(is_safe=True, dialogue_act=dialogue_act)
 
         # Sort by severity
         severity_order = {
@@ -247,8 +356,76 @@ class OutputGuard:
             leak_severity=primary_severity,
             reason=primary_reason,
             leaked_fragments=[l[3][:50] + "..." if len(l[3]) > 50 else l[3] for l in leaks],
-            sanitized_output=sanitized
+            sanitized_output=sanitized,
+            dialogue_act=dialogue_act
         )
+
+    def _adjust_severity_for_context(
+        self,
+        base_severity: LeakSeverity,
+        leak_type: LeakType,
+        dialogue_act: DialogueAct,
+        pattern_desc: str
+    ) -> LeakSeverity:
+        """
+        V12.4: Adjust leak severity based on dialogue act context.
+
+        Legitimate conversational mentions of AI identity are downgraded.
+        Explicit prompt/instruction disclosure remains high severity.
+
+        Args:
+            base_severity: Original severity
+            leak_type: Type of leak
+            dialogue_act: Classified dialogue act
+            pattern_desc: Description of matched pattern
+
+        Returns:
+            Adjusted severity
+        """
+        # Never downgrade sensitive data leaks
+        if leak_type == LeakType.SENSITIVE_DATA:
+            return base_severity
+
+        # Never downgrade explicit prompt/instruction disclosure
+        explicit_disclosures = [
+            "System instruction disclosure",
+            "Initial prompt disclosure",
+            "Instruction disclosure",
+            "NEXUS prompt reference",
+            "HiveMind instruction reference",
+            "KERNEL reference",
+            "CLAUDE.md reference",
+            "GEMINI.md reference",
+        ]
+        if pattern_desc in explicit_disclosures:
+            return base_severity
+
+        # V12.4: Downgrade role revelation in legitimate dialogue contexts
+        # If the AI mentions being an AI while confirming/refusing/informing,
+        # it's likely a legitimate response, not a prompt leak attempt
+        legitimate_contexts = [
+            DialogueAct.CONFIRM,
+            DialogueAct.REFUSE,
+            DialogueAct.INFORM,
+            DialogueAct.EXPLAIN,
+            DialogueAct.ACKNOWLEDGE,
+        ]
+
+        role_patterns = [
+            "Role revelation",
+            "AI self-identification",
+            "Role disclosure",
+            "Design purpose disclosure",
+        ]
+
+        if dialogue_act in legitimate_contexts and pattern_desc in role_patterns:
+            # Downgrade from HIGH to LOW - it's a legitimate conversational mention
+            if base_severity == LeakSeverity.HIGH:
+                return LeakSeverity.LOW
+            elif base_severity == LeakSeverity.MEDIUM:
+                return LeakSeverity.LOW
+
+        return base_severity
 
     def _sanitize_output(
         self,

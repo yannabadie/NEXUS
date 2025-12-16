@@ -20,11 +20,11 @@ Trajectory Signals:
 - Similarity increasing over time → converging without action
 - Tool mentions without tool use → discussing instead of doing
 
-Action Thresholds:
-- < 0.4: CONTINUE (normal)
-- 0.4-0.6: MONITOR_CLOSELY
-- 0.6-0.8: NUDGE_ACTION (gentle reminder)
-- > 0.8: INJECT_WARNING (full intervention)
+Action Thresholds (V12.4 COGNITIVE BOOST - lowered for proactivity):
+- < 0.15: CONTINUE (normal)
+- 0.15-0.25: MONITOR_CLOSELY
+- 0.25-0.40: NUDGE_ACTION (gentle reminder)
+- > 0.40: INTERVENE (full intervention)
 
 Author: Claude (NEXUS V8.4.4)
 Date: 2025-12-10
@@ -46,10 +46,10 @@ from typing import Dict, List, Optional, Tuple
 
 class PredictionLevel(Enum):
     """Stagnation prediction levels with recommended actions."""
-    CONTINUE = "continue"            # < 0.4 - Normal operation
-    MONITOR = "monitor"              # 0.4-0.6 - Watch closely
-    NUDGE = "nudge"                  # 0.6-0.8 - Gentle reminder
-    INTERVENE = "intervene"          # > 0.8 - Full intervention
+    CONTINUE = "continue"            # < 0.15 - Normal operation
+    MONITOR = "monitor"              # 0.15-0.25 - Watch closely
+    NUDGE = "nudge"                  # 0.25-0.40 - Gentle reminder
+    INTERVENE = "intervene"          # > 0.40 - Full intervention
 
 
 # =============================================================================
@@ -150,9 +150,12 @@ class StagnationPredictor:
     """
 
     # Thresholds for prediction levels
-    MONITOR_THRESHOLD = 0.4
-    NUDGE_THRESHOLD = 0.6
-    INTERVENE_THRESHOLD = 0.8
+    # V12.4 COGNITIVE BOOST: Lowered thresholds for proactive detection
+    # Original (too conservative): 0.4, 0.6, 0.8
+    # Adjusted for earlier detection of stagnation signals
+    MONITOR_THRESHOLD = 0.15
+    NUDGE_THRESHOLD = 0.25
+    INTERVENE_THRESHOLD = 0.40
 
     def __init__(
         self,
@@ -231,26 +234,28 @@ class StagnationPredictor:
         total_score = 0.0
 
         # Factor 1: Leading indicators in recent messages
+        # V12.4 COGNITIVE BOOST: Increased weights for proactive detection
+        # Original weights (0.35, 0.35, 0.15, 0.15) were too conservative
         if self._enable_indicators:
             indicator_score = self._compute_indicator_factor()
             factors["leading_indicators"] = indicator_score
-            total_score += indicator_score * 0.35  # 35% weight
+            total_score += indicator_score * 0.70  # 70% weight (was 35%)
 
         # Factor 2: Trajectory analysis
         if self._enable_trajectory:
             trajectory_score = self._compute_trajectory_factor()
             factors["trajectory"] = trajectory_score
-            total_score += trajectory_score * 0.35  # 35% weight
+            total_score += trajectory_score * 0.70  # 70% weight (was 35%)
 
         # Factor 3: Tool mention without use
         tool_score = self._compute_tool_factor()
         factors["tool_mention_no_use"] = tool_score
-        total_score += tool_score * 0.15  # 15% weight
+        total_score += tool_score * 0.30  # 30% weight (was 15%)
 
         # Factor 4: Similarity increase
         similarity_score = self._compute_similarity_factor()
         factors["similarity_increase"] = similarity_score
-        total_score += similarity_score * 0.15  # 15% weight
+        total_score += similarity_score * 0.30  # 30% weight (was 15%)
 
         # Clamp probability
         probability = min(total_score, 1.0)
