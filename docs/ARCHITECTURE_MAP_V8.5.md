@@ -1,5 +1,9 @@
 # NEXUS V8.5.1 Architecture Map
 
+> ⚠️ **Note**: This document describes V8.5.1 architecture. For current state, see:
+> - [ROADMAP_V10.md](../ROADMAP_V10.md) - Current roadmap
+> - [WORKFLOW_MAP.md](WORKFLOW_MAP.md) - Current workflow diagrams
+
 **Generated**: 2025-12-11
 **Version**: V8.5.1 "True Hive Mind"
 **Source**: Codebase analysis (126 files, 42,831 LOC)

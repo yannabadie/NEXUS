@@ -1,5 +1,9 @@
 # NEXUS V8.5.1 "TRUE HIVE MIND" - Inventaire Exhaustif des Fonctionnalites
 
+> ⚠️ **Note**: This document describes V8.5.1 features. For current state, see:
+> - [ROADMAP_V10.md](../ROADMAP_V10.md) - Current roadmap with Phase 3.5 mined ideas
+> - [MINED_IDEAS.md](MINED_IDEAS.md) - 17 forgotten features from legacy docs
+
 **Date**: 2025-12-11
 **Version**: 8.5.1
 **Status**: Production-Ready
