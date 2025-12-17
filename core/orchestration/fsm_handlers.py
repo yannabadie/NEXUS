@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 from core.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
+from core.fsm.stagnation_predictor import PredictionLevel
 from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
@@ -154,7 +155,7 @@ class FSMHandlers:
         # New input received - reset and process as new task
         self._logger.debug("WAITING_USER -> new input received, transitioning to IDLE")
         self._orch.iteration = 0
-        self._orch.stagnation_detector.reset()
+        self._orch.stagnation_predictor.reset()
         self._orch.stalemate_counter = 0
         self._orch.panic_system.reset_errors()
         self._orch._transition_to(OrchestratorState.IDLE)
@@ -186,9 +187,10 @@ class FSMHandlers:
             if self._orch.config.ui_verbose:
                 print(f"[PLAN HEALTH] {health['status']}: {health['message']}")
 
-        # Check stagnation
-        if self._orch.stagnation_detector.is_stagnant():
-            return self._orch._handle_stagnation()
+        # Check stagnation (V12.4 Proactive)
+        stagnation_result = self._orch.stagnation_predictor.predict()
+        if stagnation_result.level in [PredictionLevel.NUDGE, PredictionLevel.INTERVENE]:
+            return self._orch._handle_prediction(stagnation_result)
 
         # Invoke active agent
         context = self._build_context()
@@ -202,7 +204,7 @@ class FSMHandlers:
             self._orch.panic_system.reset_errors()
 
             # Calculate quality score
-            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            is_stagnant = self._orch.stagnation_predictor.predict().level == PredictionLevel.INTERVENE
             quality = self._calculate_quality_score(message, True, is_stagnant)
             self._record_invocation(
                 self._orch.active_agent, "brainstorm", True, invoke_duration, quality
@@ -245,13 +247,14 @@ class FSMHandlers:
 
         elif action_type in ["TALK", "DELEGATE"]:
             # Continue brainstorming
-            self._orch.stagnation_detector.add_message(content)
+            self._orch.stagnation_predictor.add_message(content, has_tool_use=False)
             sender = message.get("sender", self._orch.active_agent)
 
             # FORCE alternance Gemini↔Claude (V8.4.0: via registry)
             previous_agent = self._orch.active_agent
             self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
-            self._orch.stagnation_detector.reset()
+            # V12.4 FIX: DO NOT reset stagnation predictor here! History must trigger!
+
             if self._orch.config.ui_verbose:
                 print(f"[BRAINSTORM] {self._registry.get_display_name(previous_agent)} → {self._registry.get_display_name(self._orch.active_agent)}", file=sys.stderr)
 
@@ -424,8 +427,9 @@ class FSMHandlers:
             self._orch.memory.save_to_disk()
 
         # Check stagnation
-        if self._orch.stagnation_detector.is_stagnant():
-            return self._make_result("EVOLUTION_BRAINSTORM", "Evolution debate may be stagnant", self._orch.active_agent, False)
+        stagnation_result = self._orch.stagnation_predictor.predict()
+        if stagnation_result.level == PredictionLevel.INTERVENE:
+            return self._make_result("EVOLUTION_BRAINSTORM", "Evolution debate stagnant (INTERVENTION needed)", self._orch.active_agent, False)
 
         # Invoke agent
         context = self._build_context()
@@ -438,7 +442,7 @@ class FSMHandlers:
             self._orch.json_parse_failures = 0
             self._orch.panic_system.reset_errors()
 
-            is_stagnant = self._orch.stagnation_detector.is_stagnant()
+            is_stagnant = self._orch.stagnation_predictor.predict().level == PredictionLevel.INTERVENE
             quality = self._calculate_quality_score(message, True, is_stagnant)
             self._record_invocation(
                 self._orch.active_agent, "evolution", True, invoke_duration, quality
@@ -458,7 +462,7 @@ class FSMHandlers:
         action_type = message.get("action_type")
         content = message.get("content", "")
         sender = message.get("sender", self._orch.active_agent)
-        self._orch.stagnation_detector.add_message(content)
+        self._orch.stagnation_predictor.add_message(content, has_tool_use=False)
 
         # V13.0 CEREBRO LIVE: Emit agent exchange for evolution debate
         next_agent = self._registry.get_alternate(self._orch.active_agent) or "user"
@@ -476,7 +480,7 @@ class FSMHandlers:
         # FORCE alternation (V8.4.0: via registry)
         previous_agent = self._orch.active_agent
         self._orch.active_agent = self._registry.get_alternate(self._orch.active_agent) or self._orch.active_agent
-        self._orch.stagnation_detector.reset()
+        # V12.4 FIX: DO NOT reset stagnation predictor logic here
 
         # Handle TOOL_USE
         if action_type == "TOOL_USE":
@@ -702,7 +706,7 @@ class FSMHandlers:
         self._orch.blackboard["objective"] = user_input
         self._orch.blackboard["current_state"]["iteration"] = self._orch.iteration
         self._orch.active_agent = "gemini"  # V8.4.0: lowercase normalized
-        self._orch.stagnation_detector.reset()
+        self._orch.stagnation_predictor.reset()
         self._orch.stalemate_counter = 0
 
         self._orch._transition_to(OrchestratorState.BRAINSTORMING)

@@ -13,7 +13,7 @@ Architecture FSM (Finite State Machine):
 from pathlib import Path
 from typing import Dict, Optional, Callable
 from core.fsm.states import OrchestratorState, TransitionGuard
-from core.fsm.stagnation_detector import StagnationDetector
+from core.fsm.stagnation_predictor import StagnationPredictor, PredictionLevel
 from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
 from core.fsm.context import TaskExecutionContext
@@ -101,10 +101,11 @@ class OrchestratorV7:
         self.memory = MemoryManagerV7(workspace_path, config)
         self.blackboard = self.memory.load_initial_state()
 
-        # Stagnation detector
-        self.stagnation_detector = StagnationDetector(
-            similarity_threshold=config.stagnation_similarity_threshold,
-            window_size=3
+        # Stagnation predictor (V12.4 COGNITIVE BOOST)
+        self.stagnation_predictor = StagnationPredictor(
+            window_size=5,
+            enable_trajectory=True,
+            enable_indicators=True
         )
 
         # Plan Health Monitor (NEW!)
@@ -828,21 +829,35 @@ class OrchestratorV7:
         """Detect valid mutation proposal. V7.8: Delegates to MutationDetector."""
         return self.mutation_detector.detect_mutation_complete(content)
 
-    def _handle_stagnation(self) -> Dict:
-        """Handle stagnation détectée"""
-        warning = self.stagnation_detector.get_stagnation_message()
-
-        # Force Gemini to decide (V8.4.0: use normalized ID)
-        self.active_agent = "gemini"
-        self.stagnation_detector.reset()
-
-        return self._make_result(
-            "BRAINSTORMING",
-            "⚠️ Stagnation detected. Forcing decision...",
-            "Gemini",
-            False,
-            error="STAGNATION"
-        )
+    def _handle_prediction(self, result) -> Dict:
+        """
+        Handle stagnation prediction (NUDGE/INTERVENE).
+        
+        Args:
+            result: PredictionResult from StagnationPredictor
+        """
+        if result.level == PredictionLevel.INTERVENE:
+            # Full intervention - force Gemini to maximize reasoning
+            self.active_agent = "gemini"
+            self.stagnation_predictor.reset()
+            return self._make_result(
+                "BRAINSTORMING",
+                result.nudge_message or "⚠️ Stagnation detected. Intervention required.",
+                "Gemini",
+                False,
+                error="STAGNATION_INTERVENTION"
+            )
+            
+        elif result.level == PredictionLevel.NUDGE:
+            # Gentle nudge - keep current agent but warn
+            return self._make_result(
+                "BRAINSTORMING", 
+                result.nudge_message or "💡 Nudge: Let's move forward.", 
+                self.active_agent, 
+                False
+            )
+            
+        return self._make_result("BRAINSTORMING", "Continue", self.active_agent, False)
 
     def _handle_error(self, error_msg: str) -> Dict:
         """Handle recoverable error"""
@@ -986,7 +1001,7 @@ class OrchestratorV7:
             clear_task: If True, also clears the current objective and history
         """
         self.state = OrchestratorState.IDLE
-        self.stagnation_detector.reset()
+        self.stagnation_predictor.reset()
         self.stalemate_counter = 0
         self.pending_tool_result = None
         self.json_parse_failures = 0
@@ -1016,8 +1031,8 @@ class OrchestratorV7:
             "plan_health": plan_health,
             "panic_system": panic_status,
             "stagnation": {
-                "is_stagnant": self.stagnation_detector.is_stagnant(),
-                "window_size": self.stagnation_detector.window_size
+                "prediction": self.stagnation_predictor.predict().level.value,
+                "window_size": 5
             },
             "backups": {
                 "available": len(self.memory.list_backups()),
