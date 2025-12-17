@@ -88,7 +88,8 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 | `fsm_handlers.py` (74KB) | `handlers/` | 8 | ~640 |
 | `repl.py` (74KB) | `repl/` | 7 | ~520 |
 | `tool_manager.py` (63KB) | `tools/` | 6 | ~630 |
-| **Total** | | **21** | **~1790** |
+| `mode_executors.py` (48KB) | `executors/` | 5 | ~420 |
+| **Total** | | **26** | **~2210** |
 
 ### Priority 4: Security Hardening 🔒
 
