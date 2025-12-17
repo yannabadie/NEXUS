@@ -23,7 +23,7 @@ export function Header({ wsStatus }: Props) {
           <h1 className="text-xl font-bold text-white">
             NEXUS <span className="text-primary">CEREBRO</span>
           </h1>
-          <span className="text-xs text-gray-500 hidden sm:inline">V11.7 RETINA</span>
+          <span className="text-xs text-gray-500 hidden sm:inline">V13.0 MEMORIA</span>
         </div>
 
         {/* Status & User */}

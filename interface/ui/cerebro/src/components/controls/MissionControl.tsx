@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Eraser,
   // V12.1: Icons for Swarm modes
   Layers,
   ListOrdered,
@@ -29,6 +30,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useEventStore } from '../../stores/eventStore';
+import { useGraphStore } from '../../stores/graphStore';
 
 // =============================================================================
 // Types
@@ -107,6 +109,10 @@ export function MissionControl() {
   const [status, setStatus] = useState<WorkflowStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
+  // Store access for clear board
+  const clearEvents = useEventStore((s) => s.clearEvents);
+  const clearGraph = useGraphStore((s) => s.clear);
+
   // Get latest phase from events
   const latestPhaseEvent = useEventStore((s) =>
     s.getLatestEvent('orchestration.phase') || s.getLatestEvent('hive.phase')
@@ -129,8 +135,8 @@ export function MissionControl() {
     try {
       const response = await api.post<WorkflowStartResponse>('/api/workflow/start', {
         task: objective,
-        // Note: mode selection may need backend support
-        // complexity: 'MODERATE',
+        swarm_mode: mode.toUpperCase(),
+        complexity: 'MODERATE',
       });
 
       setWorkflowId(response.workflow_id);
@@ -166,6 +172,13 @@ export function MissionControl() {
     setObjective('');
   }, []);
 
+  // V13.0: Clear entire board (reset + clear events + clear graph)
+  const clearBoard = useCallback(() => {
+    reset();
+    clearEvents();
+    clearGraph();
+  }, [reset, clearEvents, clearGraph]);
+
   // ---------------------------------------------------------------------------
   // Render Helpers
   // ---------------------------------------------------------------------------
@@ -191,6 +204,19 @@ export function MissionControl() {
             {currentPhase}
           </span>
         )}
+        {/* V13.0: Clear Board button */}
+        <button
+          onClick={clearBoard}
+          disabled={status === 'running' || status === 'starting'}
+          title="Clear Board"
+          className={`${currentPhase ? '' : 'ml-auto'} p-1.5 rounded transition-colors ${
+            status === 'running' || status === 'starting'
+              ? 'text-gray-600 cursor-not-allowed'
+              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          <Eraser size={16} />
+        </button>
       </div>
 
       <div className="p-4 space-y-4">

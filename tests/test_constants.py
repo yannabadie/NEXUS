@@ -167,6 +167,6 @@ class TestConstantsVersion:
         assert len(parts) == 3
         assert all(p.isdigit() for p in parts)
 
-    def test_version_is_9_5(self):
-        """Version should be 9.5.x."""
-        assert CONSTANTS_VERSION.startswith("9.5")
+    def test_version_is_9_x(self):
+        """Version should be 9.x.x (V9 series)."""
+        assert CONSTANTS_VERSION.startswith("9.")

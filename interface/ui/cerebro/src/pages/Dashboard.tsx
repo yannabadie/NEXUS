@@ -302,21 +302,10 @@ export function Dashboard() {
                   <MemoryPanel />
                 </div>
               )}
-              {/* V12.1: Events tab for mobile */}
+              {/* V12.1: Events tab for mobile - EventStream has own header */}
               {activeTab === 'events' && (
-                <div className="h-full flex flex-col bg-nexus-dark rounded-lg border border-gray-700 overflow-hidden">
-                  <div className="px-4 py-2 border-b border-gray-700 flex items-center gap-2">
-                    <Activity size={14} className="text-cyan-400" />
-                    <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                      Event Stream
-                    </span>
-                    <span className="ml-auto text-xs text-gray-500">
-                      {events.length} events
-                    </span>
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    <EventStream />
-                  </div>
+                <div className="h-full overflow-hidden">
+                  <EventStream />
                 </div>
               )}
             </div>
@@ -327,20 +316,9 @@ export function Dashboard() {
             {/* Mission Control */}
             <MissionControl />
 
-            {/* Event Stream */}
-            <div className="flex-1 min-h-0 flex flex-col bg-nexus-dark rounded-lg border border-gray-700 overflow-hidden">
-              <div className="px-4 py-2 border-b border-gray-700 flex items-center gap-2">
-                <Activity size={14} className="text-cyan-400" />
-                <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                  Event Stream
-                </span>
-                <span className="ml-auto text-xs text-gray-500">
-                  {events.length} events
-                </span>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <EventStream />
-              </div>
+            {/* Event Stream - uses its own header */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <EventStream />
             </div>
           </div>
         </div>
