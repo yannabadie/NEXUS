@@ -48,6 +48,45 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 
 ---
 
+## 🆕 Phase 3.6: DEEP_AUDIT Resolutions (NEW - 2025-12-17)
+
+> **Source**: Extracted from `DEEP_AUDIT.md` (Technical Audit Report)
+
+### Priority 1: Split Monolithic Files 🔴
+
+| File | Size | Resolution |
+|------|------|------------|
+| `fsm_handlers.py` | 74.7KB | Split → `fsm/handlers/*.py` |
+| `repl.py` | 72.6KB | Split → `repl_core.py`, `repl_parser.py`, `repl_display.py` |
+| `tool_manager.py` | 62.1KB | Split → `execution/tools/*.py` |
+| `mode_executors.py` | 46.9KB | Split → one file per mode |
+
+### Priority 2: Exception Audit 🟡
+
+| File | `except` Blocks | Action |
+|------|-----------------|--------|
+| `tool_manager.py` | 40 | Add specific exceptions + logging |
+| `repl.py` | 30 | Remove bare `except:` blocks |
+| `dashboard_server.py` | 27 | Fix WebSocket error masking |
+| `fsm_handlers.py` | 26 | Add state machine error logging |
+
+### Priority 3: Wire Missing Features 🟢
+
+| Feature | Location | Effort | Status |
+|---------|----------|--------|--------|
+| Wire EPHEMERAL | `session_manager.py` | 1 day | ✅ DONE |
+| Enable Fast Path | `fsm_handlers.py` | 1 day | ✅ DONE |
+| Rate Limiting | `core/api/rate_limiter.py` | 2 days | ✅ DONE |
+| Recovery Manager | `core/hive_mind/` | 3 days | ❌ TODO |
+
+### Priority 4: Security Hardening 🔒
+
+- [ ] Input validation layer before tool execution
+- [ ] Path canonicalization in `path_guardian.py`
+- [ ] Rate limiting on bash tool execution
+
+---
+
 ## 🆕 Phase 3.5: Mined Ideas from Legacy Docs (NEW - 2025-12-16)
 
 > **Source**: Extracted from `ROADMAP_HIVE_MIND_LEGACY.md` (114KB) and `ROADMAP_V8.md` (129KB)
@@ -57,10 +96,10 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 
 | # | Feature | Description | Status |
 |---|---------|-------------|--------|
-| 1 | **Fast Path** | Bypass FSM for trivial inputs (hello, thanks, ok) | ❌ TODO |
-| 2 | **EPHEMERAL Sessions** | Skip persistence for TRIVIAL tasks | ⚠️ Enum exists |
+| 1 | **Fast Path** | Bypass FSM for trivial inputs (hello, thanks, ok) | ✅ DONE (config.py) |
+| 2 | **EPHEMERAL Sessions** | Skip persistence for TRIVIAL tasks | ✅ WIRED |
 | 3 | **Cold Storage** | Save raw history before LLM compression | ❌ TODO |
-| 4 | **Rate Limiting** | TokenBucket per-provider (Claude 50 RPM, Gemini 60 RPM) | ❌ TODO |
+| 4 | **Rate Limiting** | TokenBucket per-provider (Claude 50 RPM, Gemini 60 RPM) | ✅ DONE (api/rate_limiter.py) |
 | 5 | **TaskAnalysis.reasoning** | Add traceability field to TaskAnalysis | ❌ TODO |
 | 6 | **Unified Analysis Adapter** | Bidirectional TaskAnalysis ↔ IndependentAnalysis | ❌ TODO |
 
