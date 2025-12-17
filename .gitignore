@@ -4,71 +4,50 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-.venv/
 *.egg-info/
 dist/
 build/
+
+# Environment
+.env
+.venv/
+venv/
+ENV/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
-
-# Environment & Secrets
-.env
-.env.*
-*.key
-*.pem
-*.crt
-secrets/
-credentials/
-
-# Logs & Databases
-*.log
-logs/
-*.db
-*.sqlite
-*.sqlite3
-chromadb/
-mcp_server.log
-mcp_server_sse.log
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-
-# Documentation builds
-docs/_build/
-site/
-
-# Temporary files
-_TEMP/
-*.tmp
-*.bak
-*.backup
-
-# Model files (if large)
-*.onnx
-*.pt
-*.pth
-*.h5
-*.pb
 
 # OS
+.DS_Store
 Thumbs.db
-Desktop.ini
 
 # NEXUS specific
-05_ARCHIVES/
-04_OUTPUTS/logs/
-04_OUTPUTS/reports/*.html
-CHAT_HISTORY_*.md
-SESSION_STATE_*.md
+workspace/
+workspace_archive.tar.gz
+*.log
+*.jsonl
+.nexus/
+data/
+
+# Node.js (for Playwright/UI tests)
+node_modules/
+package-lock.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Test artifacts
+test-results/
+playwright-report/
+*.png
+
+# Secrets
+*.pem
+*.key
+credentials.json
+
+# Compiled
+*.pyc

@@ -1,19 +1,26 @@
-YANEXUS V5.0 – Proprietary License
+NEXUS PROPRIETARY & CONFIDENTIAL LICENSE
+Copyright © 2025 Yann Abadie. Tous droits réservés.
 
-Copyright (c) 2025 Yann Abadie. All rights reserved.
+L'accès, le téléchargement ou l'utilisation de ce logiciel (dénommé "NEXUS") et de sa documentation associée sont soumis aux conditions strictes suivantes :
 
-This source code is proprietary and confidential.
+1. NATURE CONFIDENTIELLE Ce code source contient des algorithmes inédits, des secrets commerciaux et des informations confidentielles appartenant exclusivement à Yann Abadie. Il ne constitue pas un logiciel libre (Open Source).
 
-You are granted a limited, non-exclusive, non-transferable license to:
-- View and use the code for personal, non-commercial evaluation purposes only.
-- Fork and modify the code ONLY within private repositories owned by you.
+2. DROITS D'USAGE LIMITÉS L'accès à ce dépôt vous est accordé uniquement à des fins de consultation privée ou d'évaluation personnelle. Toute autre utilisation est strictement interdite sans un accord commercial écrit et signé par l'auteur.
 
-You are expressly prohibited from:
-- Distributing, sublicense, sell, lease, or otherwise transfer the code or any derivative work.
-- Publishing, open-sourcing, or making the code publicly available in any form.
-- Using the code for commercial purposes without a separate written agreement.
-- Removing or altering this license notice.
+3. INTERDICTIONS STRICTES Sauf autorisation expresse, il est formellement INTERDIT de :
 
-Any violation will be pursued to the fullest extent of the law.
+Copier, distribuer ou publier tout ou partie du code, sous quelque forme que ce soit.
 
-For commercial licensing or partnership inquiries: yann.abadie@outlook.com
+Modifier, adapter ou créer des œuvres dérivées basées sur ce logiciel, que ce soit pour un usage interne ou public.
+
+Utiliser ce logiciel à des fins commerciales, lucratives ou professionnelles.
+
+Faire de l'ingénierie inverse (Reverse Engineering), décompiler ou désassembler le code pour en extraire la logique interne (notamment le Hybrid Swarm Engine).
+
+Entraîner des modèles d'IA ou des systèmes d'apprentissage automatique sur tout ou partie de ce code.
+
+4. PROPRIÉTÉ INTELLECTUELLE La structure, l'organisation et le code de ce projet sont la propriété intellectuelle exclusive de Yann Abadie. Aucun droit de propriété n'est transféré par la présente.
+
+5. VIOLATION Toute utilisation non autorisée constitue une violation des droits d'auteur et sera poursuivie dans toute la rigueur permise par la loi.
+
+Pour toute demande de licence commerciale : yann.abadie@outlook.com

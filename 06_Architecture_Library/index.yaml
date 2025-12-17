@@ -1,5 +1,0 @@
-architectures: []
-embedding_config:
-  model: "gemini-embedding-001"
-  dimensions: 768
-  index_on: ["metadata.description", "metadata.tags"]
