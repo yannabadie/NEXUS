@@ -123,26 +123,56 @@ class TelemetryBridge:
         return seq
 
     # =========================================================================
-    # Context Extraction
+    # Context Extraction (V13.0 FIX: Check subscribers first)
     # =========================================================================
 
     def _get_tenant(self) -> str:
-        """Get current tenant ID from PRISM context, or 'anonymous'."""
+        """Get current tenant ID from subscribers or context."""
+        # V13.0 FIX: Check active subscribers first (most reliable)
+        try:
+            from core.events.redis_bus import get_redis_bus
+            bus = get_redis_bus()
+            if bus._memory_subscribers:
+                first_key = next(iter(bus._memory_subscribers.keys()), None)
+                if first_key:
+                    return first_key[0]  # tenant_id
+        except Exception:
+            pass
+
+        # Fallback to context
         try:
             from core.context import get_current_session_or_none
             ctx = get_current_session_or_none()
-            return ctx.tenant_id if ctx else "anonymous"
-        except ImportError:
-            return "anonymous"
+            if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
+                return ctx.tenant_id
+        except Exception:
+            pass
+
+        return "anonymous"
 
     def _get_workspace(self) -> str:
-        """Get current workspace ID from PRISM context, or 'default'."""
+        """Get current workspace ID from subscribers or context."""
+        # V13.0 FIX: Check active subscribers first (most reliable)
+        try:
+            from core.events.redis_bus import get_redis_bus
+            bus = get_redis_bus()
+            if bus._memory_subscribers:
+                first_key = next(iter(bus._memory_subscribers.keys()), None)
+                if first_key:
+                    return first_key[1]  # workspace_id
+        except Exception:
+            pass
+
+        # Fallback to context
         try:
             from core.context import get_current_session_or_none
             ctx = get_current_session_or_none()
-            return ctx.workspace_id if ctx else "default"
-        except ImportError:
-            return "default"
+            if ctx and ctx.workspace_id:
+                return ctx.workspace_id
+        except Exception:
+            pass
+
+        return "default"
 
     # =========================================================================
     # Payload Truncation
@@ -188,9 +218,10 @@ class TelemetryBridge:
         payload: Dict[str, Any]
     ) -> None:
         """
-        Persist stateful events to Redis for snapshot recovery (F5 recovery).
+        Persist stateful events for snapshot recovery (F5 recovery).
 
         V11.5 CORTEX: Enables UI to recover state after browser refresh.
+        V13.0: Falls back to in-memory storage when Redis unavailable.
         Persists phase state, graph nodes, and recent logs.
 
         Args:
@@ -204,45 +235,92 @@ class TelemetryBridge:
             from core.events.types import CerebroEventType
 
             bus = get_redis_bus()
-            if not bus.is_connected():
-                return
 
-            redis = bus._redis
-            if not redis:
-                return
+            # V13.0: Persist to in-memory (always, for non-Redis fallback)
+            self._persist_state_memory(bus, tenant_id, workspace_id, event_type, payload)
 
-            base_key = f"nexus:{tenant_id}:{workspace_id}:state"
-
-            # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
-            if event_type in (CerebroEventType.HIVE_PHASE_START,
-                              CerebroEventType.HIVE_STATE_CHANGE):
-                await redis.set(
-                    f"{base_key}:phase",
-                    json.dumps(payload, default=str),
-                    ex=STATE_TTL
+            # Also persist to Redis if connected
+            if bus.is_connected() and bus._redis:
+                await self._persist_state_redis(
+                    bus._redis, tenant_id, workspace_id, event_type, payload
                 )
-
-            # Graph nodes (spawn/update)
-            elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
-                node_id = payload.get("node_id", "unknown")
-                await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
-                await redis.expire(f"{base_key}:nodes", STATE_TTL)
-
-            elif event_type == CerebroEventType.GRAPH_NODE_UPDATE:
-                node_id = payload.get("node_id", "unknown")
-                await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
-                # Refresh TTL on update
-                await redis.expire(f"{base_key}:nodes", STATE_TTL)
-
-            # Logs (capped list - max 100 entries)
-            elif event_type == CerebroEventType.LOG:
-                await redis.lpush(f"{base_key}:logs", json.dumps(payload, default=str))
-                await redis.ltrim(f"{base_key}:logs", 0, 99)  # Keep only 100 most recent
-                await redis.expire(f"{base_key}:logs", STATE_TTL)
 
         except Exception as e:
             # Fire-and-forget: never block, log at debug level
             logger.debug(f"State persistence failed (non-blocking): {e}")
+
+    def _persist_state_memory(
+        self,
+        bus,
+        tenant_id: str,
+        workspace_id: str,
+        event_type: "CerebroEventType",
+        payload: Dict[str, Any]
+    ) -> None:
+        """Persist state to in-memory storage (V13.0)."""
+        try:
+            from core.events.types import CerebroEventType
+
+            # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
+            if event_type in (CerebroEventType.HIVE_PHASE_START,
+                              CerebroEventType.HIVE_STATE_CHANGE):
+                bus.set_phase_state(tenant_id, workspace_id, payload)
+
+            # Graph nodes (spawn/update)
+            elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
+                node_id = payload.get("node_id", "unknown")
+                bus.set_node(tenant_id, workspace_id, node_id, payload)
+
+            elif event_type == CerebroEventType.GRAPH_NODE_UPDATE:
+                node_id = payload.get("node_id", "unknown")
+                bus.set_node(tenant_id, workspace_id, node_id, payload)
+
+            # Logs (capped list - max 100 entries)
+            elif event_type == CerebroEventType.LOG:
+                bus.add_log(tenant_id, workspace_id, payload)
+
+        except Exception as e:
+            logger.warning(f"In-memory state persistence failed: {e}")
+
+    async def _persist_state_redis(
+        self,
+        redis,
+        tenant_id: str,
+        workspace_id: str,
+        event_type: "CerebroEventType",
+        payload: Dict[str, Any]
+    ) -> None:
+        """Persist state to Redis (original implementation)."""
+        from core.events.types import CerebroEventType
+
+        base_key = f"nexus:{tenant_id}:{workspace_id}:state"
+
+        # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
+        if event_type in (CerebroEventType.HIVE_PHASE_START,
+                          CerebroEventType.HIVE_STATE_CHANGE):
+            await redis.set(
+                f"{base_key}:phase",
+                json.dumps(payload, default=str),
+                ex=STATE_TTL
+            )
+
+        # Graph nodes (spawn/update)
+        elif event_type == CerebroEventType.GRAPH_NODE_SPAWN:
+            node_id = payload.get("node_id", "unknown")
+            await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
+            await redis.expire(f"{base_key}:nodes", STATE_TTL)
+
+        elif event_type == CerebroEventType.GRAPH_NODE_UPDATE:
+            node_id = payload.get("node_id", "unknown")
+            await redis.hset(f"{base_key}:nodes", node_id, json.dumps(payload, default=str))
+            # Refresh TTL on update
+            await redis.expire(f"{base_key}:nodes", STATE_TTL)
+
+        # Logs (capped list - max 100 entries)
+        elif event_type == CerebroEventType.LOG:
+            await redis.lpush(f"{base_key}:logs", json.dumps(payload, default=str))
+            await redis.ltrim(f"{base_key}:logs", 0, 99)  # Keep only 100 most recent
+            await redis.expire(f"{base_key}:logs", STATE_TTL)
 
     # =========================================================================
     # Emission Methods
@@ -319,8 +397,8 @@ class TelemetryBridge:
         """
         Emit telemetry event from sync code. Thread-safe.
 
-        Uses run_coroutine_threadsafe if event loop is running,
-        otherwise falls back to asyncio.run().
+        V13.0 FIX: Uses the main loop from redis_bus for thread-safe emission
+        from worker threads. This ensures events reach WebSocket subscribers.
 
         Args:
             event_type: CerebroEventType enum value
@@ -332,20 +410,33 @@ class TelemetryBridge:
             True if published successfully, False otherwise
         """
         try:
-            # Try to get running loop
-            try:
-                loop = asyncio.get_running_loop()
-                # Schedule in running loop
+            # V13.0: Get the main loop from redis_bus (set during app startup)
+            # This is required because worker threads don't have a running loop,
+            # and asyncio.run() creates a NEW loop that can't access subscribers
+            from core.events.redis_bus import get_redis_bus
+            bus = get_redis_bus()
+            main_loop = bus._main_loop
+
+            if main_loop and main_loop.is_running():
+                # Schedule in main loop (thread-safe)
                 future = asyncio.run_coroutine_threadsafe(
                     self.emit(event_type, payload, tenant_id, workspace_id),
-                    loop
+                    main_loop
                 )
                 return future.result(timeout=EMIT_SYNC_TIMEOUT)
-            except RuntimeError:
-                # No running loop - create new one (for truly sync contexts)
-                return asyncio.run(
-                    self.emit(event_type, payload, tenant_id, workspace_id)
-                )
+            else:
+                # Fallback: try to get current running loop (same-thread case)
+                try:
+                    loop = asyncio.get_running_loop()
+                    future = asyncio.run_coroutine_threadsafe(
+                        self.emit(event_type, payload, tenant_id, workspace_id),
+                        loop
+                    )
+                    return future.result(timeout=EMIT_SYNC_TIMEOUT)
+                except RuntimeError:
+                    # No loop available at all - log and skip
+                    logger.debug("No event loop available for emit_sync")
+                    return False
         except Exception as e:
             logger.debug(f"Telemetry emit_sync failed (non-blocking): {e}")
             return False
@@ -367,6 +458,153 @@ def reset_telemetry_bridge() -> None:
     # Also reset contextvars
     _correlation_id.set(None)
     _sequence_counter.set(0)
+
+
+# =============================================================================
+# V13.0 CEREBRO LIVE: Agent Exchange Helpers
+# =============================================================================
+
+def _resolve_tenant_workspace() -> tuple:
+    """
+    Resolve tenant_id and workspace_id for telemetry events.
+
+    V13.0 FIX: Always check active subscribers first since context vars
+    don't propagate to worker threads and async contexts.
+
+    Returns:
+        Tuple of (tenant_id, workspace_id)
+    """
+    tenant_id = None
+    workspace_id = None
+
+    # Priority 1: Active WebSocket subscribers (most reliable)
+    try:
+        from core.events.redis_bus import get_redis_bus
+        bus = get_redis_bus()
+        if bus._memory_subscribers:
+            first_key = next(iter(bus._memory_subscribers.keys()), None)
+            if first_key:
+                return first_key  # (tenant_id, workspace_id)
+    except Exception:
+        pass
+
+    # Priority 2: Session context (works in main thread only)
+    try:
+        from core.context import get_current_session_or_none
+        ctx = get_current_session_or_none()
+        if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
+            return (ctx.tenant_id, ctx.workspace_id or "default")
+    except Exception:
+        pass
+
+    return (None, None)
+
+
+def emit_agent_exchange(
+    from_agent: str,
+    to_agent: str,
+    message: str,
+    exchange_type: str = "message",
+    tenant_id: str = None,
+    workspace_id: str = None
+) -> bool:
+    """
+    Emit GRAPH_EDGE_MESSAGE for agent-to-agent communication.
+
+    V13.0 CEREBRO LIVE: Enables real-time visualization of agent exchanges.
+
+    Args:
+        from_agent: Source agent ("claude", "gemini", or spawned agent ID)
+        to_agent: Target agent
+        message: Message content (will be truncated for display)
+        exchange_type: Type of exchange ("message", "delegate", "tool", "negotiate")
+        tenant_id: Optional tenant override
+        workspace_id: Optional workspace override
+
+    Returns:
+        True if emitted successfully
+
+    Example:
+        emit_agent_exchange("claude", "gemini", "I suggest using PARALLEL mode")
+    """
+    bridge = get_telemetry_bridge()
+
+    # Resolve tenant if not provided
+    if not tenant_id:
+        tenant_id, workspace_id = _resolve_tenant_workspace()
+
+    # Skip if no subscribers available
+    if not tenant_id:
+        return False
+
+    # V13.0: Reasonable preview for graph edge (500 chars max)
+    preview = message[:500] + "..." if message and len(message) > 500 else (message or "")
+
+    return bridge.emit_sync(
+        CerebroEventType.GRAPH_EDGE_MESSAGE,
+        {
+            "from": from_agent.lower(),
+            "to": to_agent.lower(),
+            "message": preview,
+            "exchange_type": exchange_type,
+        },
+        tenant_id=tenant_id,
+        workspace_id=workspace_id
+    )
+
+
+def emit_agent_speak(
+    agent: str,
+    message: str,
+    action_type: str = "TALK",
+    tenant_id: str = None,
+    workspace_id: str = None
+) -> bool:
+    """
+    Emit AGENT_SPEAK for agent message content.
+
+    V13.0 CEREBRO LIVE: Enables display of full agent messages.
+
+    Args:
+        agent: Agent name ("claude", "gemini")
+        message: Full message content
+        action_type: Action type ("TALK", "TOOL_USE", "DELEGATE", "FINISHED")
+        tenant_id: Optional tenant override
+        workspace_id: Optional workspace override
+
+    Returns:
+        True if emitted successfully
+    """
+    bridge = get_telemetry_bridge()
+
+    # Resolve tenant if not provided
+    if not tenant_id:
+        tenant_id, workspace_id = _resolve_tenant_workspace()
+
+    # Skip if no subscribers available
+    if not tenant_id:
+        return False
+
+    # V13.0: Reasonable limit to prevent WebSocket overflow
+    # 10KB max - enough for detailed messages, safe for WebSocket
+    max_len = 10000
+    truncated_msg = message[:max_len] if message and len(message) > max_len else (message or "")
+
+    return bridge.emit_sync(
+        CerebroEventType.AGENT_SPEAK,
+        {
+            "agent": agent.lower(),
+            "message": truncated_msg,
+            "action_type": action_type,
+            "truncated": len(message) > max_len if message else False,
+        },
+        tenant_id=tenant_id,
+        workspace_id=workspace_id
+    )
+
+
+# Lazy import to get actual enum
+from core.events.types import CerebroEventType
 
 
 # Type hint import (deferred to avoid circular import at module load)

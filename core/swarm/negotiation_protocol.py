@@ -31,6 +31,9 @@ from .task_analyzer import TaskAnalysis
 from .mode_selector import ModeProposal, AgentAssignment
 from ..agents.unified_registry import get_registry  # V8.4.0
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 
 class NegotiationStatus(Enum):
     """Status of negotiation process"""
@@ -341,6 +344,19 @@ class NegotiationProtocol:
             # Parse response
             message = self._parse_response(response, agent_id, current_turn)
             history.append(message)
+
+            # V13.0 CEREBRO LIVE: Emit negotiation exchange
+            other_agent = "claude" if agent_id == "gemini" else "gemini"
+            emit_agent_speak(
+                agent_id,
+                message.natural_content[:200],
+                action_type="NEGOTIATE"
+            )
+            emit_agent_exchange(
+                agent_id, other_agent,
+                f"Mode: {message.structured_proposal.proposed_mode if message.structured_proposal else 'N/A'}",
+                exchange_type="negotiate"
+            )
 
             # V7.5: Stream turn to callback for real-time display
             if on_turn:

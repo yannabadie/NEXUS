@@ -75,6 +75,11 @@ class RedisEventBus:
         self._memory_subscribers: Dict[Tuple[str, str], Dict[str, asyncio.Queue]] = {}
         # Store reference to main event loop for thread-safe queue operations
         self._main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+        # V13.0: In-memory state storage (F5 recovery without Redis)
+        # Key: (tenant_id, workspace_id), Value: {phase: dict, nodes: dict, logs: list}
+        self._memory_state: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
         logger.info("CEREBRO: RedisEventBus initialized with in-memory fallback support")
 
     def set_main_loop(self, loop: asyncio.AbstractEventLoop) -> None:
@@ -415,6 +420,85 @@ class RedisEventBus:
             }
         except Exception:
             return {}
+
+    # =========================================================================
+    # V13.0: In-Memory State Storage (F5 Recovery without Redis)
+    # =========================================================================
+
+    def _get_state_key(self, tenant_id: str, workspace_id: str) -> Tuple[str, str]:
+        """Get state key tuple."""
+        return (tenant_id, workspace_id)
+
+    def _ensure_state_exists(self, key: Tuple[str, str]) -> Dict[str, Any]:
+        """Ensure state dict exists for key, return it."""
+        if key not in self._memory_state:
+            self._memory_state[key] = {
+                "phase": None,
+                "nodes": {},
+                "logs": [],
+            }
+        return self._memory_state[key]
+
+    def set_phase_state(self, tenant_id: str, workspace_id: str, phase_data: Dict[str, Any]) -> None:
+        """Set phase state (in-memory)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._ensure_state_exists(key)
+        state["phase"] = phase_data
+        logger.debug(f"CEREBRO: Phase state set for {key}")
+
+    def get_phase_state(self, tenant_id: str, workspace_id: str) -> Optional[Dict[str, Any]]:
+        """Get phase state (in-memory)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._memory_state.get(key)
+        return state.get("phase") if state else None
+
+    def set_node(self, tenant_id: str, workspace_id: str, node_id: str, node_data: Dict[str, Any]) -> None:
+        """Set or update a graph node (in-memory)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._ensure_state_exists(key)
+        state["nodes"][node_id] = node_data
+        logger.debug(f"CEREBRO: Node {node_id} set for {key}")
+
+    def get_nodes(self, tenant_id: str, workspace_id: str) -> Dict[str, Dict[str, Any]]:
+        """Get all graph nodes (in-memory)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._memory_state.get(key)
+        return state.get("nodes", {}) if state else {}
+
+    def add_log(self, tenant_id: str, workspace_id: str, log_entry: Dict[str, Any]) -> None:
+        """Add a log entry (in-memory, max 100)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._ensure_state_exists(key)
+        logs = state["logs"]
+        logs.insert(0, log_entry)  # Most recent first
+        if len(logs) > 100:
+            state["logs"] = logs[:100]  # Keep only 100 most recent
+        logger.debug(f"CEREBRO: Log entry added for {key}, total={len(state['logs'])}")
+
+    def get_logs(self, tenant_id: str, workspace_id: str) -> List[Dict[str, Any]]:
+        """Get log entries (in-memory)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._memory_state.get(key)
+        return state.get("logs", []) if state else []
+
+    def clear_state(self, tenant_id: str, workspace_id: str) -> None:
+        """Clear all state for a tenant/workspace."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        if key in self._memory_state:
+            del self._memory_state[key]
+            logger.debug(f"CEREBRO: State cleared for {key}")
+
+    def get_full_state(self, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+        """Get full state snapshot (for API)."""
+        key = self._get_state_key(tenant_id, workspace_id)
+        state = self._memory_state.get(key)
+        if state:
+            return {
+                "phase": state.get("phase"),
+                "nodes": state.get("nodes", {}),
+                "logs": state.get("logs", []),
+            }
+        return {"phase": None, "nodes": {}, "logs": []}
 
 
 # =============================================================================

@@ -31,6 +31,10 @@ from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult
 from core.telemetry import BudgetExceededError
 
+# V13.0: Real-time telemetry for CEREBRO UI
+from core.events.telemetry_bridge import get_telemetry_bridge, _resolve_tenant_workspace
+from core.events.types import CerebroEventType
+
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
 
@@ -62,6 +66,44 @@ class AgentInvoker:
         self._orch = orchestrator
         self._logger = logging.getLogger("nexus.agent_invoker")
         self._registry = get_registry()
+        self._telemetry_bridge = get_telemetry_bridge()
+
+    def _emit_agent_status(self, agent_name: str, status: str, task_type: str = "") -> None:
+        """
+        Emit GRAPH_NODE_UPDATE event for real-time UI updates.
+
+        V13.0: Enables CEREBRO UI to show agent activity in real-time.
+
+        Args:
+            agent_name: "Claude" or "Gemini"
+            status: "active", "idle", or "complete"
+            task_type: Optional task type description
+        """
+        try:
+            # Node IDs match workflow.py spawn: "gemini" and "claude"
+            node_id = agent_name.lower()
+
+            # V13.0 FIX: Use centralized tenant resolution (checks subscribers first)
+            tenant_id, workspace_id = _resolve_tenant_workspace()
+
+            # Skip if no subscribers available
+            if not tenant_id:
+                self._logger.debug(f"[TELEMETRY] No subscribers for {node_id} -> {status}")
+                return
+
+            result = self._telemetry_bridge.emit_sync(
+                CerebroEventType.GRAPH_NODE_UPDATE,
+                {
+                    "node_id": node_id,
+                    "data": {"name": agent_name, "status": status, "task_type": task_type},
+                },
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+            self._logger.debug(f"[TELEMETRY] {node_id} -> {status}: {result}")
+        except Exception as e:
+            # Fire-and-forget: never block agent execution
+            self._logger.debug(f"[TELEMETRY] Emit failed (non-blocking): {e}")
 
     def get_claude_driver(
         self,
@@ -137,13 +179,33 @@ class AgentInvoker:
         # V8.4.0: Use registry for agent lookup
         if self._registry.is_claude(self._orch.active_agent):
             driver = self.get_claude_driver(task_type)
-            if use_streaming:
-                return driver.invoke_stream(context, self._orch.on_token)
-            return driver.invoke(context)
+            # V13.0: Emit active status before invocation
+            self._emit_agent_status("Claude", "active", task_type.value)
+            try:
+                if use_streaming:
+                    result = driver.invoke_stream(context, self._orch.on_token)
+                else:
+                    result = driver.invoke(context)
+                # V13.0: Emit idle status after invocation
+                self._emit_agent_status("Claude", "idle", task_type.value)
+                return result
+            except Exception as e:
+                self._emit_agent_status("Claude", "idle", task_type.value)
+                raise
         else:
-            if use_streaming:
-                return self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
-            return self._orch.gemini_driver.invoke(context)
+            # V13.0: Emit active status before invocation
+            self._emit_agent_status("Gemini", "active", task_type.value)
+            try:
+                if use_streaming:
+                    result = self._orch.gemini_driver.invoke_stream(context, self._orch.on_token)
+                else:
+                    result = self._orch.gemini_driver.invoke(context)
+                # V13.0: Emit idle status after invocation
+                self._emit_agent_status("Gemini", "idle", task_type.value)
+                return result
+            except Exception as e:
+                self._emit_agent_status("Gemini", "idle", task_type.value)
+                raise
 
     def invoke_for_swarm(self, agent_id: str, task_type: str, context: str,
                          session_uuid: Optional[str] = None,
@@ -361,23 +423,43 @@ class AgentInvoker:
         if self._registry.is_claude(target_agent):
             # Claude driver is stateless - no isolated_env needed
             driver = self.get_claude_driver(task_type)
-            if use_streaming:
-                # V8.1.6: Pass session_uuid for thread-safe file access
-                return driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
-            return driver.invoke(context, session_uuid=session_uuid)
+            # V13.0: Emit active status before invocation
+            self._emit_agent_status("Claude", "active", task_type.value)
+            try:
+                if use_streaming:
+                    # V8.1.6: Pass session_uuid for thread-safe file access
+                    result = driver.invoke_stream(context, self._orch.on_token, session_uuid=session_uuid)
+                else:
+                    result = driver.invoke(context, session_uuid=session_uuid)
+                # V13.0: Emit idle status after invocation
+                self._emit_agent_status("Claude", "idle", task_type.value)
+                return result
+            except Exception as e:
+                self._emit_agent_status("Claude", "idle", task_type.value)
+                raise
         else:
             # V9.7.1: Gemini driver uses isolated_env for session isolation (HOME spoofing)
-            if use_streaming:
-                return self._orch.gemini_driver.invoke_stream(
-                    context, self._orch.on_token,
-                    session_uuid=session_uuid,
-                    isolated_env=isolated_env
-                )
-            return self._orch.gemini_driver.invoke(
-                context,
-                session_uuid=session_uuid,
-                isolated_env=isolated_env
-            )
+            # V13.0: Emit active status before invocation
+            self._emit_agent_status("Gemini", "active", task_type.value)
+            try:
+                if use_streaming:
+                    result = self._orch.gemini_driver.invoke_stream(
+                        context, self._orch.on_token,
+                        session_uuid=session_uuid,
+                        isolated_env=isolated_env
+                    )
+                else:
+                    result = self._orch.gemini_driver.invoke(
+                        context,
+                        session_uuid=session_uuid,
+                        isolated_env=isolated_env
+                    )
+                # V13.0: Emit idle status after invocation
+                self._emit_agent_status("Gemini", "idle", task_type.value)
+                return result
+            except Exception as e:
+                self._emit_agent_status("Gemini", "idle", task_type.value)
+                raise
 
     def record_invocation(
         self,

@@ -30,6 +30,9 @@ from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
 
+# V13.0 CEREBRO LIVE: Agent exchange telemetry
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 # V8.0 TRUE HIVE MIND
 try:
     from core.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
@@ -227,10 +230,17 @@ class FSMHandlers:
         action_type = message.get("action_type")
         content = message.get("content", "")
 
+        # V13.0 CEREBRO LIVE: Emit agent exchange for brainstorming
+        sender = message.get("sender", self._orch.active_agent)
+        next_agent = self._registry.get_alternate(self._orch.active_agent) or "user"
+        emit_agent_speak(sender, content, action_type or "TALK")
+        emit_agent_exchange(sender, next_agent, content, exchange_type="brainstorm")
+
         if action_type == "TOOL_USE":
             # Consensus reached → Execute tool
             self._orch._transition_to(OrchestratorState.EXECUTING_TOOL)
             tool_name = message.get("tool_use", {}).get("tool_name", "unknown")
+            emit_agent_exchange(sender, "tool_executor", f"Execute: {tool_name}", exchange_type="tool")
             return self._make_result("EXECUTING_TOOL", content, self._orch.active_agent, False, tool=tool_name)
 
         elif action_type in ["TALK", "DELEGATE"]:
@@ -450,11 +460,17 @@ class FSMHandlers:
         sender = message.get("sender", self._orch.active_agent)
         self._orch.stagnation_detector.add_message(content)
 
+        # V13.0 CEREBRO LIVE: Emit agent exchange for evolution debate
+        next_agent = self._registry.get_alternate(self._orch.active_agent) or "user"
+        emit_agent_speak(sender, content, action_type or "TALK")
+        emit_agent_exchange(sender, next_agent, content, exchange_type="evolution")
+
         # Check if finished with valid mutation
         if message.get("status") == "FINISHED":
             has_valid_json = self._detect_mutation_complete(content)
             if has_valid_json:
                 self._orch._transition_to(OrchestratorState.IDLE)
+                emit_agent_exchange(sender, "user", "Evolution complete!", exchange_type="finished")
                 return self._make_result("FINISHED", content, sender, True)
 
         # FORCE alternation (V8.4.0: via registry)
@@ -464,6 +480,7 @@ class FSMHandlers:
 
         # Handle TOOL_USE
         if action_type == "TOOL_USE":
+            emit_agent_exchange(sender, "tool_executor", f"Evolution tool call", exchange_type="tool")
             return self._handle_evolution_tool(message, sender, content)
 
         # Check for mutation JSON
@@ -1007,12 +1024,8 @@ class FSMHandlers:
 
         for iteration in range(max_tool_iterations):
             try:
-                # V8.4.0: Use registry for agent identification
-                if self._registry.is_claude(agent):
-                    driver = self._get_claude_driver(TaskType.SIMPLE)
-                    response = driver.invoke(context)
-                else:
-                    response = self._orch.gemini_driver.invoke(context)
+                # V13.0: Use agent_invoker to ensure telemetry events are emitted
+                response = self._invoke_agent(TaskType.SIMPLE, context)
 
                 invoke_duration = time.time() - invoke_start
                 message = self._validate_message(response)
@@ -1036,6 +1049,10 @@ class FSMHandlers:
             # Check action type
             action_type = message.get("action_type")
             content = message.get("content", "")
+
+            # V13.0 CEREBRO LIVE: Emit agent exchange for simple mode
+            emit_agent_speak(agent, content, action_type or "RESPONSE")
+            emit_agent_exchange(agent, "user", content, exchange_type="simple")
 
             if action_type == "TOOL_USE":
                 # V10 FIX F3: Light CFL validation for simple tasks

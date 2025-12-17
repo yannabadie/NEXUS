@@ -19,6 +19,9 @@ from .base import (
 from ..collaboration_modes import CollaborationMode
 from ...utils.artifact_verifier import ArtifactVerifier
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 
 class RedBlueExecutor(ModeExecutor):
     """
@@ -67,6 +70,10 @@ class RedBlueExecutor(ModeExecutor):
         if context.on_round:
             context.on_round(0, proposal)
 
+        # V13.0 CEREBRO LIVE: Emit Blue proposal
+        emit_agent_speak(blue.agent_id, proposal.content[:200], action_type="PROPOSE")
+        emit_agent_exchange(blue.agent_id, red.agent_id, "[PROPOSE] Solution ready for review", exchange_type="red_blue")
+
         # Phase 2: Red attacks
         attack_context = (
             f"RED_BLUE MODE - You are RED (attacker):\n{context.task_input}\n\n"
@@ -79,6 +86,10 @@ class RedBlueExecutor(ModeExecutor):
         total_time += attack.time_seconds
         if context.on_round:
             context.on_round(1, attack)
+
+        # V13.0 CEREBRO LIVE: Emit Red attack
+        emit_agent_speak(red.agent_id, attack.content[:200], action_type="ATTACK")
+        emit_agent_exchange(red.agent_id, blue.agent_id, "[ATTACK] Weaknesses found", exchange_type="red_blue")
 
         # Phase 3: Blue defends
         defend_context = (
@@ -94,6 +105,10 @@ class RedBlueExecutor(ModeExecutor):
         if context.on_round:
             context.on_round(2, defense)
 
+        # V13.0 CEREBRO LIVE: Emit Blue defense
+        emit_agent_speak(blue.agent_id, defense.content[:200], action_type="DEFEND")
+        emit_agent_exchange(blue.agent_id, red.agent_id, "[DEFEND] Concerns addressed", exchange_type="red_blue")
+
         # Phase 4: Red verifies
         verify_context = (
             f"RED_BLUE MODE - Verification:\n"
@@ -108,6 +123,10 @@ class RedBlueExecutor(ModeExecutor):
         total_time += verdict.time_seconds
         if context.on_round:
             context.on_round(3, verdict)
+
+        # V13.0 CEREBRO LIVE: Emit Red verdict
+        emit_agent_speak(red.agent_id, verdict.content[:200], action_type="VERDICT")
+        emit_agent_exchange(red.agent_id, "user", "[VERDICT] Review complete", exchange_type="red_blue")
 
         # Determine status with robust validation
         verdict_upper = verdict.content.upper()

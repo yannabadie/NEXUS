@@ -65,7 +65,7 @@ from .task_analyzer import TaskComplexity
 from .task_completion_validator import get_adaptive_max_rounds
 
 # V10 SYNAPSE: Telemetry instrumentation
-from core.events.telemetry_bridge import get_telemetry_bridge
+from core.events.telemetry_bridge import get_telemetry_bridge, emit_agent_exchange, emit_agent_speak
 from core.events.types import CerebroEventType
 
 class SwarmPhase(Enum):
@@ -283,6 +283,13 @@ class HybridSwarmEngine:
                 if negotiation_result.status == NegotiationStatus.CONSENSUS:
                     final_mode = negotiation_result.selected_mode
                     agent_assignments = negotiation_result.agent_assignments
+
+                    # V13.0 CEREBRO LIVE: Emit negotiation consensus
+                    emit_agent_exchange(
+                        "gemini", "claude",
+                        f"Consensus: {final_mode.value} mode agreed",
+                        exchange_type="consensus"
+                    )
                 else:
                     final_mode = proposal.mode
                     agent_assignments = proposal.agent_assignments

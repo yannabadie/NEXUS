@@ -85,10 +85,7 @@ try:
         logger.warning(f"[RETINA] Rate limiting using in-memory (Redis unavailable: {e})")
 
 except ImportError:
-    logger.warning(
-        "[RETINA] slowapi not installed. Rate limiting disabled. "
-        "Install with: pip install slowapi"
-    )
+    logger.warning("[RETINA] slowapi not installed - run 'pip install slowapi' for rate limiting")
 
 
 def get_limiter():
@@ -126,7 +123,7 @@ def setup_rate_limiting(app):
         app: FastAPI application instance
     """
     if not is_rate_limiting_enabled():
-        logger.warning("[RETINA] Rate limiting not configured (slowapi not available)")
+        logger.debug("[RETINA] Rate limiting not configured")
         return
 
     try:

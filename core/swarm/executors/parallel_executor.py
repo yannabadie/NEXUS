@@ -27,6 +27,9 @@ from .base import (
 from ..collaboration_modes import CollaborationMode
 from ...agents.unified_registry import get_registry
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 if TYPE_CHECKING:
     from ..merge_strategies import MergeStrategy, MergeResult
 
@@ -344,6 +347,14 @@ class ParallelExecutor(ModeExecutor):
                 content_preview = (result.content[:80] + "...") if len(result.content) > 80 else result.content
                 content_preview = content_preview.replace('\n', ' ')
                 print(f"   ✓ {agent_id}: {content_preview}", file=sys.stderr)
+
+                # V13.0 CEREBRO LIVE: Emit parallel execution result
+                emit_agent_speak(agent_id, result.content[:200], action_type="PARALLEL")
+                emit_agent_exchange(
+                    agent_id, "user",
+                    f"[PARALLEL] {result.content[:60]}",
+                    exchange_type="parallel"
+                )
 
         # V10 FIX F4: Detect conflicts before merging
         conflict_report = self._conflict_detector.detect_conflicts(outputs)

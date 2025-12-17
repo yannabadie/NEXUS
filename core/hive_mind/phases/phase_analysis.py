@@ -37,6 +37,9 @@ from ..context_manager import HiveMindContextManager
 from ..context_scope import ContextScope, ScopedContext
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -191,6 +194,28 @@ class IndependentAnalysisPhase:
         # Add to context
         self.context_manager.add_analysis("gemini", gemini_analysis.to_dict())
         self.context_manager.add_analysis("claude", claude_analysis.to_dict())
+
+        # V13.0 CEREBRO LIVE: Emit agent exchanges for analysis phase
+        emit_agent_speak(
+            "gemini",
+            f"Analysis: {gemini_analysis.task_understanding[:200]}",
+            action_type="ANALYSIS"
+        )
+        emit_agent_speak(
+            "claude",
+            f"Analysis: {claude_analysis.task_understanding[:200]}",
+            action_type="ANALYSIS"
+        )
+        emit_agent_exchange(
+            "gemini", "claude",
+            f"Complexity: {gemini_analysis.complexity_assessment}, Confidence: {gemini_analysis.confidence:.0%}",
+            exchange_type="analysis"
+        )
+        emit_agent_exchange(
+            "claude", "gemini",
+            f"Complexity: {claude_analysis.complexity_assessment}, Confidence: {claude_analysis.confidence:.0%}",
+            exchange_type="analysis"
+        )
 
         # Compare analyses
         comparison = self._compare_analyses(gemini_analysis, claude_analysis)

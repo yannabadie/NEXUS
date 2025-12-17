@@ -32,6 +32,8 @@ V12.2 IRONCLAD:
 
 import asyncio
 import logging
+import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -184,6 +186,8 @@ async def websocket_stream(
                 "message": "Running in development mode (in-memory event bus)",
                 "mode": streaming_mode,
             },
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_id": str(uuid.uuid4()),
         })
 
     # Stream events (from Redis or in-memory)
@@ -197,6 +201,8 @@ async def websocket_stream(
                 "filter": [et.value for et in filter_types] if filter_types else "all",
                 "mode": streaming_mode,
             },
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_id": str(uuid.uuid4()),
         })
 
         logger.info(f"CEREBRO: Starting event subscription for {ctx.tenant_id}/{ctx.workspace_id} (mode={streaming_mode})")

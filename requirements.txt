@@ -76,6 +76,14 @@ websockets>=13.0
 # Python-Jose: JWT encoding/decoding for API auth
 python-jose[cryptography]>=3.3.0
 
+# Passlib: Password hashing (bcrypt backend)
+# Note: Requires passlib>=1.7.5 for bcrypt 4.x compatibility
+passlib[bcrypt]>=1.7.4
+
+# SlowAPI: Rate limiting for FastAPI (Redis or in-memory backend)
+# V12.1 RETINA: Brute-force and DoS protection
+slowapi>=0.1.9
+
 # =============================================================================
 # Development Dependencies (REQUIRED for tests)
 # =============================================================================

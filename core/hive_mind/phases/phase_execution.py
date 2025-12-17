@@ -45,6 +45,9 @@ from ..session_integration import HiveMindSessionIntegration, generate_hivemind_
 from ..swarm_bridge import SwarmBridge, HivePhase
 from core.agents.unified_registry import get_registry  # V8.4.0
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -246,6 +249,18 @@ class MonitoredExecutionPhase:
                 step.name,
                 result.output,
                 result.status == "success"
+            )
+
+            # V13.0 CEREBRO LIVE: Emit execution step result
+            emit_agent_speak(
+                step.agent_id,
+                f"Step '{step.name}': {result.output[:150]}",
+                action_type="EXECUTION"
+            )
+            emit_agent_exchange(
+                step.agent_id, "user",
+                f"[{result.status.upper()}] {step.name}",
+                exchange_type="execution"
             )
 
             # Check for critical failure

@@ -1,6 +1,7 @@
 """
 NEXUS V11.5 CORTEX - State Snapshot Endpoint
 V11.6.1 IRONCLAD - MANDATORY authentication (Zero Trust)
+V13.0 FIX - In-memory fallback when Redis unavailable
 
 Enables F5 Recovery for CEREBRO UI:
 - GET /api/state/snapshot : Get state snapshot for UI hydration
@@ -15,6 +16,8 @@ The snapshot includes:
 Authentication:
 - V11.6.1 IRONCLAD: MANDATORY auth - tenant_id from JWT ONLY
 - Query param backdoors REMOVED to prevent IDOR attacks
+
+V13.0: Falls back to in-memory state when Redis is unavailable.
 
 Author: Claude (NEXUS V11.5 CORTEX)
 Date: 2025-12-15
@@ -46,6 +49,8 @@ async def get_state_snapshot(
     tenant_id and workspace_id are extracted from JWT token ONLY.
     No query param backdoors - prevents IDOR attacks.
 
+    V13.0: Falls back to in-memory state when Redis is unavailable.
+
     Args:
         user: Authenticated user (from JWT token)
 
@@ -60,7 +65,6 @@ async def get_state_snapshot(
 
     Raises:
         401: Not authenticated
-        503: Redis not available
         500: Snapshot failed
     """
     # V11.6.1 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
@@ -72,15 +76,59 @@ async def get_state_snapshot(
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
-        raise HTTPException(503, "Redis bus unavailable")
+        # V13.0: Return empty state instead of 503
+        return _empty_snapshot(tenant_id, workspace_id)
 
-    if not bus.is_connected():
-        raise HTTPException(503, "Redis not connected")
+    # V13.0: Check if Redis is connected, otherwise use in-memory
+    if bus.is_connected() and bus._redis:
+        return await _get_snapshot_from_redis(bus, tenant_id, workspace_id)
+    else:
+        # V13.0: Use in-memory state storage
+        return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
 
+
+def _empty_snapshot(tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+    """Return empty snapshot structure."""
+    return {
+        "phase": None,
+        "nodes": {},
+        "logs": [],
+        "pending_interactions": [],
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
+    }
+
+
+def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+    """Get snapshot from in-memory state (V13.0 fallback)."""
+    try:
+        state = bus.get_full_state(tenant_id, workspace_id)
+
+        # Get pending interactions
+        pending_interactions = _get_pending_interactions()
+
+        logger.info(
+            f"[CORTEX] In-memory snapshot: tenant={tenant_id}, "
+            f"workspace={workspace_id}, nodes={len(state.get('nodes', {}))}, "
+            f"logs={len(state.get('logs', []))}, pending={len(pending_interactions)}"
+        )
+
+        return {
+            "phase": state.get("phase"),
+            "nodes": state.get("nodes", {}),
+            "logs": state.get("logs", []),
+            "pending_interactions": pending_interactions,
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+        }
+    except Exception as e:
+        logger.error(f"In-memory snapshot failed: {e}")
+        return _empty_snapshot(tenant_id, workspace_id)
+
+
+async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+    """Get snapshot from Redis (original implementation)."""
     redis = bus._redis
-    if not redis:
-        raise HTTPException(503, "Redis client unavailable")
-
     base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
     try:
@@ -105,19 +153,11 @@ async def get_state_snapshot(
                 entry = log_entry.decode() if isinstance(log_entry, bytes) else log_entry
                 logs.append(json.loads(entry))
 
-        # CRITICAL: Get pending interactions from HeadlessProvider
-        # This fixes the "Fantôme de la Question" bug
-        pending_interactions = []
-        try:
-            from core.interaction import get_interaction_provider
-            provider = get_interaction_provider()
-            if hasattr(provider, 'get_pending_requests'):
-                pending_interactions = provider.get_pending_requests()
-        except Exception as e:
-            logger.debug(f"Could not get pending interactions: {e}")
+        # Get pending interactions
+        pending_interactions = _get_pending_interactions()
 
         logger.info(
-            f"[CORTEX] Snapshot retrieved: tenant={tenant_id}, "
+            f"[CORTEX] Redis snapshot: tenant={tenant_id}, "
             f"workspace={workspace_id}, nodes={len(nodes)}, "
             f"logs={len(logs)}, pending={len(pending_interactions)}"
         )
@@ -132,8 +172,21 @@ async def get_state_snapshot(
         }
 
     except Exception as e:
-        logger.error(f"Snapshot failed: {e}")
-        raise HTTPException(500, f"Snapshot failed: {e}")
+        logger.error(f"Redis snapshot failed: {e}")
+        # V13.0: Fall back to in-memory
+        return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
+
+
+def _get_pending_interactions() -> List[Dict[str, Any]]:
+    """Get pending interactions from HeadlessProvider."""
+    try:
+        from core.interaction import get_interaction_provider
+        provider = get_interaction_provider()
+        if hasattr(provider, 'get_pending_requests'):
+            return provider.get_pending_requests()
+    except Exception as e:
+        logger.debug(f"Could not get pending interactions: {e}")
+    return []
 
 
 @router.delete("/snapshot")
@@ -148,6 +201,8 @@ async def clear_state_snapshot(
     V11.6.1 IRONCLAD: MANDATORY authentication.
     tenant_id from JWT token ONLY - prevents IDOR attacks.
 
+    V13.0: Clears both Redis and in-memory state.
+
     Args:
         user: Authenticated user (from JWT token)
 
@@ -156,7 +211,6 @@ async def clear_state_snapshot(
 
     Raises:
         401: Not authenticated
-        503: Redis not available
     """
     # V11.6.1 IRONCLAD: tenant_id from JWT ONLY (Zero Trust)
     tenant_id = user.tenant_id
@@ -167,25 +221,24 @@ async def clear_state_snapshot(
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
-        raise HTTPException(503, "Redis bus unavailable")
+        return {"status": "cleared"}  # V13.0: No state to clear
 
-    if not bus.is_connected():
-        raise HTTPException(503, "Redis not connected")
+    # V13.0: Clear in-memory state always
+    bus.clear_state(tenant_id, workspace_id)
 
-    redis = bus._redis
-    if not redis:
-        raise HTTPException(503, "Redis client unavailable")
+    # Clear Redis if connected
+    if bus.is_connected() and bus._redis:
+        redis = bus._redis
+        base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
-    base_key = f"nexus:{tenant_id}:{workspace_id}:state"
+        try:
+            await redis.delete(
+                f"{base_key}:phase",
+                f"{base_key}:nodes",
+                f"{base_key}:logs"
+            )
+        except Exception as e:
+            logger.warning(f"Redis clear failed (continuing): {e}")
 
-    try:
-        await redis.delete(
-            f"{base_key}:phase",
-            f"{base_key}:nodes",
-            f"{base_key}:logs"
-        )
-        logger.info(f"[CORTEX] State cleared: tenant={tenant_id}, workspace={workspace_id}")
-        return {"status": "cleared"}
-    except Exception as e:
-        logger.error(f"Clear failed: {e}")
-        raise HTTPException(500, f"Clear failed: {e}")
+    logger.info(f"[CORTEX] State cleared: tenant={tenant_id}, workspace={workspace_id}")
+    return {"status": "cleared"}

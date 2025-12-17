@@ -64,6 +64,9 @@ from ..session_integration import HiveMindSessionIntegration, generate_hivemind_
 from ..agent_registry import AgentRegistry
 from ..user_interaction import UserInteractionHandler
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -462,6 +465,18 @@ class ArchitectureGenerationPhase:
             task, approach, capabilities, available_agents
         )
 
+        # V13.0 CEREBRO LIVE: Emit Claude's architecture proposal
+        emit_agent_speak(
+            "claude",
+            f"Architecture: {claude_arch.collaboration_mode} mode, {len(claude_arch.execution_plan.steps)} steps",
+            action_type="ARCHITECTURE"
+        )
+        emit_agent_exchange(
+            "claude", "gemini",
+            f"Proposed: {claude_arch.collaboration_mode} with {len(claude_arch.agents_to_use)} agents",
+            exchange_type="architecture"
+        )
+
         # Check budget for validation step
         if not self.cost_estimator.can_afford("validate_architecture"):
             logger.warning("  Budget insufficient for Phase 3b - using Claude architecture directly")
@@ -471,6 +486,19 @@ class ArchitectureGenerationPhase:
         logger.info("  Phase 3b: Gemini validating architecture...")
         try:
             final_arch = await self._validate_with_gemini(claude_arch, task, capabilities)
+
+            # V13.0 CEREBRO LIVE: Emit Gemini's validation response
+            emit_agent_speak(
+                "gemini",
+                f"Validation: {final_arch.reasoning[:100]}",
+                action_type="VALIDATION"
+            )
+            emit_agent_exchange(
+                "gemini", "claude",
+                f"Validated: {final_arch.collaboration_mode} mode approved",
+                exchange_type="architecture"
+            )
+
             return final_arch
         except Exception as e:
             logger.warning(f"  Gemini validation failed: {e} - using Claude architecture")

@@ -47,6 +47,9 @@ class Config:
         # Workspace
         self.workspace_path: Path = Path(os.getenv("WORKSPACE_PATH", "./workspace"))
 
+        # NEXUS Root Directory (defaults to current directory)
+        self.nexus_root: Path = Path(os.getenv("NEXUS_ROOT", ".")).resolve()
+
         # Logging
         self.log_level: str = os.getenv("LOG_LEVEL", "INFO")
 

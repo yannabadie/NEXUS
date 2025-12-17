@@ -21,6 +21,9 @@ from .base import (
 from ..collaboration_modes import CollaborationMode
 from ..task_completion_validator import TaskCompletionValidator
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 
 class PingPongExecutor(ModeExecutor):
     """
@@ -99,6 +102,19 @@ class PingPongExecutor(ModeExecutor):
             # Collect tool results from response
             if response.tool_results:
                 tool_results.extend(response.tool_results)
+
+            # V13.0 CEREBRO LIVE: Emit ping-pong exchange
+            next_agent = agents[(current_idx + 1) % len(agents)]
+            emit_agent_speak(
+                agent.agent_id,
+                response.content[:200],
+                action_type="PING_PONG"
+            )
+            emit_agent_exchange(
+                agent.agent_id, next_agent.agent_id,
+                f"Round {round_num + 1}: {response.content[:60]}",
+                exchange_type="ping_pong"
+            )
 
             # V7.5: Stream round to callback for real-time display
             if context.on_round:

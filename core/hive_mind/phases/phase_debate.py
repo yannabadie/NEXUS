@@ -44,6 +44,9 @@ from ..session_integration import HiveMindSessionIntegration, generate_hivemind_
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from ...agents.unified_registry import get_registry  # V8.4.0
 
+# V13.0 CEREBRO LIVE: Telemetry for agent exchanges
+from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.gemini_driver_v7 import GeminiDriverV7
@@ -371,6 +374,9 @@ class StrategicDebatePhase:
         current_speaker = "gemini"  # Alternates
         turn_number = 0
 
+        # V13.0 CEREBRO LIVE: Get registry for agent name resolution
+        registry = get_registry()
+
         # Debate each significant disagreement
         primary_disagreement = self._get_primary_disagreement(comparison.disagreements)
 
@@ -398,6 +404,20 @@ class StrategicDebatePhase:
                 turn_number,
                 current_speaker,
                 argument.argument
+            )
+
+            # V13.0 CEREBRO LIVE: Emit debate exchange
+            next_speaker = registry.get_alternate(current_speaker) or "user"
+            emit_agent_speak(
+                current_speaker,
+                argument.argument[:300],
+                action_type="DEBATE"
+            )
+            emit_agent_exchange(
+                current_speaker,
+                next_speaker,
+                f"[{argument.position}] {argument.argument[:80]}",
+                exchange_type="debate"
             )
 
             # V10 FIX F11: Check for inter-agent misalignment
