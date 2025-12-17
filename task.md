@@ -1,17 +1,18 @@
-# Cycle 005: Standardization (Refactoring)
+# Cycle 006: Deep Reconnaissance & Vision Integration
 
-**Goal**: Upgrade `core/bootstrap/agent_loader.py` to return `AgentDescriptor` (V12.4) instead of `AgentProfile` (Legacy).
+**Goal**: Locate frontend, digest all documentation, formalize "Post-SOTA" vision, and experiment with self-brainstorming.
 
-- [ ] **Analysis**
-    - [ ] Compare `AgentProfile` vs `AgentDescriptor` attributes.
-    - [ ] Identify all call sites of `discover_and_register_spawned_agents`.
+- [ ] **Reconnaissance**
+    - [ ] Locate Frontend: Search for `package.json`, `tsconfig.json`, `vite.config.ts`.
+    - [ ] Audit Frontend: Verify structure and "React 19" claims.
 
-- [ ] **Implementation**
-    - [ ] Refactor `core/bootstrap/agent_loader.py` to use `AgentDescriptor`.
-    - [ ] Implement `_map_capabilities` helper to convert strings to `AgentCapability` Enum.
-    - [ ] Update `discover_and_register_spawned_agents` to use `UnifiedAgentRegistry`.
+- [ ] **Documentation Absorption**
+    - [ ] Find all `README.md` files.
+    - [ ] Read and synthesize key insights from each.
 
-- [ ] **Verification**
-    - [ ] Update `verify_genesis.py` to remove adapter logic.
-    - [ ] Run `verify_genesis.py` to confirm native compatibility.
-    - [ ] Ensure `python_specialist` is still correctly loaded.
+- [ ] **Vision Integration**
+    - [ ] Update `ROADMAP.md` with "Post-SOTA" section (Generative UI, Auto-Replication, Kernel Rewrite).
+
+- [ ] **Meta-Cognition (Brainstorming)**
+    - [ ] Analyze `nexus7.py` interface.
+    - [ ] Attempt to invoke NEXUS for a brainstorming session (if feasible via CLI).
