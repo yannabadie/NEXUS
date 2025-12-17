@@ -64,7 +64,13 @@ class PingPongExecutor(ModeExecutor):
         completion_validator = TaskCompletionValidator(workspace_path) if workspace_path else None
 
         # V7.9: Get task analysis for validation (from blackboard if available)
-        task_analysis = context.blackboard.get("task_analysis")
+        # V12.4: Convert from dict if needed (blackboard stores dict for JSON serialization)
+        task_analysis_raw = context.blackboard.get("task_analysis")
+        if task_analysis_raw and isinstance(task_analysis_raw, dict):
+            from ..task_analyzer import TaskAnalysis
+            task_analysis = TaskAnalysis.from_dict(task_analysis_raw)
+        else:
+            task_analysis = task_analysis_raw
 
         outputs: List[AgentResponse] = []
         tool_results: List[Dict] = []  # Collect tool results for validation

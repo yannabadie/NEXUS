@@ -139,8 +139,13 @@ class RedBlueExecutor(ModeExecutor):
         )
 
         # 2. Artifact verification - check if mentioned files actually exist
-        workspace_path = context.blackboard.get("workspace_path", Path.cwd())
-        verifier = ArtifactVerifier(Path(workspace_path))
+        # V12.4: Handle None workspace_path explicitly
+        workspace_path = context.blackboard.get("workspace_path")
+        if workspace_path is None:
+            workspace_path = Path.cwd()
+        elif not isinstance(workspace_path, Path):
+            workspace_path = Path(workspace_path)
+        verifier = ArtifactVerifier(workspace_path)
         artifacts_ok, successes, failures = verifier.verify_from_content(defense.content)
 
         # 3. Combined verdict: PASS only if BOTH text verdict AND artifacts are OK

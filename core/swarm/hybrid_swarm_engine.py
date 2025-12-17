@@ -320,7 +320,8 @@ class HybridSwarmEngine:
                 adaptive_rounds = config_max_rounds
 
             # V7.9: Store task_analysis in blackboard for completion validation
-            blackboard["task_analysis"] = analysis
+            # V12.4: Store as dict for JSON serialization
+            blackboard["task_analysis"] = analysis.to_dict()
             blackboard["workspace_path"] = self.workspace_path
             # V8.5.0: Add domains/complexity for AdaptiveFallbackSelector
             blackboard["domains"] = [d.value for d in analysis.domains]

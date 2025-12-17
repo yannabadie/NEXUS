@@ -458,8 +458,13 @@ class ModeExecutor(ABC):
         context: ExecutionContext
     ) -> Dict[str, Any]:
         """Verify artifacts mentioned in agent output."""
-        workspace_path = context.blackboard.get("workspace_path", Path.cwd())
-        verifier = ArtifactVerifier(Path(workspace_path))
+        # V12.4: Handle None workspace_path explicitly (blackboard may have None value)
+        workspace_path = context.blackboard.get("workspace_path")
+        if workspace_path is None:
+            workspace_path = Path.cwd()
+        elif not isinstance(workspace_path, Path):
+            workspace_path = Path(workspace_path)
+        verifier = ArtifactVerifier(workspace_path)
 
         verified, successes, failures = verifier.verify_from_content(content)
 

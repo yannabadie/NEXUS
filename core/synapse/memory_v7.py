@@ -146,6 +146,17 @@ class MemoryManagerV7:
             }
         }
 
+    @property
+    def history(self) -> List[Dict]:
+        """
+        V12.4: Property to access recent_history from blackboard.
+
+        Added for backward compatibility with code expecting memory.history.
+        Thread-safe read access to conversation history.
+        """
+        with self._lock:
+            return self.blackboard.get("recent_history", [])
+
     def get_last_message(self) -> Dict:
         """Get last message from history"""
         with self._lock:

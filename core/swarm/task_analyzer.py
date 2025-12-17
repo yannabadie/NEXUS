@@ -343,6 +343,53 @@ class TaskAnalysis:
             "instant_command": self.instant_command,
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict) -> "TaskAnalysis":
+        """
+        V12.4: Create TaskAnalysis from a dictionary (for blackboard deserialization).
+
+        Args:
+            data: Dictionary with TaskAnalysis fields (from to_dict)
+
+        Returns:
+            TaskAnalysis instance
+        """
+        # Parse complexity enum
+        complexity = TaskComplexity[data.get("complexity", "MODERATE")]
+
+        # Parse domains - they're stored as string values
+        domains_raw = data.get("domains", [])
+        domains = [TaskDomain(d) for d in domains_raw]
+        if not domains:
+            domains = [TaskDomain.GENERAL]
+
+        # Parse primary domain
+        primary_domain = TaskDomain(data.get("primary_domain", "general"))
+
+        # Parse analysis stage
+        stage_name = data.get("analysis_stage", "STAGE2_HEURISTIC")
+        try:
+            analysis_stage = AnalysisStage[stage_name]
+        except KeyError:
+            analysis_stage = AnalysisStage.STAGE2_HEURISTIC
+
+        return cls(
+            complexity=complexity,
+            domains=domains,
+            primary_domain=primary_domain,
+            requires_web=data.get("requires_web", False),
+            requires_code_execution=data.get("requires_code_execution", False),
+            requires_deep_reasoning=data.get("requires_deep_reasoning", False),
+            requires_iteration=data.get("requires_iteration", False),
+            gemini_fit_score=data.get("gemini_fit_score", 0.5),
+            claude_fit_score=data.get("claude_fit_score", 0.5),
+            raw_input=data.get("raw_input", ""),
+            confidence=data.get("confidence", 0.5),
+            detected_keywords=data.get("detected_keywords", []),
+            analysis_stage=analysis_stage,
+            instant_command=data.get("instant_command"),
+        )
+
 
 class TaskAnalyzer:
     """
