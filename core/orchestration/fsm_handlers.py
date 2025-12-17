@@ -33,6 +33,10 @@ from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
 
+# V10.2 NOTE: Helper modules available at core.orchestration.handlers.*
+# Not imported here to avoid circular import. Use directly:
+#   from core.orchestration.handlers.idle_helpers import get_trivial_response
+
 # V8.0 TRUE HIVE MIND
 try:
     from core.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
@@ -706,7 +710,7 @@ class FSMHandlers:
             self._logger.debug("TRIVIAL task - Fast Path enabled", {"input": user_input})
             return self._handle_fast_path(user_input)
 
-        # Static fallback responses
+        # Static fallback responses (V10.2: Also available in handlers.idle_helpers)
         self._logger.debug("TRIVIAL task - static fallback", {"input": user_input})
         greeting_responses = {
             "hello": "Hello! How can I help you today?",
