@@ -3,6 +3,10 @@ NEXUS V7.8 - FSM State Handlers Module (Phase 14c)
 
 Extracted from orchestration_v7.py to follow Single Responsibility Principle.
 
+V10.2 NOTE: This file is targeted for modular split. See:
+    core/orchestration/handlers/  - New handler package
+    core/orchestration/handlers/base.py - Shared mixin base
+
 This module contains state handlers for the FSM:
 - handle_idle(): Process user input, route by complexity
 - handle_waiting_user(): Handle new input after task completion
