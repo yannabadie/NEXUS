@@ -1,118 +1,80 @@
-# routes
+# Cerebro Routes
 
-NEXUS V10 CEREBRO - API Routes Package
-V11.5 CORTEX: Extended with state, interactions, workflow, files endpoints
-V11.6 KEYMAKER: Authentication endpoints
+## Synopsis
+FastAPI route modules for CEREBRO API. Organized by domain: health, streaming, state, interactions, workflow, files, auth, users, and memory.
 
-Routes:
-- health: Health check endpoints (/health, /health/ready)
-- stream: WebSocket streaming endpoint (/ws/stream)
-- state: State snapshot for F5 recovery (/api/state/snapshot)
-- interactions: Human-in-the-loop (/api/interactions/{id}/reply)
-- workflow: Task execution control (/api/workflow/start)
-- files: Secure file access (/api/files/content)
-- auth: Authentication (V11.6) (/api/auth/login, /api/auth/me)
+## Component Map
+| File | Endpoints | Purpose |
+|------|-----------|---------|
+| `health.py` | `GET /health`, `GET /health/redis` | Health checks |
+| `stream.py` | `WS /ws/stream` | WebSocket streaming |
+| `state.py` | `GET /api/state/snapshot`, `GET /api/state/history` | FSM state snapshots |
+| `interactions.py` | `GET /api/interactions/pending`, `POST /api/interactions/{id}/respond` | HITL management |
+| `workflow.py` | `POST /api/workflow/start`, `POST /api/workflow/stop` | Workflow control |
+| `files.py` | `GET /api/files/content`, `POST /api/files/content` | File access |
+| `auth.py` | `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`, `POST /api/auth/logout` | JWT auth (V11.6) |
+| `users.py` | `GET /api/users`, `POST /api/users/invite`, `DELETE /api/users/{id}`, `PUT /api/users/{id}/role` | User management (V12.2) |
+| `memory.py` | `GET /api/memory/stats`, `GET /api/memory/namespaces`, `POST /api/memory/ingest` | Memory API (V13.0) |
 
-## Overview
+## Common Patterns
 
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\api\cerebro\routes` |
-| **Modules** | 9 |
-| **Total Lines** | 2238 |
-| **Classes** | 11 |
-| **Functions** | 37 |
+### Multi-Tenant Isolation
+```python
+from core.context import get_current_session
 
-## Architecture
-
-```mermaid
-classDiagram
-    class LoginRequest {
-        +str username
-        +str password
-    }
-    BaseModel <|-- LoginRequest
-    class TokenResponse {
-        +str access_token
-        +str token_type
-        +int expires_in
-        +str tenant_id
-        +str user_id
-    }
-    BaseModel <|-- TokenResponse
-    class UserInfo {
-        +str user_id
-        +str tenant_id
-        +str workspace_id
-        +bool authenticated
-    }
-    BaseModel <|-- UserInfo
-    class FileWriteRequest {
-        +str path
-        +str content
-    }
-    BaseModel <|-- FileWriteRequest
-    class InteractionResponse {
-        +Any response
-    }
-    BaseModel <|-- InteractionResponse
-    class UserResponse {
-        +str id
-        +str username
-        +str email
-        +str role
-        +bool is_active
-        +Optional[datetime] created_at
-        +Optional[datetime] last_login
-    }
-    BaseModel <|-- UserResponse
-    class UserListResponse {
-        +List[UserResponse] users
-        +int total
-    }
-    BaseModel <|-- UserListResponse
-    class InviteUserRequest {
-        +str username
-        +EmailStr email
-        +str role
-        +Optional[str] password
-    }
-    BaseModel <|-- InviteUserRequest
-    class ChangeRoleRequest {
-        +str role
-    }
-    BaseModel <|-- ChangeRoleRequest
-    class WorkflowStartRequest {
-        +str task
-        +Optional[str] complexity
-    }
-    BaseModel <|-- WorkflowStartRequest
-    class WorkflowResponse {
-        +str workflow_id
-        +str status
-        +Optional[str] task
-        +Optional[Any] result
-        +Optional[str] error
-    }
-    BaseModel <|-- WorkflowResponse
+@router.get("/endpoint")
+async def endpoint():
+    ctx = get_current_session()
+    tenant_id = ctx.tenant_id
+    # Query filtered by tenant_id
 ```
 
-## Modules
+### Authentication
+```python
+from core.api.cerebro.deps import get_current_user
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [auth](auth.py) | NEXUS V12.2 IRONCLAD - Authentication Endpoints | 3 | 7 |
-| [files](files.py) | NEXUS V12.2 IRONCLAD - Secure File Access Endpoints | 1 | 6 |
-| [health](health.py) | NEXUS V10 CEREBRO - Health Check Endpoints | 0 | 4 |
-| [interactions](interactions.py) | NEXUS V11.5 CORTEX - Interaction Response Endpoints | 1 | 2 |
-| [state](state.py) | NEXUS V11.5 CORTEX - State Snapshot Endpoint | 0 | 2 |
-| [stream](stream.py) | NEXUS V12.2 IRONCLAD - WebSocket Streaming Endpoint | 0 | 3 |
-| [users](users.py) | NEXUS V12.2 IRONCLAD - User Management API | 4 | 8 |
-| [workflow](workflow.py) | NEXUS V12.3 SCALE-OUT - Workflow Control Endpoints | 2 | 5 |
+@router.get("/endpoint")
+async def endpoint(user = Depends(get_current_user)):
+    # user.id, user.tenant_id, user.role available
+```
 
+### RBAC Enforcement
+```python
+from core.api.cerebro.rbac import require_permission
 
+@router.post("/admin-only")
+@require_permission("admin")
+async def admin_endpoint(user = Depends(get_current_user)):
+    # Only accessible to admin role
+```
 
+### Audit Logging
+```python
+from core.audit import AuditLogger, AuditAction
 
+await AuditLogger.log_file(
+    tenant_id=user.tenant_id,
+    user_id=user.id,
+    action=AuditAction.FILE_READ,
+    file_path="/path/to/file.py",
+    success=True,
+    request=request
+)
+```
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### Rate Limiting (V12.1 RETINA)
+```python
+"/api/auth/login": 5 requests/minute
+"/api/users/invite": 10 requests/minute
+```
+
+## Dependencies
+- **Internal**: `core.context`, `core.db`, `core.audit`, `core.api.cerebro.deps`, `core.api.cerebro.rbac`, `core.events.redis_bus`
+- **External**: `fastapi`, `pydantic`
+
+## Version History
+- V10: Health, stream, state
+- V11.5 CORTEX: Interactions, workflow, files
+- V11.6 KEYMAKER: Auth (JWT)
+- V12.2 IRONCLAD: Users (RBAC)
+- V13.0 MEMORIA: Memory (RAG)

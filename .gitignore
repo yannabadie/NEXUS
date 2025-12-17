@@ -29,6 +29,20 @@ workspace/
 workspace_archive.tar.gz
 *.log
 *.jsonl
+.nexus/
+data/
+
+# Node.js (for Playwright/UI tests)
+node_modules/
+package-lock.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Test artifacts
+test-results/
+playwright-report/
+*.png
 
 # Secrets
 *.pem

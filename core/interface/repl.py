@@ -17,6 +17,7 @@ import asyncio
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.patch_stdout import patch_stdout
+from contextlib import nullcontext
 from core.orchestration_v7 import OrchestratorV7
 from core.ui.console_v7 import ConsoleV7
 from core.interface.commands import (
@@ -309,7 +310,9 @@ class InteractiveNexusV7:
                 self.console.print(f"  {hint}")
             self.console.print("")
 
-        with patch_stdout():
+        # V12.4: Use nullcontext for piped/headless mode to avoid NoConsoleScreenBufferError
+        stdout_context = nullcontext() if self._use_simple_input else patch_stdout()
+        with stdout_context:
             while True:
                 try:
                     # V9: Non-blocking input
