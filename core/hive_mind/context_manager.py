@@ -28,6 +28,7 @@ from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 from collections import deque
+from pathlib import Path  # V10.2: Required for cold_storage_path
 
 if TYPE_CHECKING:
     from core.memory.project_memory import ProjectMemory
