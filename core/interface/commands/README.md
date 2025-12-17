@@ -1,165 +1,156 @@
-# commands
+# NEXUS Interface Commands Module
 
-NEXUS V9 Command System
+## Synopsis
 
-This module provides:
-1. Legacy slash command utilities (from slash_commands.py)
-2. Strategy Pattern-based command dispatch system (V9)
-
-Usage (V9 - New):
-    from core.interface.commands import get_initialized_registry, CommandContext
-
-    registry = get_initialized_registry()
-    context = CommandContext(orchestrator, console, config, extras={"repl": repl})
-    result = registry.dispatch("/status", context)
-
-Usage (Legacy):
-    from core.interface.commands import is_slash_command, parse_command
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\interface\commands` |
-| **Modules** | 9 |
-| **Total Lines** | 2113 |
-| **Classes** | 33 |
-| **Functions** | 20 |
+The **commands** module contains the implementations of all slash commands available in the NEXUS REPL. Commands are organized by domain (system, agents, evolution, memory, swarm, workspace) and registered via a central registry.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class SpawnCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- SpawnCommand
-    class AgentsCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- AgentsCommand
-    class PoolStatsCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- PoolStatsCommand
-    class EvolveCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- EvolveCommand
-    class EvolveStatusCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- EvolveStatusCommand
-    class ReviewCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- ReviewCommand
-    class LearnCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- LearnCommand
-    class ForgetCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- ForgetCommand
-    class MemoryStatusCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- MemoryStatusCommand
-    class RagCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- RagCommand
-    class ClearCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- ClearCommand
-    class ModeCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- ModeCommand
-    class ResetCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- ResetCommand
-    class DoctorCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- DoctorCommand
-    class TelemetryCommand {
-        +name(self) str
-        +aliases(self) List[str]
-        +description(self) str
-        +usage(self) str
-        +execute(self, args: str, context: CommandContext) CommandResult
-    }
-    Command <|-- TelemetryCommand
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      COMMAND ARCHITECTURE                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                     CommandRegistry                               │   │
+│  │              Central command registration                         │   │
+│  └────────────────────────────┬─────────────────────────────────────┘   │
+│                               │                                          │
+│    ┌──────────────────────────┼──────────────────────────────────┐      │
+│    │           │              │              │              │    │      │
+│    ▼           ▼              ▼              ▼              ▼    ▼      │
+│ ┌──────┐  ┌────────┐  ┌──────────┐  ┌──────┐  ┌─────┐  ┌──────────┐   │
+│ │system│  │agents  │  │evolution │  │memory│  │swarm│  │workspace │   │
+│ │      │  │        │  │          │  │      │  │     │  │          │   │
+│ └──────┘  └────────┘  └──────────┘  └──────┘  └─────┘  └──────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [agents](agents.py) | V9.1 Agent Commands - /spawn, /agents, /pool-stats | 3 | 2 |
-| [evolution](evolution.py) | V9.1 Evolution Commands - /evolve, /evolve-status, /review | 3 | 2 |
-| [memory](memory.py) | V9.1 Memory Commands - /learn, /forget, /memory-status, /rag | 4 | 2 |
-| [misc](misc.py) | V9.1 Miscellaneous Commands - /mode, /reset, /doctor, /telemetry, /budget, /tutorial, /quickstart, /chat, /clear | 9 | 3 |
-| [registry](registry.py) | V9 Command Registry - Strategy Pattern for REPL commands. | 5 | 2 |
-| [swarm](swarm.py) | V9.1 Swarm Commands - /swarm, /swarm-status, /swarm-fsm | 3 | 2 |
-| [system](system.py) | V9 System Commands - Status, Help, Doctor, etc. | 3 | 1 |
-| [workspace](workspace.py) | V9.1 Workspace Commands - /bootstrap, /specialize, /workspace | 3 | 4 |
+| File | Domain | Commands |
+|------|--------|----------|
+| `registry.py` | - | `CommandRegistry`, command decorator |
+| `system.py` | System | `/help`, `/status`, `/reset`, `/clear`, `/quit` |
+| `agents.py` | Agents | `/spawn`, `/list-agents`, `/kill-agent` |
+| `evolution.py` | Evolution | `/evolve`, `/specialize`, `/lineage` |
+| `memory.py` | Memory | `/memory`, `/forget`, `/search` |
+| `swarm.py` | Swarm | `/swarm`, `/hive`, `/mode` |
+| `workspace.py` | Workspace | `/save`, `/load`, `/snapshot` |
+| `misc.py` | Misc | `/history`, `/tokens`, `/config` |
 
+## Command Interface
 
+```python
+@dataclass
+class CommandResult:
+    success: bool
+    message: str
+    data: Optional[Dict] = None
 
+class Command(Protocol):
+    """Command handler protocol."""
 
+    name: str
+    description: str
+    aliases: List[str]
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+    async def execute(
+        self,
+        args: List[str],
+        context: CommandContext
+    ) -> CommandResult
+```
+
+## Command Registry
+
+```python
+from core.interface.commands import CommandRegistry, command
+
+registry = CommandRegistry()
+
+# Register via decorator
+@command(name="help", aliases=["?", "h"], description="Show help")
+async def help_command(args: List[str], context: CommandContext) -> CommandResult:
+    # Implementation
+    return CommandResult(success=True, message=help_text)
+
+# Execute command
+result = await registry.execute("/help", context)
+```
+
+## Available Commands
+
+### System Commands
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `/help` | `/?`, `/h` | Show available commands |
+| `/status` | `/s` | Show system status |
+| `/reset` | `/r` | Reset orchestrator state |
+| `/clear` | `/cls` | Clear terminal |
+| `/quit` | `/exit`, `/q` | Exit NEXUS |
+
+### Agent Commands
+| Command | Description |
+|---------|-------------|
+| `/spawn <type>` | Spawn new specialized agent |
+| `/list-agents` | List active agents |
+| `/kill-agent <id>` | Terminate agent |
+
+### Evolution Commands
+| Command | Description |
+|---------|-------------|
+| `/evolve` | Trigger evolution brainstorm |
+| `/specialize <mission>` | Create specialized spinoff |
+| `/lineage` | Show evolution tree |
+
+### Memory Commands
+| Command | Description |
+|---------|-------------|
+| `/memory` | Show memory status |
+| `/search <query>` | Search memory |
+| `/forget <key>` | Remove from memory |
+
+### Swarm Commands
+| Command | Description |
+|---------|-------------|
+| `/swarm <task>` | Execute with swarm |
+| `/hive <task>` | Execute with HiveMind |
+| `/mode` | Show current mode |
+
+### Workspace Commands
+| Command | Description |
+|---------|-------------|
+| `/save [name]` | Save session |
+| `/load <name>` | Load session |
+| `/snapshot` | Create workspace snapshot |
+
+## Usage
+
+```python
+from core.interface.commands import CommandRegistry
+
+# Create registry
+registry = CommandRegistry()
+
+# Check if input is command
+if registry.is_command(user_input):
+    result = await registry.execute(user_input, context)
+    print(result.message)
+```
+
+## Dependencies
+
+### Internal
+- `core.orchestration_v7` - Orchestrator access
+- `core.evolution` - Evolution commands
+- `core.swarm` - Swarm commands
+- `core.memory` - Memory commands
+
+## Version History
+
+- **V7.0** - Initial command system
+- **V8.0** - HiveMind commands
+- **V9.0** - Swarm commands
+- **V12.4** - Enhanced registry, command aliases

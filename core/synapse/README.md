@@ -1,105 +1,154 @@
-# synapse
+# NEXUS Synapse Module
 
-NEXUS V7 Synapse - Protocol & Memory
+## Synopsis
 
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\synapse` |
-| **Modules** | 3 |
-| **Total Lines** | 508 |
-| **Classes** | 6 |
-| **Functions** | 0 |
+The **synapse** module defines the communication protocol between agents in NEXUS. It provides Pydantic-based message schemas with intelligent defaults, auto-repair validators, and both lightweight (TALK) and heavyweight (TOOL_USE) message types. The protocol ensures robust agent communication even when responses contain errors or typos.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class MemoryManagerV7 {
-        +workspace_path
-        +config
-        +blackboard_path
-        +backup_dir
-        -_lock
-        -_blackboard_store
-        +global_memory_path
-        -_global_memory_store
-        +blackboard
-        +global_memory
-        -__init__(self, workspace_path: Path, config)
-        +load_initial_state(self) Dict
-        -_load_global_memory(self) Dict
-        -_create_empty_global_memory(self) Dict
-        +save_global_memory(self)
-        +update_global_context(self, category: str, key: str, value: Any)
-        +get_global_context(self) Dict
-        -_load_or_create_blackboard(self) Dict
-        -_create_empty_blackboard(self) Dict
-        +get_last_message(self) Dict
-        +add_to_history(self, message: Dict)
-        +save_to_disk(self)
-        +update_strategic_plan(self, plan: List[Dict])
-        +compress_history(self)
-        -_compress_history_unsafe(self)
-        +create_backup(self, reason: str=...) Optional[Path]
-        +restore_from_backup(self, backup_file: Path=...) bool
-        +list_backups(self) List[Dict]
-        -_cleanup_old_backups(self, keep: int=...)
-    }
-    class ThoughtChain {
-        +int step
-        +str reasoning
-    }
-    BaseModel <|-- ThoughtChain
-    class LightMessageV7 {
-        +str sender
-        +str action_type
-        +Optional[str] content
-        +Optional[List[ThoughtChain]] thought_process
-        +Optional[str] reflection
-        +Optional[str] next_agent
-        +Optional[str] status
-        +Optional[str] action_summary
-        +Optional[str] instructions_for_next
-        +Optional[List[Dict]] strategic_plan_update
-        +repair_action_type(cls, v: str) str
-        +repair_sender(cls, v: str) str
-        +default_next_agent(cls, v: Optional[str], info: ValidationInfo) Optional[str]
-        +repair_status(cls, v: Optional[str]) str
-    }
-    BaseModel <|-- LightMessageV7
-    class ToolUse {
-        +str tool_name
-        +Dict[str, Any] arguments
-        +Optional[str] expected_outcome
-    }
-    BaseModel <|-- ToolUse
-    class PostActionReview {
-        +str validation_status
-        +str analysis
-        +Optional[List[str]] discrepancies
-        +Optional[str] correction_plan
-    }
-    BaseModel <|-- PostActionReview
-    class HeavyMessageV7 {
-        +str action_type
-        +Optional[ToolUse] tool_use
-        +Optional[PostActionReview] post_action_review
-    }
-    LightMessageV7 <|-- HeavyMessageV7
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      SYNAPSE PROTOCOL V7                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                       Message Types                               │   │
+│  ├──────────────────────────────────────────────────────────────────┤   │
+│  │                                                                   │   │
+│  │  ┌─────────────────┐           ┌─────────────────────┐           │   │
+│  │  │ LightMessageV7  │           │   HeavyMessageV7    │           │   │
+│  │  │ ─────────────── │           │ ─────────────────── │           │   │
+│  │  │ TALK            │           │ TOOL_USE            │           │   │
+│  │  │ DELEGATE        │           │ FINISH              │           │   │
+│  │  │ CONTINUE        │           │ ERROR               │           │   │
+│  │  └─────────────────┘           └─────────────────────┘           │   │
+│  │                                                                   │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                     Auto-Repair System                            │   │
+│  ├──────────────────────────────────────────────────────────────────┤   │
+│  │  • Typo correction: "DELEGATION" → "DELEGATE"                     │   │
+│  │  • Case normalization: "talk" → "TALK"                            │   │
+│  │  • Missing field defaults: next_agent → alternate agent           │   │
+│  │  • Sender capitalization: "gemini" → "Gemini"                     │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [memory_v7](memory_v7.py) | Memory Manager V7 - Persistent in-RAM state | 1 | 0 |
-| [protocol_v7](protocol_v7.py) | Protocol V7 - Schémas Pydantic souples avec auto-repair | 5 | 0 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `protocol_v7.py` | Message schemas | `LightMessageV7`, `HeavyMessageV7`, `ThoughtChain` |
+| `memory_v7.py` | Message history management | `MessageMemory`, `ConversationBuffer` |
 
+## Message Types
 
+### LightMessageV7
+For communication actions (TALK, DELEGATE, CONTINUE):
 
+```python
+class LightMessageV7(BaseModel):
+    sender: str                          # "Gemini" or "Claude"
+    action_type: str                     # TALK, DELEGATE, CONTINUE
+    content: Optional[str] = ""          # Message content
+    thought_process: List[ThoughtChain]  # Reasoning steps
+    reflection: Optional[str] = None     # Self-reflection
+    next_agent: Optional[str] = None     # Target agent (auto-alternates)
+    status: Optional[str] = "CONTINUE"   # CONTINUE, FINISHED, ERROR
+    action_summary: Optional[str] = None # Summary of action taken
+    instructions_for_next: Optional[str] # Instructions for next agent
+    strategic_plan_update: List[Dict]    # Plan modifications
+```
 
+### HeavyMessageV7
+For action-oriented messages (TOOL_USE, FINISH, ERROR):
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+```python
+class HeavyMessageV7(BaseModel):
+    sender: str
+    action_type: str                     # TOOL_USE, FINISH, ERROR
+    content: Optional[str] = ""
+    thought_process: List[ThoughtChain]
+    tool_name: Optional[str] = None      # Tool to execute
+    tool_params: Optional[Dict] = None   # Tool parameters
+    tool_result: Optional[str] = None    # Execution result
+    error_message: Optional[str] = None  # Error details
+    final_response: Optional[str] = None # Task completion response
+```
+
+### ThoughtChain
+Represents a reasoning step:
+
+```python
+class ThoughtChain(BaseModel):
+    step: int          # Step number
+    reasoning: str     # Reasoning content
+```
+
+## Action Types
+
+| Action | Message Type | Description |
+|--------|--------------|-------------|
+| `TALK` | Light | Agent-to-agent communication |
+| `DELEGATE` | Light | Hand off to specific agent |
+| `CONTINUE` | Light | Continue current processing |
+| `TOOL_USE` | Heavy | Request tool execution |
+| `FINISH` | Heavy | Task completion |
+| `ERROR` | Heavy | Error occurred |
+
+## Auto-Repair Validators
+
+The protocol includes Pydantic validators that auto-correct common errors:
+
+```python
+# Typo corrections
+repairs = {
+    "DELEGATION": "DELEGATE",
+    "DELEGATING": "DELEGATE",
+    "TALKING": "TALK",
+    "TOOL": "TOOL_USE",
+    "USING_TOOL": "TOOL_USE",
+    "FINISHED": "FINISH",
+}
+
+# Auto-alternate next_agent when missing
+if next_agent is None:
+    return "Claude" if sender == "Gemini" else "Gemini"
+```
+
+## Usage Example
+
+```python
+from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7
+
+# Parsing agent response (auto-repairs typos)
+msg = LightMessageV7.model_validate({
+    "sender": "gemini",          # → "Gemini"
+    "action_type": "delegation", # → "DELEGATE"
+    "content": "Please analyze the code",
+    # next_agent missing → auto-set to "Claude"
+})
+
+# Tool use message
+tool_msg = HeavyMessageV7(
+    sender="Claude",
+    action_type="TOOL_USE",
+    tool_name="read",
+    tool_params={"file_path": "src/main.py"}
+)
+```
+
+## Dependencies
+
+### External
+- `pydantic` - Schema validation and auto-repair
+
+## Version History
+
+- **V7.0** - Protocol V7 with Pydantic BaseModel schemas
+- **V7.5** - Auto-repair validators for typos
+- **V8.0** - ThoughtChain for explicit reasoning
+- **V12.4** - Enhanced defaults, strategic_plan_update

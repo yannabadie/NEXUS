@@ -1,138 +1,154 @@
-# interaction
+# NEXUS Interaction Module
 
-Interaction Module - User Interaction Abstraction Layer.
+## Synopsis
 
-NEXUS V9.8 DETOX - Headless Refactoring
-
-This module provides a clean abstraction for user interaction,
-enabling NEXUS to run in both interactive CLI and headless server modes.
-
-Configuration:
-    Set NEXUS_INTERACTION_MODE environment variable:
-    - "cli" (default): Interactive terminal mode
-    - "headless": Non-blocking, returns defaults
-    - "strict": Headless but raises on missing defaults
-
-Usage:
-    from core.interaction import get_interaction_provider
-
-    async def my_function():
-        provider = get_interaction_provider()
-
-        # Ask for input
-        name = await provider.ask("Enter name", default="Anonymous")
-
-        # Confirm action
-        if await provider.confirm("Proceed?", default=True):
-            await provider.announce("Processing...")
-
-        # Multiple choice
-        choice = await provider.choose(
-            "Select option",
-            choices=[
-                Choice("a", "Option A"),
-                Choice("b", "Option B"),
-            ],
-            default="a"
-        )
-
-Author: Claude (NEXUS DETOX)
-Date: 2025-12-13
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\interaction` |
-| **Modules** | 5 |
-| **Total Lines** | 1359 |
-| **Classes** | 7 |
-| **Functions** | 9 |
+The **interaction** module provides a clean abstraction layer for user interaction, enabling NEXUS to run in both interactive CLI and headless server modes. It supports ask/confirm/choose patterns with configurable defaults for non-interactive execution.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class InteractionLevel {
-        +DEBUG
-        +INFO
-        +WARNING
-        +ERROR
-        +CRITICAL
-    }
-    Enum <|-- InteractionLevel
-    class InteractionRequiredError {
-        +prompt
-        +context
-        -__init__(self, prompt: str, context: Optional[str]=...)
-    }
-    Exception <|-- InteractionRequiredError
-    class Choice {
-        +str key
-        +str label
-        +Optional[str] description
-    }
-    class InteractionProvider {
-        +ask(self, prompt: str, default: Optional[str]=..., timeout: Optional[float]=..., required: bool=...) str
-        +confirm(self, prompt: str, default: bool=..., timeout: Optional[float]=...) bool
-        +choose(self, prompt: str, choices: List[Choice], default: Optional[str]=..., timeout: Optional[float]=...) str
-        +announce(self, message: str, level: InteractionLevel=...) None
-        +progress(self, message: str, current: int, total: int) None
-        +is_interactive(self) bool
-    }
-    class CLIProvider {
-        +prefix
-        -__init__(self, prefix: str=...)
-        +ask(self, prompt: str, default: Optional[str]=..., timeout: Optional[float]=..., required: bool=...) str
-        +confirm(self, prompt: str, default: bool=..., timeout: Optional[float]=...) bool
-        +choose(self, prompt: str, choices: List[Choice], default: Optional[str]=..., timeout: Optional[float]=...) str
-        +announce(self, message: str, level: InteractionLevel=...) None
-        +progress(self, message: str, current: int, total: int) None
-        +is_interactive(self) bool
-    }
-    InteractionProvider <|-- CLIProvider
-    class HeadlessProvider {
-        +strict
-        -_logger
-        -_publish_events
-        -_interactive
-        -_interaction_timeout
-        -__init__(self, strict: bool=..., logger_name: Optional[str]=..., publish_events: bool=..., interactive: bool=..., interaction_timeout: float=...)
-        -_publish_event(self, event_type_name: str, payload: Dict[str, Any]) None
-        +get_pending_requests(self) List[dict]
-        +resolve_interaction(self, request_id: str, response: Any) bool
-        -_wait_for_response(self, request_id: str, interaction_type: str, prompt: str, default: Any, extra_data: Optional[dict]=...) Any
-        +ask(self, prompt: str, default: Optional[str]=..., timeout: Optional[float]=..., required: bool=...) str
-        +confirm(self, prompt: str, default: bool=..., timeout: Optional[float]=...) bool
-        +choose(self, prompt: str, choices: List[Choice], default: Optional[str]=..., timeout: Optional[float]=...) str
-        +announce(self, message: str, level: InteractionLevel=...) None
-        +progress(self, message: str, current: int, total: int) None
-        +is_interactive(self) bool
-    }
-    InteractionProvider <|-- HeadlessProvider
-    class HITLPersistence {
-        +DEFAULT_TTL_HOURS
-        +create_request(tenant_id: UUID, workspace_id: str, request_type: str, prompt: str, options: Optional[list]=..., context_data: Optional[dict]=..., ttl_hours: int=...) dict
-        +get_pending(tenant_id: UUID, workspace_id: Optional[str]=...) List[dict]
-        +answer_request(request_id: UUID, answer: str) Optional[dict]
-        +cancel_request(request_id: UUID) bool
-        +get_request(request_id: UUID) Optional[dict]
-        +cleanup_expired() int
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    INTERACTION ABSTRACTION                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                  InteractionProvider (ABC)                        │   │
+│  │  ask(), confirm(), choose(), announce()                           │   │
+│  └────────────────────────────┬─────────────────────────────────────┘   │
+│                               │                                          │
+│         ┌─────────────────────┼─────────────────────┐                   │
+│         │                     │                     │                   │
+│         ▼                     ▼                     ▼                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐          │
+│  │ CLIProvider  │    │ Headless     │    │ API Provider     │          │
+│  │ (Terminal)   │    │ Provider     │    │ (WebSocket)      │          │
+│  └──────────────┘    └──────────────┘    └──────────────────┘          │
+│                               │                                          │
+│                               ▼                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                    HITL Persistence (V12.2)                       │   │
+│  │              Persist interaction state across restarts            │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [base](base.py) | InteractionProvider - Abstract Base for User Interaction. | 4 | 0 |
-| [cli_provider](cli_provider.py) | CLIProvider - Interactive Command-Line Interaction Provider. | 1 | 0 |
-| [headless_provider](headless_provider.py) | HeadlessProvider - Non-blocking Interaction Provider for Servers. | 1 | 0 |
-| [hitl_persistence](hitl_persistence.py) | NEXUS V12.2 IRONCLAD - HITL Persistence Service | 1 | 6 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `base.py` | Abstract interface | `InteractionProvider`, `Choice`, `InteractionLevel` |
+| `cli_provider.py` | Terminal input | `CLIProvider` |
+| `headless_provider.py` | Non-blocking defaults | `HeadlessProvider` |
+| `hitl_persistence.py` | V12.2 state persistence | HITL request storage |
 
+## Key Interfaces
 
+### InteractionProvider (ABC)
+```python
+class InteractionProvider(ABC):
+    """Abstract interface for user interaction."""
 
+    async def ask(
+        self,
+        prompt: str,
+        default: Optional[str] = None
+    ) -> str
 
+    async def confirm(
+        self,
+        prompt: str,
+        default: bool = False
+    ) -> bool
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+    async def choose(
+        self,
+        prompt: str,
+        choices: List[Choice],
+        default: Optional[str] = None
+    ) -> str
+
+    async def announce(self, message: str) -> None
+```
+
+### Choice
+```python
+@dataclass
+class Choice:
+    key: str          # Selection key (e.g., "a", "b")
+    description: str  # Display text
+```
+
+### InteractionLevel
+```python
+class InteractionLevel(Enum):
+    SILENT = 0      # No output
+    MINIMAL = 1     # Errors only
+    NORMAL = 2      # Standard output
+    VERBOSE = 3     # Debug output
+```
+
+## Configuration
+
+Set `NEXUS_INTERACTION_MODE` environment variable:
+
+| Mode | Provider | Behavior |
+|------|----------|----------|
+| `cli` (default) | CLIProvider | Interactive terminal |
+| `headless` | HeadlessProvider | Returns defaults silently |
+| `strict` | HeadlessProvider(strict=True) | Raises on missing defaults |
+
+## Usage
+
+```python
+from core.interaction import get_interaction_provider
+
+async def my_function():
+    provider = get_interaction_provider()
+
+    # Ask for input
+    name = await provider.ask("Enter name", default="Anonymous")
+
+    # Confirm action
+    if await provider.confirm("Proceed?", default=True):
+        await provider.announce("Processing...")
+
+    # Multiple choice
+    choice = await provider.choose(
+        "Select option",
+        choices=[
+            Choice("a", "Option A"),
+            Choice("b", "Option B"),
+        ],
+        default="a"
+    )
+```
+
+## Multi-Tenant Support (V10)
+
+```python
+# V10 PRISM: Tenant-scoped provider via ServiceFactory
+from core.context import has_active_session
+from core.factory import ServiceFactory
+
+if has_active_session():
+    provider = ServiceFactory.get_interaction_provider()
+else:
+    provider = get_interaction_provider()  # Global fallback
+```
+
+## Dependencies
+
+### Internal
+- `core.context` - Session context (V10)
+- `core.factory` - ServiceFactory (V10)
+- `core.db.models` - HITLRequest model (V12.2)
+
+### External
+- Standard library (os, threading)
+
+## Version History
+
+- **V9.8** - DETOX: Headless refactoring
+- **V10.0** - PRISM: Multi-tenant provider access
+- **V12.2** - IRONCLAD: HITL persistence

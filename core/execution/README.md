@@ -1,219 +1,189 @@
-# execution
+# Execution Module
 
-NEXUS V9.5 Execution Module
+## Synopsis
+The execution module is NEXUS's centralized tool orchestration system. It coordinates tool registration, security validation, and execution across all tool types including core tools (bash, read, write, grep), MCP tools, dynamic runtime-generated tools, and agent-as-tool invocations. Refactored in V9.5 from a monolithic 1848 LOC architecture into modular components with clear separation of concerns.
 
-Refactored from monolithic tool_manager.py (1848 LOC).
+## Component Map
 
-Modules:
-- tool_registry: Tool registration and discovery
-- validation_service: Path and security validation
-- execution_engine: Centralized tool execution
-- handlers/: Individual tool handlers
-
-Usage:
-    from core.execution import ExecutionEngine, ToolResult
-    engine = ExecutionEngine(workspace_path)
-    result = engine.execute(tool_request)
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\execution` |
-| **Modules** | 7 |
-| **Total Lines** | 2379 |
-| **Classes** | 12 |
-| **Functions** | 7 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `__init__.py` | Module exports and version | `ExecutionEngine`, `ToolRegistry`, `ValidationService`, `ToolResult`, `BaseHandler` |
+| `execution_engine.py` | Main execution orchestrator | `ExecutionEngine`, `get_execution_engine()` |
+| `tool_registry.py` | Tool registration and discovery | `ToolRegistry`, `ToolMetadata`, `get_tool_registry()` |
+| `validation_service.py` | Path and security validation | `ValidationService` |
+| `tool_manager.py` | Legacy wrapper (V9.6) | `ToolManager`, `ToolResult` |
+| `agent_tools.py` | Agent-as-Tool registry (V7.8) | `AgentToolRegistry`, `AgentToolDefinition`, `AgentToolResult` |
+| `dynamic_tools.py` | Runtime Python tool generation (V7.8) | `DynamicToolManager`, `ToolCreationResult`, `ToolExecutionResult` |
+| `handlers/` | Individual tool handlers | See handlers/README.md |
 
 ## Architecture
 
 ```mermaid
-classDiagram
-    class AgentToolDefinition {
-        +str tool_name
-        +str agent_id
-        +str description
-        +List[str] capabilities
-        +List[str] domains
-        +to_dict(self) Dict[str, Any]
-    }
-    class AgentToolResult {
-        +bool success
-        +str agent_id
-        +str output
-        +Optional[str] error
-        +float duration_seconds
-        +to_dict(self) Dict[str, Any]
-    }
-    class AgentToolRegistry {
-        +workspace_path
-        +agents_dir
-        -_agent_pool
-        -_agent_invoker
-        -_agent_loader
-        -_logger
-        -__init__(self, workspace_path: Path, agent_pool: Optional['AgentPool']=..., agent_invoker: Optional['AgentInvoker']=..., agent_loader: Optional['SpawnedAgentLoader']=...)
-        +set_dependencies(self, agent_pool: 'AgentPool', agent_invoker: 'AgentInvoker', agent_loader: 'SpawnedAgentLoader') None
-        +refresh(self) int
-        -_create_tool_definition(self, agent_profile: 'AgentProfile') AgentToolDefinition
-        +list_agent_tools(self) List[AgentToolDefinition]
-        +get_tool_definition(self, tool_name: str) Optional[AgentToolDefinition]
-        +is_agent_tool(self, tool_name: str) bool
-        +execute_agent_tool(self, tool_name: str, args: Dict[str, Any]) AgentToolResult
-        +create_tool_handler(self, tool_name: str) Callable[..., 'ToolResult']
-        +register_with_tool_manager(self, tool_manager: 'ToolManager') int
-        +get_tools_for_domain(self, domain: str) List[AgentToolDefinition]
-        +get_summary(self) Dict[str, Any]
-    }
-    class ToolCreationResult {
-        +bool success
-        +str tool_name
-        +Optional[Path] tool_path
-        +Optional[str] error
-        +List[str] validation_violations
-    }
-    class ToolExecutionResult {
-        +bool success
-        +str output
-        +str error
-        +int return_code
-        +bool timed_out
-    }
-    class ToolMetadata {
-        +str name
-        +str description
-        +str created_at
-        +str created_by
-        +int version
-    }
-    class DynamicToolManager {
-        +workspace_path
-        +tools_dir
-        -_validator
-        -_logger
-        -__init__(self, workspace_path: Path)
-        -_load_existing_tools(self) None
-        +create_tool(self, name: str, code: str, description: str=...) ToolCreationResult
-        +execute_tool(self, name: str, args: Optional[Dict[str, Any]]=...) ToolExecutionResult
-        +delete_tool(self, name: str) Tuple[bool, str]
-        +list_tools(self) List[ToolMetadata]
-        +get_tool_info(self, name: str) Optional[ToolMetadata]
-        +cleanup_all(self) int
-        -_validate_tool_name(self, name: str) bool
-        -_has_run_function(self, code: str) bool
-    }
-    class ExecutionEngine {
-        +workspace_path
-        +registry
-        +validation_service
-        -_stats
-        -__init__(self, workspace_path: Path, registry: Optional[ToolRegistry]=..., validation_service: Optional[ValidationService]=...)
-        -_initialize_handlers(self) None
-        +execute(self, tool_request: Any) ToolResult
-        +execute_by_name(self, tool_name: str, arguments: Dict[str, Any]) ToolResult
-        +register_handler(self, name: str, handler: Callable[..., ToolResult], category: str=..., description: str=...) None
-        +has_tool(self, name: str) bool
-        +list_tools(self) list[str]
-        +set_evolution_mode(self, enabled: bool) None
-        +get_stats(self) Dict[str, int]
-        +reset_stats(self) None
-    }
-    class ToolManager {
-        +TOOL_ALIASES
-        +workspace_path
-        +evolution_mode
-        +parent_path
-        +project_root
-        +generation_active
-        +path_guardian
-        +execution_policy
-        -_logger
-        -_handlers
-        -__init__(self, workspace_path: Path)
-        +swarm_bridge(self) Optional[Any]
-        +swarm_bridge(self, bridge: Any) None
-        +execute(self, tool_request) ToolResult
-        -_is_evolution_safe_read(self, path: Path) bool
-        -_is_evolution_safe_list(self, path: Path) bool
-        -_is_evolution_safe_write(self, path: Path) bool
-        -_init_mcp_tools(self) None
-        -_register_mcp_server_tools(self, server_name: str) None
-        -_create_mcp_tool_handler(self, server_name: str, tool_name: str) Callable[..., ToolResult]
-        -_execute_mcp_tool(self, server_name: str, tool_name: str, args: Dict) ToolResult
-        +get_mcp_tools(self) List[str]
-        +reload_mcp_tools(self) int
-        +close_mcp(self) None
-        -_init_dynamic_tools(self) None
-        +get_dynamic_tools(self) List[str]
-    }
-    class ToolMetadata {
-        +str name
-        +str description
-        +Dict[str, Any] schema
-        +str category
-        +bool enabled
-        +List[str] aliases
-    }
-    class ToolRegistry {
-        +Dict[str, str] TOOL_ALIASES
-        +Set[str] CORE_TOOLS
-        -__init__(self)
-        +normalize_name(self, tool_name: str) str
-        +register(self, name: str, handler: Callable, description: str=..., schema: Optional[Dict[str, Any]]=..., category: str=..., aliases: Optional[List[str]]=...) None
-        +unregister(self, name: str) bool
-        +get_handler(self, name: str) Optional[Callable]
-        +has_tool(self, name: str) bool
-        +get_metadata(self, name: str) Optional[ToolMetadata]
-        +list_tools(self, category: Optional[str]=...) List[str]
-        +list_core_tools(self) List[str]
-        +list_mcp_tools(self) List[str]
-        +list_dynamic_tools(self) List[str]
-        +register_mcp_tool(self, name: str, handler: Callable, server_name: str, description: str=...) None
-        +get_mcp_server(self, tool_name: str) Optional[str]
-        +register_dynamic_tool(self, name: str, handler: Callable, description: str=..., schema: Optional[Dict[str, Any]]=...) None
-        +is_dynamic_tool(self, name: str) bool
-        +get_all_aliases(self) Dict[str, str]
-        +to_dict(self) Dict[str, Any]
-    }
-    class ValidationService {
-        +workspace_path
-        +parent_path
-        +generation_active
-        +path_guardian
-        +execution_policy
-        +evolution_mode
-        -_forbidden_patterns
-        -_evolution_read_prefixes
-        -_evolution_root_files
-        -_evolution_list_prefixes
-        -__init__(self, workspace_path: Path, parent_path: Optional[Path]=..., generation_active: Optional[Path]=...)
-        +is_evolution_safe_read(self, path: Path) bool
-        +is_evolution_safe_list(self, path: Path) bool
-        +is_evolution_safe_write(self, path: Path) bool
-        +validate_path(self, path: Path, operation: OperationType, allow_parent_read: bool=...) bool
-        +validate_command(self, command: str) tuple[bool, Optional[str]]
-        +set_evolution_mode(self, enabled: bool) None
-    }
+graph TD
+    A[User/Agent Request] --> B[ExecutionEngine]
+    B --> C[ToolRegistry]
+    C --> D{Tool Type?}
+    D -->|Core| E[File/Bash/Search Handlers]
+    D -->|MCP| F[MCP Handler]
+    D -->|Dynamic| G[Dynamic Tool Handler]
+    D -->|Agent| H[Agent Tool Handler]
+    B --> I[ValidationService]
+    I --> J[PathGuardian]
+    I --> K[ExecutionPolicy]
+    E --> L[ToolResult]
+    F --> L
+    G --> L
+    H --> L
 ```
 
-## Modules
+## Key Interfaces
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [agent_tools](agent_tools.py) | NEXUS V7.8 - Agent-as-Tool Registry (Phase 15: Vision Fractale) | 3 | 1 |
-| [dynamic_tools](dynamic_tools.py) | NEXUS V7.8 - Dynamic Tool Manager (Phase 12.5) | 4 | 2 |
-| [execution_engine](execution_engine.py) | ExecutionEngine - Centralized Tool Execution Orchestrator. | 1 | 2 |
-| [tool_manager](tool_manager.py) | Tool Manager V9.6 - Thin Wrapper over Handler Registry | 1 | 0 |
-| [tool_registry](tool_registry.py) | ToolRegistry - Tool Registration and Discovery. | 2 | 2 |
-| [validation_service](validation_service.py) | ValidationService - Path and Security Validation for Tool Execution. | 1 | 0 |
+### ExecutionEngine
+Main entry point for tool execution. Coordinates registry, validation, and handler execution.
 
-## Subpackages
+```python
+engine = ExecutionEngine(workspace_path)
+result = engine.execute(tool_request)  # Returns ToolResult
+```
 
-| Package | Description | Modules |
-|---------|-------------|---------|
-| [handlers/](C:\Code\NEXUS\NEXUS-N7A\core\execution\handlers/README.md) |  | 0 |
+**Methods:**
+- `execute(tool_request)` - Execute a tool request
+- `execute_by_name(tool_name, arguments)` - Execute by name and args
+- `register_handler(name, handler, category, description)` - Register custom handler
+- `has_tool(name)` - Check if tool exists
+- `list_tools()` - List all available tools
+- `set_evolution_mode(enabled)` - Enable/disable evolution mode
+- `get_stats()` - Get execution statistics
 
-## Aggregated Statistics
+### ToolRegistry
+Tool registration and name normalization. Handles aliases (Gemini CLI → NEXUS).
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+```python
+registry = ToolRegistry()
+registry.register("my_tool", handler_func, category="custom")
+handler = registry.get_handler("my_tool")
+```
+
+**Tool Categories:**
+- `core` - Built-in tools (bash, read, write, grep, etc.)
+- `mcp` - MCP server tools
+- `dynamic` - Runtime-generated Python tools
+- `swarm` - Swarm delegation tools
+
+**Aliases:**
+```python
+read_file → read
+write_file → write
+edit_file → edit
+list_directory → list_dir
+run_shell_command → bash
+google_web_search → web_search
+```
+
+### ValidationService
+Security validation for tool execution. Handles evolution mode restrictions.
+
+```python
+validator = ValidationService(workspace_path, parent_path, generation_active)
+if validator.is_evolution_safe_read(path):
+    # Safe to read during evolution
+```
+
+**Evolution Mode Constraints:**
+- **Reads allowed**: `../core/`, `../prompts/`, `../benchmarks/`, `../README.md`
+- **Lists allowed**: `../core`, `../prompts`, `../benchmarks`
+- **Writes allowed**: `../../GENERATION_ACTIVE/**` ONLY
+- **Forbidden**: `.env`, `NEXUS_V5_PRAGMATIC`, `.git`, `__pycache__`
+
+### Agent-as-Tool (V7.8 Phase 15)
+Exposes spawned agents as callable tools, enabling fractal agent invocation patterns.
+
+```python
+registry = AgentToolRegistry(workspace_path, agent_pool, invoker)
+registry.refresh()  # Discover spawned agents
+result = registry.execute_agent_tool("agent_security_expert", {
+    "task": "Analyze this code for SQL injection"
+})
+```
+
+**Features:**
+- Automatic registration of spawned agents as tools
+- Tool naming: `agent_{agent_id}`
+- Recursive invocation: agents can call other agents
+- Integration with Swarm Engine for parallel agent execution
+
+### Dynamic Tools (V7.8 Phase 12.5)
+Runtime generation of custom Python tools with AST validation and subprocess isolation.
+
+```python
+manager = DynamicToolManager(workspace_path)
+result = manager.create_tool(
+    name="fibonacci",
+    code="def run(n): return [0,1] if n<=2 else ...",
+    description="Calculate fibonacci sequence"
+)
+result = manager.execute_tool("fibonacci", {"n": 10})
+```
+
+**Security:**
+- AST-based code validation (CodeValidator)
+- Subprocess isolation (no direct exec())
+- 30-second timeout
+- 50KB output limit
+
+## Dependencies
+
+### Internal
+- `core.security.PathGuardian` - Path validation
+- `core.security.ExecutionPolicy` - Command validation
+- `core.security.execution_policy.CodeValidator` - Dynamic code validation
+- `core.mcp.MCPRegistry` - MCP server tools
+- `core.orchestration.agent_invoker.AgentInvoker` - Agent tool invocation
+- `core.swarm.agent_metrics.AgentPool` - Agent profiles
+- `core.bootstrap.agent_loader.SpawnedAgentLoader` - Agent configs
+
+### External
+- `subprocess` - Dynamic tool execution
+- `json` - Tool argument serialization
+- `pathlib` - Path operations
+- `logging` - Execution logging
+
+## Integration Points
+
+### Used By
+- `core.orchestration_v7.Orchestrator` - Main FSM orchestrator
+- `core.drivers.gemini_driver.GeminiDriver` - Gemini tool execution
+- `core.drivers.claude_driver.ClaudeDriver` - Claude tool execution
+- `core.swarm.SwarmEngine` - Swarm mode tool delegation
+
+### Uses
+- `handlers/` - Individual tool implementations
+- `core.security` - Multi-layer security validation
+- `core.mcp` - Model Context Protocol tools
+- `core.orchestration.agent_invoker` - Agent-as-tool execution
+
+## Evolution and Multi-Tenancy (V10 PRISM)
+
+All components support tenant-scoped instances via `ServiceFactory`:
+```python
+# V10: Tenant-scoped access
+from core.context import has_active_session
+from core.factory import ServiceFactory
+
+if has_active_session():
+    engine = ServiceFactory.get_execution_engine()
+    registry = ServiceFactory.get_tool_registry()
+
+# Legacy: Global singleton
+engine = get_execution_engine(workspace_path)
+```
+
+## Statistics Tracking
+
+ExecutionEngine tracks execution metrics:
+- `total_executions` - Total tool calls
+- `successful` - Successful executions
+- `failed` - Failed executions
+- `blocked` - Security-blocked executions
+
+Access via `engine.get_stats()`.

@@ -1,253 +1,226 @@
-# hive_mind
+# NEXUS HiveMind Module
 
-NEXUS V8.0 - TRUE HIVE MIND Module
+## Synopsis
 
-Transforms NEXUS from a sequential orchestrator into a true collaborative intelligence.
-
-Architecture:
-- 7 Phases: Analysis → Debate → Architecture → Execution → Diagnosis → Retry → Consolidation
-- 4 User Breakpoints: After debate, before spawn, after diagnosis, consolidation
-- Adaptive debate turns based on complexity and errors
-- Knowledge consolidation post-task
-
-Components:
-- types.py: Core dataclasses and enums
-- agent_registry.py: Anti-duplication with similarity search
-- cost_estimator.py: Budget control before decisions
-- context_manager.py: Sliding window to avoid token explosion
-- strategy_blacklist.py: Anti-circular retry
-- user_interaction.py: Breakpoint handling
-- fsm_states.py: FSM states extension for V8.0
-
-Usage:
-    from core.hive_mind import TrueHiveMind
-
-    hive = TrueHiveMind(workspace_path, config)
-    result = await hive.process_task("Complex task here")
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\hive_mind` |
-| **Modules** | 16 |
-| **Total Lines** | 7483 |
-| **Classes** | 64 |
-| **Functions** | 11 |
+The **hive_mind** module implements the TRUE HIVE MIND - a 7-phase collaborative pipeline that transforms NEXUS from a sequential orchestrator into a genuine collaborative intelligence. It enables strategic multi-agent problem-solving for MODERATE+ complexity tasks, with user breakpoints, adaptive debate, and knowledge consolidation.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class TaskComplexity {
-        +TRIVIAL
-        +MODERATE
-        +COMPLEX
-        +EXPERT
-    }
-    Enum <|-- TaskComplexity
-    class DebateParams {
-        +int min_turns
-        +int max_turns
-        +float consensus_threshold
-        +float early_exit_threshold
-        +int timeout_per_turn
-        +bool allow_concessions
-        +bool require_evidence
-        +int force_vote_after
-    }
-    class AgentDebateMetrics {
-        +str agent_id
-        +int total_debates
-        +int arguments_made
-        +int concessions_made
-        +int positions_defended
-        +int positions_changed
-        +float average_satisfaction
-        +float win_rate
-        +flexibility_score(self) float
-        +conviction_score(self) float
-    }
-    class AdaptiveDebateConfig {
-        +COMPLEXITY_TURNS
-        +COMPLEXITY_CONSENSUS
-        -__init__(self)
-        +get_debate_params(self, complexity: TaskComplexity, initial_disagreement: float=..., error_history: List[bool]=..., domain_tags: List[str]=...) DebateParams
-        +record_debate_outcome(self, task_id: str, complexity: TaskComplexity, turns_used: int, final_consensus: float, was_forced_vote: bool, gemini_satisfaction: float, claude_satisfaction: float, task_success: bool)
-        +record_agent_argument(self, agent_id: str, made_concession: bool=..., defended_position: bool=..., changed_position: bool=...)
-        +update_agent_satisfaction(self, agent_id: str, satisfaction: float, won_debate: bool)
-        +get_optimal_strategy(self, agent_id: str, opponent_id: str, topic: str) Dict
-        +should_force_vote(self, turns_completed: int, consensus_progress: List[float], params: DebateParams) bool
-        +calculate_final_decision(self, gemini_position: str, claude_position: str, gemini_confidence: float, claude_confidence: float, gemini_satisfaction: float, claude_satisfaction: float) Dict
-        +get_stats(self) Dict
-    }
-    class RegisteredAgent {
-        +str agent_id
-        +str role
-        +List[str] capabilities
-        +str mission
-        +str created_at
-        +str last_used
-        +int use_count
-        +float success_rate
-        +bool is_active
-        +str source
-    }
-    class AgentRegistry {
-        +REGISTRY_FILE
-        +SIMILARITY_THRESHOLD
-        +workspace_path
-        +registry_path
-        -_lock
-        -__init__(self, workspace_path: Path)
-        -_load_registry(self)
-        -_save_registry(self)
-        -_register_builtin_agents(self)
-        +find_similar(self, required_capabilities: List[str], threshold: float=...) Optional[RegisteredAgent]
-        -_jaccard_similarity(self, set1: Set[str], set2: Set[str]) float
-        +register_spawn(self, agent_id: str, role: str, capabilities: List[str], mission: str) bool
-        +record_usage(self, agent_id: str, success: bool=...)
-        +deactivate_agent(self, agent_id: str, reason: str=...)
-        +merge_agents(self, source_id: str, target_id: str, new_capabilities: List[str]=...) bool
-        +get_agent(self, agent_id: str) Optional[RegisteredAgent]
-        +get_active_agents(self) List[RegisteredAgent]
-        +get_spawned_agents(self) List[RegisteredAgent]
-        +get_agents_by_capability(self, capability: str) List[RegisteredAgent]
-        +get_stats(self) Dict
-    }
-    class AsyncHiveMindAdapter {
-        +hive_mind
-        +driver_factory
-        +blackboard
-        -_registry
-        -__init__(self, hive_mind: 'TrueHiveMind', driver_factory: Optional['AsyncDriverFactory']=..., blackboard: Optional[AsyncBlackboard]=...)
-        +process_task(self, task: str, token: Optional[CancellationToken]=..., session_uuid: Optional[str]=..., complexity: Optional[Any]=...) 'HiveMindResult'
-        +cancel_task(self, session_uuid: str) bool
-        +cancel_all(self) int
-        +active_task_count(self) int
-        +get_task_status(self, session_uuid: str) Optional[Dict[str, Any]]
-    }
-    class DriverBridge {
-        +async_driver
-        -_loop
-        -__init__(self, async_driver, loop: Optional[asyncio.AbstractEventLoop]=...)
-        +invoke(self, context: str, **kwargs) Dict[str, Any]
-    }
-    class ContextPriority {
-        +CRITICAL
-        +HIGH
-        +MEDIUM
-        +LOW
-    }
-    Enum <|-- ContextPriority
-    class ContextItem {
-        +str category
-        +str source
-        +str content
-        +ContextPriority priority
-        +datetime timestamp
-        +int token_estimate
-        +Dict metadata
-        -__post_init__(self)
-    }
-    class ContextSnapshot {
-        +List[ContextItem] items
-        +int total_tokens
-        +List[str] categories_included
-        +bool truncated
-    }
-    class HiveMindContextManager {
-        +OPERATION_BUDGETS
-        +CRITICAL_MAX_TOKENS
-        +max_tokens
-        -_current_tokens
-        -__init__(self, max_tokens: int=...)
-        +current_tokens(self) int
-        +available_tokens(self) int
-        +add_item(self, category: str, source: str, content: str, priority: ContextPriority=..., metadata: Dict=...)
-        -_evict_one(self) bool
-        +add_task(self, task: str)
-        +add_analysis(self, agent_id: str, analysis: Dict)
-        +add_debate_turn(self, turn_number: int, agent_id: str, argument: str)
-        +add_execution_result(self, step_name: str, result: str, success: bool)
-        +add_diagnosis(self, agent_id: str, diagnosis: str)
-        +add_insight(self, category: str, content: str, tags: List[str]=...)
-        +get_context_for(self, operation: str, max_tokens: int=..., include_categories: List[str]=..., exclude_categories: List[str]=...) ContextSnapshot
-        +get_full_context_string(self, operation: str=...) str
-        -_format_analysis(self, analysis: Dict) str
-        +archive_to_rag(self, project_memory: 'ProjectMemory', session_id: str) int
-        +get_pending_insights(self) List[Dict]
-        +clear(self, keep_critical: bool=...)
-        +get_stats(self) Dict
-        +create_scoped_context(self, scope: ContextScope, from_phase: Optional[str]=..., session_uuid: Optional[str]=..., relevant_files: Optional[List[str]]=..., model_id: Optional[str]=..., max_summary_tokens: int=...) ScopedContext
-        +summarize_for_inheritance(self, from_phase: Optional[str]=..., max_tokens: int=...) str
-        -_get_task_description(self) str
-        -_get_model_context(self, model_id: str) str
-        +get_scoped_prompt(self, instruction: str, scope: ContextScope, from_phase: Optional[str]=..., session_uuid: Optional[str]=..., relevant_files: Optional[List[str]]=..., model_id: Optional[str]=...) str
-    }
-    class ContextScope {
-        +FULL
-        +TASK_PLUS_RESULTS
-        +RESULTS_ONLY
-        +TASK_ONLY
-        +MINIMAL
-        +FRESH
-    }
-    str <|-- ContextScope
-    Enum <|-- ContextScope
-    class InheritanceDirection {
-        +NONE
-        +PARENT_TO_CHILD
-        +PHASE_TO_PHASE
-        +BIDIRECTIONAL
-    }
-    str <|-- InheritanceDirection
-    Enum <|-- InheritanceDirection
-    class ScopedContext {
-        +ContextScope scope
-        +str task_description
-        +List[str] relevant_files
-        +str parent_summary
-        +List[Dict[str, Any]] full_history
-        +Dict[str, Any] metadata
-        +Optional[str] session_uuid
-        +Optional[str] model_context
-        +str created_at
-        +int estimated_tokens
-        -__post_init__(self)
-        -_estimate_tokens(self) int
-        +to_prompt_prefix(self) str
-        +to_dict(self) Dict[str, Any]
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      HIVE MIND 7-PHASE PIPELINE                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
+│  │   Phase 1   │───▶│   Phase 2   │───▶│   Phase 3   │                  │
+│  │  ANALYSIS   │    │   DEBATE    │    │ ARCHITECTURE│                  │
+│  │ Independent │    │  Resolve    │    │   Design    │                  │
+│  └─────────────┘    │Disagreements│    │ Exec Plan   │                  │
+│        │            └──────┬──────┘    └──────┬──────┘                  │
+│        │                   │                  │                          │
+│   Gemini ║ Claude     [BREAKPOINT]      [BREAKPOINT]                    │
+│   Parallel               (debate)          (spawn)                      │
+│                                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
+│  │   Phase 4   │◀───│   Phase 5   │◀───│   Phase 6   │                  │
+│  │  EXECUTION  │    │  DIAGNOSIS  │    │    RETRY    │                  │
+│  │  Monitored  │    │Root Cause   │    │  Adaptive   │                  │
+│  └──────┬──────┘    │  Analysis   │    │  Decision   │                  │
+│         │           └─────────────┘    └─────────────┘                  │
+│         │                  ▲                                            │
+│    SwarmBridge        [BREAKPOINT]                                      │
+│    Delegation          (diagnosis)                                      │
+│         │                                                               │
+│         ▼                                                               │
+│  ┌─────────────┐                                                        │
+│  │   Phase 7   │───▶ HIVE_SUCCESS / HIVE_FAILED / HIVE_ESCALATE        │
+│  │CONSOLIDATION│                                                        │
+│  │  Knowledge  │    [BREAKPOINT]                                        │
+│  │  Archival   │    (consolidation)                                     │
+│  └─────────────┘                                                        │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [adaptive_debate](adaptive_debate.py) | NEXUS V8.0 - Adaptive Debate Configuration | 4 | 0 |
-| [agent_registry](agent_registry.py) | NEXUS V8.0 - Agent Registry | 2 | 0 |
-| [async_adapter](async_adapter.py) | Async Adapter for NEXUS V9.0 Hive Mind. | 2 | 1 |
-| [context_manager](context_manager.py) | NEXUS V9.2 - Hive Mind Context Manager | 4 | 0 |
-| [context_scope](context_scope.py) | NEXUS V9.2 - Context Scoping for Controlled Inheritance | 4 | 1 |
-| [cost_estimator](cost_estimator.py) | NEXUS V8.0 - Cost Estimator | 3 | 0 |
-| [json_parser](json_parser.py) | NEXUS V9.1.1 - Robust JSON Parser for HiveMind Phases | 0 | 4 |
-| [orchestrator](orchestrator.py) | NEXUS V8.0 - TRUE HIVE MIND Orchestrator | 2 | 0 |
-| [saga_manager](saga_manager.py) | SagaManager - Checkpoint and Recovery System for HiveMind Pipeline. | 3 | 0 |
-| [session_integration](session_integration.py) | NEXUS V9.2 - HiveMind Session Integration | 2 | 1 |
-| [strategy_blacklist](strategy_blacklist.py) | NEXUS V8.0 - Strategy Blacklist | 3 | 0 |
-| [success_adapter](success_adapter.py) | NEXUS V8.2.0 - HiveMind Success Adapter | 5 | 2 |
-| [swarm_bridge](swarm_bridge.py) | V8.3 SwarmBridge - Hive Mind → Swarm Delegation | 4 | 2 |
-| [types](types.py) | NEXUS V8.0 - TRUE HIVE MIND Types | 25 | 0 |
-| [user_interaction](user_interaction.py) | NEXUS V8.0 - User Interaction Handler | 1 | 0 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `orchestrator.py` | Main pipeline orchestrator | `TrueHiveMind`, `HiveMindResult` |
+| `types.py` | Core dataclasses & enums | `HiveMindState`, `IndependentAnalysis`, `DebateResult` |
+| `agent_registry.py` | Anti-duplication registry | `AgentRegistry` |
+| `cost_estimator.py` | Budget control | `CostEstimator` |
+| `context_manager.py` | Sliding window context | `HiveMindContextManager` |
+| `strategy_blacklist.py` | Anti-circular retry | `StrategyBlacklist` |
+| `user_interaction.py` | Breakpoint handling | `UserInteractionHandler` |
+| `adaptive_debate.py` | Dynamic debate turns | `AdaptiveDebateConfig`, `DebateParams` |
+| `swarm_bridge.py` | HiveMind → Swarm delegation | `SwarmBridge`, `SwarmDelegationResult` |
+| `saga_manager.py` | Checkpoint/recovery | `SagaManager`, `PhaseCheckpoint` |
+| `json_parser.py` | Response parsing | JSON extraction utilities |
+| `async_adapter.py` | Async utilities | Async adaptation helpers |
+| `session_integration.py` | Session management | Session context integration |
+| `success_adapter.py` | Success memory integration | Learning from successes |
 
-## Subpackages
+## 7 Phases Explained
 
-| Package | Description | Modules |
-|---------|-------------|---------|
-| [phases/](C:\Code\NEXUS\NEXUS-N7A\core\hive_mind\phases/README.md) |  | 0 |
+### Phase 1: Independent Analysis
+**States**: `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE`, `HIVE_COMPARING_ANALYSES`
 
-## Aggregated Statistics
+Both agents analyze the task independently without communication:
+- Gemini produces JSON-structured analysis
+- Claude produces natural language analysis
+- System compares and calculates agreement score (0-1)
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### Phase 2: Strategic Debate
+**States**: `HIVE_DEBATING`, `HIVE_CHECKING_CONSENSUS`, `HIVE_BREAKPOINT_DEBATE`
+
+If agreement score < threshold, agents debate through structured argumentation:
+- Adaptive turn count based on complexity
+- Evidence-based arguments
+- Convergence detection
+
+### Phase 3: Architecture Generation
+**States**: `HIVE_ARCHITECTING`, `HIVE_CHECKING_REGISTRY`, `HIVE_BREAKPOINT_SPAWN`, `HIVE_SPAWNING`
+
+Design the execution plan:
+- Agent topology (spawn new specialists?)
+- Step-by-step execution plan
+- Resource allocation
+
+### Phase 4: Monitored Execution
+**States**: `HIVE_EXECUTING`, `HIVE_MONITORING`
+
+Execute with real-time monitoring:
+- Tool execution tracking
+- Issue detection
+- **SwarmBridge**: Delegate to Swarm modes per step
+
+### Phase 5: Failure Diagnosis
+**States**: `HIVE_DIAGNOSING`, `HIVE_BREAKPOINT_DIAGNOSIS`
+
+Dual-agent failure analysis:
+- Root cause identification
+- Pattern matching with past failures
+- Blame attribution
+
+### Phase 6: Adaptive Retry
+**States**: `HIVE_DECIDING_RETRY`, `HIVE_APPLYING_CHANGES`
+
+Decide retry strategy:
+- **RETRY**: Try again with modifications
+- **STOP**: Accept failure
+- **ESCALATE**: Require user intervention
+
+### Phase 7: Knowledge Consolidation
+**States**: `HIVE_REFLECTING`, `HIVE_DECIDING_RETENTION`, `HIVE_BREAKPOINT_CONSOLIDATION`, `HIVE_CONSOLIDATING`
+
+Post-task knowledge management:
+- Archive successful patterns to SuccessMemory
+- Decide agent retention (keep spawned agents?)
+- Update blackboard
+
+## Key Interfaces
+
+### TrueHiveMind
+```python
+class TrueHiveMind:
+    """Main HiveMind orchestrator."""
+
+    async def process_task(
+        self,
+        task: str,
+        context: TaskExecutionContext
+    ) -> HiveMindResult
+
+    def get_current_phase(self) -> HiveMindState
+    def get_saga_checkpoint(self) -> PhaseCheckpoint
+```
+
+### HiveMindState (24 States)
+```python
+class HiveMindState(Enum):
+    HIVE_GATING = "hive_gating"
+    # Phase 1
+    HIVE_ANALYZING_GEMINI = "hive_analyzing_gemini"
+    HIVE_ANALYZING_CLAUDE = "hive_analyzing_claude"
+    HIVE_COMPARING_ANALYSES = "hive_comparing_analyses"
+    # Phase 2
+    HIVE_DEBATING = "hive_debating"
+    HIVE_CHECKING_CONSENSUS = "hive_checking_consensus"
+    HIVE_BREAKPOINT_DEBATE = "hive_breakpoint_debate"
+    # Phase 3
+    HIVE_ARCHITECTING = "hive_architecting"
+    HIVE_CHECKING_REGISTRY = "hive_checking_registry"
+    HIVE_BREAKPOINT_SPAWN = "hive_breakpoint_spawn"
+    HIVE_SPAWNING = "hive_spawning"
+    # Phase 4
+    HIVE_EXECUTING = "hive_executing"
+    HIVE_MONITORING = "hive_monitoring"
+    # Phase 5
+    HIVE_DIAGNOSING = "hive_diagnosing"
+    HIVE_BREAKPOINT_DIAGNOSIS = "hive_breakpoint_diagnosis"
+    # Phase 6
+    HIVE_DECIDING_RETRY = "hive_deciding_retry"
+    HIVE_APPLYING_CHANGES = "hive_applying_changes"
+    # Phase 7
+    HIVE_REFLECTING = "hive_reflecting"
+    HIVE_DECIDING_RETENTION = "hive_deciding_retention"
+    HIVE_BREAKPOINT_CONSOLIDATION = "hive_breakpoint_consolidation"
+    HIVE_CONSOLIDATING = "hive_consolidating"
+    # Terminal
+    HIVE_SUCCESS = "hive_success"
+    HIVE_FAILED = "hive_failed"
+    HIVE_ESCALATE = "hive_escalate"
+```
+
+### SwarmBridge (V8.3.0)
+```python
+class SwarmBridge:
+    """Delegate execution steps to Swarm Engine."""
+
+    async def delegate(
+        self,
+        step: ExecutionStep,
+        context: ExecutionContext
+    ) -> SwarmDelegationResult
+```
+
+## User Breakpoints
+
+4 configurable breakpoints for user intervention:
+
+| Breakpoint | Location | Options |
+|------------|----------|---------|
+| `BREAKPOINT_DEBATE` | After Phase 2 | Accept/Reject consensus |
+| `BREAKPOINT_SPAWN` | After Phase 3 | Approve agent spawning |
+| `BREAKPOINT_DIAGNOSIS` | After Phase 5 | Review diagnosis |
+| `BREAKPOINT_CONSOLIDATION` | After Phase 7 | Approve knowledge retention |
+
+## Configuration
+
+```bash
+# .env configuration
+HIVE_MIND_ENABLED=True
+HIVE_MIND_BUDGET_LIMIT=50000      # Token budget per task
+HIVE_MIND_BREAKPOINT_TIMEOUT=60   # User response timeout (seconds)
+HIVE_MIND_MIN_AGREEMENT=0.7       # Skip debate if agreement >= this
+```
+
+## Dependencies
+
+### Internal
+- `core.swarm` - SwarmBridge delegation
+- `core.memory` - SuccessMemory, Blackboard
+- `core.drivers` - Agent invocation
+- `core.fsm` - State transitions
+
+### External
+- `pydantic` - Validation
+- Standard library (asyncio, dataclasses)
+
+## Version History
+
+- **V8.0** - TRUE HIVE MIND initial implementation
+- **V8.3.0** - SwarmBridge integration
+- **V8.4.4** - SagaManager checkpoint/recovery
+- **V12.4** - Adaptive debate, cost optimization

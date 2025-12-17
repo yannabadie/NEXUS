@@ -1,135 +1,142 @@
-# bootstrap
+# Bootstrap
 
-NEXUS V9.1 - Bootstrap Module
+## Synopsis
+Project deployment and agent loading infrastructure. Generates NEXUS.md when deployed to new projects, discovers spawned agents, and provides service layer for bootstrap/spinoff operations.
 
-Components:
-- AutoBootstrap: Generates NEXUS.md when deployed to a new project
-- SpawnedAgentLoader: Discovers spawned agents from workspace/agents/
-- BootstrapService: Service layer for bootstrap operations (V9.1)
-- SpinoffService: Service layer for specialization/spinoff operations (V9.1)
+## Component Map
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `auto_bootstrap.py` | Auto-generate NEXUS.md for new projects | `AutoBootstrap`, `ProjectAnalysis` |
+| `agent_loader.py` | Discover spawned agents from workspace/agents/ | `SpawnedAgentLoader`, `SpawnedAgentConfig`, `discover_and_register_spawned_agents` |
+| `service.py` | Service layer for bootstrap/spinoff | `BootstrapService`, `SpinoffService` |
+| `__init__.py` | Module exports | All above |
 
-## Overview
+## Key Interfaces
 
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\bootstrap` |
-| **Modules** | 4 |
-| **Total Lines** | 1906 |
-| **Classes** | 7 |
-| **Functions** | 4 |
+### AutoBootstrap
+Auto-generates NEXUS.md when deployed to a new project.
 
-## Architecture
-
-```mermaid
-classDiagram
-    class InferenceConfig {
-        +str provider
-        +str model
-        +Optional[str] reasoning
-    }
-    class SpawnedAgentConfig {
-        +str agent_id
-        +str role
-        +str created_at
-        +str parent
-        +str mission
-        +List[str] domains
-        +List[str] tools_priority
-        +Path workspace_path
-        +Optional[Path] system_prompt_path
-        +Optional[str] uuid
-        +Optional[InferenceConfig] inference
-    }
-    class SpawnedAgentLoader {
-        +PROVIDER_SPAWNED
-        +workspace_path
-        +agents_dir
-        -__init__(self, workspace_path: Path)
-        +discover_spawned_agents(self) List[AgentProfile]
-        -_load_agent_from_dir(self, agent_dir: Path) Optional[AgentProfile]
-        -_parse_birth_certificate(self, cert_data: Dict[str, Any], agent_dir: Path) Optional[SpawnedAgentConfig]
-        +load_agent_config(self, agent_id: str) Optional[SpawnedAgentConfig]
-        +load_system_prompt(self, agent_id: str) Optional[str]
-        +get_agent_workspace(self, agent_id: str) Optional[Path]
-    }
-    class ProjectAnalysis {
-        +List[str] languages
-        +List[str] frameworks
-        +List[str] databases
-        +List[str] tools
-        +List[str] directories
-        +List[str] key_files
-        +Dict[str, str] commands
-        +str indentation
-        +str naming_style
-        +bool has_tests
-        +bool has_docs
-        +bool has_ci
-        +str project_name
-        +str analysis_date
-    }
-    class AutoBootstrap {
-        +LANGUAGE_PATTERNS
-        +FRAMEWORK_PATTERNS
-        +DATABASE_PATTERNS
-        +TOOL_PATTERNS
-        +project_path
-        -__init__(self, project_path: Path)
-        +analyze(self) ProjectAnalysis
-        -_analyze_directories(self) List[str]
-        -_find_key_files(self) List[str]
-        -_detect_languages(self) List[str]
-        -_detect_frameworks(self) List[str]
-        -_detect_databases(self) List[str]
-        -_detect_tools(self) List[str]
-        -_discover_commands(self) Dict[str, str]
-        -_detect_indentation(self) str
-        -_detect_naming_style(self) str
-        -_has_tests(self) bool
-        -_has_docs(self) bool
-        -_has_ci(self) bool
-        +generate_nexus_md(self, analysis: Optional[ProjectAnalysis]=...) str
-        -_extract_project_description(self) Optional[str]
-        -_detect_language_version(self, language: str) Optional[str]
-        -_detect_entry_points(self) Dict[str, str]
-        -_detect_test_framework(self) str
-        -_detect_ci_type(self) str
-        -_detect_protected_files(self) Dict[str, str]
-        -_get_framework_rules(self, frameworks: List[str]) List[str]
-        -_detect_architecture_patterns(self) List[str]
-        -_detect_important_files(self) Dict[str, str]
-        +save(self, content: Optional[str]=..., path: Optional[Path]=...) Path
-        +needs_bootstrap(self) bool
-    }
-    class BootstrapService {
-        +console
-        -_interaction
-        -__init__(self, console: 'ConsoleV7', interaction: Optional['InteractionProvider']=...)
-        +bootstrap(self, project_path: Optional[Path]=...) ServiceResult
-        -_confirm_overwrite(self) bool
-    }
-    class SpinoffService {
-        +orchestrator
-        +console
-        +workspace_path
-        +nexus_root
-        -__init__(self, orchestrator: 'OrchestratorV7', console: 'ConsoleV7', workspace_path: Path, nexus_root: Path)
-        +specialize(self, mission: str) ServiceResult
-        -_brainstorm_spinoff(self, parent_id: str, parent_path: Path, mission: str) List[Dict[str, Any]]
-    }
+**Workflow:**
+```python
+bootstrap = AutoBootstrap(project_path)
+analysis = bootstrap.analyze()  # Scan project structure
+content = bootstrap.generate_nexus_md(analysis)
+path = bootstrap.save(content)
 ```
 
-## Modules
+**ProjectAnalysis Fields:**
+- `languages`: Detected languages (Python, JS, etc.)
+- `frameworks`: Detected frameworks (FastAPI, React, etc.)
+- `databases`: Detected databases (PostgreSQL, MongoDB, etc.)
+- `tools`: Detected tools (Docker, pytest, etc.)
+- `key_files`: Important files (README, package.json, etc.)
+- `commands`: Discovered commands (npm start, pytest, etc.)
+- `indentation`, `naming_style`: Code conventions
+- `has_tests`, `has_docs`, `has_ci`: Booleans
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [agent_loader](agent_loader.py) | Spawned Agent Loader - NEXUS V7.5 HIVE MIND | 3 | 1 |
-| [auto_bootstrap](auto_bootstrap.py) | AutoBootstrap - Automatic NEXUS.md Generation | 2 | 1 |
-| [service](service.py) | NEXUS V9.1 - BootstrapService & SpinoffService | 2 | 2 |
+**Detection Patterns:**
+- Languages: File extensions, shebang lines
+- Frameworks: Import patterns, config files
+- Databases: Connection strings, config files
+- Tools: Presence of Docker, Makefile, pyproject.toml, etc.
 
+### SpawnedAgentLoader
+Discovers and loads spawned agents from workspace/agents/.
 
+**Usage:**
+```python
+loader = SpawnedAgentLoader(workspace_path)
+agents = loader.discover_spawned_agents()  # Returns List[AgentProfile]
 
+config = loader.load_agent_config("security_expert")
+prompt = loader.load_system_prompt("security_expert")
+workspace = loader.get_agent_workspace("security_expert")
+```
 
+**SpawnedAgentConfig:**
+- `agent_id`: URL-safe identifier
+- `role`: Original role string
+- `created_at`: ISO timestamp
+- `parent`: Parent agent/system ID
+- `mission`: Agent's mission statement
+- `domains`: Detected domain list
+- `tools_priority`: Preferred tools
+- `workspace_path`: Agent's workspace directory
+- `system_prompt_path`: Path to system_prompt.md
+- `uuid`: Unique identifier
+- `inference`: Provider/model configuration
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+**BIRTH_CERTIFICATE.json:**
+Spawned agents have a birth certificate containing metadata:
+```json
+{
+  "agent_id": "security_expert",
+  "uuid": "abc-123",
+  "role": "Security Expert",
+  "created_at": "2025-12-17T10:30:42.123Z",
+  "parent": "NEXUS_V8.1.8_HIVE_MIND",
+  "generation_method": "brainstorm",
+  "inference": {
+    "provider": "claude",
+    "model": "claude-sonnet-4-5-20250929",
+    "reasoning": "Security analysis requires deep reasoning"
+  },
+  "specialization": {
+    "mission": "Specialized agent for: Security Expert",
+    "domains": ["security", "analysis"],
+    "tools_priority": []
+  }
+}
+```
+
+### BootstrapService (V9.1)
+Service layer for bootstrap operations.
+
+```python
+service = BootstrapService(console, interaction)
+result = service.bootstrap(project_path)  # ServiceResult
+```
+
+**Features:**
+- Interactive confirmation for overwrite
+- Error handling with ServiceResult
+- Console output integration
+
+### SpinoffService (V9.1)
+Service layer for specialization/spinoff operations.
+
+```python
+service = SpinoffService(orchestrator, console, workspace_path, nexus_root)
+result = service.specialize(mission="SQL Expert for PostgreSQL")
+```
+
+**Features:**
+- Brainstorm spinoff via EVOLUTION_BRAINSTORM
+- Mutation generation for specialized children
+
+## Dependencies
+- **Internal**: `core.evolution.phases.brainstorm`, `core.telemetry.service`, `core.interaction`
+- **External**: `pathlib`, `json`, `re`, `glob`
+
+## Integration Points
+
+**Used By:**
+- `core.agents.service` - Agent spawning discovers and registers
+- `core.interface.repl` - `/bootstrap`, `/specialize` commands
+- `core.orchestration_v7` - Startup agent discovery
+
+**Deploy Flow:**
+```
+1. Clone NEXUS into project
+2. Run nexus7.py
+3. AutoBootstrap detects missing NEXUS.md
+4. Generates NEXUS.md based on project analysis
+5. SpawnedAgentLoader discovers existing agents (if any)
+6. User: "/specialize SQL Expert"
+7. SpinoffService creates specialized variant
+```
+
+## Version History
+- V7.5: SpawnedAgentLoader
+- V8.1: AutoBootstrap
+- V9.1: BootstrapService, SpinoffService extracted to service layer

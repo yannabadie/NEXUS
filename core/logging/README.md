@@ -1,124 +1,176 @@
-# logging
+# NEXUS Logging Module
 
-Logging module for NEXUS V7
+## Synopsis
 
-Exports:
-- NexusLogger: Main logger class
-- LogLevel: Log level enum
-- EventType: Event type enum
-- init_logger: Initialize global logger
-- get_logger: Get global logger instance
-- cleanup_old_logs: Cleanup old log files
-- get_driver_logger: Get lightweight driver logger (V8.4.5)
-- configure_driver_logging: Configure driver log level (V8.4.5)
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\logging` |
-| **Modules** | 3 |
-| **Total Lines** | 636 |
-| **Classes** | 4 |
-| **Functions** | 7 |
+The **logging** module provides structured logging for NEXUS with JSONL event logging, rotating log files, and a lightweight driver logger for LLM interactions. It supports multiple log levels and event types for comprehensive observability.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class DriverLogger {
-        +name
-        -_logger
-        -__init__(self, name: str, level: int=...)
-        +debug(self, message: str, **kwargs) None
-        +info(self, message: str, **kwargs) None
-        +warning(self, message: str, **kwargs) None
-        +error(self, message: str, **kwargs) None
-        +critical(self, message: str, **kwargs) None
-        +set_level(self, level: int) None
-    }
-    class LogLevel {
-        +DEBUG
-        +INFO
-        +WARNING
-        +ERROR
-        +CRITICAL
-    }
-    Enum <|-- LogLevel
-    class EventType {
-        +FSM_TRANSITION
-        +FSM_STATE
-        +AGENT_INVOKE
-        +AGENT_RESPONSE
-        +AGENT_ERROR
-        +TOOL_EXECUTE
-        +TOOL_RESULT
-        +TOOL_ERROR
-        +STAGNATION_DETECTED
-        +PLAN_HEALTH
-        +PANIC_TRIGGERED
-        +PANIC_CLEARED
-        +BACKUP_CREATED
-        +STATE_ROLLBACK
-        +SESSION_START
-        +SESSION_END
-        +USER_INPUT
-        +ITERATION_COMPLETE
-    }
-    Enum <|-- EventType
-    class NexusLogger {
-        +workspace_path
-        +log_dir
-        +current_date
-        +events_file
-        +errors_file
-        +trace_file
-        +summary_file
-        +session_start
-        +session_id
-        +metrics
-        +log_level
-        -__init__(self, workspace_path: Path, log_level: str=...)
-        +log_event(self, event_type: EventType, data: Dict[str, Any], level: LogLevel=...)
-        +log_fsm_transition(self, from_state: str, to_state: str, iteration: int)
-        +log_agent_invocation(self, agent: str, iteration: int, context_size: int=...)
-        +log_agent_response(self, agent: str, action_type: str, has_tool: bool, duration_ms: float)
-        +log_agent_error(self, agent: str, error_type: str, error_msg: str)
-        +log_tool_execution(self, tool_name: str, args: Dict, iteration: int)
-        +log_tool_result(self, tool_name: str, status: str, duration_ms: float, output_size: int)
-        +log_tool_error(self, tool_name: str, error_msg: str)
-        +log_stagnation(self, similarity: float, window_size: int)
-        +log_plan_health(self, status: str, message: str, turns_since_progress: int, turns_since_completion: int)
-        +log_panic(self, reason: str, details: str)
-        +log_panic_cleared(self)
-        +log_backup(self, reason: str, backup_file: str)
-        +log_rollback(self, backup_file: str, success: bool)
-        +log_user_input(self, input_text: str, iteration: int)
-        +log_iteration_complete(self, iteration: int, state: str, duration_ms: float, success: bool)
-        +debug(self, message: str, context: Optional[Dict]=...)
-        +info(self, message: str, context: Optional[Dict]=...)
-        +warning(self, message: str, context: Optional[Dict]=...)
-        +error(self, message: str, context: Optional[Dict]=...)
-        +critical(self, message: str, context: Optional[Dict]=...)
-        +trace(self, message: str)
-        +end_session(self)
-        -_log_error(self, event_type: EventType, data: Dict, level: LogLevel)
-        -_should_log(self, level: LogLevel) bool
-        -_update_metrics(self, event_type: EventType, data: Dict)
-        +get_session_summary(self) Dict
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      LOGGING ARCHITECTURE                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                       NexusLogger                                 │   │
+│  │              Main structured logger (JSONL)                       │   │
+│  └────────────────────────────┬─────────────────────────────────────┘   │
+│                               │                                          │
+│         ┌─────────────────────┼─────────────────────┐                   │
+│         │                     │                     │                   │
+│         ▼                     ▼                     ▼                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐          │
+│  │ events_*.jsonl│   │ errors_*.log │    │ driver_*.log     │          │
+│  │ (all events)  │   │ (errors only)│    │ (LLM calls)      │          │
+│  └──────────────┘    └──────────────┘    └──────────────────┘          │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                      DriverLogger (V8.4.5)                        │   │
+│  │            Lightweight logger for driver invocations              │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [driver_logger](driver_logger.py) | Driver Logger - Lightweight logging for driver modules. | 1 | 4 |
-| [logger_v7](logger_v7.py) | Logging System V7 - Structured logging pour development et runtime | 3 | 3 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `logger_v7.py` | Main structured logger | `NexusLogger`, `LogLevel`, `EventType` |
+| `driver_logger.py` | LLM driver logging | `DriverLogger`, `get_driver_logger` |
 
+## Log Levels
 
+```python
+class LogLevel(Enum):
+    DEBUG = 10
+    INFO = 20
+    WARNING = 30
+    ERROR = 40
+    CRITICAL = 50
+```
 
+## Event Types
 
+```python
+class EventType(Enum):
+    # Orchestration
+    TURN_START = "turn_start"
+    TURN_END = "turn_end"
+    STATE_CHANGE = "state_change"
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+    # Agents
+    AGENT_INVOKE = "agent_invoke"
+    AGENT_RESPONSE = "agent_response"
+    AGENT_ERROR = "agent_error"
+
+    # Tools
+    TOOL_EXECUTE = "tool_execute"
+    TOOL_RESULT = "tool_result"
+    TOOL_ERROR = "tool_error"
+
+    # HiveMind
+    HIVE_PHASE = "hive_phase"
+    HIVE_DEBATE = "hive_debate"
+
+    # Swarm
+    SWARM_MODE = "swarm_mode"
+    SWARM_NEGOTIATE = "swarm_negotiate"
+
+    # System
+    SYSTEM_START = "system_start"
+    SYSTEM_STOP = "system_stop"
+    ERROR = "error"
+```
+
+## Key Interfaces
+
+### NexusLogger
+```python
+class NexusLogger:
+    """Main structured logger."""
+
+    def __init__(self, workspace_path: Path, log_level: LogLevel = LogLevel.INFO)
+    def log(self, event_type: EventType, data: Dict, level: LogLevel = LogLevel.INFO)
+    def debug(self, message: str, **kwargs)
+    def info(self, message: str, **kwargs)
+    def warning(self, message: str, **kwargs)
+    def error(self, message: str, **kwargs)
+```
+
+### DriverLogger (V8.4.5)
+```python
+class DriverLogger:
+    """Lightweight logger for LLM driver interactions."""
+
+    def log_request(self, agent: str, prompt: str, tokens: int)
+    def log_response(self, agent: str, response: str, latency: float)
+    def log_error(self, agent: str, error: str)
+```
+
+## Log File Structure
+
+```
+workspace/logs/
+├── events_20251217.jsonl   # All events (JSONL format)
+├── errors_20251217.log     # Errors only (text)
+├── driver_20251217.log     # LLM driver calls
+└── ...
+```
+
+## JSONL Event Format
+
+```json
+{
+  "timestamp": "2025-12-17T10:30:00.123Z",
+  "event_type": "agent_invoke",
+  "level": "INFO",
+  "data": {
+    "agent": "gemini",
+    "prompt_tokens": 1500,
+    "model": "gemini-3-pro-preview"
+  }
+}
+```
+
+## Usage
+
+```python
+from core.logging import init_logger, get_logger, EventType
+
+# Initialize logger
+init_logger(workspace_path=Path("workspace"))
+
+# Get logger instance
+logger = get_logger()
+
+# Log events
+logger.log(EventType.TURN_START, {"user_input": "Fix the bug"})
+logger.info("Processing request", agent="gemini")
+logger.error("Tool execution failed", tool="bash", error=str(e))
+
+# Driver logging
+from core.logging import get_driver_logger
+driver_logger = get_driver_logger()
+driver_logger.log_request("claude", prompt, token_count)
+```
+
+## Log Cleanup
+
+```python
+from core.logging import cleanup_old_logs
+
+# Remove logs older than 7 days
+cleanup_old_logs(workspace_path, max_age_days=7)
+```
+
+## Dependencies
+
+### External
+- Standard library (logging, json, pathlib, datetime)
+
+## Version History
+
+- **V7.0** - NexusLogger with JSONL events
+- **V8.4.5** - DriverLogger for LLM calls
+- **V12.4** - Enhanced event types, log rotation

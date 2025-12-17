@@ -1,126 +1,129 @@
-# events
+# NEXUS Events Module
 
-NEXUS V10 CEREBRO - Events Package
+## Synopsis
 
-Redis-based event bus for external UI observation.
-Coexists with internal EventBus (core/async_primitives/event_bus.py).
-
-Usage:
-    from core.events import CerebroEvent, CerebroEventType, get_redis_bus
-
-    # Publish event
-    event = CerebroEvent(
-        event_type=CerebroEventType.INTERACTION_ASK,
-        tenant_id="tenant_123",
-        workspace_id="default",
-        payload={"prompt": "Continue?"}
-    )
-    await get_redis_bus().publish(event)
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\events` |
-| **Modules** | 4 |
-| **Total Lines** | 1220 |
-| **Classes** | 4 |
-| **Functions** | 10 |
+The **events** module provides a Redis-based event bus for external UI observation of NEXUS activities. It enables real-time event streaming to CEREBRO API clients while coexisting with the internal EventBus (`core/async_primitives/event_bus.py`). Events are typed with `CerebroEventType` for structured handling.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class RedisEventBus {
-        -Optional['RedisEventBus'] _instance
-        -_lock
-        -_initialized
-        -__new__(cls) 'RedisEventBus'
-        -__init__(self)
-        +set_main_loop(self, loop: asyncio.AbstractEventLoop) None
-        +connect(self, url: str=...) bool
-        +disconnect(self) None
-        +publish(self, event: CerebroEvent) bool
-        +subscribe(self, tenant_id: str, workspace_id: str, event_types: Optional[List[CerebroEventType]]=...) AsyncIterator[CerebroEvent]
-        +is_connected(self) bool
-        +can_stream(self) bool
-        +get_subscriber_count(self, tenant_id: str=..., workspace_id: str=...) int
-        +health_check(self) Dict[str, Any]
-        +get_info(self) Dict[str, Any]
-    }
-    class TelemetryBridge {
-        -Optional['TelemetryBridge'] _instance
-        -_lock
-        -_initialized
-        -__new__(cls) 'TelemetryBridge'
-        -__init__(self)
-        +start_trace(self, trace_id: Optional[str]=...) str
-        +end_trace(self) None
-        +get_correlation_id(self) Optional[str]
-        -_next_seq(self) int
-        -_get_tenant(self) str
-        -_get_workspace(self) str
-        -_truncate_payload(self, payload: Dict[str, Any]) Tuple[Dict[str, Any], bool]
-        -_persist_state(self, tenant_id: str, workspace_id: str, event_type: 'CerebroEventType', payload: Dict[str, Any]) None
-        +emit(self, event_type: 'CerebroEventType', payload: Dict[str, Any], tenant_id: Optional[str]=..., workspace_id: Optional[str]=...) bool
-        +emit_sync(self, event_type: 'CerebroEventType', payload: Dict[str, Any], tenant_id: Optional[str]=..., workspace_id: Optional[str]=...) bool
-    }
-    class CerebroEventType {
-        +INTERACTION_ASK
-        +INTERACTION_CONFIRM
-        +INTERACTION_CHOOSE
-        +INTERACTION_ANNOUNCE
-        +INTERACTION_PROGRESS
-        +STATE_CHANGE
-        +PHASE_START
-        +PHASE_END
-        +AGENT_SPEAK
-        +AGENT_TOOL_CALL
-        +AGENT_TOOL_RESULT
-        +SWARM_MODE_SELECTED
-        +SWARM_NEGOTIATION
-        +SWARM_PHASE_CHANGE
-        +HIVE_STATE_CHANGE
-        +HIVE_PHASE_START
-        +HIVE_PHASE_END
-        +GRAPH_NODE_SPAWN
-        +GRAPH_NODE_UPDATE
-        +GRAPH_EDGE_MESSAGE
-        +LOG
-        +ERROR
-        +HEARTBEAT
-    }
-    str <|-- CerebroEventType
-    Enum <|-- CerebroEventType
-    class CerebroEvent {
-        +CerebroEventType event_type
-        +str tenant_id
-        +str workspace_id
-        +Dict[str, Any] payload
-        +str timestamp
-        +str event_id
-        +Optional[str] correlation_id
-        +Optional[int] sequence_number
-        +to_json(self) str
-        +to_dict(self) Dict[str, Any]
-        +from_json(cls, data: str) 'CerebroEvent'
-        +from_dict(cls, d: Dict[str, Any]) 'CerebroEvent'
-        +channel_name(self) str
-        +wildcard_channel(tenant_id: str, workspace_id: Optional[str]=..., event_type: Optional[CerebroEventType]=...) str
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        EVENT ARCHITECTURE                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────┐         ┌──────────────────┐                      │
+│  │   NEXUS Core     │         │   External UI    │                      │
+│  │   Orchestrator   │         │   (CEREBRO Web)  │                      │
+│  └────────┬─────────┘         └────────▲─────────┘                      │
+│           │                            │                                 │
+│           │ publish()                  │ subscribe()                     │
+│           ▼                            │                                 │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                     RedisEventBus                                │    │
+│  │              Redis Streams / Pub-Sub                             │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│           │                            ▲                                 │
+│           │                            │                                 │
+│  ┌────────▼─────────┐         ┌────────┴─────────┐                      │
+│  │  TelemetryBridge │         │  Internal        │                      │
+│  │  (metrics sync)  │         │  EventBus        │                      │
+│  └──────────────────┘         └──────────────────┘                      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [redis_bus](redis_bus.py) | NEXUS V10 CEREBRO - Redis Event Bus | 1 | 4 |
-| [telemetry_bridge](telemetry_bridge.py) | NEXUS V10 CEREBRO: SYNAPSE - TelemetryBridge | 1 | 2 |
-| [types](types.py) | NEXUS V10 CEREBRO - Event Types | 2 | 4 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `types.py` | Event dataclasses | `CerebroEvent`, `CerebroEventType` |
+| `redis_bus.py` | Redis pub/sub implementation | `RedisEventBus`, `get_redis_bus` |
+| `telemetry_bridge.py` | Telemetry integration | `TelemetryBridge`, `get_telemetry_bridge` |
 
+## Event Types
 
+```python
+class CerebroEventType(Enum):
+    # User interaction
+    INTERACTION_ASK = "interaction.ask"
+    INTERACTION_CONFIRM = "interaction.confirm"
+    INTERACTION_CHOOSE = "interaction.choose"
 
+    # Orchestration
+    ORCHESTRATION_STATE = "orchestration.state"
+    ORCHESTRATION_TURN = "orchestration.turn"
 
+    # Agents
+    AGENT_INVOKE = "agent.invoke"
+    AGENT_RESPONSE = "agent.response"
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+    # Tools
+    TOOL_EXECUTE = "tool.execute"
+    TOOL_RESULT = "tool.result"
+
+    # HiveMind
+    HIVE_PHASE = "hive.phase"
+    HIVE_DEBATE = "hive.debate"
+
+    # Telemetry
+    TELEMETRY_METRIC = "telemetry.metric"
+```
+
+## Key Interfaces
+
+### RedisEventBus
+```python
+class RedisEventBus:
+    """Redis-backed event bus for UI observation."""
+
+    async def publish(self, event: CerebroEvent) -> None
+    async def subscribe(self, event_types: List[CerebroEventType]) -> AsyncIterator[CerebroEvent]
+    def get_stream_name(self, tenant_id: str) -> str
+```
+
+### CerebroEvent
+```python
+@dataclass
+class CerebroEvent:
+    event_type: CerebroEventType
+    tenant_id: str
+    workspace_id: str
+    payload: Dict[str, Any]
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+```
+
+## Usage
+
+```python
+from core.events import CerebroEvent, CerebroEventType, get_redis_bus
+
+# Publish event
+event = CerebroEvent(
+    event_type=CerebroEventType.INTERACTION_ASK,
+    tenant_id="tenant_123",
+    workspace_id="default",
+    payload={"prompt": "Continue?", "options": ["Yes", "No"]}
+)
+await get_redis_bus().publish(event)
+
+# Subscribe to events
+async for event in get_redis_bus().subscribe([CerebroEventType.AGENT_RESPONSE]):
+    print(f"Agent response: {event.payload}")
+```
+
+## Dependencies
+
+### Internal
+- `core.async_primitives.event_bus` - Internal event bus (coexists)
+- `core.telemetry` - Metrics integration
+
+### External
+- `redis` - Redis client
+- `aioredis` - Async Redis client
+
+## Version History
+
+- **V10.0** - CEREBRO: Redis-based event bus for external UI
+- **V10.5** - SYNAPSE: TelemetryBridge for metrics sync
+- **V12.4** - Multi-tenant event streams

@@ -1,78 +1,113 @@
-# governance
+# NEXUS Governance Module
 
-NEXUS Governance & Security - "Le Tribunal"
+## Synopsis
 
-Handles security policies, alignment verification, and access control.
-
-## Modules
-
-### Active
-- `red_team/`: Alignment testing with trap questions (blocks unsafe evolutions)
-- `sandbox_policy.py`: Tool execution permissions and security policies
-
-### Planned (TODO)
-- `gcp_gatekeeper.py`: GCP access control with ROI validation
-- `ethics.py`: Alignment verification to Creator (Yann Abadie)
+The **governance** module (codename "Le Tribunal") handles security policies, alignment verification, and access control for NEXUS. It provides sandbox execution policies for tool permissions and red team validation for evolution safety.
 
 ## Architecture
 
 ```
-governance/
-├── __init__.py          # This file
-├── red_team/            # Alignment testing (migrated from BENCHMARKS/)
-│   ├── __init__.py
-│   ├── alignment_tests.py
-│   └── validator.py
-├── sandbox_policy.py    # Tool execution permissions and security policies
-├── gcp_gatekeeper.py    # TODO: ROI-based cloud access
-└── ethics.py            # TODO: Alignment verification to Creator
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    GOVERNANCE ARCHITECTURE                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                       KERNEL.py                                   │   │
+│  │              Immutable Alignment to Creator                       │   │
+│  └────────────────────────────┬─────────────────────────────────────┘   │
+│                               │                                          │
+│         ┌─────────────────────┼─────────────────────┐                   │
+│         │                     │                     │                   │
+│         ▼                     ▼                     ▼                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐          │
+│  │ SandboxPolicy│    │  RedTeam     │    │  GCP Gatekeeper  │          │
+│  │ Tool Perms   │    │  Validator   │    │  (Planned)       │          │
+│  └──────────────┘    └──────────────┘    └──────────────────┘          │
+│         │                     │                                         │
+│         ▼                     ▼                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │                     Evolution Gating                              │  │
+│  │           Block unsafe evolutions, verify alignment               │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+## Component Map
+
+| File/Directory | Purpose | Key Exports |
+|----------------|---------|-------------|
+| `sandbox_policy.py` | Tool execution permissions | `SandboxPolicy` |
+| `red_team/` | Alignment testing | `RedTeamValidator`, alignment tests |
+
+## Key Interfaces
+
+### SandboxPolicy
+```python
+class SandboxPolicy:
+    """Tool execution permissions and security policies."""
+
+    def is_tool_allowed(self, tool_name: str, context: ExecutionContext) -> bool
+    def get_allowed_paths(self, tool_name: str) -> List[Path]
+    def validate_command(self, command: str) -> ValidationResult
+```
+
+### RedTeamValidator (in red_team/)
+```python
+class RedTeamValidator:
+    """Alignment testing with trap questions."""
+
+    def __init__(self, child_path: Path, child_id: str)
+    def run_alignment_tests(self) -> AlignmentResults
+    def check_kernel_compliance(self) -> bool
+```
+
+## Alignment Tests
+
+The red_team module tests evolved children against trap questions:
+
+| Test Category | Purpose |
+|---------------|---------|
+| **Kernel Compliance** | Cannot modify KERNEL.py |
+| **Creator Alignment** | Loyal to Yann Abadie |
+| **Harm Prevention** | Refuses harmful requests |
+| **Data Protection** | Protects user data |
+| **Self-Limitation** | Respects boundaries |
+
+## Planned Modules
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `gcp_gatekeeper.py` | ROI-based cloud access control | TODO |
+| `ethics.py` | Alignment verification to Creator | TODO |
 
 ## Usage
 
 ```python
 from core.governance.red_team import RedTeamValidator
 
-validator = RedTeamValidator(child_path, child_id)
+# Validate evolved child
+validator = RedTeamValidator(
+    child_path=Path("workspace/agents/security_specialist"),
+    child_id="nexus-v12.5-security"
+)
+
 results = validator.run_alignment_tests()
+if not results.passed:
+    print(f"Alignment failures: {results.failures}")
 ```
 
-## Overview
+## Dependencies
 
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\governance` |
-| **Modules** | 2 |
-| **Total Lines** | 200 |
-| **Classes** | 1 |
-| **Functions** | 0 |
+### Internal
+- `KERNEL.py` - Immutable alignment rules
+- `core.security` - Security validation
 
-## Architecture
+### External
+- Standard library only
 
-```mermaid
-classDiagram
-    class SandboxPolicy {
-        +is_tool_safe(tool_name: str) bool
-        +is_tool_blocked(tool_name: str) bool
-        +is_tool_conditional(tool_name: str) bool
-        +can_execute_tool(tool_name: str, context: str=...) bool
-        +get_blocked_reason(tool_name: str) str
-    }
-```
+## Version History
 
-## Modules
-
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [sandbox_policy](sandbox_policy.py) | Sandbox Policy - Tool execution permissions and security policies | 1 | 0 |
-
-## Subpackages
-
-| Package | Description | Modules |
-|---------|-------------|---------|
-| [red_team/](C:\Code\NEXUS\NEXUS-N7A\core\governance\red_team/README.md) |  | 0 |
-
-## Aggregated Statistics
-
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+- **V7.0** - Initial red_team module
+- **V8.0** - SandboxPolicy extraction
+- **V12.4** - Enhanced alignment tests

@@ -1,127 +1,143 @@
-# resilience
+# Resilience Module
 
-NEXUS V9.5 Resilience Module
+## Synopsis
+The Resilience module provides fault tolerance and health monitoring for multi-agent orchestration. It implements the Circuit Breaker pattern to prevent cascading failures, a hierarchical breaker for global cascade detection, and a unified system health monitor for V9.5+ components. This module is critical for maintaining system stability under failure conditions.
 
-Provides circuit breaker, system health monitoring, and resilience patterns
-for multi-agent orchestration.
+## Component Map
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `circuit_breaker.py` | Circuit breaker with exponential backoff, hierarchical cascade detection | `CircuitBreaker`, `HierarchicalCircuitBreaker`, `CircuitState`, `CircuitOpenError`, `get_circuit_breaker()`, `get_hierarchical_breaker()` |
+| `system_health.py` | Unified health monitoring for all V9.5 components | `SystemHealth`, `HealthStatus`, `ComponentHealth`, `HealthReport`, `get_system_health()`, `reset_system_health()` |
+| `__init__.py` | Module initialization with public exports | All classes and functions from submodules |
 
-Modules:
-- circuit_breaker: Circuit breaker pattern for fault tolerance
-- system_health: Unified health monitoring for V9.5 components
+## Key Interfaces
 
-## Overview
+### Circuit Breaker Pattern
 
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\resilience` |
-| **Modules** | 3 |
-| **Total Lines** | 1058 |
-| **Classes** | 8 |
-| **Functions** | 7 |
+**`CircuitBreaker`** (dataclass)
+- Three-state breaker: `CLOSED` (normal), `OPEN` (failures exceeded), `HALF_OPEN` (testing recovery)
+- Exponential backoff with configurable thresholds and max backoff time
+- Supports both async and sync function calls
+- Key methods: `call()`, `call_sync()`, `reset()`, `get_status()`
+- Prevents cascading failures by blocking requests when failure threshold is reached
 
-## Architecture
+**`CircuitState`** (enum)
+- `CLOSED`: Normal operation, requests pass through
+- `OPEN`: Too many failures, requests blocked with `CircuitOpenError`
+- `HALF_OPEN`: Testing recovery after timeout
 
-```mermaid
-classDiagram
-    class CircuitState {
-        +CLOSED
-        +OPEN
-        +HALF_OPEN
-    }
-    Enum <|-- CircuitState
-    class CircuitOpenError {
-        +name
-        +time_until_retry
-        +failure_count
-        -__init__(self, name: str, time_until_retry: float, failure_count: int)
-    }
-    Exception <|-- CircuitOpenError
-    class CircuitBreaker {
-        +str name
-        +int failure_threshold
-        +float recovery_timeout
-        +float max_backoff
-        +float backoff_multiplier
-        -CircuitState _state
-        -int _failure_count
-        -Optional[float] _last_failure_time
-        -float _current_backoff
-        -Lock _lock
-        -__post_init__(self)
-        +state(self) CircuitState
-        +failure_count(self) int
-        -_should_attempt_recovery(self) bool
-        -_get_time_until_retry(self) float
-        -_on_success(self)
-        -_on_failure(self, error: Exception)
-        +call(self, func: Callable, *args, **kwargs) Any
-        +call_sync(self, func: Callable, *args, **kwargs) Any
-        +reset(self)
-        +get_status(self) Dict[str, Any]
-    }
-    class HierarchicalCircuitBreaker {
-        -_global
-        -_lock
-        -_cascade_window
-        -_cascade_threshold
-        -__init__(self, global_failure_threshold: int=..., global_recovery_timeout: float=..., cascade_window: float=..., cascade_threshold: int=...)
-        -_get_provider_breaker(self, provider: str) CircuitBreaker
-        -_check_cascade(self, provider: str) bool
-        +call(self, provider: str, func: Callable, *args, **kwargs) Any
-        +call_sync(self, provider: str, func: Callable, *args, **kwargs) Any
-        +reset_all(self)
-        +reset_provider(self, provider: str)
-        +get_status(self) Dict[str, Any]
-        +global_state(self) CircuitState
-        +get_provider_state(self, provider: str) CircuitState
-    }
-    class HealthStatus {
-        +HEALTHY
-        +DEGRADED
-        +UNHEALTHY
-        +UNKNOWN
-    }
-    Enum <|-- HealthStatus
-    class ComponentHealth {
-        +str name
-        +HealthStatus status
-        +str message
-        +Dict[str, Any] details
-        +datetime checked_at
-        +to_dict(self) Dict[str, Any]
-    }
-    class HealthReport {
-        +List[ComponentHealth] components
-        +HealthStatus overall_status
-        +datetime checked_at
-        +healthy_count(self) int
-        +unhealthy_count(self) int
-        +summary(self) str
-        +to_dict(self) Dict[str, Any]
-    }
-    class SystemHealth {
-        +workspace_path
-        -__init__(self, workspace_path: Optional[Path]=...)
-        +check_all(self) HealthReport
-        -_check_constants(self) ComponentHealth
-        -_check_safe_task_manager(self) ComponentHealth
-        -_check_event_bus(self) ComponentHealth
-        -_check_tool_registry(self) ComponentHealth
-        -_check_circuit_breaker(self) ComponentHealth
-        +last_report(self) Optional[HealthReport]
-    }
+**`CircuitOpenError`** (exception)
+- Raised when circuit is open and call is rejected
+- Contains: `name`, `time_until_retry`, `failure_count`
+
+**`get_circuit_breaker(name: str, failure_threshold: int = 3, recovery_timeout: float = 30.0, max_backoff: float = 300.0) -> CircuitBreaker`**
+- Get or create a circuit breaker by name (e.g., "gemini", "claude", "hivemind")
+- Shared by name - subsequent calls return same instance
+
+### V11 Hierarchical Circuit Breaker (FIX F17)
+
+**`HierarchicalCircuitBreaker`**
+- Two-level hierarchy: global breaker + per-provider breakers
+- Detects cascade failures when multiple providers fail within a time window
+- Global breaker trips on widespread failures (e.g., network down)
+- Per-provider breakers trip on provider-specific issues
+- Key methods: `call()`, `call_sync()`, `reset_all()`, `get_status()`
+
+**Cascade Detection**
+- Monitors failures across providers within a `cascade_window` (default 30s)
+- Trips global breaker when `cascade_threshold` providers fail (default 3)
+- Prevents N independent recovery attempts during global failures
+
+**`get_hierarchical_breaker() -> HierarchicalCircuitBreaker`**
+- Get singleton hierarchical breaker instance
+- Use for cascade-aware circuit breaking across multiple providers
+
+### System Health Monitoring
+
+**`SystemHealth`**
+- Unified health monitor for V9.5+ components
+- Checks: Constants, SafeTaskManager, EventBus, ToolRegistry, CircuitBreaker
+- Async health check with aggregated reporting
+- V10 PRISM: Tenant-scoped via ServiceFactory when context is active
+
+**`HealthStatus`** (enum)
+- `HEALTHY`: Component operating normally
+- `DEGRADED`: Partial functionality
+- `UNHEALTHY`: Component failed
+- `UNKNOWN`: Cannot determine status
+
+**`ComponentHealth`** (dataclass)
+- Health status of a single component
+- Fields: `name`, `status`, `message`, `details`, `checked_at`
+- Serializable to dict for logging
+
+**`HealthReport`** (dataclass)
+- Aggregated report for all components
+- Fields: `components`, `overall_status`, `checked_at`
+- Properties: `healthy_count`, `unhealthy_count`
+- Methods: `summary()` (human-readable), `to_dict()` (serialization)
+
+**`get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth`**
+- Get system health monitor
+- V10: Returns tenant-scoped monitor via ServiceFactory if context active
+- Legacy: Returns global singleton
+
+### Usage Examples
+
+```python
+# Basic circuit breaker
+from core.resilience import get_circuit_breaker, CircuitOpenError
+
+breaker = get_circuit_breaker("gemini")
+try:
+    result = await breaker.call(agent.invoke, prompt)
+except CircuitOpenError as e:
+    logger.warning(f"Circuit open: {e.time_until_retry}s until retry")
+    # Use fallback logic
+
+# Hierarchical breaker for cascade detection
+from core.resilience import get_hierarchical_breaker
+
+hcb = get_hierarchical_breaker()
+result = await hcb.call("gemini", agent.invoke, prompt)
+
+# System health check
+from core.resilience import get_system_health
+
+health = get_system_health()
+report = await health.check_all()
+print(report.summary())
+# Output:
+# System Health: HEALTHY
+# Components: 5/5 healthy
+#   [OK] Constants: v9.5.0 loaded
+#   [OK] SafeTaskManager: 0 active tasks
+#   [OK] EventBus: 142 events published
+#   [OK] ToolRegistry: 11 tools registered
+#   [OK] CircuitBreaker: State: closed
 ```
 
-## Modules
+## Dependencies & Integration
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [circuit_breaker](circuit_breaker.py) | V9.3 ISSUE-007: Circuit Breaker Pattern for NEXUS | 4 | 5 |
-| [system_health](system_health.py) | SystemHealth - Unified Health Check for V9.5 Components. | 4 | 2 |
+### Internal Dependencies
+- `core.constants` - Timeout and retry limits
+- `core.async_primitives.safe_task_manager` - Task tracking
+- `core.async_primitives.event_bus` - Event system
+- `core.execution.tool_registry` - Tool availability
+- `core.context` (V10) - Tenant context
+- `core.factory` (V10) - Service factory for tenant scoping
 
+### Integration Points
+- **Orchestrators**: FSM, HiveMind, SwarmEngine wrap agent invocations in circuit breakers
+- **Health Monitoring**: SystemHealth provides `/health` endpoint data
+- **Cascade Protection**: HierarchicalCircuitBreaker prevents global failure cascades
+- **V10 PRISM**: Tenant-scoped circuit breakers and health monitors
 
-
-
-
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### Design Notes
+- **Exponential Backoff**: Recovery timeout doubles on each HALF_OPEN failure (max 5-10 min)
+- **Thread Safety**: All state mutations protected by locks
+- **Async + Sync**: Both calling patterns supported
+- **Global vs Per-Provider**: Use `HierarchicalCircuitBreaker` for cascade-aware protection
+- **Health Check Components**: Constants, SafeTaskManager, EventBus, ToolRegistry, CircuitBreaker
+- **V10 Integration**: Seamless tenant scoping when context module available
+- **Testing Utilities**: `reset_all_circuits()`, `reset_system_health()`, `reset_hierarchical_breaker()`

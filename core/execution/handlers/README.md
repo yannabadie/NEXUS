@@ -1,159 +1,256 @@
-# handlers
+# Execution Handlers
 
-Tool Handlers - NEXUS V9.6 Sprint 5.2b
+## Synopsis
+Individual tool handler implementations extracted from tool_manager.py during V9.6 refactoring. Each handler focuses on one category of tools following Single Responsibility Principle. All handlers inherit from BaseHandler and return standardized ToolResult objects.
 
-Extracted from tool_manager.py for Single Responsibility.
-Each handler focuses on one category of tools.
+## Component Map
 
-Modules:
-- base: BaseHandler protocol and ToolResult
-- bash_handler: bash command execution
-- file_handlers: read, write, edit, list_dir
-- search_handlers: glob, grep
-- git_handler: git operations
-- web_handlers: web_search, web_fetch
-- todo_handler: todo_write
-- dynamic_tools_handler: create, delete, list, run dynamic tools
-- mcp_handler: MCP server tools
-- swarm_handler: swarm delegation
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\execution\handlers` |
-| **Modules** | 11 |
-| **Total Lines** | 2256 |
-| **Classes** | 21 |
-| **Functions** | 11 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `__init__.py` | Exports and factory functions | `create_all_handlers()`, all handler classes |
+| `base.py` | Handler protocol and base class | `BaseHandler`, `ToolResult`, `HandlerProtocol` |
+| `bash_handler.py` | Shell command execution | `BashHandler`, `create_bash_handler()` |
+| `file_handlers.py` | File operations | `ReadHandler`, `WriteHandler`, `EditHandler`, `ListDirHandler` |
+| `search_handlers.py` | Code search | `GlobHandler`, `GrepHandler` |
+| `git_handler.py` | Git operations | `GitHandler` |
+| `web_handlers.py` | Web operations | `WebSearchHandler`, `WebFetchHandler` |
+| `todo_handler.py` | Task management | `TodoWriteHandler` |
+| `dynamic_tools_handler.py` | Dynamic tool CRUD | `CreateToolHandler`, `DeleteToolHandler`, etc. |
+| `mcp_handler.py` | MCP server tools | `MCPToolHandler`, `create_mcp_tool_executor()` |
+| `swarm_handler.py` | Swarm delegation | `SwarmDelegateHandler` |
 
 ## Architecture
 
 ```mermaid
 classDiagram
-    class ToolResult {
-        +str tool_name
-        +str status
-        +str output
-        +str error
-        +to_dict(self) Dict[str, Any]
-        +success(self) bool
-        +failed(self) bool
-        +ok(cls, tool_name: str, output: str) 'ToolResult'
-        +fail(cls, tool_name: str, error: str, output: str=...) 'ToolResult'
-        +make_error(cls, tool_name: str, error_msg: str) 'ToolResult'
-    }
-    class HandlerProtocol {
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    Protocol <|-- HandlerProtocol
     class BaseHandler {
+        <<abstract>>
         +workspace_path
         +validation_service
-        -_logger
-        -__init__(self, workspace_path: Path, validation_service: Any=...)
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-        -_resolve_path(self, path_str: str) Path
-        -_validate_path(self, path: Path, operation: str=...) bool
-        -_validate_path_str(self, path_str: str, operation: str=...) bool
-        -_ok(self, output: str) ToolResult
-        -_fail(self, error: str, output: str=...) ToolResult
-        -_error(self, error: str) ToolResult
+        +tool_name
+        +execute(args) ToolResult
+        #_resolve_path(path_str)
+        #_validate_path(path, operation)
+        #_ok(output)
+        #_fail(error)
     }
-    class BashHandler {
-        +execution_policy
-        +timeout
-        -__init__(self, workspace_path: Path, validation_service: Optional[Any]=..., execution_policy: Optional[ExecutionPolicy]=..., timeout: float=...)
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-        -_execute_simple(self, executable: str, arguments: list[str]) subprocess.CompletedProcess
-        -_execute_complex(self, command: str) subprocess.CompletedProcess
+
+    class ToolResult {
+        +tool_name
+        +status
+        +output
+        +error
+        +to_dict()
+        +success
+        +failed
     }
-    BaseHandler <|-- BashHandler
-    class DynamicToolsHandlerBase {
-        -_dynamic_tool_manager
-        -__init__(self, workspace_path: Path, validation_service: Any=..., dynamic_tool_manager: Optional[Any]=...)
-        -_get_manager(self) Optional[Any]
-        -_manager_not_available(self) ToolResult
-    }
-    BaseHandler <|-- DynamicToolsHandlerBase
-    class CreateToolHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    DynamicToolsHandlerBase <|-- CreateToolHandler
-    class DeleteToolHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    DynamicToolsHandlerBase <|-- DeleteToolHandler
-    class ListDynamicToolsHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    DynamicToolsHandlerBase <|-- ListDynamicToolsHandler
-    class RunDynamicToolHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    DynamicToolsHandlerBase <|-- RunDynamicToolHandler
-    class ReadHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- ReadHandler
-    class WriteHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- WriteHandler
-    class EditHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- EditHandler
-    class ListDirHandler {
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- ListDirHandler
-    class GitHandler {
-        +SAFE_OPS
-        +BLOCKED_OPS
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- GitHandler
-    class MCPToolHandler {
-        -_mcp_registry
-        -_server_name
-        -_mcp_tool_name
-        -__init__(self, workspace_path: Path, validation_service: Any=..., mcp_registry: Optional[Any]=..., server_name: str=..., mcp_tool_name: str=...)
-        +tool_name(self) str
-        +execute(self, args: Dict[str, Any]) ToolResult
-    }
-    BaseHandler <|-- MCPToolHandler
+
+    BaseHandler ..> ToolResult
+    BashHandler --|> BaseHandler
+    ReadHandler --|> BaseHandler
+    WriteHandler --|> BaseHandler
+    EditHandler --|> BaseHandler
+    ListDirHandler --|> BaseHandler
+    GlobHandler --|> BaseHandler
+    GrepHandler --|> BaseHandler
+    GitHandler --|> BaseHandler
+    WebSearchHandler --|> BaseHandler
+    WebFetchHandler --|> BaseHandler
+    TodoWriteHandler --|> BaseHandler
+    DynamicToolsHandler --|> BaseHandler
+    MCPToolHandler --|> BaseHandler
+    SwarmDelegateHandler --|> BaseHandler
 ```
 
-## Modules
+## Key Interfaces
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [base](base.py) | Base Handler - Foundation for all tool handlers. | 3 | 0 |
-| [bash_handler](bash_handler.py) | Bash Handler - Shell command execution with security hardening. | 1 | 1 |
-| [dynamic_tools_handler](dynamic_tools_handler.py) | Dynamic Tools Handler - Create, delete, list, run dynamic Python tools. | 5 | 1 |
-| [file_handlers](file_handlers.py) | File Handlers - read, write, edit, list_dir. | 4 | 1 |
-| [git_handler](git_handler.py) | Git Handler - Execute git operations. | 1 | 1 |
-| [mcp_handler](mcp_handler.py) | MCP Handler - Execute Model Context Protocol tools. | 1 | 2 |
-| [search_handlers](search_handlers.py) | Search Handlers - glob and grep. | 2 | 1 |
-| [swarm_handler](swarm_handler.py) | Swarm Handler - Delegate subtasks to Swarm Engine. | 1 | 1 |
-| [todo_handler](todo_handler.py) | Todo Handler - Task/plan management. | 1 | 1 |
-| [web_handlers](web_handlers.py) | Web Handlers - Web search and fetch operations. | 2 | 1 |
+### BaseHandler
+Abstract base class providing common functionality for all handlers.
 
+```python
+class BaseHandler(ABC):
+    def __init__(self, workspace_path, validation_service=None):
+        self.workspace_path = Path(workspace_path)
+        self.validation_service = validation_service
 
+    @property
+    @abstractmethod
+    def tool_name(self) -> str:
+        pass
 
+    @abstractmethod
+    def execute(self, args: Dict[str, Any]) -> ToolResult:
+        pass
 
+    def _resolve_path(self, path_str: str) -> Path:
+        # Resolve path relative to workspace
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+    def _validate_path(self, path: Path, operation: str) -> bool:
+        # Validate path using ValidationService
+```
+
+### ToolResult
+Standardized result object for all tool executions.
+
+```python
+@dataclass
+class ToolResult:
+    tool_name: str
+    status: str  # SUCCESS, FAILURE, ERROR
+    output: str
+    error: str = ""
+
+    @property
+    def success(self) -> bool
+
+    @classmethod
+    def ok(cls, tool_name, output) -> ToolResult
+
+    @classmethod
+    def fail(cls, tool_name, error, output="") -> ToolResult
+```
+
+### Handler Categories
+
+**File Operations** (file_handlers.py):
+- `ReadHandler` - Read file contents
+- `WriteHandler` - Create/overwrite files
+- `EditHandler` - Search and replace in files
+- `ListDirHandler` - List directory contents
+
+**Code Search** (search_handlers.py):
+- `GlobHandler` - File pattern matching (like `find`)
+- `GrepHandler` - Search code for patterns (like `ripgrep`)
+
+**Execution** (bash_handler.py):
+- `BashHandler` - Execute shell commands with timeout and security validation
+
+**Version Control** (git_handler.py):
+- `GitHandler` - Git operations (status, diff, log, branch, pull)
+
+**Web** (web_handlers.py):
+- `WebSearchHandler` - Search the web (via Gemini CLI)
+- `WebFetchHandler` - Fetch URL content
+
+**Task Management** (todo_handler.py):
+- `TodoWriteHandler` - Write/update task lists
+
+**Dynamic Tools** (dynamic_tools_handler.py):
+- `CreateToolHandler` - Create custom Python tools
+- `DeleteToolHandler` - Delete dynamic tools
+- `ListDynamicToolsHandler` - List available dynamic tools
+- `RunDynamicToolHandler` - Execute dynamic tools
+
+**MCP Integration** (mcp_handler.py):
+- `MCPToolHandler` - Execute MCP server tools
+- `create_mcp_tool_executor()` - Create executor for specific MCP tool
+
+**Swarm** (swarm_handler.py):
+- `SwarmDelegateHandler` - Delegate tasks to Swarm Engine
+
+## Factory Pattern
+
+All handlers can be created via factory functions:
+
+```python
+# Create all handlers at once
+handlers = create_all_handlers(
+    workspace_path=Path("/workspace"),
+    validation_service=validator,
+    dynamic_tool_manager=dtm,
+    swarm_bridge=bridge
+)
+
+# Create specific handler categories
+file_handlers = create_file_handlers(workspace_path, validator)
+search_handlers = create_search_handlers(workspace_path, validator)
+web_handlers = create_web_handlers(workspace_path, validator)
+```
+
+## Security Integration
+
+All handlers integrate with ValidationService (PathGuardian) for path validation:
+
+```python
+handler = ReadHandler(workspace_path, validation_service)
+result = handler.execute({"file_path": "../core/security/kernel.py"})
+
+# ValidationService checks:
+# - Path is within allowed boundaries
+# - Evolution mode restrictions
+# - Forbidden patterns (.env, .git, etc.)
+```
+
+## Dependencies
+
+### Internal
+- `core.security.PathGuardian` - Path validation (via ValidationService)
+- `core.security.ExecutionPolicy` - Command validation
+- `core.execution.dynamic_tools.DynamicToolManager` - Dynamic tool management
+- `core.mcp.MCPRegistry` - MCP server integration
+- `core.swarm.SwarmBridge` - Swarm delegation
+
+### External
+- `subprocess` - Command execution
+- `pathlib` - Path operations
+- `json` - Argument serialization
+- `logging` - Handler logging
+- `abc` - Abstract base classes
+
+## Integration Points
+
+### Used By
+- `ExecutionEngine` - Main execution orchestrator
+- `ToolManager` - Legacy wrapper
+
+### Uses
+- `ValidationService` - Path/command validation
+- `DynamicToolManager` - Dynamic tool operations
+- `MCPRegistry` - MCP tool operations
+- `SwarmBridge` - Swarm task delegation
+
+## Handler Development
+
+To create a new handler:
+
+```python
+from .base import BaseHandler, ToolResult
+
+class MyToolHandler(BaseHandler):
+    @property
+    def tool_name(self) -> str:
+        return "my_tool"
+
+    def execute(self, args: Dict[str, Any]) -> ToolResult:
+        # Validate inputs
+        input_value = args.get("input")
+        if not input_value:
+            return self._fail("Missing required argument: input")
+
+        # Perform operation
+        try:
+            result = perform_operation(input_value)
+            return self._ok(result)
+        except Exception as e:
+            return self._error(str(e))
+
+# Factory function
+def create_my_tool_handler(workspace_path, validation_service):
+    return MyToolHandler(workspace_path, validation_service)
+```
+
+## Error Handling
+
+Handlers return three status types:
+- **SUCCESS** - Operation completed successfully
+- **FAILURE** - Operation failed but error is expected (e.g., file not found)
+- **ERROR** - Unexpected error occurred (e.g., exception during execution)
+
+## Logging
+
+Each handler has its own logger:
+```python
+self._logger = logging.getLogger(f"nexus.tools.{self.tool_name}")
+```
+
+Logs are written to `workspace/logs/events_YYYYMMDD.jsonl`.

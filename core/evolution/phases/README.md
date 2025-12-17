@@ -1,88 +1,147 @@
-# phases
+# NEXUS Evolution Phases Module
 
-Evolution Phases - V7.5 Phase 0a
+## Synopsis
 
-Individual phase implementations for the evolution pipeline.
-Each phase is a separate module that can be tested independently.
-
-Phases:
-1. brainstorm.py - AI-driven mutation proposal generation [IMPLEMENTED]
-2. create.py - Child instance creation from mutations [IMPLEMENTED]
-3. validate.py - Tiered validation dispatch (uses existing TieredValidator)
-4. evaluate.py - Fitness evaluation (uses existing evaluator.py)
-5. promote.py - Winner promotion and archiving [IMPLEMENTED]
-
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\evolution\phases` |
-| **Modules** | 4 |
-| **Total Lines** | 1209 |
-| **Classes** | 4 |
-| **Functions** | 4 |
+The **phases** module contains the implementation of individual evolution phases: brainstorm, create, and promote. These phases handle the lifecycle of agent mutation proposals from initial debate through child creation to final promotion.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class BrainstormPhase {
-        +orchestrator
-        +workspace_path
-        +progress_callback
-        -_abort_requested
-        -__init__(self, orchestrator: Any, workspace_path: Path, progress_callback: Optional[ProgressCallback]=...)
-        -_report_progress(self, message: str, progress: float=...)
-        +request_abort(self)
-        -_clear_context(self)
-        -_cleanup_hallucinations(self)
-        -_load_lineage_context(self, parent_path: Path) str
-        -_extract_search_replace_blocks(self, text: str) List[Dict]
-        -_extract_generated_prompt(self, content: str, min_lines: int=...) Optional[str]
-        -_extract_mutations(self, final_content: str, child_count: int) Optional[List[Dict]]
-        +run(self, parent_id: str, parent_path: Path, child_count: int=..., focus_areas: Optional[List[str]]=..., mode: str=..., custom_task: Optional[str]=...) BrainstormResult
-    }
-    class SecurityError {
-    }
-    Exception <|-- SecurityError
-    class CreatePhase {
-        +workspace_path
-        +nexus_root
-        +project_root
-        +generation_active
-        +progress_callback
-        +mutation_validator
-        -__init__(self, workspace_path: Path, nexus_root: Path, progress_callback: Optional[ProgressCallback]=...)
-        -_report_progress(self, message: str, progress: float=...)
-        -_validate_mutation_path(self, file_path: str) tuple[bool, str]
-        -_apply_mutation(self, child_dir: Path, mutation: Dict[str, Any]) tuple[bool, str]
-        -_create_birth_certificate(self, child_dir: Path, child_id: str, parent_id: str, generation: int, mutation: Dict[str, Any]) Path
-        +create_child(self, mutation: MutationProposal, parent_id: str, generation: int, child_index: int) tuple[Optional[str], Optional[Path], List[str]]
-        +run(self, mutations: List[MutationProposal], parent_id: str, generation: int) ChildCreationResult
-    }
-    class PromotePhase {
-        +workspace_path
-        +nexus_root
-        +project_root
-        +progress_callback
-        -__init__(self, workspace_path: Path, nexus_root: Path, progress_callback: Optional[ProgressCallback]=...)
-        -_report_progress(self, message: str, progress: float=...)
-        +promote_child(self, child_id: str, fitness_score: float, generation: int, child_metadata: Optional[Dict[str, Any]]=...) PromotionResult
-        +archive_rejected_child(self, child_id: str, generation: int, reason: str=..., fitness_score: float=...) ArchiveResult
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      EVOLUTION PHASES                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐              │
+│  │ BRAINSTORM  │─────▶│   CREATE    │─────▶│  PROMOTE    │              │
+│  │             │      │             │      │             │              │
+│  │ Gemini +    │      │ Apply JSON  │      │ Validate &  │              │
+│  │ Claude      │      │ patches to  │      │ replace     │              │
+│  │ debate      │      │ create child│      │ parent      │              │
+│  └─────────────┘      └─────────────┘      └─────────────┘              │
+│        │                    │                    │                       │
+│        ▼                    ▼                    ▼                       │
+│  MutationProposal     ChildCreation        PromotionResult              │
+│                        Result                                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [brainstorm](brainstorm.py) | Brainstorm Phase - V7.5 Phase 0a | 1 | 1 |
-| [create](create.py) | Create Phase - V7.5 Phase 0a | 2 | 1 |
-| [promote](promote.py) | Promote Phase - V7.5 Phase 0a | 1 | 2 |
+| File | Phase | Purpose |
+|------|-------|---------|
+| `brainstorm.py` | Brainstorm | Symbiotic debate for mutation proposals |
+| `create.py` | Create | Apply patches to create child agent |
+| `promote.py` | Promote | Validate and promote child to parent |
 
+## Phase Implementations
 
+### Brainstorm Phase
+```python
+class BrainstormPhase:
+    """Symbiotic debate between Gemini and Claude."""
 
+    async def brainstorm(
+        self,
+        trigger: EvolutionTrigger,
+        context: EvolutionContext,
+        max_turns: int = 30
+    ) -> BrainstormResult
 
+    async def extract_mutations(
+        self,
+        debate_history: List[Message]
+    ) -> List[MutationProposal]
+```
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### Create Phase
+```python
+class CreatePhase:
+    """Apply JSON patches to create child."""
+
+    async def create(
+        self,
+        mutation: MutationProposal,
+        parent_path: Path,
+        child_id: str
+    ) -> ChildCreationResult
+
+    def apply_patches(
+        self,
+        source_code: str,
+        patches: List[JSONPatch]
+    ) -> str
+```
+
+### Promote Phase
+```python
+class PromotePhase:
+    """Validate and promote child to replace parent."""
+
+    async def promote(
+        self,
+        child_path: Path,
+        child_id: str,
+        validation_result: TieredValidationResult
+    ) -> PromotionResult
+
+    async def archive_parent(
+        self,
+        parent_path: Path
+    ) -> ArchiveResult
+```
+
+## Phase Flow
+
+```
+1. BRAINSTORM
+   │
+   ├─► Gemini proposes mutation ideas
+   ├─► Claude critiques and refines
+   ├─► Consensus on JSON patches (30 turns max)
+   │
+   ▼
+2. CREATE
+   │
+   ├─► Parse JSON patches
+   ├─► Apply to parent code
+   ├─► Create child directory
+   │
+   ▼
+3. PROMOTE (if validation passes)
+   │
+   ├─► Run 5-tier validation
+   ├─► Archive parent
+   ├─► Promote child to parent location
+   └─► Update LINEAGE.json
+```
+
+## Usage
+
+```python
+from core.evolution.phases import BrainstormPhase, CreatePhase, PromotePhase
+
+# Phase 1: Brainstorm
+brainstorm = BrainstormPhase(drivers, config)
+result = await brainstorm.brainstorm(trigger, context)
+
+# Phase 2: Create
+create = CreatePhase(workspace_path)
+child = await create.create(result.mutation, parent_path, child_id)
+
+# Phase 3: Promote (if validation passes)
+promote = PromotePhase(workspace_path)
+promotion = await promote.promote(child.path, child.id, validation)
+```
+
+## Dependencies
+
+### Internal
+- `core.evolution.models` - Phase dataclasses
+- `core.evolution.validator` - Validation pipeline
+- `core.drivers` - Agent invocation
+
+## Version History
+
+- **V7.5** - Phase 0a: Extraction from EvolutionManager
+- **V12.4** - Enhanced patch parsing, improved debate

@@ -1,225 +1,287 @@
-# memory
+# Memory Module
 
-NEXUS V9.1 Memory Module
+## Synopsis
+NEXUS's V13.0 MEMORIA UNIVERSALIS memory system provides multi-modal knowledge storage and retrieval. It includes episodic memory (SuccessMemory for completed tasks), procedural memory (AutoMemory for learned patterns), and semantic memory (ProjectMemory RAG for codebase knowledge). The system supports pluggable backends (dense/BM25/TF-IDF), multi-format ingestion (PDF, DOCX, images via Docling), and adaptive weight optimization per domain.
 
-Memory systems for NEXUS:
-- AutoMemory: Learning from task execution patterns (V7.5)
-- SuccessMemory: Swarm task success storage (V7.6 Phase 10a)
-- ProjectMemory: Project knowledge RAG (V7.8 Phase 10c)
-- Backend Abstraction: Pluggable retrieval backends (V7.9 Phase 10f)
-- Dense Embeddings: Semantic retrieval (V7.9 Phase 10g)
-- MemoryService: Service Layer for memory operations (V9.1)
+## Component Map
 
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\memory` |
-| **Modules** | 9 |
-| **Total Lines** | 4068 |
-| **Classes** | 20 |
-| **Functions** | 9 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `__init__.py` | Module exports | All memory classes and services |
+| `coordinator.py` | Memory fusion (V12.4) | `MemoryCoordinator`, `UnifiedRecommendation` |
+| `success_memory.py` | Episodic task memory | `SuccessMemory`, `SuccessEntry` |
+| `auto_memory.py` | Procedural learning | `AutoMemory`, `MemoryEntry` |
+| `project_memory.py` | Codebase RAG | `ProjectMemory`, `Chunk`, `IndexStats` |
+| `embedding_engine.py` | Shared embeddings | `EmbeddingEngine` |
+| `namespace_manager.py` | Multi-namespace RAG (V13.0) | `RAGNamespaceManager`, `NamespaceInfo` |
+| `spotlighting.py` | Prompt injection protection | `Spotlighter` |
+| `service.py` | Service layer (V9.1) | `MemoryService`, `MemoryStatus` |
+| `types.py` | Common types | `Chunk`, `IndexStats` |
+| `backends/` | Retrieval backends | See backends/README.md |
+| `ingestors/` | Document ingestion (V13.0) | See ingestors/README.md |
 
 ## Architecture
 
 ```mermaid
-classDiagram
-    class MemoryEntry {
-        +str timestamp
-        +str task_type
-        +str task_description
-        +str swarm_mode
-        +str lead_agent
-        +float duration_seconds
-        +str outcome
-        +Optional[str] reason
-        +Optional[float] score
-    }
-    class AutoMemory {
-        +workspace
-        +memory_dir
-        +successes_file
-        +failures_file
-        +fitness_file
-        -__init__(self, workspace_path: Path=...)
-        -_load_cache(self)
-        +record_success(self, task_type: str, task_description: str, swarm_mode: str, lead_agent: str, duration_seconds: float, score: float=...)
-        +record_failure(self, task_type: str, task_description: str, swarm_mode: str, lead_agent: str, duration_seconds: float, reason: str)
-        -_append_to_file(self, filepath: Path, entry: Dict)
-        -_update_fitness(self, agent: str, task_type: str, score: float)
-        -_apply_time_decay(self, score: float, timestamp_str: str, decay_coefficient: float=...) float
-        +suggest_mode(self, task_type: str, apply_decay: bool=...) Optional[str]
-        +suggest_lead(self, task_type: str, apply_decay: bool=...) Optional[str]
-        +should_avoid(self, task_type: str, swarm_mode: str) bool
-        +get_stats(self) Dict[str, Any]
-        +get_recommendation(self, task_type: str, task_description: str=...) Dict[str, Any]
-    }
-    class DomainWeights {
-        +float semantic_weight
-        +float procedural_weight
-        +int sample_count
-        +int success_count
-        +success_rate(self) float
-        +to_dict(self) Dict
-    }
-    class MemorySource {
-        +SUCCESS
-        +AUTO
-        +BOTH
-        +NONE
-    }
-    Enum <|-- MemorySource
-    class UnifiedRecommendation {
-        +Optional[str] mode
-        +Optional[str] lead
-        +float confidence
-        +MemorySource source
-        +List[str] modes_to_avoid
-        +str reasoning
-        +to_dict(self) Dict
-    }
-    class MemoryCoordinator {
-        +SEMANTIC_WEIGHT
-        +PROCEDURAL_WEIGHT
-        +MIN_CONFIDENCE
-        +HIGH_CONFIDENCE
-        +success
-        +auto
-        -_logger
-        -_weights_path
-        -__init__(self, success_memory: Optional['SuccessMemory'], auto_memory: Optional['AutoMemory'], weights_path: Optional[Path]=...)
-        +get_recommendation(self, task_description: str, task_type: str, domains: Optional[List[str]]=...) UnifiedRecommendation
-        -_combine_recommendations(self, success_rec: Dict, success_score: float, auto_rec: Dict, auto_score: float, task_description: str, semantic_weight: float, procedural_weight: float) UnifiedRecommendation
-        +consolidate(self) int
-        +get_stats(self) Dict
-        +get_weights_for_domain(self, domain: str) Tuple[float, float]
-        +record_feedback(self, domain: str, source: MemorySource, success: bool) None
-        -_adapt_weights(self, dw: DomainWeights, source: MemorySource, decrease: bool) None
-        -_load_weights(self) None
-        -_save_weights(self) None
-    }
-    class EmbeddingEngine {
-        -Optional['EmbeddingEngine'] _instance
-        -_lock
-        -_initialized
-        -_logger
-        -_model_name
-        -_executor
-        -__new__(cls) 'EmbeddingEngine'
-        -__init__(self) None
-        +embedding_dim(self) int
-        +model_name(self) str
-        +device(self) Optional[str]
-        +backend(self) Optional[str]
-        +is_loaded(self) bool
-        -_ensure_model(self) bool
-        -_try_load_onnx(self, SentenceTransformer: type) bool
-        -_try_load_pytorch(self, SentenceTransformer: type) bool
-        +encode(self, texts: Union[str, List[str]], batch_size: int=..., show_progress: bool=...) List[List[float]]
-        +encode_single(self, text: str) List[float]
-        +encode_async(self, texts: Union[str, List[str]], batch_size: int=...) List[List[float]]
-        +get_info(self) dict
-        -_check_onnx_available(self) bool
-        +preload(self) bool
-        -__repr__(self) str
-    }
-    class ProjectMemory {
-        +STORAGE_FILE
-        +nexus_root
-        +storage_dir
-        +storage_path
-        -_logger
-        -__init__(self, nexus_root: Path, embedding_engine: Optional['EmbeddingEngine']=...)
-        -_select_backend(self) MemoryBackend
-        +index_file(self, path: Path, force: bool=...) int
-        +index_directory(self, path: Path, extensions: List[str]=..., recursive: bool=...) int
-        -_chunk_python(self, content: str, file_path: str) List[Chunk]
-        -_chunk_markdown(self, content: str, file_path: str) List[Chunk]
-        -_chunk_by_lines(self, content: str, file_path: str) List[Chunk]
-        -_create_chunk(self, file_path: str, start_line: int, end_line: int, content: str, chunk_type: str, name: Optional[str]) Chunk
-        -_extract_terms(self, text: str) Set[str]
-        -_rebuild_backend_index(self)
-        +retrieve(self, query: str, limit: int=..., min_score: float=..., apply_datamarking: bool=...) List[Chunk]
-        +get_backend_info(self) Dict[str, Any]
-        +forget(self, path: Path) int
-        +clear(self)
-        +get_stats(self) IndexStats
-        +save(self)
-        -_load(self)
-        +format_chunks_for_context(self, chunks: List[Chunk], max_chars: int=...) str
-    }
-    class MemoryStatus {
-        +int total_files
-        +int total_chunks
-        +int total_terms
-        +str storage_path
-        +List[str] indexed_files
-    }
-    class LearnResult {
-        +bool success
-        +int chunks_added
-        +Optional[str] error
-    }
-    class ForgetResult {
-        +bool success
-        +int chunks_removed
-        +Optional[str] error
-    }
-    class QueryResult {
-        +bool success
-        +List['Chunk'] chunks
-        +Optional[str] error
-    }
-    class MemoryService {
-        +project_memory
-        +workspace_path
-        +console
-        -__init__(self, project_memory: 'ProjectMemory', workspace_path: Path, console: 'ConsoleV7')
-        +learn(self, path_str: str) LearnResult
-        +forget(self, path_str: str) ForgetResult
-        +get_status(self) Optional[MemoryStatus]
-        +query(self, query_str: str, limit: int=...) QueryResult
-        +init_rag(self) LearnResult
-        +clear(self) bool
-        +handle_rag_command(self, args: str) None
-    }
-    class SpotlightTechnique {
-        +DELIMITER
-        +BASE64
-        +XML_TAG
-        +DATAMARK
-    }
-    Enum <|-- SpotlightTechnique
-    class SpotlightedContent {
-        +str original
-        +str spotlighted
-        +SpotlightTechnique technique
-        +Optional[str] source
-        +Dict[str, Any] metadata
-        -__str__(self) str
-    }
+graph TD
+    A[Memory Coordinator] --> B[SuccessMemory]
+    A --> C[AutoMemory]
+    A --> D[ProjectMemory]
+    D --> E[EmbeddingEngine]
+    D --> F[Backend Layer]
+    F --> G[DenseBackend]
+    F --> H[BM25Backend]
+    F --> I[TfidfBackend]
+    D --> J[UniversalIngestor]
+    J --> K[PDF/DOCX/Images]
+    A --> L[AdaptiveWeights]
+    M[MemoryService] --> A
+    M --> N[RAGNamespaceManager]
+    D --> O[Spotlighter]
 ```
 
-## Modules
+## Key Interfaces
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [auto_memory](auto_memory.py) | Auto-Memory - NEXUS V7.5 HIVE MIND | 2 | 2 |
-| [coordinator](coordinator.py) | Memory Coordinator - V12.4 COGNITIVE BOOST | 4 | 0 |
-| [embedding_engine](embedding_engine.py) | NEXUS V10 MEMORY FORGE - Global Embedding Engine Singleton | 1 | 2 |
-| [project_memory](project_memory.py) | NEXUS V10 MEMORY FORGE - Project Memory RAG | 1 | 0 |
-| [service](service.py) | NEXUS V9.1 - MemoryService | 5 | 0 |
-| [spotlighting](spotlighting.py) | NEXUS V8.8 - Spotlighter (RAG Content Protection) | 3 | 3 |
-| [success_memory](success_memory.py) | SuccessMemory - Phase 10a: Auto-Memory Storage | 2 | 2 |
-| [types](types.py) | NEXUS V7.9 - Memory Types (Phase 10f) | 2 | 0 |
+### MemoryCoordinator (V12.4 COGNITIVE BOOST)
+Unifies episodic (SuccessMemory) and procedural (AutoMemory) for hybrid recommendations.
 
-## Subpackages
+```python
+coordinator = MemoryCoordinator(success_memory, auto_memory, workspace_path)
+recommendation = coordinator.recommend(
+    task_description="Implement authentication",
+    task_type="CODING",
+    complexity="MODERATE"
+)
+# Returns: UnifiedRecommendation(mode, lead, confidence, source)
+```
 
-| Package | Description | Modules |
-|---------|-------------|---------|
-| [backends/](C:\Code\NEXUS\NEXUS-N7A\core\memory\backends/README.md) |  | 0 |
+**Features:**
+- **Adaptive Weights**: Learns optimal semantic/procedural weights per domain
+- **Score Normalization**: Harmonizes different memory types
+- **Conflict Resolution**: Handles disagreements between memories
+- **Consolidation**: Migrates episodic → procedural over time
 
-## Aggregated Statistics
+**V12.4 Adaptive Weights:**
+- Tracks recommendation outcomes (success/failure)
+- Adjusts weights using exponential moving average
+- Starts with defaults (0.6 semantic, 0.4 procedural)
+- Improves over time with feedback
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### SuccessMemory (Episodic Memory)
+Stores completed Swarm task executions with similarity-based retrieval.
+
+```python
+memory = SuccessMemory(workspace_path)
+memory.record_success(
+    task_id="task_123",
+    description="Implement user authentication",
+    swarm_mode="LEAD_SUPPORT",
+    agents_used=["gemini", "claude"],
+    duration_seconds=45.2,
+    complexity="MODERATE",
+    domains=["security", "coding"],
+    quality_score=0.95
+)
+
+# Retrieve similar tasks
+matches = memory.query_similar(
+    task_description="Add OAuth login",
+    limit=5
+)
+```
+
+**Storage:** `workspace/memory/successes.json` (AtomicJsonStore)
+
+### AutoMemory (Procedural Memory)
+Learns task-type patterns and optimal agent configurations.
+
+```python
+memory = AutoMemory(workspace_path)
+memory.learn(
+    task_type="CODING",
+    lead_agent="claude",
+    swarm_mode="LEAD_SUPPORT",
+    outcome="SUCCESS",
+    metrics={"duration": 30.5, "quality": 0.9}
+)
+
+# Query learned patterns
+pattern = memory.query(task_type="CODING")
+# Returns: MemoryEntry with success_rate, avg_duration, preferred_mode
+```
+
+**Storage:** `workspace/memory/auto_memory.json`
+
+### ProjectMemory (Semantic Memory - RAG)
+Codebase knowledge base with pluggable retrieval backends.
+
+```python
+memory = ProjectMemory(nexus_root)
+memory.index_file(Path("core/orchestration_v7.py"))
+memory.index_directory(Path("core"))
+
+# Semantic search
+chunks = memory.retrieve("FSM state transitions", limit=5)
+for chunk in chunks:
+    print(f"{chunk.file_path}:{chunk.line_start} - {chunk.score:.3f}")
+```
+
+**Backends:**
+- **DENSE** (DenseBackend): LanceDB + Sentence Transformers (~+10% recall)
+- **BM25** (Bm25Backend): BM25S lexical search (~+15% vs TF-IDF)
+- **TFIDF** (TfidfBackend): Weighted Jaccard (fallback, no deps)
+
+**Environment:** `PROJECT_MEMORY_BACKEND=auto|dense|bm25|tfidf`
+
+**Chunking Strategies:**
+- `.py` files: Function/class boundaries
+- `.md` files: Section headers
+- Other: 50 lines, 10 line overlap
+
+### RAGNamespaceManager (V13.0 MEMORIA UNIVERSALIS)
+Multi-namespace RAG for isolated knowledge domains.
+
+```python
+manager = RAGNamespaceManager(workspace_path)
+manager.create_namespace("security", backend="dense")
+manager.index_to_namespace("security", file_path, content)
+
+chunks = manager.query_namespace("security", "SQL injection patterns", limit=5)
+```
+
+**Use Cases:**
+- Domain isolation (security, UI, backend)
+- Project-specific knowledge
+- Tenant-separated data (multi-tenant mode)
+
+### UniversalIngestor (V13.0 MEMORIA UNIVERSALIS)
+Multi-format document ingestion via IBM Docling.
+
+```python
+ingestor = UniversalIngestor()
+chunks = ingestor.ingest_document(Path("design.pdf"))
+memory.index_chunks(chunks)
+```
+
+**Supported Formats:**
+- **Documents**: PDF, DOCX, PPTX, XLSX
+- **Images**: PNG, JPG (OCR extraction)
+- **Code**: Python, JS, TS, etc.
+- **Markup**: MD, HTML, XML, JSON
+
+**Features:**
+- Table extraction and structuring
+- Image OCR for text extraction
+- Markdown conversion
+- Metadata preservation
+
+### Spotlighter (V8.8 Security)
+OWASP LLM01:2025 protection against prompt injection in RAG content.
+
+```python
+from core.security import get_spotlighter
+spotlighter = get_spotlighter()
+
+# Sanitize retrieved content before LLM
+safe_content = spotlighter.clean_context(retrieved_chunk)
+```
+
+**Patterns Detected:**
+- Command injection attempts
+- Role-switching prompts
+- Delimiter escape attempts
+- Encoding attacks
+
+## Dependencies
+
+### Internal
+- `core.utils.atomic_store.AtomicJsonStore` - Thread-safe JSON storage
+- `core.security.Spotlighter` - RAG content protection
+- `core.context` - Multi-tenant session context (V10)
+- `core.factory.ServiceFactory` - Tenant-scoped instances (V10)
+
+### External (Optional)
+- `sentence-transformers` - Dense embeddings (DenseBackend)
+- `lancedb` - Vector database (DenseBackend)
+- `bm25s[full]` - BM25 search (Bm25Backend)
+- `docling` - Document ingestion (UniversalIngestor)
+- `numpy`, `scikit-learn` - TF-IDF backend
+
+## Integration Points
+
+### Used By
+- `core.orchestration_v7.Orchestrator` - Context injection
+- `core.swarm.SwarmEngine` - Mode selection from history
+- `core.hive_mind.HiveMindPipeline` - Knowledge retrieval
+- `core.interface.commands` - Memory commands (`/memory`, `/forget`)
+
+### Uses
+- `backends/` - Retrieval algorithm implementations
+- `ingestors/` - Document parsing and chunking
+- `core.security.Spotlighter` - Content sanitization
+- `core.utils.atomic_store` - Persistent storage
+
+## Memory Backends
+
+| Backend | Algorithm | Dependencies | Pros | Cons |
+|---------|-----------|--------------|------|------|
+| **Dense** | Semantic embeddings | sentence-transformers, lancedb | Best recall (+10%), semantic understanding | Slower, requires models |
+| **BM25** | BM25S sparse retrieval | bm25s | Fast, lexical (+15% vs TF-IDF) | No semantic understanding |
+| **TF-IDF** | Weighted Jaccard | scikit-learn | No extra deps, fast | Lower recall, no semantics |
+
+**Selection Strategy (auto):**
+1. Try Dense if `sentence-transformers` + `lancedb` available
+2. Try BM25 if `bm25s` available
+3. Fallback to TF-IDF (always available)
+
+## Configuration
+
+### Environment Variables
+- `PROJECT_MEMORY_BACKEND` - Backend selection (auto/dense/bm25/tfidf)
+- `PROJECT_MEMORY_MAX_CHUNKS` - Max chunks per index (default 5000, max 50000)
+- `SENTENCE_TRANSFORMERS_MODEL` - Model for embeddings (default: all-MiniLM-L6-v2)
+
+### Paths
+- `workspace/memory/successes.json` - SuccessMemory storage
+- `workspace/memory/auto_memory.json` - AutoMemory storage
+- `workspace/memory/project_memory.json` - ProjectMemory metadata
+- `workspace/memory/rag_namespaces.json` - Namespace configs
+- `workspace/memory/adaptive_weights.json` - V12.4 learned weights
+
+## Multi-Tenancy (V10 PRISM)
+
+All memory components support tenant-scoped instances:
+```python
+from core.context import has_active_session
+from core.factory import ServiceFactory
+
+if has_active_session():
+    memory_service = ServiceFactory.get_memory_service()
+    project_memory = ServiceFactory.get_project_memory()
+```
+
+## Performance Metrics
+
+**SuccessMemory:**
+- Query: O(n) similarity scan (optimized with early termination)
+- Storage: O(1) append via AtomicJsonStore
+
+**AutoMemory:**
+- Query: O(1) hash lookup by task_type
+- Learn: O(1) update with exponential moving average
+
+**ProjectMemory:**
+- Index: O(n) for n chunks
+- Query: O(log n) for Dense/BM25, O(n) for TF-IDF
+- Memory: ~5MB per 1000 chunks (Dense), ~1MB (TF-IDF)
+
+## Version History
+
+- **V7.5** - AutoMemory (procedural learning)
+- **V7.6** - SuccessMemory (episodic storage)
+- **V7.8** - ProjectMemory (RAG)
+- **V7.9** - Pluggable backends (Dense/BM25/TF-IDF)
+- **V8.8** - Spotlighter (prompt injection protection)
+- **V9.1** - MemoryService (service layer)
+- **V12.4** - Coordinator + Adaptive Weights (COGNITIVE BOOST)
+- **V13.0** - UniversalIngestor + RAGNamespaceManager (MEMORIA UNIVERSALIS)

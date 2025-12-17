@@ -1,106 +1,154 @@
-# interface
+# NEXUS Interface Module
 
-NEXUS V7 Interface Module
+## Synopsis
 
-## Overview
-
-| Metric | Value |
-|--------|-------|
-| **Path** | `C:\Code\NEXUS\NEXUS-N7A\core\interface` |
-| **Modules** | 4 |
-| **Total Lines** | 1856 |
-| **Classes** | 3 |
-| **Functions** | 5 |
+The **interface** module provides the user-facing components of NEXUS, including the interactive REPL (Read-Eval-Print Loop), slash command system, and tutorial system. It serves as the primary entry point for CLI-based interaction with the orchestrator.
 
 ## Architecture
 
-```mermaid
-classDiagram
-    class InteractiveNexusV7 {
-        +workspace_path
-        +config
-        +nexus_root
-        +orchestrator
-        +console
-        +session
-        -_use_simple_input
-        +successful_turns
-        +evolution_trigger_threshold
-        +rate_limiter
-        +evolution_manager
-        -_abort_requested
-        -_streaming_active
-        -__init__(self, workspace_path: Path, gemini_info: Dict, claude_info: Dict)
-        -_get_input(self, prompt: str=...) str
-        -_evolution_progress_callback(self, message: str, progress: float)
-        -_stream_token(self, token: str) None
-        +run(self)
-        +run_async(self)
-        -_process_turn_async(self, user_input: str)
-        +handle_command(self, command: str)
-        +show_status(self)
-        +run_doctor(self)
-        +run_review(self)
-        -_get_parent_fitness_score(self) float
-        -_check_auto_promotion(self, child: Dict) AutoPromotionDecision
-        +handle_workspace_command(self, args: str)
-        -_show_workspace_status(self)
-        -_show_workspace_list(self)
-        -_workspace_new(self, name: str=...)
-        -_workspace_switch(self, name: str)
-        -_reinit_orchestrator(self, new_workspace_path: Path)
-        -_get_memory_service(self)
-        +handle_learn_command(self, args: str)
-        +handle_forget_command(self, args: str)
-        +show_memory_status(self)
-        +handle_rag_command(self, args: str)
-        +run_tutorial(self)
-        +show_quickstart(self)
-        +toggle_chat_mode(self)
-        -_calculate_nexus_root(self) Path
-        +run_evolve(self, child_count: int=..., auto_triggered: bool=...)
-        +show_evolve_status(self)
-        -_get_swarm_service(self)
-        +run_swarm_task(self, task: str)
-        +run_swarm_task_fsm(self, task: str)
-        +show_swarm_status(self)
-        -_get_agent_service(self)
-        +spawn_agent(self, role: str)
-        +list_agents(self)
-        +show_pool_stats(self)
-    }
-    class TutorialStep {
-        +str title
-        +str explanation
-        +Optional[str] suggested_command
-        +Optional[str] tip
-    }
-    class InteractiveTutorial {
-        +steps
-        +current_step
-        -__init__(self, steps: Optional[List[TutorialStep]]=...)
-        +get_step(self, index: int) Optional[TutorialStep]
-        +format_step(self, step: TutorialStep, index: int) str
-        +run(self, print_fn: Callable[..., None], input_fn: Optional[Callable[..., str]]=...) bool
-        +get_quick_start(self) str
-    }
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      INTERFACE ARCHITECTURE                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                          REPL                                     │   │
+│  │              Main interactive loop (nexus7.py)                    │   │
+│  └────────────────────────────┬─────────────────────────────────────┘   │
+│                               │                                          │
+│         ┌─────────────────────┼─────────────────────┐                   │
+│         │                     │                     │                   │
+│         ▼                     ▼                     ▼                   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐          │
+│  │SlashCommands │    │  Tutorial    │    │   Commands/      │          │
+│  │ (/help, etc) │    │  System      │    │   (handlers)     │          │
+│  └──────────────┘    └──────────────┘    └──────────────────┘          │
+│         │                     │                     │                   │
+│         └─────────────────────┼─────────────────────┘                   │
+│                               ▼                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                      OrchestratorV7                               │   │
+│  │                    process_turn(input)                            │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Modules
+## Component Map
 
-| Module | Description | Classes | Functions |
-|--------|-------------|---------|-----------|
-| [repl](repl.py) | REPL Interface V7 - Persistent Orchestrator | 1 | 0 |
-| [slash_commands](slash_commands.py) | Slash Commands - Commandes système pour NEXUS V7.7 HIVE MIND | 0 | 5 |
-| [tutorial](tutorial.py) | Interactive Tutorial - NEXUS V8.3.x TRUE HIVE MIND | 2 | 0 |
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `repl.py` | Main REPL loop | `REPL`, `run_repl()` |
+| `slash_commands.py` | Command dispatcher | `SlashCommandHandler`, command registry |
+| `tutorial.py` | Interactive tutorial | `TutorialSystem` |
+| `commands/` | Individual command handlers | Command implementations |
 
-## Subpackages
+## Slash Commands
 
-| Package | Description | Modules |
+| Command | Description | Handler |
 |---------|-------------|---------|
-| [commands/](C:\Code\NEXUS\NEXUS-N7A\core\interface\commands/README.md) |  | 0 |
+| `/help` | Show available commands | `help_command` |
+| `/status` | System status | `status_command` |
+| `/reset` | Reset orchestrator state | `reset_command` |
+| `/hive` | Trigger HiveMind pipeline | `hive_command` |
+| `/swarm` | Explicit swarm mode | `swarm_command` |
+| `/evolve` | Trigger evolution | `evolve_command` |
+| `/specialize` | Create specialized spinoff | `specialize_command` |
+| `/spawn` | Spawn new agent | `spawn_command` |
+| `/clear` | Clear screen | `clear_command` |
+| `/history` | Show conversation history | `history_command` |
+| `/save` | Save session | `save_command` |
+| `/load` | Load session | `load_command` |
 
-## Aggregated Statistics
+## Key Interfaces
 
----
-*Auto-generated by nexus-doc-generator 1.0.0 - 2025-12-16 19:13*
+### REPL
+```python
+class REPL:
+    """Main Read-Eval-Print Loop."""
+
+    def __init__(self, orchestrator: OrchestratorV7)
+    async def run(self) -> None
+    def handle_input(self, user_input: str) -> bool
+```
+
+### SlashCommandHandler
+```python
+class SlashCommandHandler:
+    """Dispatches slash commands to handlers."""
+
+    def register(self, command: str, handler: Callable) -> None
+    async def execute(self, command: str, args: List[str]) -> CommandResult
+    def is_command(self, input: str) -> bool
+```
+
+## REPL Flow
+
+```
+┌─────────────┐
+│  User Input │
+└──────┬──────┘
+       │
+       ▼
+┌──────────────────┐
+│ Is slash command?│
+└──────┬───────────┘
+       │
+  Yes  │  No
+   ┌───┴───┐
+   ▼       ▼
+┌─────┐ ┌─────────────┐
+│Slash│ │Orchestrator │
+│Cmd  │ │process_turn │
+└─────┘ └─────────────┘
+```
+
+## Commands Directory
+
+The `commands/` subdirectory contains individual command implementations:
+
+```
+commands/
+├── __init__.py
+├── help.py
+├── status.py
+├── reset.py
+├── hive.py
+├── swarm.py
+├── evolve.py
+├── specialize.py
+├── spawn.py
+└── ...
+```
+
+## Usage
+
+```python
+from core.interface import REPL
+from core.orchestration_v7 import OrchestratorV7
+
+# Create orchestrator
+orchestrator = OrchestratorV7(config)
+
+# Create and run REPL
+repl = REPL(orchestrator)
+await repl.run()
+```
+
+## Dependencies
+
+### Internal
+- `core.orchestration_v7` - Main orchestrator
+- `core.ui` - Console output formatting
+- `core.interaction` - User input abstraction
+
+### External
+- `prompt_toolkit` - Enhanced terminal input (optional)
+- Standard library (readline)
+
+## Version History
+
+- **V7.0** - Initial REPL implementation
+- **V8.0** - HiveMind commands
+- **V9.0** - Swarm commands
+- **V12.4** - Enhanced command registry
