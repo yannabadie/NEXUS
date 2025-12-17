@@ -1,70 +1,106 @@
-# Security Module - NEXUS V9.2
+# Security Module
 
-## Rôle
-Le module `core/security` fournit une défense en profondeur contre les attaques adverses (Prompt Injection, System Prompt Leakage) et garantit l'intégrité du système de fichiers via une Sandbox stricte. Il implémente les standards OWASP LLM 2025.
+![NEXUS](../../docs/commercialisation/imgs/NEXUS_Icone.jpg)
 
-## Fichiers Clés
-| Fichier | Lignes | Responsabilité |
-|---------|--------|----------------|
-| `input_guard.py` | ~420 | **OWASP LLM01**: Bloque les injections de prompt avant exécution. |
-| `output_guard.py` | ~330 | **OWASP LLM02**: Détecte les fuites de System Prompt dans les réponses. |
-| `spotlighting.py` | ~350 | **RAG Security**: Sanitisation des données externes (Azure Prompt Shields). |
-| `execution_policy.py` | ~200 | **Sandbox**: Valide les commandes shell autorisées. |
-| `path_guardian.py` | ~150 | **Filesystem**: Empêche l'accès hors de `workspace/` (Path Traversal). |
-| `mutation_validator.py` | ~180 | **Code Safety**: Analyse AST pour détecter le code malveillant dans les mutations. |
-| `integrity_monitor.py` | ~150 | **Self-Healing**: Vérifie l'intégrité des fichiers core. |
+## SYNOPSIS
 
-## API Publique
-```python
-from core.security import (
-    get_input_guard,      # Valider l'entrée utilisateur
-    get_output_guard,     # Valider la sortie LLM
-    get_execution_policy, # Valider une commande shell
-    PathGuardian,         # Valider un chemin de fichier
-    MutationValidator     # Valider du code Python généré
-)
-```
+The **Security** module enforces NEXUS safety constraints including execution sandboxing, path restrictions, input/output guards, and KERNEL integrity verification.
 
-## Flux de Données
+This is the **safety layer** of NEXUS.
 
-### Input Validation Flow
+---
+
+## COMPONENT MAP (Mermaid)
+
 ```mermaid
-flowchart LR
-    User[User Input] --> IG[InputGuard]
-    IG -- Safe --> FSM[Orchestrator]
-    IG -- Unsafe --> Block[Block & Log]
+classDiagram
+    class ExecutionPolicy {
+        +validate_command(cmd)
+        +is_allowed(operation)
+        -FORBIDDEN_PATTERNS
+        -ALLOWED_COMMANDS
+    }
+    
+    class InputGuard {
+        +sanitize_input(user_input)
+        +detect_injection(text)
+        -INJECTION_PATTERNS
+    }
+    
+    class OutputGuard {
+        +filter_output(response)
+        +redact_sensitive(text)
+        -SENSITIVE_PATTERNS
+    }
+    
+    class PathGuardian {
+        +validate_path(path)
+        +is_within_workspace(path)
+        -FORBIDDEN_PATHS
+    }
+    
+    class IntegrityMonitor {
+        +verify_kernel_hash()
+        +check_prompt_integrity()
+        -EXPECTED_HASHES
+    }
+    
+    class MutationValidator {
+        +validate_mutation(mutation)
+        -check_forbidden_modifications()
+    }
+    
+    ExecutionPolicy --> PathGuardian
+    InputGuard --> ExecutionPolicy
+    OutputGuard --> InputGuard
+    MutationValidator --> IntegrityMonitor
 ```
 
-### Output Validation Flow
-```mermaid
-flowchart LR
-    LLM[LLM Response] --> OG[OutputGuard]
-    OG -- Safe --> User[User/Tool]
-    OG -- Leak --> Sanitize[Sanitize & Log]
+---
+
+## INTERACTION MATRIX
+
+| Component | Calls (Outbound) | Called By (Inbound) | Data Type Exchanged |
+|-----------|------------------|---------------------|---------------------|
+| `execution_policy.py` | Regex, subprocess | tool_manager (bash) | `bool`, `str` |
+| `input_guard.py` | Regex | Orchestrator, REPL | Sanitized input |
+| `output_guard.py` | Regex | Drivers | Filtered output |
+| `path_guardian.py` | pathlib | tool_manager | `bool` |
+| `integrity_monitor.py` | hashlib, file system | Startup, Red Team | Verification result |
+| `mutation_validator.py` | AST, Regex | Evolution | `MutationValidationResult` |
+
+---
+
+## FILE INVENTORY
+
+| File | Lines | Size | Role |
+|------|-------|------|------|
+| `execution_policy.py` | 780 | 28.4KB | Command sandboxing |
+| `input_guard.py` | 420 | 15.0KB | Input sanitization |
+| `output_guard.py` | 320 | 11.5KB | Output filtering |
+| `path_guardian.py` | 210 | 7.6KB | Path restriction |
+| `integrity_monitor.py` | 290 | 10.5KB | KERNEL verification |
+| `mutation_validator.py` | 230 | 8.3KB | Mutation safety |
+
+---
+
+## HIERARCHY
+
+```
+core/
+└── security/               ← THIS FOLDER
+    ├── execution_policy.py ← Sandbox rules
+    ├── input_guard.py      ← Input sanitization
+    ├── output_guard.py     ← Output filtering
+    ├── path_guardian.py    ← Path restrictions
+    ├── integrity_monitor.py← KERNEL hash check
+    └── mutation_validator.py
 ```
 
-## Dépendances
+---
 
-**Importe :**
-- `re` : Regex pour la détection de motifs.
-- `ast` : Analyse statique de code (`MutationValidator`).
-- `pathlib` : Manipulation de chemins (`PathGuardian`).
+## KEY PATTERNS
 
-**Importé par :**
-- `core/orchestration/fsm_handlers.py` : Validation entrée utilisateur (`InputGuard`).
-- `core/drivers/gemini_driver_v7.py` : Validation sortie modèle (`OutputGuard`).
-- `core/execution/tool_manager.py` : Validation commandes et chemins (`ExecutionPolicy`, `PathGuardian`).
-- `core/memory/project_memory.py` : Sanitisation RAG (`Spotlighter`).
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXUS_SECURITY_LEVEL` | `strict` | Niveau de sévérité des guards. |
-| `BLOCK_ON_LEAK` | `False` | Si True, bloque la réponse en cas de fuite (sinon log only). |
-
-## Tests
-
-- `tests/security/test_guards_restored.py` (Tests E2E des guards restaurés)
-- `tests/security/test_path_guardian.py` (Tests unitaires PathGuardian)
-- `tests/security/test_execution_policy.py` (Tests unitaires ExecutionPolicy)
+- **Defense in Depth**: Multiple layers (input → policy → path → output)
+- **KERNEL Immutability**: Hash verification at startup
+- **Whitelist Approach**: Allowed commands explicitly listed

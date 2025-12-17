@@ -1,304 +1,150 @@
-# NEXUS V8.5.1 Core Module
+# NEXUS Core
 
-Le module `core/` est le coeur de NEXUS V8.5.1 "TRUE HIVE MIND" - un systeme d'orchestration multi-agent collaboratif qui genere des agents specialises pour resoudre des problemes complexes.
+![NEXUS](../docs/commercialisation/imgs/NEXUS_BANNER.jpg)
 
-**Version**: 8.5.1 | **Last Updated**: 2025-12-11
+## SYNOPSIS
 
-## V8.0 TRUE HIVE MIND - Nouveaute Majeure
+The **Core** directory contains all 30 backend modules that power NEXUS V10 "SINGULARITY". This is the brain of the multi-agent orchestration system, implementing collaborative intelligence between Gemini and Claude.
 
-V8.0 introduit le **TRUE HIVE MIND** : un pipeline de collaboration intelligent en 7 phases pour les taches MODERATE, COMPLEX et EXPERT.
+---
 
-```
-V7 Swarm (TRIVIAL/SIMPLE)  vs  V8 Hive Mind (MODERATE/COMPLEX/EXPERT)
-         |                              |
-    Fast execution               7-phase pipeline
-    - PARALLEL                   - Independent Analysis
-    - PING_PONG                  - Strategic Debate
-    - SEQUENTIAL                 - Architecture Generation
-                                 - Monitored Execution
-                                 - Failure Diagnosis
-                                 - Adaptive Retry
-                                 - Knowledge Consolidation
-```
-
-| Composant | Module | Role |
-|-----------|--------|------|
-| **TrueHiveMind** | `hive_mind/orchestrator.py` | Orchestrateur 7 phases |
-| **CostEstimator** | `hive_mind/cost_estimator.py` | Budget tokens + USD |
-| **StrategyBlacklist** | `hive_mind/strategy_blacklist.py` | Anti-retry circulaire |
-| **UserInteractionHandler** | `hive_mind/user_interaction.py` | Breakpoints utilisateur |
-
-## Vue d'ensemble
-
-Le module core implémente une **Finite State Machine (FSM)** qui orchestre la collaboration entre les agents AI Claude et Gemini. Il fournit:
-
-- **Orchestration multi-agent** avec négociation dynamique des rôles
-- **Capacités d'auto-évolution** avec validation de sécurité
-- **Mémoire persistante** et gestion d'état
-- **Routage dynamique de modèles** (Opus/Sonnet/Pro/Flash)
-- **Hybrid Swarm Engine** pour modes de collaboration adaptatifs
-- **Force Chain-of-Thought** pour tâches EXPERT (Phase 14e)
-- **Project Memory RAG** pour injection de contexte (Phase 10c) **[V7.8]**
-- **Agent-as-Tool** pour invocation fractale (Phase 15) **[V7.8]**
-
-## Architecture
-
-```
-                           USER INPUT
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATION V7 (FSM)                        │
-│                    783 lignes (-65% depuis V7.6)                 │
-│                                                                  │
-│   ┌─────────┐    ┌──────────┐    ┌────────────┐    ┌─────────┐  │
-│   │  IDLE   │───▶│BRAINSTORM│───▶│EXECUTE_TOOL│───▶│VALIDATE │  │
-│   └─────────┘    └──────────┘    └────────────┘    └─────────┘  │
-│        ▲                                                  │      │
-│        └──────────────────────────────────────────────────┘      │
-│                                                                  │
-│   ┌────────────────────────────────────────────────────────┐    │
-│   │                  HYBRID SWARM ENGINE                    │    │
-│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │    │
-│   │  │ PARALLEL │ │SEQUENTIAL│ │PING_PONG │ │ RED_BLUE  │  │    │
-│   │  └──────────┘ └──────────┘ └──────────┘ └───────────┘  │    │
-│   └────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-        ┌──────────┐    ┌──────────┐    ┌──────────┐
-        │  CLAUDE  │    │  GEMINI  │    │  TOOLS   │
-        │  DRIVER  │    │  DRIVER  │    │ MANAGER  │
-        └──────────┘    └──────────┘    └──────────┘
-```
-
-## Structure des Modules
-
-| Repertoire | Fonction | Fichiers cles |
-|------------|----------|---------------|
-| [`hive_mind/`](hive_mind/README.md) | **[V8.0]** TRUE HIVE MIND pipeline | `orchestrator.py`, `phases/*.py`, `cost_estimator.py` |
-| [`orchestration/`](orchestration/README.md) | **[V7.8]** Package modulaire extrait | `context_builder.py`, `fsm_handlers.py`, `swarm_bridge.py` |
-| [`drivers/`](drivers/README.md) | Interfaces modèles AI | `claude_driver_hybrid.py`, `gemini_driver_v7.py` |
-| [`fsm/`](fsm/README.md) | Composants FSM | `states.py`, `panic_system.py` |
-| [`synapse/`](synapse/README.md) | Mémoire & protocole | `protocol_v7.py`, `memory_v7.py` |
-| [`swarm/`](swarm/README.md) | Collaboration multi-agent | `hybrid_swarm_engine.py`, `mode_selector.py` |
-| [`memory/`](memory/README.md) | **[V7.8]** AutoMemory + ProjectMemory RAG | `auto_memory.py`, `project_memory.py` |
-| [`execution/`](execution/README.md) | **[V7.8]** Tools + Agent-as-Tool | `tool_manager.py`, `agent_tools.py` |
-| [`evolution/`](evolution/README.md) | Moteur d'auto-modification | `lineage.py`, `tiered_validator.py` |
-| [`routing/`](routing/README.md) | Sélection dynamique modèles | `model_router.py` |
-| [`interface/`](interface/README.md) | Interaction utilisateur | `repl.py`, `commands/` (Decomposed) |
-| [`telemetry/`](telemetry/README.md) | Métriques & budget | `metrics.py`, `budget_tracker.py` |
-| [`security/`](security/README.md) | Validation & politiques | `mutation_validator.py`, `path_guardian.py` |
-| [`workspace/`](workspace/README.md) | Gestion sessions | `manager.py` |
-
-## Fichiers Core
-
-### `orchestration_v7.py` (783 lignes)
-
-Orchestrateur principal implémentant la FSM. Utilise pattern composition:
-
-```python
-class OrchestratorV7:
-    def __init__(self, ...):
-        # V7.8 Phase 14c: Extracted modules
-        self.context_builder = ContextBuilder(self)
-        self.agent_invoker = AgentInvoker(self)
-        self.swarm_bridge = SwarmBridge(self)
-        self.fsm_handlers = FSMHandlers(self)
-
-        # V7.8 Phase 10c: Project Memory
-        self.project_memory = ProjectMemory(nexus_root)
-
-    def process_turn(self, user_input=None) -> Dict:
-        # Dispatcher pattern
-        return self.fsm_handlers.handle_state(self.state, user_input)
-```
-
-### `config.py`
-
-Gestion configuration via `.env`, variables d'environnement, et valeurs par défaut.
-
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `TIMEOUT` | 120 | Timeout requête (secondes) |
-| `SWARM_ENABLED` | True | Activer Hybrid Swarm Engine |
-| `SWARM_AUTO_ROUTE` | True | Auto-route MODERATE+ vers swarm |
-| `VALIDATION_TIER` | 4 | Profondeur validation (1-4) |
-
-## États FSM (11)
-
-| État | Description | États suivants |
-|------|-------------|----------------|
-| `IDLE` | Attente entrée | `BRAINSTORMING`, `SWARM_ANALYZING` |
-| `BRAINSTORMING` | Débat agents | `EXECUTING_TOOL`, `VALIDATING_CFL` |
-| `EXECUTING_TOOL` | Outil en cours | `VALIDATING_CFL` |
-| `VALIDATING_CFL` | Boucle feedback | `IDLE`, `BRAINSTORMING` |
-| `SWARM_ANALYZING` | Analyse tâche | `SWARM_NEGOTIATING` |
-| `SWARM_NEGOTIATING` | Négociation mode | `SWARM_EXECUTING` |
-| `SWARM_EXECUTING` | Exécution mode | `VALIDATING_CFL` |
-| `EVOLUTION_BRAINSTORM` | Création enfants | `VALIDATING_CFL` |
-| `WAITING_USER` | Attente utilisateur | `IDLE` |
-| `ERROR` | Erreur récupérable | `IDLE` |
-| `PANIC` | Erreur fatale | - |
-
-## Phases V7.8 Implémentées
-
-| Phase | Feature | Module |
-|-------|---------|--------|
-| **10c** | Project Memory RAG | `memory/project_memory.py` |
-| **14c** | Orchestrator Refactoring (-65%) | `orchestration/*.py` |
-| **14e** | Force CoT (EXPERT) | `swarm/mode_executors.py` |
-| **15** | Agent-as-Tool | `execution/agent_tools.py` |
-| **12.5** | Dynamic Tools | `execution/dynamic_tools.py` |
-
-## Flux de Données V7.8
+## THE NEXUS MAP (High-Level Architecture)
 
 ```mermaid
-graph TB
-    UI[User Input] --> REPL[REPL]
-    REPL --> OV7[OrchestratorV7]
-
-    OV7 --> CB[ContextBuilder]
-    CB --> PM[ProjectMemory]
-    PM -->|RAG chunks| CB
-
-    OV7 --> FH[FSMHandlers]
-    FH --> AI[AgentInvoker]
-    AI --> CD[ClaudeDriver]
-    AI --> GD[GeminiDriver]
-
-    OV7 --> SB[SwarmBridge]
-    SB --> HSE[HybridSwarmEngine]
-    HSE --> MS[ModeSelector]
-    HSE --> ME[ModeExecutors]
-
-    ME --> ATR[AgentToolRegistry]
-    ATR --> AI
+graph TD
+    subgraph Entry Points
+        NEXUS7[nexus7.py] --> ORCH
+        REPL[interface/] --> ORCH
+        API[api/] --> ORCH
+        UI[ui/] --> ORCH
+    end
+    
+    subgraph Orchestration Layer
+        ORCH[orchestration_v7.py] --> HIVE[hive_mind/]
+        ORCH --> FSM[fsm/]
+        ORCH --> SWARM_CTRL[Swarm Control]
+    end
+    
+    subgraph Strategic Brain
+        HIVE --> PHASES[7 HiveMind Phases]
+        HIVE --> BRIDGE[swarm_bridge.py]
+    end
+    
+    subgraph Tactical Coordination
+        SWARM[swarm/] --> MODES[6 Collaboration Modes]
+        SWARM --> NEGO[Negotiation Protocol]
+        SWARM --> DYLAN[DyLAN Metrics]
+        BRIDGE --> SWARM
+    end
+    
+    subgraph Agent Communication
+        DRIVERS[drivers/] --> GEMINI[Gemini API]
+        DRIVERS --> CLAUDE[Claude API]
+    end
+    
+    subgraph Tool Execution
+        EXEC[execution/] --> TOOLS[16+ Tools]
+        EXEC --> DYNAMIC[Dynamic Tools]
+        EXEC --> AGENTS[Agent-as-Tool]
+    end
+    
+    subgraph Memory & Learning
+        MEM[memory/] --> RAG[Project Memory RAG]
+        MEM --> SUCCESS[Success Memory]
+        MEM --> BACKENDS[3 Backends]
+    end
+    
+    subgraph Self-Improvement
+        EVOL[evolution/] --> BRAIN[Brainstorm]
+        EVOL --> CREATE[Create]
+        EVOL --> PROMOTE[Promote]
+    end
+    
+    subgraph Security
+        SEC[security/] --> POLICY[Execution Policy]
+        SEC --> GUARD[Input/Output Guards]
+        SEC --> KERNEL[KERNEL Integrity]
+        GOV[governance/] --> REDTEAM[Red Team]
+    end
+    
+    ORCH --> DRIVERS
+    HIVE --> DRIVERS
+    SWARM --> DRIVERS
+    HIVE --> EXEC
+    SWARM --> EXEC
+    EXEC --> SEC
+    EVOL --> GOV
 ```
 
-## Intégrations Clés
+---
 
-### Synapse Protocol
+## MODULE INVENTORY (30 Modules)
 
-```python
-from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7
-```
+| Module | Role | Key Files |
+|--------|------|-----------|
+| **hive_mind/** | Strategic 7-phase pipeline | orchestrator.py, phases/ |
+| **swarm/** | Tactical 6-mode collaboration | hybrid_swarm_engine.py |
+| **drivers/** | LLM communication | gemini_driver_v7.py, claude_driver_hybrid.py |
+| **execution/** | Tool execution | tool_manager.py (63KB!) |
+| **memory/** | RAG + learning | project_memory.py, success_memory.py |
+| **evolution/** | Self-improvement | manager.py, phases/ |
+| **security/** | Safety layer | execution_policy.py, guards |
+| **governance/** | Alignment testing | red_team/ |
+| **fsm/** | State machine | states.py, transitions.py |
+| **interface/** | REPL + commands | repl.py, commands/ |
+| **orchestration/** | Context building | context_builder.py |
+| **synapse/** | Protocols | protocol_v7.py, memory_v7.py |
+| **ui/** | Dashboard server | dashboard_server.py |
+| **telemetry/** | Metrics | telemetry_service.py |
+| **prompts/** | Prompt loading | prompt_loader.py |
+| **utils/** | Utilities | json_extractor.py |
+| **agents/** | Agent registry | unified_registry.py |
+| **async_primitives/** | Async support | process_handle.py |
+| **bootstrap/** | Project analysis | analyzer.py |
+| **mcp/** | MCP integration | server.py |
+| **workspace/** | Workspace mgmt | manager.py |
+| ... | (10 more) | See individual READMEs |
 
-### Memory System
+---
 
-```python
-from core.memory import get_auto_memory, ProjectMemory
-
-# AutoMemory - apprentissage opérationnel
-memory = get_auto_memory()
-rec = memory.get_recommendation("code_review")
-
-# ProjectMemory - RAG codebase
-pm = ProjectMemory(nexus_root)
-pm.index_directory(Path("core/"))
-chunks = pm.retrieve("FSM state handling")
-```
-
-### Agent-as-Tool
-
-```python
-from core.execution.agent_tools import AgentToolRegistry
-
-registry.refresh()  # Découvre agents spawnés
-registry.execute_agent_tool("security_expert", {"task": "..."})
-```
-
-## Configuration
-
-```bash
-# Core
-TIMEOUT=300
-LOG_LEVEL=DEBUG
-
-# Swarm
-SWARM_ENABLED=True
-SWARM_AUTO_ROUTE=True
-SWARM_DEFAULT_MODE=ping_pong
-
-# Evolution
-VALIDATION_TIER=4
-
-# Routing
-GEMINI_MODEL=gemini-3-pro-preview
-```
-
-## Métriques V7.8
-
-| Composant | Lignes V7.6 | Lignes V7.8 | Delta |
-|-----------|-------------|-------------|-------|
-| orchestration_v7.py | 2223 | 783 | -65% |
-| orchestration/*.py | 0 | 1527 | NEW |
-| memory/*.py | 450 | 1135 | +152% |
-| execution/*.py | 800 | 1310 | +64% |
-| interface/repl.py | 3000 | ~500 | -83% (Decomposed) |
-| interface/commands/*.py | 0 | ~2500 | NEW |
-| **Total core/** | ~15000 | ~14500 | -3% |
-
-## V10.1 Architecture Interactions (2025-12)
-
-### Orchestration Layers
-
-NEXUS has three orchestration layers that interact based on task complexity:
-
-| Layer | Entry Point | Task Complexity | session_uuid |
-|-------|------------|-----------------|--------------|
-| **FSM** | OrchestratorV7 | TRIVIAL/SIMPLE | None (ephemeral) |
-| **HiveMind** | TrueHiveMind | MODERATE/COMPLEX/EXPERT | Generated per-task |
-| **Swarm** | HybridSwarmEngine | Any (via delegation) | SwarmSessionManager |
-
-### Session Isolation Flow (V10.1)
+## NAVIGATION TREE
 
 ```
-USER INPUT
-    │
-    ▼
-┌─────────────────────────────────────────────────────────┐
-│  OrchestratorV7 (FSM)                                   │
-│  └─► TaskAnalyzer determines complexity                 │
-│      │                                                  │
-│      ├── TRIVIAL/SIMPLE → Direct execution              │
-│      │                                                  │
-│      └── MODERATE+ → TrueHiveMind                       │
-│           │                                             │
-│           ▼                                             │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ TrueHiveMind.process_task()                      │  │
-│  │   self._current_session_uuid = uuid.uuid4() ───┐ │  │
-│  │                                                 │ │  │
-│  │   Phase 1-7 receive session_uuid ◄──────────────┘ │  │
-│  │   └─► driver.send_message_async(session_uuid=...) │  │
-│  │                                                    │  │
-│  │   SwarmBridge.delegate() ◄── creates NEW session  │  │
-│  │   └─► SwarmSessionManager                         │  │
-│  │       └─► workspace/.nexus/session_registry.json  │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                         │
-│  Agent-as-Tool (V10.1 FIX)                              │
-│  └─► execute_agent_tool(session_uuid=...) ──────────┐   │
-│      └─► invoke_spawned_agent(session_uuid=...) ────┤   │
-│          └─► invoke_agent_direct(session_uuid=...) ─┘   │
-└─────────────────────────────────────────────────────────┘
+core/
+├── hive_mind/          → [README](hive_mind/README.md)
+├── swarm/              → [README](swarm/README.md)
+├── drivers/            → [README](drivers/README.md)
+├── execution/          → [README](execution/README.md)
+├── memory/             → [README](memory/README.md)
+├── evolution/          → [README](evolution/README.md)
+├── security/           → [README](security/README.md)
+├── governance/red_team/→ [README](governance/red_team/README.md)
+├── interface/commands/ → [README](interface/commands/README.md)
+└── ... (21 more modules)
 ```
 
-### Key Files for Session Management
+---
 
-| File | Purpose |
-|------|---------|
-| `hive_mind/orchestrator.py` | Generates `session_uuid` for HiveMind |
-| `swarm/session_manager.py` | Persists Swarm sessions to JSON |
-| `execution/agent_tools.py` | Propagates `session_uuid` to Agent-as-Tool |
-| `orchestration/agent_invoker.py` | Routes `session_uuid` to drivers |
+## KEY METRICS
 
-## Voir Aussi
+| Metric | Value |
+|--------|-------|
+| Total Modules | 30 |
+| Total Python Files | ~120 |
+| Total Lines of Code | ~50,000 |
+| Largest File | tool_manager.py (63KB) |
+| Test Coverage | tests/ (95 files) |
 
-- [Main README](../README.md) - Documentation complète V7.8
-- [ROADMAP_HIVE_MIND.md](../ROADMAP_HIVE_MIND.md) - Roadmap phases
-- [docs/FEATURE_INVENTORY_V7.8.md](../docs/FEATURE_INVENTORY_V7.8.md) - Inventaire fonctionnalités
-- [docs/HYBRID_SWARM.md](../docs/HYBRID_SWARM.md) - Documentation Swarm
+---
 
+## HIERARCHY
+
+```
+NEXUS/
+├── nexus7.py           ← Entry point
+├── KERNEL.py           ← Immutable alignment
+├── core/               ← THIS FOLDER (all backend modules)
+├── frontend/           ← Next.js dashboard
+├── prompts/            ← System prompts
+└── workspace/          ← Runtime data
+```

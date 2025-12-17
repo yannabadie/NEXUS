@@ -1,63 +1,84 @@
-# Memory Module - NEXUS V9.2
+# Memory Module
 
-## Rôle
-Le module `core/memory` gère la mémoire à long terme de NEXUS. Il implémente un système RAG (Retrieval-Augmented Generation) modulaire (`ProjectMemory`) et une mémoire d'apprentissage (`SuccessMemory`) pour améliorer les performances au fil du temps.
+![NEXUS](../../docs/commercialisation/imgs/NEXUS_Icone.jpg)
 
-## Fichiers Clés
-| Fichier | Lignes | Responsabilité |
-|---------|--------|----------------|
-| `project_memory.py` | ~260 | **RAG Engine**: Indexation et recherche de documents projet. |
-| `semantic_memory.py` | ~150 | **Semantic Search**: Recherche vectorielle (LanceDB) pour le contexte sémantique. |
-| `success_memory.py` | ~280 | **Learning**: Stocke les patterns de réussite pour guider les futures décisions. |
-| `spotlighting.py` | ~350 | **Security**: Sanitisation des données RAG (Layer 2 Defense). |
-| `backends/` | - | **Pluggable Backends**: TF-IDF, BM25, Dense Embeddings. |
+## SYNOPSIS
 
-## API Publique
-```python
-from core.memory import (
-    ProjectMemory,
-    SuccessMemory,
-    get_success_memory
-)
+The **Memory** module provides persistent learning capabilities through Project Memory RAG and Success/Failure tracking. It indexes codebases for semantic retrieval and learns from past task outcomes.
 
-# Usage
-memory = ProjectMemory(workspace_path)
-docs = await memory.search("auth logic", limit=5)
-```
+This is the **learning engine** of NEXUS.
 
-## Flux de Données
+---
 
-### RAG Retrieval Flow
+## COMPONENT MAP (Mermaid)
+
 ```mermaid
-flowchart LR
-    Query[User Query] --> PM[ProjectMemory]
-    PM --> Backend[DenseBackend]
-    Backend -- Embeddings --> DB[LanceDB]
-    DB -- Chunks --> Spotlighter[Spotlighter]
-    Spotlighter -- Safe Context --> LLM
+graph TD
+    subgraph Memory Core
+        PM[project_memory.py] --> BACKENDS[backends/]
+        SM[success_memory.py] --> AUTO[auto_memory.py]
+        SPOT[spotlighting.py]
+    end
+    
+    subgraph Backends
+        BASE[base.py]
+        TFIDF[tfidf.py]
+        BM25[bm25.py]
+        DENSE[dense.py]
+    end
+    
+    PM --> TFIDF
+    PM --> BM25
+    PM --> DENSE
+    
+    BASE --> TFIDF
+    BASE --> BM25
+    BASE --> DENSE
 ```
 
-## Dépendances
+---
 
-**Importe :**
-- `lancedb` : Base de données vectorielle (optionnelle).
-- `sentence-transformers` : Modèles d'embedding (optionnel).
-- `core/security` : Pour la sanitisation (`Spotlighter`).
+## INTERACTION MATRIX
 
-**Importé par :**
-- `core/orchestration_v7.py` : Pour fournir du contexte au démarrage.
-- `core/ui/dashboard_server.py` : Pour visualiser la mémoire.
-- `core/hive_mind/context_manager.py` : Pour gérer la fenêtre de contexte.
+| Component | Calls (Outbound) | Called By (Inbound) | Data Type Exchanged |
+|-----------|------------------|---------------------|---------------------|
+| `project_memory.py` | backends/, file system | HiveMind phases, REPL | `List[Chunk]` |
+| `success_memory.py` | Blackboard, file system | Swarm, HiveMind | `SuccessEntry` |
+| `auto_memory.py` | success_memory | Orchestrator | Auto-learning hooks |
+| `spotlighting.py` | None (pure transform) | project_memory | Highlighted content |
+| `backends/` | sklearn, bm25s, lancedb | project_memory | Retrieval results |
 
-## Configuration
+---
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PROJECT_MEMORY_BACKEND` | `auto` | Choix du backend (`dense`, `bm25`, `tfidf`). |
-| `MEMORY_INDEX_INTERVAL` | `300` | Intervalle de réindexation automatique (secondes). |
+## FILE INVENTORY
 
-## Tests
+| File | Lines | Size | Role |
+|------|-------|------|------|
+| `project_memory.py` | 720 | 26.2KB | Main RAG facade |
+| `success_memory.py` | 760 | 27.9KB | Success/failure tracking |
+| `auto_memory.py` | 320 | 11.5KB | Auto-learning hooks |
+| `spotlighting.py` | 310 | 11.3KB | Content highlighting |
+| `types.py` | 50 | 1.7KB | Chunk dataclass |
+| `backends/` | (see backends/README.md) | 4 backend files |
 
-- `tests/memory/test_project_memory.py`
-- `tests/memory/test_spotlighting.py`
-- `tests/e2e/test_rag_flow.py`
+---
+
+## HIERARCHY
+
+```
+core/
+└── memory/                 ← THIS FOLDER
+    ├── project_memory.py   ← Main RAG facade
+    ├── success_memory.py   ← Success/failure learning
+    ├── auto_memory.py      ← Automatic hooks
+    ├── spotlighting.py     ← Highlighting
+    └── backends/           ← TF-IDF, BM25S, Dense
+```
+
+---
+
+## KEY PATTERNS
+
+- **Facade Pattern**: `project_memory.py` abstracts backend selection
+- **Auto-Select**: Dense > BM25S > TF-IDF based on availability
+- **Chunk Structure**: `Chunk(content, source, metadata, score)`

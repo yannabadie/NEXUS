@@ -1,171 +1,155 @@
-<p align="center">
-  <img src="docs/commercialisation/imgs/NEXUS_BANNER.jpg" alt="NEXUS HIVE MIND Banner" width="100%"/>
-</p>
+# NEXUS V10 "SINGULARITY"
 
-<h1 align="center">
-  <img src="docs/commercialisation/imgs/NEXUS_Icone.jpg" alt="NEXUS Icon" width="40" style="vertical-align: middle;"/>
-  NEXUS V10.0 "SINGULARITY"
-</h1>
+![NEXUS](docs/commercialisation/imgs/NEXUS_BANNER.jpg)
 
-<p align="center">
-  <strong>Self-Evolving Collaborative Intelligence</strong>
-</p>
+> **Collaborative AI Intelligence that Evolves**
 
-<p align="center">
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#commands">Commands</a> •
-  <a href="ROADMAP_V10.md">Roadmap</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Version-10.0-ec4899?style=flat-square" alt="Version"/>
-  <img src="https://img.shields.io/badge/Python-3.11+-green?style=flat-square" alt="Python"/>
-  <img src="https://img.shields.io/badge/Claude-Opus%204.5-purple?style=flat-square" alt="Claude"/>
-  <img src="https://img.shields.io/badge/Gemini-3%20Pro-cyan?style=flat-square" alt="Gemini"/>
-  <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
-</p>
+NEXUS is a multi-agent orchestration platform that combines Gemini and Claude into a unified collaborative intelligence. It specializes based on context, learns from outcomes, and evolves through self-improvement.
 
 ---
 
-NEXUS is a **self-evolving collaborative intelligence** that combines **Claude** and **Gemini** to generate specialized agents, visualize its own internal state, and evolve recursively.
-
-## Vision
-
-NEXUS is a **deployable singularity seed** that:
-1. **Analyzes** complex requirements
-2. **Generates** specialized agents (children that coexist)
-3. **Orchestrates** collaboration via Hybrid Swarm
-4. **Visualizes** its "mind" (Memory Cloud, Neural Code Map)
-5. **Evolves** by rewriting its own code
-
-<a name="quick-start"></a>
 ## Quick Start
 
 ```bash
-# Navigate to NEXUS
-cd NEXUS-N7A-AG
-
 # Install dependencies
-pip install -r requirements_v7.txt
+pip install -r requirements.txt
 
-# Run NEXUS (starts Core + Dashboard)
+# Run NEXUS
 python nexus7.py
-
-# (Optional) Start Dashboard separately
-python core/ui/dashboard_server.py
-# Access at http://localhost:8000
 ```
 
-## Core Power: Gemini + Claude Symbiosis
+---
 
-```
-GEMINI 3 Pro  <═══════════════>  CLAUDE Opus 4.5
-     │           SYMBIOSIS           │
-     │          COGNITIVE            │
-     └───────────────┬───────────────┘
-                     │
-             6 SWARM MODES
-     PARALLEL │ SEQUENTIAL │ LEAD_SUPPORT
-     PING_PONG │ SPECIALIST │ RED_BLUE
-```
+## The Nexus Map
 
-<a name="features"></a>
-## Features
-
-### Reality Interface (Dashboard)
-Visualize the AI's internal state in real-time:
-- **Live FSM State**: Watch agents think and act
-- **Neural Code Map**: See the codebase structure
-- **Memory Cloud**: Explore the vector space
-- **Telemetry**: Real-time event streaming
-
-### Hybrid Swarm Engine
-Dynamic collaboration modes negotiated by agents:
-- **PARALLEL**: Simultaneous work on independent subtasks
-- **SEQUENTIAL**: Ordered execution for dependent steps
-- **LEAD_SUPPORT**: Expert leads, partner reviews
-- **PING_PONG**: Rapid iteration until convergence
-- **SPECIALIST**: Single expert for clear domains
-- **RED_BLUE**: Adversarial propose/attack/defend
-
-### Agent Factory (Spawning Pool)
-Generate specialized agents that persist and collaborate:
-```bash
-nexus> /spawn SQL Expert      # Creates workspace/agents/sql_expert/
-nexus> /agents                # List all spawned agents
-```
-
-<a name="architecture"></a>
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     NEXUS V10 SINGULARITY                     │
-├──────────────────────────────────────────────────────────────┤
-│  USER INPUT → ORCHESTRATOR (FSM) → SWARM ENGINE → AGENTS    │
-│                       ↓                                       │
-│              HIVE MIND (7 Phases)                            │
-│                       ↓                                       │
-│              EVOLUTION (Self-Improvement)                    │
-│                       ↓                                       │
-│              MEMORY (RAG + Semantic)                         │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph User Interface
+        REPL[nexus7.py]
+        DASH[Dashboard]
+    end
+    
+    subgraph Orchestration
+        ORCH[OrchestratorV7]
+        HIVE[HiveMind 7 Phases]
+        SWARM[Swarm 6 Modes]
+    end
+    
+    subgraph Agents
+        GEMINI[Gemini 3 Pro]
+        CLAUDE[Claude Opus 4.5]
+    end
+    
+    subgraph Capabilities
+        TOOLS[16+ Tools]
+        MEMORY[Project Memory RAG]
+        EVOLVE[Evolution Engine]
+    end
+    
+    REPL --> ORCH
+    DASH --> ORCH
+    ORCH --> HIVE
+    ORCH --> SWARM
+    HIVE --> GEMINI
+    HIVE --> CLAUDE
+    SWARM --> GEMINI
+    SWARM --> CLAUDE
+    HIVE --> TOOLS
+    SWARM --> TOOLS
+    TOOLS --> MEMORY
+    ORCH --> EVOLVE
 ```
 
-<a name="commands"></a>
-## Commands
+---
 
-| Command | Description |
-|---------|-------------|
-| `/help` | Show all commands |
-| `/status` | Show orchestrator state |
-| `/swarm <task>` | Route task through Hybrid Swarm |
-| `/spawn <role>` | Create specialized agent |
-| `/agents` | List spawned agents |
-| `/evolve [n]` | Create n children (default: 3) |
-| `/dashboard` | Info about the web dashboard |
-| `exit` | Quit NEXUS |
+## Architecture Overview
+
+| Layer | Component | Purpose |
+|-------|-----------|---------|
+| **Entry** | `nexus7.py` | Interactive REPL |
+| **Orchestration** | `core/orchestration_v7.py` | FSM + routing |
+| **Strategic** | `core/hive_mind/` | 7-phase pipeline |
+| **Tactical** | `core/swarm/` | 6 collaboration modes |
+| **Execution** | `core/execution/` | 16+ tools |
+| **Memory** | `core/memory/` | RAG + learning |
+| **Evolution** | `core/evolution/` | Self-improvement |
+| **Security** | `core/security/` | KERNEL alignment |
+| **UI** | `frontend/` | Next.js dashboard |
+
+---
+
+## Navigation
+
+### Core Modules (30)
+→ [core/README.md](core/README.md)
+
+### Documentation
+- [ROADMAP_V10.md](ROADMAP_V10.md) - Development roadmap
+- [INSTALLATION.md](INSTALLATION.md) - Setup guide
+- [MISSION.md](MISSION.md) - Project philosophy
+- [docs/](docs/) - Full documentation
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `KERNEL.py` | Immutable alignment rules |
+| `LINEAGE.json` | Evolution history |
+| `GEMINI.md` | Gemini instructions |
+| `CLAUDE.md` | Claude instructions |
+
+---
+
+## HiveMind 7 Phases
+
+1. **Analysis** - Independent task analysis by both agents
+2. **Debate** - Resolve disagreements through structured debate
+3. **Architecture** - Design execution plan
+4. **Execution** - Monitored step execution
+5. **Diagnosis** - Error analysis on failure
+6. **Retry** - Apply fixes and retry
+7. **Consolidation** - Merge and summarize results
+
+---
+
+## Swarm 6 Modes
+
+| Mode | Use Case |
+|------|----------|
+| PARALLEL | Independent subtasks |
+| SEQUENTIAL | Dependent steps |
+| LEAD_SUPPORT | Complex implementation |
+| PING_PONG | Iterative refinement |
+| SPECIALIST | Single expert |
+| RED_BLUE | Security review |
+
+---
 
 ## Project Structure
 
 ```
-NEXUS-N7A-AG/
-├── core/                     # Core orchestration
-│   ├── ui/                   # Dashboard & Telemetry
-│   ├── memory/               # Semantic Memory & RAG
-│   ├── hive_mind/            # 7-phase orchestrator
-│   ├── swarm/                # 6 collaboration modes
-│   ├── evolution/            # Self-improvement
-│   └── ...
-├── workspace/                # Runtime data
-├── docs/                     # Documentation
-├── KERNEL.py                 # Immutable alignment core
-├── ROADMAP_V10.md            # Development roadmap
-└── nexus7.py                 # Entry point
+NEXUS/
+├── nexus7.py              ← Entry point
+├── KERNEL.py              ← Immutable alignment
+├── core/                  ← 30 backend modules
+│   ├── hive_mind/         ← Strategic brain
+│   ├── swarm/             ← Tactical coordination
+│   ├── drivers/           ← LLM communication
+│   ├── execution/         ← Tool execution
+│   ├── memory/            ← RAG + learning
+│   ├── evolution/         ← Self-improvement
+│   └── security/          ← Safety layer
+├── frontend/              ← Next.js dashboard
+├── prompts/               ← System prompts
+├── workspace/             ← Runtime data
+└── tests/                 ← Test suite
 ```
-
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [ROADMAP_V10.md](ROADMAP_V10.md) | Current roadmap |
-| [CLAUDE.md](CLAUDE.md) | Claude agent instructions |
-| [GEMINI.md](GEMINI.md) | Gemini agent instructions |
-| [MISSION.md](MISSION.md) | Vision & philosophy |
-| [core/ui/README.md](core/ui/README.md) | Dashboard docs |
-
-## Requirements
-
-- **Python**: 3.11+
-- **CLIs**: `gemini`, `claude` installed and configured
-- **Accounts**: Google AI Ultra + Claude Max (recommended)
-
-## Author
-
-**Yann Abadie** - Creator and Alignment Authority
 
 ---
 
-*"Intelligence emerges from collaboration, not competition."*
+## License
+
+MIT License - See [LICENSE](LICENSE)
+
+---
+
+*Created by Yann Abadie | NEXUS V10.2*

@@ -1,62 +1,108 @@
-# Drivers Module - NEXUS V9.2
+# Drivers Module
 
-## Rôle
-Le module `core/drivers` fournit l'interface de communication avec les LLMs (Gemini et Claude). En V9.2, l'architecture privilégie les drivers asynchrones (`AsyncGeminiDriver`, `AsyncClaudeDriver`) pour une exécution non-bloquante et une meilleure gestion des timeouts.
+![NEXUS](../../docs/commercialisation/imgs/NEXUS_Icone.jpg)
 
-## Fichiers Clés
-| Fichier | Lignes | Responsabilité |
-|---------|--------|----------------|
-| `async_gemini_driver.py` | ~350 | **Gemini Async**: Driver CLI asynchrone pour Gemini (JSON I/O). |
-| `async_claude_driver.py` | ~300 | **Claude Async**: Driver CLI asynchrone pour Claude (Hybrid I/O). |
-| `async_factory.py` | ~150 | **Factory**: Crée les instances de drivers selon la configuration. |
-| `gemini_driver_v7.py` | ~750 | **Legacy Sync**: Ancien driver synchrone (maintenu pour compatibilité). |
-| `claude_driver_hybrid.py` | ~450 | **Legacy Sync**: Ancien driver synchrone. |
+## SYNOPSIS
 
-## API Publique
-```python
-from core.drivers import (
-    create_async_gemini_driver,
-    create_async_claude_driver,
-    AsyncDriverFactory
-)
+The **Drivers** module provides LLM communication interfaces for Gemini and Claude. Each driver handles API calls, response parsing, tool execution, and dashboard event emission.
 
-# Usage
-factory = AsyncDriverFactory(config)
-driver = await factory.create_driver("Gemini")
-response = await driver.send_message("Hello", context)
-```
+Both sync and async variants are available for different orchestration modes.
 
-## Flux de Données
+---
 
-### Async Execution Flow
+## COMPONENT MAP (Mermaid)
+
 ```mermaid
-flowchart LR
-    Orchestrator --> Factory[AsyncDriverFactory]
-    Factory --> Driver[AsyncGeminiDriver]
-    Driver -- Async Subprocess --> CLI[Gemini CLI Process]
-    CLI -- JSON --> Driver
-    Driver --> Orchestrator
+classDiagram
+    class BaseDriver {
+        <<interface>>
+        +invoke(prompt, context)
+        +parse_response(raw)
+        +emit_dashboard_event(event)
+    }
+    
+    class GeminiDriverV7 {
+        -client: GenerativeModel
+        -model_name: str
+        +invoke(prompt, context)
+        +_execute_tool(tool_use)
+        +_emit_dashboard_event(event)
+    }
+    
+    class ClaudeDriverV7 {
+        -client: Anthropic
+        -model_name: str
+        +invoke(prompt, context)
+        +_parse_xml_tools(response)
+        +_emit_dashboard_event(event)
+    }
+    
+    class AsyncGeminiDriver {
+        +invoke_async(prompt, context)
+    }
+    
+    class AsyncClaudeDriver {
+        +invoke_async(prompt, context)
+    }
+    
+    class AsyncFactory {
+        +create_gemini_driver(): AsyncGeminiDriver
+        +create_claude_driver(): AsyncClaudeDriver
+    }
+    
+    BaseDriver <|-- GeminiDriverV7
+    BaseDriver <|-- ClaudeDriverV7
+    GeminiDriverV7 <|-- AsyncGeminiDriver
+    ClaudeDriverV7 <|-- AsyncClaudeDriver
+    AsyncFactory --> AsyncGeminiDriver
+    AsyncFactory --> AsyncClaudeDriver
 ```
 
-## Dépendances
+---
 
-**Importe :**
-- `asyncio` : Gestion des subprocess asynchrones.
-- `core/security` : Validation des entrées/sorties (`InputGuard`, `OutputGuard`).
+## INTERACTION MATRIX
 
-**Importé par :**
-- `core/orchestration/agent_invoker.py` : Exécution des tours d'agents.
-- `core/hive_mind/orchestrator.py` : Négociation et débats.
+| Component | Calls (Outbound) | Called By (Inbound) | Data Type Exchanged |
+|-----------|------------------|---------------------|---------------------|
+| `gemini_driver_v7.py` | Google Generative AI, EventBus | All orchestrators | `LightMessageV7`, `HeavyMessageV7` |
+| `claude_driver_hybrid.py` | Anthropic API, EventBus | All orchestrators | Natural text + XML tools |
+| `async_gemini_driver.py` | genai.aio | HiveMind async_adapter | Async responses |
+| `async_claude_driver.py` | anthropic.AsyncAnthropic | HiveMind async_adapter | Async responses |
+| `async_factory.py` | Driver constructors | context_builder | Driver instances |
 
-## Configuration
+---
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `USE_ASYNC_DRIVERS` | `True` | Active les drivers asynchrones par défaut. |
-| `GEMINI_TIMEOUT` | `300` | Timeout en secondes pour Gemini. |
+## FILE INVENTORY
 
-## Tests
+| File | Lines | Size | Role |
+|------|-------|------|------|
+| `__init__.py` | 35 | 1.2KB | Module exports |
+| `gemini_driver_v7.py` | 1000 | 36.6KB | Sync Gemini driver (JSON protocol) |
+| `claude_driver_hybrid.py` | 630 | 23.2KB | Sync Claude driver (hybrid XML) |
+| `async_gemini_driver.py` | 450 | 16.3KB | Async Gemini driver |
+| `async_claude_driver.py` | 360 | 13.1KB | Async Claude driver |
+| `async_factory.py` | 220 | 7.8KB | Driver factory |
+| `async_adapter.py` | 130 | 4.6KB | Sync/async bridge |
 
-- `tests/drivers/test_async_gemini_driver.py`
-- `tests/drivers/test_async_claude_driver.py`
-- `tests/drivers/test_async_factory.py`
+---
+
+## HIERARCHY
+
+```
+core/
+└── drivers/                    ← THIS FOLDER
+    ├── gemini_driver_v7.py     ← Main Gemini (sync)
+    ├── claude_driver_hybrid.py ← Main Claude (sync)
+    ├── async_gemini_driver.py  ← Async Gemini
+    ├── async_claude_driver.py  ← Async Claude
+    └── async_factory.py        ← Factory
+```
+
+---
+
+## KEY PATTERNS
+
+- **Protocol Difference**: Gemini uses strict JSON, Claude uses natural + XML
+- **Dashboard Events**: Both emit WebSocket events for UI
+- **Model Routing**: Drivers support multiple model tiers (Opus/Sonnet, Pro/Flash)
+- **Tool Parsing**: XML parsing for Claude, JSON for Gemini
