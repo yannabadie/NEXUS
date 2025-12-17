@@ -185,6 +185,9 @@ class TaskAnalysis:
 
     # Detected keywords
     detected_keywords: List[str] = field(default_factory=list)
+    
+    # V10.2: Reasoning trace for traceability
+    reasoning: str = ""  # Explains why this complexity/domain was assigned
 
     @property
     def recommended_lead(self) -> str:
@@ -224,7 +227,8 @@ class TaskAnalysis:
             "should_skip_negotiation": self.should_skip_negotiation,
             "needs_adversarial_mode": self.needs_adversarial_mode,
             "confidence": round(self.confidence, 3),
-            "detected_keywords": self.detected_keywords
+            "detected_keywords": self.detected_keywords,
+            "reasoning": self.reasoning  # V10.2: Traceability
         }
 
 
@@ -325,6 +329,21 @@ class TaskAnalyzer:
         confidence = self._estimate_confidence(
             domains, detected_keywords, user_input
         )
+        
+        # V10.2: Build reasoning trace for traceability
+        reasoning_parts = []
+        if detected_keywords:
+            reasoning_parts.append(f"Keywords: {', '.join(detected_keywords[:5])}")
+        reasoning_parts.append(f"Domains: {', '.join(d.value for d in domains[:3]) if domains else 'none'}")
+        reasoning_parts.append(f"Complexity: {complexity.name} (score={complexity.value})")
+        if requires_web:
+            reasoning_parts.append("Requires web access")
+        if requires_code:
+            reasoning_parts.append("Requires code execution")
+        if requires_reasoning:
+            reasoning_parts.append("Requires deep reasoning")
+        reasoning_parts.append(f"Lead: {('gemini' if gemini_score > claude_score + 0.1 else 'claude' if claude_score > gemini_score + 0.1 else 'equal')}")
+        reasoning = " | ".join(reasoning_parts)
 
         return TaskAnalysis(
             complexity=complexity,
@@ -338,7 +357,8 @@ class TaskAnalyzer:
             claude_fit_score=claude_score,
             raw_input=user_input,
             confidence=confidence,
-            detected_keywords=detected_keywords
+            detected_keywords=detected_keywords,
+            reasoning=reasoning  # V10.2
         )
 
     def _detect_domains(
