@@ -19,8 +19,8 @@ def verify_standardization():
     count = discover_and_register_spawned_agents(workspace_path, registry)
     print(f"Registered {count} agents directly into Registry.")
     
-    # Verify Python Specialist
-    specialist = registry.get("python_specialist")
+    # Verify QA Sentinel
+    specialist = registry.get("qa_sentinel")
     if specialist:
         print(f"\nSUCCESS: Found {specialist.display_name}")
         print(f"Provider: {specialist.provider}")
@@ -35,7 +35,7 @@ def verify_standardization():
             print(f"Type Check: FAILED (got {type(specialist)})")
             return False
     else:
-        print("\nFAILURE: Python Specialist not found in registry")
+        print("\nFAILURE: QA Sentinel not found in registry")
         return False
 
 if __name__ == "__main__":

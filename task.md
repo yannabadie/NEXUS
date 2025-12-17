@@ -1,18 +1,18 @@
-# Cycle 006: Deep Reconnaissance & Vision Integration
+# Cycle 007: Operation Quality Sentinel
 
-**Goal**: Locate frontend, digest all documentation, formalize "Post-SOTA" vision, and experiment with self-brainstorming.
+**Goal**: Establish an autonomous Quality Assurance layer to ensure "Crushingly Good" stability.
 
-- [ ] **Reconnaissance**
-    - [ ] Locate Frontend: Search for `package.json`, `tsconfig.json`, `vite.config.ts`.
-    - [ ] Audit Frontend: Verify structure and "React 19" claims.
+- [x] **Spawn QA Sentinel**
+    - [x] Create `workspace/agents/qa_sentinel/BIRTH_CERTIFICATE.json`
+    - [x] Define `workspace/agents/qa_sentinel/system_prompt.md` (Focus: Vitest/Pytest expertise)
 
-- [ ] **Documentation Absorption**
-    - [ ] Find all `README.md` files.
-    - [ ] Read and synthesize key insights from each.
+- [x] **Sentinel Infrastructure**
+    - [x] Create `core/quality/sentinel_loop.py` (The logic for continuous checking)
+    - [x] Verify Frontend Tests: Run `npm test` in `interface/ui/cerebro` to ensure baseline green.
 
-- [ ] **Vision Integration**
-    - [ ] Update `ROADMAP.md` with "Post-SOTA" section (Generative UI, Auto-Replication, Kernel Rewrite).
+- [x] **Integration**
+    - [x] Register `qa_sentinel` via `verify_genesis.py` (reuse verification script to prove discovery).
 
-- [ ] **Meta-Cognition (Brainstorming)**
-    - [ ] Analyze `nexus7.py` interface.
-    - [ ] Attempt to invoke NEXUS for a brainstorming session (if feasible via CLI).
+- [x] **Documentation**
+    - [x] Update `walkthrough.md` with Cycle 007 results.
+    - [x] Create `docs/QA_SENTINEL.md`
