@@ -1,61 +1,127 @@
-## COMMANDES REPL (V7.9)
+## COMMANDES REPL V12.4
 
-**L'utilisateur peut invoquer ces commandes. Tu peux les suggérer quand pertinent.**
+**L'utilisateur peut invoquer ces commandes. Tu peux les suggerer quand pertinent.**
 
-### Collaboration (Swarm)
+---
+
+## Collaboration (Swarm)
+
 | Commande | Description |
 |----------|-------------|
-| `/swarm <task>` | Route tâche via Hybrid Swarm Engine |
-| `/swarm-status` | Mode actuel + métriques DyLAN |
+| `/swarm <task>` | Route tache via Hybrid Swarm Engine |
+| `/swarm-status` | Mode actuel + metriques DyLAN |
 | `/pool-stats` | Scores importance par agent |
 
-### Evolution & Agents
+---
+
+## Evolution & Agents
+
 | Commande | Description |
 |----------|-------------|
-| `/evolve [n]` | Créer n enfants (default: 3) |
-| `/spawn <role>` | Créer agent spécialisé |
-| `/agents` | Lister agents spawnés |
-| `/specialize <mission>` | Créer spinoff spécialisé |
+| `/evolve [n]` | Creer n enfants (default: 3) |
+| `/spawn <role>` | Creer agent specialise |
+| `/agents` | Lister agents spawnes |
+| `/specialize <mission>` | Creer spinoff specialise |
 | `/review` | Review enfants pending |
 
-### Memory & Monitoring
+---
+
+## Memory & Monitoring
+
 | Commande | Description |
 |----------|-------------|
-| `/memory status` | Stats Project Memory RAG |
+| `/memory status` | Stats Project Memory RAG + HybridBackend |
 | `/memory index <dir>` | Forcer indexation |
+| `/learn <file>` | Ajouter fichier a la memoire |
+| `/forget <file>` | Retirer fichier de la memoire |
+| `/memory reset` | Reinitialiser la memoire |
 | `/budget` | Status budget quotidien |
 | `/telemetry` | Rapport 7 jours |
 | `/telemetry export` | Export CSV |
 
-### Workspace
+---
+
+## Workspace
+
 | Commande | Description |
 |----------|-------------|
 | `/workspace` | Status workspace actuel |
-| `/workspace new` | Nouveau workspace (memory préservée) |
-| `/bootstrap` | Analyse projet et génère NEXUS.md |
-
-### System
-| Commande | Description |
-|----------|-------------|
-| `/help` | Aide complète |
-| `/tutorial` | Guide interactif (5 étapes) |
-| `/quickstart` | Résumé rapide |
-| `/status` | État orchestrateur + FSM |
-| `/doctor` | Diagnostics système |
-| `/reset` | Reset état (si ERROR) |
-| `/chat` | Mode chat-only (pas d'outils) |
+| `/workspace new` | Nouveau workspace (memory preservee) |
+| `/bootstrap` | Analyse projet et genere NEXUS.md |
 
 ---
 
-## QUAND SUGGÉRER UNE COMMANDE
+## System
 
-| Situation | Commande à suggérer |
+| Commande | Description |
+|----------|-------------|
+| `/help` | Aide complete |
+| `/tutorial` | Guide interactif (5 etapes) |
+| `/quickstart` | Resume rapide |
+| `/status` | Etat orchestrateur + FSM |
+| `/doctor` | Diagnostics systeme |
+| `/reset` | Reset etat (si ERROR) |
+| `/chat` | Mode chat-only (pas d'outils) |
+| `/save` | Sauvegarder session |
+| `/history` | Historique sessions |
+
+---
+
+## CEREBRO Dashboard (V12.0+)
+
+| Commande | Description |
+|----------|-------------|
+| `/cerebro start` | Demarrer le dashboard WebSocket |
+| `/cerebro stop` | Arreter le dashboard |
+| `/cerebro status` | Etat du serveur CEREBRO |
+
+**Acces:** `http://localhost:8765` une fois demarre
+
+---
+
+## OpsView Dashboard (V12.1+)
+
+| Commande | Description |
+|----------|-------------|
+| `/opsview` | Ouvrir cockpit production |
+| `/metrics` | Afficher metriques Prometheus |
+| `/metrics export` | Export metriques JSON |
+
+---
+
+## RBAC & Audit (V12.2+)
+
+| Commande | Description |
+|----------|-------------|
+| `/rbac status` | Afficher role actuel |
+| `/rbac permissions` | Lister permissions |
+| `/audit tail [n]` | Dernieres n entrees audit |
+| `/audit search <pattern>` | Rechercher dans audit |
+
+---
+
+## Multi-Instance (V12.3+)
+
+| Commande | Description |
+|----------|-------------|
+| `/instances` | Lister instances actives |
+| `/instance info` | Info instance courante |
+
+---
+
+## QUAND SUGGERER UNE COMMANDE
+
+| Situation | Commande a suggerer |
 |-----------|---------------------|
-| Nouveau projet non analysé | `/bootstrap` |
-| Fichier non indexé | `/learn <file>` ou `/memory index` |
-| Budget faible | `/budget` pour vérifier |
-| Tâche complexe multi-agents | `/swarm <task>` |
+| Nouveau projet non analyse | `/bootstrap` |
+| Fichier non indexe | `/learn <file>` ou `/memory index` |
+| Budget faible | `/budget` pour verifier |
+| Tache complexe multi-agents | `/swarm <task>` |
 | Performance agents inconnue | `/pool-stats` |
 | Besoin d'expert domaine | `/spawn <role>` |
+| Dashboard temps reel | `/cerebro start` |
+| Metriques production | `/opsview` ou `/metrics` |
+| Verifier permissions | `/rbac status` |
+| Audit actions | `/audit tail` |
 
-**Note:** Les agents ne peuvent PAS exécuter ces commandes directement. Ils peuvent seulement les suggérer à l'utilisateur.
+**Note:** Les agents ne peuvent PAS executer ces commandes directement. Ils peuvent seulement les suggerer a l'utilisateur.
