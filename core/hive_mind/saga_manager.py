@@ -602,6 +602,46 @@ class SagaManager:
             True if file was deleted
         """
         return self._store.delete()
+    
+    # -------------------------------------------------------------------------
+    # Auto-Recovery (V10.2 Recovery Manager Wire)
+    # -------------------------------------------------------------------------
+    
+    def auto_recover_from_latest(self) -> Optional[str]:
+        """
+        V10.2: Auto-recover from latest checkpoint if available.
+        
+        This is the entry point for automatic recovery after errors.
+        Returns the phase to resume from, or None if no checkpoint exists.
+        
+        Usage in orchestrator:
+            try:
+                result = await phase.execute(...)
+            except Exception as e:
+                if error_classifier.classify(e).retryable:
+                    recovery_phase = saga.auto_recover_from_latest()
+                    if recovery_phase:
+                        # Resume from this phase
+        
+        Returns:
+            Phase name to resume from, or None if no checkpoints
+        """
+        if not self._checkpoints:
+            logger.debug("No checkpoints available for auto-recovery")
+            return None
+        
+        recovery_phase = self._recovery_point
+        logger.info(f"Auto-recovery available from phase: {recovery_phase}")
+        return recovery_phase
+    
+    def can_auto_recover(self) -> bool:
+        """
+        V10.2: Check if auto-recovery is possible.
+        
+        Returns:
+            True if checkpoints exist for recovery
+        """
+        return bool(self._checkpoints) and self._recovery_point is not None
 
     # -------------------------------------------------------------------------
     # Status & Debugging

@@ -77,7 +77,7 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 | Wire EPHEMERAL | `session_manager.py` | 1 day | ✅ DONE |
 | Enable Fast Path | `fsm_handlers.py` | 1 day | ✅ DONE |
 | Rate Limiting | `core/api/rate_limiter.py` | 2 days | ✅ DONE |
-| Recovery Manager | `core/hive_mind/` | 3 days | ❌ TODO |
+| Recovery Manager | `core/hive_mind/saga_manager.py` | 3 days | ✅ DONE (V10.2) |
 
 ### Priority 4: Security Hardening 🔒
 
