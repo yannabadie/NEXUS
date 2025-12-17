@@ -1,28 +1,36 @@
 """
-Spawned Agent Loader - NEXUS V7.5 HIVE MIND
-
+Spawned Agent Loader - NEXUS V12.4 REFAC
 Discovers and loads spawned agents from workspace/agents/ at startup.
-Integrates them into the AgentPool for use by Hybrid Swarm Engine.
+Supports both V7 AgentPool (Legacy) and V12 UnifiedAgentRegistry (Modern).
 
 Usage:
     from core.bootstrap.agent_loader import SpawnedAgentLoader
 
     loader = SpawnedAgentLoader(workspace_path)
-    agents = loader.discover_spawned_agents()
+    descriptors = loader.discover_spawned_agents()
 
-    for profile in agents:
-        agent_pool.register(profile)
+    # Polyglot Registration
+    loader.register_agents(agent_pool)       # Adapt to AgentProfile
+    loader.register_agents(agent_registry)   # Use AgentDescriptor
 """
 
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
+
 from dataclasses import dataclass
 
-# Import AgentProfile from agent_metrics
+# V7 Legacy Metrics
 from core.swarm.agent_metrics import AgentProfile
 
+# V12.4 Unified Registry
+from core.agents.unified_registry import (
+    AgentDescriptor,
+    AgentProvider,
+    AgentCapability,
+    UnifiedAgentRegistry
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +40,7 @@ class InferenceConfig:
     """V8.1.8-B: Model inference configuration for spawned agent."""
     provider: str  # "gemini" or "claude"
     model: str     # e.g., "gemini-2.5-flash", "claude-sonnet-4-5-20250929"
-    reasoning: Optional[str] = None  # Why this model was chosen
+    reasoning: Optional[str] = None
 
 
 @dataclass
@@ -47,40 +55,25 @@ class SpawnedAgentConfig:
     tools_priority: List[str]
     workspace_path: Path
     system_prompt_path: Optional[Path] = None
-    # V8.1.8: Unique identifier for agent tracking
     uuid: Optional[str] = None
-    # V8.1.8-B: Model inference configuration
     inference: Optional[InferenceConfig] = None
 
 
 class SpawnedAgentLoader:
     """
     Discovers and loads spawned agents from workspace/agents/.
-
-    Each spawned agent directory must contain:
-    - BIRTH_CERTIFICATE.json (required)
-    - system_prompt.md (optional, for specialized prompts)
-    - workspace/ (agent's working directory)
     """
 
-    PROVIDER_SPAWNED = "spawned"
-
     def __init__(self, workspace_path: Path):
-        """
-        Initialize loader with workspace path.
-
-        Args:
-            workspace_path: Path to NEXUS workspace (contains agents/)
-        """
         self.workspace_path = Path(workspace_path)
         self.agents_dir = self.workspace_path / "agents"
 
-    def discover_spawned_agents(self) -> List[AgentProfile]:
+    def discover_spawned_agents(self) -> List[AgentDescriptor]:
         """
-        Scan workspace/agents/ and create AgentProfile for each spawned agent.
-
+        Scan workspace/agents/ and create AgentDescriptors.
+        
         Returns:
-            List of AgentProfile objects ready for registration in AgentPool
+            List of V12.4 AgentDescriptor objects.
         """
         agents = []
 
@@ -93,30 +86,21 @@ class SpawnedAgentLoader:
                 continue
 
             try:
-                profile = self._load_agent_from_dir(agent_dir)
-                if profile:
-                    agents.append(profile)
-                    logger.info(f"Discovered spawned agent: {profile.agent_id}")
+                descriptor = self._load_agent_from_dir(agent_dir)
+                if descriptor:
+                    agents.append(descriptor)
+                    logger.info(f"Discovered spawned agent: {descriptor.id}")
             except Exception as e:
                 logger.warning(f"Failed to load agent from {agent_dir}: {e}")
 
         logger.info(f"Discovered {len(agents)} spawned agents")
         return agents
 
-    def _load_agent_from_dir(self, agent_dir: Path) -> Optional[AgentProfile]:
-        """
-        Load a single agent from its directory.
-
-        Args:
-            agent_dir: Path to agent directory (workspace/agents/<agent_id>/)
-
-        Returns:
-            AgentProfile or None if invalid
-        """
+    def _load_agent_from_dir(self, agent_dir: Path) -> Optional[AgentDescriptor]:
+        """Load a single agent descriptor from directory."""
         cert_file = agent_dir / "BIRTH_CERTIFICATE.json"
 
         if not cert_file.exists():
-            logger.debug(f"No BIRTH_CERTIFICATE.json in {agent_dir}")
             return None
 
         try:
@@ -125,51 +109,62 @@ class SpawnedAgentLoader:
             logger.warning(f"Invalid JSON in {cert_file}: {e}")
             return None
 
-        # Extract config from certificate
         config = self._parse_birth_certificate(cert_data, agent_dir)
         if not config:
             return None
 
-        # Create AgentProfile
-        profile = AgentProfile(
-            agent_id=config.agent_id,
-            provider=self.PROVIDER_SPAWNED,
-            model=f"spawned_{config.agent_id}",
-            capabilities=config.domains if config.domains else ["general"],
-            is_active=True,
-            uuid=config.uuid  # V8.2.0: Propagate UUID from BIRTH_CERTIFICATE
+        # Map capabilities string -> Enum
+        capabilities = self._map_capabilities(config.domains)
+
+        # Create AgentDescriptor (V12.4)
+        return AgentDescriptor(
+            id=config.agent_id,
+            provider=AgentProvider.SPAWNED,
+            display_name=config.role,
+            capabilities=capabilities,
+            config_path=cert_file,
+            is_available=True
         )
 
-        return profile
+    def _map_capabilities(self, domains: List[str]) -> List[AgentCapability]:
+        """Map string domains to AgentCapability Enum."""
+        caps = []
+        for d in domains:
+            d_lower = d.lower()
+            if "coding" in d_lower or "dev" in d_lower:
+                caps.append(AgentCapability.CODING)
+            elif "research" in d_lower or "search" in d_lower:
+                caps.append(AgentCapability.RESEARCH)
+            elif "analy" in d_lower or "data" in d_lower:
+                caps.append(AgentCapability.ANALYSIS)
+            elif "creative" in d_lower:
+                caps.append(AgentCapability.CREATIVE)
+            else:
+                caps.append(AgentCapability.GENERAL)
+        # Ensure at least GENERAL
+        if not caps:
+            caps.append(AgentCapability.GENERAL)
+        return list(set(caps))
 
     def _parse_birth_certificate(
         self,
         cert_data: Dict[str, Any],
         agent_dir: Path
     ) -> Optional[SpawnedAgentConfig]:
-        """
-        Parse BIRTH_CERTIFICATE.json into SpawnedAgentConfig.
-
-        Handles both flat and nested certificate formats.
-        """
-        # Handle nested format (birth_certificate wrapper)
+        """Parse BIRTH_CERTIFICATE.json into SpawnedAgentConfig."""
         if "birth_certificate" in cert_data:
             cert_data = cert_data["birth_certificate"]
 
         agent_id = cert_data.get("agent_id")
         if not agent_id:
-            logger.warning(f"Missing agent_id in {agent_dir}")
             return None
 
-        # Extract specialization info
         specialization = cert_data.get("specialization", {})
-
-        # Check for system prompt
+        
         system_prompt_path = agent_dir / "system_prompt.md"
         if not system_prompt_path.exists():
             system_prompt_path = None
 
-        # V8.1.8-B: Parse inference configuration
         inference_data = cert_data.get("inference")
         inference_config = None
         if inference_data and isinstance(inference_data, dict):
@@ -183,103 +178,65 @@ class SpawnedAgentLoader:
             agent_id=agent_id,
             role=cert_data.get("role", agent_id),
             created_at=cert_data.get("created_at", ""),
-            parent=cert_data.get("parent", "NEXUS_V7.5"),
+            parent=cert_data.get("parent", "NEXUS"),
             mission=specialization.get("mission", f"Specialized agent: {agent_id}"),
             domains=specialization.get("domains", []),
             tools_priority=specialization.get("tools_priority", []),
             workspace_path=agent_dir,
             system_prompt_path=system_prompt_path,
-            # V8.1.8: Extract UUID if present
             uuid=cert_data.get("uuid"),
-            # V8.1.8-B: Model inference configuration
             inference=inference_config,
         )
-
-    def load_agent_config(self, agent_id: str) -> Optional[SpawnedAgentConfig]:
-        """
-        Load configuration for a specific agent by ID.
-
-        Used by invocation adapter to get agent details.
-
-        Args:
-            agent_id: Agent identifier
-
-        Returns:
-            SpawnedAgentConfig or None if not found
-        """
-        agent_dir = self.agents_dir / agent_id
-
-        if not agent_dir.exists():
-            return None
-
-        cert_file = agent_dir / "BIRTH_CERTIFICATE.json"
-        if not cert_file.exists():
-            return None
-
-        try:
-            cert_data = json.loads(cert_file.read_text(encoding='utf-8'))
-            return self._parse_birth_certificate(cert_data, agent_dir)
-        except Exception as e:
-            logger.warning(f"Failed to load config for {agent_id}: {e}")
-            return None
-
+    
     def load_system_prompt(self, agent_id: str) -> Optional[str]:
-        """
-        Load the specialized system prompt for an agent.
-
-        Args:
-            agent_id: Agent identifier
-
-        Returns:
-            System prompt content or None if not found
-        """
+        """Legacy helper: Load system prompt by ID."""
         prompt_file = self.agents_dir / agent_id / "system_prompt.md"
-
-        if not prompt_file.exists():
-            return None
-
-        try:
+        if prompt_file.exists():
             return prompt_file.read_text(encoding='utf-8')
-        except Exception as e:
-            logger.warning(f"Failed to load system prompt for {agent_id}: {e}")
-            return None
-
-    def get_agent_workspace(self, agent_id: str) -> Optional[Path]:
-        """
-        Get the workspace directory for an agent.
-
-        Args:
-            agent_id: Agent identifier
-
-        Returns:
-            Path to agent's workspace or None
-        """
-        workspace = self.agents_dir / agent_id / "workspace"
-
-        if workspace.exists():
-            return workspace
-
         return None
+
+    def register_agents(self, registry_or_pool: Any) -> int:
+        """
+        Polyglot registration: Handles both UnifiedAgentRegistry and AgentPool.
+        """
+        descriptors = self.discover_spawned_agents()
+        count = 0
+
+        # Case 1: V12 UnifiedAgentRegistry
+        if isinstance(registry_or_pool, UnifiedAgentRegistry) or hasattr(registry_or_pool, 'is_gemini'):
+            for desc in descriptors:
+                registry_or_pool.register(desc)
+                count += 1
+            return count
+
+        # Case 2: V7 AgentPool (Legacy Bridge)
+        # Check for 'get_active_agents' which applies to AgentPool
+        if hasattr(registry_or_pool, 'get_active_agents'):
+            for desc in descriptors:
+                # Convert Descriptor -> Profile
+                profile = AgentProfile(
+                    agent_id=desc.id,
+                    provider="spawned",  # String literal for legacy
+                    model=f"spawned_{desc.id}",
+                    capabilities=[c.value for c in desc.capabilities],
+                    is_active=desc.is_available,
+                    uuid=None  # Can be fetched from birth cert re-read if needed, or added to Descriptor
+                )
+                registry_or_pool.register(profile)
+                count += 1
+            return count
+        
+        logger.warning(f"Unknown registry type: {type(registry_or_pool)}")
+        return 0
 
 
 def discover_and_register_spawned_agents(
     workspace_path: Path,
-    agent_pool: "AgentPool"
+    agent_pool: Any  # Can be AgentPool or UnifiedAgentRegistry
 ) -> int:
     """
     Convenience function to discover and register all spawned agents.
-
-    Args:
-        workspace_path: Path to NEXUS workspace
-        agent_pool: AgentPool to register agents into
-
-    Returns:
-        Number of agents registered
+    Now supports both legacy AgentPool and UnifiedAgentRegistry.
     """
     loader = SpawnedAgentLoader(workspace_path)
-    agents = loader.discover_spawned_agents()
-
-    for profile in agents:
-        agent_pool.register(profile)
-
-    return len(agents)
+    return loader.register_agents(agent_pool)

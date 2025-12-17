@@ -5,59 +5,42 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, os.getcwd())
 
-from core.agents.unified_registry import UnifiedAgentRegistry, AgentProvider, AgentDescriptor, AgentCapability
-from core.bootstrap.agent_loader import SpawnedAgentLoader
+from core.agents.unified_registry import UnifiedAgentRegistry, AgentDescriptor, AgentProvider
+from core.bootstrap.agent_loader import discover_and_register_spawned_agents
 
-def verify_spawn():
-    print("Initializing registry...")
+def verify_standardization():
+    print("Initializing V12 UnifiedAgentRegistry...")
     registry = UnifiedAgentRegistry()
     
     workspace_path = Path("workspace")
     print(f"Scanning workspace: {workspace_path.absolute()}")
     
-    loader = SpawnedAgentLoader(workspace_path)
-    profiles = loader.discover_spawned_agents()
+    # NEW: Direct registration - no adapter needed!
+    count = discover_and_register_spawned_agents(workspace_path, registry)
+    print(f"Registered {count} agents directly into Registry.")
     
-    print(f"Loader found {len(profiles)} profiles")
-    
-    for profile in profiles:
-        print(f"Converting profile: {profile.agent_id}")
-        
-        # Map capabilities string to Enum
-        caps = []
-        for c in profile.capabilities:
-            try:
-                # Simple mapping based on string
-                if "coding" in c: caps.append(AgentCapability.CODING)
-                elif "research" in c: caps.append(AgentCapability.RESEARCH)
-                elif "analysis" in c: caps.append(AgentCapability.ANALYSIS)
-                elif "creative" in c: caps.append(AgentCapability.CREATIVE)
-                else: caps.append(AgentCapability.GENERAL)
-            except:
-                caps.append(AgentCapability.GENERAL)
-        
-        descriptor = AgentDescriptor(
-            id=profile.agent_id,
-            provider=AgentProvider.SPAWNED,
-            display_name=profile.agent_id.replace('_', ' ').title(),
-            capabilities=caps,
-            is_available=True
-        )
-        registry.register(descriptor)
-    
+    # Verify Python Specialist
     specialist = registry.get("python_specialist")
     if specialist:
         print(f"\nSUCCESS: Found {specialist.display_name}")
         print(f"Provider: {specialist.provider}")
         print(f"Capabilities: {specialist.capabilities}")
-        return True
+        print(f"Config Path: {specialist.config_path}")
+        
+        # Verify it's really an AgentDescriptor
+        if isinstance(specialist, AgentDescriptor):
+            print("Type Check: PASSED (is AgentDescriptor)")
+            return True
+        else:
+            print(f"Type Check: FAILED (got {type(specialist)})")
+            return False
     else:
         print("\nFAILURE: Python Specialist not found in registry")
         return False
 
 if __name__ == "__main__":
     try:
-        if verify_spawn():
+        if verify_standardization():
             print("VERIFICATION PASSED")
             sys.exit(0)
         else:
