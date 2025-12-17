@@ -1,45 +1,36 @@
-# Cycle 003: Neural Upgrade - Proactive Intuition Activation
+# Cycle 004: Specialization (Genesis)
 
 > **Execute Date**: 2025-12-17
 > **Status**: ✅ SUCCESS
-> **Upgrade Type**: Cognitive Architecture Refactoring
+> **Upgrade Type**: Agent Swarm Expansion
 
-## 🧠 The Upgrade
-We successfully performed "Brain Surgery" on the NEXUS Core to replace the legacy, reactive stagnation detection system with the new **Proactive Stagnation Predictor** (V12.4).
+## 🐣 The Genesis
+We have successfully initialized the **Specialized Agent Subsystem**, transforming NEXUS from a dual-core (Gemini/Claude) system into an extensible **Swarm**.
 
-### Before (Legacy)
-- **Component**: `StagnationDetector` (V8.0)
-- **Mechanism**: Counted identical messages in a row.
-- **Response**: Reactive. Wait for 3-4 loops before triggering "Stagnation detected".
-- **Bug Found**: The `handle_brainstorming` loop was **resetting the detector every turn**, effectively giving the agent "Goldfish Memory". It could only detect stagnation if the *exact same turn* looped instantly (rare).
+### 1. Infrastructure
+- Created `workspace/agents/` directory (Agent Incubator).
+- Updated `.gitignore` to allow version control of spawned agents while ignoring transient workspace data. This ensures agents are persistent knowledge artifacts.
 
-### After (V12.4)
-- **Component**: `StagnationPredictor` (V12.4)
-- **Mechanism**: Trajectory Analysis + Leading Indicators.
-    - Detects phrases like "Let me think", diminishing message length, and tool mentions without use.
-    - Calculates a probability curve (0.0 - 1.0).
-- **Response**: Proactive Gradients.
-    - **NUDGE** (0.25+): Gentle reminder ("We seem to be talking, let's use a tool").
-    - **INTERVENE** (0.40+): Full stop and strategy reset.
-- **Correction**: The "Goldfish Memory" reset was removed. The Predictor now maintains a valid context window across turns.
+### 2. The Firstborn: `python_specialist`
+We manually "spawned" the first specialized agent to validate the pipeline.
 
-## 🛠️ Changes Implemented
+- **Role**: Python 3.13 Specialist
+- **Mission**: Produce reference-quality, typed, async-aware Python code.
+- **DNA**:
+    - `system_prompt.md`: Hardcoded for modern Python (Pydantic V2, Pathlib, Asyncio).
+    - `BIRTH_CERTIFICATE.json`: Metadata for registry discovery.
 
-### 1. OrchestratorV7 (`core/orchestration_v7.py`)
-- **Wiring**: Replaced `StagnationDetector` imports and initialization with `StagnationPredictor`.
-- **Logic**: Implemented `_handle_prediction(result)` to handle `NUDGE` vs `INTERVENE` levels.
+### 3. Registry Integration
+- Discovered a mismatch between the legacy `SpawnedAgentLoader` (returning `AgentProfile`) and the new `UnifiedAgentRegistry` (expecting `AgentDescriptor`).
+- Created `verify_genesis.py` with an adapter layer to prove that these agents *can* be loaded and registered dynamically.
 
-### 2. FSM Handlers (`core/orchestration/fsm_handlers.py`)
-- **Integration**: Updated `handle_brainstorming` and `handle_evolution_brainstorm` to query `predict()`.
-- **Score**: Updated DyLAN quality scoring to penalize only on `INTERVENE`.
-- **Fix**: Removed incorrect `reset()` logic in the main loop.
+## 🚀 Impact
+NEXUS can now delegate tasks to specialized personas.
+- **Example**: "Hey Python Specialist, refactor this module." -> The system can now route this request to the `python_specialist` agent, who has a stricter, improved system prompt compared to the generalist.
 
-### 3. Verification
-- **Automated Test**: Created `tests/test_neural_integration.py`.
-- **Result**: PASSED. Confirms correct wiring and logic flow.
+## ⚠️ Identified Tech Debt
+- **Legacy Loader**: `core/bootstrap/agent_loader.py` needs to be updated to natively return `AgentDescriptor` objects to match V12.4 architecture. Currently, it requires an adapter.
 
-## 📉 Impact
-The agent will now self-correct *before* getting stuck in infinite loops, reducing token waste and improving autonomy in complex tasks.
-
-## ⏭️ Next Steps (Cycle 004)
-- **Genesis**: Initialize `workspace/agents/` and spawn the first Specialized Agent (Context-Aware).
+## ⏭️ Next Steps
+- **Cycle 005**: Refactor `agent_loader.py` to eliminate the mismatch.
+- **Usage**: Integrate `python_specialist` into the active `AgentPool` for real tasks.
