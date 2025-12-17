@@ -98,7 +98,7 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 |---|---------|-------------|--------|
 | 1 | **Fast Path** | Bypass FSM for trivial inputs (hello, thanks, ok) | ✅ DONE (config.py) |
 | 2 | **EPHEMERAL Sessions** | Skip persistence for TRIVIAL tasks | ✅ WIRED |
-| 3 | **Cold Storage** | Save raw history before LLM compression | ❌ TODO |
+| 3 | **Cold Storage** | Save raw history before LLM compression | ✅ DONE (context_manager.py) |
 | 4 | **Rate Limiting** | TokenBucket per-provider (Claude 50 RPM, Gemini 60 RPM) | ✅ DONE (api/rate_limiter.py) |
 | 5 | **TaskAnalysis.reasoning** | Add traceability field to TaskAnalysis | ❌ TODO |
 | 6 | **Unified Analysis Adapter** | Bidirectional TaskAnalysis ↔ IndependentAnalysis | ❌ TODO |

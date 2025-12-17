@@ -92,17 +92,22 @@ class HiveMindContextManager:
         "default": 8000,
     }
 
-    def __init__(self, max_tokens: int = 50000):
+    def __init__(self, max_tokens: int = 50000, cold_storage_path: Path = None):
         """
         Initialize context manager.
 
         Args:
             max_tokens: Maximum total tokens to maintain
+            cold_storage_path: Path to save evicted items (V10.2 Cold Storage)
         """
         self.max_tokens = max_tokens
         self._items: deque[ContextItem] = deque()
         self._current_tokens = 0
         self._archived_insights: List[Dict] = []  # Insights to index in RAG
+        
+        # V10.2: Cold Storage - save raw history before eviction
+        self._cold_storage_path = cold_storage_path
+        self._evicted_items: List[Dict] = []  # Buffer before flush
 
     @property
     def current_tokens(self) -> int:
@@ -170,6 +175,7 @@ class HiveMindContextManager:
     def _evict_one(self) -> bool:
         """
         Evict one item based on priority and age.
+        V10.2: Saves to cold storage before eviction.
 
         Returns:
             True if an item was evicted, False if nothing to evict
@@ -188,6 +194,10 @@ class HiveMindContextManager:
 
         # Remove the best candidate
         idx, item = candidates[0]
+        
+        # V10.2: Save to cold storage before eviction
+        self._save_to_cold_storage(item)
+        
         del self._items[idx]
         self._current_tokens -= item.token_estimate
 
@@ -196,8 +206,77 @@ class HiveMindContextManager:
             f"(priority: {item.priority.name}, {item.token_estimate} tokens)"
         )
         return True
-
-    # Convenience methods for common operations
+    
+    def _save_to_cold_storage(self, item: ContextItem) -> None:
+        """
+        V10.2: Save evicted item to cold storage buffer.
+        
+        Args:
+            item: The context item being evicted
+        """
+        evicted_data = {
+            "category": item.category,
+            "source": item.source,
+            "content": item.content,
+            "priority": item.priority.name,
+            "timestamp": item.timestamp.isoformat(),
+            "token_estimate": item.token_estimate,
+            "metadata": item.metadata,
+            "evicted_at": datetime.now().isoformat()
+        }
+        self._evicted_items.append(evicted_data)
+        logger.debug(f"Cold storage: saved {item.category}/{item.source}")
+    
+    def flush_cold_storage(self, session_id: str = None) -> int:
+        """
+        V10.2: Flush cold storage buffer to disk.
+        
+        Saves all evicted items to a JSON file for later analysis
+        or recovery if needed.
+        
+        Args:
+            session_id: Optional session identifier for the filename
+            
+        Returns:
+            Number of items flushed
+        """
+        if not self._evicted_items:
+            return 0
+        
+        if not self._cold_storage_path:
+            logger.debug("Cold storage path not configured, skipping flush")
+            return 0
+        
+        try:
+            from pathlib import Path
+            import json
+            
+            # Ensure directory exists
+            cold_dir = Path(self._cold_storage_path)
+            cold_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"cold_storage_{session_id or 'unknown'}_{timestamp}.json"
+            filepath = cold_dir / filename
+            
+            # Write to file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "session_id": session_id,
+                    "flushed_at": datetime.now().isoformat(),
+                    "items_count": len(self._evicted_items),
+                    "items": self._evicted_items
+                }, f, indent=2, ensure_ascii=False)
+            
+            count = len(self._evicted_items)
+            self._evicted_items.clear()
+            logger.info(f"Cold storage: flushed {count} items to {filepath}")
+            return count
+            
+        except Exception as e:
+            logger.warning(f"Cold storage flush failed: {e}")
+            return 0
 
     def add_task(self, task: str):
         """Add task definition (CRITICAL priority)."""
