@@ -78,6 +78,17 @@ Transform NEXUS from prototype to **deployable collaborative intelligence** with
 | Enable Fast Path | `fsm_handlers.py` | 1 day | ✅ DONE |
 | Rate Limiting | `core/api/rate_limiter.py` | 2 days | ✅ DONE |
 | Recovery Manager | `core/hive_mind/saga_manager.py` | 3 days | ✅ DONE (V10.2) |
+| Cold Storage | `context_manager.py` | 1 day | ✅ DONE (V10.2) |
+| TaskAnalysis.reasoning | `task_analyzer.py` | 1 day | ✅ DONE (V10.2) |
+
+### Priority 5: Split Monolithic Files 📦 (V10.2)
+
+| File | New Package | Files | Lines |
+|------|-------------|-------|-------|
+| `fsm_handlers.py` (74KB) | `handlers/` | 8 | ~640 |
+| `repl.py` (74KB) | `repl/` | 7 | ~520 |
+| `tool_manager.py` (63KB) | `tools/` | 6 | ~630 |
+| **Total** | | **21** | **~1790** |
 
 ### Priority 4: Security Hardening 🔒
 
