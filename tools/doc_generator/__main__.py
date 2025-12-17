@@ -158,7 +158,19 @@ def cmd_generate(args: argparse.Namespace, config: DocGeneratorConfig) -> int:
     if config.generate_readmes:
         readme_gen = ReadmeGenerator(config)
         readme_count = 0
-        for folder in folders:
+
+        # V13.0: Bottom-up traversal (deepest directories first)
+        # This ensures child READMEs are generated before parents
+        sorted_folders = sorted(
+            folders,
+            key=lambda f: len(f.path.parts),
+            reverse=True  # Deepest first
+        )
+
+        if config.verbose:
+            print("  [V13.0] Using bottom-up traversal (leaves -> root)")
+
+        for folder in sorted_folders:
             if folder.is_python_package or folder.python_files:
                 try:
                     readme_gen.generate_for_folder(folder, modules, dep_graph)

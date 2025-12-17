@@ -177,7 +177,7 @@ class ReadmeGenerator:
         else:
             return self._generate_simple_package_readme(
                 folder, modules, docstring, total_loc, total_classes,
-                total_functions, class_diagram
+                total_functions, class_diagram, dep_graph
             )
 
     def _generate_simple_readme(
@@ -222,54 +222,141 @@ class ReadmeGenerator:
         total_loc: int,
         total_classes: int,
         total_functions: int,
-        class_diagram: Optional[str]
+        class_diagram: Optional[str],
+        dep_graph=None
     ) -> str:
-        """Generate package README without Jinja2."""
+        """
+        Generate package README without Jinja2.
+
+        V13.0: Now follows the documentation prompt structure:
+        - SYNOPSIS
+        - COMPONENT MAP (Mermaid)
+        - INTERACTION MATRIX
+        - HIERARCHY
+        """
         lines = [f"# {folder.name}", ""]
 
+        # =========================================================================
+        # SYNOPSIS (V13.0)
+        # =========================================================================
+        lines.append("## Synopsis")
+        lines.append("")
         if docstring:
             lines.append(docstring)
-            lines.append("")
-
-        lines.append("## Overview")
+        else:
+            lines.append(f"Component located at `{folder.path}`.")
         lines.append("")
+
+        # Quick stats
         lines.append("| Metric | Value |")
         lines.append("|--------|-------|")
-        lines.append(f"| **Path** | `{folder.path}` |")
         lines.append(f"| **Modules** | {len(modules)} |")
-        lines.append(f"| **Lines of Code** | {total_loc} |")
+        lines.append(f"| **Lines of Code** | {total_loc:,} |")
         lines.append(f"| **Classes** | {total_classes} |")
         lines.append(f"| **Functions** | {total_functions} |")
         lines.append("")
 
+        # =========================================================================
+        # COMPONENT MAP (Mermaid) - V13.0
+        # =========================================================================
         if class_diagram:
-            lines.append("## Architecture")
+            lines.append("## Component Map")
             lines.append("")
             lines.append("```mermaid")
             lines.append(class_diagram)
             lines.append("```")
             lines.append("")
 
+        # =========================================================================
+        # INTERACTION MATRIX (V13.0 - NEW)
+        # =========================================================================
+        lines.append("## Interaction Matrix")
+        lines.append("")
+        lines.append("| Component/File | Calls (Outbound) | Called By (Inbound) | Data Type |")
+        lines.append("|----------------|------------------|---------------------|-----------|")
+
+        for m in modules:
+            if m.name == "__init__":
+                continue
+
+            # Get interaction data from dependency graph builder
+            module_name = str(folder.path / m.name).replace("\\", "/").replace("/", ".")
+            if module_name.endswith(".py"):
+                module_name = module_name[:-3]
+
+            # Collect outbound/inbound from calls
+            outbound_calls = set()
+            inbound_calls = set()
+
+            for call in m.calls:
+                if call.callee_module:
+                    outbound_calls.add(f"{call.callee_module}.{call.callee}")
+                else:
+                    outbound_calls.add(call.callee)
+
+            # Format for table
+            outbound_str = ", ".join(sorted(outbound_calls)[:3])
+            if len(outbound_calls) > 3:
+                outbound_str += f" (+{len(outbound_calls) - 3})"
+            if not outbound_str:
+                outbound_str = "-"
+
+            # Inbound would need cross-module analysis (simplified here)
+            inbound_str = "-"
+
+            # Data types from imports
+            data_types = set()
+            for imp in m.imports:
+                if imp.is_from and any(n[0].isupper() for n in imp.names):
+                    data_types.update(n for n in imp.names if n[0].isupper())
+            data_type_str = ", ".join(sorted(data_types)[:3]) if data_types else "-"
+            if len(data_types) > 3:
+                data_type_str += f" (+{len(data_types) - 3})"
+
+            lines.append(f"| `{m.name}` | {outbound_str} | {inbound_str} | {data_type_str} |")
+
+        lines.append("")
+
+        # =========================================================================
+        # HIERARCHY (V13.0 - NEW)
+        # =========================================================================
+        lines.append("## Hierarchy")
+        lines.append("")
+
+        # Parent path
+        parent_parts = folder.path.parts[:-1] if folder.path.parts else []
+        if parent_parts:
+            parent_path = "/".join(parent_parts)
+            lines.append(f"**Parent**: [`{parent_path}/`](../README.md)")
+        else:
+            lines.append("**Parent**: Repository root")
+        lines.append("")
+
+        # Current folder
+        lines.append(f"**Current**: `{folder.path}/`")
+        lines.append("")
+
+        # Subfolders
+        if folder.subfolders:
+            lines.append("**Children**:")
+            for sf in folder.subfolders:
+                lines.append(f"- [`{sf.name}/`]({sf.name}/README.md)")
+            lines.append("")
+
+        # Module list
         if modules:
-            lines.append("## Modules")
+            lines.append("**Modules**:")
             lines.append("")
             lines.append("| Module | Description | Classes | Functions |")
             lines.append("|--------|-------------|---------|-----------|")
-            for m in modules:
+            for m in sorted(modules, key=lambda x: x.name):
                 if m.name != "__init__":
                     summary = self._get_summary(m.docstring) or "_No description_"
                     lines.append(f"| `{m.name}` | {summary} | {m.class_count} | {m.function_count} |")
             lines.append("")
 
-        if folder.subfolders:
-            lines.append("## Subpackages")
-            lines.append("")
-            for sf in folder.subfolders:
-                lines.append(f"- [{sf.name}/]({sf.name}/README.md)")
-            lines.append("")
-
         lines.append("---")
-        lines.append(f"*Auto-generated by nexus-doc-generator - {datetime.now().strftime('%Y-%m-%d')}*")
+        lines.append(f"*Auto-generated by nexus-doc-generator V13.0 - {datetime.now().strftime('%Y-%m-%d')}*")
 
         return "\n".join(lines)
 

@@ -198,7 +198,7 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 ## 📁 Project Structure
 
 ```
-NEXUS/                           # Root (V8.3.x TRUE HIVE MIND)
+NEXUS/                           # Root (V12.4 COGNITIVE BOOST)
 ├── core/                        # Core orchestration & modules
 │   ├── orchestration_v7.py      # Main FSM orchestrator
 │   ├── drivers/                 # Gemini & Claude drivers
@@ -275,11 +275,11 @@ cat workspace/logs/errors_YYYYMMDD.log
 
 ### Git Workflow:
 ```bash
-# Branch: N7C (V7 Chrysalis development branch)
-git checkout N7C
+# Branch: NX (main development branch)
+git checkout NX
 git add .
-git commit -m "feat(v7): description"
-git push origin N7C
+git commit -m "feat(V12.4): description"
+git push origin NX
 ```
 
 ---
@@ -348,17 +348,21 @@ git push origin N7C
 
 ---
 
-## 🧠 Orchestration Architecture (V8.3)
+## 🧠 Orchestration Architecture (V12.4)
 
-**V8.3 introduces two orchestration layers:**
+**NEXUS uses two orchestration layers:**
 
 ### 1. FSM States (Low-Level Orchestrator)
 ```
-IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
-         ↓                                      ↓
-    WAITING_USER ←─────────────────────── ERROR
-                                              ↓
-                                          PANIC
+IDLE -> BRAINSTORMING -> EXECUTING_TOOL -> VALIDATING_CFL -> IDLE
+         |                                      |
+    WAITING_USER <------------------------ ERROR
+         |                                      |
+    EVOLUTION_BRAINSTORM                    PANIC
+         |
+    SWARM_ANALYZING -> SWARM_NEGOTIATING -> SWARM_EXECUTING
+         |
+    HIBERNATE (V12.2 - WebSocket disconnect)
 ```
 
 | State | Description |
@@ -367,22 +371,29 @@ IDLE → BRAINSTORMING → EXECUTING_TOOL → VALIDATING_CFL → IDLE
 | `BRAINSTORMING` | Agents exchange TALK messages |
 | `EXECUTING_TOOL` | Tool execution (synchronous) |
 | `VALIDATING_CFL` | Cognitive Feedback Loop |
+| `EVOLUTION_BRAINSTORM` | Debate for emergent mutations (30 turns max) |
+| `WAITING_USER` | Task finished, awaiting next input |
 | `ERROR` | Recoverable (use `/reset`) |
 | `PANIC` | Fatal (restart required) |
+| `SWARM_ANALYZING` | Swarm analyzes task complexity |
+| `SWARM_NEGOTIATING` | Agents negotiate collaboration mode |
+| `SWARM_EXECUTING` | Executing negotiated mode |
+| `HIBERNATE` | V12.2 Dormant state (WebSocket disconnected) |
 
-### 2. HiveMind Pipeline (High-Level - V8.3)
+### 2. HiveMind Pipeline (High-Level - V12.4)
 ```
-Phase 1: ANALYSIS      → Independent analysis by both agents
-Phase 2: DEBATE        → Resolve disagreements (if needed)
-Phase 3: ARCHITECTURE  → Design execution plan
-Phase 4: EXECUTION     → Execute steps (+ SwarmBridge delegation)
-Phase 5: DIAGNOSIS     → Error analysis on failure
-Phase 6: CONSOLIDATION → Merge and summarize results
-Phase 7: COMPLETION    → Final state (HIVE_SUCCESS/HIVE_FAILED)
+Phase 1: ANALYSIS      -> Independent analysis by both agents
+Phase 2: DEBATE        -> Resolve disagreements (if needed)
+Phase 3: ARCHITECTURE  -> Design execution plan
+Phase 4: EXECUTION     -> Execute steps (+ SwarmBridge delegation)
+Phase 5: DIAGNOSIS     -> Error analysis on failure
+Phase 6: RETRY         -> Adaptive retry decision (retry/stop/escalate)
+Phase 7: CONSOLIDATION -> Knowledge archival, agent retention decisions
+Terminal: HIVE_SUCCESS / HIVE_FAILED / HIVE_ESCALATE
 ```
 
-**24 HiveMind States** (vs 11 FSM states):
-- `HIVE_IDLE`, `ANALYSIS_PENDING`, `ANALYSIS_IN_PROGRESS`, etc.
+**24 HiveMind States** (vs 12 FSM states):
+- `HIVE_GATING`, `HIVE_ANALYZING_GEMINI`, `HIVE_ANALYZING_CLAUDE`, `HIVE_DEBATING`, etc.
 - SwarmBridge: Delegation to 6 Swarm modes at any phase (V8.3.0+)
 
 ### SwarmBridge (V8.3.0+)
@@ -446,7 +457,7 @@ Agents build performance history used for intelligent routing:
 
 ## 📚 Key Documentation
 
-### Core Documents (V8.3)
+### Core Documents (V12.4)
 
 | Document | Purpose |
 |----------|---------|

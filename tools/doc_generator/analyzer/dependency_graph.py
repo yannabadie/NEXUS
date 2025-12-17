@@ -70,6 +70,7 @@ class DependencyGraphBuilder:
     def __init__(self, config: DocGeneratorConfig):
         self.config = config
         self.repo_root = config.repo_root
+        self._call_index = {}  # V13.0: Module -> CallInfo list
 
     def build(self, modules: list[ModuleInfo]) -> "nx.DiGraph | SimpleGraph":
         """
@@ -105,7 +106,84 @@ class DependencyGraphBuilder:
                 if target and target != module_name:
                     graph.add_edge(module_name, target, names=imp.names)
 
+        # V13.0: Build call index for INTERACTION MATRIX
+        self._build_call_index(modules, module_paths)
+
         return graph
+
+    def _build_call_index(
+        self,
+        modules: list[ModuleInfo],
+        module_paths: dict[str, ModuleInfo]
+    ) -> None:
+        """
+        Build an index of calls for INTERACTION MATRIX (V13.0).
+
+        Creates a mapping from module names to their outbound/inbound calls.
+        """
+        self._call_index = {}
+
+        for mod in modules:
+            module_name = self._path_to_module_name(mod.path)
+            self._call_index[module_name] = {
+                "outbound": [],  # Calls made from this module
+                "inbound": [],   # Calls received by this module
+                "internal": [],  # Internal calls within this module
+            }
+
+            for call in mod.calls:
+                # Determine if call is internal or external
+                if call.callee_module:
+                    # Try to resolve the callee module
+                    target_module = self._resolve_import(call.callee_module, module_paths)
+                    if target_module and target_module != module_name:
+                        # External call
+                        self._call_index[module_name]["outbound"].append({
+                            "caller": call.caller,
+                            "callee": f"{call.callee_module}.{call.callee}",
+                            "target_module": target_module,
+                            "line": call.line,
+                        })
+                    else:
+                        # Internal call
+                        self._call_index[module_name]["internal"].append({
+                            "caller": call.caller,
+                            "callee": call.callee,
+                            "line": call.line,
+                        })
+                else:
+                    # Direct function call - could be internal or imported
+                    self._call_index[module_name]["internal"].append({
+                        "caller": call.caller,
+                        "callee": call.callee,
+                        "line": call.line,
+                    })
+
+        # Build inbound references
+        for module_name, calls in self._call_index.items():
+            for out_call in calls["outbound"]:
+                target = out_call.get("target_module")
+                if target and target in self._call_index:
+                    self._call_index[target]["inbound"].append({
+                        "caller_module": module_name,
+                        "caller": out_call["caller"],
+                        "callee": out_call["callee"],
+                    })
+
+    def get_interaction_matrix(self, module_name: str) -> dict:
+        """
+        Get interaction data for INTERACTION MATRIX generation (V13.0).
+
+        Returns dict with:
+        - outbound: List of calls made to other modules
+        - inbound: List of calls received from other modules
+        - internal: List of internal calls within the module
+        """
+        return self._call_index.get(module_name, {
+            "outbound": [],
+            "inbound": [],
+            "internal": [],
+        })
 
     def _path_to_module_name(self, path: Path) -> str:
         """Convert file path to module name."""

@@ -182,6 +182,7 @@ class ModuleInfo:
     classes: list = field(default_factory=list)
     functions: list = field(default_factory=list)
     imports: list = field(default_factory=list)
+    calls: list = field(default_factory=list)  # V13.0: CallInfo list for INTERACTION MATRIX
     loc: int = 0
 
     @property
@@ -191,6 +192,10 @@ class ModuleInfo:
     @property
     def function_count(self) -> int:
         return len(self.functions)
+
+    @property
+    def call_count(self) -> int:
+        return len(self.calls)
 
 
 @dataclass
@@ -226,6 +231,18 @@ class ImportInfo:
     names: list[str] = field(default_factory=list)
     is_from: bool = False
     line: int = 0
+
+
+@dataclass
+class CallInfo:
+    """Information about a function/method call (V13.0 - INTERACTION MATRIX)."""
+
+    caller: str  # Function/method making the call
+    callee: str  # Function/method being called
+    callee_module: Optional[str] = None  # Module of callee if external
+    line: int = 0
+    is_method: bool = False  # True if method call (obj.method())
+    return_type: Optional[str] = None  # Inferred or annotated return type
 
 
 @dataclass

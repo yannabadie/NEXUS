@@ -13,6 +13,7 @@ from ..config import (
     ClassInfo,
     FunctionInfo,
     ImportInfo,
+    CallInfo,
 )
 
 
@@ -47,6 +48,7 @@ class PythonAnalyzer:
         classes = self._extract_classes(tree)
         functions = self._extract_functions(tree)
         imports = self._extract_imports(tree)
+        calls = self._extract_calls(tree)  # V13.0: INTERACTION MATRIX
 
         # Count lines
         loc = len(source.splitlines())
@@ -64,6 +66,7 @@ class PythonAnalyzer:
             classes=classes,
             functions=functions,
             imports=imports,
+            calls=calls,
             loc=loc,
         )
 
@@ -315,6 +318,112 @@ class PythonAnalyzer:
                     ))
 
         return imports
+
+    def _extract_calls(self, tree: ast.AST) -> list[CallInfo]:
+        """
+        Extract function/method calls for INTERACTION MATRIX (V13.0).
+
+        Walks the AST to find all Call nodes and determines:
+        - caller: The enclosing function/method
+        - callee: The function/method being called
+        - is_method: Whether it's a method call (obj.method())
+        """
+        calls = []
+
+        # Build a map of function/method nodes to their names
+        def get_caller_name(node: ast.AST) -> str:
+            """Walk up to find enclosing function/class context."""
+            for parent in ast.walk(tree):
+                if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    for child in ast.walk(parent):
+                        if child is node:
+                            return parent.name
+                elif isinstance(parent, ast.ClassDef):
+                    for child in ast.walk(parent):
+                        if child is node:
+                            return f"{parent.name}.<class>"
+            return "<module>"
+
+        # Visit all Call nodes
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                callee_name = None
+                is_method = False
+                callee_module = None
+
+                # Determine callee name
+                if isinstance(node.func, ast.Name):
+                    # Direct function call: foo()
+                    callee_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    # Method/attribute call: obj.method() or module.func()
+                    callee_name = node.func.attr
+                    is_method = True
+                    # Try to get the object/module name
+                    if isinstance(node.func.value, ast.Name):
+                        callee_module = node.func.value.id
+                    elif isinstance(node.func.value, ast.Attribute):
+                        callee_module = self._get_attribute_name(node.func.value)
+
+                if callee_name:
+                    # Find the caller context
+                    caller = self._find_caller_context(tree, node)
+
+                    calls.append(CallInfo(
+                        caller=caller,
+                        callee=callee_name,
+                        callee_module=callee_module,
+                        line=node.lineno,
+                        is_method=is_method,
+                    ))
+
+        return calls
+
+    def _find_caller_context(self, tree: ast.AST, target_node: ast.AST) -> str:
+        """Find the enclosing function/method/class for a node."""
+        # This is a simplified approach - walk through function/class defs
+        # and check if the target node is within their body
+
+        class CallerFinder(ast.NodeVisitor):
+            def __init__(self):
+                self.context_stack = []
+                self.found_context = "<module>"
+                self.target_line = target_node.lineno
+
+            def visit_ClassDef(self, node):
+                self.context_stack.append(node.name)
+                self.generic_visit(node)
+                self.context_stack.pop()
+
+            def visit_FunctionDef(self, node):
+                self._visit_function(node)
+
+            def visit_AsyncFunctionDef(self, node):
+                self._visit_function(node)
+
+            def _visit_function(self, node):
+                if self.context_stack:
+                    full_name = f"{'.'.join(self.context_stack)}.{node.name}"
+                else:
+                    full_name = node.name
+
+                self.context_stack.append(node.name)
+
+                # Check if target is in this function's range
+                if hasattr(node, 'end_lineno'):
+                    if node.lineno <= self.target_line <= node.end_lineno:
+                        self.found_context = full_name
+                else:
+                    # Fallback: check if line is after function start
+                    if node.lineno <= self.target_line:
+                        self.found_context = full_name
+
+                self.generic_visit(node)
+                self.context_stack.pop()
+
+        finder = CallerFinder()
+        finder.visit(tree)
+        return finder.found_context
 
     def get_public_api(self, module: ModuleInfo) -> dict:
         """
