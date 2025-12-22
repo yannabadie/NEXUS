@@ -56,7 +56,17 @@ class DeepSeekAdapter(DriverProtocol):
                 stream=False
             )
             
-            content = response.choices[0].message.content
+            # Extract Content
+            message_obj = response.choices[0].message
+            content = message_obj.content
+            
+            # Extract Reasoning (if available, e.g. for R1 model)
+            # OpenAI SDK field for DeepSeek reasoning is usually 'reasoning_content'
+            reasoning = getattr(message_obj, 'reasoning_content', None)
+            
+            if reasoning:
+                # Append reasoning to content for visibility in Nexus
+                content = f"<think>\n{reasoning}\n</think>\n\n{content}"
             
             return {
                 "sender": "DeepSeek",
