@@ -1,42 +1,60 @@
-# NEXUS V10 CEREBRO - Docker Compose
-# Redis 7 for event bus pub/sub
-#
-# Usage:
-#   docker-compose up -d redis    # Start Redis only
-#   docker-compose down           # Stop all services
-#   docker-compose logs redis     # View Redis logs
-
-version: "3.9"
+version: '3.8'
 
 services:
-  redis:
+  nexus-redis:
     image: redis:7-alpine
     container_name: nexus-redis
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --tcp-keepalive 60
-      --timeout 0
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - nexus-net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
+      retries: 5
+
+  nexus-core:
+    build:
+      context: .
+      dockerfile: core/Dockerfile
+    container_name: nexus-core
+    env_file:
+      - .env
+    volumes:
+      - ./workspace:/app/workspace
+      - ./interface:/app/interface
+    ports:
+      - "8000:8000"
+    depends_on:
+      nexus-redis:
+        condition: service_healthy
     networks:
-      - nexus-network
+      - nexus-net
+    environment:
+      - REDIS_HOST=nexus-redis
+      - REDIS_PORT=6379
+
+  nexus-cerebro:
+    build:
+      context: ./interface/ui/cerebro
+      dockerfile: Dockerfile
+    container_name: nexus-cerebro
+    ports:
+      - "3000:80"
+    depends_on:
+      - nexus-core
+    networks:
+      - nexus-net
+    environment:
+      # Note: Vite uses load-time env vars, Nginx needs runtime replacement if dynamic
+      - VITE_API_URL=http://localhost:8000
 
 networks:
-  nexus-network:
+  nexus-net:
     driver: bridge
 
 volumes:
   redis_data:
-    name: nexus-redis-data

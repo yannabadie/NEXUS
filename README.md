@@ -40,10 +40,10 @@ NEXUS is not just a tool - it's a **deployable intelligence core** designed to b
 │                    NEXUS CORE POWER                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│    ┌─────────────┐              ┌─────────────┐            │
-│    │   GEMINI    │◄────────────►│   CLAUDE    │            │
-│    │   3 Pro     │  Collaborate │  Opus 4.5   │            │
-│    └─────────────┘              └─────────────┘            │
+│    ┌─────────────┐              ┌───────────────────────────┐            │
+│    │   GEMINI    │◄────────────►│  CO-PILOT (DeepSeek/Claude)│           │
+│    │   Primary   │  Collaborate │  DeepSeek-R1 / Claude 3.5  │           │
+│    └─────────────┘              └───────────────────────────┘            │
 │           │                            │                    │
 │           └──────────┬─────────────────┘                    │
 │                      ▼                                      │
@@ -70,8 +70,19 @@ git clone https://github.com/your-org/nexus.git
 # Install dependencies
 pip install -r requirements.txt
 
-# Launch NEXUS
+# Launch with Docker (Recommended)
+docker compose up --build
+
+# Launch Locally (Python)
+pip install -r requirements.txt
 python nexus7.py
+```
+
+```
+nexus7> /status
+[System Online]
+  > Primary: Gemini-3-Pro (Online)
+  > Co-Pilot: DeepSeek-R1 (Online)
 ```
 
 ```
@@ -297,9 +308,20 @@ Additional protections:
 
 ## Requirements
 
-- Python 3.11+
-- API Keys: `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY`
-- Optional: Redis (for multi-instance), PostgreSQL (for persistence)
+- Python 3.13+
+- API Keys: `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY` (or `ANTHROPIC_API_KEY`)
+- Optional: Redis 7 (for Swarm State), Docker (for containerization)
+
+### Configuration (.env)
+```bash
+# Core
+GOOGLE_API_KEY=...
+DEEPSEEK_API_KEY=...
+
+# Co-Pilot Mode (DeepSeek R1 or Claude)
+NEXUS_CO_PILOT=DEEPSEEK
+NEXUS_DEEPSEEK_MODEL=deepseek-reasoner 
+```
 
 ```bash
 pip install -r requirements.txt

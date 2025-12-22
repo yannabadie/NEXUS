@@ -29,9 +29,14 @@ class DeepSeekAdapter(DriverProtocol):
             base_url="https://api.deepseek.com"
         )
         
-        # Default to 'deepseek-reasoner' (R1) as requested
-        default_model = getattr(global_config, 'deepseek_model', "deepseek-reasoner")
-        self.config = AdapterConfig(model=default_model)
+        # Priority: Env Var > Config > Default
+        env_model = os.getenv("NEXUS_DEEPSEEK_MODEL")
+        if env_model:
+            logger.info(f"DeepSeek Model Overridden via Env: {env_model}")
+            self.config = AdapterConfig(model=env_model)
+        else:
+            default_model = getattr(global_config, 'deepseek_model', "deepseek-reasoner")
+            self.config = AdapterConfig(model=default_model)
 
     async def invoke(self, prompt: str, **kwargs: Any) -> Dict[str, Any]:
         """
