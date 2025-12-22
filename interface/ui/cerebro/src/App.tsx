@@ -1,10 +1,22 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import Marketplace from './pages/Marketplace';
 import { api } from './api/client';
+
+const LoginRedirect = () => {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
+
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
+  return <Login />;
+};
 
 function AppRoutes() {
   const { getToken, isAuthenticated } = useAuth();
@@ -27,13 +39,21 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
+        element={<LoginRedirect />}
       />
       <Route
         path="/"
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/marketplace"
+        element={
+          <ProtectedRoute>
+            <Marketplace />
           </ProtectedRoute>
         }
       />
