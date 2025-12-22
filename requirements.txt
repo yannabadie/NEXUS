@@ -112,5 +112,11 @@ python-multipart>=0.0.9
 # - datetime, logging, functools
 #
 # System tools required (install separately):
-# - gemini CLI (Google AI)
-# - claude CLI (Anthropic)
+# - gemini CLI (Google AI) - TO BE REPLACED BY SDK
+# - claude CLI (Anthropic) - TO BE REPLACED BY SDK
+
+# =============================================================================
+# Cycle 011: Official SDKs (Iron Core)
+# =============================================================================
+anthropic>=0.18.0
+google-generativeai>=0.4.0

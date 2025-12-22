@@ -32,9 +32,13 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING
 
+from pathlib import Path
+from typing import Optional, Dict, Any, TYPE_CHECKING
+from core.async_primitives.process_handle import get_process_registry
+
+# Legacy Imports (Required for Dual Mode)
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
-from core.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
     from core.config import NexusConfig
@@ -67,57 +71,56 @@ class AsyncDriverFactory:
     def get_claude_driver(
         self,
         model: Optional[str] = None
-    ) -> AsyncClaudeDriver:
+    ):
         """
-        Get or create the Claude driver.
-
-        Args:
-            model: Optional model override (uses config default if None)
-
-        Returns:
-            AsyncClaudeDriver instance
+        Get or create the Claude user driver.
+        Supports both Official SDK (Preferred) and Legacy CLI.
         """
         if self._claude_driver is None:
-            config = AsyncClaudeDriverConfig(
-                cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
-                timeout=getattr(self.config, 'timeout', 300.0),
-                model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
-                workspace_path=self.workspace_path,
-                verbose=getattr(self.config, 'verbose', False),
-            )
-            self._claude_driver = AsyncClaudeDriver(config)
-        elif model:
-            # Update model if different
-            self._claude_driver.config.model = model
-
+            use_sdk = getattr(self.config, 'use_official_sdk', True)
+            
+            if use_sdk:
+                from core.drivers.api_adapters.anthropic_adapter import AnthropicAdapter
+                self._claude_driver = AnthropicAdapter(self.config)
+            else:
+                # Legacy CLI Driver
+                config = AsyncClaudeDriverConfig(
+                    cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
+                    timeout=getattr(self.config, 'timeout', 300.0),
+                    model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
+                    workspace_path=self.workspace_path,
+                    verbose=getattr(self.config, 'verbose', False),
+                )
+                self._claude_driver = AsyncClaudeDriver(config)
+            
         return self._claude_driver
 
     def get_gemini_driver(
         self,
         model: Optional[str] = None
-    ) -> AsyncGeminiDriver:
+    ):
         """
-        Get or create the Gemini driver.
-
-        Args:
-            model: Optional model override (uses config default if None)
-
-        Returns:
-            AsyncGeminiDriver instance
+        Get or create the Gemini user driver.
+        Supports both Official SDK (Preferred) and Legacy CLI.
         """
         if self._gemini_driver is None:
-            config = AsyncGeminiDriverConfig(
-                cli_path=getattr(self.config, 'gemini_cli_path', 'gemini'),
-                timeout=getattr(self.config, 'timeout', 300.0),
-                model=model or getattr(self.config, 'gemini_default_model', 'gemini-3-pro-preview'),
-                workspace_path=self.workspace_path,
-                verbose=getattr(self.config, 'verbose', False),
-                use_session_resume=getattr(self.config, 'gemini_persistent_mode', True),
-            )
-            self._gemini_driver = AsyncGeminiDriver(config)
-        elif model:
-            self._gemini_driver.config.model = model
-
+            use_sdk = getattr(self.config, 'use_official_sdk', True)
+            
+            if use_sdk:
+                from core.drivers.api_adapters.gemini_adapter import GeminiAdapter
+                self._gemini_driver = GeminiAdapter(self.config)
+            else:
+                # Legacy CLI Driver
+                config = AsyncGeminiDriverConfig(
+                    cli_path=getattr(self.config, 'gemini_cli_path', 'gemini'),
+                    timeout=getattr(self.config, 'timeout', 300.0),
+                    model=model or getattr(self.config, 'gemini_default_model', 'gemini-3-pro-preview'),
+                    workspace_path=self.workspace_path,
+                    verbose=getattr(self.config, 'verbose', False),
+                    use_session_resume=getattr(self.config, 'gemini_persistent_mode', True),
+                )
+                self._gemini_driver = AsyncGeminiDriver(config)
+            
         return self._gemini_driver
 
     def get_driver(
@@ -125,19 +128,6 @@ class AsyncDriverFactory:
         agent_id: str,
         model: Optional[str] = None
     ):
-        """
-        Get a driver by agent ID.
-
-        Args:
-            agent_id: "claude" or "gemini"
-            model: Optional model override
-
-        Returns:
-            Appropriate async driver
-
-        Raises:
-            ValueError: If agent_id is unknown
-        """
         agent_lower = agent_id.lower()
 
         if agent_lower == "claude":
