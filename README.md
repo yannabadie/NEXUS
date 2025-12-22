@@ -19,6 +19,10 @@
 [![Gemini](https://img.shields.io/badge/Gemini-3_Pro-blue.svg)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
+**Version**: 12.4.0 | **Status**: Active | **Last Updated**: 2025-12-22
+**Maintainer**: Yann Abadie | **Branch**: NX
+**Focus**: Product Polish, Generative UI, Robustness
+
 **NEXUS is a deployable collaborative intelligence that specializes based on context.**
 
 </div>

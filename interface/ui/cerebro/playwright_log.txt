@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+Running Generator...
+  Γ£ÿ  1 [chromium] ΓÇ║ tests\genesis.spec.ts:9:5 ΓÇ║ Project GENESIS (Generative UI) ΓÇ║ should generate and render a component locally (1.7s)
+
+
+  1) [chromium] ΓÇ║ tests\genesis.spec.ts:9:5 ΓÇ║ Project GENESIS (Generative UI) ΓÇ║ should generate and render a component locally 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeHidden[2m([22m[2m)[22m failed
+
+    Locator: locator('text=Initializing Quantum Core...')
+    Expected: hidden
+    Error: strict mode violation: locator('text=Initializing Quantum Core...') resolved to 2 elements:
+        1) <div class="mb-1 truncate animate-fade-in-up">ΓÇª</div> aka getByText('[6:23:23 PM]> Initializing').first()
+        2) <div class="mb-1 truncate animate-fade-in-up">ΓÇª</div> aka getByText('[6:23:23 PM]> Initializing').nth(1)
+
+    Call log:
+    [2m  - Expect "toBeHidden" with timeout 15000ms[22m
+    [2m  - waiting for locator('text=Initializing Quantum Core...')[22m
+
+
+      50 |         // New Cycle 010 loader messages
+      51 |         const loader = page.locator('text=Initializing Quantum Core...');
+    > 52 |         await expect(loader).toBeHidden({ timeout: 15000 }); // Increased timeout for "Amazing" delay
+         |                              ^
+      53 |
+      54 |         if (await page.locator('text=Waiting for Input...').isVisible()) {
+      55 |             console.error('Genesis Error: Stuck on Waiting for Input');
+        at C:\Projects\NEXUS-NX\NEXUS-NX-AG\interface\ui\cerebro\tests\genesis.spec.ts:52:30
+
+    Error Context: test-results\genesis-Project-GENESIS-Ge-f7e5d--render-a-component-locally-chromium\error-context.md
+
+  1 failed
+    [chromium] ΓÇ║ tests\genesis.spec.ts:9:5 ΓÇ║ Project GENESIS (Generative UI) ΓÇ║ should generate and render a component locally 

@@ -3,7 +3,7 @@
 **Goal**: Elevate the product to "Bulletproof" and "Amazing" status. Re-analyze entire codebase, sync documentation, and ensure frontend/backend excellence.
 
 ## 0. Strategic Consultation (Hive Mind)
-- [/] **Consult NEXUS Core**: Link with Real NEXUS (`nexus7.py`) to debate strategy.
+- [x] **Consult NEXUS Core**: Link with Real NEXUS (`nexus7.py`) to debate strategy.
     - [x] Launch CLI.
     - [x] Debating "Bulletproof" vs "New Features".
     - [x] Formalize Strategy.

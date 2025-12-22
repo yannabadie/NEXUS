@@ -1,0 +1,7 @@
+
+Running 1 test using 1 worker
+
+Running Generator...
+  Γ£ô  1 [chromium] ΓÇ║ tests\genesis.spec.ts:9:5 ΓÇ║ Project GENESIS (Generative UI) ΓÇ║ should generate and render a component locally (4.2s)
+
+  1 passed (7.5s)

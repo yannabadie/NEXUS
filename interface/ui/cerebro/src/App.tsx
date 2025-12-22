@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import Marketplace from './pages/Marketplace';
+import GenerativeCanvas from './pages/GenerativeCanvas';
 import { api } from './api/client';
 
 const LoginRedirect = () => {
@@ -19,7 +20,7 @@ const LoginRedirect = () => {
 };
 
 function AppRoutes() {
-  const { getToken, isAuthenticated } = useAuth();
+  const { getToken } = useAuth();
 
   // Connect API client to auth context
   useEffect(() => {
@@ -54,6 +55,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Marketplace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/genesis"
+        element={
+          <ProtectedRoute>
+            <GenerativeCanvas />
           </ProtectedRoute>
         }
       />

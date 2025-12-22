@@ -40,7 +40,9 @@ def run_backend_tests():
             [sys.executable, "-m", "pytest", "tests/test_simple.py", "-v"],
             cwd=PROJECT_ROOT,
             capture_output=True,
-            text=True
+            text=True,
+            encoding='utf-8',
+            errors='replace'
         )
         if result.returncode == 0:
             logger.info("✅ Backend Tests PASSED")
@@ -70,7 +72,9 @@ def run_frontend_tests():
             cwd=FRONTEND_DIR,
             shell=True,
             capture_output=True,
-            text=True
+            text=True,
+            encoding='utf-8',
+            errors='replace'
         )
         if result.returncode == 0:
             logger.info("✅ Frontend Tests PASSED")
