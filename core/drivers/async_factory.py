@@ -73,25 +73,34 @@ class AsyncDriverFactory:
         model: Optional[str] = None
     ):
         """
-        Get or create the Claude user driver.
-        Supports both Official SDK (Preferred) and Legacy CLI.
+        Get or create the Co-Pilot driver (Claude or DeepSeek).
+        Controlled by NEXUS_CO_PILOT env var (default: CLAUDE).
         """
         if self._claude_driver is None:
-            use_sdk = getattr(self.config, 'use_official_sdk', True)
+            # Check Co-Pilot Preference
+            import os
+            co_pilot = os.getenv("NEXUS_CO_PILOT", "CLAUDE").upper()
             
-            if use_sdk:
-                from core.drivers.api_adapters.anthropic_adapter import AnthropicAdapter
-                self._claude_driver = AnthropicAdapter(self.config)
+            if co_pilot == "DEEPSEEK":
+                from core.drivers.api_adapters.deepseek_adapter import DeepSeekAdapter
+                self._claude_driver = DeepSeekAdapter(self.config)
             else:
-                # Legacy CLI Driver
-                config = AsyncClaudeDriverConfig(
-                    cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
-                    timeout=getattr(self.config, 'timeout', 300.0),
-                    model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
-                    workspace_path=self.workspace_path,
-                    verbose=getattr(self.config, 'verbose', False),
-                )
-                self._claude_driver = AsyncClaudeDriver(config)
+                # Default: Claude
+                use_sdk = getattr(self.config, 'use_official_sdk', True)
+                
+                if use_sdk:
+                    from core.drivers.api_adapters.anthropic_adapter import AnthropicAdapter
+                    self._claude_driver = AnthropicAdapter(self.config)
+                else:
+                    # Legacy CLI Driver
+                    config = AsyncClaudeDriverConfig(
+                        cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
+                        timeout=getattr(self.config, 'timeout', 300.0),
+                        model=model or getattr(self.config, 'claude_sonnet_model', 'claude-sonnet-4-5-20250929'),
+                        workspace_path=self.workspace_path,
+                        verbose=getattr(self.config, 'verbose', False),
+                    )
+                    self._claude_driver = AsyncClaudeDriver(config)
             
         return self._claude_driver
 

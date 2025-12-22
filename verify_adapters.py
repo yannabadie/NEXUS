@@ -47,5 +47,16 @@ async def test_adapters():
         except:
             pass
 
+    # 3. Test DeepSeek (if configured)
+    try:
+        from core.drivers.api_adapters.deepseek_adapter import DeepSeekAdapter
+        logger.info("Initializing DeepSeekAdapter...")
+        # Note: Factory handles switching, but here we test direct class compatibility
+        ds = DeepSeekAdapter(config)
+        response = await ds.invoke("Hello from verify_adapters.py! Reply with 'DeepSeek Online'.")
+        logger.info(f"DeepSeek Response: {response['content']}")
+    except Exception as e:
+        logger.error(f"DeepSeek Failed: {e}")
+
 if __name__ == "__main__":
     asyncio.run(test_adapters())
