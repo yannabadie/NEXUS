@@ -294,7 +294,7 @@ Additional protections:
 ## Requirements
 
 - Python 3.11+
-- API Keys: `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY`
+- API Keys: `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY` OR your own subscription
 - Optional: Redis (for multi-instance), PostgreSQL (for persistence)
 
 ```bash
