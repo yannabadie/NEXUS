@@ -32,6 +32,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import logging
 
+from core.drivers.async_codex_driver import AsyncCodexDriver, AsyncCodexDriverConfig
+from core.drivers.async_opencode_driver import AsyncOpenCodeDriver, AsyncOpenCodeDriverConfig
+from core.security.path_guardian import PathGuardian
+
 # Use standard logging instead of structlog for compatibility
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -185,6 +189,12 @@ class MultiAIExecutor:
         self._opencode_driver: Optional[AsyncOpenCodeDriver] = None
         self._codex_driver: Optional[AsyncCodexDriver] = None
 
+        # Security: Path validation (fix CWE-22 path traversal)
+        self.path_guardian = PathGuardian(
+            workspace_path=self.workspace_path,
+            parent_path=self.workspace_path.parent
+        )
+
         # Setup paths
         self.state_path = self.workspace_path / config.state_file
         self.log_dir = self.workspace_path / config.log_dir
@@ -253,7 +263,21 @@ class MultiAIExecutor:
         self,
         stories: List[Dict]
     ) -> Dict[str, List[Dict]]:
-        """Group stories by their target provider."""
+        """Group stories by their target provider.
+
+        Routes each story to an optimal provider based on its category and groups
+        them for batch or parallel execution.
+
+        Args:
+            stories: A list of dictionaries representing the stories to be executed.
+
+        Returns:
+            A dictionary where keys are provider names (e.g. 'simple', 'opencode')
+            and values are lists of stories assigned to that provider.
+
+        Raises:
+            None
+        """
         groups: Dict[str, List[Dict]] = {
             "simple": [],
             "opencode": [],
@@ -274,12 +298,48 @@ class MultiAIExecutor:
 
         return groups
 
+    def _validate_and_resolve_path(self, file_path: str, operation: str = "read") -> Tuple[Optional[Path], Optional[str]]:
+        """
+        Validate and resolve file path to prevent path traversal attacks (CWE-22).
+        
+        Returns:
+            Tuple of (resolved_path, error_message)
+            If validation fails, returns (None, error_message)
+        """
+        try:
+            if operation == "read":
+                valid, resolved_path, msg = self.path_guardian.validate_read(file_path)
+            else:  # write
+                valid, resolved_path, msg = self.path_guardian.validate_write(file_path)
+            
+            if not valid:
+                return None, f"SECURITY: Path validation failed: {msg}"
+            
+            return resolved_path, None
+        except Exception as e:
+            return None, f"SECURITY: Path validation error: {str(e)}"
+
     # =========================================================================
     # Story Execution
     # =========================================================================
 
     async def _execute_simple(self, story: Dict) -> StoryResult:
-        """Execute simple story (dead import removal)."""
+        """Execute simple story (dead import removal).
+
+        Handles the removal of unused imports by parsing the file content and
+        removing lines matching the specified import.
+
+        Args:
+            story: A dictionary containing details about the task, including
+                'target_file', 'import_text', and optionally 'line_number'.
+
+        Returns:
+            A StoryResult object indicating success, failure, or skipped status,
+            along with execution duration and output.
+
+        Raises:
+            None: Exceptions are caught and returned as a FAILED StoryResult.
+        """
         import re
         start_time = time.time()
         story_id = story.get("story_id", "unknown")
@@ -290,9 +350,29 @@ class MultiAIExecutor:
             if not file_path_str:
                 file_path_str = story.get("target_files", [""])[0]
 
-            file_path = Path(file_path_str)
-            if not file_path.is_absolute():
-                file_path = self.workspace_path / file_path
+            if not file_path_str:
+                duration = time.time() - start_time
+                return StoryResult(
+                    story_id=story_id,
+                    category="dead_import",
+                    provider="simple",
+                    status="FAILED",
+                    duration_seconds=duration,
+                    error="No target file specified",
+                )
+
+            # SECURITY FIX: Validate path to prevent traversal attacks
+            file_path, error = self._validate_and_resolve_path(file_path_str, operation="write")
+            if error:
+                duration = time.time() - start_time
+                return StoryResult(
+                    story_id=story_id,
+                    category="dead_import",
+                    provider="simple",
+                    status="FAILED",
+                    duration_seconds=duration,
+                    error=error,
+                )
 
             # Get import to remove
             import_text = story.get("import_text", "")
@@ -482,14 +562,13 @@ class MultiAIExecutor:
         """
         Execute story via Kimi K2 Thinking CLI (authenticated subscription).
 
-        Uses: kimi --print -p "prompt" --yolo --output-format stream-json
+        Uses: kimi -p "prompt" --yolo
         Note: Uses short prompts (CLI reads files natively) to avoid command line limits.
-        Reference: https://github.com/MoonshotAI/kimi-cli
+        Reference: https://moonshotai.github.io/kimi-cli/
 
         Key flags:
-        - --print: Non-interactive mode (required for automation)
-        - --yolo: Auto-approve all file/shell operations
-        - --output-format stream-json: Newline-delimited JSON for parsing
+        - -p / --prompt: Pass prompt in non-interactive mode (exits after processing)
+        - --yolo / -y: Auto-approve all file/shell operations
         """
         start_time = time.time()
         story_id = story.get("story_id", "unknown")
@@ -512,16 +591,13 @@ class MultiAIExecutor:
             # This avoids Windows command line length limits
             prompt = self._build_prompt(story, include_context=False)
 
-            # Use Kimi CLI with proper automation flags
-            # --print: Non-interactive mode
+            # Use Kimi CLI with correct automation flags
+            # -p: Pass prompt, exits after processing (non-interactive)
             # --yolo: Auto-approve all actions (critical for automation)
-            # --output-format stream-json: Parseable output
             proc = await asyncio.create_subprocess_exec(
                 kimi_path,
-                "--print",
                 "-p", prompt,
                 "--yolo",
-                "--output-format", "stream-json",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.workspace_path),
@@ -536,8 +612,8 @@ class MultiAIExecutor:
             output = stdout.decode("utf-8", errors="replace").strip()
 
             if proc.returncode == 0 and output:
-                # Parse JSON events from stream-json output
-                result_text = self._parse_json_events(output)
+                # Kimi outputs plain text, not JSON - use output directly
+                result_text = output
 
                 # Apply the changes if code was generated
                 if result_text:
@@ -649,15 +725,20 @@ class MultiAIExecutor:
         if target_file:
             prompt_parts.append(f"File: {target_file}")
 
-            if include_context and Path(target_file).exists():
-                try:
-                    content = Path(target_file).read_text(encoding="utf-8")
-                    # Limit context size
-                    if len(content) > 10000:
-                        content = content[:10000] + "\n... (truncated)"
-                    prompt_parts.append(f"\nCurrent content:\n```python\n{content}\n```")
-                except Exception:
-                    pass
+            # SECURITY FIX: Validate path before reading
+            if include_context:
+                validated_path, error = self._validate_and_resolve_path(target_file, operation="read")
+                if error:
+                    logger.warning(f"SECURITY: Cannot read context from {target_file}: {error}")
+                elif validated_path.exists():
+                    try:
+                        content = validated_path.read_text(encoding="utf-8")
+                        # Limit context size
+                        if len(content) > 10000:
+                            content = content[:10000] + "\n... (truncated)"
+                        prompt_parts.append(f"\nCurrent content:\n```python\n{content}\n```")
+                    except Exception as e:
+                        logger.warning(f"Could not read context from {target_file}: {e}")
 
         if category == "type_error":
             prompt_parts.append("\nAdd appropriate type hints to fix type errors.")
@@ -669,9 +750,15 @@ class MultiAIExecutor:
         return "\n".join(prompt_parts)
 
     async def _apply_changes(self, story: Dict, ai_output: str):
-        """Apply AI-generated changes to file."""
+        """Apply AI-generated changes to file with validation."""
         target_file = story.get("target_file")
         if not target_file:
+            return
+
+        # SECURITY FIX: Validate target file path before writing
+        validated_path, error = self._validate_and_resolve_path(target_file, operation="write")
+        if error:
+            logger.warning(f"SECURITY BLOCKED: Cannot write to {target_file}: {error}")
             return
 
         # Extract code from AI output (between ```python and ```)
@@ -679,7 +766,8 @@ class MultiAIExecutor:
         code_match = re.search(r'```python\n(.*?)```', ai_output, re.DOTALL)
         if code_match:
             new_content = code_match.group(1)
-            Path(target_file).write_text(new_content, encoding="utf-8")
+            # SECURITY FIX: Write only to validated path
+            validated_path.write_text(new_content, encoding="utf-8")
 
     def _parse_json_events(self, output: str) -> str:
         """
