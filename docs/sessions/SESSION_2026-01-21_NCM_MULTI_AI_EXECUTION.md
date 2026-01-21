@@ -136,5 +136,27 @@ Format:
 
 ---
 
-**Dernière mise à jour**: 2026-01-21T21:30:00
-**Statut**: EN COURS (OpenCode 29/64)
+## Mise à jour 22:00 - Kimi Failures
+
+### OpenCode COMPLETE
+- **Total**: 64/64
+- **Succès**: 51 (80%)
+- **Timeouts**: 13 (20%)
+
+### Kimi K2 EN COURS (FAILING)
+- **Traité**: 13/50
+- **Succès**: 0 (0%)
+- **Échecs**: 13 (100%)
+
+### Problème Kimi identifié
+Kimi CLI génère des tracebacks Python. Cause probable:
+1. Format de prompt non compatible
+2. Arguments CLI incorrects
+3. Problème avec le répertoire de travail
+
+**À investiguer après cette exécution.**
+
+---
+
+**Dernière mise à jour**: 2026-01-21T22:00:00
+**Statut**: EN COURS (Kimi 13/50, 0% success)
