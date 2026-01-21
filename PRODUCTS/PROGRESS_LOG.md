@@ -14,3 +14,4 @@
 ## 2026-01-21
 - Market refresh: revalidated sources (MCP, Anthropic docs, OpenAI evals, LM Eval Harness, Ollama, Langfuse) and added per-source access dates + risks section in `PRODUCTS/04_LANDSCAPE_2026.md`.
 - Portfolio confirmed: flagship = Research CLI + Evidence Pack, companion = MCP Server, bonus = Architecture Map Generator (see `PRODUCTS/10_PORTFOLIO.md`).
+- Flagship MVP in progress: added Research CLI evidence pack generator, demo script, tests, and flagship docs with ADR-0003.

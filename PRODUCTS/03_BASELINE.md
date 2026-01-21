@@ -21,6 +21,10 @@
   - Result: PASS. 2355 passed, 12 skipped, 399 warnings in 0:06:54.
   - Notes: warnings include deprecated `datetime.utcnow()`, deprecated LanceDB `table_names()`, and deprecation notices in swarm executor usage.
 
+## Update (2026-01-21)
+- `python -m pytest tests/test_research_cli.py -v`
+  - Result: PASS. 3 passed in 0:00:12.
+
 ## Baseline Fixes Applied
 1) Windows console encoding error on emoji output
    - Symptom: `UnicodeEncodeError` in `nexus7.py` during bootstrap prints.
