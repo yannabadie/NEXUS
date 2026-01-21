@@ -1,0 +1,421 @@
+"""
+NEXUS V8.8 - InputGuard (Prompt Injection Prevention)
+
+Layer 1 defense against prompt injection attacks.
+Based on AWS Bedrock Guardrails, Azure Prompt Shields, and OWASP LLM01:2025.
+
+Defense capabilities:
+1. Regex-based pattern detection (fast filter)
+2. Unicode normalization (prevent homoglyph attacks)
+3. Null byte removal (prevent injection via hidden chars)
+4. Risk scoring (configurable thresholds)
+
+Integration points:
+- FSM Orchestrator: validate user input in BRAINSTORMING state
+- Agent Spawning: validate spawn descriptions
+- Tool execution: validate tool arguments
+
+Usage:
+    guard = InputGuard()
+
+    result = guard.validate(user_input)
+    if not result.is_safe:
+        log.warning(f"Blocked: {result.threat_type} - {result.reason}")
+        # Handle blocked input
+    else:
+        # Process input normally
+        # Note: result.sanitized_text may differ from original
+
+Sources:
+- AWS Bedrock Guardrails: https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-prompt-attack.html
+- Azure Prompt Shields: https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/jailbreak-detection
+- OWASP LLM01:2025: https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+"""
+
+import re
+import unicodedata
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Tuple
+
+
+class ThreatLevel(Enum):
+    """Severity levels for detected threats."""
+    NONE = "none"
+    LOW = "low"           # Suspicious but likely benign
+    MEDIUM = "medium"     # Potentially malicious
+    HIGH = "high"         # Likely attack attempt
+    CRITICAL = "critical" # Clear attack pattern
+
+
+class ThreatType(Enum):
+    """Categories of prompt injection attacks."""
+    NONE = "none"
+    INSTRUCTION_OVERRIDE = "instruction_override"   # "Ignore previous instructions"
+    ROLE_MANIPULATION = "role_manipulation"         # "You are now DAN"
+    PROMPT_EXTRACTION = "prompt_extraction"         # "Print your system prompt"
+    DELIMITER_INJECTION = "delimiter_injection"     # "```\n[SYSTEM]\n"
+    CONTEXT_MANIPULATION = "context_manipulation"   # "The admin said to..."
+    ENCODING_ATTACK = "encoding_attack"             # Base64/rot13 obfuscation
+
+
+@dataclass
+class InputValidationResult:
+    """Result of input validation."""
+    is_safe: bool
+    sanitized_text: str
+    threat_level: ThreatLevel = ThreatLevel.NONE
+    threat_type: ThreatType = ThreatType.NONE
+    reason: Optional[str] = None
+    matched_patterns: List[str] = field(default_factory=list)
+    risk_score: float = 0.0  # 0.0 = safe, 1.0 = definite attack
+
+    def __bool__(self) -> bool:
+        return self.is_safe
+
+
+# =============================================================================
+# Injection Pattern Database
+# =============================================================================
+
+# CRITICAL: Patterns that almost always indicate an attack
+CRITICAL_PATTERNS: Dict[str, Dict] = {
+    "ignore_instructions": {
+        "patterns": [
+            r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instruction|command|rule|directive|prompt)s?",
+            r"disregard\s+(all\s+)?(previous|prior|above)\s+(instruction|command|rule)s?",
+            r"forget\s+(all\s+)?(previous|prior|your)\s+(instruction|command|rule|training)s?",
+        ],
+        "threat_type": ThreatType.INSTRUCTION_OVERRIDE,
+        "level": ThreatLevel.CRITICAL,
+        "description": "Attempt to override system instructions",
+    },
+    "jailbreak_modes": {
+        "patterns": [
+            r"\b(DAN|developer\s*mode|jailbreak\s*mode|unrestricted\s*mode)\b",
+            r"pretend\s+you\s+(have\s+no|don'?t\s+have|lack)\s+(restriction|limitation|rule)s?",
+            r"act\s+as\s+if\s+you\s+(have\s+no|don'?t\s+have)\s+(filter|restriction)s?",
+        ],
+        "threat_type": ThreatType.ROLE_MANIPULATION,
+        "level": ThreatLevel.CRITICAL,
+        "description": "Known jailbreak technique",
+    },
+    "role_override": {
+        "patterns": [
+            r"you\s+are\s+now\s+(a|an|the)\s+\w+",
+            r"from\s+now\s+on[,]?\s+you\s+(are|will\s+be)",
+            r"your\s+new\s+(role|persona|identity|character)\s+is",
+        ],
+        "threat_type": ThreatType.ROLE_MANIPULATION,
+        "level": ThreatLevel.CRITICAL,
+        "description": "Attempt to change AI role",
+    },
+}
+
+# HIGH: Patterns that strongly suggest an attack
+HIGH_PATTERNS: Dict[str, Dict] = {
+    "prompt_extraction": {
+        "patterns": [
+            r"(print|show|display|reveal|output|tell\s+me)\s+(your|the|me\s+your)\s+(system\s+)?(prompt|instruction|rule)s?",
+            r"(show|tell)\s+me\s+(your|the)\s+(system\s+)?(instruction|rule|prompt)s?",
+            r"what\s+(are|is)\s+your\s+(system\s+)?(prompt|instruction|rule)s?",
+            r"repeat\s+(your|the)\s+(initial|system|original)\s+(prompt|instruction)s?",
+        ],
+        "threat_type": ThreatType.PROMPT_EXTRACTION,
+        "level": ThreatLevel.HIGH,
+        "description": "Attempt to extract system prompt",
+    },
+    "delimiter_injection": {
+        "patterns": [
+            r"```\s*(system|admin|root|sudo)",
+            r"\[/?SYSTEM\]",
+            r"\[/?INST\]",
+            r"</?system>",
+            r"</?admin>",
+            r"Human:\s*Assistant:",  # Claude format injection
+        ],
+        "threat_type": ThreatType.DELIMITER_INJECTION,
+        "level": ThreatLevel.HIGH,
+        "description": "Delimiter injection attempt",
+    },
+    "authority_claim": {
+        "patterns": [
+            r"(the\s+)?(admin|administrator|developer|creator|owner)\s+(said|told|instructed|wants)",
+            r"(this\s+is\s+)?(an?\s+)?(official|authorized|approved)\s+(override|command|instruction)",
+            r"(emergency|urgent|critical)\s+(override|bypass|access)",
+        ],
+        "threat_type": ThreatType.CONTEXT_MANIPULATION,
+        "level": ThreatLevel.HIGH,
+        "description": "False authority claim",
+    },
+}
+
+# MEDIUM: Patterns that may indicate an attack
+MEDIUM_PATTERNS: Dict[str, Dict] = {
+    "bypass_requests": {
+        "patterns": [
+            r"bypass\s+(the\s+)?(rule|policy|restriction|filter|safety|security)",
+            r"disable\s+(the\s+)?(rule|policy|restriction|filter|safety)",
+            r"turn\s+off\s+(the\s+)?(rule|filter|safety|restriction)",
+        ],
+        "threat_type": ThreatType.INSTRUCTION_OVERRIDE,
+        "level": ThreatLevel.MEDIUM,
+        "description": "Request to bypass safety measures",
+    },
+    "encoding_indicators": {
+        "patterns": [
+            r"decode\s+this\s+(base64|rot13|hex)",
+            r"the\s+following\s+is\s+(base64|encoded|encrypted)",
+            r"\b[A-Za-z0-9+/]{40,}={0,2}\b",  # Long base64-like string
+        ],
+        "threat_type": ThreatType.ENCODING_ATTACK,
+        "level": ThreatLevel.MEDIUM,
+        "description": "Potential encoding-based attack",
+    },
+}
+
+
+# =============================================================================
+# InputGuard Implementation
+# =============================================================================
+
+class InputGuard:
+    """
+    Input validation guard against prompt injection attacks.
+
+    Thread-safe: All methods are stateless.
+    """
+
+    # Characters to remove (invisible/control characters)
+    DANGEROUS_CHARS = {
+        '\x00',  # Null byte
+        '\x1b',  # Escape
+        '\x7f',  # Delete
+        '\u200b', '\u200c', '\u200d',  # Zero-width chars
+        '\u2028', '\u2029',  # Line/paragraph separators
+        '\ufeff',  # BOM
+    }
+
+    def __init__(
+        self,
+        block_threshold: float = 0.7,
+        warn_threshold: float = 0.4,
+        enabled: bool = True
+    ):
+        """
+        Initialize InputGuard.
+
+        Args:
+            block_threshold: Risk score above which input is blocked (0.0-1.0)
+            warn_threshold: Risk score above which warnings are logged (0.0-1.0)
+            enabled: If False, validation always passes (for debugging)
+        """
+        self.block_threshold = block_threshold
+        self.warn_threshold = warn_threshold
+        self.enabled = enabled
+
+        # Pre-compile all patterns for performance
+        self._compiled_patterns: List[Tuple[re.Pattern, Dict]] = []
+
+        for category, data in CRITICAL_PATTERNS.items():
+            for pattern in data["patterns"]:
+                compiled = re.compile(pattern, re.IGNORECASE)
+                self._compiled_patterns.append((compiled, {
+                    "category": category,
+                    "threat_type": data["threat_type"],
+                    "level": data["level"],
+                    "description": data["description"],
+                }))
+
+        for category, data in HIGH_PATTERNS.items():
+            for pattern in data["patterns"]:
+                compiled = re.compile(pattern, re.IGNORECASE)
+                self._compiled_patterns.append((compiled, {
+                    "category": category,
+                    "threat_type": data["threat_type"],
+                    "level": data["level"],
+                    "description": data["description"],
+                }))
+
+        for category, data in MEDIUM_PATTERNS.items():
+            for pattern in data["patterns"]:
+                compiled = re.compile(pattern, re.IGNORECASE)
+                self._compiled_patterns.append((compiled, {
+                    "category": category,
+                    "threat_type": data["threat_type"],
+                    "level": data["level"],
+                    "description": data["description"],
+                }))
+
+    def validate(self, text: str) -> InputValidationResult:
+        """
+        Validate user input for prompt injection attempts.
+
+        Args:
+            text: User input to validate
+
+        Returns:
+            InputValidationResult with safety assessment
+        """
+        if not self.enabled:
+            return InputValidationResult(
+                is_safe=True,
+                sanitized_text=text,
+                threat_level=ThreatLevel.NONE,
+                threat_type=ThreatType.NONE,
+                risk_score=0.0
+            )
+
+        if not text or not text.strip():
+            return InputValidationResult(
+                is_safe=True,
+                sanitized_text="",
+                threat_level=ThreatLevel.NONE,
+                threat_type=ThreatType.NONE,
+                risk_score=0.0
+            )
+
+        # Step 1: Sanitize input
+        sanitized = self._sanitize(text)
+
+        # Step 2: Check patterns
+        matches = self._check_patterns(sanitized)
+
+        if not matches:
+            return InputValidationResult(
+                is_safe=True,
+                sanitized_text=sanitized,
+                threat_level=ThreatLevel.NONE,
+                threat_type=ThreatType.NONE,
+                risk_score=0.0
+            )
+
+        # Step 3: Calculate risk score
+        risk_score = self._calculate_risk_score(matches)
+
+        # Step 4: Determine highest threat level (matches already sorted by severity)
+        highest_level = matches[0]["level"]  # First match is most severe
+        primary_threat = matches[0]["threat_type"]
+
+        # Step 5: Decide if blocked
+        is_safe = risk_score < self.block_threshold
+
+        return InputValidationResult(
+            is_safe=is_safe,
+            sanitized_text=sanitized,
+            threat_level=highest_level,
+            threat_type=primary_threat,
+            reason=matches[0]["description"] if matches else None,
+            matched_patterns=[m["category"] for m in matches],
+            risk_score=risk_score
+        )
+
+    def _sanitize(self, text: str) -> str:
+        """
+        Sanitize input text.
+
+        1. Normalize unicode (NFC)
+        2. Remove dangerous characters
+        3. Normalize whitespace
+        """
+        # Unicode normalization (prevents homoglyph attacks)
+        text = unicodedata.normalize("NFC", text)
+
+        # Remove dangerous characters
+        for char in self.DANGEROUS_CHARS:
+            text = text.replace(char, "")
+
+        # Normalize excessive whitespace but preserve structure
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        return text.strip()
+
+    def _check_patterns(self, text: str) -> List[Dict]:
+        """Check text against all patterns."""
+        matches = []
+
+        for pattern, metadata in self._compiled_patterns:
+            if pattern.search(text):
+                matches.append(metadata.copy())
+
+        # Sort by severity (CRITICAL first)
+        level_order = {
+            ThreatLevel.CRITICAL: 0,
+            ThreatLevel.HIGH: 1,
+            ThreatLevel.MEDIUM: 2,
+            ThreatLevel.LOW: 3,
+            ThreatLevel.NONE: 4,
+        }
+        matches.sort(key=lambda m: level_order[m["level"]])
+
+        return matches
+
+    def _calculate_risk_score(self, matches: List[Dict]) -> float:
+        """
+        Calculate overall risk score from matches.
+
+        Scoring:
+        - CRITICAL: 0.9
+        - HIGH: 0.7
+        - MEDIUM: 0.5
+        - LOW: 0.3
+
+        Multiple matches increase score (diminishing returns).
+        """
+        if not matches:
+            return 0.0
+
+        level_scores = {
+            ThreatLevel.CRITICAL: 0.9,
+            ThreatLevel.HIGH: 0.7,
+            ThreatLevel.MEDIUM: 0.5,
+            ThreatLevel.LOW: 0.3,
+            ThreatLevel.NONE: 0.0,
+        }
+
+        # Start with highest match score
+        base_score = level_scores[matches[0]["level"]]
+
+        # Add diminishing contribution from additional matches
+        additional = 0.0
+        for match in matches[1:]:
+            additional += level_scores[match["level"]] * 0.1
+
+        # Cap at 1.0
+        return min(1.0, base_score + additional)
+
+    def is_safe_quick(self, text: str) -> bool:
+        """
+        Quick safety check (no detailed result).
+
+        Args:
+            text: Input to check
+
+        Returns:
+            True if input is safe
+        """
+        return self.validate(text).is_safe
+
+
+# =============================================================================
+# Singleton for easy access
+# =============================================================================
+
+_input_guard: Optional[InputGuard] = None
+
+
+def get_input_guard(
+    block_threshold: float = 0.7,
+    warn_threshold: float = 0.4,
+    enabled: bool = True
+) -> InputGuard:
+    """Get or create the global InputGuard instance."""
+    global _input_guard
+    if _input_guard is None:
+        _input_guard = InputGuard(
+            block_threshold=block_threshold,
+            warn_threshold=warn_threshold,
+            enabled=enabled
+        )
+    return _input_guard
