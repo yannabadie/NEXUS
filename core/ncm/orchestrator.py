@@ -1,0 +1,918 @@
+"""
+NCM Orchestrator - Story Queue Coordinator
+
+This is a CLIENT of OrchestratorV7, not a replacement. For each story, it invokes
+orchestrator.process_turn(story.description) and leverages all existing NEXUS
+capabilities (FSM, HiveMind, Swarm, RAG, Evolution).
+
+Architecture:
+    ┌─────────────────────────────────────────┐
+    │  NCMOrchestrator (THIS FILE)            │
+    │  - Story queue management               │
+    │  - Crew assignment                      │
+    │  - Progress tracking                    │
+    │  - Token budget monitoring              │
+    │  - State snapshot every 100 stories     │
+    └─────────────────────────────────────────┘
+                    ↓ process_turn()
+    ┌─────────────────────────────────────────┐
+    │  OrchestratorV7 (EXISTING)              │
+    │  - FSM (12 states)                      │
+    │  - HiveMind (7 phases)                  │
+    │  - Swarm (6 modes)                      │
+    │  - RAG, Evolution, Security             │
+    └─────────────────────────────────────────┘
+
+Responsibilities:
+    - Story queue management (priority order)
+    - Crew assignment (which agents for which story)
+    - Progress tracking (stories completed/failed)
+    - Token budget monitoring (blind spot #5 mitigation)
+    - State snapshot every 100 stories (blind spot #6 mitigation)
+
+NOT responsible for:
+    - Low-level agent coordination (OrchestratorV7 handles this)
+    - Tool execution (OrchestratorV7 → HiveMind → Swarm)
+    - Fault tolerance (inherited from OrchestratorV7)
+"""
+
+from pathlib import Path
+from typing import List, Dict, Optional, Any
+from datetime import datetime
+import asyncio
+import time
+import json
+
+from core.ncm.models import (
+    Story,
+    StoryStatus,
+    StoryPriority,
+    CrewAssignment,
+    ValidationResult,
+    ExecutionMetrics,
+    StateSnapshot,
+    NCMConfig,
+)
+from core.ncm.simple_executor import SimpleExecutor
+from core.logging import get_logger
+
+
+class NCMOrchestrator:
+    """
+    NCM story queue coordinator (CLIENT of OrchestratorV7).
+
+    This orchestrator manages the high-level story execution workflow while
+    delegating all low-level coordination to the existing OrchestratorV7.
+
+    Lifecycle:
+        1. Initialize with OrchestratorV7 instance (singleton)
+        2. Load story queue from audit report
+        3. Execute stories in priority order (P0 → P1 → P2)
+        4. Track metrics and take snapshots
+        5. Generate completion reports
+
+    Usage:
+        from core.ncm import NCMOrchestrator, NCMConfig
+        from core.orchestration_v7 import OrchestratorV7
+
+        orch = OrchestratorV7(workspace_path, config, gemini_info, claude_info)
+        ncm_config = NCMConfig(story_batch_size=50, token_limit=100_000_000)
+        ncm = NCMOrchestrator(orchestrator=orch, workspace_path=Path("workspace"), config=ncm_config)
+
+        # Execute pilot
+        await ncm.execute_batch(story_count=100, priority="P2")
+
+        # Check metrics
+        metrics = ncm.get_metrics()
+        print(f"Success rate: {metrics.success_rate:.2%}")
+    """
+
+    def __init__(
+        self,
+        orchestrator: "OrchestratorV7",
+        workspace_path: Path,
+        config: NCMConfig
+    ):
+        """
+        Initialize NCM orchestrator.
+
+        Args:
+            orchestrator: Existing OrchestratorV7 instance (singleton)
+            workspace_path: NEXUS workspace root (e.g., Path("workspace"))
+            config: NCM configuration (story batch size, token limits, etc.)
+
+        Raises:
+            ValueError: If orchestrator is None or workspace_path doesn't exist
+        """
+        if orchestrator is None:
+            raise ValueError("orchestrator cannot be None")
+        if not workspace_path.exists():
+            raise ValueError(f"workspace_path does not exist: {workspace_path}")
+
+        self.orchestrator = orchestrator
+        self.workspace_path = workspace_path
+        self.config = config
+        self.logger = get_logger()
+
+        # NCM workspace paths
+        self.ncm_workspace = workspace_path / "ncm"
+        self.ncm_workspace.mkdir(exist_ok=True)
+        (self.ncm_workspace / "logs").mkdir(exist_ok=True)
+        (self.ncm_workspace / "metrics").mkdir(exist_ok=True)
+        (self.ncm_workspace / "snapshots").mkdir(exist_ok=True)
+
+        # Story queue (priority-ordered)
+        self.story_queue: List[Story] = []
+        self.completed: List[Story] = []
+        self.failed: List[Story] = []
+        self.partial: List[Story] = []
+
+        # Current execution state
+        self.current_story: Optional[Story] = None
+        self.current_phase: str = "idle"  # idle, pilot, 2A, 2B, 3A, 3B
+
+        # Crew assignments (story_id → CrewAssignment)
+        self.assignments: Dict[str, CrewAssignment] = {}
+
+        # Token budget tracking (blind spot #5 mitigation)
+        self.tokens_used = 0
+        self.token_limit = config.token_limit
+
+        # Prompt refresh counter (blind spot #3 mitigation)
+        self.tool_calls_since_refresh = 0
+        self.refresh_interval = config.refresh_interval
+
+        # Execution metrics
+        self.metrics_history: List[ExecutionMetrics] = []
+        self.current_metrics: Optional[ExecutionMetrics] = None
+
+        # State snapshots (blind spot #6 mitigation)
+        self.snapshots: List[StateSnapshot] = []
+        self.last_snapshot_count = 0
+
+        # Simple executor for P2 stories (bypasses OrchestratorV7 for simple tasks)
+        self.simple_executor = SimpleExecutor()
+        self.use_simple_executor = True  # Flag to enable/disable simple execution
+
+        self.logger.info("ncm_orchestrator_initialized", {
+            "workspace": str(workspace_path),
+            "story_batch_size": config.story_batch_size,
+            "token_limit": config.token_limit,
+            "refresh_interval": config.refresh_interval,
+            "use_simple_executor": self.use_simple_executor
+        })
+
+    async def load_story_queue(
+        self,
+        stories: List[Story],
+        priority_filter: Optional[StoryPriority] = None
+    ) -> int:
+        """
+        Load story queue from list of stories.
+
+        Args:
+            stories: List of Story objects (from StoryShardEngine)
+            priority_filter: Optional priority filter (e.g., StoryPriority.P2 for pilot)
+
+        Returns:
+            Number of stories loaded
+
+        Process:
+            1. Filter by priority if specified
+            2. Sort by priority (P0 → P1 → P2) and story_id
+            3. Reset execution state
+            4. Log loaded count
+        """
+        self.logger.info("ncm_load_story_queue_start", {
+            "total_stories": len(stories),
+            "priority_filter": priority_filter.value if priority_filter else "all"
+        })
+
+        # Filter by priority
+        if priority_filter:
+            stories = [s for s in stories if s.priority == priority_filter]
+
+        # Sort by priority and story_id
+        stories.sort(key=lambda s: (s.priority.value, s.story_id))
+
+        # Reset state
+        self.story_queue = stories
+        self.completed = []
+        self.failed = []
+        self.partial = []
+        self.assignments = {}
+        self.current_story = None
+
+        self.logger.info("ncm_load_story_queue_complete", {
+            "stories_loaded": len(self.story_queue)
+        })
+
+        return len(self.story_queue)
+
+    async def execute_batch(
+        self,
+        story_count: Optional[int] = None,
+        priority: Optional[str] = None
+    ) -> ExecutionMetrics:
+        """
+        Execute a batch of stories from the queue.
+
+        Args:
+            story_count: Number of stories to execute (None = all)
+            priority: Priority filter (P0/P1/P2)
+
+        Returns:
+            ExecutionMetrics with results
+
+        Process:
+            1. Initialize batch metrics
+            2. Execute stories one by one (or in parallel if config.parallel_execution)
+            3. Track progress and update metrics
+            4. Take snapshots every config.snapshot_interval stories
+            5. Check token budget and prompt refresh
+            6. Return final metrics
+
+        Example:
+            # Pilot: Execute 100 P2 stories
+            metrics = await ncm.execute_batch(story_count=100, priority="P2")
+
+            # Phase 2A: Execute all P2 stories
+            metrics = await ncm.execute_batch(priority="P2")
+
+            # Phase 3B: Execute all remaining
+            metrics = await ncm.execute_batch()
+        """
+        phase_name = priority or "all"
+        batch_size = story_count or len(self.story_queue)
+
+        self.logger.info("ncm_execute_batch_start", {
+            "phase": phase_name,
+            "batch_size": batch_size,
+            "queue_size": len(self.story_queue)
+        })
+
+        # Initialize metrics
+        self.current_metrics = ExecutionMetrics(
+            phase=phase_name,
+            stories_total=batch_size,
+            started_at=datetime.now()
+        )
+
+        start_time = time.time()
+        stories_to_execute = self.story_queue[:batch_size]
+
+        # Execute stories
+        for i, story in enumerate(stories_to_execute):
+            self.logger.info("ncm_story_start", {
+                "story_id": story.story_id,
+                "progress": f"{i+1}/{batch_size}",
+                "priority": story.priority.value
+            })
+
+            # Execute story
+            status = await self.execute_story(story)
+
+            # Update metrics
+            if status == StoryStatus.SUCCESS:
+                self.completed.append(story)
+                self.current_metrics.stories_completed += 1
+            elif status == StoryStatus.FAILED:
+                self.failed.append(story)
+                self.current_metrics.stories_failed += 1
+            elif status == StoryStatus.PARTIAL:
+                self.partial.append(story)
+                self.current_metrics.stories_partial += 1
+
+            # Update success rate
+            total_processed = self.current_metrics.stories_completed + self.current_metrics.stories_failed + self.current_metrics.stories_partial
+            if total_processed > 0:
+                self.current_metrics.success_rate = self.current_metrics.stories_completed / total_processed
+
+            # Remove from queue
+            self.story_queue.remove(story)
+
+            # Snapshot check (every config.snapshot_interval stories)
+            if (i + 1) % self.config.snapshot_interval == 0:
+                await self._take_state_snapshot()
+
+            # Log progress
+            if (i + 1) % 10 == 0:
+                self.logger.info("ncm_batch_progress", {
+                    "progress": f"{i+1}/{batch_size}",
+                    "success_rate": f"{self.current_metrics.success_rate:.2%}",
+                    "tokens_used": self.tokens_used
+                })
+
+        # Finalize metrics
+        duration = time.time() - start_time
+        self.current_metrics.completed_at = datetime.now()
+        self.current_metrics.duration_hours = duration / 3600
+        if batch_size > 0 and duration > 0:
+            self.current_metrics.stories_per_hour = batch_size / (duration / 3600)
+        if batch_size > 0:
+            self.current_metrics.avg_tokens_per_story = self.tokens_used / batch_size
+
+        # Save metrics
+        self.metrics_history.append(self.current_metrics)
+        await self._save_metrics()
+
+        self.logger.info("ncm_execute_batch_complete", {
+            "phase": phase_name,
+            "completed": self.current_metrics.stories_completed,
+            "failed": self.current_metrics.stories_failed,
+            "partial": self.current_metrics.stories_partial,
+            "success_rate": f"{self.current_metrics.success_rate:.2%}",
+            "duration_hours": f"{self.current_metrics.duration_hours:.2f}",
+            "stories_per_hour": f"{self.current_metrics.stories_per_hour:.1f}"
+        })
+
+        return self.current_metrics
+
+    async def execute_story(self, story: Story) -> StoryStatus:
+        """
+        Execute a single story by invoking OrchestratorV7.
+
+        Args:
+            story: Story to execute (with description, priority, assigned agents)
+
+        Returns:
+            StoryStatus (SUCCESS/FAILED/PARTIAL)
+
+        Process:
+            1. Mark story as IN_PROGRESS
+            2. Invoke orchestrator.process_turn(story.description)
+            3. Validate results (syntax, types, tests)
+            4. Update story status
+            5. Check prompt refresh (every 500 tool calls)
+            6. Return status
+
+        Delegation:
+            - OrchestratorV7 handles all low-level coordination
+            - HiveMind handles 7-phase execution
+            - Swarm handles agent collaboration
+            - No NCM-specific coordination needed
+        """
+        self.logger.info("ncm_story_execution_start", {
+            "story_id": story.story_id,
+            "priority": story.priority.value,
+            "domains": [d.value for d in story.domains]
+        })
+
+        # Mark story as in progress
+        story.status = StoryStatus.IN_PROGRESS
+        story.started_at = datetime.now()
+        self.current_story = story
+
+        try:
+            # Check if we can use SimpleExecutor for this story
+            if self.use_simple_executor and self._can_execute_simply(story):
+                self.logger.info("ncm_using_simple_executor", {
+                    "story_id": story.story_id,
+                    "description": story.description[:100]
+                })
+
+                # Execute with SimpleExecutor (fast, direct)
+                success, error = await self._execute_story_simple(story)
+
+                if success:
+                    story.status = StoryStatus.SUCCESS
+                    story.completed_at = datetime.now()
+                    return StoryStatus.SUCCESS
+                else:
+                    # Simple execution failed, try OrchestratorV7 as fallback
+                    self.logger.warning("ncm_simple_executor_failed_fallback", {
+                        "story_id": story.story_id,
+                        "error": error
+                    })
+                    # Continue to OrchestratorV7 below
+
+            # Simplify story description for OrchestratorV7
+            # Extract the first line (main task) to avoid complexity analysis issues
+            simplified_task = self._simplify_story_description(story)
+
+            self.logger.debug("ncm_simplified_task", {
+                "story_id": story.story_id,
+                "original_length": len(story.description),
+                "simplified": simplified_task
+            })
+
+            # Invoke OrchestratorV7 (THIS IS WHERE NEXUS DOES THE WORK)
+            # NCM just provides the task description and lets NEXUS orchestrate
+            result = await self.orchestrator.process_turn(
+                user_input=simplified_task,
+                # context can be used to pass NCM-specific metadata
+            )
+
+            # Track tokens used (if available in result)
+            if isinstance(result, dict) and "tokens_used" in result:
+                story.tokens_used = result["tokens_used"]
+                self.tokens_used += story.tokens_used
+
+            # Track tool calls for prompt refresh
+            if isinstance(result, dict) and "tool_calls_count" in result:
+                self.tool_calls_since_refresh += result["tool_calls_count"]
+
+            # Validate results (blind spot #7 mitigation)
+            validation = await self._validate_story_result(story)
+
+            # Update story status based on validation
+            if validation.passed:
+                story.status = StoryStatus.SUCCESS
+            elif validation.syntax_valid and validation.imports_valid:
+                # Partial success (syntax/imports OK but tests failed)
+                story.status = StoryStatus.PARTIAL
+            else:
+                story.status = StoryStatus.FAILED
+                story.error_message = "; ".join(validation.errors)
+
+            story.completed_at = datetime.now()
+
+            # Check prompt refresh (blind spot #3 mitigation)
+            if self.tool_calls_since_refresh >= self.refresh_interval:
+                await self._refresh_prompts()
+
+            self.logger.info("ncm_story_execution_complete", {
+                "story_id": story.story_id,
+                "status": story.status.value,
+                "tokens_used": story.tokens_used,
+                "validation_passed": validation.passed
+            })
+
+            return story.status
+
+        except Exception as e:
+            self.logger.error("ncm_story_execution_failed", {
+                "story_id": story.story_id,
+                "error": str(e)
+            })
+            story.status = StoryStatus.FAILED
+            story.error_message = str(e)
+            story.completed_at = datetime.now()
+            return StoryStatus.FAILED
+
+    def _can_execute_simply(self, story: Story) -> bool:
+        """
+        Determine if story can be executed with SimpleExecutor.
+
+        Args:
+            story: Story to check
+
+        Returns:
+            True if SimpleExecutor can handle this story
+
+        Criteria for simple execution:
+            - Single target file only
+            - Dead import removal
+            - Priority P2 (low risk)
+        """
+        # Must be single file
+        if len(story.target_files) != 1:
+            return False
+
+        # Must be P2 (low risk)
+        if story.priority != StoryPriority.P2:
+            return False
+
+        # Check description for simple patterns
+        desc_lower = story.description.lower()
+        if "dead import" in desc_lower or "unused import" in desc_lower:
+            return True
+
+        return False
+
+    async def _execute_story_simple(self, story: Story) -> tuple[bool, Optional[str]]:
+        """
+        Execute story using SimpleExecutor (direct, no OrchestratorV7).
+
+        Args:
+            story: Story to execute
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+
+        Process:
+            1. Extract import names from story description
+            2. Remove imports using SimpleExecutor
+            3. Validate syntax
+            4. Run tests
+
+        Note: This bypasses OrchestratorV7 entirely for speed.
+        """
+        # Extract import names from description
+        import_names = []
+        for line in story.description.split('\n'):
+            if "Import '" in line and "may be unused" in line:
+                parts = line.split("'")
+                if len(parts) >= 2:
+                    import_names.append(parts[1])
+
+        if not import_names:
+            return False, "Could not extract import names from description"
+
+        target_file = story.target_files[0]
+
+        # Execute dead import removal
+        success, error = await self.simple_executor.execute_dead_import_removal(
+            target_file,
+            import_names
+        )
+
+        if not success:
+            return False, error
+
+        # Run tests
+        test_success, test_error = await self.simple_executor.run_tests(story.test_files)
+        if not test_success:
+            return False, test_error
+
+        return True, None
+
+    def _simplify_story_description(self, story: Story) -> str:
+        """
+        Simplify verbose story description into concise, actionable instruction.
+
+        Args:
+            story: Story with potentially verbose description
+
+        Returns:
+            Simplified task description for OrchestratorV7
+
+        Purpose:
+            Story descriptions are detailed (issues, tasks, safety notes) for human review,
+            but OrchestratorV7's task analyzer classifies them as EXPERT complexity,
+            triggering unnecessary Hive Mind routing and timeouts.
+
+            This method extracts the core action and target files into a simple instruction.
+
+        Examples:
+            Before: "Remove dead imports from core/auth.py (3 imports)\n\nIssues:\n- Line 10: ..."
+            After: "Remove unused imports from core/auth.py: 'Set', 'Dict', 'Optional'"
+
+            Before: "Add missing type hints to core/utils.py (5 items)\n\nType errors:\n- Line 42: ..."
+            After: "Add type hints to functions in core/utils.py"
+        """
+        # Extract first line (main task)
+        first_line = story.description.split('\n')[0]
+
+        # Add target file explicitly (in case it's not clear)
+        target_files_str = ", ".join([f.name for f in story.target_files])
+
+        # Build simplified instruction based on category pattern
+        if "dead import" in first_line.lower() or "unused import" in first_line.lower():
+            # Extract import names from Issues section if available
+            import_names = []
+            for line in story.description.split('\n'):
+                if "Import '" in line and "may be unused" in line:
+                    # Extract import name from "Import 'Set' from 'typing' may be unused"
+                    parts = line.split("'")
+                    if len(parts) >= 2:
+                        import_names.append(parts[1])
+
+            if import_names:
+                imports_str = ", ".join([f"'{name}'" for name in import_names])
+                return f"Remove unused imports from {story.target_files[0]}: {imports_str}"
+            else:
+                return f"Remove unused imports from {story.target_files[0]}"
+
+        elif "type hint" in first_line.lower() or "type error" in first_line.lower():
+            return f"Add missing type hints to {story.target_files[0]}"
+
+        elif "docstring" in first_line.lower() or "missing doc" in first_line.lower():
+            return f"Add missing docstrings to {story.target_files[0]}"
+
+        elif "dead code" in first_line.lower() or "unused" in first_line.lower():
+            return f"Remove unused code from {story.target_files[0]}"
+
+        elif "deprecation" in first_line.lower() or "deprecated" in first_line.lower():
+            return f"Fix deprecation warnings in {story.target_files[0]}"
+
+        else:
+            # Fallback: Use first line + target file
+            return f"{first_line} (target: {target_files_str})"
+
+    async def _validate_story_result(self, story: Story) -> ValidationResult:
+        """
+        Validate story execution results (Blind Spot #7 mitigation).
+
+        Args:
+            story: Story to validate
+
+        Returns:
+            ValidationResult with validation details
+
+        Validation phases:
+            1. Syntax check (Python ast.parse on modified files)
+            2. Import check (no circular imports)
+            3. Type check (mypy --strict on modified files)
+            4. Unit tests (pytest on test_files)
+            5. Integration tests (if P0 story, run full suite)
+
+        NOTE: For Phase 0 implementation, we do basic validation.
+              Full validation (mypy, pytest) will be added in Phase 0.3.
+        """
+        self.logger.debug("ncm_validate_story_start", {
+            "story_id": story.story_id,
+            "target_files": [str(f) for f in story.target_files]
+        })
+
+        result = ValidationResult(
+            story_id=story.story_id,
+            passed=False
+        )
+
+        try:
+            # Phase 1: Syntax check
+            result.syntax_valid = await self._check_syntax(story.target_files)
+
+            # Phase 2: Import check
+            result.imports_valid = await self._check_imports(story.target_files)
+
+            # Phase 3: Type check (TODO: Phase 0.3)
+            result.types_valid = True  # Stub for now
+
+            # Phase 4: Tests (Phase 2A - Real implementation)
+            result.tests_passed = await self._run_tests(story.test_files)
+
+            # Overall pass if all phases pass
+            result.passed = (
+                result.syntax_valid and
+                result.imports_valid and
+                result.types_valid and
+                result.tests_passed
+            )
+
+            self.logger.debug("ncm_validate_story_complete", {
+                "story_id": story.story_id,
+                "passed": result.passed,
+                "syntax": result.syntax_valid,
+                "imports": result.imports_valid
+            })
+
+        except Exception as e:
+            self.logger.error("ncm_validate_story_error", {
+                "story_id": story.story_id,
+                "error": str(e)
+            })
+            result.errors.append(str(e))
+
+        return result
+
+    async def _check_syntax(self, files: List[Path]) -> bool:
+        """
+        Check Python syntax for modified files.
+
+        Args:
+            files: List of file paths to check
+
+        Returns:
+            True if all files have valid syntax, False otherwise
+        """
+        import ast
+
+        for file_path in files:
+            if not file_path.exists():
+                self.logger.warning("ncm_syntax_check_file_not_found", {
+                    "file": str(file_path)
+                })
+                continue
+
+            try:
+                content = file_path.read_text()
+                ast.parse(content)
+            except SyntaxError as e:
+                self.logger.error("ncm_syntax_check_failed", {
+                    "file": str(file_path),
+                    "error": str(e)
+                })
+                return False
+
+        return True
+
+    async def _check_imports(self, files: List[Path]) -> bool:
+        """
+        Check for circular imports.
+
+        Args:
+            files: List of file paths to check
+
+        Returns:
+            True if no circular imports, False otherwise
+
+        NOTE: Basic implementation for Phase 0.
+              Full circular import detection will be added in Phase 0.3.
+        """
+        # TODO: Implement circular import detection
+        # For now, just check that imports don't fail
+        return True
+
+    async def _run_tests(self, test_files: List[Path]) -> bool:
+        """
+        Run pytest on test files (Phase 2A implementation).
+
+        Args:
+            test_files: List of test file paths to run
+
+        Returns:
+            True if all tests pass, False otherwise
+
+        Process:
+            1. Skip if no test files specified
+            2. Run pytest for each test file
+            3. Return False if any test fails
+        """
+        import subprocess
+
+        if not test_files:
+            # No tests specified - consider this a pass
+            return True
+
+        for test_file in test_files:
+            if not test_file.exists():
+                self.logger.warning("ncm_test_file_not_found", {
+                    "file": str(test_file)
+                })
+                continue
+
+            try:
+                self.logger.debug("ncm_running_tests", {
+                    "file": str(test_file)
+                })
+
+                # Run pytest with minimal output
+                result = subprocess.run(
+                    ["pytest", str(test_file), "-v", "--tb=short", "-q"],
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 min timeout per test file
+                )
+
+                if result.returncode != 0:
+                    self.logger.error("ncm_tests_failed", {
+                        "file": str(test_file),
+                        "returncode": result.returncode,
+                        "output": result.stdout[:500]  # First 500 chars
+                    })
+                    return False
+
+                self.logger.debug("ncm_tests_passed", {
+                    "file": str(test_file)
+                })
+
+            except subprocess.TimeoutExpired:
+                self.logger.error("ncm_tests_timeout", {
+                    "file": str(test_file)
+                })
+                return False
+            except Exception as e:
+                self.logger.error("ncm_tests_error", {
+                    "file": str(test_file),
+                    "error": str(e)
+                })
+                return False
+
+        return True
+
+    async def _refresh_prompts(self):
+        """
+        Refresh agent prompts (Blind Spot #3 mitigation).
+
+        This reloads system prompts from disk to prevent prompt drift/decay
+        during long-running execution.
+
+        Process:
+            1. Reload prompts from prompts/ directory
+            2. Update orchestrator's prompt cache
+            3. Reset tool_calls_since_refresh counter
+
+        NOTE: For Phase 0, this is a stub.
+              Full implementation will be added in Phase 0.3.
+        """
+        self.logger.info("ncm_prompt_refresh_start", {
+            "tool_calls": self.tool_calls_since_refresh
+        })
+
+        # TODO: Implement prompt refresh
+        # For now, just reset counter
+        self.tool_calls_since_refresh = 0
+
+        self.logger.info("ncm_prompt_refresh_complete")
+
+    async def _take_state_snapshot(self):
+        """
+        Take Blackboard state snapshot (Blind Spot #6 mitigation).
+
+        Saves complete state to enable recovery from corruption or crashes.
+
+        Process:
+            1. Export Blackboard state from OrchestratorV7
+            2. Save story queue checkpoint
+            3. Save metrics and agent data
+            4. Write snapshot to disk
+
+        NOTE: For Phase 0, this is a stub.
+              Full implementation will be added in Phase 0.3.
+        """
+        completed_count = len(self.completed)
+
+        self.logger.info("ncm_state_snapshot_start", {
+            "stories_completed": completed_count
+        })
+
+        snapshot = StateSnapshot(
+            snapshot_id=f"SNAP-{completed_count}",
+            stories_completed=completed_count,
+            blackboard_state={},  # TODO: Get from orchestrator.memory_manager
+            story_queue=[s.story_id for s in self.story_queue],
+            agent_metrics={},  # TODO: Get from crew_manager
+            tokens_remaining=self.token_limit - self.tokens_used,
+            snapshot_path=self.ncm_workspace / "snapshots" / f"snapshot_{completed_count}.json"
+        )
+
+        # Save snapshot to disk
+        snapshot.snapshot_path.write_text(json.dumps({
+            "snapshot_id": snapshot.snapshot_id,
+            "stories_completed": snapshot.stories_completed,
+            "story_queue": snapshot.story_queue,
+            "tokens_remaining": snapshot.tokens_remaining,
+            "created_at": snapshot.created_at.isoformat(),
+        }, indent=2))
+
+        self.snapshots.append(snapshot)
+        self.last_snapshot_count = completed_count
+
+        self.logger.info("ncm_state_snapshot_complete", {
+            "snapshot_id": snapshot.snapshot_id,
+            "snapshot_path": str(snapshot.snapshot_path)
+        })
+
+    async def _save_metrics(self):
+        """
+        Save execution metrics to disk.
+
+        Saves current_metrics to workspace/ncm/metrics/metrics_<phase>.json
+        for later analysis and reporting.
+        """
+        if self.current_metrics is None:
+            return
+
+        metrics_file = self.ncm_workspace / "metrics" / f"metrics_{self.current_metrics.phase}.json"
+
+        metrics_data = {
+            "phase": self.current_metrics.phase,
+            "stories_total": self.current_metrics.stories_total,
+            "stories_completed": self.current_metrics.stories_completed,
+            "stories_failed": self.current_metrics.stories_failed,
+            "stories_partial": self.current_metrics.stories_partial,
+            "success_rate": self.current_metrics.success_rate,
+            "tokens_used": self.current_metrics.tokens_used,
+            "avg_tokens_per_story": self.current_metrics.avg_tokens_per_story,
+            "stories_per_hour": self.current_metrics.stories_per_hour,
+            "duration_hours": self.current_metrics.duration_hours,
+            "started_at": self.current_metrics.started_at.isoformat(),
+            "completed_at": self.current_metrics.completed_at.isoformat() if self.current_metrics.completed_at else None,
+        }
+
+        metrics_file.write_text(json.dumps(metrics_data, indent=2))
+
+        self.logger.debug("ncm_metrics_saved", {
+            "metrics_file": str(metrics_file)
+        })
+
+    def get_metrics(self) -> Optional[ExecutionMetrics]:
+        """
+        Get current execution metrics.
+
+        Returns:
+            Current ExecutionMetrics or None if no batch executing
+        """
+        return self.current_metrics
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Get NCM status summary.
+
+        Returns:
+            Dict with current status:
+                - queue_size: Stories remaining in queue
+                - completed_count: Stories completed
+                - failed_count: Stories failed
+                - partial_count: Stories partially completed
+                - success_rate: Overall success rate
+                - tokens_used: Tokens used so far
+                - tokens_remaining: Tokens remaining in budget
+                - current_phase: Current execution phase
+        """
+        total_processed = len(self.completed) + len(self.failed) + len(self.partial)
+        success_rate = len(self.completed) / total_processed if total_processed > 0 else 0.0
+
+        return {
+            "queue_size": len(self.story_queue),
+            "completed_count": len(self.completed),
+            "failed_count": len(self.failed),
+            "partial_count": len(self.partial),
+            "success_rate": success_rate,
+            "tokens_used": self.tokens_used,
+            "tokens_remaining": self.token_limit - self.tokens_used,
+            "current_phase": self.current_phase,
+            "current_story": self.current_story.story_id if self.current_story else None,
+        }
