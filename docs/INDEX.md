@@ -1,6 +1,6 @@
 # NEXUS Documentation Index
 
-**Version**: 12.4 | **Last Updated**: 2025-12-16
+**Version**: 12.4 | **Last Updated**: 2026-01-21
 
 Quick navigation to all NEXUS documentation.
 
@@ -11,6 +11,7 @@ Quick navigation to all NEXUS documentation.
 | Document | Description |
 |----------|-------------|
 | [README.md](../README.md) | Project overview and quick start |
+| [guides/INSTALLATION.md](guides/INSTALLATION.md) | Installation + product quickstarts |
 | [MISSION.md](../MISSION.md) | NEXUS vision and principles |
 | [ROADMAP.md](../ROADMAP.md) | Development roadmap |
 
@@ -42,6 +43,16 @@ Quick navigation to all NEXUS documentation.
 | Document | Description |
 |----------|-------------|
 | [releases/V12_RELEASE_NOTES.md](releases/V12_RELEASE_NOTES.md) | V12.0-V12.4 release notes |
+| [PRODUCTS/RELEASE.md](../PRODUCTS/RELEASE.md) | Release candidate quickstart guide |
+
+---
+
+## Products
+
+| Document | Description |
+|----------|-------------|
+| [PRODUCTS/20_FLAGSHIP.md](../PRODUCTS/20_FLAGSHIP.md) | Flagship: Research CLI + Evidence Pack |
+| [PRODUCTS/30_COMPANION.md](../PRODUCTS/30_COMPANION.md) | Companion: MCP Server integration |
 
 ---
 
@@ -59,6 +70,7 @@ Quick navigation to all NEXUS documentation.
 
 | Document | Description |
 |----------|-------------|
+| [AGENTS.md](../AGENTS.md) | Repository guidelines and commands |
 | [CLAUDE.md](../CLAUDE.md) | Claude agent instructions |
 | [GEMINI.md](../GEMINI.md) | Gemini agent instructions |
 
@@ -120,6 +132,7 @@ Quick navigation to all NEXUS documentation.
 | Location | Description |
 |----------|-------------|
 | [docs/archive/legacy/](archive/legacy/) | V7-V10 archived documentation |
+| [docs/archive/legacy/v7/INSTALLATION_V7.md](archive/legacy/v7/INSTALLATION_V7.md) | Archived V7 installation guide |
 
 ---
 

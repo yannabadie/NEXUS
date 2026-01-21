@@ -60,13 +60,16 @@ NEXUS is not just a tool - it's a **deployable intelligence core** designed to b
 ## Quick Start
 
 ```bash
-# Clone NEXUS into your project
-git clone https://github.com/your-org/nexus.git
+# Clone NEXUS
+git clone https://github.com/yannabadie/NEXUS.git
+cd NEXUS
+git checkout NX-CG
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
-# Launch NEXUS
+# Verify + launch
+python nexus7.py --verify
 python nexus7.py
 ```
 
@@ -74,6 +77,27 @@ python nexus7.py
 nexus7> Hello! Analyze this project and help me understand it.
 [NEXUS collaborates between Gemini and Claude to analyze your codebase]
 ```
+
+---
+
+## Products (NX-CG)
+
+### Flagship: Research CLI + Evidence Pack
+Local-first research that turns a question into traceable artifacts.
+```bash
+python nexus_research.py "How does ProjectMemory index files?" --mode mock --path core/memory/project_memory.py
+```
+Outputs: `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `metrics.json`, `manifest.sha256`
+
+### Companion: MCP Server
+MCP server exposing research + evidence pack generation.
+```bash
+python -m pip install mcp
+python -m core.mcp.server
+```
+
+Release guide: `PRODUCTS/RELEASE.md`  
+Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
 
 ---
 
@@ -231,6 +255,7 @@ NEXUS/
 │   └── .nexus/                  # RAG database
 ├── tests/                       # 1200+ tests
 ├── docs/                        # Documentation
+├── PRODUCTS/                    # Delivery logs + product docs
 ├── nexus7.py                    # Entry point
 ├── KERNEL.py                    # Immutable alignment
 └── MISSION.md                   # Project mission
@@ -294,7 +319,9 @@ Additional protections:
 ## Requirements
 
 - Python 3.11+
-- API Keys: `ANTHROPIC_API_KEY`, `GOOGLE_AI_API_KEY` OR your own subscription
+- Optional: Gemini/Claude CLIs + API keys for online usage
+- Optional: Node.js 22+ for Cerebro UI
+- Optional: MCP SDK (`python -m pip install mcp`) for the companion server
 - Optional: Redis (for multi-instance), PostgreSQL (for persistence)
 
 ```bash
@@ -306,9 +333,9 @@ pip install -r requirements.txt
 ## Test Status
 
 ```
-Tests: 1200+
-Coverage: ~85%
-Critical paths: 100% covered
+Latest full run: 2026-01-21
+Tests collected: 2371
+Results: 2360 passed, 12 skipped
 ```
 
 ```bash
@@ -323,7 +350,8 @@ pytest tests/ --cov=core --cov-report=html
 1. Read [MISSION.md](MISSION.md) to understand the vision
 2. Check [ROADMAP.md](ROADMAP.md) for current priorities
 3. Follow code style in [CLAUDE.md](CLAUDE.md)
-4. All PRs require tests
+4. See [AGENTS.md](AGENTS.md) for repo guidelines and commands
+5. All PRs require tests
 
 ---
 

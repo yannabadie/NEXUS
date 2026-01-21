@@ -14,9 +14,12 @@ Backend (Python 3.11+):
 python -m pip install -r requirements.txt
 python nexus7.py --verify
 python nexus7.py
+python nexus_research.py "Question" --mode mock --path core/memory/project_memory.py
 python -m pytest tests/ -v
 uvicorn core.api.cerebro.app:create_cerebro_app --factory --port 8080
 python -m core.mcp.server
+powershell -ExecutionPolicy Bypass -File scripts/demo_flagship.ps1
+powershell -ExecutionPolicy Bypass -File scripts/demo_companion.ps1
 ```
 
 Frontend (Cerebro UI):
