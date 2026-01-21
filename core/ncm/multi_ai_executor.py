@@ -726,10 +726,17 @@ class MultiAIExecutor:
 
     async def _execute_claude(self, story: Dict) -> StoryResult:
         """
-        Execute story via Claude Code CLI (headless mode).
+        Execute story via Claude Code CLI (headless mode with full autonomy).
 
-        Uses: claude -p "prompt" --output-format json --allowedTools "Read,Edit,Bash"
-        Reference: https://code.claude.com/docs/en/headless
+        Uses: claude -p "prompt" --output-format json --dangerously-skip-permissions
+        Reference: https://docs.anthropic.com/en/docs/claude-code/cli-usage
+
+        Key flags:
+        - -p: Print mode (non-interactive, outputs result and exits)
+        - --output-format json: Structured JSON output for parsing
+        - --dangerously-skip-permissions: CRITICAL - Skip all permission prompts
+          This enables fully autonomous execution without manual approval.
+          Required for NCM automation pipeline.
         """
         start_time = time.time()
         story_id = story.get("story_id", "unknown")
@@ -751,15 +758,15 @@ class MultiAIExecutor:
             # Build prompt
             prompt = self._build_prompt(story, include_context=True)
 
-            # Use Claude CLI with headless mode flags
+            # Use Claude CLI with headless mode flags for FULL AUTONOMY
             # -p: Print mode (non-interactive)
             # --output-format json: Structured output
-            # --allowedTools: Auto-approve specific tools
+            # --dangerously-skip-permissions: Skip ALL permission prompts (autonomous)
             proc = await asyncio.create_subprocess_exec(
                 claude_path,
                 "-p", prompt,
                 "--output-format", "json",
-                "--allowedTools", "Read,Edit,Bash",
+                "--dangerously-skip-permissions",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.workspace_path),
