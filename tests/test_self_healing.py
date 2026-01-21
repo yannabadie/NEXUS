@@ -211,7 +211,13 @@ class TestExecuteWithFallback(TestCase):
         self.session_manager.create_task(task_id, "PARALLEL")
         fail_on_modes = fail_on_modes or []
 
-        def mock_invoke(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
+        def mock_invoke(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
             return AgentResponse(
                 agent_id=agent_id,
                 content=f"Mock response from {agent_id}",
@@ -246,7 +252,13 @@ class TestExecuteWithFallback(TestCase):
         task_id = generate_task_id()
         call_count = {"parallel": 0, "sequential": 0}
 
-        def mock_invoke_with_failure(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
+        def mock_invoke_with_failure(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
             # Fail on parallel mode - return FAILED status
             if "PARALLEL MODE" in context_str:
                 call_count["parallel"] += 1
@@ -307,7 +319,13 @@ class TestExecuteWithFallback(TestCase):
         task_id = generate_task_id()
         failure_count = [0]
 
-        def failing_invoke(agent_id: str, task_type: str, context_str: str) -> AgentResponse:
+        def failing_invoke(
+            agent_id: str,
+            task_type: str,
+            context_str: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> AgentResponse:
             if failure_count[0] < 2:  # Fail first 2 calls
                 failure_count[0] += 1
                 raise RuntimeError("Simulated failure")
@@ -479,7 +497,13 @@ class TestHybridSwarmEngineSelfHealing(TestCase):
         mock_config.swarm_negotiation_enabled = False
         mock_config.swarm_max_rounds = 4
 
-        def mock_invoke(agent_id: str, task_type: str, context: str) -> str:
+        def mock_invoke(
+            agent_id: str,
+            task_type: str,
+            context: str,
+            session_uuid=None,
+            isolated_env=None,
+        ) -> str:
             return f"Mock response from {agent_id}"
 
         engine = HybridSwarmEngine(

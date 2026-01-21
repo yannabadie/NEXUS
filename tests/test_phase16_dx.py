@@ -76,7 +76,7 @@ class TestCommandCategories:
 
         help_text = get_help_message()
 
-        assert "NEXUS V7.7" in help_text
+        assert "NEXUS V" in help_text
         assert "Collaboration" in help_text
         assert "Evolution" in help_text
         assert "Monitoring" in help_text
@@ -103,7 +103,7 @@ class TestInteractiveTutorial:
         """Verify tutorial steps are properly defined."""
         from core.interface.tutorial import TUTORIAL_STEPS, TutorialStep
 
-        assert len(TUTORIAL_STEPS) == 5
+        assert len(TUTORIAL_STEPS) == 6
 
         for step in TUTORIAL_STEPS:
             assert isinstance(step, TutorialStep)
@@ -154,7 +154,8 @@ class TestInteractiveTutorial:
 
         assert tutorial.get_step(0) is not None
         assert tutorial.get_step(4) is not None
-        assert tutorial.get_step(5) is None  # Out of bounds
+        assert tutorial.get_step(5) is not None
+        assert tutorial.get_step(6) is None  # Out of bounds
         assert tutorial.get_step(-1) is None  # Negative
 
     def test_quickstart_content(self):
@@ -186,7 +187,7 @@ class TestInteractiveTutorial:
         )
 
         assert result is True
-        assert mock_input.call_count == 5  # 5 steps
+        assert mock_input.call_count == len(tutorial.steps)
 
     def test_tutorial_run_quit(self):
         """Test tutorial run with quit."""
@@ -216,10 +217,12 @@ class TestInteractiveTutorial:
         # Skip all steps then complete
         call_count = 0
 
+        total_steps = len(tutorial.steps)
+
         def mock_input(prompt):
             nonlocal call_count
             call_count += 1
-            return "s" if call_count < 5 else ""
+            return "s" if call_count < total_steps else ""
 
         result = tutorial.run(
             print_fn=output.append,

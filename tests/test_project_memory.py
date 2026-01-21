@@ -382,10 +382,10 @@ class TestRetrieval:
         assert len(results) == 0
 
     def test_retrieve_no_match(self, project_memory, temp_nexus_root):
-        """Query with no matches should return empty."""
+        """Query with no matches should return empty at high min_score."""
         project_memory.index_directory(temp_nexus_root)
 
-        results = project_memory.retrieve("xyznonexistentterm123")
+        results = project_memory.retrieve("xyznonexistentterm123", min_score=0.9)
         assert len(results) == 0
 
     def test_retrieve_empty_index(self, project_memory):

@@ -12,6 +12,27 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 from pathlib import Path
 
+# Helper to build a DebateResult with current fields
+def make_debate_result(final_approach="Test approach", final_capabilities=None):
+    from core.hive_mind.types import DebateResult
+
+    if final_capabilities is None:
+        final_capabilities = ["coding"]
+
+    return DebateResult(
+        status="CONSENSUS_REACHED",
+        final_approach=final_approach,
+        final_capabilities=final_capabilities,
+        final_mode="sequential",
+        debate_history=[],
+        total_turns=1,
+        resolved_disagreements=[],
+        unresolved_disagreements=[],
+        consensus_confidence=0.9,
+        gemini_satisfaction=0.9,
+        claude_satisfaction=0.9,
+    )
+
 # Test the feature flag
 def test_feature_flag_default_enabled():
     """Feature flag should be enabled by default."""
@@ -153,8 +174,6 @@ class TestCollaborativeArchitecture:
     ):
         """Collaborative mode should call Claude first, then Gemini."""
         from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
-        from core.hive_mind.types import DebateResult
-
         phase = ArchitectureGenerationPhase(
             gemini_driver=mock_gemini_driver,
             claude_driver=mock_claude_driver,
@@ -165,12 +184,9 @@ class TestCollaborativeArchitecture:
             workspace_path=tmp_path
         )
 
-        debate_result = DebateResult(
+        debate_result = make_debate_result(
             final_approach="Test approach",
             final_capabilities=["coding", "analysis"],
-            consensus_reached=True,
-            debate_rounds=2,
-            key_decisions=[]
         )
 
         result = await phase.execute(
@@ -199,8 +215,6 @@ class TestCollaborativeArchitecture:
     ):
         """Should use Claude-only architecture when budget is exceeded."""
         from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
-        from core.hive_mind.types import DebateResult
-
         # Make budget check fail for validation step
         mock_cost_estimator.can_afford = MagicMock(side_effect=lambda x: x != "validate_architecture")
 
@@ -214,12 +228,9 @@ class TestCollaborativeArchitecture:
             workspace_path=tmp_path
         )
 
-        debate_result = DebateResult(
+        debate_result = make_debate_result(
             final_approach="Test approach",
             final_capabilities=["coding"],
-            consensus_reached=True,
-            debate_rounds=1,
-            key_decisions=[]
         )
 
         result = await phase.execute(
@@ -244,8 +255,6 @@ class TestCollaborativeArchitecture:
     ):
         """Should use Claude architecture when Gemini validation fails."""
         from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
-        from core.hive_mind.types import DebateResult
-
         # Make Gemini fail
         mock_gemini_driver.send_message_async = AsyncMock(
             side_effect=Exception("Gemini error")
@@ -261,12 +270,9 @@ class TestCollaborativeArchitecture:
             workspace_path=tmp_path
         )
 
-        debate_result = DebateResult(
+        debate_result = make_debate_result(
             final_approach="Test approach",
             final_capabilities=["coding"],
-            consensus_reached=True,
-            debate_rounds=1,
-            key_decisions=[]
         )
 
         result = await phase.execute(
@@ -342,13 +348,9 @@ class TestLegacyArchitecture:
                 workspace_path=tmp_path
             )
 
-            from core.hive_mind.types import DebateResult
-            debate_result = DebateResult(
+            debate_result = make_debate_result(
                 final_approach="Test",
                 final_capabilities=["test"],
-                consensus_reached=True,
-                debate_rounds=1,
-                key_decisions=[]
             )
 
             result = await phase.execute(
