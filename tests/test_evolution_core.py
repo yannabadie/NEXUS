@@ -108,7 +108,7 @@ class MockRateLimiter:
         self._allow = allow
         self._reason = reason
 
-    def can_evolve(self):
+    def can_evolve(self, num_children: int = 1):
         return self._allow, self._reason
 
     def remaining_today(self):

@@ -37,7 +37,7 @@ class TestOrchestratorStates:
 
     def test_state_count(self):
         """Verify total number of states."""
-        assert len(OrchestratorState) == 11, "Expected 11 FSM states"
+        assert len(OrchestratorState) == 12, "Expected 12 FSM states"
 
     def test_initial_state_is_idle(self):
         """IDLE should be first state (initial)."""
@@ -224,6 +224,8 @@ class TestTransitionMatrix:
         """All transition targets should be valid states."""
         for state, transitions in TRANSITION_MATRIX.items():
             for trigger, target in transitions.items():
+                if target is None:
+                    continue
                 assert isinstance(target, OrchestratorState), \
                     f"Invalid target {target} for {state}->{trigger}"
 

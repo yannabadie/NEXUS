@@ -63,7 +63,8 @@ class TestHomeIsolator:
 
         if sys.platform != 'win32':
             assert "HOME" in env
-            assert str(workspace / ".session_homes" / "task_001_lead") in env["HOME"]
+            safe_id = isolator._sanitize_session_id("task_001_lead")
+            assert str(workspace / ".session_homes" / safe_id) in env["HOME"]
 
     def test_get_isolated_env_has_isolated_home_windows(self, isolator, workspace):
         """get_isolated_env should set USERPROFILE on Windows."""
@@ -71,13 +72,15 @@ class TestHomeIsolator:
 
         if sys.platform == 'win32':
             assert "USERPROFILE" in env
-            assert str(workspace / ".session_homes" / "task_001_lead") in env["USERPROFILE"]
+            safe_id = isolator._sanitize_session_id("task_001_lead")
+            assert str(workspace / ".session_homes" / safe_id) in env["USERPROFILE"]
 
     def test_get_isolated_env_creates_home_dir(self, isolator, workspace):
         """get_isolated_env should create isolated home directory."""
         isolator.get_isolated_env("task_001_lead")
 
-        isolated_home = workspace / ".session_homes" / "task_001_lead"
+        safe_id = isolator._sanitize_session_id("task_001_lead")
+        isolated_home = workspace / ".session_homes" / safe_id
         assert isolated_home.exists()
         assert isolated_home.is_dir()
 
@@ -100,7 +103,8 @@ class TestHomeIsolator:
     def test_cleanup_home_removes_directory(self, isolator, workspace):
         """cleanup_home should remove the isolated directory."""
         isolator.get_isolated_env("task_cleanup")
-        isolated_home = workspace / ".session_homes" / "task_cleanup"
+        safe_id = isolator._sanitize_session_id("task_cleanup")
+        isolated_home = workspace / ".session_homes" / safe_id
         assert isolated_home.exists()
 
         result = isolator.cleanup_home("task_cleanup")
@@ -118,7 +122,8 @@ class TestHomeIsolator:
         isolator.get_isolated_env("task_get")
         path = isolator.get_home_path("task_get")
 
-        assert path == workspace / ".session_homes" / "task_get"
+        safe_id = isolator._sanitize_session_id("task_get")
+        assert path == workspace / ".session_homes" / safe_id
 
     def test_get_home_path_nonexistent(self, isolator):
         """get_home_path should return None for non-existent."""
@@ -134,9 +139,9 @@ class TestHomeIsolator:
         active = isolator.list_active_homes()
 
         assert len(active) == 3
-        assert "task_1" in active
-        assert "task_2" in active
-        assert "task_3" in active
+        assert isolator._sanitize_session_id("task_1") in active
+        assert isolator._sanitize_session_id("task_2") in active
+        assert isolator._sanitize_session_id("task_3") in active
 
     def test_get_stats(self, isolator):
         """get_stats should return count and size."""
@@ -153,7 +158,8 @@ class TestHomeIsolator:
 
         # Manually backdate creation time
         from datetime import datetime, timedelta
-        isolator._creation_times["task_old"] = datetime.now() - timedelta(hours=48)
+        safe_id = isolator._sanitize_session_id("task_old")
+        isolator._creation_times[safe_id] = datetime.now() - timedelta(hours=48)
 
         # Cleanup old (max_age=24h)
         removed = isolator.cleanup_old_homes(max_age_hours=24)
@@ -239,7 +245,8 @@ class TestSessionWorkspaceManagerV971:
     def test_cleanup_isolated_env(self, manager, workspace):
         """cleanup_isolated_env should remove HOME directory."""
         manager.get_isolated_env("task_cleanup", "swarm")
-        home_path = workspace / ".session_homes" / "swarm_task_cleanup"
+        safe_id = manager._home_isolator._sanitize_session_id("swarm_task_cleanup")
+        home_path = workspace / ".session_homes" / safe_id
         assert home_path.exists()
 
         result = manager.cleanup_isolated_env("task_cleanup", "swarm")

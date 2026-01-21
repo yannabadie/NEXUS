@@ -88,7 +88,8 @@ class TestRecoveryStrategy(TestCase):
             name="test",
             description="Test",
             action=AsyncMock(),
-            max_attempts=2
+            max_attempts=2,
+            cooldown_seconds=0.0,
         )
 
         strategy.mark_used()
@@ -212,7 +213,7 @@ class TestHealthStateMachineTransitions(TestCase):
             await hsm.record_error("TEST_ERROR", "Error")
             assert hsm.state == HealthState.DEGRADED
 
-            await hsm.record_success()
+            hsm.record_success()
 
             assert hsm.state == HealthState.HEALTHY
             assert hsm.error_count == 0
@@ -359,7 +360,7 @@ class TestHealthStateMachineHistory(TestCase):
 
         async def run_test():
             await hsm.record_error("ERROR_1", "First error")
-            await hsm.record_success()
+            hsm.record_success()
 
             # Should have history entries
             assert len(hsm._history) >= 2

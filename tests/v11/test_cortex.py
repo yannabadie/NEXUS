@@ -14,6 +14,18 @@ Date: 2025-12-15
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
+from core.api.cerebro.deps import AuthenticatedUser, require_auth
+
+
+async def _auth_override():
+    """Provide a default authenticated user for protected routes."""
+    return AuthenticatedUser(
+        user_id="test-user",
+        tenant_id="test-tenant",
+        workspace_id="test-workspace",
+        role="owner",
+    )
+
 
 class TestHeadlessProviderInteractive:
     """Tests for HeadlessProvider V11.5 CORTEX interactive mode."""
@@ -94,6 +106,7 @@ class TestFileSizeLimit:
             from fastapi import FastAPI
             app = FastAPI()
             app.include_router(files.router, prefix="/api/files")
+            app.dependency_overrides[require_auth] = _auth_override
 
             with TestClient(app) as client:
                 response = client.get("/api/files/content", params={"path": "large.log"})
@@ -115,7 +128,7 @@ class TestStateSnapshot:
         from core.api.cerebro.routes import state
 
         # Mock Redis bus
-        with patch.object(state, 'get_redis_bus') as mock_get_bus:
+        with patch('core.events.redis_bus.get_redis_bus') as mock_get_bus:
             mock_bus = MagicMock()
             mock_bus.is_connected.return_value = True
 
@@ -128,7 +141,7 @@ class TestStateSnapshot:
             mock_get_bus.return_value = mock_bus
 
             # Mock interaction provider
-            with patch('core.api.cerebro.routes.state.get_interaction_provider') as mock_provider:
+            with patch('core.interaction.get_interaction_provider') as mock_provider:
                 mock_provider.return_value.get_pending_requests.return_value = [
                     {"request_id": "abc123", "type": "confirm", "prompt": "Continue?"}
                 ]
@@ -136,6 +149,7 @@ class TestStateSnapshot:
                 from fastapi import FastAPI
                 app = FastAPI()
                 app.include_router(state.router, prefix="/api/state")
+                app.dependency_overrides[require_auth] = _auth_override
 
                 with TestClient(app) as client:
                     response = client.get(
@@ -160,7 +174,7 @@ class TestInteractionEndpoint:
         from core.api.cerebro.routes import interactions
 
         # Mock provider
-        with patch('core.api.cerebro.routes.interactions.get_interaction_provider') as mock_get:
+        with patch('core.interaction.get_interaction_provider') as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_pending_requests.return_value = []
             mock_get.return_value = mock_provider
@@ -168,6 +182,7 @@ class TestInteractionEndpoint:
             from fastapi import FastAPI
             app = FastAPI()
             app.include_router(interactions.router, prefix="/api/interactions")
+            app.dependency_overrides[require_auth] = _auth_override
 
             with TestClient(app) as client:
                 response = client.get("/api/interactions/pending")
@@ -192,13 +207,17 @@ class TestWorkflowEndpoint:
         from fastapi import FastAPI
         app = FastAPI()
         app.include_router(workflow.router, prefix="/api/workflow")
+        app.dependency_overrides[require_auth] = _auth_override
 
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/workflow/start",
-                json={"task": "test task"},
-                params={"tenant_id": "test"}
-            )
+        with patch("fastapi.BackgroundTasks.add_task", return_value=None), \
+            patch.object(workflow._registry, "connect", AsyncMock(return_value=False)), \
+            patch.object(workflow._registry, "create_workflow", AsyncMock(return_value={})):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/workflow/start",
+                    json={"task": "test task"},
+                    params={"tenant_id": "test"}
+                )
 
         assert response.status_code == 200
         data = response.json()
@@ -217,9 +236,12 @@ class TestWorkflowEndpoint:
         from fastapi import FastAPI
         app = FastAPI()
         app.include_router(workflow.router, prefix="/api/workflow")
+        app.dependency_overrides[require_auth] = _auth_override
 
-        with TestClient(app) as client:
-            response = client.get("/api/workflow/nonexistent123")
+        with patch.object(workflow._registry, "connect", AsyncMock(return_value=False)), \
+            patch.object(workflow._registry, "get_workflow", AsyncMock(return_value=None)):
+            with TestClient(app) as client:
+                response = client.get("/api/workflow/nonexistent123")
 
         assert response.status_code == 404
 

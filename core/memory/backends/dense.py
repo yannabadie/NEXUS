@@ -347,6 +347,8 @@ class DenseBackend(MemoryBackend):
 
     def get_info(self) -> Dict[str, Any]:
         """Get Dense backend information."""
+        # Ensure storage is loaded so on-disk indexes are reflected in info.
+        self._ensure_db()
         engine_info = {}
         if self._engine is not None:
             engine_info = self._engine.get_info()

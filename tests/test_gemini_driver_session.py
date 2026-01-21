@@ -84,7 +84,7 @@ class TestGeminiDriverSessionUUID(TestCase):
 
     @patch('subprocess.Popen')
     def test_command_includes_session_uuid_when_provided(self, mock_popen):
-        """Test that command includes --resume {uuid} when session_uuid is provided."""
+        """Test that command uses session_uuid in the context file name."""
         from core.drivers.gemini_driver_v7 import GeminiDriverV7
 
         # Setup mock process
@@ -113,18 +113,17 @@ class TestGeminiDriverSessionUUID(TestCase):
             call_args = mock_popen.call_args
             command = call_args[0][0] if call_args[0] else call_args.kwargs.get('args', '')
 
-            # Check that session UUID is in command (either as string or in list)
+            # Check that session UUID is in command (context file name)
             if isinstance(command, str):
-                assert f"--resume {test_uuid}" in command, f"Command should contain --resume {test_uuid}"
+                assert f"gemini_context_{test_uuid}.md" in command, "Command should reference session UUID in context file"
             else:
                 # List format
-                assert "--resume" in command, "Command should contain --resume"
-                resume_idx = command.index("--resume")
-                assert command[resume_idx + 1] == test_uuid, f"UUID should follow --resume"
+                assert any(f"gemini_context_{test_uuid}.md" in part for part in command), \
+                    "Command should reference session UUID in context file"
 
     @patch('subprocess.Popen')
     def test_command_uses_latest_when_no_uuid(self, mock_popen):
-        """Test that command uses --resume latest when session_uuid is None and session is active."""
+        """Test that command uses --resume latest when isolated_env is provided."""
         from core.drivers.gemini_driver_v7 import GeminiDriverV7
 
         # Setup mock process
@@ -140,11 +139,8 @@ class TestGeminiDriverSessionUUID(TestCase):
             workspace_path=self.workspace
         )
 
-        # Simulate active session
-        driver._session_active = True
-
         try:
-            driver.invoke("test prompt", session_uuid=None)
+            driver.invoke("test prompt", session_uuid=None, isolated_env={"HOME": "/tmp/isolated"})
         except Exception:
             pass
 
@@ -153,7 +149,7 @@ class TestGeminiDriverSessionUUID(TestCase):
             command = call_args[0][0] if call_args[0] else call_args.kwargs.get('args', '')
 
             if isinstance(command, str):
-                assert "--resume latest" in command, "Should use --resume latest when no UUID"
+                assert "--resume latest" in command, "Should use --resume latest when isolated_env is provided"
             else:
                 assert "--resume" in command
                 resume_idx = command.index("--resume")

@@ -32,8 +32,8 @@ class TestAuthEndpoints:
 
         from core.api.cerebro.routes import auth
 
-        # Mock the JWT creation to avoid dependency on middleware
-        with patch.object(auth, 'ADMIN_PASSWORD', 'nexus'):
+        # Mock the fallback password to avoid env dependency
+        with patch.object(auth, 'FALLBACK_ADMIN_PASSWORD', 'nexus'):
             from fastapi import FastAPI
             app = FastAPI()
             app.include_router(auth.router, prefix="/api/auth")
@@ -359,7 +359,7 @@ class TestKeymakerConfig:
         from core.api.cerebro.routes import auth
 
         # Default password should be 'nexus'
-        assert auth.ADMIN_PASSWORD == "nexus" or auth.ADMIN_PASSWORD != ""
+        assert auth.FALLBACK_ADMIN_PASSWORD == "nexus" or auth.FALLBACK_ADMIN_PASSWORD != ""
 
     def test_token_expiration_set(self):
         """Token expiration should be configured."""
@@ -384,7 +384,7 @@ class TestAuthRouterRegistered:
         assert "/api/auth/logout" in routes
 
     def test_app_version_updated(self):
-        """App version should be 11.6.0."""
+        """App version should be 13.0.0."""
         try:
             from fastapi.testclient import TestClient
         except ImportError:
@@ -398,5 +398,5 @@ class TestAuthRouterRegistered:
             response = client.get("/")
 
         data = response.json()
-        assert data["version"] == "11.6.0"
+        assert data["version"] == "13.0.0"
         assert "auth" in data

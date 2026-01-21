@@ -368,13 +368,12 @@ class TestServerStartup:
     """Tests for server startup behavior."""
 
     def test_main_exits_if_mcp_unavailable(self):
-        """Test main() exits with error if MCP not installed."""
+        """Test main() raises MCPNotAvailableError if MCP not installed."""
         with patch('core.mcp.server.MCP_AVAILABLE', False):
             from core.mcp import server
             # Reload to pick up the patched value
-            with pytest.raises(SystemExit) as exc_info:
+            with pytest.raises(server.MCPNotAvailableError):
                 server.main()
-            assert exc_info.value.code == 1
 
 
 # =============================================================================

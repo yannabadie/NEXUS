@@ -55,9 +55,9 @@ class TestHotSwapLeadAgent:
         )
 
         # Create stagnation with identical messages
-        detector.add_message("Error: cannot parse JSON response from API")
-        detector.add_message("Error: cannot parse JSON response from API")
-        detector.add_message("Error: cannot parse JSON response from API")
+        detector.add_message("Cannot parse JSON response from API")
+        detector.add_message("Cannot parse JSON response from API")
+        detector.add_message("Cannot parse JSON response from API")
         detector.record_agent_failure("gemini")
         detector.record_agent_failure("gemini")
 
