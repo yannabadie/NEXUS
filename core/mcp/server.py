@@ -30,6 +30,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+try:
+    from core.memory.project_memory import ProjectMemory as _ProjectMemory
+except Exception:
+    _ProjectMemory = None
+
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
 logging.basicConfig(
     level=logging.INFO,
@@ -51,13 +56,21 @@ except ImportError:
 # NEXUS Tool Imports (lazy loading to avoid circular imports)
 # =============================================================================
 
+_TOOL_MANAGER = None
+_ORCHESTRATOR = None
+
+
 def get_tool_manager():
     """Lazy load ToolManager to avoid circular imports."""
+    global _TOOL_MANAGER
+    if _TOOL_MANAGER is not None:
+        return _TOOL_MANAGER
     from core.execution.tool_manager import ToolManager
     from core.config import Config
     config = Config()
     # V8.5.0: ToolManager expects workspace_path, not config
-    return ToolManager(config.workspace_path)
+    _TOOL_MANAGER = ToolManager(config.workspace_path)
+    return _TOOL_MANAGER
 
 
 def execute_tool(tool_name: str, params: dict):
@@ -74,13 +87,17 @@ def execute_tool(tool_name: str, params: dict):
 
 def get_orchestrator():
     """Lazy load Orchestrator for complex tasks."""
+    global _ORCHESTRATOR
+    if _ORCHESTRATOR is not None:
+        return _ORCHESTRATOR
     from core.orchestration_v7 import OrchestratorV7
     from core.config import Config
     config = Config()
     # V8.5.0: OrchestratorV7 requires workspace_path, config, and model info
     gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
     claude_info = {"model": config.claude_opus_model, "provider": "claude"}
-    return OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
+    _ORCHESTRATOR = OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
+    return _ORCHESTRATOR
 
 
 def _utc_now() -> datetime:
@@ -143,16 +160,25 @@ def _resolve_output_dir(workspace: Path, output_dir: Optional[str]) -> Optional[
 
 
 def _init_memory(root: Path, backend: str):
-    from core.memory.project_memory import ProjectMemory
+    if _ProjectMemory is None:
+        raise RuntimeError("ProjectMemory is unavailable in this environment.")
     previous_backend = os.environ.get("PROJECT_MEMORY_BACKEND")
     os.environ["PROJECT_MEMORY_BACKEND"] = backend
     try:
-        return ProjectMemory(root)
+        return _ProjectMemory(root)
     finally:
         if previous_backend is None:
             os.environ.pop("PROJECT_MEMORY_BACKEND", None)
         else:
             os.environ["PROJECT_MEMORY_BACKEND"] = previous_backend
+
+
+async def _run_blocking(func, *args, **kwargs):
+    import anyio
+    if kwargs:
+        import functools
+        func = functools.partial(func, **kwargs)
+    return await anyio.to_thread.run_sync(func, *args)
 
 
 def build_memory_search(
@@ -174,6 +200,7 @@ def build_memory_search(
     root = _resolve_root(root_path)
     backend = backend or ("tfidf" if mode == "mock" else "auto")
     index_paths = _resolve_index_paths(root, paths)
+    logger.info("build_memory_search init root=%s backend=%s", root, backend)
 
     memory = _init_memory(root, backend)
     indexed_chunks = 0
@@ -182,8 +209,10 @@ def build_memory_search(
             indexed_chunks += memory.index_directory(path)
         elif path.is_file():
             indexed_chunks += memory.index_file(path)
+    logger.info("build_memory_search indexed_chunks=%s", indexed_chunks)
 
     results = memory.retrieve(query, limit=limit, min_score=min_score)
+    logger.info("build_memory_search results=%s", len(results))
     sources = []
     for chunk in results:
         sources.append({
@@ -276,11 +305,17 @@ if MCP_AVAILABLE:
             File contents as a string with line numbers
         """
         try:
-            result = execute_tool("read", {
-                "file_path": file_path,
-                "offset": offset,
-                "limit": limit
-            })
+            logger.info("nexus_read start file_path=%s", file_path)
+            result = await _run_blocking(
+                execute_tool,
+                "read",
+                {
+                    "file_path": file_path,
+                    "offset": offset,
+                    "limit": limit,
+                },
+            )
+            logger.info("nexus_read done status=%s", result.status)
             return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_read error: {e}")
@@ -299,10 +334,16 @@ if MCP_AVAILABLE:
             List of matching file paths
         """
         try:
-            result = execute_tool("glob", {
-                "pattern": pattern,
-                "path": path
-            })
+            logger.info("nexus_glob start pattern=%s path=%s", pattern, path)
+            result = await _run_blocking(
+                execute_tool,
+                "glob",
+                {
+                    "pattern": pattern,
+                    "path": path,
+                },
+            )
+            logger.info("nexus_glob done status=%s", result.status)
             return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_glob error: {e}")
@@ -336,8 +377,7 @@ if MCP_AVAILABLE:
                 params["type"] = file_type
             if context_lines > 0:
                 params["-C"] = context_lines
-
-            result = execute_tool("grep", params)
+            result = await _run_blocking(execute_tool, "grep", params)
             return result.output if result.status == "SUCCESS" else f"Error: {result.error}"
         except Exception as e:
             logger.error(f"nexus_grep error: {e}")
@@ -363,7 +403,7 @@ if MCP_AVAILABLE:
         """
         try:
             orch = get_orchestrator()
-            result = orch.process_turn(task)
+            result = await _run_blocking(orch.process_turn, task)
             return result.get("response", "No response generated")
         except Exception as e:
             logger.error(f"nexus_analyze error: {e}")
@@ -379,7 +419,7 @@ if MCP_AVAILABLE:
         """
         try:
             orch = get_orchestrator()
-            status = orch.get_system_status()
+            status = await _run_blocking(orch.get_system_status)
             import json
             return json.dumps(status, indent=2, default=str)
         except Exception as e:
@@ -406,7 +446,8 @@ if MCP_AVAILABLE:
         nexus_export_evidence_pack to generate full artifacts.
         """
         try:
-            payload = build_memory_search(
+            payload = await _run_blocking(
+                build_memory_search,
                 query=question,
                 mode=mode,
                 backend=backend,
@@ -450,7 +491,9 @@ if MCP_AVAILABLE:
         Search indexed project memory and return structured results.
         """
         try:
-            payload = build_memory_search(
+            logger.info("nexus_memory_search start query=%s", query)
+            payload = await _run_blocking(
+                build_memory_search,
                 query=query,
                 mode=mode,
                 backend=backend,
@@ -459,6 +502,7 @@ if MCP_AVAILABLE:
                 paths=paths,
             )
             import json
+            logger.info("nexus_memory_search done sources=%s", len(payload.get("sources", [])))
             return json.dumps(payload, indent=2, ensure_ascii=True)
         except Exception as e:
             logger.error(f"nexus_memory_search error: {e}")
@@ -478,7 +522,9 @@ if MCP_AVAILABLE:
         Generate a full evidence pack (report, sources, trace, graph, manifest).
         """
         try:
-            outputs = build_evidence_pack(
+            logger.info("nexus_export_evidence_pack start question=%s", question)
+            outputs = await _run_blocking(
+                build_evidence_pack,
                 question=question,
                 output_dir=output_dir,
                 mode=mode,
@@ -488,6 +534,7 @@ if MCP_AVAILABLE:
                 paths=paths,
             )
             import json
+            logger.info("nexus_export_evidence_pack done output_dir=%s", outputs.get("output_dir"))
             return json.dumps(outputs, indent=2, ensure_ascii=True)
         except Exception as e:
             logger.error(f"nexus_export_evidence_pack error: {e}")

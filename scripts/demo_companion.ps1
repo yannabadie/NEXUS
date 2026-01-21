@@ -38,7 +38,7 @@ try:
             "mode": "mock",
             "backend": "tfidf",
             "paths": ["core/memory/project_memory.py"],
-            "output_dir": "workspace/demo_companion_pack",
+            "output_dir": "demo_companion_pack",
         },
     )
     print("Evidence pack result:")

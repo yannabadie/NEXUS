@@ -100,7 +100,7 @@ class MCPClient:
 
     # Timeouts
     DEFAULT_TIMEOUT = 30.0  # seconds
-    INIT_TIMEOUT = 10.0  # seconds
+    INIT_TIMEOUT = 30.0  # seconds
 
     def __init__(
         self,
@@ -133,6 +133,8 @@ class MCPClient:
         self._response_queue: queue.Queue = queue.Queue()
         self._reader_thread: Optional[threading.Thread] = None
         self._reader_stop = threading.Event()
+        self._stderr_thread: Optional[threading.Thread] = None
+        self._stderr_stop = threading.Event()
 
     def __enter__(self) -> "MCPClient":
         """Context manager entry."""
@@ -179,6 +181,15 @@ class MCPClient:
                 name="mcp-reader",
             )
             self._reader_thread.start()
+
+            # Start stderr reader thread to avoid pipe backpressure
+            self._stderr_stop.clear()
+            self._stderr_thread = threading.Thread(
+                target=self._stderr_loop,
+                daemon=True,
+                name="mcp-stderr",
+            )
+            self._stderr_thread.start()
 
             # Give server time to start
             time.sleep(0.1)
@@ -247,6 +258,7 @@ class MCPClient:
         """
         # Stop reader thread
         self._reader_stop.set()
+        self._stderr_stop.set()
 
         if self._process is not None:
             try:
@@ -279,6 +291,8 @@ class MCPClient:
         # Wait for reader thread
         if self._reader_thread and self._reader_thread.is_alive():
             self._reader_thread.join(timeout=1.0)
+        if self._stderr_thread and self._stderr_thread.is_alive():
+            self._stderr_thread.join(timeout=1.0)
 
     @property
     def is_connected(self) -> bool:
@@ -502,6 +516,26 @@ class MCPClient:
 
         except Exception as e:
             _logger.debug(f"[MCP] Reader thread exiting: {e}")
+
+    def _stderr_loop(self) -> None:
+        """
+        Background thread that drains server stderr to avoid blocking.
+        """
+        try:
+            while not self._stderr_stop.is_set():
+                if self._process is None or self._process.stderr is None:
+                    break
+
+                line = self._process.stderr.readline()
+                if not line:
+                    break
+
+                line = line.strip()
+                if line:
+                    _logger.debug(f"[MCP][stderr] {line}")
+
+        except Exception as e:
+            _logger.debug(f"[MCP] Stderr thread exiting: {e}")
 
 
 # =============================================================================
