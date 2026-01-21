@@ -25,7 +25,20 @@
 - `python -m pytest tests/test_research_cli.py -v`
   - Result: PASS. 3 passed in 0:00:11.
 - `python -m pytest tests/test_mcp_companion.py -v`
-  - Result: PASS. 2 passed in 0:00:12.
+  - Result: PASS. 2 passed in 0:00:11 (rerun after MCP init-timeout update).
+- `python -m pip install -r requirements.txt`
+  - Result: all requirements already satisfied.
+- `npm install` (in `interface/ui/cerebro`)
+  - Result: up to date, audited 214 packages; 7 vulnerabilities reported (6 moderate, 1 high).
+- `python -m pytest tests/ -v`
+  - Result: PASS. 2360 passed, 12 skipped, 398 warnings in 0:07:25.
+  - Notes: warnings include deprecated `datetime.utcnow()`, deprecated LanceDB `table_names()`, deprecated swarm executor usage, and `TelemetryBridge.emit` not awaited.
+- `python nexus7.py --verify`
+  - Result: PASS (NEXUS V8.4.0 TRUE HIVE MIND).
+- `scripts/demo_flagship.ps1`
+  - Result: PASS. Evidence pack in `workspace/demo_research_20260121_103459`.
+- `scripts/demo_companion.ps1`
+  - Result: PASS. Evidence pack in `workspace/demo_companion_pack`.
 
 ## Baseline Fixes Applied
 1) Windows console encoding error on emoji output

@@ -17,3 +17,5 @@
 - Flagship MVP in progress: added Research CLI evidence pack generator, demo script, tests, and flagship docs with ADR-0003.
 - Companion MVP in progress: extended MCP server with research, memory search, and evidence pack tools; added demo script, tests, and ADR-0004.
 - Hardening completed: added evidence pack metrics, release guide, security/architecture/troubleshooting docs, and CI branch coverage for NX/NX-CG.
+- MCP stability pass: cached tool manager/orchestrator, moved blocking calls off the event loop, preloaded ProjectMemory, added stderr drain and longer init timeout; demo companion output path aligned.
+- Baseline verify: pip deps OK; npm install OK (7 vulnerabilities); full pytest pass (2360 passed, 12 skipped, warnings logged); CLI verify OK; flagship + companion demos OK; baseline doc updated.
