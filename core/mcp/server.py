@@ -24,7 +24,9 @@ Reference: https://modelcontextprotocol.io/quickstart/server
 """
 
 import sys
+import os
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -79,6 +81,173 @@ def get_orchestrator():
     gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
     claude_info = {"model": config.claude_opus_model, "provider": "claude"}
     return OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _iso_now() -> str:
+    return _utc_now().isoformat()
+
+
+def _resolve_root(root_path: Optional[Path]) -> Path:
+    from core.config import Config
+    config = Config()
+    root = Path(root_path) if root_path else config.nexus_root
+    return root.resolve()
+
+
+def _resolve_workspace(workspace_path: Optional[Path]) -> Path:
+    from core.config import Config
+    config = Config()
+    workspace = Path(workspace_path) if workspace_path else config.workspace_path
+    return workspace.resolve()
+
+
+def _default_index_paths(root: Path) -> List[Path]:
+    candidates = []
+    for name in ("core", "docs"):
+        candidate = root / name
+        if candidate.exists():
+            candidates.append(candidate)
+    return candidates or [root]
+
+
+def _resolve_index_paths(root: Path, paths: Optional[List[str]]) -> List[Path]:
+    if not paths:
+        return _default_index_paths(root)
+
+    resolved = []
+    for raw_path in paths:
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        candidate = candidate.resolve()
+        if not candidate.is_relative_to(root):
+            raise ValueError(f"Index path must be under NEXUS root: {candidate}")
+        resolved.append(candidate)
+    return resolved
+
+
+def _resolve_output_dir(workspace: Path, output_dir: Optional[str]) -> Optional[Path]:
+    if output_dir is None:
+        return None
+    candidate = Path(output_dir)
+    if not candidate.is_absolute():
+        candidate = workspace / candidate
+    candidate = candidate.resolve()
+    if not candidate.is_relative_to(workspace):
+        raise ValueError(f"Output directory must be under workspace: {candidate}")
+    return candidate
+
+
+def _init_memory(root: Path, backend: str):
+    from core.memory.project_memory import ProjectMemory
+    previous_backend = os.environ.get("PROJECT_MEMORY_BACKEND")
+    os.environ["PROJECT_MEMORY_BACKEND"] = backend
+    try:
+        return ProjectMemory(root)
+    finally:
+        if previous_backend is None:
+            os.environ.pop("PROJECT_MEMORY_BACKEND", None)
+        else:
+            os.environ["PROJECT_MEMORY_BACKEND"] = previous_backend
+
+
+def build_memory_search(
+    query: str,
+    root_path: Optional[Path] = None,
+    mode: str = "mock",
+    backend: Optional[str] = None,
+    limit: int = 5,
+    min_score: float = 0.2,
+    paths: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    if not query or not query.strip():
+        raise ValueError("Query cannot be empty.")
+
+    mode = mode.lower()
+    if mode not in {"mock", "local"}:
+        raise ValueError(f"Unsupported mode: {mode}. Use 'mock' or 'local'.")
+
+    root = _resolve_root(root_path)
+    backend = backend or ("tfidf" if mode == "mock" else "auto")
+    index_paths = _resolve_index_paths(root, paths)
+
+    memory = _init_memory(root, backend)
+    indexed_chunks = 0
+    for path in index_paths:
+        if path.is_dir():
+            indexed_chunks += memory.index_directory(path)
+        elif path.is_file():
+            indexed_chunks += memory.index_file(path)
+
+    results = memory.retrieve(query, limit=limit, min_score=min_score)
+    sources = []
+    for chunk in results:
+        sources.append({
+            "file_path": chunk.file_path,
+            "start_line": chunk.start_line,
+            "end_line": chunk.end_line,
+            "chunk_type": chunk.chunk_type,
+            "name": chunk.name,
+            "terms": sorted(chunk.terms),
+            "excerpt": chunk.content.strip()[:400],
+        })
+
+    backend_info = memory.get_backend_info()
+    backend_name = backend_info.get("backend", backend)
+
+    return {
+        "query": query,
+        "mode": mode,
+        "backend": backend_name,
+        "generated_at": _iso_now(),
+        "root_path": str(root),
+        "index_paths": [str(p) for p in index_paths],
+        "indexed_chunks": indexed_chunks,
+        "sources": sources,
+    }
+
+
+def build_evidence_pack(
+    question: str,
+    root_path: Optional[Path] = None,
+    workspace_path: Optional[Path] = None,
+    output_dir: Optional[str] = None,
+    mode: str = "mock",
+    backend: Optional[str] = None,
+    limit: int = 5,
+    min_score: float = 0.2,
+    paths: Optional[List[str]] = None,
+) -> Dict[str, str]:
+    if not question or not question.strip():
+        raise ValueError("Question cannot be empty.")
+
+    mode = mode.lower()
+    if mode not in {"mock", "local"}:
+        raise ValueError(f"Unsupported mode: {mode}. Use 'mock' or 'local'.")
+
+    root = _resolve_root(root_path)
+    workspace = _resolve_workspace(workspace_path)
+    index_paths = _resolve_index_paths(root, paths)
+    resolved_output = _resolve_output_dir(workspace, output_dir)
+
+    from nexus_research import run_research
+
+    outputs = run_research(
+        question=question,
+        root_path=root,
+        output_dir=resolved_output,
+        mode=mode,
+        backend=backend,
+        limit=limit,
+        min_score=min_score,
+        paths=[str(p) for p in index_paths],
+    )
+
+    return {key: str(path) for key, path in outputs.items()}
 
 
 # =============================================================================
@@ -218,6 +387,113 @@ if MCP_AVAILABLE:
             return f"Error getting status: {e}"
 
     # =========================================================================
+    # Research & Evidence Pack
+    # =========================================================================
+
+    @mcp.tool()
+    async def nexus_research(
+        question: str,
+        mode: str = "mock",
+        backend: Optional[str] = None,
+        limit: int = 5,
+        min_score: float = 0.2,
+        paths: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Run a local-first research lookup over project memory.
+
+        Returns a short summary with matched sources. Use
+        nexus_export_evidence_pack to generate full artifacts.
+        """
+        try:
+            payload = build_memory_search(
+                query=question,
+                mode=mode,
+                backend=backend,
+                limit=limit,
+                min_score=min_score,
+                paths=paths,
+            )
+            sources = payload.get("sources", [])
+            lines = [
+                "# Research Summary",
+                "",
+                f"Question: {payload.get('query')}",
+                f"Mode: {payload.get('mode')}",
+                f"Backend: {payload.get('backend')}",
+                f"Generated: {payload.get('generated_at')}",
+                "",
+                "Sources:",
+            ]
+            if sources:
+                for source in sources:
+                    lines.append(
+                        f"- {source.get('file_path')} (L{source.get('start_line')}-{source.get('end_line')})"
+                    )
+            else:
+                lines.append("- No sources matched the query at the current threshold.")
+            return "\n".join(lines) + "\n"
+        except Exception as e:
+            logger.error(f"nexus_research error: {e}")
+            return f"Error running research: {e}"
+
+    @mcp.tool()
+    async def nexus_memory_search(
+        query: str,
+        mode: str = "mock",
+        backend: Optional[str] = None,
+        limit: int = 5,
+        min_score: float = 0.2,
+        paths: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Search indexed project memory and return structured results.
+        """
+        try:
+            payload = build_memory_search(
+                query=query,
+                mode=mode,
+                backend=backend,
+                limit=limit,
+                min_score=min_score,
+                paths=paths,
+            )
+            import json
+            return json.dumps(payload, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_memory_search error: {e}")
+            return f"Error searching memory: {e}"
+
+    @mcp.tool()
+    async def nexus_export_evidence_pack(
+        question: str,
+        mode: str = "mock",
+        backend: Optional[str] = None,
+        limit: int = 5,
+        min_score: float = 0.2,
+        output_dir: Optional[str] = None,
+        paths: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Generate a full evidence pack (report, sources, trace, graph, manifest).
+        """
+        try:
+            outputs = build_evidence_pack(
+                question=question,
+                output_dir=output_dir,
+                mode=mode,
+                backend=backend,
+                limit=limit,
+                min_score=min_score,
+                paths=paths,
+            )
+            import json
+            return json.dumps(outputs, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_export_evidence_pack error: {e}")
+            return f"Error exporting evidence pack: {e}"
+
+    # =========================================================================
     # Shell Execution (sandboxed)
     # =========================================================================
 
@@ -295,7 +571,10 @@ def main():
         )
 
     logger.info("Starting NEXUS MCP Server...")
-    logger.info("Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, nexus_bash")
+    logger.info(
+        "Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, "
+        "nexus_research, nexus_memory_search, nexus_export_evidence_pack, nexus_bash"
+    )
     logger.info("Resources: nexus://config, nexus://agents")
 
     # Run server with stdio transport

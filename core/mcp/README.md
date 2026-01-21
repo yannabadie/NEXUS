@@ -133,6 +133,13 @@ Run NEXUS as an MCP server:
 python -m core.mcp.server
 ```
 
+Server tools (high-level):
+- `nexus_read`, `nexus_glob`, `nexus_grep` - workspace file access
+- `nexus_analyze`, `nexus_status` - agent analysis and system status
+- `nexus_research` - local-first research summary (mock/local mode)
+- `nexus_memory_search` - structured project memory search
+- `nexus_export_evidence_pack` - evidence pack artifacts (report, sources, trace, graph, manifest)
+
 Configure in Claude Desktop (`claude_desktop_config.json`):
 
 ```json

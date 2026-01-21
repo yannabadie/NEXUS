@@ -24,6 +24,8 @@
 ## Update (2026-01-21)
 - `python -m pytest tests/test_research_cli.py -v`
   - Result: PASS. 3 passed in 0:00:12.
+- `python -m pytest tests/test_mcp_companion.py -v`
+  - Result: PASS. 2 passed in 0:00:11.
 
 ## Baseline Fixes Applied
 1) Windows console encoding error on emoji output
