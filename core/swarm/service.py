@@ -17,7 +17,6 @@ Usage:
     status = service.get_status()
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict, Any, Optional, Callable
 from dataclasses import dataclass

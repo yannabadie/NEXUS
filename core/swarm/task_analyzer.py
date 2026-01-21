@@ -17,13 +17,12 @@ V11 3-Stage Classification:
 Used by ModeSelector to choose the optimal collaboration mode.
 """
 
-from __future__ import annotations
 
 import asyncio
 import re
 from dataclasses import dataclass, field
 from enum import IntEnum, Enum
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import List, Dict, Optional, Tuple
 
 
 class TaskComplexity(IntEnum):

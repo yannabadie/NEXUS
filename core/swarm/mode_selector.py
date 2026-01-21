@@ -20,7 +20,7 @@ from .collaboration_modes import (
     MODE_CHARACTERISTICS,
     get_mode_characteristics
 )
-from .task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from .task_analyzer import TaskAnalysis, TaskDomain
 from .agent_metrics import AgentPool, AgentProfile
 
 # V7.6 Phase 10b: Memory-Augmented Mode Selection (lazy import)

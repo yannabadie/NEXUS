@@ -7,7 +7,7 @@ Features:
 - Plus de crashes sur champs manquants
 """
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, field_validator, Field, ValidationInfo
+from pydantic import BaseModel, field_validator, ValidationInfo
 
 
 class ThoughtChain(BaseModel):

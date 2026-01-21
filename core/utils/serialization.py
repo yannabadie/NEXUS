@@ -23,7 +23,6 @@ Author: Claude (NEXUS V8.4.4)
 Date: 2025-12-10
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import asdict, is_dataclass

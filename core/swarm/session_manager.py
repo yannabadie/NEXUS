@@ -16,11 +16,10 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path

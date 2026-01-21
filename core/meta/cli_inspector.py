@@ -88,25 +88,14 @@ class CLIInspector:
 
                 output_lower = models_result.stdout.lower()
 
-                # Parse output for active model (Gemini 3 → 2.5 → 2.0 → 1.5)
-                if "3-pro" in output_lower or "gemini 3" in output_lower:
-                    model = "gemini-3-pro-preview"
-                    context_window = 1000000  # Gemini 3 Pro: 1M token context window
-                elif "2.5-pro" in output_lower or "gemini 2.5" in output_lower or "2.5 pro" in output_lower:
-                    model = "gemini-2.5-pro"
-                    context_window = 1000000  # Gemini 2.5 Pro: 1M token context window (March 2025)
-                elif "ultra" in output_lower or "2.0-ultra" in output_lower:
-                    model = "gemini-2.0-ultra"
+                # Parse output for active model
+                if "flash" in output_lower:
+                    model = "gemini-3-flash-preview"
                     context_window = 1000000
-                elif "2.0-pro" in output_lower:
-                    model = "gemini-2.0-pro"
-                    context_window = 128000
-                elif "flash" in output_lower or "2.0-flash" in output_lower or "2.5-flash" in output_lower:
-                    model = "gemini-2.5-flash" if "2.5" in output_lower else "gemini-2.0-flash"
-                    context_window = 32000
-                elif "1.5-pro" in output_lower:
-                    model = "gemini-1.5-pro"
-                    context_window = 2000000
+                else:
+                    # Default to Pro for everything else
+                    model = "gemini-3-pro-preview"
+                    context_window = 1000000
 
             except subprocess.TimeoutExpired:
                 # Model detection timed out (PowerShell overhead on Windows)

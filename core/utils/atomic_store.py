@@ -15,7 +15,6 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-from __future__ import annotations
 
 import json
 import os

@@ -9,13 +9,12 @@ Use case: Independent subtasks, time-critical situations.
 V10 FIX F4: Added ConflictDetector for parallel execution safety.
 """
 
-from __future__ import annotations
 
 import asyncio
 import re
 import sys
 from dataclasses import dataclass, field
-from typing import List, Optional, Set, Dict, TYPE_CHECKING
+from typing import List, Optional, Dict, TYPE_CHECKING
 
 from .base import (
     ModeExecutor,

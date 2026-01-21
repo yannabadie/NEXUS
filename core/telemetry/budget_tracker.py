@@ -39,10 +39,7 @@ PRICING = {
 
     # Gemini models
     "gemini-3-pro-preview": {"input": 1.25, "output": 5.00},
-    "gemini-3-pro": {"input": 1.25, "output": 5.00},  # Alias
-    "gemini-pro": {"input": 1.25, "output": 5.00},  # Alias
-    "gemini-3-flash": {"input": 0.075, "output": 0.30},
-    "gemini-flash": {"input": 0.075, "output": 0.30},  # Alias
+    "gemini-3-flash-preview": {"input": 0.075, "output": 0.30},
 
     # Default fallback (conservative estimate)
     "default": {"input": 5.00, "output": 20.00},

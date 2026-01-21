@@ -38,7 +38,7 @@ Sources:
 import re
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple
 
 
 class LeakType(Enum):

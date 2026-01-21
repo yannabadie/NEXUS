@@ -27,7 +27,6 @@ Author: Claude (NEXUS V9.7 -> V9.7.1)
 Date: 2025-12-13
 """
 
-from __future__ import annotations
 
 import logging
 import shutil

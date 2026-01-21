@@ -9,7 +9,6 @@ Foundation for all mode executors:
 - ModeExecutor: Abstract base class for executors
 """
 
-from __future__ import annotations
 
 import re
 import asyncio

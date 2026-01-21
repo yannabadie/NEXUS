@@ -38,7 +38,7 @@ class PlanHealthMonitor:
         # Previous plan state for comparison
         self.previous_plan: Optional[List[Dict]] = None
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset monitoring for new plan"""
         self.last_progress_turn = self.current_turn
         self.last_completion_turn = self.current_turn
@@ -146,7 +146,7 @@ class PlanHealthMonitor:
         return False
 
     def _determine_status(self, turns_since_progress: int, turns_since_completion: int,
-                         turns_since_creation: int, current_plan: List[Dict]) -> tuple:
+                         turns_since_creation: int, current_plan: List[Dict]) -> tuple[str, str, Optional[str]]:
         """Détermine le statut de santé"""
 
         # Check for ZOMBIE (most severe)
