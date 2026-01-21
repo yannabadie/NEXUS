@@ -11,9 +11,9 @@ name: NEXUS CI
 
 on:
   push:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, NX, NX-CG, main]
   pull_request:
-    branches: [N9AF, N8THM, N7HM, main]
+    branches: [N9AF, N8THM, N7HM, NX, NX-CG, main]
 
   # Nightly schedule for torture tests (3 AM UTC)
   schedule:

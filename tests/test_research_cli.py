@@ -38,7 +38,7 @@ def test_run_research_writes_evidence_pack(tmp_path: Path) -> None:
     )
 
     assert outputs["output_dir"] == output_dir
-    for key in ("report", "sources", "trace", "graph", "manifest"):
+    for key in ("report", "sources", "trace", "graph", "metrics", "manifest"):
         assert outputs[key].exists()
 
     report_text = outputs["report"].read_text(encoding="utf-8")
@@ -61,8 +61,12 @@ def test_run_research_writes_evidence_pack(tmp_path: Path) -> None:
     assert "graph TD" in graph_text
     assert "docs/guide.md" in graph_text
 
+    metrics_payload = json.loads(outputs["metrics"].read_text(encoding="utf-8"))
+    assert metrics_payload["question"] == "How does the evidence pack get generated?"
+    assert metrics_payload["source_count"] >= 1
+
     manifest_lines = outputs["manifest"].read_text(encoding="utf-8").splitlines()
-    assert len(manifest_lines) == 4
+    assert len(manifest_lines) == 5
 
 
 def test_run_research_rejects_empty_question(tmp_path: Path) -> None:

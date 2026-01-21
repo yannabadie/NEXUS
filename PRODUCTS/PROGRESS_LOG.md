@@ -16,3 +16,4 @@
 - Portfolio confirmed: flagship = Research CLI + Evidence Pack, companion = MCP Server, bonus = Architecture Map Generator (see `PRODUCTS/10_PORTFOLIO.md`).
 - Flagship MVP in progress: added Research CLI evidence pack generator, demo script, tests, and flagship docs with ADR-0003.
 - Companion MVP in progress: extended MCP server with research, memory search, and evidence pack tools; added demo script, tests, and ADR-0004.
+- Hardening in progress: added evidence pack metrics, release guide, security/architecture/troubleshooting docs, and CI branch coverage for NX/NX-CG.

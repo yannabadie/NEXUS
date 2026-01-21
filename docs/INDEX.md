@@ -45,6 +45,16 @@ Quick navigation to all NEXUS documentation.
 
 ---
 
+## Guides
+
+| Document | Description |
+|----------|-------------|
+| [guides/ARCHITECTURE_OVERVIEW.md](guides/ARCHITECTURE_OVERVIEW.md) | High-level architecture summary |
+| [guides/SECURITY_MODEL.md](guides/SECURITY_MODEL.md) | Security model and safeguards |
+| [guides/TROUBLESHOOTING.md](guides/TROUBLESHOOTING.md) | Common issues and fixes |
+
+---
+
 ## Agent Instructions
 
 | Document | Description |

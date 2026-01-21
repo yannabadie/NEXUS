@@ -22,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File scripts/demo_companion.ps1
 ## Tools Exposed
 - `nexus_research`: markdown summary from project memory.
 - `nexus_memory_search`: JSON payload with matched chunks and metadata.
-- `nexus_export_evidence_pack`: writes `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `manifest.sha256`.
+- `nexus_export_evidence_pack`: writes `report.md`, `sources.json`, `trace.jsonl`, `reasoning_graph.mmd`, `metrics.json`, `manifest.sha256`.
 - Existing tools: `nexus_status`, `nexus_read`, `nexus_glob`, `nexus_grep`, `nexus_analyze`, `nexus_bash`.
 
 ## Configuration Example

@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -100,6 +101,13 @@ def _write_sources(path: Path, payload: Dict[str, object]) -> None:
     )
 
 
+def _write_metrics(path: Path, payload: Dict[str, object]) -> None:
+    path.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=True),
+        encoding="utf-8",
+    )
+
+
 def _write_trace(path: Path, events: List[Dict[str, object]]) -> None:
     lines = [json.dumps(event, ensure_ascii=True) for event in events]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -136,6 +144,8 @@ def run_research(
 ) -> Dict[str, Path]:
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
+
+    start_time = time.perf_counter()
 
     config = Config()
     root = Path(root_path) if root_path else config.nexus_root
@@ -184,6 +194,7 @@ def run_research(
     sources_path = output_dir / "sources.json"
     trace_path = output_dir / "trace.jsonl"
     graph_path = output_dir / "reasoning_graph.mmd"
+    metrics_path = output_dir / "metrics.json"
     manifest_path = output_dir / "manifest.sha256"
 
     source_summaries = [
@@ -214,6 +225,20 @@ def run_research(
         },
     )
 
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    _write_metrics(
+        metrics_path,
+        {
+            "question": question,
+            "mode": mode,
+            "backend": backend_name,
+            "generated_at": generated_at,
+            "indexed_chunks": indexed_chunks,
+            "source_count": len(sources),
+            "duration_ms": duration_ms,
+        },
+    )
+
     trace_events = [
         {
             "ts": generated_at,
@@ -238,7 +263,7 @@ def run_research(
     ]
     _write_trace(trace_path, trace_events)
     _write_reasoning_graph(graph_path, question, sources)
-    _write_manifest(manifest_path, [report_path, sources_path, trace_path, graph_path])
+    _write_manifest(manifest_path, [report_path, sources_path, trace_path, graph_path, metrics_path])
 
     return {
         "output_dir": output_dir,
@@ -246,6 +271,7 @@ def run_research(
         "sources": sources_path,
         "trace": trace_path,
         "graph": graph_path,
+        "metrics": metrics_path,
         "manifest": manifest_path,
     }
 
@@ -286,6 +312,7 @@ def main() -> int:
     print(f"Sources: {outputs['sources']}")
     print(f"Trace: {outputs['trace']}")
     print(f"Graph: {outputs['graph']}")
+    print(f"Metrics: {outputs['metrics']}")
     print(f"Manifest: {outputs['manifest']}")
     return 0
 

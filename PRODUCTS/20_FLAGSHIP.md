@@ -21,6 +21,7 @@ Outputs land under `WORKSPACE_PATH` (default `./workspace/research/<timestamp>`)
 - `sources.json`: structured sources with file paths, line ranges, and excerpts.
 - `trace.jsonl`: step-by-step trace (start, index, retrieve, write_outputs).
 - `reasoning_graph.mmd`: Mermaid graph linking question to sources and report.
+- `metrics.json`: structured metrics (duration, counts) for observability.
 - `manifest.sha256`: SHA-256 checksums for the pack files.
 
 ## Configuration Notes

@@ -61,12 +61,14 @@ def test_build_evidence_pack_outputs_artifacts(tmp_path: Path) -> None:
     sources_path = Path(outputs["sources"])
     trace_path = Path(outputs["trace"])
     graph_path = Path(outputs["graph"])
+    metrics_path = Path(outputs["metrics"])
     manifest_path = Path(outputs["manifest"])
 
     assert report_path.exists()
     assert sources_path.exists()
     assert trace_path.exists()
     assert graph_path.exists()
+    assert metrics_path.exists()
     assert manifest_path.exists()
 
     report_text = report_path.read_text(encoding="utf-8")
