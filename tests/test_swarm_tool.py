@@ -5,10 +5,9 @@ Tests for the swarm_delegate tool that allows agents to invoke
 Swarm collaboration modes at any HiveMind phase.
 """
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, AsyncMock, patch
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 
 # =============================================================================

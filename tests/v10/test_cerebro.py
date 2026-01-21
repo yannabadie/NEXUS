@@ -17,8 +17,8 @@ Tests are designed to pass even without Redis (graceful degradation).
 import asyncio
 import json
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 
 # =============================================================================

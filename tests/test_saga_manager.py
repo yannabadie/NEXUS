@@ -20,7 +20,6 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import List
 from unittest import TestCase, main
 
 import pytest

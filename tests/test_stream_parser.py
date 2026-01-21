@@ -4,7 +4,6 @@ Tests for Phase 15: Stream Parser
 Tests the unified stream parser for Gemini CLI and Claude CLI formats.
 """
 
-import pytest
 from core.utils.stream_parser import (
     parse_stream_chunk,
     is_result_message,

@@ -23,7 +23,7 @@ from core.swarm.agent_metrics import (
     AgentInvocationResult,
     create_default_pool
 )
-from core.swarm.mode_selector import ModeSelector, ModeProposal
+from core.swarm.mode_selector import ModeSelector
 from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 

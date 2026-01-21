@@ -7,9 +7,8 @@ Verifies all 7 phases work together correctly.
 
 import pytest
 import sys
-import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -326,7 +325,7 @@ class TestBudgetChainIntegration:
         assert estimator.can_afford("spawn_agent")  # Should pass
 
         # Record some cost in tracker
-        tracker.track_cost("gemini-pro", input_tokens=100000, output_tokens=50000)
+        tracker.track_cost("gemini-3-pro-preview", input_tokens=100000, output_tokens=50000)
 
         # Now estimator should still check against tracker
         stats = estimator.get_stats()

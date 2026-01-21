@@ -12,7 +12,7 @@ Date: 2025-12-15
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestAuthEndpoints:

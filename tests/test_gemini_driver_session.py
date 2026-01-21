@@ -18,7 +18,6 @@ from pathlib import Path
 from unittest import TestCase, main
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Add parent to path for imports
 import sys

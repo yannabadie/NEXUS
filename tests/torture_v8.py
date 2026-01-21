@@ -26,7 +26,6 @@ Target Metrics:
 
 import sys
 import time
-import asyncio
 import argparse
 from pathlib import Path
 from datetime import datetime
@@ -36,7 +35,7 @@ from typing import List, Dict, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tests.torture.base import TortureBase, TortureResultV8
-from tests.torture.metrics_collector import MetricsCollector, ScenarioMetrics
+from tests.torture.metrics_collector import MetricsCollector
 
 # Import scenario modules
 from tests.torture.scenarios import (

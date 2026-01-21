@@ -8,7 +8,6 @@ import shutil
 sys.path.append(os.getcwd())
 
 from core.interface.repl import InteractiveNexusV7
-from core.orchestration_v7 import OrchestratorV7
 from core.swarm.collaboration_modes import CollaborationMode
 
 def test_hive_mind_execution():

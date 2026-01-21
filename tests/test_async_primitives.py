@@ -12,7 +12,7 @@ import pytest
 import asyncio
 import sys
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 
 # Add project root to path
 sys.path.insert(0, str(__file__).replace("\\tests\\test_async_primitives.py", "").replace("/tests/test_async_primitives.py", ""))
@@ -24,8 +24,8 @@ from core.async_primitives import (
     AsyncBlackboard,
 )
 from core.async_primitives.cancellation import CancellationTokenSource
-from core.async_primitives.process_handle import ProcessState, ProcessHandleRegistry, get_process_registry
-from core.async_primitives.rwlock import AsyncRWLockWithTimeout, InstrumentedAsyncRWLock
+from core.async_primitives.process_handle import ProcessState, ProcessHandleRegistry
+from core.async_primitives.rwlock import AsyncRWLockWithTimeout
 
 
 # ============================================================================

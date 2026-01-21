@@ -8,7 +8,7 @@ import json
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 
 class TestSpinoffService:

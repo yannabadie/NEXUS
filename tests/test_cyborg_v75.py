@@ -10,8 +10,7 @@ Validates:
 """
 import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, AsyncMock, MagicMock
 
 
 class TestCyborgEntryPoint:

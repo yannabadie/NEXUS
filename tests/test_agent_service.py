@@ -237,7 +237,7 @@ class TestAgentService:
 
 ## Inference Configuration
 provider: gemini
-model: gemini-2.0-flash
+model: gemini-3-flash-preview
 reasoning: Fast for simple tasks
 """
         with patch('core.agents.get_registry') as mock_registry:
@@ -246,7 +246,7 @@ reasoning: Fast for simple tasks
 
         assert config is not None
         assert config["provider"] == "gemini"
-        assert config["model"] == "gemini-2.0-flash"
+        assert config["model"] == "gemini-3-flash-preview"
         assert "Fast" in config["reasoning"]
 
     def test_extract_inference_config_not_found(self, agent_service):

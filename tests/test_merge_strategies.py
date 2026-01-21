@@ -4,7 +4,6 @@ Tests for V8.3.3 Parallel Merge Strategies
 Tests the merge strategy system for PARALLEL mode execution.
 """
 
-import pytest
 import os
 from unittest.mock import patch
 

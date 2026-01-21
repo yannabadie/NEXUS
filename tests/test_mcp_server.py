@@ -9,7 +9,6 @@ Reference: https://gofastmcp.com/development/tests
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
 from dataclasses import dataclass
 
 # Add project root to path

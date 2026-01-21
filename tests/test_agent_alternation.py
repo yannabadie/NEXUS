@@ -9,7 +9,6 @@ Vérifie les corrections de l'audit AUDIT_011225.md:
 5. Config: swarm_auto_route=False (config.py:178)
 """
 
-import pytest
 import sys
 from pathlib import Path
 

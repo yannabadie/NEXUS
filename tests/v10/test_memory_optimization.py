@@ -13,7 +13,6 @@ Run with:
 
 import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 # Skip all tests if dependencies not available
 pytest.importorskip("sentence_transformers", reason="sentence-transformers not installed")

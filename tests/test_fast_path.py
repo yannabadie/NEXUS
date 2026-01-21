@@ -5,13 +5,12 @@ Fast Path bypasses FSM for trivial conversational inputs to achieve <2s response
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, MagicMock
 from pathlib import Path
 import time
 
 from core.config import Config
 from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
-from core.fsm.states import OrchestratorState
 
 
 class TestFastPathConfig:

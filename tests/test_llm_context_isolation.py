@@ -22,11 +22,9 @@ import os
 import subprocess
 import uuid
 import time
-import threading
-import json
 from pathlib import Path
+from typing import Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple, Optional
 
 # Skip if no LLM access
 SKIP_LLM = os.environ.get("SKIP_LLM_TESTS", "").lower() in ("1", "true", "yes")

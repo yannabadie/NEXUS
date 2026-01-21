@@ -11,12 +11,10 @@ This module tests:
 4. Performance: EPHEMERAL should be faster than regular sessions
 """
 
-import os
 import time
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from core.swarm.session_manager import (
     SwarmSessionManager,

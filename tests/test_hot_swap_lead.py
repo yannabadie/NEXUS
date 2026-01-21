@@ -5,7 +5,6 @@ Tests the StagnationDetector's ability to detect stagnation
 and recommend lead agent swaps.
 """
 
-import pytest
 from core.fsm.stagnation_detector import StagnationDetector
 
 

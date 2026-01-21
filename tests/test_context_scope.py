@@ -5,7 +5,6 @@ Validates context scoping for controlled inheritance between
 HiveMind phases, spawned agents, and parallel execution.
 """
 
-import pytest
 from datetime import datetime
 
 from core.hive_mind.context_scope import (

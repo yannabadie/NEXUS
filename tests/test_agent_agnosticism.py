@@ -10,8 +10,6 @@ Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
 """
 
-import tempfile
-import shutil
 from pathlib import Path
 from unittest import TestCase, main
 from datetime import datetime
@@ -28,9 +26,8 @@ from core.swarm.agent_metrics import (
     AgentInvocationResult,
     create_default_pool
 )
-from core.swarm.mode_selector import ModeSelector, AgentAssignment
+from core.swarm.mode_selector import ModeSelector
 from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.swarm.collaboration_modes import CollaborationMode
 
 
 class TestAgentPoolCapabilitySelection(TestCase):

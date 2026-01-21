@@ -16,7 +16,6 @@ import shutil
 from pathlib import Path
 from unittest import TestCase, main
 from unittest.mock import MagicMock, patch
-from dataclasses import dataclass
 
 import pytest
 
@@ -25,7 +24,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.session_manager import SwarmSessionManager, generate_task_id, SessionStatus
+from core.swarm.session_manager import SwarmSessionManager, generate_task_id
 from core.swarm.mode_executors import (
     ExecutionContext,
     ExecutionResult,

@@ -14,7 +14,7 @@ Date: 2025-12-16
 
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import sys
 from pathlib import Path

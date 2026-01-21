@@ -13,12 +13,10 @@ Author: Claude (NEXUS V11.2 MEMORIA)
 Date: 2025-12-15
 """
 
-import math
 import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch, Mock
-from collections import defaultdict
+from unittest.mock import MagicMock, Mock
 
 
 # =============================================================================

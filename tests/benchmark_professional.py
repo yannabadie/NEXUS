@@ -31,16 +31,14 @@ Date: 2025-12-07
 """
 
 import sys
-import os
 import time
 import json
 import threading
-import traceback
 import psutil
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 
@@ -50,10 +48,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Core imports
 from core.swarm.collaboration_modes import CollaborationMode, get_mode_characteristics
-from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity, TaskDomain
-from core.swarm.mode_selector import ModeSelector, ModeProposal
+from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
 from core.swarm.session_manager import SwarmSessionManager
-from core.swarm.agent_metrics import AgentPool
 from core.memory.auto_memory import AutoMemory, get_auto_memory
 from core.utils.atomic_store import AtomicJsonStore
 

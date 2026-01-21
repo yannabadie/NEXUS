@@ -6,7 +6,6 @@ Validates executor base classes and patterns.
 
 import pytest
 from dataclasses import dataclass
-from typing import List, Dict
 
 from core.swarm.executors.base import (
     ExecutionStatus,

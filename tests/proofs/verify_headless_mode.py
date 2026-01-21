@@ -20,7 +20,7 @@ import sys
 import asyncio
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Ensure NEXUS root is in path
 NEXUS_ROOT = Path(__file__).parent.parent.parent

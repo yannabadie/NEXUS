@@ -8,7 +8,6 @@ Test IDs: CC-001 to CC-012
 
 import pytest
 import asyncio
-import threading
 import time
 import sys
 from pathlib import Path

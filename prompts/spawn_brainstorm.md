@@ -18,7 +18,7 @@ Vous devez **DÉBATTRE et SÉLECTIONNER** le meilleur modèle LLM pour cet agent
 ### Google Gemini
 | Modèle | Forces | Cas d'usage |
 |--------|--------|-------------|
-| `gemini-2.5-flash` | Vitesse, grounding, multimodal | Tâches rapides, recherche, données |
+| `gemini-3-flash-preview` | Vitesse, grounding, multimodal | Tâches rapides, recherche, données |
 | `gemini-3-pro-preview` | Raisonnement profond, agentic | Analyse complexe, architecture |
 
 ### Anthropic Claude

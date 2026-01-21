@@ -11,9 +11,8 @@ Tests verify:
 import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-from core.security.execution_policy import CodeValidator, CodeValidationResult
+from core.security.execution_policy import CodeValidator
 from core.execution.dynamic_tools import (
     DynamicToolManager,
     ToolCreationResult,

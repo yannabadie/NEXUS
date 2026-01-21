@@ -13,10 +13,8 @@ Author: Claude (Phase 14b - 2025-12-05)
 """
 
 import pytest
-import tempfile
 import json
 from pathlib import Path
-from unittest.mock import patch
 
 # Add parent to path for imports
 import sys

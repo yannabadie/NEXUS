@@ -5,7 +5,6 @@ Tests the centralized agent management system that replaces
 hardcoded if/else chains throughout the codebase.
 """
 
-import pytest
 from pathlib import Path
 
 from core.agents.unified_registry import (

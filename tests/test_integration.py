@@ -13,7 +13,6 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 
 # Add parent to path for imports
@@ -22,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.bootstrap import AutoBootstrap
 # V7.8.1: GoT imports removed (Phase 14c cleanup)
 from core.swarm import HybridSwarmEngine
-from core.swarm.task_analyzer import TaskComplexity, TaskDomain
 from core.interface.commands import (
     SLASH_COMMANDS,
     is_slash_command,

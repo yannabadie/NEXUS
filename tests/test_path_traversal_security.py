@@ -10,7 +10,6 @@ Fix: Always validate with PathGuardian.validate_read() BEFORE file access
 """
 import pytest
 import tempfile
-import os
 from pathlib import Path
 from unittest.mock import patch
 

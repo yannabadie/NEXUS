@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from pathlib import Path
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch
 from tempfile import TemporaryDirectory
 
 from core.orchestration.sync_bridge import (

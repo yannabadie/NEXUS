@@ -13,11 +13,10 @@ Run: pytest tests/test_agent_as_tool.py -v
 """
 
 import pytest
-import json
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from dataclasses import dataclass
 
 # Import modules under test

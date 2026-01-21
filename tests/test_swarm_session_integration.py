@@ -14,10 +14,8 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest import TestCase, main
-from unittest.mock import MagicMock, patch, PropertyMock
-from dataclasses import dataclass
+from unittest.mock import MagicMock, PropertyMock
 
-import pytest
 
 # Add parent to path for imports
 import sys

@@ -14,7 +14,6 @@ Verifies:
 
 import pytest
 import json
-import tempfile
 import shutil
 from pathlib import Path
 

@@ -5,7 +5,6 @@ Validates centralized tool execution.
 """
 
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 

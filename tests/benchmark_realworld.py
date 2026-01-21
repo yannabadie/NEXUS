@@ -20,11 +20,9 @@ WARNING: This benchmark makes real API calls and costs money!
 
 import subprocess
 import sys
-import os
 import time
 import uuid
 import json
-import threading
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
@@ -37,7 +35,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # NEXUS imports
 from core.swarm.session_manager import SwarmSessionManager
 from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
-from core.swarm.collaboration_modes import CollaborationMode
 
 
 # =============================================================================

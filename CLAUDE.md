@@ -233,16 +233,16 @@ NEXUS/                           # Root (V12.4 COGNITIVE BOOST)
   - **Opus 4.5** (`claude-opus-4-5-20251101`): Complex reasoning, creativity, security, evolution
   - **Sonnet 4.5** (`claude-sonnet-4-5-20250929`): Speed, tool execution, simple tasks
 - **Gemini**:
-  - **Gemini 3 Pro** (`gemini-3-pro-preview`): All tasks (currently unified model)
-  - Note: Flash routing ready but uses Pro for all tasks in V7
+  - **Gemini 3 Pro** (`gemini-3-pro-preview`): Complex reasoning, research, analysis
+  - **Gemini 3 Flash** (`gemini-3-flash-preview`): Simple tasks, validation, formatting
 
 **Model Routing** (automatic):
 | Task Type | Claude Model | Gemini Model |
 |-----------|--------------|--------------|
 | Brainstorm, Evolution, Architect | Opus | 3-Pro |
 | Reasoning, Research, Analysis | Sonnet | 3-Pro |
-| Tool execution, Validation | Sonnet | 3-Pro |
-| Simple queries, Formatting | Sonnet | 3-Pro |
+| Tool execution, Validation | Sonnet | 3-Flash |
+| Simple queries, Formatting | Sonnet | 3-Flash |
 
 **Architecture**: FSM (Finite State Machine) + Hybrid Swarm Engine
 **Communication**:

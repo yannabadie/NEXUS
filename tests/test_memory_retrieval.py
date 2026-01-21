@@ -10,13 +10,12 @@ Verifies:
 """
 
 import pytest
-from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
 
 from core.memory.success_memory import SuccessMemory, SuccessEntry
-from core.swarm.mode_selector import ModeSelector, ModeProposal
+from core.swarm.mode_selector import ModeSelector
 from core.swarm.collaboration_modes import CollaborationMode
 
 

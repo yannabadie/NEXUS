@@ -52,7 +52,6 @@ V2.2 Changes (V8.2.0d):
     - Added torture scenario categories extraction
 """
 
-import os
 import re
 import sys
 import ast
@@ -62,7 +61,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Dict, Set, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
 
 # Add project root to path for imports

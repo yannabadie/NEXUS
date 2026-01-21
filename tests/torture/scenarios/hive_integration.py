@@ -11,9 +11,8 @@ import asyncio
 import sys
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
-from typing import Optional, Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
@@ -35,7 +34,6 @@ from core.hive_mind.types import (
     KnowledgeConsolidation,
 )
 from core.hive_mind.saga_manager import SagaManager
-from tests.torture.base import TortureBase
 
 
 # ============================================================================

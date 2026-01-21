@@ -13,7 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

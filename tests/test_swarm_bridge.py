@@ -12,7 +12,7 @@ Run with: pytest tests/test_swarm_bridge.py -v
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from dataclasses import dataclass
 
 from core.hive_mind.swarm_bridge import (

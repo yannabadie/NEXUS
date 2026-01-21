@@ -15,11 +15,9 @@ Date: 2025-12-05
 
 import json
 import tempfile
-import shutil
 from pathlib import Path
 from datetime import date, datetime
-from unittest import TestCase, main
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -111,8 +109,8 @@ class TestPricingConstants:
 
     def test_gemini_flash_pricing_exists(self):
         """Test Gemini Flash pricing is defined."""
-        assert "gemini-3-flash" in PRICING
-        pricing = PRICING["gemini-3-flash"]
+        assert "gemini-3-flash-preview" in PRICING
+        pricing = PRICING["gemini-3-flash-preview"]
         assert pricing["input"] == 0.075
         assert pricing["output"] == 0.30
 
@@ -251,9 +249,9 @@ class TestCostTracking:
 
     def test_track_cost_cumulative(self, budget_tracker):
         """Test that costs accumulate correctly."""
-        budget_tracker.track_cost("gemini-pro", 100_000, 10_000)
-        budget_tracker.track_cost("gemini-pro", 100_000, 10_000)
-        budget_tracker.track_cost("gemini-pro", 100_000, 10_000)
+        budget_tracker.track_cost("gemini-3-pro-preview", 100_000, 10_000)
+        budget_tracker.track_cost("gemini-3-pro-preview", 100_000, 10_000)
+        budget_tracker.track_cost("gemini-3-pro-preview", 100_000, 10_000)
 
         assert budget_tracker._state.api_calls_today == 3
         # Each call: ~$0.175 -> total ~$0.525
@@ -395,7 +393,7 @@ class TestPersistence:
 
     def test_save_creates_file(self, budget_tracker):
         """Test that save creates JSON file."""
-        budget_tracker.track_cost("gemini-pro", 100_000, 10_000)
+        budget_tracker.track_cost("gemini-3-pro-preview", 100_000, 10_000)
 
         assert budget_tracker.budget_file.exists()
 
@@ -409,7 +407,7 @@ class TestPersistence:
             workspace_path=temp_workspace,
             budget_file=budget_file,
         )
-        tracker1.track_cost("gemini-pro", 500_000, 50_000)
+        tracker1.track_cost("gemini-3-pro-preview", 500_000, 50_000)
         original_spent = tracker1._state.spent_today_usd
         original_calls = tracker1._state.api_calls_today
 
@@ -448,7 +446,7 @@ class TestStats:
     def test_get_stats_returns_dict(self, budget_tracker):
         """Test that get_stats returns comprehensive dict."""
         budget_tracker.limit_usd = 50.0
-        budget_tracker.track_cost("gemini-pro", 100_000, 10_000)
+        budget_tracker.track_cost("gemini-3-pro-preview", 100_000, 10_000)
 
         stats = budget_tracker.get_stats()
 

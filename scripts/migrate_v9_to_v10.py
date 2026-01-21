@@ -54,7 +54,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 # Add NEXUS root to path
 NEXUS_ROOT = Path(__file__).parent.parent.resolve()

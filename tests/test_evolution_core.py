@@ -10,11 +10,9 @@ Author: Claude (Phase 14b - 2025-12-05)
 """
 
 import pytest
-import tempfile
-import shutil
 import json
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 # Add parent to path for imports

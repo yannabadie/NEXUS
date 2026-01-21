@@ -7,7 +7,6 @@ Tests for the resilience circuit breaker pattern.
 import pytest
 import asyncio
 import time
-from unittest.mock import Mock, AsyncMock
 
 from core.resilience.circuit_breaker import (
     CircuitBreaker,
