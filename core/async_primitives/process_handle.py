@@ -151,7 +151,15 @@ class AsyncProcessHandle:
         return await self.proc.wait()
 
     async def read_stdout(self) -> bytes:
-        """Read all stdout (only if pipe was set up)."""
+        """Reads all content from the process's stdout.
+
+        This method reads data from the standard output pipe if it was
+        configured during process creation.
+
+        Returns:
+            The bytes read from stdout, or an empty bytes object if
+            stdout is not available.
+        """
         if self.proc.stdout:
             return await self.proc.stdout.read()
         return b""
@@ -204,17 +212,38 @@ class ProcessHandleRegistry:
         self._lock = asyncio.Lock()
 
     async def register(self, handle: AsyncProcessHandle) -> None:
-        """Register a process handle."""
+        """
+        Register a new process handle to be tracked.
+
+        Args:
+            handle: The AsyncProcessHandle instance to register.
+        """
         async with self._lock:
             self._handles[handle.session_uuid] = handle
 
     async def unregister(self, session_uuid: str) -> Optional[AsyncProcessHandle]:
-        """Unregister and return a process handle."""
+        """
+        Unregister a process handle by its session UUID.
+
+        Args:
+            session_uuid: The unique session identifier of the process to remove.
+
+        Returns:
+            The removed AsyncProcessHandle if found, otherwise None.
+        """
         async with self._lock:
             return self._handles.pop(session_uuid, None)
 
     async def get(self, session_uuid: str) -> Optional[AsyncProcessHandle]:
-        """Get a process handle by UUID."""
+        """
+        Retrieve a tracked process handle by its session UUID.
+
+        Args:
+            session_uuid: The unique session identifier to look up.
+
+        Returns:
+            The associated AsyncProcessHandle if found, otherwise None.
+        """
         async with self._lock:
             return self._handles.get(session_uuid)
 
@@ -286,7 +315,15 @@ class ProcessHandleRegistry:
         return count
 
     async def list_active(self) -> list[Dict[str, Any]]:
-        """List all active process handles as dictionaries."""
+        """List all active process handles as dictionaries.
+
+        This method filters the registered handles to return only those
+        that are currently running.
+
+        Returns:
+            A list of dictionaries containing the state and metadata of
+            active processes.
+        """
         async with self._lock:
             return [h.to_dict() for h in self._handles.values() if h.is_running]
 
@@ -308,14 +345,16 @@ _registry_lock = threading.Lock()
 
 
 def get_process_registry() -> ProcessHandleRegistry:
-    """
-    Get the process handle registry for the current tenant context.
+    """Get the process handle registry for the current tenant context.
 
     V10 PRISM: Returns tenant-scoped registry via ServiceFactory.
     Falls back to global singleton if no context is active.
 
     V9: Thread-safe singleton with double-checked locking to prevent
     race conditions during initialization.
+
+    Returns:
+        The ProcessHandleRegistry instance for the current context.
     """
     # V10: Try ServiceFactory first (tenant-scoped)
     try:

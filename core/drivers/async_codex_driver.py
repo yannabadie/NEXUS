@@ -57,6 +57,11 @@ class AsyncCodexDriverConfig:
     verbose: bool = False
 
     def __post_init__(self):
+        """Validates configuration and loads API key from environment if missing.
+
+        Raises:
+            ValueError: If the API key is not provided in config or environment.
+        """
         # Try to get API key from environment if not provided
         if not self.api_key:
             self.api_key = os.environ.get("OPENAI_API_KEY")
@@ -81,6 +86,11 @@ class AsyncCodexDriver(BaseAsyncDriver):
     """
 
     def __init__(self, config: AsyncCodexDriverConfig):
+        """Initialize the AsyncCodexDriver.
+
+        Args:
+            config: The configuration object for the driver.
+        """
         super().__init__(
             provider="codex",
             model=config.model,
@@ -90,7 +100,14 @@ class AsyncCodexDriver(BaseAsyncDriver):
         self._client = None
 
     async def _get_client(self):
-        """Get or create OpenAI client."""
+        """Get or create OpenAI client.
+
+        Returns:
+            AsyncOpenAI: The initialized OpenAI client.
+
+        Raises:
+            ImportError: If the openai package is not installed.
+        """
         if self._client is None:
             try:
                 from openai import AsyncOpenAI
@@ -108,10 +125,20 @@ class AsyncCodexDriver(BaseAsyncDriver):
 
     @property
     def provider(self) -> str:
+        """The provider name for this driver.
+
+        Returns:
+            str: The string 'codex'.
+        """
         return "codex"
 
     @property
     def model(self) -> str:
+        """The model name used by this driver.
+
+        Returns:
+            str: The model identifier from configuration.
+        """
         return self.config.model
 
     async def invoke(
@@ -238,10 +265,24 @@ class AsyncCodexDriver(BaseAsyncDriver):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """
-        Stream response from GPT-5.2-Codex.
+        """Stream response from GPT-5.2-Codex.
 
         Uses the streaming capability of the Responses API.
+
+        Args:
+            prompt: The prompt to send.
+            session_id: Optional session identifier.
+            system_prompt: Optional system prompt.
+            tools: Optional function definitions.
+            isolated_env: Not used for API.
+            timeout: Optional timeout override.
+            **kwargs: Additional arguments.
+
+        Yields:
+            StreamChunk: Chunks of the response content.
+
+        Raises:
+            asyncio.CancelledError: If the operation is cancelled.
         """
         start_time = time.time()
 
@@ -298,11 +339,22 @@ class AsyncCodexDriver(BaseAsyncDriver):
             )
 
     async def cancel(self, session_id: Optional[str] = None) -> bool:
-        """Cancel not directly supported by API."""
+        """Cancel the operation (not directly supported by API).
+
+        Args:
+            session_id: The session identifier.
+
+        Returns:
+            bool: Always False as cancellation is not supported.
+        """
         return False
 
     async def health_check(self) -> bool:
-        """Check if OpenAI API is available."""
+        """Check if OpenAI API is available.
+
+        Returns:
+            bool: True if the API is reachable, False otherwise.
+        """
         try:
             client = await self._get_client()
             # Simple models list to verify API access
@@ -315,7 +367,7 @@ class AsyncCodexDriver(BaseAsyncDriver):
             return False
 
     async def close(self):
-        """Close client."""
+        """Close the OpenAI client."""
         if self._client:
             await self._client.close()
             self._client = None
@@ -333,6 +385,11 @@ class AsyncCodexChatDriver(BaseAsyncDriver):
     """
 
     def __init__(self, config: AsyncCodexDriverConfig):
+        """Initialize the AsyncCodexChatDriver fallback.
+
+        Args:
+            config: The configuration object for the driver.
+        """
         super().__init__(
             provider="codex",
             model=config.model,
@@ -342,7 +399,14 @@ class AsyncCodexChatDriver(BaseAsyncDriver):
         self._client = None
 
     async def _get_client(self):
-        """Get or create OpenAI client."""
+        """Get or create OpenAI client for Chat Completions.
+
+        Returns:
+            AsyncOpenAI: The initialized OpenAI client.
+
+        Raises:
+            ImportError: If the openai package is not installed.
+        """
         if self._client is None:
             try:
                 from openai import AsyncOpenAI
@@ -367,7 +431,23 @@ class AsyncCodexChatDriver(BaseAsyncDriver):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> DriverResponse:
-        """Invoke using Chat Completions API."""
+        """Invoke using Chat Completions API.
+
+        Args:
+            prompt: The prompt to send.
+            session_id: Optional session identifier.
+            system_prompt: Optional system prompt.
+            tools: Optional function definitions.
+            isolated_env: Not used for API.
+            timeout: Optional timeout override.
+            **kwargs: Additional arguments.
+
+        Returns:
+            DriverResponse: The response from the model.
+
+        Raises:
+            asyncio.CancelledError: If the operation is cancelled.
+        """
         start_time = time.time()
 
         try:
@@ -416,7 +496,15 @@ class AsyncCodexChatDriver(BaseAsyncDriver):
         prompt: str,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """Stream using Chat Completions."""
+        """Stream using Chat Completions.
+
+        Args:
+            prompt: The prompt to send.
+            **kwargs: Additional arguments passed to invoke.
+
+        Yields:
+            StreamChunk: The response content chunks (simulated).
+        """
         response = await self.invoke(prompt, **kwargs)
         yield StreamChunk(
             content=response.content,
@@ -425,6 +513,14 @@ class AsyncCodexChatDriver(BaseAsyncDriver):
         )
 
     async def cancel(self, session_id: Optional[str] = None) -> bool:
+        """Cancel the operation (not supported by Chat Completions).
+
+        Args:
+            session_id: The session identifier.
+
+        Returns:
+            bool: Always False.
+        """
         return False
 
     async def health_check(self) -> bool:

@@ -79,6 +79,12 @@ class ToolCall:
     id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
+        """Converts the ToolCall instance to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the ToolCall, containing
+                'name', 'arguments', and 'id' keys.
+        """
         return {
             "name": self.name,
             "arguments": self.arguments,
@@ -88,14 +94,28 @@ class ToolCall:
 
 @dataclass
 class DriverResponse:
-    """
-    Unified response format from any driver implementation.
+    """Unified response format from any driver implementation.
 
     Abstracts away CLI vs API response differences:
     - CLI: Parses JSON from stdout, extracts tool calls from message
     - API: Parses response JSON directly, tool calls in structured format
 
     Both result in the same DriverResponse for orchestration code.
+
+    Attributes:
+        content: The text content of the response.
+        status: The status of the response (SUCCESS, ERROR, etc.).
+        model: The model identifier used for the response.
+        provider: The provider identifier (e.g., "gemini", "claude").
+        session_id: The session ID associated with the response.
+        tool_calls: A list of tool calls made by the model.
+        latency_ms: The time taken to generate the response in milliseconds.
+        input_tokens: The number of tokens in the input prompt.
+        output_tokens: The number of tokens in the generated response.
+        error_message: A descriptive error message if status is not SUCCESS.
+        error_code: A specific error code if status is not SUCCESS.
+        raw: The raw response data for debugging purposes.
+        timestamp: The timestamp when the response was created.
     """
     # Core content
     content: str
@@ -135,7 +155,12 @@ class DriverResponse:
         return len(self.tool_calls) > 0
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """Convert to dictionary for serialization.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing all response fields including
+                content, status, metadata, tool calls, and error information.
+        """
         return {
             "content": self.content,
             "status": self.status.name,
@@ -154,7 +179,16 @@ class DriverResponse:
 
 @dataclass
 class StreamChunk:
-    """A chunk of streamed response."""
+    """A chunk of streamed response.
+
+    Attributes:
+        content: The text content of the chunk.
+        is_final: Whether this is the last chunk in the stream.
+        tool_call: Optional tool call included in this chunk.
+        latency_ms: The total latency (only populated in final chunk).
+        input_tokens: The total input tokens (only populated in final chunk).
+        output_tokens: The total output tokens (only populated in final chunk).
+    """
     content: str
     is_final: bool = False
     tool_call: Optional[ToolCall] = None
@@ -330,11 +364,12 @@ class SessionProtocol(Protocol):
         ...
 
     def get_context_for_driver(self) -> Dict[str, Any]:
-        """
-        Get session context in driver-appropriate format.
+        """Get session context in driver-appropriate format.
 
-        CLI: Returns {"resume_flag": "--resume latest"} or similar
-        API: Returns {"conversation_id": "..."} or similar
+        Returns:
+            Dict[str, Any]: A dictionary containing context information.
+                For CLI: {"resume_flag": "--resume latest"}
+                For API: {"conversation_id": "..."}
         """
         ...
 
@@ -416,6 +451,13 @@ class BaseAsyncDriver(abc.ABC):
         model: str,
         timeout: float = 300.0,
     ):
+        """Initializes the BaseAsyncDriver.
+
+        Args:
+            provider: The name of the AI provider (e.g., "gemini", "claude").
+            model: The specific model identifier to use.
+            timeout: The default timeout for requests in seconds. Defaults to 300.0.
+        """
         self._provider = provider
         self._model = model
         self._timeout = timeout
@@ -465,11 +507,11 @@ class BaseAsyncDriver(abc.ABC):
         ...
 
     async def health_check(self) -> bool:
-        """
-        Default health check - can be overridden.
+        """Default health check - can be overridden.
 
-        Returns True by default. Subclasses should implement
-        actual health checking (API ping, etc.)
+        Returns:
+            bool: True if healthy and ready to accept requests.
+                Subclasses should implement actual health checking (API ping, etc.).
         """
         return True
 
@@ -479,7 +521,17 @@ class BaseAsyncDriver(abc.ABC):
         error_code: str = "DRIVER_ERROR",
         status: DriverResponseStatus = DriverResponseStatus.ERROR,
     ) -> DriverResponse:
-        """Create a standardized error response."""
+        """Creates a standardized error response.
+
+        Args:
+            error_message: A descriptive error message.
+            error_code: A specific error code for categorization. Defaults to "DRIVER_ERROR".
+            status: The status enum to assign. Defaults to DriverResponseStatus.ERROR.
+
+        Returns:
+            DriverResponse: A DriverResponse object populated with the error details
+                and the current provider/model context.
+        """
         return DriverResponse(
             content="",
             status=status,

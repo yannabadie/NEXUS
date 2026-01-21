@@ -23,9 +23,9 @@ Usage:
     # Initialize database (creates tables)
     init_db()
 
-    # Use session for queries
+    # Use session for queries (with validated parameters)
     with get_session() as session:
-        tenant = session.exec(select(Tenant).where(Tenant.slug == "acme")).first()
+        tenant = get_tenant_by_slug(session, "acme")  # Use parameterized functions
 
 Author: Claude (NEXUS PRISM V10)
 Date: 2025-12-15
@@ -33,7 +33,8 @@ Date: 2025-12-15
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator, Optional, TYPE_CHECKING
+from uuid import UUID
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -45,14 +46,14 @@ from .models import Tenant, User, Workspace, Quota  # Import all models
 try:
     from core.audit.models import AuditLog, HITLRequest
 except ImportError:
-    AuditLog = None
-    HITLRequest = None
+    AuditLog = None  # type: ignore[assignment]
+    HITLRequest = None  # type: ignore[assignment]
 
 # V12.2 IRONCLAD: Import hibernation model for table creation
 try:
     from core.fsm.hibernation_manager import HibernationState
 except ImportError:
-    HibernationState = None
+    HibernationState = None  # type: ignore[assignment]
 
 
 # =============================================================================
@@ -193,7 +194,6 @@ def create_default_tenant(session: Session) -> Tenant:
     Returns:
         The default Tenant instance
     """
-    from uuid import UUID
     from .models import create_quota_for_plan, PlanTier
 
     # Use a fixed UUID for the default tenant
@@ -243,23 +243,49 @@ def get_tenant_by_slug(session: Session, slug: str) -> Optional[Tenant]:
 
     Returns:
         Tenant or None if not found
+
+    Security:
+        - Validates slug format to prevent injection
+        - Uses parameterized query via SQLModel
     """
     from sqlmodel import select
+
+    # Input validation: slug should be URL-safe
+    if not slug or not isinstance(slug, str) or len(slug) > 100:
+        return None
+
     statement = select(Tenant).where(Tenant.slug == slug)
     return session.exec(statement).first()
 
 
-def get_tenant_quota(session: Session, tenant_id) -> Optional[Quota]:
+def get_tenant_quota(session: Session, tenant_id: str) -> Optional[Quota]:
     """
     Get quota for a tenant.
 
     Args:
         session: Database session
-        tenant_id: Tenant UUID
+        tenant_id: Tenant UUID (string representation)
 
     Returns:
         Quota or None if not found
+
+    Security:
+        - Validates UUID format to prevent injection
+        - Uses parameterized query via SQLModel
     """
     from sqlmodel import select
-    statement = select(Quota).where(Quota.tenant_id == tenant_id)
+
+    # Input validation: ensure valid UUID
+    try:
+        if isinstance(tenant_id, str):
+            # Validate and convert to UUID object
+            tenant_uuid = UUID(tenant_id)
+        elif isinstance(tenant_id, UUID):
+            tenant_uuid = tenant_id
+        else:
+            return None
+    except (ValueError, TypeError):
+        return None
+
+    statement = select(Quota).where(Quota.tenant_id == tenant_uuid)
     return session.exec(statement).first()

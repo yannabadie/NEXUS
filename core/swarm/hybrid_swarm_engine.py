@@ -61,7 +61,7 @@ from .mode_executors import (
     AgentResponse,
     get_executor
 )
-from .task_analyzer import TaskComplexity
+from .task_analyzer import TaskComplexity, TaskDomain
 from .task_completion_validator import get_adaptive_max_rounds
 
 # V10 SYNAPSE: Telemetry instrumentation
@@ -420,9 +420,9 @@ class HybridSwarmEngine:
                 final_output=f"Swarm processing failed: {str(e)}",
                 selected_mode=force_mode or CollaborationMode.PING_PONG,
                 task_analysis=self._current_analysis or TaskAnalysis(
-                    complexity=1,
+                    complexity=TaskComplexity.TRIVIAL,
                     domains=[],
-                    primary_domain=None,
+                    primary_domain=TaskDomain.CODING,
                     raw_input=task_input
                 ),
                 mode_proposal=self._current_proposal or ModeProposal(
@@ -595,7 +595,16 @@ class HybridSwarmEngine:
     # === Public API for FSM integration ===
 
     def start_analysis(self, task_input: str) -> TaskAnalysis:
-        """Start analysis phase (for FSM integration)"""
+        """
+        Start analysis phase (for FSM integration).
+
+        Args:
+            task_input (str): The input string describing the task to be analyzed.
+
+        Returns:
+            TaskAnalysis: The resulting analysis containing complexity, domains,
+                and other task characteristics.
+        """
         self.current_phase = SwarmPhase.ANALYZING
         analysis = self.task_analyzer.analyze(task_input)
         self._current_analysis = analysis
@@ -606,7 +615,17 @@ class HybridSwarmEngine:
         return self._current_analysis
 
     def start_selection(self) -> ModeProposal:
-        """Start mode selection phase"""
+        """
+        Start mode selection phase.
+
+        Selects the best collaboration mode based on the current task analysis.
+
+        Returns:
+            ModeProposal: The proposed collaboration mode and agent assignments.
+
+        Raises:
+            ValueError: If task analysis has not been performed yet.
+        """
         self.current_phase = SwarmPhase.SELECTING
         if self._current_analysis is None:
             raise ValueError("Analysis must be run before selection")
@@ -619,7 +638,19 @@ class HybridSwarmEngine:
         self,
         analysis: Optional[TaskAnalysis] = None
     ) -> Optional[NegotiationResult]:
-        """Start negotiation phase"""
+        """
+        Start negotiation phase.
+
+        Initiates negotiation between agents to refine the mode proposal.
+
+        Args:
+            analysis: Optional specific task analysis to use. If None,
+                uses the analysis from the current state.
+
+        Returns:
+            Optional[NegotiationResult]: The result of the negotiation process,
+            or None if prerequisites (analysis or proposal) are missing.
+        """
         self.current_phase = SwarmPhase.NEGOTIATING
 
         analysis = analysis or self._current_analysis
@@ -643,7 +674,19 @@ class HybridSwarmEngine:
         task_input: str,
         blackboard: Optional[Dict] = None
     ) -> ExecutionResult:
-        """Execute current mode (for FSM integration)"""
+        """
+        Execute current mode (for FSM integration).
+
+        Executes the task using the selected mode (from proposal or negotiation).
+
+        Args:
+            task_input (str): The input string describing the task.
+            blackboard (Optional[Dict]): Optional shared state dictionary for context.
+
+        Returns:
+            ExecutionResult: The result of the execution including final output,
+                agent outputs, and resource usage.
+        """
         self.current_phase = SwarmPhase.EXECUTING
 
         mode = self._current_proposal.mode if self._current_proposal else CollaborationMode.PING_PONG
@@ -657,7 +700,7 @@ class HybridSwarmEngine:
         )
 
         # V7.7 Phase 14e: Check if EXPERT complexity for CoT
-        is_expert = (
+        is_expert = bool(
             self._current_analysis and
             self._current_analysis.complexity == TaskComplexity.EXPERT
         )

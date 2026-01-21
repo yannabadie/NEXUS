@@ -75,10 +75,17 @@ class Bm25Backend(MemoryBackend):
 
     @property
     def name(self) -> str:
+        """Get the unique identifier for this memory backend."""
         return "bm25s"
 
     @property
     def is_ready(self) -> bool:
+        """
+        Check if the backend is fully initialized and ready for use.
+
+        Returns:
+            bool: True if dependencies are met and index is built.
+        """
         return BM25S_AVAILABLE and self._index_built and self._index is not None
 
     @classmethod
@@ -97,7 +104,18 @@ class Bm25Backend(MemoryBackend):
                 self._stemmer = None
 
     def _stem_tokens(self, tokens: List[str]) -> List[str]:
-        """Apply stemming to tokens (if stemmer available)."""
+        """Apply stemming to a list of tokens.
+
+        If the optional PyStemmer dependency is installed and initialized,
+        this method applies the Snowball stemmer to the provided tokens.
+        Otherwise, it returns the tokens unchanged.
+
+        Args:
+            tokens: A list of string tokens to process.
+
+        Returns:
+            A list of strings, either stemmed (if available) or original.
+        """
         if self._stemmer is None:
             return tokens
         try:
@@ -106,11 +124,20 @@ class Bm25Backend(MemoryBackend):
             return tokens
 
     def build_index(self, chunks: List['Chunk']) -> None:
-        """
-        Build the BM25S index from chunks.
+        """Builds the BM25S index from the provided chunks.
+
+        This method tokenizes the chunks, applies stemming if available,
+        and constructs the BM25 index structure.
 
         Args:
-            chunks: List of Chunk objects to index
+            chunks (List[Chunk]): A list of Chunk objects to be indexed.
+
+        Returns:
+            None: This method does not return a value.
+
+        Raises:
+            None: Exceptions during indexing are caught and logged as warnings,
+                resulting in the index being marked as not built.
         """
         if not BM25S_AVAILABLE:
             self._logger.warning("BM25S not available, cannot build index")
@@ -154,18 +181,20 @@ class Bm25Backend(MemoryBackend):
         min_score: float,
         raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
     ) -> List['Chunk']:
-        """
-        Retrieve chunks using BM25S.
+        """Retrieves relevant chunks using the BM25S algorithm.
 
         Args:
-            query_terms: Pre-processed query terms
-            chunks: Full list of chunks (for corpus reference)
-            limit: Maximum chunks to return
-            min_score: Minimum BM25 score threshold
-            raw_query: Ignored (used by dense backends only)
+            query_terms (List[str]): A list of pre-processed query terms.
+            chunks (List[Chunk]): The full list of chunks available in the corpus.
+            limit (int): The maximum number of chunks to return.
+            min_score (float): The minimum BM25 score required for a chunk to be included.
+            raw_query (Optional[str]): The raw query string (ignored by this sparse backend).
 
         Returns:
-            List of relevant chunks, sorted by score descending
+            List[Chunk]: A list of relevant chunks, sorted by their BM25 score in descending order.
+
+        Raises:
+            None: Exceptions during retrieval are caught, logged as warnings, and an empty list is returned.
         """
         # Note: raw_query ignored - BM25S uses tokenized query_terms
         if not BM25S_AVAILABLE or self._index is None:
@@ -204,7 +233,18 @@ class Bm25Backend(MemoryBackend):
         self._index_built = False
 
     def get_info(self) -> Dict[str, Any]:
-        """Get BM25S backend information."""
+        """Retrieve current status and configuration of the backend.
+
+        Returns:
+            A dictionary containing:
+                - backend: Name of the backend ('bm25s').
+                - bm25s_available: Boolean indicating if bm25s is installed.
+                - stemmer_available: Boolean indicating if PyStemmer is installed.
+                - stemmer_active: Boolean indicating if stemmer is currently active.
+                - index_built: Boolean indicating if the index is populated.
+                - corpus_size: Number of documents in the index.
+                - dependencies: String listing version requirements.
+        """
         return {
             "backend": self.name,
             "bm25s_available": BM25S_AVAILABLE,

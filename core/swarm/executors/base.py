@@ -243,18 +243,28 @@ class ModeExecutor(ABC):
         task_context: str,
         role: Optional[str] = None
     ) -> AgentResponse:
-        """
-        Invoke an agent with task context.
+        """Invokes an agent synchronously with the provided task context.
+
+        Handles session isolation, rate limiting, and concurrency limiting before
+        delegating to the context's invocation handler.
 
         Args:
-            context: Execution context
-            agent_id: Agent identifier
-            task_context: Task context string
-            role: Agent's role for session isolation
+            context: The execution context containing task input and configuration.
+            agent_id: The unique identifier of the agent to invoke.
+            task_context: The prompt or context string to send to the agent.
+            role: The agent's role, used for retrieving session UUIDs and
+                isolated environments (default: None).
 
-        V9.7.1: Now passes isolated_env for Gemini session isolation via HOME spoofing.
+        Returns:
+            AgentResponse: The response from the agent, including content, status,
+                and performance metrics. Returns an error response if rate limits
+                or concurrency limits are exceeded, or if an exception occurs.
+
+        Raises:
+            None: Exceptions are caught and returned as an error AgentResponse.
         """
         if context.invoke_agent is None:
+
             return AgentResponse(
                 agent_id=agent_id,
                 content=f"[Mock response from {agent_id}]",
@@ -340,13 +350,29 @@ class ModeExecutor(ABC):
         task_context: str,
         role: Optional[str] = None
     ) -> AgentResponse:
-        """
-        Async invocation of an agent.
+        """Invokes an agent asynchronously with the provided task context.
 
-        Uses asyncio.to_thread() for sync driver compatibility.
-        V9.7.1: Now passes isolated_env for Gemini session isolation via HOME spoofing.
+        Utilizes `asyncio.to_thread` for compatibility with synchronous drivers
+        if an async invocation handler is not available. Handles session isolation,
+        rate limiting, and concurrency limiting.
+
+        Args:
+            context: The execution context containing task input and configuration.
+            agent_id: The unique identifier of the agent to invoke.
+            task_context: The prompt or context string to send to the agent.
+            role: The agent's role, used for retrieving session UUIDs and
+                isolated environments (default: None).
+
+        Returns:
+            AgentResponse: The response from the agent, including content, status,
+                and performance metrics. Returns an error response if rate limits
+                or concurrency limits are exceeded, or if an exception occurs.
+
+        Raises:
+            None: Exceptions are caught and returned as an error AgentResponse.
         """
         if context.invoke_agent is None:
+
             return AgentResponse(
                 agent_id=agent_id,
                 content=f"[Mock response from {agent_id}]",
@@ -419,7 +445,24 @@ class ModeExecutor(ABC):
         primary_role: Optional[str] = None,
         backup_role: Optional[str] = None
     ) -> AgentResponse:
-        """Invoke primary agent, failover to backup if primary fails."""
+        """Invoke primary agent, failover to backup if primary fails.
+
+        Attempts to invoke the primary agent first. If the invocation fails with an error
+        or timeout, it automatically attempts to invoke the backup agent with the same
+        task context, appended with a note about the failover.
+
+        Args:
+            context: The execution context containing task info and configuration.
+            primary_agent_id: The ID of the primary agent to invoke.
+            backup_agent_id: The ID of the backup agent to use if primary fails.
+            task_context: The prompt or context string for the task.
+            primary_role: Optional role for the primary agent (for session isolation).
+            backup_role: Optional role for the backup agent (for session isolation).
+
+        Returns:
+            AgentResponse: The response from the primary agent if successful, or the
+            backup agent if failover occurred. If both fail, returns the error response.
+        """
         response = self._invoke(context, primary_agent_id, task_context, role=primary_role)
 
         if response.status == "error" or "timed out" in (response.error or "").lower():
@@ -444,7 +487,18 @@ class ModeExecutor(ABC):
         return response
 
     def _get_backup_agent(self, agent_id: str) -> str:
-        """Get the backup agent for a given agent."""
+        """Get the backup agent for a given agent.
+
+        Determines the appropriate backup agent ID based on the primary agent's type
+        or specific ID. Currently maps Gemini agents to Claude Opus and others to
+        Gemini Primary.
+
+        Args:
+            agent_id: The ID of the primary agent.
+
+        Returns:
+            str: The ID of the corresponding backup agent.
+        """
         registry = get_registry()
         if registry.is_gemini(agent_id):
             return "claude_opus"
@@ -456,7 +510,22 @@ class ModeExecutor(ABC):
         content: str,
         context: ExecutionContext
     ) -> Dict[str, Any]:
-        """Verify artifacts mentioned in agent output."""
+        """Verify artifacts mentioned in agent output.
+
+        Extracts file paths and artifact references from the agent's content and
+        verifies their existence and validity against the workspace.
+
+        Args:
+            content: The text content generated by the agent containing potential
+                artifact references.
+            context: The execution context, used to determine the workspace path.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing verification results:
+                - verified (bool): Whether all artifacts were successfully verified.
+                - successes (List[str]): List of valid artifact paths.
+                - failures (List[str]): List of invalid or missing artifact paths.
+        """
         # V12.4: Handle None workspace_path explicitly (blackboard may have None value)
         workspace_path = context.blackboard.get("workspace_path")
         if workspace_path is None:
@@ -478,25 +547,30 @@ class ModeExecutor(ABC):
         context: ExecutionContext,
         max_fallbacks: int = 2
     ) -> ExecutionResult:
-        """
-        Execute with automatic fallback to simpler modes on failure.
+        """Executes the mode with automatic fallback to simpler modes on failure.
 
-        V7.5 Phase 8: Self-Healing Swarm - Graceful Degradation
-
-        Algorithm:
-        1. Create checkpoint (if session_manager available)
-        2. Try execute()
-        3. If failure: restore checkpoint, get fallback mode, retry
-        4. If success after fallback: mark status="RECOVERED"
+        Implements a self-healing mechanism that attempts to gracefully degrade
+        performance by switching to fallback modes (e.g., from PARALLEL to
+        SEQUENTIAL) if the primary execution fails. It manages checkpoints to
+        restore state before retrying.
 
         Args:
-            context: Execution context
-            max_fallbacks: Maximum number of fallback attempts (default 2)
+            context: The execution context containing task input, assignments,
+                and session management tools.
+            max_fallbacks: The maximum number of fallback attempts allowed
+                before giving up (default: 2).
 
         Returns:
-            ExecutionResult with status potentially marked as RECOVERED
+            ExecutionResult: The result of the execution. If a fallback was
+                successful, the result metadata includes recovery details
+                (status="RECOVERED", original_mode, etc.).
+
+        Raises:
+            ExecutionError: If execution fails after exhausting all fallback
+                attempts or if a non-recoverable error occurs.
         """
         import sys
+
         # Lazy import to avoid circular dependency
         # Use mode_executors.EXECUTOR_REGISTRY for backward compat with tests
         from ..mode_executors import EXECUTOR_REGISTRY

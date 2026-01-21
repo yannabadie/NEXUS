@@ -9,26 +9,64 @@ from .registry import Command, CommandContext, CommandResult, CommandStatus
 
 
 class StatusCommand(Command):
-    """Show current NEXUS system status."""
+    """
+    Show current NEXUS system status.
+
+    Provides detailed information about the system's internal state,
+    including FSM state, active agents, and memory statistics.
+    """
 
     @property
     def name(self) -> str:
+        """
+        Get the command name.
+
+        Returns:
+            str: The primary command name ("/status").
+        """
         return "/status"
 
     @property
     def aliases(self) -> List[str]:
+        """
+        Get the command aliases.
+
+        Returns:
+            List[str]: A list of alternative command names (e.g., ["/s"]).
+        """
         return ["/s"]
 
     @property
     def description(self) -> str:
+        """
+        Get the command description.
+
+        Returns:
+            str: A brief description of what the command does.
+        """
         return "Show current system status (FSM state, agents, memory)"
 
     @property
     def usage(self) -> str:
+        """
+        Get the command usage syntax.
+
+        Returns:
+            str: The usage string showing arguments.
+        """
         return "/status [detail|brief]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute status command."""
+        """
+        Execute status command.
+
+        Args:
+            args: Command arguments ("detail" or "brief").
+            context: Command execution context.
+
+        Returns:
+            CommandResult: Success result with status message.
+        """
         try:
             status = context.orchestrator.get_system_status()
 
@@ -54,13 +92,29 @@ class StatusCommand(Command):
             )
 
     def _format_brief(self, status: dict) -> str:
-        """Brief one-line status."""
+        """
+        Brief one-line status.
+
+        Args:
+            status: System status dictionary.
+
+        Returns:
+            str: One-line status summary.
+        """
         state = status.get("state", "UNKNOWN")
         agent = status.get("active_agent", "none")
         return f"State: {state} | Agent: {agent}"
 
     def _format_normal(self, status: dict) -> str:
-        """Normal status display."""
+        """
+        Normal status display.
+
+        Args:
+            status: System status dictionary.
+
+        Returns:
+            str: Multi-line status overview.
+        """
         lines = [
             "=== NEXUS Status ===",
             f"FSM State: {status.get('state', 'UNKNOWN')}",
@@ -76,7 +130,15 @@ class StatusCommand(Command):
         return "\n".join(lines)
 
     def _format_detail(self, status: dict) -> str:
-        """Detailed status with all available info."""
+        """
+        Detailed status with all available info.
+
+        Args:
+            status: System status dictionary.
+
+        Returns:
+            str: Detailed status including blackboard.
+        """
         lines = [self._format_normal(status), ""]
 
         # Add blackboard summary
@@ -95,31 +157,74 @@ class HelpCommand(Command):
     """Show available commands and their usage."""
 
     def __init__(self, registry: "CommandRegistry" = None):
-        """Initialize with optional registry reference."""
+        """
+        Initialize with optional registry reference.
+
+        Args:
+            registry: Optional command registry instance.
+        """
         self._registry = registry
 
     def set_registry(self, registry: "CommandRegistry"):
-        """Set registry reference (for circular dependency)."""
+        """
+        Set registry reference (for circular dependency).
+
+        Args:
+            registry: CommandRegistry instance.
+        """
         self._registry = registry
 
     @property
     def name(self) -> str:
+        """
+        Get the command name.
+
+        Returns:
+            str: The primary command name ("/help").
+        """
         return "/help"
 
     @property
     def aliases(self) -> List[str]:
+        """
+        Get the command aliases.
+
+        Returns:
+            List[str]: A list of alternative command names (e.g., ["/h", "/?"]).
+        """
         return ["/h", "/?"]
 
     @property
     def description(self) -> str:
+        """
+        Get the command description.
+
+        Returns:
+            str: A brief description of what the command does.
+        """
         return "Show available commands and their usage"
 
     @property
     def usage(self) -> str:
+        """
+        Get the command usage syntax.
+
+        Returns:
+            str: The usage string showing arguments.
+        """
         return "/help [command]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute help command."""
+        """
+        Execute help command.
+
+        Args:
+            args: Command name to get help for, or empty for general help.
+            context: Command execution context.
+
+        Returns:
+            CommandResult: Help message result.
+        """
         if args.strip():
             # Help for specific command
             cmd_name = args.strip().lower()
@@ -148,7 +253,15 @@ class HelpCommand(Command):
         )
 
     def _format_command_help(self, cmd: Command) -> str:
-        """Format detailed help for a single command."""
+        """
+        Format detailed help for a single command.
+
+        Args:
+            cmd: Command instance.
+
+        Returns:
+            str: Formatted help string.
+        """
         lines = [
             f"=== {cmd.name} ===",
             f"Description: {cmd.description}",
@@ -164,18 +277,45 @@ class QuitCommand(Command):
 
     @property
     def name(self) -> str:
+        """
+        Get the command name.
+
+        Returns:
+            str: The primary command name ("/quit").
+        """
         return "/quit"
 
     @property
     def aliases(self) -> List[str]:
+        """
+        Get the command aliases.
+
+        Returns:
+            List[str]: A list of alternative command names (e.g., ["/exit", "/q"]).
+        """
         return ["/exit", "/q"]
 
     @property
     def description(self) -> str:
+        """
+        Get the command description.
+
+        Returns:
+            str: A brief description of what the command does.
+        """
         return "Exit NEXUS REPL"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute quit command."""
+        """
+        Execute quit command.
+
+        Args:
+            args: Ignored arguments.
+            context: Command execution context.
+
+        Returns:
+            CommandResult: Result with continue_session=False.
+        """
         return CommandResult(
             status=CommandStatus.SUCCESS,
             message="Goodbye!",
@@ -188,7 +328,10 @@ def register_system_commands(registry: "CommandRegistry") -> None:
     Register all system commands with a registry.
 
     Args:
-        registry: CommandRegistry instance to register commands with
+        registry: CommandRegistry instance to register commands with.
+
+    Returns:
+        None
     """
     from .registry import CommandRegistry
 

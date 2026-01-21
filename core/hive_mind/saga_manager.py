@@ -114,7 +114,12 @@ class PhaseCheckpoint:
     agent_states: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize checkpoint to dict for JSON storage."""
+        """Serialize checkpoint to dict for JSON storage.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the checkpoint containing
+            phase, result, state, timestamp, and context data.
+        """
         data = {
             "phase": self.phase,
             "result": self.result,
@@ -132,7 +137,18 @@ class PhaseCheckpoint:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PhaseCheckpoint":
-        """Deserialize checkpoint from dict."""
+        """Deserialize checkpoint from dict.
+
+        Args:
+            data: Dictionary containing checkpoint data.
+
+        Returns:
+            PhaseCheckpoint: A new PhaseCheckpoint instance.
+
+        Raises:
+            KeyError: If required fields (phase, state, timestamp) are missing.
+            ValueError: If timestamp format is invalid.
+        """
         return cls(
             phase=data["phase"],
             result=data.get("result", {}),
@@ -164,6 +180,11 @@ class SagaContext:
     retry_exhausted: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
+        """Convert context to dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary mapping context flags to their boolean values.
+        """
         return {
             "analysis_complete": self.analysis_complete,
             "debate_complete": self.debate_complete,
@@ -178,6 +199,14 @@ class SagaContext:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SagaContext":
+        """Create context from dictionary.
+
+        Args:
+            data: Dictionary containing context flags.
+
+        Returns:
+            SagaContext: A new SagaContext instance populated with the provided data.
+        """
         return cls(**{k: v for k, v in data.items() if hasattr(cls, k)})
 
 
@@ -273,22 +302,27 @@ class SagaManager:
     # -------------------------------------------------------------------------
 
     def register_compensation(self, phase: str, func: Callable) -> None:
-        """
-        Register a compensation function for a phase.
+        """Register a compensation function for a phase.
 
         Args:
-            phase: Phase name
-            func: Async callable to run on rollback (takes no args)
+            phase: Phase name to register compensation for.
+            func: Async callable to run on rollback (takes no args).
+
+        Returns:
+            None
         """
         self._compensations[phase] = func
         logger.debug(f"Registered compensation for phase '{phase}'")
 
     def register_default_compensations(self, orchestrator: Any) -> None:
-        """
-        Register default compensations based on orchestrator instance.
+        """Register default compensations based on orchestrator instance.
 
         Args:
-            orchestrator: TrueHiveMind or similar orchestrator
+            orchestrator: The orchestrator instance (e.g. TrueHiveMind) containing
+                state to be cleared or reset during compensation.
+
+        Returns:
+            None
         """
         # Analysis: Clear analysis results, reset comparison
         async def compensate_analysis():
@@ -362,14 +396,14 @@ class SagaManager:
     # -------------------------------------------------------------------------
 
     def can_enter_phase(self, phase: str) -> tuple[bool, str]:
-        """
-        Check if the current context allows entering a phase.
+        """Check if the current context allows entering a phase.
 
         Args:
-            phase: Phase name to check
+            phase: Phase name to check.
 
         Returns:
-            Tuple of (can_enter, reason_if_not)
+            tuple[bool, str]: A tuple containing a boolean indicating if entry is allowed,
+            and a string reason if not allowed (empty string if allowed).
         """
         guard = PHASE_GUARDS.get(phase)
         if guard is None:
@@ -382,11 +416,14 @@ class SagaManager:
             return False, f"Guard failed for phase '{phase}': context = {ctx_dict}"
 
     def update_context(self, **kwargs) -> None:
-        """
-        Update saga context flags.
+        """Update saga context flags.
 
         Args:
-            **kwargs: Flags to update (e.g., analysis_complete=True)
+            **kwargs: Flags to update (e.g., analysis_complete=True). Keys must
+                exist in the SagaContext definition.
+
+        Returns:
+            None
         """
         for key, value in kwargs.items():
             if hasattr(self._context, key):
@@ -407,20 +444,22 @@ class SagaManager:
         conversation_summary: Optional[str] = None,
         agent_states: Optional[Dict[str, str]] = None,
     ) -> PhaseCheckpoint:
-        """
-        Create a checkpoint after successful phase completion.
+        """Create a checkpoint after successful phase completion.
 
         Args:
-            phase: Phase name (analysis, debate, etc.)
-            result: Phase result object (will be serialized)
-            state: Current HiveMindState
-            context_index: Index in conversation history for rollback truncation
-            compensation: Optional compensation function for rollback
-            conversation_summary: V10 FIX F10 - Summary of conversation for LLM context
-            agent_states: V10 FIX F10 - Per-agent state snapshots
+            phase: Phase name (analysis, debate, etc.).
+            result: Phase result object (will be serialized).
+            state: Current HiveMindState.
+            context_index: Index in conversation history for rollback truncation.
+            compensation: Optional compensation function for rollback.
+            conversation_summary: V10 FIX F10 - Summary of conversation for LLM context.
+            agent_states: V10 FIX F10 - Per-agent state snapshots.
 
         Returns:
-            Created PhaseCheckpoint
+            PhaseCheckpoint: The created checkpoint instance.
+
+        Raises:
+            IOError: If persisting the checkpoint to disk fails.
         """
         # Serialize result
         serialized_result = serialize_for_checkpoint(result)
@@ -454,14 +493,13 @@ class SagaManager:
         return checkpoint
 
     def get_checkpoint(self, phase: str) -> Optional[PhaseCheckpoint]:
-        """
-        Get checkpoint for a specific phase.
+        """Get checkpoint for a specific phase.
 
         Args:
-            phase: Phase name
+            phase: Phase name to retrieve.
 
         Returns:
-            PhaseCheckpoint or None if not found
+            Optional[PhaseCheckpoint]: The checkpoint if found, None otherwise.
         """
         return self._checkpoints.get(phase)
 
@@ -474,18 +512,20 @@ class SagaManager:
         target_phase: str,
         context_manager: Optional[Any] = None,
     ) -> bool:
-        """
-        Rollback to a specific phase, running compensations and truncating context.
+        """Rollback to a specific phase, running compensations and truncating context.
 
         CRITICAL: This also truncates conversation history to prevent
         "hallucination" about events that didn't happen.
 
         Args:
-            target_phase: Phase to roll back to
-            context_manager: Object with 'messages' list to truncate
+            target_phase: Phase to roll back to.
+            context_manager: Object with 'messages' list to truncate.
 
         Returns:
-            True if rollback successful
+            bool: True if rollback was successful, False if phase not found.
+
+        Raises:
+            IOError: If persisting the state after rollback fails.
         """
         if target_phase not in self._checkpoints:
             logger.error(f"Cannot rollback to '{target_phase}': no checkpoint found")
@@ -557,7 +597,12 @@ class SagaManager:
         return True
 
     def _reset_context_after(self, phase: str) -> None:
-        """Reset context flags for phases after the given phase."""
+        """Reset context flags for phases after the given phase.
+
+        Args:
+            phase: The phase name after which all subsequent phase completion
+                flags should be reset to False.
+        """
         phase_idx = PHASE_ORDER.index(phase) if phase in PHASE_ORDER else -1
 
         flag_mapping = {
@@ -579,7 +624,14 @@ class SagaManager:
     # -------------------------------------------------------------------------
 
     async def _persist(self) -> None:
-        """Persist saga state to disk atomically."""
+        """Persist saga state to disk atomically.
+
+        Uses AtomicJsonStore to save the current state, including checkpoints
+        and context, to the file system.
+
+        Raises:
+            IOError: If the save operation fails.
+        """
         data = {
             "task_id": self._task_id,
             "created_at": self._created_at.isoformat(),
@@ -604,15 +656,15 @@ class SagaManager:
         sagas_dir: Path,
         task_id: str
     ) -> Optional["SagaManager"]:
-        """
-        Resume a saga from disk after crash/restart.
+        """Resume a saga from disk after crash/restart.
 
         Args:
-            sagas_dir: Directory containing saga files
-            task_id: Task ID to resume
+            sagas_dir: Directory containing saga files.
+            task_id: Task ID to resume.
 
         Returns:
-            SagaManager instance or None if no saga found
+            Optional[SagaManager]: The resumed SagaManager instance, or None if
+            no saga was found or loading failed.
         """
         store = AtomicJsonStore(sagas_dir / f"{task_id}.json")
 
@@ -648,11 +700,13 @@ class SagaManager:
         return saga
 
     def cleanup(self) -> bool:
-        """
-        Delete saga file after successful completion.
+        """Delete saga file after successful completion.
 
         Returns:
-            True if file was deleted
+            bool: True if the file was successfully deleted, False otherwise.
+
+        Raises:
+            OSError: If file deletion fails due to permissions or other FS errors.
         """
         return self._store.delete()
 
@@ -773,7 +827,12 @@ Please continue from where we left off. The task was partially completed up to t
     # -------------------------------------------------------------------------
 
     def status(self) -> Dict[str, Any]:
-        """Get saga status for debugging/monitoring."""
+        """Get saga status for debugging/monitoring.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing current task ID, recovery point,
+            checkpointed phases, context state, and persistence status.
+        """
         return {
             "task_id": self._task_id,
             "recovery_point": self._recovery_point,

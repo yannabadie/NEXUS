@@ -28,16 +28,13 @@ Process:
 """
 
 from pathlib import Path
-from typing import List, Dict, Set, Optional, Tuple
-from datetime import datetime
-import re
+from typing import Optional, Any, List, Dict
+
 
 from core.ncm.models import (
     Story,
     StoryPriority,
     IssueDomain,
-    StoryStatus,
-    RAGValidationResult,
 )
 from core.logging import get_logger
 
@@ -220,7 +217,6 @@ class StoryShardEngine:
         Returns:
             List of dicts with keys: file, loc, issue, priority
         """
-        god_classes = []
 
         # Known God classes from the audit report
         known_god_classes = [

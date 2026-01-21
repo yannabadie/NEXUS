@@ -146,11 +146,19 @@ class EventBus:
 
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """
-        Subscribe to an event type.
+        Subscribes a handler function to a specific event type.
 
         Args:
-            event_type: Event type to subscribe to (string or EventType.value)
-            handler: Async function to handle the event
+            event_type: The type of event to subscribe to. Can be a string or
+                an EventType enum member.
+            handler: An asynchronous callback function to handle the event.
+                Must accept a SyncEvent as its only argument.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if isinstance(event_type, EventType):
             event_type = event_type.value
@@ -165,8 +173,12 @@ class EventBus:
         """
         Unsubscribe from an event type.
 
+        Args:
+            event_type: The event type to unsubscribe from (string or EventType).
+            handler: The handler function to remove.
+
         Returns:
-            True if handler was removed, False if not found
+            True if the handler was found and removed, False otherwise.
         """
         if isinstance(event_type, EventType):
             event_type = event_type.value
@@ -181,13 +193,21 @@ class EventBus:
 
     async def publish(self, event: SyncEvent) -> bool:
         """
-        Publish an event to all subscribers.
+        Publishes an event to all registered subscribers.
+
+        This method records the event in history (if enabled) and executes all
+        handlers subscribed to the event type. Handlers are executed sequentially
+        and isolated from each other; failure in one does not stop others.
 
         Args:
-            event: The event to publish
+            event: The SyncEvent object containing the payload and metadata.
 
         Returns:
-            True if event was delivered to at least one handler
+            bool: True if the event was successfully delivered to at least one
+                handler, False otherwise.
+
+        Raises:
+            None: Exceptions from handlers are logged but not raised.
         """
         self._stats["published"] += 1
 
@@ -300,7 +320,18 @@ class EventBus:
         return events[:limit]
 
     def get_stats(self) -> Dict[str, int]:
-        """Get event bus statistics."""
+        """
+        Get event bus statistics.
+
+        Returns:
+            A dictionary containing the following statistics:
+            - published: Total number of events published.
+            - delivered: Total number of events successfully delivered.
+            - failed: Total number of handler failures.
+            - dropped: Total number of events dropped (not implemented).
+            - subscribers: Current total number of subscribers.
+            - history_size: Current number of events in history.
+        """
         return {
             **self._stats,
             "subscribers": sum(len(h) for h in self._subscribers.values()),

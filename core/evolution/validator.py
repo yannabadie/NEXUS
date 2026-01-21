@@ -29,7 +29,16 @@ from datetime import datetime
 
 @dataclass
 class ValidationResult:
-    """Result of a single validation stage"""
+    """
+    Result of a single validation stage.
+
+    Attributes:
+        stage: Name of the validation stage (e.g., 'SYNTAX', 'IMPORT').
+        passed: Whether the stage passed successfully.
+        message: Human-readable summary of the result.
+        details: Dictionary containing specific error messages or metrics.
+        duration_seconds: Time taken to complete the stage validation.
+    """
     stage: str
     passed: bool
     message: str
@@ -258,7 +267,22 @@ class ChildValidator:
         return self._finalize_result(result, start_time)
 
     def _validate_syntax(self) -> ValidationResult:
-        """Stage 1: Validate Python syntax of critical files"""
+        """Stage 1: Validate Python syntax of critical files.
+
+        Checks the syntax of all files listed in CRITICAL_FILES by parsing them
+        with the ast module. This ensures the code is syntactically valid before
+        attempting execution.
+
+        Returns:
+            ValidationResult: The result of the syntax validation containing:
+                - passed: Boolean indicating if all files passed syntax checks.
+                - message: Summary string of the results.
+                - details: Dictionary containing list of errors and count of files checked.
+
+        Raises:
+            None: All exceptions (FileNotFoundError, SyntaxError) are caught and
+                returned as part of the ValidationResult.
+        """
         start = time.time()
         errors = []
         checked = 0
@@ -288,7 +312,22 @@ class ChildValidator:
         )
 
     def _validate_imports(self) -> ValidationResult:
-        """Stage 2: Validate that critical modules can be imported"""
+        """Stage 2: Validate that critical modules can be imported.
+
+        Attempts to import all modules listed in CRITICAL_IMPORTS by running
+        a separate Python subprocess. This verifies that all dependencies
+        are satisfied and modules are importable without errors.
+
+        Returns:
+            ValidationResult: The result of the import validation containing:
+                - passed: Boolean indicating if all imports succeeded.
+                - message: Summary string of the results.
+                - details: Dictionary containing list of failed imports if any.
+
+        Raises:
+            None: Subprocess errors and timeouts are caught and returned
+                as part of the ValidationResult.
+        """
         start = time.time()
         errors = []
 
@@ -697,7 +736,20 @@ except Exception as e:
         )
 
     def save_report(self, result: FullValidationResult, output_path: Optional[Path] = None) -> Path:
-        """Save validation report to JSON file"""
+        """
+        Save validation report to JSON file.
+
+        Args:
+            result: The full validation result object to save.
+            output_path: Optional path to save the report to.
+                Defaults to 'VALIDATION_REPORT.json' in the child directory.
+
+        Returns:
+            Path: Path object pointing to the saved JSON report file.
+
+        Raises:
+            IOError: If the report cannot be written to the file system.
+        """
         if output_path is None:
             output_path = self.child_path / "VALIDATION_REPORT.json"
 

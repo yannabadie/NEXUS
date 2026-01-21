@@ -293,6 +293,7 @@ class TestMutationValidatorBasic:
         """Safe code should produce no warnings."""
         code = """
 def add(a, b):
+    '''Adds two numbers.'''
     return a + b
 
 result = add(1, 2)

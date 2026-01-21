@@ -35,7 +35,12 @@ from .service import (
 # V13.0 MEMORIA UNIVERSALIS: Multi-format ingestion
 try:
     from .ingestors import UniversalIngestor, DOCLING_AVAILABLE
-except ImportError:
+except ImportError as e:
+    import logging
+    logging.getLogger("nexus.memory").warning(
+        f"UniversalIngestor not available: {e}. "
+        f"Install docling for multi-format document support."
+    )
     UniversalIngestor = None
     DOCLING_AVAILABLE = False
 

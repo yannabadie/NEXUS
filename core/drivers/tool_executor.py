@@ -248,10 +248,19 @@ class LocalToolExecutor(ToolExecutor):
         }
 
     def _resolve_path(self, path: str) -> Path:
-        """
-        Resolve path relative to workspace, with security checks.
+        """Resolve path relative to workspace, with security checks.
 
-        Prevents path traversal attacks (CWE-22).
+        Prevents path traversal attacks (CWE-22) by ensuring the resolved path
+        is within the workspace directory.
+
+        Args:
+            path: The file path to resolve. Can be absolute or relative.
+
+        Returns:
+            The resolved absolute path.
+
+        Raises:
+            ValueError: If the path attempts to traverse outside the workspace.
         """
         # Convert to Path
         p = Path(path)
@@ -277,7 +286,17 @@ class LocalToolExecutor(ToolExecutor):
         workspace_path: Optional[Path] = None,
         timeout: float = 30.0,
     ) -> ToolResult:
-        """Execute a tool locally."""
+        """Execute a tool locally.
+
+        Args:
+            tool_name: The name of the tool to execute.
+            arguments: A dictionary of arguments for the tool.
+            workspace_path: Optional override for the workspace path.
+            timeout: Maximum execution time in seconds. Defaults to 30.0.
+
+        Returns:
+            A ToolResult object containing the execution outcome.
+        """
         import time
         start = time.time()
 
@@ -340,7 +359,21 @@ class LocalToolExecutor(ToolExecutor):
     # =========================================================================
 
     def _read_file(self, args: Dict[str, Any]) -> str:
-        """Read file contents."""
+        """Read file contents.
+
+        Args:
+            args: Dictionary containing:
+                - file_path (str): Path to the file to read.
+                - offset (int, optional): Line offset to start from. Defaults to 0.
+                - limit (int, optional): Maximum lines to read. Defaults to None.
+
+        Returns:
+            str: The contents of the file.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the file is too large or path traversal is detected.
+        """
         path = self._resolve_path(args["file_path"])
 
         if not path.exists():
@@ -364,7 +397,20 @@ class LocalToolExecutor(ToolExecutor):
         return "".join(lines)
 
     def _write_file(self, args: Dict[str, Any]) -> str:
-        """Write content to file."""
+        """Write content to file.
+
+        Args:
+            args: Dictionary containing:
+                - file_path (str): Path to the file to write.
+                - content (str): Content to write to the file.
+
+        Returns:
+            str: Success message indicating bytes written and path.
+
+        Raises:
+            ValueError: If path traversal is detected.
+            OSError: If writing to the file fails.
+        """
         path = self._resolve_path(args["file_path"])
         content = args["content"]
 
@@ -377,7 +423,22 @@ class LocalToolExecutor(ToolExecutor):
         return f"Successfully wrote {len(content)} bytes to {path}"
 
     def _edit_file(self, args: Dict[str, Any]) -> str:
-        """Edit file using search/replace."""
+        """Edit file using search and replace.
+
+        Args:
+            args: Dictionary containing:
+                - file_path (str): Path to the file to edit.
+                - old_string (str): String to search for.
+                - new_string (str): String to replace with.
+
+        Returns:
+            str: Success message indicating the file was edited.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If old_string is not found or is not unique in the file.
+            OSError: If reading or writing the file fails.
+        """
         path = self._resolve_path(args["file_path"])
         old_string = args["old_string"]
         new_string = args["new_string"]
@@ -429,7 +490,23 @@ class LocalToolExecutor(ToolExecutor):
         return entries
 
     def _grep(self, args: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Search file contents using regex."""
+        """Search file contents using regex.
+
+        Args:
+            args: Dictionary containing:
+                - pattern (str): Regex pattern to search for.
+                - path (str, optional): File or directory path to search. Defaults to ".".
+                - include (str, optional): Glob pattern to filter files. Defaults to "*".
+
+        Returns:
+            List[Dict[str, Any]]: List of matches, where each match contains:
+                - file (str): Relative path to the file.
+                - line (int): Line number of the match.
+                - content (str): The matching line content (truncated).
+
+        Raises:
+             re.error: If the regex pattern is invalid.
+        """
         pattern = args["pattern"]
         base_path = self._resolve_path(args.get("path", "."))
         include = args.get("include", "*")
@@ -516,7 +593,14 @@ class ToolRegistry:
         self._tool_map: Dict[str, ToolExecutor] = {}
 
     def register(self, executor: ToolExecutor) -> None:
-        """Register a tool executor."""
+        """Register a tool executor.
+
+        Adds the executor to the list of available executors and maps its
+        supported tools to it.
+
+        Args:
+            executor: The ToolExecutor instance to register.
+        """
         self._executors.append(executor)
         for tool_name in executor.list_tools():
             self._tool_map[tool_name] = executor
@@ -528,7 +612,20 @@ class ToolRegistry:
         workspace_path: Optional[Path] = None,
         timeout: float = 30.0,
     ) -> ToolResult:
-        """Execute a tool using the appropriate executor."""
+        """Execute a tool using the appropriate executor.
+
+        Finds the registered executor for the given tool name and delegates
+        execution to it.
+
+        Args:
+            tool_name: The name of the tool to execute.
+            arguments: A dictionary of arguments for the tool.
+            workspace_path: Optional override for the workspace path.
+            timeout: Maximum execution time in seconds. Defaults to 30.0.
+
+        Returns:
+            A ToolResult object containing the execution outcome.
+        """
         executor = self._tool_map.get(tool_name)
         if not executor:
             return ToolResult(

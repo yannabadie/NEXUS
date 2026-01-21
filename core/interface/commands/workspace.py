@@ -6,27 +6,52 @@ Uses WorkspaceManager, BootstrapService, SpinoffService for business logic (Serv
 """
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+if TYPE_CHECKING:
+    from .registry import CommandRegistry
 
 
 def _get_bootstrap_service(context: CommandContext):
-    """Get or create BootstrapService from context."""
+    """Get or create BootstrapService from context.
+
+    Args:
+        context (CommandContext): The command execution context.
+
+    Returns:
+        BootstrapService: The bootstrap service instance.
+    """
     from core.bootstrap import _get_bootstrap_service as get_service
     return get_service(context)
 
 
 def _get_spinoff_service(context: CommandContext):
-    """Get or create SpinoffService from context."""
+    """Get or create SpinoffService from context.
+
+    Args:
+        context (CommandContext): The command execution context.
+
+    Returns:
+        SpinoffService: The spinoff service instance.
+    """
     from core.bootstrap import _get_spinoff_service as get_service
     return get_service(context)
 
 
 def _get_workspace_manager(context: CommandContext):
-    """
-    Get or create WorkspaceManager from context.
+    """Get or create WorkspaceManager from context.
 
     WorkspaceManager requires nexus_root path.
+
+    Args:
+        context (CommandContext): The command execution context.
+
+    Returns:
+        WorkspaceManager: The workspace manager instance.
+
+    Raises:
+        ValueError: If nexus_root is not available in the context.
     """
     from core.workspace import WorkspaceManager
 
@@ -56,7 +81,14 @@ def _get_workspace_manager(context: CommandContext):
 
 
 class BootstrapCommand(Command):
-    """Bootstrap a new project with NEXUS.md."""
+    """Bootstrap a new project with NEXUS.md.
+
+    Attributes:
+        name (str): Command name.
+        aliases (List[str]): Command aliases.
+        description (str): Command description.
+        usage (str): Command usage.
+    """
 
     @property
     def name(self) -> str:
@@ -78,6 +110,13 @@ class BootstrapCommand(Command):
         """Execute bootstrap command using BootstrapService.
 
         V9.1: Delegated to BootstrapService (Service Layer Pattern).
+
+        Args:
+            args (str): Command arguments (optional path).
+            context (CommandContext): The command execution context.
+
+        Returns:
+            CommandResult: Result of the command execution.
         """
         try:
             service = _get_bootstrap_service(context)
@@ -105,7 +144,14 @@ class BootstrapCommand(Command):
 
 
 class SpecializeCommand(Command):
-    """Create a specialized NEXUS spinoff."""
+    """Create a specialized NEXUS spinoff.
+
+    Attributes:
+        name (str): Command name.
+        aliases (List[str]): Command aliases.
+        description (str): Command description.
+        usage (str): Command usage.
+    """
 
     @property
     def name(self) -> str:
@@ -127,6 +173,13 @@ class SpecializeCommand(Command):
         """Execute specialize command using SpinoffService.
 
         V9.1: Delegated to SpinoffService (Service Layer Pattern).
+
+        Args:
+            args (str): Command arguments (mission description).
+            context (CommandContext): The command execution context.
+
+        Returns:
+            CommandResult: Result of the command execution.
         """
         if not args.strip():
             return CommandResult(
@@ -156,7 +209,14 @@ class SpecializeCommand(Command):
 
 
 class WorkspaceCommand(Command):
-    """Manage workspace settings."""
+    """Manage workspace settings.
+
+    Attributes:
+        name (str): Command name.
+        aliases (List[str]): Command aliases.
+        description (str): Command description.
+        usage (str): Command usage.
+    """
 
     @property
     def name(self) -> str:
@@ -175,7 +235,15 @@ class WorkspaceCommand(Command):
         return "/workspace [new [name]|list|switch <name>]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute workspace command using WorkspaceManager."""
+        """Execute workspace command using WorkspaceManager.
+
+        Args:
+            args (str): Command arguments (subcommand and args).
+            context (CommandContext): The command execution context.
+
+        Returns:
+            CommandResult: Result of the command execution.
+        """
         from core.workspace import (
             WorkspaceError,
             WorkspaceNotFoundError,
@@ -247,35 +315,28 @@ class WorkspaceCommand(Command):
             )
 
     def _show_status(self, manager, context: CommandContext) -> None:
-        """Display current workspace info."""
+        """Display current workspace info.
+
+        Args:
+            manager (WorkspaceManager): The workspace manager.
+            context (CommandContext): The command execution context.
+
+        Returns:
+            None
+        """
         current = manager.get_current()
-        if not current:
-            context.console.print("No active workspace.")
-            return
 
-        lines = [
-            "",
-            f"[bold cyan]Current Workspace:[/bold cyan] {current.name}",
-            "",
-            f"[dim]Created:[/dim]     {current.created_at.strftime('%Y-%m-%d %H:%M')}",
-            f"[dim]Last used:[/dim]   {current.get_relative_time()}",
-            f"[dim]Task:[/dim]        \"{current.last_task[:50] + '...' if len(current.last_task or '') > 50 else current.last_task or 'None'}\"",
-            f"[dim]Iterations:[/dim]  {current.metrics.iterations}",
-            f"[dim]Size:[/dim]        {current.get_size_human()}",
-            f"[dim]Files:[/dim]       {current.metrics.files_count}",
-            "",
-            "[dim]Commands:[/dim]",
-            "   /workspace new [name]     Create fresh workspace",
-            "   /workspace list           Show all workspaces",
-            "   /workspace switch <name>  Switch to another workspace",
-            ""
-        ]
-
-        for line in lines:
-            context.console.console.print(line)
 
     def _show_list(self, manager, context: CommandContext) -> None:
-        """Display workspace list."""
+        """Display workspace list.
+
+        Args:
+            manager (WorkspaceManager): The workspace manager.
+            context (CommandContext): The command execution context.
+
+        Returns:
+            None
+        """
         workspaces = manager.list_workspaces()
 
         if not workspaces:
@@ -296,8 +357,21 @@ class WorkspaceCommand(Command):
 
         context.console.print("\n[dim]Tip: Use /workspace switch <name> to change workspace[/dim]")
 
-    def _create_new(self, manager, context: CommandContext, name: str = None) -> None:
-        """Create new workspace."""
+    def _create_new(self, manager, context: CommandContext, name: Optional[str] = None) -> None:
+        """Create new workspace.
+
+        Args:
+            manager (WorkspaceManager): The workspace manager.
+            context (CommandContext): The command execution context.
+            name (Optional[str], optional): Name for the new workspace. Defaults to None (auto-generated).
+
+        Returns:
+            None
+
+        Raises:
+            WorkspaceExistsError: If a workspace with the given name already exists.
+            WorkspaceError: If creation fails.
+        """
         current = manager.get_current()
 
         context.console.print("\n[package] [bold]Creating new workspace[/bold]\n")
@@ -325,7 +399,19 @@ class WorkspaceCommand(Command):
             repl._reinit_orchestrator(new_ws.path)
 
     def _switch_workspace(self, manager, context: CommandContext, name: str) -> None:
-        """Switch to another workspace."""
+        """Switch to another workspace.
+
+        Args:
+            manager (WorkspaceManager): The workspace manager.
+            context (CommandContext): The command execution context.
+            name (str): Name of the workspace to switch to.
+
+        Returns:
+            None
+
+        Raises:
+            WorkspaceError: If switching fails.
+        """
         current = manager.get_current()
 
         # Find target
@@ -364,7 +450,14 @@ class WorkspaceCommand(Command):
 
 
 def register_workspace_commands(registry: "CommandRegistry") -> None:
-    """Register all workspace commands with a registry."""
+    """Register all workspace commands with a registry.
+
+    Args:
+        registry (CommandRegistry): The command registry to register commands with.
+
+    Returns:
+        None
+    """
     registry.register(BootstrapCommand())
     registry.register(SpecializeCommand())
     registry.register(WorkspaceCommand())

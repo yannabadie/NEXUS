@@ -42,6 +42,12 @@ class MergeContext:
     Context available to merge strategies.
 
     Contains all information needed to intelligently merge parallel outputs.
+
+    Attributes:
+        task_input: The original task input string.
+        outputs: List of agent responses to be merged.
+        task_analysis: Optional dictionary containing task analysis data.
+        agent_assignments: Optional list of agent assignments.
     """
     task_input: str
     outputs: List["AgentResponse"]
@@ -55,6 +61,11 @@ class MergeResult:
     Result of a merge operation.
 
     Contains the merged content and metadata about the merge process.
+
+    Attributes:
+        content: The merged string content.
+        strategy_used: The type of strategy used for the merge.
+        metadata: Additional metadata about the merge result.
     """
     content: str
     strategy_used: MergeStrategyType
@@ -72,7 +83,11 @@ class MergeStrategy(ABC):
     @property
     @abstractmethod
     def strategy_type(self) -> MergeStrategyType:
-        """Return the strategy type enum value"""
+        """Gets the strategy type enum value.
+
+        Returns:
+            MergeStrategyType: The enum value corresponding to this strategy.
+        """
         pass
 
     @abstractmethod
@@ -89,7 +104,17 @@ class MergeStrategy(ABC):
         pass
 
     def _get_agent_name(self, agent_id: str) -> str:
-        """Extract display name from agent_id (V8.4.0: via registry)"""
+        """Extracts the display name from an agent ID using the registry.
+
+        Retrieves the user-friendly display name for a given agent ID by consulting
+        the unified agent registry.
+
+        Args:
+            agent_id: The unique identifier of the agent.
+
+        Returns:
+            The display name of the agent associated with the provided ID.
+        """
         registry = get_registry()
         return registry.get_display_name(agent_id)
 
@@ -104,9 +129,26 @@ class NaiveMergeStrategy(MergeStrategy):
 
     @property
     def strategy_type(self) -> MergeStrategyType:
+        """Gets the strategy type for this strategy.
+
+        Returns:
+            MergeStrategyType: The NAIVE strategy type.
+        """
         return MergeStrategyType.NAIVE
 
     def merge(self, context: MergeContext) -> MergeResult:
+        """Merges outputs by simple concatenation.
+
+        Combines the content from all agent outputs into a single string, separated
+        by a delimiter. Error statuses are formatted distinctively.
+
+        Args:
+            context: The merge context containing agent outputs and metadata.
+
+        Returns:
+            A MergeResult object containing the concatenated string and metadata
+            about the operation (agent count, total characters).
+        """
         merged_parts = []
 
         for output in context.outputs:
@@ -141,9 +183,27 @@ class DeduplicateMergeStrategy(MergeStrategy):
 
     @property
     def strategy_type(self) -> MergeStrategyType:
+        """Gets the strategy type for this strategy.
+
+        Returns:
+            MergeStrategyType: The DEDUPLICATE strategy type.
+        """
         return MergeStrategyType.DEDUPLICATE
 
     def merge(self, context: MergeContext) -> MergeResult:
+        """Merges outputs while removing semantically duplicate sentences.
+
+        Processes outputs to extract sentences, identifies duplicates using Jaccard
+        similarity, and reconstructs the content with duplicates removed.
+        Preserves the first occurrence of unique information.
+
+        Args:
+            context: The merge context containing agent outputs and metadata.
+
+        Returns:
+            A MergeResult object containing the deduplicated content and metadata
+            about the operation (duplicate count, dedup ratio).
+        """
         # Collect all sentences with their source
         all_sentences: List[tuple] = []  # (sentence, agent_name, output_idx)
 
@@ -210,7 +270,17 @@ class DeduplicateMergeStrategy(MergeStrategy):
         )
 
     def _split_into_sentences(self, text: str) -> List[str]:
-        """Split text into sentences using basic punctuation rules"""
+        """Splits text into a list of sentences.
+
+        Uses regular expressions to split text based on common sentence-ending
+        punctuation marks (.!?) and newlines.
+
+        Args:
+            text: The input text to split.
+
+        Returns:
+            A list of non-empty strings, where each string is a sentence or line.
+        """
         # Split on sentence-ending punctuation followed by space or newline
         sentences = re.split(r'(?<=[.!?])\s+', text)
         # Also split on newlines for list items
@@ -220,13 +290,35 @@ class DeduplicateMergeStrategy(MergeStrategy):
         return [s.strip() for s in result if s.strip()]
 
     def _get_word_set(self, text: str) -> set:
-        """Extract set of lowercase words from text"""
+        """Extracts a set of significant words from text.
+
+        Tokenizes the text into lowercase words and filters out short words
+        (length <= 2) to focus on significant content words.
+
+        Args:
+            text: The input text to process.
+
+        Returns:
+            A set of strings containing the unique, significant words found in the text.
+        """
         words = re.findall(r'\b\w+\b', text.lower())
         # Filter out very short words (articles, etc.)
         return set(w for w in words if len(w) > 2)
 
     def _jaccard_similarity(self, set1: set, set2: set) -> float:
-        """Calculate Jaccard similarity between two word sets"""
+        """Calculates the Jaccard similarity coefficient between two sets.
+
+        The Jaccard index is computed as the size of the intersection divided by
+        the size of the union of the sample sets.
+
+        Args:
+            set1: The first set of elements.
+            set2: The second set of elements.
+
+        Returns:
+            A float between 0.0 and 1.0 representing the similarity, where 1.0
+            indicates identical sets. Returns 0.0 if both sets are empty.
+        """
         if not set1 or not set2:
             return 0.0
         intersection = len(set1 & set2)
@@ -244,9 +336,27 @@ class WeightedMergeStrategy(MergeStrategy):
 
     @property
     def strategy_type(self) -> MergeStrategyType:
+        """Gets the strategy type for this strategy.
+
+        Returns:
+            MergeStrategyType: The WEIGHTED strategy type.
+        """
         return MergeStrategyType.WEIGHTED
 
     def merge(self, context: MergeContext) -> MergeResult:
+        """Merges outputs prioritizing them based on domain fit scores.
+
+        Sorts agent outputs according to their fit scores derived from task
+        analysis. Higher-scoring agents appear earlier in the merged result,
+        and exceptional scores may trigger visual indicators (e.g., stars).
+
+        Args:
+            context: The merge context containing agent outputs and task analysis data.
+
+        Returns:
+            A MergeResult object containing the weighted/ordered content and
+            metadata about the scoring (primary domain, fit scores).
+        """
         # Get fit scores from task_analysis
         gemini_fit = 0.5
         claude_fit = 0.5
@@ -342,6 +452,9 @@ def get_default_merge_strategy() -> MergeStrategy:
 
     Reads NEXUS_PARALLEL_MERGE_STRATEGY from environment.
     Falls back to NAIVE if not set or invalid.
+
+    Returns:
+        MergeStrategy: The default merge strategy instance.
     """
     strategy_name = os.getenv("NEXUS_PARALLEL_MERGE_STRATEGY", "naive").lower()
 

@@ -6,39 +6,91 @@ These commands provide various utility functions for the REPL.
 V9.1: TelemetryCommand and BudgetCommand now use Service Layer (TelemetryService, BudgetService).
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+if TYPE_CHECKING:
+    from .registry import CommandRegistry
 
 
 def _get_telemetry_service(context: CommandContext):
-    """Get or create TelemetryService from context."""
+    """Get or create TelemetryService from context.
+
+    Retrieves the telemetry service instance from the command context, initializing
+    it if necessary using the internal factory function.
+
+    Args:
+        context: The command execution context containing services and state.
+
+    Returns:
+        TelemetryService: The requested telemetry service instance.
+    """
     from core.telemetry import _get_telemetry_service as get_service
     return get_service(context)
 
 
 def _get_budget_service(context: CommandContext):
-    """Get or create BudgetService from context."""
+    """Get or create BudgetService from context.
+
+    Retrieves the budget service instance from the command context, initializing
+    it if necessary using the internal factory function.
+
+    Args:
+        context: The command execution context containing services and state.
+
+    Returns:
+        BudgetService: The requested budget service instance.
+    """
     from core.telemetry import _get_budget_service as get_service
     return get_service(context)
 
 
 class ClearCommand(Command):
-    """Clear the console screen."""
+    """Command to clear the console screen.
+
+    This command clears the terminal output buffer to provide a clean slate
+    for the user.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/clear".
+        """
         return "/clear"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: A list containing "/cls".
+        """
         return ["/cls"]
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Clear the console screen"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute clear command."""
+        """Execute the clear command.
+
+        Clears the console screen using the console object provided in the context.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the console interface.
+
+        Returns:
+            CommandResult: A success result.
+        """
         context.console.clear()
         return CommandResult(
             status=CommandStatus.SUCCESS,
@@ -47,26 +99,60 @@ class ClearCommand(Command):
 
 
 class ModeCommand(Command):
-    """Change the orchestrator mode."""
+    """Command to change the orchestrator mode.
+
+    Allows the user to switch the operating mode of the orchestrator by updating
+    the blackboard state.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/mode".
+        """
         return "/mode"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: An empty list as there are no aliases.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Change the orchestrator mode"
 
     @property
     def usage(self) -> str:
+        """Get the usage string for the command.
+
+        Returns:
+            str: The usage format "/mode <mode_name>".
+        """
         return "/mode <mode_name>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute mode command."""
+        """Execute the mode command.
+
+        Updates the orchestrator's mode in the blackboard based on the provided argument.
+
+        Args:
+            args: The mode name to switch to.
+            context: The execution context containing the orchestrator.
+
+        Returns:
+            CommandResult: A success result if mode is changed, or error if args are missing.
+        """
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -81,22 +167,54 @@ class ModeCommand(Command):
 
 
 class ResetCommand(Command):
-    """Reset the orchestrator to IDLE state."""
+    """Command to reset the orchestrator to IDLE state.
+
+    Forces the orchestrator back to its initial IDLE state, clearing temporary
+    states or tasks.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/reset".
+        """
         return "/reset"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: An empty list as there are no aliases.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Reset the orchestrator to IDLE state"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute reset command."""
+        """Execute the reset command.
+
+        Attempts to reset the orchestrator to its IDLE state.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the orchestrator.
+
+        Returns:
+            CommandResult: A success result if reset, or error if an exception occurs.
+
+        Raises:
+            Exception: Captures and returns any exception during reset as an error result.
+        """
         try:
             context.orchestrator.reset_to_idle()
             return CommandResult(
@@ -111,22 +229,53 @@ class ResetCommand(Command):
 
 
 class DoctorCommand(Command):
-    """Run system diagnostics."""
+    """Command to run system diagnostics.
+
+    Triggers the system doctor routine to check health, connectivity, and configuration.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/doctor".
+        """
         return "/doctor"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: A list containing "/diag".
+        """
         return ["/diag"]
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Run system diagnostics and check API connectivity"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute doctor command."""
+        """Execute the doctor command.
+
+        Runs the doctor diagnostics method on the REPL instance.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the REPL instance.
+
+        Returns:
+            CommandResult: A success result if diagnostics run, or error if REPL is missing or fails.
+
+        Raises:
+            Exception: Captures and returns any exception during diagnostics as an error result.
+        """
         repl = context.extras.get("repl")
         if not repl:
             return CommandResult(
@@ -148,28 +297,61 @@ class DoctorCommand(Command):
 
 
 class TelemetryCommand(Command):
-    """Manage telemetry settings."""
+    """Command to manage telemetry settings.
+
+    Provides subcommands to view status, report data, or export telemetry logs.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/telemetry".
+        """
         return "/telemetry"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: A list containing "/tel".
+        """
         return ["/tel"]
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "View or configure telemetry settings"
 
     @property
     def usage(self) -> str:
+        """Get the usage string for the command.
+
+        Returns:
+            str: The usage format "/telemetry [status|report|export] [days]".
+        """
         return "/telemetry [status|report|export] [days]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute telemetry command using TelemetryService.
+        """Execute the telemetry command using TelemetryService.
 
-        V9.1: Delegated to TelemetryService (Service Layer Pattern).
+        Delegates the operation to the TelemetryService based on the subcommand provided.
+
+        Args:
+            args: The arguments string containing subcommand and options.
+            context: The execution context containing services.
+
+        Returns:
+            CommandResult: The result of the telemetry operation.
+
+        Raises:
+            Exception: Captures and returns any exception during execution as an error result.
         """
         try:
             service = _get_telemetry_service(context)
@@ -206,28 +388,61 @@ class TelemetryCommand(Command):
 
 
 class BudgetCommand(Command):
-    """Manage token budget."""
+    """Command to manage token budget.
+
+    Provides functionality to view status, reset usage, add credits, or view history.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/budget".
+        """
         return "/budget"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: An empty list as there are no aliases.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "View or set token budget for API calls"
 
     @property
     def usage(self) -> str:
+        """Get the usage string for the command.
+
+        Returns:
+            str: The usage format "/budget [status|reset|add <amount>|history]".
+        """
         return "/budget [status|reset|add <amount>|history]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute budget command using BudgetService.
+        """Execute the budget command using BudgetService.
 
-        V9.1: Delegated to BudgetService (Service Layer Pattern).
+        Delegates the operation to the BudgetService based on the subcommand provided.
+
+        Args:
+            args: The arguments string containing subcommand and options.
+            context: The execution context containing services.
+
+        Returns:
+            CommandResult: The result of the budget operation.
+
+        Raises:
+            Exception: Captures and returns any exception during execution as an error result.
         """
         try:
             service = _get_budget_service(context)
@@ -276,22 +491,53 @@ class BudgetCommand(Command):
 
 
 class TutorialCommand(Command):
-    """Run the interactive tutorial."""
+    """Command to run the interactive tutorial.
+
+    Launches the guided tutorial for new users.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/tutorial".
+        """
         return "/tutorial"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: A list containing "/tut".
+        """
         return ["/tut"]
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Run the interactive NEXUS tutorial"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute tutorial command."""
+        """Execute the tutorial command.
+
+        Initiates the tutorial sequence in the REPL.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the REPL instance.
+
+        Returns:
+            CommandResult: A success result if started, or error if REPL is missing or fails.
+
+        Raises:
+            Exception: Captures and returns any exception during tutorial start as an error result.
+        """
         repl = context.extras.get("repl")
         if not repl:
             return CommandResult(
@@ -313,22 +559,53 @@ class TutorialCommand(Command):
 
 
 class QuickstartCommand(Command):
-    """Show quickstart guide."""
+    """Command to show the quickstart guide.
+
+    Displays a brief guide to help users get started with the system.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/quickstart".
+        """
         return "/quickstart"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: A list containing "/qs".
+        """
         return ["/qs"]
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Show the NEXUS quickstart guide"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute quickstart command."""
+        """Execute the quickstart command.
+
+        Shows the quickstart information in the REPL.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the REPL instance.
+
+        Returns:
+            CommandResult: A success result if shown, or error if REPL is missing or fails.
+
+        Raises:
+            Exception: Captures and returns any exception during display as an error result.
+        """
         repl = context.extras.get("repl")
         if not repl:
             return CommandResult(
@@ -350,22 +627,53 @@ class QuickstartCommand(Command):
 
 
 class ChatCommand(Command):
-    """Toggle chat mode."""
+    """Command to toggle chat mode.
+
+    Switches the interface between command mode and direct conversational AI mode.
+    """
 
     @property
     def name(self) -> str:
+        """Get the primary name of the command.
+
+        Returns:
+            str: The command name "/chat".
+        """
         return "/chat"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the list of aliases for the command.
+
+        Returns:
+            List[str]: An empty list as there are no aliases.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Get the description of the command.
+
+        Returns:
+            str: A brief description of the command's functionality.
+        """
         return "Toggle chat mode for direct AI conversation"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute chat command."""
+        """Execute the chat command.
+
+        Toggles the chat mode state in the REPL.
+
+        Args:
+            args: The arguments passed to the command (ignored).
+            context: The execution context containing the REPL instance.
+
+        Returns:
+            CommandResult: A success result if toggled, or error if REPL is missing or fails.
+
+        Raises:
+            Exception: Captures and returns any exception during toggle as an error result.
+        """
         repl = context.extras.get("repl")
         if not repl:
             return CommandResult(
@@ -387,7 +695,14 @@ class ChatCommand(Command):
 
 
 def register_misc_commands(registry: "CommandRegistry") -> None:
-    """Register all miscellaneous commands with a registry."""
+    """Register all miscellaneous commands with a registry.
+
+    Instantiates and registers all command classes defined in this module
+    to the provided command registry.
+
+    Args:
+        registry: The command registry to register commands with.
+    """
     registry.register(ClearCommand())
     registry.register(ModeCommand())
     registry.register(ResetCommand())

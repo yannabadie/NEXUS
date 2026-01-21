@@ -28,21 +28,33 @@ class GlobHandler(BaseHandler):
 
     @property
     def tool_name(self) -> str:
+        """Gets the unique identifier for the tool.
+
+        Returns:
+            str: The tool name, which is 'glob'.
+
+        Raises:
+            None: This property does not raise exceptions.
+        """
         return "glob"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Find files matching a pattern.
+        """Executes a file search using glob patterns.
 
         Args:
-            args: {
-                "pattern": "**/*.py" (glob pattern),
-                "path": "./src" (optional, default: workspace root),
-                "max_results": 100 (optional, default: 100)
-            }
+            args: A dictionary containing the arguments for the command.
+                Required keys:
+                    pattern (str): The glob pattern to match files against.
+                Optional keys:
+                    path (str): The directory to search in. Defaults to workspace root.
+                    max_results (int): The maximum number of results to return. Defaults to 100.
 
         Returns:
-            ToolResult with matching file paths
+            ToolResult: The result of the tool execution, containing the list of matching file paths
+                or an error message.
+
+        Raises:
+            None: Exceptions are caught and returned as error ToolResults.
         """
         pattern = args.get("pattern", "")
         search_path_str = args.get("path", ".")
@@ -107,23 +119,28 @@ class GrepHandler(BaseHandler):
 
     @property
     def tool_name(self) -> str:
+        """Get the name of the tool."""
         return "grep"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Search code for patterns.
+        """Executes a code search using regex patterns.
 
         Args:
-            args: {
-                "pattern": "def.*async" (regex pattern),
-                "path": "./src" (optional, default: workspace root),
-                "file_pattern": "*.py" (optional, filter files),
-                "case_sensitive": true (optional, default: true),
-                "max_results": 100 (optional, default: 100)
-            }
+            args: A dictionary containing the arguments for the command.
+                Required keys:
+                    pattern (str): The regex pattern to search for in file contents.
+                Optional keys:
+                    path (str): The directory to search in. Defaults to workspace root.
+                    file_pattern (str): A glob pattern to filter files. Defaults to "*".
+                    case_sensitive (bool): Whether the search should be case-sensitive. Defaults to True.
+                    max_results (int): The maximum number of results to return. Defaults to 100.
 
         Returns:
-            ToolResult with matching lines
+            ToolResult: The result of the tool execution, containing matching lines with line numbers
+                or an error message.
+
+        Raises:
+            None: Exceptions are caught and returned as error ToolResults.
         """
         pattern = args.get("pattern", "")
         search_path_str = args.get("path", ".")
@@ -210,15 +227,19 @@ def create_search_handlers(
     workspace_path: Path,
     validation_service: Optional[Any] = None,
 ) -> Dict[str, BaseHandler]:
-    """
-    Create search handlers.
+    """Creates and configures the available search handlers.
 
     Args:
-        workspace_path: Workspace root
-        validation_service: Optional ValidationService
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any], optional): Service for validating
+            file operations. Defaults to None.
 
     Returns:
-        Dict mapping tool names to handlers
+        Dict[str, BaseHandler]: A dictionary mapping tool names to their
+            initialized handler instances.
+
+    Raises:
+        None: This function does not raise exceptions.
     """
     return {
         "glob": GlobHandler(workspace_path, validation_service),

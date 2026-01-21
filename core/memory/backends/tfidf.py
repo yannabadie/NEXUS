@@ -39,18 +39,30 @@ class TfidfBackend(MemoryBackend):
 
     @property
     def name(self) -> str:
+        """Get the backend name."""
         return "tfidf"
 
     @property
     def is_ready(self) -> bool:
+        """Check if the index is built."""
         return self._index_built
 
     def build_index(self, chunks: List['Chunk']) -> None:
-        """
-        Build IDF scores from chunks.
+        """Builds IDF scores from the provided chunks.
+
+        Calculates the Inverse Document Frequency (IDF) for every term found
+        in the provided list of chunks. This index is used to weight terms
+        during retrieval.
 
         Args:
-            chunks: List of Chunk objects to index
+            chunks: A list of Chunk objects to be indexed. If empty,
+                the index is cleared.
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         if not chunks:
             self._idf = {}
@@ -81,18 +93,24 @@ class TfidfBackend(MemoryBackend):
         min_score: float,
         raw_query: Optional[str] = None  # V7.9 Phase 10g: Ignored by sparse backends
     ) -> List['Chunk']:
-        """
-        Retrieve chunks using TF-IDF weighted Jaccard similarity.
+        """Retrieves relevant chunks using TF-IDF weighted Jaccard similarity.
+
+        Scores chunks based on the overlap of terms with the query, weighted by
+        their IDF scores. Automatically builds the index if it hasn't been built yet.
 
         Args:
-            query_terms: Pre-processed query terms
-            chunks: Full list of chunks to search
-            limit: Maximum chunks to return
-            min_score: Minimum similarity score threshold
-            raw_query: Ignored (used by dense backends only)
+            query_terms: A list of pre-processed query terms.
+            chunks: The full list of chunks to search against.
+            limit: The maximum number of chunks to return.
+            min_score: The minimum similarity score required for a chunk to be included.
+            raw_query: The original query string (ignored by this backend).
 
         Returns:
-            List of relevant chunks, sorted by score descending
+            List['Chunk']: A list of the most relevant chunks, sorted by score
+            in descending order.
+
+        Raises:
+            None
         """
         # Note: raw_query ignored - TF-IDF uses tokenized query_terms
         if not query_terms or not chunks:
@@ -118,10 +136,20 @@ class TfidfBackend(MemoryBackend):
         return [chunk for _, chunk in scored_chunks[:limit]]
 
     def _score_chunk(self, query_terms: Set[str], chunk_terms: Set[str]) -> float:
-        """
-        Calculate TF-IDF weighted Jaccard similarity.
+        """Calculates TF-IDF weighted Jaccard similarity.
 
-        Score = sum(idf[term] for term in intersection) / sum(idf[term] for term in query)
+        The score is computed as:
+            Score = sum(idf[term] for term in intersection) / sum(idf[term] for term in query)
+
+        Args:
+            query_terms: Set of unique terms in the search query.
+            chunk_terms: Set of unique terms in the chunk being scored.
+
+        Returns:
+            float: A similarity score relative to the query weight.
+
+        Raises:
+            None
         """
         intersection = query_terms & chunk_terms
         if not intersection:
@@ -137,12 +165,30 @@ class TfidfBackend(MemoryBackend):
         return intersection_weight / query_weight
 
     def clear(self) -> None:
-        """Clear the TF-IDF index."""
+        """Clears the TF-IDF index.
+
+        Resets the internal IDF dictionary and marks the index as unbuilt.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._idf = {}
         self._index_built = False
 
     def get_info(self) -> Dict[str, Any]:
-        """Get TF-IDF backend information."""
+        """
+        Get TF-IDF backend information.
+
+        Returns:
+            Dict[str, Any]: Backend status including:
+                - backend: Name of the backend
+                - terms_indexed: Number of terms in IDF map
+                - index_built: Whether index is ready
+                - dependencies: External dependency status
+        """
         return {
             "backend": self.name,
             "terms_indexed": len(self._idf),

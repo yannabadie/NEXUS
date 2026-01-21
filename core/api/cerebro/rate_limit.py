@@ -36,6 +36,15 @@ def get_remote_address(request: Request) -> str:
     Extract client IP address from request.
 
     Handles X-Forwarded-For header for reverse proxy setups.
+
+    Args:
+        request (Request): The incoming FastAPI request object containing headers
+            and client information.
+
+    Returns:
+        str: The resolved client IP address. Returns the first IP from the
+            'X-Forwarded-For' header if present, otherwise the direct client host.
+            Returns "unknown" if the IP cannot be determined.
     """
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -49,7 +58,19 @@ def get_remote_address(request: Request) -> str:
 
 
 def get_rate_limit_for_path(path: str) -> str:
-    """Get rate limit string for a given path."""
+    """
+    Get rate limit string for a given path.
+
+    Matches the provided path against defined rate limit patterns in the global
+    configuration.
+
+    Args:
+        path (str): The API route path to match (e.g., "/api/auth/login").
+
+    Returns:
+        str: The rate limit string (e.g., "5/minute") corresponding to the
+            matched path, or the default limit if no specific match is found.
+    """
     for pattern, limit in RATE_LIMITS.items():
         if pattern != "default" and path.startswith(pattern):
             return limit
@@ -89,7 +110,13 @@ except ImportError:
 
 
 def get_limiter():
-    """Get the rate limiter instance (or None if unavailable)."""
+    """
+    Get the global slowapi Limiter instance.
+
+    Returns:
+        Optional[Limiter]: The configured slowapi Limiter instance, or None if 
+                          slowapi is not installed or failed to initialize.
+    """
     return _limiter
 
 
@@ -102,7 +129,16 @@ async def rate_limit_exceeded_handler(request: Request, exc) -> Response:
     """
     Handler for rate limit exceeded errors.
 
-    Returns JSON response with retry-after header.
+    Returns a JSON response indicating that the rate limit has been exceeded,
+    including a 'Retry-After' header.
+
+    Args:
+        request (Request): The incoming FastAPI request object that triggered the rate limit.
+        exc: The exception instance raised by the rate limiter (usually RateLimitExceeded).
+
+    Returns:
+        Response: A JSONResponse with status code 429 (Too Many Requests),
+            containing error details and a 'Retry-After' header.
     """
     return JSONResponse(
         status_code=429,
@@ -183,11 +219,29 @@ class SimpleRateLimiter:
     """
 
     def __init__(self):
+        """
+        Initialize the simple rate limiter.
+
+        Sets up the thread-safe token buckets storage for tracking request rates
+        per client identifier (IP address).
+        """
         self._buckets: dict = defaultdict(lambda: {"tokens": 100, "last_update": time.time()})
         self._lock = Lock()
 
     def _parse_limit(self, limit_string: str) -> tuple:
-        """Parse '10/minute' format to (count, seconds)."""
+        """
+        Parse a rate limit string into count and period in seconds.
+
+        Converts format like '10/minute' into a tuple of (10, 60).
+
+        Args:
+            limit_string (str): The rate limit string in format "count/period".
+                Supported periods are 'second', 'minute', 'hour', 'day'.
+
+        Returns:
+            tuple: A tuple containing (count, period_seconds), where count is an
+                integer and period_seconds is an integer representing the duration.
+        """
         parts = limit_string.split("/")
         count = int(parts[0])
         period = parts[1].lower()

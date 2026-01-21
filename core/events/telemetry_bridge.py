@@ -257,7 +257,19 @@ class TelemetryBridge:
         event_type: "CerebroEventType",
         payload: Dict[str, Any]
     ) -> None:
-        """Persist state to in-memory storage (V13.0)."""
+        """
+        Persist state to in-memory storage (V13.0).
+
+        Args:
+            bus: The RedisBus instance (used for in-memory storage).
+            tenant_id: Tenant identifier.
+            workspace_id: Workspace identifier.
+            event_type: Event type to determine persistence behavior.
+            payload: Event payload data.
+
+        Returns:
+            None
+        """
         try:
             from core.events.types import CerebroEventType
 
@@ -290,7 +302,22 @@ class TelemetryBridge:
         event_type: "CerebroEventType",
         payload: Dict[str, Any]
     ) -> None:
-        """Persist state to Redis (original implementation)."""
+        """
+        Persist state to Redis (original implementation).
+
+        Args:
+            redis: The Redis client instance.
+            tenant_id: Tenant identifier.
+            workspace_id: Workspace identifier.
+            event_type: Event type to determine persistence behavior.
+            payload: Event payload data.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If Redis operations fail (propagates to caller).
+        """
         from core.events.types import CerebroEventType
 
         base_key = f"nexus:{tenant_id}:{workspace_id}:state"
@@ -337,13 +364,16 @@ class TelemetryBridge:
         Emit telemetry event (async). Fire-and-forget.
 
         Args:
-            event_type: CerebroEventType enum value
-            payload: Event payload dict
-            tenant_id: Optional tenant override
-            workspace_id: Optional workspace override
+            event_type: CerebroEventType enum value.
+            payload: Event payload dict.
+            tenant_id: Optional tenant override.
+            workspace_id: Optional workspace override.
 
         Returns:
-            True if published successfully, False otherwise
+            bool: True if published successfully, False otherwise.
+
+        Raises:
+            None: Exceptions are caught and logged to ensure fire-and-forget behavior.
         """
         try:
             # Lazy import to avoid circular dependencies
@@ -401,13 +431,16 @@ class TelemetryBridge:
         from worker threads. This ensures events reach WebSocket subscribers.
 
         Args:
-            event_type: CerebroEventType enum value
-            payload: Event payload dict
-            tenant_id: Optional tenant override
-            workspace_id: Optional workspace override
+            event_type: CerebroEventType enum value.
+            payload: Event payload dict.
+            tenant_id: Optional tenant override.
+            workspace_id: Optional workspace override.
 
         Returns:
-            True if published successfully, False otherwise
+            bool: True if published successfully, False otherwise.
+
+        Raises:
+            None: Exceptions are caught and logged to ensure non-blocking behavior.
         """
         try:
             # V13.0: Get the main loop from redis_bus (set during app startup)
@@ -505,8 +538,8 @@ def emit_agent_exchange(
     to_agent: str,
     message: str,
     exchange_type: str = "message",
-    tenant_id: str = None,
-    workspace_id: str = None
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None
 ) -> bool:
     """
     Emit GRAPH_EDGE_MESSAGE for agent-to-agent communication.
@@ -557,8 +590,8 @@ def emit_agent_speak(
     agent: str,
     message: str,
     action_type: str = "TALK",
-    tenant_id: str = None,
-    workspace_id: str = None
+    tenant_id: Optional[str] = None,
+    workspace_id: Optional[str] = None
 ) -> bool:
     """
     Emit AGENT_SPEAK for agent message content.

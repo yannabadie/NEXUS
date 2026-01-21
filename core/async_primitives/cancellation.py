@@ -88,8 +88,18 @@ class CancellationToken:
         """
         Cancel this token and all children.
 
+        This sets the cancelled state to True, records the reason and timestamp,
+        propagates cancellation to all child tokens, and executes registered callbacks.
+        Callback exceptions are caught and logged to prevent interruption.
+
         Args:
-            reason: Optional human-readable reason for cancellation
+            reason: Optional human-readable reason for cancellation.
+
+        Returns:
+            None
+
+        Raises:
+            None: This method suppresses exceptions from callbacks.
         """
         if self._cancelled:
             return  # Already cancelled
@@ -236,11 +246,33 @@ class CancellationTokenSource:
         return self._root
 
     def create_linked_token(self) -> CancellationToken:
-        """Create a new token linked to the root."""
+        """
+        Create a new token linked to the root.
+
+        This creates a child token off the source's root token. When the source
+        is cancelled, this token (and any of its children) will also be cancelled.
+
+        Returns:
+            CancellationToken: A new token linked to this source.
+        """
         return self._root.create_child()
 
     def cancel(self, reason: Optional[str] = None) -> None:
-        """Cancel the root token (and all linked tokens)."""
+        """
+        Cancel the root token (and all linked tokens).
+
+        This propagates cancellation to the root token and all tokens created
+        via create_linked_token(), as well as their descendants.
+
+        Args:
+            reason: Optional human-readable reason for the cancellation.
+
+        Returns:
+            None
+
+        Raises:
+            None: This method does not raise exceptions.
+        """
         self._root.cancel(reason)
 
     @property

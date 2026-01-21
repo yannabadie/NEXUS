@@ -143,8 +143,8 @@ class HiveMindContextManager:
         source: str,
         content: str,
         priority: ContextPriority = ContextPriority.MEDIUM,
-        metadata: Dict = None
-    ):
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Add an item to context.
 
@@ -236,7 +236,7 @@ class HiveMindContextManager:
 
     # Convenience methods for common operations
 
-    def add_task(self, task: str):
+    def add_task(self, task: str) -> None:
         """Add task definition (CRITICAL priority)."""
         self.add_item(
             category="task",
@@ -246,7 +246,7 @@ class HiveMindContextManager:
             metadata={"type": "task_definition"}
         )
 
-    def add_analysis(self, agent_id: str, analysis: Dict):
+    def add_analysis(self, agent_id: str, analysis: Dict[str, Any]) -> None:
         """Add independent analysis result."""
         content = self._format_analysis(analysis)
         self.add_item(
@@ -257,7 +257,7 @@ class HiveMindContextManager:
             metadata={"agent": agent_id, "type": "independent_analysis"}
         )
 
-    def add_debate_turn(self, turn_number: int, agent_id: str, argument: str):
+    def add_debate_turn(self, turn_number: int, agent_id: str, argument: str) -> None:
         """Add a debate turn."""
         # Earlier turns get lower priority
         priority = ContextPriority.HIGH if turn_number >= 3 else ContextPriority.MEDIUM
@@ -269,7 +269,7 @@ class HiveMindContextManager:
             metadata={"turn": turn_number, "agent": agent_id}
         )
 
-    def add_execution_result(self, step_name: str, result: str, success: bool):
+    def add_execution_result(self, step_name: str, result: str, success: bool) -> None:
         """Add execution step result."""
         priority = ContextPriority.MEDIUM if success else ContextPriority.HIGH
         self.add_item(
@@ -280,7 +280,7 @@ class HiveMindContextManager:
             metadata={"step": step_name, "success": success}
         )
 
-    def add_diagnosis(self, agent_id: str, diagnosis: str):
+    def add_diagnosis(self, agent_id: str, diagnosis: str) -> None:
         """Add failure diagnosis (HIGH priority for debugging)."""
         self.add_item(
             category="diagnosis",
@@ -290,7 +290,7 @@ class HiveMindContextManager:
             metadata={"agent": agent_id, "type": "diagnosis"}
         )
 
-    def add_insight(self, category: str, content: str, tags: List[str] = None):
+    def add_insight(self, category: str, content: str, tags: Optional[List[str]] = None) -> None:
         """
         Add a learned insight (will be archived to RAG).
 
@@ -476,7 +476,7 @@ Timestamp: {insight['timestamp']}
 
     # State management
 
-    def clear(self, keep_critical: bool = True):
+    def clear(self, keep_critical: bool = True) -> None:
         """
         Clear context.
 

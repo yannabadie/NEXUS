@@ -20,7 +20,7 @@ Date: 2025-12-04
 
 import csv
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Iterator
 from dataclasses import dataclass
@@ -40,10 +40,9 @@ class TelemetryEvent:
         try:
             obj = json.loads(line.strip())
             timestamp_str = obj.get("timestamp", "")
-            # Handle ISO format with Z suffix
-            if timestamp_str.endswith("Z"):
-                timestamp_str = timestamp_str[:-1]
             timestamp = datetime.fromisoformat(timestamp_str)
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
 
             return cls(
                 event_type=obj.get("type", "unknown"),
@@ -153,7 +152,7 @@ class TelemetryExporter:
         Returns:
             List of TelemetryEvent objects.
         """
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
         return list(self._iter_events(since=since, event_types=event_types))
 
     def export_to_csv(
@@ -181,7 +180,7 @@ class TelemetryExporter:
         # Calculate time filter
         since = None
         if days:
-            since = datetime.utcnow() - timedelta(days=days)
+            since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # CSV columns
         fieldnames = [
@@ -276,7 +275,7 @@ class TelemetryExporter:
             - top_modes: Most used collaboration modes
             - provider_distribution: API calls per provider
         """
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Counters
         total_events = 0
@@ -361,7 +360,7 @@ class TelemetryExporter:
         return {
             "period_days": days,
             "period_start": since.isoformat(),
-            "period_end": datetime.utcnow().isoformat(),
+            "period_end": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "total_events": total_events,
             "success_rate": success_rate,
             "successes": successes,

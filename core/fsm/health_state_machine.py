@@ -34,7 +34,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +72,21 @@ class RecoveryStrategy:
     """
     name: str
     description: str
-    action: Callable
+    action: Union[Callable[[], Optional[bool]], Callable[[], Awaitable[Optional[bool]]]]
     cooldown_seconds: float = 30.0
     max_attempts: int = 3
     last_attempt: Optional[datetime] = None
     attempt_count: int = 0
 
     def is_available(self) -> bool:
-        """Check if strategy can be used (cooldown + max attempts)."""
+        """Checks if the recovery strategy is available for execution.
+
+        Verifies that the strategy hasn't exceeded its maximum attempt count and
+        that the cooldown period has passed since the last execution.
+
+        Returns:
+            bool: True if the strategy can be executed, False otherwise.
+        """
         if self.attempt_count >= self.max_attempts:
             return False
 
@@ -90,12 +97,20 @@ class RecoveryStrategy:
         return elapsed >= self.cooldown_seconds
 
     def mark_used(self) -> None:
-        """Mark strategy as used."""
+        """Marks the strategy as recently used.
+
+        Updates the last attempt timestamp to the current time and increments the
+        attempt counter. This triggers the cooldown period for subsequent uses.
+        """
         self.last_attempt = datetime.now()
         self.attempt_count += 1
 
     def reset(self) -> None:
-        """Reset strategy counters (on healthy state)."""
+        """Resets the strategy's usage counters.
+
+        Clears the attempt count and the last attempt timestamp. This is typically
+        called when the system returns to a HEALTHY state, resetting strategy limits.
+        """
         self.attempt_count = 0
         self.last_attempt = None
 
@@ -183,7 +198,7 @@ class HealthStateMachine:
         self._strategies: List[RecoveryStrategy] = []
 
         # Event callbacks
-        self._on_state_change: List[Callable] = []
+        self._on_state_change: List[Union[Callable[[HealthState, HealthState, str], None], Callable[[HealthState, HealthState, str], Awaitable[None]]]] = []
 
         # History for debugging
         self._history: List[Dict[str, Any]] = []
@@ -217,23 +232,34 @@ class HealthStateMachine:
     # -------------------------------------------------------------------------
 
     def add_strategy(self, strategy: RecoveryStrategy) -> None:
-        """
-        Add a recovery strategy.
+        """Adds a recovery strategy to the state machine.
 
-        Strategies are tried in order of registration.
+        Strategies are tried in the order of their registration. This method allows
+        dynamic registration of custom recovery logic.
 
         Args:
-            strategy: RecoveryStrategy to add
+            strategy: The RecoveryStrategy instance to register.
+
+        Returns:
+            None
         """
         self._strategies.append(strategy)
         logger.debug(f"Recovery strategy registered: {strategy.name}")
 
     def _register_default_strategies(self) -> None:
-        """Register default recovery strategies based on orchestrator."""
+        """Registers the default set of recovery strategies.
+
+        This method inspects the available orchestrator capabilities and registers
+        strategies such as resetting stagnation, switching agents, compressing
+        context, clearing tool caches, and rolling back phases.
+
+        Returns:
+            None
+        """
         orch = self._orchestrator
 
         # 1. Reset stagnation detector
-        async def reset_stagnation():
+        async def reset_stagnation() -> bool:
             if hasattr(orch, 'stagnation_detector'):
                 orch.stagnation_detector.reset()
                 logger.info("Stagnation detector reset")
@@ -249,7 +275,7 @@ class HealthStateMachine:
         ))
 
         # 2. Switch active agent
-        async def switch_agent():
+        async def switch_agent() -> bool:
             if hasattr(orch, 'active_agent') and hasattr(orch, '_switch_agent'):
                 current = orch.active_agent
                 orch._switch_agent()
@@ -266,7 +292,7 @@ class HealthStateMachine:
         ))
 
         # 3. Compress context
-        async def compress_context():
+        async def compress_context() -> bool:
             if hasattr(orch, 'context_manager') and hasattr(orch.context_manager, 'compress'):
                 await orch.context_manager.compress()
                 logger.info("Context compressed")
@@ -282,7 +308,7 @@ class HealthStateMachine:
         ))
 
         # 4. Clear tool cache
-        async def clear_tool_cache():
+        async def clear_tool_cache() -> bool:
             if hasattr(orch, 'tool_manager') and hasattr(orch.tool_manager, 'clear_cache'):
                 orch.tool_manager.clear_cache()
                 logger.info("Tool cache cleared")
@@ -354,14 +380,26 @@ class HealthStateMachine:
         # Call callbacks
         for callback in self._on_state_change:
             try:
-                callback(old_state, new_state, reason)
+                if asyncio.iscoroutinefunction(callback):
+                    # Schedule async callback to run in the event loop
+                    asyncio.create_task(callback(old_state, new_state, reason))
+                else:
+                    callback(old_state, new_state, reason)
             except Exception as e:
                 logger.error(f"State change callback failed: {e}")
 
         return True
 
-    def on_state_change(self, callback: Callable) -> None:
-        """Register callback for state changes."""
+    def on_state_change(self, callback: Union[Callable[[HealthState, HealthState, str], None], Callable[[HealthState, HealthState, str], Awaitable[None]]]) -> None:
+        """Registers a callback function to be invoked on state changes.
+
+        The callback will be executed whenever the health state transitions to a
+        new state.
+
+        Args:
+            callback: A callable that accepts three arguments:
+                old_state (HealthState), new_state (HealthState), and reason (str).
+        """
         self._on_state_change.append(callback)
 
     # -------------------------------------------------------------------------
@@ -375,16 +413,19 @@ class HealthStateMachine:
         *,
         severity: float = 1.0
     ) -> HealthState:
-        """
-        Record an error and update health state.
+        """Records an error and updates the health state.
+
+        Increments the error count based on severity. Transitions the system to
+        DEGRADED or CRITICAL states if error thresholds are reached. Automatically
+        attempts recovery if enabled and the system reaches CRITICAL state.
 
         Args:
-            error_type: Type of error (TOOL_FAILURE, PARSING_ERROR, etc.)
-            error_message: Error message
-            severity: Error severity multiplier (default 1.0)
+            error_type: The type category of the error (e.g., "TOOL_FAILURE").
+            error_message: A descriptive error message.
+            severity: A multiplier for the error count impact (default 1.0).
 
         Returns:
-            Current health state after recording
+            HealthState: The current health state after recording the error.
         """
         # Increment error count (weighted by severity)
         self._error_count += int(severity)
@@ -407,11 +448,14 @@ class HealthStateMachine:
         return self._state
 
     def record_success(self) -> HealthState:
-        """
-        Record a successful operation, potentially improving health.
+        """Records a successful operation, potentially improving system health.
+
+        Decrements the error count. If the system is in a DEGRADED or RECOVERING
+        state and the error count drops below thresholds, it transitions the
+        system back to a HEALTHY state.
 
         Returns:
-            Current health state after recording
+            HealthState: The current health state after recording the success.
         """
         # Decrease error count (don't go below 0)
         self._error_count = max(0, self._error_count - 1)
@@ -436,13 +480,15 @@ class HealthStateMachine:
     # -------------------------------------------------------------------------
 
     async def attempt_recovery(self) -> bool:
-        """
-        Attempt recovery using registered strategies.
+        """Attempts to recover the system using registered strategies.
 
-        Tries strategies in order until one succeeds or all fail.
+        Iterates through registered strategies in order. If a strategy is available,
+        it is executed. The first successful strategy stops the process and
+        restores the system to HEALTHY. If all strategies fail, the system
+        escalates to PANIC.
 
         Returns:
-            True if recovery succeeded
+            bool: True if recovery succeeded, False if all strategies failed.
         """
         if self._state not in (HealthState.CRITICAL, HealthState.RECOVERING):
             return False
@@ -479,7 +525,14 @@ class HealthStateMachine:
         return False
 
     def _reset_strategies(self) -> None:
-        """Reset all strategy counters."""
+        """Resets the usage counters for all registered strategies.
+
+        This is typically called when the system successfully returns to a HEALTHY
+        state, allowing strategies to be used again in future incidents.
+
+        Returns:
+            None
+        """
         for strategy in self._strategies:
             strategy.reset()
         self._recovery_attempts = 0
@@ -489,10 +542,13 @@ class HealthStateMachine:
     # -------------------------------------------------------------------------
 
     def reset(self) -> None:
-        """
-        Manual reset to HEALTHY state.
+        """Manual reset to HEALTHY state.
 
-        Used after user intervention or system restart.
+        Used to force the system back to a healthy state after user intervention
+        or system restart. Resets error counts and strategy counters.
+
+        Returns:
+            None
         """
         self._error_count = 0
         self._recovery_attempts = 0
@@ -500,11 +556,16 @@ class HealthStateMachine:
         self._transition_to(HealthState.HEALTHY, "Manual reset")
 
     def force_panic(self, reason: str) -> None:
-        """
-        Force transition to PANIC state.
+        """Forces the system into the PANIC state.
+
+        This method bypasses error thresholds and recovery attempts, immediately
+        escalating the system state to PANIC.
 
         Args:
-            reason: Reason for forced panic
+            reason: A descriptive reason for forcing the panic state.
+
+        Returns:
+            None
         """
         self._transition_to(HealthState.PANIC, f"Forced: {reason}")
 
@@ -513,7 +574,17 @@ class HealthStateMachine:
     # -------------------------------------------------------------------------
 
     def status(self) -> Dict[str, Any]:
-        """Get health status for debugging/monitoring."""
+        """Retrieves the current health status and statistics.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing system health details:
+                - state: Current HealthState value (str).
+                - error_count: Current accumulated error count (int).
+                - recovery_attempts: Number of recovery attempts made (int).
+                - last_state_change: ISO timestamp of last transition (str).
+                - strategies: List of dictionaries describing strategy availability.
+                - history_length: Number of recorded historical transitions (int).
+        """
         return {
             "state": self._state.value,
             "error_count": self._error_count,
@@ -531,7 +602,19 @@ class HealthStateMachine:
         }
 
     def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent state transition history."""
+        """Retrieves recent state transition history.
+
+        Args:
+            limit: Maximum number of history entries to return. Defaults to 10.
+
+        Returns:
+            List[Dict[str, Any]]: A list of history dictionaries, each containing:
+                - from: Previous state.
+                - to: New state.
+                - reason: Reason for transition.
+                - error_count: Error count at time of transition.
+                - timestamp: ISO timestamp of transition.
+        """
         return self._history[-limit:]
 
     def __repr__(self) -> str:

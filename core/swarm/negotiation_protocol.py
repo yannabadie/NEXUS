@@ -63,7 +63,16 @@ class NegotiationProposal:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "NegotiationProposal":
-        """Parse proposal from dictionary"""
+        """
+        Parses a proposal from a dictionary.
+
+        Args:
+            data (Dict): Dictionary containing proposal fields like 'proposed_mode',
+                'confidence', 'subtasks', etc.
+
+        Returns:
+            NegotiationProposal: The parsed proposal object.
+        """
         # Validate subtasks is a dict, not a list
         subtasks_raw = data.get("subtasks")
         if isinstance(subtasks_raw, list):
@@ -95,6 +104,14 @@ class NegotiationProposal:
         )
 
     def to_dict(self) -> Dict:
+        """
+        Converts the proposal to a dictionary format.
+
+        Returns:
+            Dict: A dictionary representation of the proposal with keys for proposed mode,
+                lead, confidence, role, justification, agreement status, subtasks,
+                and counter-proposal.
+        """
         return {
             "proposed_mode": self.proposed_mode,
             "proposed_lead": self.proposed_lead,
@@ -146,6 +163,13 @@ class HybridNegotiationMessage:
         return None
 
     def to_dict(self) -> Dict:
+        """
+        Converts the negotiation message to a dictionary.
+
+        Returns:
+            Dict: Dictionary containing sender, natural content, structured proposal
+                (if present), timestamp, and turn number.
+        """
         return {
             "sender": self.sender,
             "natural_content": self.natural_content,
@@ -174,6 +198,13 @@ class NegotiationResult:
     final_subtasks: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict:
+        """
+        Converts the negotiation result to a dictionary.
+
+        Returns:
+            Dict: Dictionary containing status, selected mode, agent assignments,
+                negotiation history, total turns, consensus confidence, and final subtasks.
+        """
         return {
             "status": self.status.value,
             "selected_mode": self.selected_mode.value,
@@ -422,7 +453,18 @@ class NegotiationProtocol:
         history: List[HybridNegotiationMessage],
         agent_id: str
     ) -> str:
-        """Build enriched context string for agent negotiation turn"""
+        """
+        Builds the enriched context string for an agent's negotiation turn.
+
+        Args:
+            analysis (TaskAnalysis): The analysis of the task at hand.
+            proposal (ModeProposal): The current mode proposal on the table.
+            history (List[HybridNegotiationMessage]): History of the negotiation so far.
+            agent_id (str): The ID of the agent whose turn it is.
+
+        Returns:
+            str: A formatted string containing task analysis, proposal, history, and instructions.
+        """
         lines = [
             "╔════════════════════════════════════════════════════════════════╗",
             "║              SWARM NEGOTIATION PROTOCOL                        ║",
@@ -498,7 +540,17 @@ class NegotiationProtocol:
         sender: str,
         turn_number: int
     ) -> HybridNegotiationMessage:
-        """Parse agent response into HybridNegotiationMessage"""
+        """
+        Parses the agent's response to extract natural content and structured proposal.
+
+        Args:
+            response (str): The raw string response from the agent.
+            sender (str): The ID of the agent who sent the response.
+            turn_number (int): The current turn number in the negotiation.
+
+        Returns:
+            HybridNegotiationMessage: The parsed message object containing content and proposal.
+        """
         # Extract natural content (everything outside <negotiate>)
         natural_content = self.NEGOTIATE_PATTERN.sub("", response).strip()
 
@@ -525,7 +577,16 @@ class NegotiationProtocol:
         current: ModeProposal,
         message: HybridNegotiationMessage
     ) -> ModeProposal:
-        """Update proposal based on agent's counter-proposal"""
+        """
+        Updates the current proposal based on an agent's counter-proposal.
+
+        Args:
+            current (ModeProposal): The current active proposal.
+            message (HybridNegotiationMessage): The latest message containing a counter-proposal.
+
+        Returns:
+            ModeProposal: A new ModeProposal object reflecting the changes.
+        """
         if not message.proposed_mode:
             return current
 
@@ -555,13 +616,25 @@ class NegotiationProtocol:
         message: HybridNegotiationMessage,
         default_assignments: List[AgentAssignment]
     ) -> List[AgentAssignment]:
-        """Finalize agent assignments based on consensus"""
+        """
+        Finalizes agent assignments based on the reached consensus.
+
+        Args:
+            mode (CollaborationMode): The selected collaboration mode.
+            message (HybridNegotiationMessage): The final negotiation message containing
+                details of the agreement.
+            default_assignments (List[AgentAssignment]): Default assignments to use as a
+                fallback if specific assignments aren't negotiated.
+
+        Returns:
+            List[AgentAssignment]: The final list of agent assignments with roles and subtasks.
+        """
         assignments = []
 
         subtasks = message.structured_proposal.subtasks if message.structured_proposal else None
 
         # Defensive check: ensure subtasks is a dict before iterating
-        if subtasks and isinstance(subtasks, dict):
+        if subtasks and isinstance(subtasks, dict) and message.structured_proposal:
             # Use negotiated subtasks
             for agent_id, subtask in subtasks.items():
                 role = "equal"
@@ -595,7 +668,19 @@ class NegotiationProtocol:
         self,
         history: List[HybridNegotiationMessage]
     ) -> float:
-        """Calculate confidence in consensus based on negotiation"""
+        """
+        Calculates confidence in the reached consensus based on negotiation history.
+
+        Computes a score based on the number of agreements and average confidence
+        of individual proposals throughout the negotiation.
+
+        Args:
+            history (List[HybridNegotiationMessage]): The list of messages exchanged
+                during the negotiation.
+
+        Returns:
+            float: A confidence score between 0.0 and 1.0.
+        """
         if not history:
             return 0.5
 
@@ -622,7 +707,17 @@ class NegotiationProtocol:
         task_analysis: TaskAnalysis,
         reason: str = "User forced"
     ) -> NegotiationResult:
-        """Force a specific mode without negotiation"""
+        """
+        Forces a specific collaboration mode without going through negotiation.
+
+        Args:
+            mode (CollaborationMode): The mode to enforce.
+            task_analysis (TaskAnalysis): The analysis of the task.
+            reason (str, optional): The reason for forcing the mode. Defaults to "User forced".
+
+        Returns:
+            NegotiationResult: The result object with the forced mode and generated assignments.
+        """
         from .mode_selector import ModeSelector
 
         # Generate assignments for forced mode
@@ -646,9 +741,17 @@ class NegotiationProtocol:
         initial_mode: CollaborationMode
     ) -> str:
         """
-        Create a negotiation prompt for an agent.
+        Creates a negotiation prompt for an agent to initiate or continue negotiation.
 
-        Used to inject negotiation instructions into agent context.
+        Injects instructions and the required XML format into the agent's context.
+
+        Args:
+            agent_id (str): The identifier of the agent (e.g., "gemini", "claude").
+            task_description (str): A description of the task being negotiated.
+            initial_mode (CollaborationMode): The initial mode suggested by the system.
+
+        Returns:
+            str: The formatted prompt string.
         """
         return f"""
 You are participating in a SWARM NEGOTIATION to decide how to collaborate on:
@@ -681,9 +784,15 @@ Discuss naturally, then include the structured proposal.
 
 def extract_negotiate_json(text: str) -> Optional[Dict]:
     """
-    Extract JSON from <negotiate> tags in text.
+    Extracts JSON content from <negotiate> tags within a text string.
 
-    Helper function for external use.
+    Helper function for parsing negotiation proposals from external sources.
+
+    Args:
+        text (str): The text containing the <negotiate> tags.
+
+    Returns:
+        Optional[Dict]: The parsed JSON dictionary if found and valid, else None.
     """
     match = NegotiationProtocol.NEGOTIATE_PATTERN.search(text)
     if match:

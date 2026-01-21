@@ -22,6 +22,7 @@ Date: 2025-12-16
 """
 
 import logging
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
@@ -79,7 +80,20 @@ class HybridBackend(MemoryBackend):
             sparse_weight: Weight for sparse (lexical) results [0.0-1.0]
         """
         self._logger = logging.getLogger("nexus.memory.hybrid")
-        self._storage_path = storage_path
+        
+        # Validate storage_path to prevent path traversal (CWE-22)
+        if storage_path is not None:
+            try:
+                # Resolve to absolute path and ensure it's within allowed boundaries
+                resolved_path = storage_path.resolve()
+                # Ensure the path is not trying to escape the workspace
+                if not str(resolved_path).startswith(str(Path.cwd().resolve())):
+                    raise ValueError(f"Storage path {storage_path} is outside the current working directory")
+                self._storage_path = resolved_path
+            except (OSError, RuntimeError) as e:
+                raise ValueError(f"Invalid storage path: {storage_path}") from e
+        else:
+            self._storage_path = None
 
         # Weights for RRF combination
         self._dense_weight = dense_weight
@@ -145,6 +159,12 @@ class HybridBackend(MemoryBackend):
 
         Args:
             chunks: List of Chunk objects to index
+
+        Returns:
+            None
+
+        Raises:
+            None: Exceptions are caught and logged.
         """
         if not self._ensure_backends():
             self._logger.warning("No sub-backends available")
@@ -256,9 +276,10 @@ class HybridBackend(MemoryBackend):
             if score >= min_score:
                 results.append(chunk)
 
+        # Log only aggregate statistics, not query details (CWE-532)
         self._logger.debug(
-            f"Hybrid retrieval: {len(dense_results)} dense + {len(sparse_results)} sparse "
-            f"→ {len(results)} after RRF"
+            f"Hybrid retrieval completed: {len(dense_results)} dense + {len(sparse_results)} sparse "
+            f"→ {len(results)} results after RRF"
         )
 
         return results
@@ -294,7 +315,18 @@ class HybridBackend(MemoryBackend):
         return dict(rrf_scores)
 
     def clear(self) -> None:
-        """Clear both sub-backend indices."""
+        """
+        Clear both sub-backend indices.
+
+        This method attempts to clear the indices of both the dense and sparse
+        sub-backends. Errors during the process are logged but not raised.
+
+        Returns:
+            None
+
+        Raises:
+            None: Exceptions are caught and logged as warnings.
+        """
         if self._dense_backend is not None:
             try:
                 self._dense_backend.clear()
@@ -311,7 +343,26 @@ class HybridBackend(MemoryBackend):
         self._chunk_count = 0
 
     def get_info(self) -> Dict[str, Any]:
-        """Get Hybrid backend information."""
+        """
+        Get Hybrid backend information.
+
+        Retrieves current configuration and status details, including weights,
+        index status, and sub-backend information.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing backend details:
+                - backend: Name of the backend ("hybrid")
+                - rrf_k: The RRF constant constant used
+                - dense_weight: Current weight for dense results
+                - sparse_weight: Current weight for sparse results
+                - index_built: Boolean indicating if index is built
+                - chunk_count: Number of chunks indexed
+                - dense_backend: Details from the dense backend
+                - sparse_backend: Details from the sparse backend
+
+        Raises:
+            None
+        """
         dense_info = self._dense_backend.get_info() if self._dense_backend else {}
         sparse_info = self._sparse_backend.get_info() if self._sparse_backend else {}
 
@@ -335,6 +386,12 @@ class HybridBackend(MemoryBackend):
         Args:
             dense_weight: Weight for dense (semantic) results
             sparse_weight: Weight for sparse (lexical) results
+
+        Returns:
+            None
+
+        Raises:
+            None
         """
         self._dense_weight = dense_weight
         self._sparse_weight = sparse_weight

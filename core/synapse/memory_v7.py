@@ -29,7 +29,7 @@ class MemoryManagerV7:
     State lives in RAM, disk is backup only
     """
 
-    def __init__(self, workspace_path: Path, config):
+    def __init__(self, workspace_path: Path, config: Dict[str, Any]):
         self.workspace_path = workspace_path
         self.config = config
         self.blackboard_path = workspace_path / ".nexus" / "blackboard.json"
@@ -50,7 +50,7 @@ class MemoryManagerV7:
         # Load Global Memory (Inter-project Persistence)
         self.global_memory = self._load_global_memory()
 
-    def load_initial_state(self) -> Dict:
+    def load_initial_state(self) -> Dict[str, Any]:
         """
         Load blackboard state (called ONCE at init)
 
@@ -59,7 +59,7 @@ class MemoryManagerV7:
         """
         return self.blackboard
 
-    def _load_global_memory(self) -> Dict:
+    def _load_global_memory(self) -> Dict[str, Any]:
         """Load global memory from user home directory (Phase 7: via AtomicJsonStore)"""
         try:
             data = self._global_memory_store.load_safe()
@@ -70,7 +70,7 @@ class MemoryManagerV7:
             print(f"Warning: Could not load global memory: {e}")
             return self._create_empty_global_memory()
 
-    def _create_empty_global_memory(self) -> Dict:
+    def _create_empty_global_memory(self) -> Dict[str, Any]:
         """Create empty global memory structure"""
         return {
             "user_profile": {},       # Preferences, name, style
@@ -82,7 +82,7 @@ class MemoryManagerV7:
             }
         }
 
-    def save_global_memory(self):
+    def save_global_memory(self) -> None:
         """Save global memory to disk (Phase 7: atomic write via AtomicJsonStore)"""
         with self._lock:
             try:
@@ -90,7 +90,7 @@ class MemoryManagerV7:
             except Exception as e:
                 print(f"Warning: Could not save global memory: {e}")
 
-    def update_global_context(self, category: str, key: str, value: Any):
+    def update_global_context(self, category: str, key: str, value: Any) -> None:
         """
         Update a value in global memory
 
@@ -105,11 +105,11 @@ class MemoryManagerV7:
         # save_global_memory() has its own lock (RLock allows reentrant)
         self.save_global_memory()
 
-    def get_global_context(self) -> Dict:
+    def get_global_context(self) -> Dict[str, Any]:
         """Get the full global memory"""
         return self.global_memory
 
-    def _load_or_create_blackboard(self) -> Dict:
+    def _load_or_create_blackboard(self) -> Dict[str, Any]:
         """
         Load blackboard from disk or create new if missing (Phase 7: via AtomicJsonStore)
 
@@ -125,7 +125,7 @@ class MemoryManagerV7:
             print(f"Warning: Could not load blackboard: {e}")
             return self._create_empty_blackboard()
 
-    def _create_empty_blackboard(self) -> Dict:
+    def _create_empty_blackboard(self) -> Dict[str, Any]:
         """Create empty blackboard structure"""
         return {
             "objective": "",
@@ -181,7 +181,7 @@ class MemoryManagerV7:
             # Auto-compress if >120k tokens estimated
             self._compress_history_unsafe()
 
-    def save_to_disk(self):
+    def save_to_disk(self) -> None:
         """
         Save blackboard to disk (for crash recovery)
         Phase 7: Atomic write via AtomicJsonStore
@@ -194,13 +194,13 @@ class MemoryManagerV7:
             except Exception as e:
                 print(f"Warning: Could not save blackboard: {e}")
 
-    def update_strategic_plan(self, plan: List[Dict]):
+    def update_strategic_plan(self, plan: List[Dict]) -> None:
         """Update strategic plan"""
         with self._lock:
             self.blackboard["strategic_plan"] = plan
         self.save_to_disk()
 
-    def compress_history(self):
+    def compress_history(self) -> None:
         """
         Compress old history if >120k tokens (thread-safe wrapper)
 
@@ -382,7 +382,7 @@ Résumé concis (max 2000 tokens) :"""
                 pass
         return backups
 
-    def _cleanup_old_backups(self, keep: int = 10):
+    def _cleanup_old_backups(self, keep: int = 10) -> None:
         """Keep only N most recent backups"""
         backups = sorted(self.backup_dir.glob("blackboard_*.json"), reverse=True)
         for old_backup in backups[keep:]:

@@ -44,6 +44,7 @@ from dataclasses import dataclass, field
 from core.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
 from core.async_primitives.process_handle import get_process_registry
 from core.agents.unified_registry import get_registry
+from core.security.path_guardian import PathGuardian
 
 
 @dataclass
@@ -87,11 +88,189 @@ class AsyncClaudeDriver:
         self.io_buffer = self.workspace_path / "_IO_BUFFER"
         self.io_buffer.mkdir(exist_ok=True)
 
+        # SECURITY: Initialize PathGuardian for path validation
+        self.path_guardian = PathGuardian(
+            workspace_path=self.workspace_path,
+            parent_path=self.workspace_path.parent
+        )
+
         # Track ALL active processes by UUID for cancellation
         self._active_handles: Dict[str, AsyncProcessHandle] = {}
 
         # Global registry for cross-driver coordination
         self._registry = get_process_registry()
+
+        # SECURITY: Validate critical config values
+        self._validate_config()
+
+    def _validate_config(self) -> None:
+        """
+        SECURITY: Validate critical configuration values to prevent injection attacks.
+        
+        Validates:
+        - cli_path: Must be a simple command name without path traversal or shell metacharacters
+        - model: Must be a valid model identifier without injection characters
+        - workspace_path: Must be within allowed boundaries
+        """
+        # Validate cli_path (should be a simple command, not a path with traversal)
+        cli_path = str(self.config.cli_path)
+        if not self._is_safe_cli_path(cli_path):
+            raise ValueError(f"[SECURITY] Invalid cli_path: {cli_path}")
+        
+        # Validate model parameter if present
+        if self.config.model and not self._is_safe_model_name(self.config.model):
+            raise ValueError(f"[SECURITY] Invalid model name: {self.config.model}")
+
+    def _is_safe_cli_path(self, path: str) -> bool:
+        """
+        Check if cli_path is safe from command injection.
+        
+        Allowed: Simple command names like 'claude', 'gemini', '/usr/local/bin/claude'
+        Rejected: Paths with '..', shell metacharacters, or command chaining
+        """
+        # Reject shell metacharacters and command chaining
+        dangerous_chars = [';', '|', '&', '$', '`', '(', ')', '<', '>']
+        if any(char in path for char in dangerous_chars):
+            return False
+        
+        # Reject path traversal attempts
+        if '..' in path or path.startswith('~'):
+            return False
+        
+        # If it's an absolute path, validate it's within reasonable system directories
+        if Path(path).is_absolute():
+            allowed_prefixes = ['/usr/local/bin/', '/usr/bin/', '/bin/']
+            if not any(str(path).startswith(prefix) for prefix in allowed_prefixes):
+                return False
+        
+        return True
+
+    def _is_safe_model_name(self, model: str) -> bool:
+        """
+        Check if model name is safe from parameter injection.
+        
+        Allowed: Alphanumeric characters, hyphens, underscores, dots
+        Rejected: Shell metacharacters, path traversal, command injection
+        """
+        # Model names should consist of safe characters only
+        import re
+        # Pattern: alphanumeric, hyphens, underscores, dots (common in model names)
+        if not re.match(r'^[a-zA-Z0-9._-]+$', model):
+            return False
+        
+        # Additional checks for suspicious patterns
+        dangerous_patterns = ['..', ';', '|', '&', '`', '$', '(', ')']
+        if any(pattern in model for pattern in dangerous_patterns):
+            return False
+        
+        return True
+
+    def _is_safe_session_uuid(self, session_uuid: str) -> bool:
+        """
+        SECURITY: Validate session UUID format to prevent path traversal.
+        
+        Session UUIDs should be simple identifiers without path separators
+        or traversal patterns.
+        
+        Args:
+            session_uuid: The session UUID to validate
+            
+        Returns:
+            True if the UUID is safe, False otherwise
+        """
+        import re
+        
+        # Block anything with path separators or traversal patterns
+        dangerous_patterns = [
+            '/', '\\',  # Path separators (both Unix and Windows)
+            '..',       # Directory traversal
+            '~',        # Home directory expansion
+            '$',        # Variable expansion
+            '%',        # Windows variable expansion
+            '|', '&', ';', '`', '"', "'",  # Command injection
+            '\x00',     # Null byte injection
+        ]
+        
+        # Check for dangerous patterns first
+        for pattern in dangerous_patterns:
+            if pattern in session_uuid:
+                return False
+        
+        # Allow alphanumeric, hyphens, and underscores (common in generated IDs)
+        # This covers:
+        # - Standard UUIDs: '123e4567-e89b-12d3-a456-426614174000'
+        # - Shortened UUIDs: '1a2b3c4d'
+        # - Simple identifiers: 'safe-uuid-123', 'session_abc'
+        safe_pattern = r'^[a-zA-Z0-9_-]+$'
+        
+        if not re.match(safe_pattern, session_uuid):
+            return False
+        
+        return True
+
+    def _is_safe_workspace_path(self, workspace_path: str) -> bool:
+        """
+        Check if workspace path is safe for use as subprocess cwd.
+        
+        Validates that the workspace path:
+        - Does not contain shell metacharacters
+        - Is a proper directory path
+        - Does not attempt path traversal beyond allowed boundaries
+        """
+        # Reject shell metacharacters
+        dangerous_chars = [';', '|', '&', '$', '`', '(', ')', '<', '>']
+        if any(char in workspace_path for char in dangerous_chars):
+            return False
+        
+        # Check for path traversal patterns
+        if '..' in workspace_path and not self._is_valid_traversal(workspace_path):
+            return False
+        
+        return True
+
+    def _is_valid_traversal(self, path: str) -> bool:
+        """
+        Check if path traversal in workspace path is legitimate.
+        
+        Some valid paths might contain '..' as part of normal structure,
+        but we need to ensure they don't escape allowed boundaries.
+        """
+        try:
+            resolved = Path(path).resolve()
+            # Must be within the original workspace or parent (for reading)
+            return (self._is_under(resolved, self.workspace_path.resolve()) or 
+                    self._is_under(resolved, self.workspace_path.parent.resolve()))
+        except Exception:
+            return False
+
+    def _is_under(self, path: Path, parent: Path) -> bool:
+        """
+        Check if path is under parent directory (copied from PathGuardian).
+        
+        Uses relative_to() for proper containment check.
+        """
+        try:
+            path.relative_to(parent)
+            return True
+        except ValueError:
+            return False
+
+    def _sanitize_model_param(self, model: str) -> str:
+        """
+        SECURITY: Sanitize model parameter before using in command.
+        
+        Args:
+            model: The model name to sanitize
+            
+        Returns:
+            Sanitized model name
+            
+        Raises:
+            ValueError: If model name contains dangerous characters
+        """
+        if not self._is_safe_model_name(model):
+            raise ValueError(f"[SECURITY] Invalid model name format: {model}")
+        return model
 
     async def invoke(
         self,
@@ -159,30 +338,47 @@ class AsyncClaudeDriver:
         token = token or CancellationToken()
         unique_id = session_uuid or str(uuid.uuid4())[:8]
 
-        # Write context to isolated file
-        context_file = self.io_buffer / f"claude_context_{unique_id}.md"
+        # SECURITY: Validate session UUID format first (no path separators)
+        if not self._is_safe_session_uuid(unique_id):
+            raise RuntimeError(f"[SECURITY] Invalid session UUID format: {unique_id}")
+
+        # Write context to isolated file with path validation
+        context_file_name = f"claude_context_{unique_id}.md"
+        
+        # SECURITY: Validate file path to prevent path traversal
+        is_valid, resolved_path, message = self.path_guardian.validate_write(context_file_name)
+        if not is_valid:
+            raise RuntimeError(f"[SECURITY] Invalid context file path: {message}")
+        
+        context_file = resolved_path
         context_file.write_text(context, encoding="utf-8")
 
-        # Build command
+        # Build command with validated parameters
         cmd = [
             str(self.config.cli_path),
             "-p", f"@{context_file}",
             "--dangerously-skip-permissions",
         ]
 
-        # Add model if specified
+        # SECURITY: Validate model parameter to prevent injection
         if self.config.model:
-            cmd.extend(["--model", self.config.model])
+            model = self._sanitize_model_param(self.config.model)
+            cmd.extend(["--model", model])
 
         handle: Optional[AsyncProcessHandle] = None
 
         try:
             # TRUE ASYNC: create_subprocess_exec (NOT Popen!)
+            # SECURITY: Validate workspace path before using as cwd
+            workspace_cwd = str(self.workspace_path)
+            if not self._is_safe_workspace_path(workspace_cwd):
+                raise RuntimeError(f"[SECURITY] Unsafe workspace path: {workspace_cwd}")
+            
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self.workspace_path),
+                cwd=workspace_cwd,
             )
 
             # Track by UUID

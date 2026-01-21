@@ -19,6 +19,7 @@ Date: 2025-12-16
 
 import logging
 import os
+import secrets
 from typing import Optional, Tuple
 from uuid import UUID
 
@@ -34,14 +35,14 @@ router = APIRouter()
 # =============================================================================
 
 # Fallback: Single admin password from environment (backward compatibility)
-FALLBACK_ADMIN_PASSWORD = os.environ.get("NEXUS_ADMIN_PASSWORD", "nexus")
+FALLBACK_ADMIN_PASSWORD = os.environ.get("NEXUS_ADMIN_PASSWORD")
 TOKEN_EXPIRE_HOURS = 24
 
-# Warn if using default password
-if FALLBACK_ADMIN_PASSWORD == "nexus":
+# Warn if no fallback password is configured
+if FALLBACK_ADMIN_PASSWORD is None:
     logger.warning(
-        "NEXUS_ADMIN_PASSWORD not set! Using default 'nexus'. "
-        "Set NEXUS_ADMIN_PASSWORD environment variable for security."
+        "NEXUS_ADMIN_PASSWORD not set! Fallback authentication is disabled. "
+        "Set NEXUS_ADMIN_PASSWORD environment variable if backward compatibility needed."
     )
 
 
@@ -102,7 +103,8 @@ def authenticate_user_fallback(username: str, password: str) -> Tuple[bool, Opti
     Returns:
         Tuple of (success, user_info_dict or None)
     """
-    if password == FALLBACK_ADMIN_PASSWORD:
+    # Use constant-time comparison to prevent timing attacks
+    if FALLBACK_ADMIN_PASSWORD and secrets.compare_digest(password, FALLBACK_ADMIN_PASSWORD):
         return True, {
             "user_id": username,
             "tenant_id": "default",

@@ -318,7 +318,14 @@ class ToolManager:
             self._logger.error(f"Failed to initialize MCP registry: {e}")
 
     def _register_mcp_server_tools(self, server_name: str) -> None:
-        """Register tools from a specific MCP server."""
+        """Register tools from a specific MCP server.
+
+        Args:
+            server_name: The name of the MCP server to register tools from.
+
+        Raises:
+            Exception: If there is an error registering tools from the server.
+        """
         if self._mcp_registry is None:
             return
 
@@ -351,7 +358,17 @@ class ToolManager:
     def _execute_mcp_tool(
         self, server_name: str, tool_name: str, args: Dict
     ) -> ToolResult:
-        """Execute an MCP tool."""
+        """Execute an MCP tool.
+
+        Args:
+            server_name: The name of the MCP server hosting the tool.
+            tool_name: The name of the tool to execute.
+            args: A dictionary of arguments to pass to the tool.
+
+        Returns:
+            ToolResult: The result of the tool execution, containing status,
+                output, and potential error messages.
+        """
         nexus_tool_name = f"mcp_{server_name}_{tool_name}"
 
         if self._mcp_registry is None:
@@ -415,7 +432,14 @@ class ToolManager:
         return list(self._mcp_tools.keys())
 
     def reload_mcp_tools(self) -> int:
-        """Reload MCP tools from all configured servers."""
+        """Reloads MCP tools from all configured servers.
+
+        Clears currently registered MCP tools, closes existing connections,
+        reloads the registry configuration, and re-registers available tools.
+
+        Returns:
+            int: The count of successfully registered MCP tools after reload.
+        """
         # Clear existing MCP tools
         for tool_name in list(self._mcp_tools.keys()):
             if tool_name in self.tools:
@@ -439,7 +463,11 @@ class ToolManager:
         return len(self._mcp_tools)
 
     def close_mcp(self) -> None:
-        """Close all MCP connections."""
+        """Closes all active MCP server connections.
+
+        Gracefully shuts down all client connections maintained by the MCP
+        registry. If the registry is not initialized, this method does nothing.
+        """
         if self._mcp_registry:
             self._mcp_registry.close_all()
 

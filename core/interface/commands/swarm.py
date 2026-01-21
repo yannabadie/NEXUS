@@ -10,10 +10,18 @@ from .registry import Command, CommandContext, CommandResult, CommandStatus
 
 
 def _get_swarm_service(context: CommandContext):
-    """
-    Get or create SwarmService from context.
+    """Gets or creates a SwarmService instance from the command context.
 
-    SwarmService requires orchestrator, console, and config.
+    Retrieves the SwarmService from context extras if available. Otherwise,
+    initializes a new SwarmService using the orchestrator, console, and configuration
+    found in the context or its components.
+
+    Args:
+        context (CommandContext): The command execution context containing
+            orchestrator, console, and configuration.
+
+    Returns:
+        SwarmService: An initialized SwarmService instance.
     """
     from core.swarm import SwarmService
 
@@ -41,26 +49,61 @@ def _get_swarm_service(context: CommandContext):
 
 
 class SwarmCommand(Command):
-    """Execute a task using the Swarm Engine."""
+    """Command to execute a task using the Swarm Engine.
+
+    Attributes:
+        name (str): The command name ("/swarm").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+        usage (str): Usage string.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the primary command name.
+
+        Returns:
+            str: The primary command name "/swarm".
+        """
         return "/swarm"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of command aliases.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Execute a task using multi-agent collaboration"
 
     @property
     def usage(self) -> str:
+        """Gets the usage format string.
+
+        Returns:
+            str: The usage pattern for the command.
+        """
         return "/swarm <task description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm command using SwarmService."""
+        """Executes the swarm command using SwarmService.
+
+        Args:
+            args (str): The arguments provided to the command (task description).
+            context (CommandContext): The execution context.
+
+        Returns:
+            CommandResult: The result of the command execution, indicating success or failure.
+        """
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -89,22 +132,53 @@ class SwarmCommand(Command):
 
 
 class SwarmStatusCommand(Command):
-    """Show current Swarm Engine status."""
+    """Command to show the current Swarm Engine status.
+
+    Attributes:
+        name (str): The command name ("/swarm-status").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the primary command name.
+
+        Returns:
+            str: The primary command name "/swarm-status".
+        """
         return "/swarm-status"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of command aliases.
+
+        Returns:
+            List[str]: A list of alternative names like "/ss".
+        """
         return ["/ss"]
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Show Swarm Engine status and DyLAN metrics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm-status command using SwarmService."""
+        """Executes the swarm-status command.
+
+        Retrieves and displays the current status of the Swarm Engine.
+
+        Args:
+            args (str): Command arguments (unused).
+            context (CommandContext): The execution context.
+
+        Returns:
+            CommandResult: The result of the command execution.
+        """
         try:
             service = _get_swarm_service(context)
             service.get_status()
@@ -120,26 +194,63 @@ class SwarmStatusCommand(Command):
 
 
 class SwarmFSMCommand(Command):
-    """Execute a task using FSM-based Swarm mode."""
+    """Command to execute a task using FSM-based Swarm mode.
+
+    Attributes:
+        name (str): The command name ("/swarm-fsm").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+        usage (str): Usage string.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the primary command name.
+
+        Returns:
+            str: The primary command name "/swarm-fsm".
+        """
         return "/swarm-fsm"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of command aliases.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Execute task via FSM states (debug mode)"
 
     @property
     def usage(self) -> str:
+        """Gets the usage format string.
+
+        Returns:
+            str: The usage pattern for the command.
+        """
         return "/swarm-fsm <task description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute swarm-fsm command using SwarmService."""
+        """Executes the swarm-fsm command in debug mode.
+
+        Runs the task using the Finite State Machine (FSM) based Swarm mode.
+
+        Args:
+            args (str): The task description.
+            context (CommandContext): The execution context.
+
+        Returns:
+            CommandResult: The result of the command execution.
+        """
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -168,7 +279,11 @@ class SwarmFSMCommand(Command):
 
 
 def register_swarm_commands(registry: "CommandRegistry") -> None:
-    """Register all swarm commands with a registry."""
+    """Registers all swarm commands with the provided registry.
+
+    Args:
+        registry (CommandRegistry): The registry to register commands with.
+    """
     registry.register(SwarmCommand())
     registry.register(SwarmStatusCommand())
     registry.register(SwarmFSMCommand())

@@ -8,14 +8,20 @@ Uses EvolutionService for business logic (Service Layer Pattern).
 """
 
 from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandResult, CommandStatus, CommandRegistry
 
 
 def _get_evolution_service(context: CommandContext):
-    """
-    Get or create EvolutionService from context.
+    """Retrieves or creates an EvolutionService instance from the context.
 
-    EvolutionService requires evolution_manager, console, and config.
+    Args:
+        context: The command execution context containing services and configuration.
+
+    Returns:
+        EvolutionService: An initialized evolution service.
+
+    Raises:
+        RuntimeError: If the EvolutionManager is not available in the context.
     """
     from core.evolution import EvolutionService
 
@@ -65,26 +71,61 @@ def _get_evolution_service(context: CommandContext):
 
 
 class EvolveCommand(Command):
-    """Start an evolution cycle to generate child variants."""
+    """Command to start an evolution cycle to generate child variants.
+
+    This command initiates the process of creating new agent variants based on
+    the current best agent, allowing for improvement over time.
+    """
 
     @property
     def name(self) -> str:
+        """Return the primary command name.
+
+        Returns:
+            str: The command identifier '/evolve'.
+        """
         return "/evolve"
 
     @property
     def aliases(self) -> List[str]:
+        """Return list of aliases for this command.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Return the help description for this command.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Start evolution cycle to generate improved agent variants"
 
     @property
     def usage(self) -> str:
+        """Return usage syntax string.
+
+        Returns:
+            str: The usage pattern for the command.
+        """
         return "/evolve [child_count] (default: 3)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute evolve command using EvolutionService."""
+        """Execute evolve command using EvolutionService.
+
+        Args:
+            args: Command arguments, typically the number of children to spawn.
+            context: The command execution context.
+
+        Returns:
+            CommandResult: The result of the command execution.
+
+        Raises:
+            Exception: If evolution fails.
+        """
         try:
             service = _get_evolution_service(context)
             # Parse child count from args (default 3)
@@ -109,22 +150,52 @@ class EvolveCommand(Command):
 
 
 class EvolveStatusCommand(Command):
-    """Show current evolution status."""
+    """Command to show current evolution status.
+
+    Displays information about the current generation, active children, and
+    the state of the evolution process.
+    """
 
     @property
     def name(self) -> str:
+        """Return the primary command name.
+
+        Returns:
+            str: The command identifier '/evolve-status'.
+        """
         return "/evolve-status"
 
     @property
     def aliases(self) -> List[str]:
+        """Return list of aliases for this command.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return ["/es"]
 
     @property
     def description(self) -> str:
+        """Return the help description for this command.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Show current evolution status and child variants"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute evolve-status command using EvolutionService."""
+        """Execute evolve-status command using EvolutionService.
+
+        Args:
+            args: Command arguments (unused).
+            context: The command execution context.
+
+        Returns:
+            CommandResult: The result of the command execution.
+
+        Raises:
+            Exception: If retrieving status fails.
+        """
         try:
             service = _get_evolution_service(context)
             result = service.status()
@@ -147,18 +218,37 @@ class EvolveStatusCommand(Command):
 
 
 class ReviewCommand(Command):
-    """Review and select from evolved children."""
+    """Command to review and select from evolved children.
+
+    Allows the user to examine the performance of evolved agents and choose
+    which ones to promote or discard.
+    """
 
     @property
     def name(self) -> str:
+        """Return the primary command name.
+
+        Returns:
+            str: The command identifier '/review'.
+        """
         return "/review"
 
     @property
     def aliases(self) -> List[str]:
+        """Return list of aliases for this command.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Return the help description for this command.
+
+        Returns:
+            str: A brief description of the command's purpose.
+        """
         return "Review evolved children and select best variant"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
@@ -167,6 +257,16 @@ class ReviewCommand(Command):
         Note: /review still uses repl.run_review() because it requires
         interactive input (keyboard prompts). Service layer handles
         the promote/archive operations.
+
+        Args:
+            args: Command arguments (unused).
+            context: The command execution context containing the REPL.
+
+        Returns:
+            CommandResult: The result of the command execution.
+
+        Raises:
+            Exception: If the review process encounters an error.
         """
         repl = context.extras.get("repl")
         if not repl:
@@ -188,8 +288,15 @@ class ReviewCommand(Command):
             )
 
 
-def register_evolution_commands(registry: "CommandRegistry") -> None:
-    """Register all evolution commands with a registry."""
+def register_evolution_commands(registry: CommandRegistry) -> None:
+    """Register all evolution commands with a registry.
+
+    Args:
+        registry: The command registry to which commands will be added.
+
+    Returns:
+        None
+    """
     registry.register(EvolveCommand())
     registry.register(EvolveStatusCommand())
     registry.register(ReviewCommand())

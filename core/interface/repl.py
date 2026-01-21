@@ -7,7 +7,7 @@ toute la session (persistent FSM architecture)
 import sys
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, List
 
 # Fix VS Code terminal on Windows: unset TERM to let prompt_toolkit auto-detect
 if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
@@ -51,7 +51,7 @@ class InteractiveNexusV7:
     - Slash commands: /mode, /clear, /status, /doctor, /reset
     """
 
-    def __init__(self, workspace_path: Path, gemini_info: Dict, claude_info: Dict):
+    def __init__(self, workspace_path: Path, gemini_info: Dict, claude_info: Dict) -> None:
         self.workspace_path = workspace_path
         self.config = load_config()
 
@@ -71,8 +71,8 @@ class InteractiveNexusV7:
 
         # Prompt toolkit session with fallback for non-interactive terminals
         history_file = workspace_path / ".nexus" / "history.txt"
-        self.session = None
-        self._use_simple_input = False
+        self.session: Optional[PromptSession] = None
+        self._use_simple_input: bool = False
 
         try:
             self.session = PromptSession(
@@ -84,8 +84,8 @@ class InteractiveNexusV7:
             self._use_simple_input = True
 
         # Evolution tracking
-        self.successful_turns = 0  # Counter for auto-evolution trigger
-        self.evolution_trigger_threshold = 50  # Trigger evolution after N successful turns
+        self.successful_turns: int = 0  # Counter for auto-evolution trigger
+        self.evolution_trigger_threshold: int = 50  # Trigger evolution after N successful turns
 
         # Rate limiter for evolution cycles
         self.rate_limiter = EvolutionRateLimiter(workspace_path, self.config)
@@ -101,10 +101,10 @@ class InteractiveNexusV7:
         )
 
         # Abort flag for graceful shutdown of long-running operations
-        self._abort_requested = False
+        self._abort_requested: bool = False
 
         # V7.7 Phase 15: Set up streaming callback if enabled
-        self._streaming_active = False  # Track if we're currently streaming
+        self._streaming_active: bool = False  # Track if we're currently streaming
         if getattr(self.config, 'streaming_enabled', False):
             self.orchestrator.on_token = self._stream_token
 
@@ -118,7 +118,7 @@ class InteractiveNexusV7:
         else:
             return self.session.prompt(prompt)
 
-    def _evolution_progress_callback(self, message: str, progress: float):
+    def _evolution_progress_callback(self, message: str, progress: float) -> None:
         """Callback for EvolutionManager progress updates."""
         # Display progress bar if console supports it
         progress_pct = int(progress * 100)
@@ -138,7 +138,7 @@ class InteractiveNexusV7:
             print(token, end="", flush=True)
             self._streaming_active = True
 
-    def run(self):
+    def run(self) -> None:
         """Main REPL loop"""
         # Clear previous session state at startup (fresh start)
         # This prevents stale objectives from previous sessions
@@ -279,7 +279,7 @@ class InteractiveNexusV7:
     # V9 CYBORG: Async REPL Loop
     # =========================================================================
 
-    async def run_async(self):
+    async def run_async(self) -> None:
         """
         V9 Cyborg Async REPL loop.
 
@@ -372,7 +372,7 @@ class InteractiveNexusV7:
                         traceback.print_exc()
                     continue
 
-    async def _process_turn_async(self, user_input: str):
+    async def _process_turn_async(self, user_input: str) -> None:
         """
         V9 Async wrapper for orchestrator.process_turn().
 
@@ -467,7 +467,7 @@ class InteractiveNexusV7:
                 self.run_evolve(auto_triggered=True)
                 self.successful_turns = 0
 
-    def handle_command(self, command: str):
+    def handle_command(self, command: str) -> None:
         """
         Handle slash commands via V9 Command Pattern.
 
@@ -510,7 +510,7 @@ class InteractiveNexusV7:
             else:
                 self.console.print(result.message)
 
-    def show_status(self):
+    def show_status(self) -> None:
         """Show orchestrator status (/status command)"""
         status = {
             "state": self.orchestrator.state.name,
@@ -520,7 +520,7 @@ class InteractiveNexusV7:
         }
         self.console.print_status(status)
 
-    def run_doctor(self):
+    def run_doctor(self) -> None:
         """Run system diagnostics (/doctor command)"""
         from core.meta.cli_inspector import CLIInspector
 
@@ -542,7 +542,7 @@ class InteractiveNexusV7:
     # V9.1: run_bootstrap() delegated to BootstrapService
     # See: core/bootstrap/service.py, core/interface/commands/workspace.py
 
-    def run_review(self):
+    def run_review(self) -> None:
         """Run interactive review of pending children (/review command)"""
         from core.notifications import check_pending_review
         from core.notifications.file_notifier import delete_pending_review
@@ -718,7 +718,7 @@ class InteractiveNexusV7:
                 pass
         return 0.75  # Default fallback
 
-    def _check_auto_promotion(self, child: Dict) -> AutoPromotionDecision:
+    def _check_auto_promotion(self, child: Dict[str, Any]) -> AutoPromotionDecision:
         """
         Check if child is eligible for auto-promotion (V7).
 
@@ -772,7 +772,7 @@ class InteractiveNexusV7:
 
     # ==================== WORKSPACE MANAGEMENT ====================
 
-    def handle_workspace_command(self, args: str):
+    def handle_workspace_command(self, args: str) -> None:
         """
         Handle /workspace commands (V7.1 Multi-Workspace).
 
@@ -831,7 +831,7 @@ class InteractiveNexusV7:
         except WorkspaceError as e:
             self.console.print_error(f"Workspace error: {e}")
 
-    def _show_workspace_status(self):
+    def _show_workspace_status(self) -> None:
         """Display current workspace info."""
         from rich.panel import Panel
 
@@ -857,7 +857,7 @@ class InteractiveNexusV7:
         panel = Panel(content, title="Workspace", border_style="cyan")
         self.console.console.print(panel)
 
-    def _show_workspace_list(self):
+    def _show_workspace_list(self) -> None:
         """Display workspace list as Rich table."""
         from rich.table import Table
 
@@ -892,7 +892,7 @@ class InteractiveNexusV7:
         self.console.console.print(table)
         self.console.print("\n[dim]Tip: Use /workspace switch <name> to change workspace[/dim]")
 
-    def _workspace_new(self, name: str = None):
+    def _workspace_new(self, name: Optional[str] = None) -> None:
         """Create new workspace with confirmation."""
         current = self.workspace_manager.get_current()
 
@@ -938,7 +938,7 @@ class InteractiveNexusV7:
         except Exception as e:
             self.console.print_error(f"Erreur: {e}")
 
-    def _workspace_switch(self, name: str):
+    def _workspace_switch(self, name: str) -> None:
         """Switch to another workspace with confirmation."""
         current = self.workspace_manager.get_current()
 
@@ -1009,7 +1009,7 @@ class InteractiveNexusV7:
             if self.config.ui_verbose:
                 traceback.print_exc()
 
-    def _reinit_orchestrator(self, new_workspace_path: Path):
+    def _reinit_orchestrator(self, new_workspace_path: Path) -> None:
         """
         Reinitialize orchestrator for new workspace (hot-swap).
 
@@ -1061,7 +1061,7 @@ class InteractiveNexusV7:
     # Project Memory Commands (V9.1 - Delegated to MemoryService)
     # =========================================================================
 
-    def _get_memory_service(self):
+    def _get_memory_service(self) -> Any:
         """Get or create MemoryService instance."""
         if not hasattr(self, '_memory_service'):
             from core.memory import MemoryService
@@ -1072,37 +1072,37 @@ class InteractiveNexusV7:
             )
         return self._memory_service
 
-    def handle_learn_command(self, args: str):
+    def handle_learn_command(self, args: str) -> None:
         """Delegate to MemoryService.learn()"""
         self._get_memory_service().learn(args)
 
-    def handle_forget_command(self, args: str):
+    def handle_forget_command(self, args: str) -> None:
         """Delegate to MemoryService.forget()"""
         self._get_memory_service().forget(args)
 
-    def show_memory_status(self):
+    def show_memory_status(self) -> None:
         """Delegate to MemoryService.get_status()"""
         self._get_memory_service().get_status()
 
-    def handle_rag_command(self, args: str):
+    def handle_rag_command(self, args: str) -> None:
         """Delegate to MemoryService.handle_rag_command()"""
         self._get_memory_service().handle_rag_command(args)
 
-    def run_tutorial(self):
+    def run_tutorial(self) -> None:
         """Run interactive tutorial (/tutorial command)."""
         from core.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         tutorial.run(self.console.console.print)
 
-    def show_quickstart(self):
+    def show_quickstart(self) -> None:
         """Show quick start guide (/quickstart command)."""
         from core.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         self.console.console.print(tutorial.get_quick_start())
 
-    def toggle_chat_mode(self):
+    def toggle_chat_mode(self) -> None:
         """Toggle chat-only mode (/chat command)."""
         current = self.orchestrator.blackboard.get("chat_mode", False)
         new_mode = not current
@@ -1157,7 +1157,7 @@ class InteractiveNexusV7:
     # V7.5 Phase 0a: _validate_mutation_path() REMOVED
     # Logic moved to core/evolution/phases/create.py (CreatePhase._validate_mutation_path)
 
-    def run_evolve(self, child_count: int = 3, auto_triggered: bool = False):
+    def run_evolve(self, child_count: int = 3, auto_triggered: bool = False) -> None:
         """
         Run evolution cycle: create and evaluate children.
 
@@ -1232,7 +1232,7 @@ class InteractiveNexusV7:
             if self.config.ui_verbose:
                 traceback.print_exc()
 
-    def show_evolve_status(self):
+    def show_evolve_status(self) -> None:
         """Show evolution statistics and stagnation counter (/evolve-status command)"""
         from core.evolution.lineage import load_lineage, get_evolution_stats
 
@@ -1295,7 +1295,7 @@ class InteractiveNexusV7:
     # Swarm Commands (V9.1 - Delegated to SwarmService)
     # =========================================================================
 
-    def _get_swarm_service(self):
+    def _get_swarm_service(self) -> Any:
         """Get or create SwarmService instance."""
         if not hasattr(self, '_swarm_service'):
             from core.swarm import SwarmService
@@ -1306,15 +1306,15 @@ class InteractiveNexusV7:
             )
         return self._swarm_service
 
-    def run_swarm_task(self, task: str):
+    def run_swarm_task(self, task: str) -> None:
         """Delegate to SwarmService.run_task()"""
         self._get_swarm_service().run_task(task)
 
-    def run_swarm_task_fsm(self, task: str):
+    def run_swarm_task_fsm(self, task: str) -> None:
         """Delegate to SwarmService.run_task_fsm()"""
         self._get_swarm_service().run_task_fsm(task)
 
-    def show_swarm_status(self):
+    def show_swarm_status(self) -> None:
         """Delegate to SwarmService.get_status()"""
         self._get_swarm_service().get_status()
 
@@ -1322,7 +1322,7 @@ class InteractiveNexusV7:
     # Agent Commands (V9.1 - Delegated to AgentService)
     # =========================================================================
 
-    def _get_agent_service(self):
+    def _get_agent_service(self) -> Any:
         """Get or create AgentService instance."""
         if not hasattr(self, '_agent_service'):
             from core.agents import AgentService
@@ -1333,15 +1333,15 @@ class InteractiveNexusV7:
             )
         return self._agent_service
 
-    def spawn_agent(self, role: str):
+    def spawn_agent(self, role: str) -> None:
         """Delegate to AgentService.spawn()"""
         self._get_agent_service().spawn(role)
 
-    def list_agents(self):
+    def list_agents(self) -> None:
         """Delegate to AgentService.list_agents()"""
         self._get_agent_service().list_agents()
 
-    def show_pool_stats(self):
+    def show_pool_stats(self) -> None:
         """Delegate to AgentService.get_pool_stats()"""
         self._get_agent_service().get_pool_stats()
 

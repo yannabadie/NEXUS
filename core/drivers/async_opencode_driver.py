@@ -53,6 +53,20 @@ class AsyncOpenCodeDriverConfig:
     verbose: bool = False
 
     def __post_init__(self):
+        """Post-initialization processing to set up defaults.
+
+        Automatically retrieves the API key from the environment variable
+        'OPENCODE_ZEN_API_KEY' if it was not provided in the configuration.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         # Try to get API key from environment if not provided
         if not self.api_key:
             self.api_key = os.environ.get("OPENCODE_ZEN_API_KEY")
@@ -77,6 +91,17 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
     """
 
     def __init__(self, config: AsyncOpenCodeDriverConfig):
+        """Initializes the AsyncOpenCodeDriver.
+
+        Args:
+            config: Configuration object containing server URL, model, and API key.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         super().__init__(
             provider="opencode",
             model=config.model,
@@ -87,7 +112,20 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
         self._active_requests: Dict[str, asyncio.Task] = {}
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """Get or create the underlying HTTP client.
+
+        Creates a new httpx.AsyncClient if one does not exist or is closed.
+        Configures headers with the API key if available.
+
+        Args:
+            None
+
+        Returns:
+            httpx.AsyncClient: The configured HTTP client instance.
+
+        Raises:
+            None
+        """
         if self._client is None or self._client.is_closed:
             headers = {}
             if self.config.api_key:
@@ -211,10 +249,24 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """
-        Stream response from OpenCode.
+        """Stream response from OpenCode via HTTP API.
 
-        Note: Falls back to non-streaming if server doesn't support SSE.
+        Falls back to non-streaming if the server does not support SSE.
+
+        Args:
+            prompt: The input prompt text.
+            session_id: Optional unique identifier for the session.
+            system_prompt: Optional system instructions.
+            tools: List of tools (not currently supported by OpenCode API).
+            isolated_env: Environment variables (not used for HTTP API).
+            timeout: Request timeout in seconds.
+            **kwargs: Additional keyword arguments.
+
+        Yields:
+            StreamChunk: Chunks of the generated response.
+
+        Raises:
+            asyncio.CancelledError: If the operation is cancelled.
         """
         start_time = time.time()
 
@@ -284,7 +336,14 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
             )
 
     async def cancel(self, session_id: Optional[str] = None) -> bool:
-        """Cancel active request."""
+        """Cancels an active request associated with a session ID.
+
+        Args:
+            session_id: The session identifier of the request to cancel.
+
+        Returns:
+            bool: True if a request was found and cancelled, False otherwise.
+        """
         if session_id and session_id in self._active_requests:
             task = self._active_requests.pop(session_id)
             task.cancel()
@@ -292,7 +351,11 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
         return False
 
     async def health_check(self) -> bool:
-        """Check if OpenCode server is available."""
+        """Checks if the OpenCode server is reachable and healthy.
+
+        Returns:
+            bool: True if the server responds with HTTP 200, False otherwise.
+        """
         try:
             client = await self._get_client()
             response = await asyncio.wait_for(
@@ -304,7 +367,20 @@ class AsyncOpenCodeDriver(BaseAsyncDriver):
             return False
 
     async def close(self):
-        """Close HTTP client."""
+        """Closes the underlying HTTP client.
+
+        Ensures resources are freed by closing the httpx client if it exists
+        and is open.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
@@ -323,6 +399,17 @@ class AsyncOpenCodeCLIDriver(BaseAsyncDriver):
     """
 
     def __init__(self, config: AsyncOpenCodeDriverConfig):
+        """Initializes the CLI driver.
+
+        Args:
+            config: Configuration object specifying the model and timeout.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         super().__init__(
             provider="opencode",
             model=config.model,
@@ -342,7 +429,23 @@ class AsyncOpenCodeCLIDriver(BaseAsyncDriver):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> DriverResponse:
-        """Invoke OpenCode via CLI."""
+        """Invoke OpenCode via the command-line interface.
+
+        Args:
+            prompt: The input prompt text.
+            session_id: Optional unique identifier for the session.
+            system_prompt: Optional system instructions.
+            tools: List of tools (not currently supported).
+            isolated_env: Custom environment variables for the subprocess.
+            timeout: Execution timeout in seconds.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            DriverResponse: The complete response from the CLI.
+
+        Raises:
+            asyncio.CancelledError: If the operation is cancelled.
+        """
         start_time = time.time()
 
         cmd = [
@@ -404,7 +507,18 @@ class AsyncOpenCodeCLIDriver(BaseAsyncDriver):
         prompt: str,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """Stream not supported in CLI mode - return full response."""
+        """Stream response from OpenCode CLI (simulated).
+
+        Since CLI mode does not support real streaming, this yields a single
+        final chunk after the command completes.
+
+        Args:
+            prompt: The input prompt text.
+            **kwargs: Additional arguments passed to invoke.
+
+        Yields:
+            StreamChunk: A single chunk containing the full response.
+        """
         response = await self.invoke(prompt, **kwargs)
         yield StreamChunk(
             content=response.content,
@@ -413,10 +527,28 @@ class AsyncOpenCodeCLIDriver(BaseAsyncDriver):
         )
 
     async def cancel(self, session_id: Optional[str] = None) -> bool:
+        """Attempt to cancel a running operation.
+
+        Note:
+            Cancellation is not currently supported for the CLI driver.
+
+        Args:
+            session_id: The session ID of the operation to cancel.
+
+        Returns:
+            bool: Always False, as cancellation is not supported.
+
+        Raises:
+            None
+        """
         return False
 
     async def health_check(self) -> bool:
-        """Check if OpenCode CLI is available."""
+        """Checks if the OpenCode CLI tool is installed and executable.
+
+        Returns:
+            bool: True if 'opencode --version' exits with code 0, False otherwise.
+        """
         try:
             proc = await asyncio.create_subprocess_exec(
                 self._cli_path, "--version",

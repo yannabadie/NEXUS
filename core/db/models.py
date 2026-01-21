@@ -32,14 +32,26 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 class PlanTier(str, Enum):
-    """Subscription plan tiers."""
+    """Enumeration of available subscription plan tiers.
+
+    Attributes:
+        FREE: Basic free tier with limited resources.
+        PRO: Professional tier for power users and small teams.
+        ENTERPRISE: Enterprise tier for large organizations.
+    """
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
 
 
 class TenantStatus(str, Enum):
-    """Tenant account status."""
+    """Enumeration of tenant account statuses.
+
+    Attributes:
+        ACTIVE: Account is fully operational.
+        SUSPENDED: Account access has been temporarily blocked.
+        PENDING: Account is awaiting verification or setup.
+    """
     ACTIVE = "active"
     SUSPENDED = "suspended"
     PENDING = "pending"
@@ -50,14 +62,22 @@ class TenantStatus(str, Enum):
 # =============================================================================
 
 class Tenant(SQLModel, table=True):
-    """
-    Tenant account - the root entity for multi-tenant isolation.
+    """Tenant account - the root entity for multi-tenant isolation.
 
-    Each tenant has their own:
-    - Users
-    - Workspaces
-    - Quota/Budget
-    - Isolated data in data/tenants/{id}/
+    Each tenant has their own users, workspaces, quota/budget, and isolated data.
+
+    Attributes:
+        id: Unique identifier for the tenant (UUID).
+        name: Display name of the tenant.
+        slug: URL-safe unique identifier.
+        plan_tier: Subscription plan tier (Free, Pro, Enterprise).
+        status: Account status (Active, Suspended, Pending).
+        created_at: Timestamp when the tenant was created.
+        updated_at: Timestamp when the tenant was last updated.
+        email: Contact email for the tenant.
+        users: List of users belonging to this tenant.
+        workspaces: List of workspaces owned by this tenant.
+        quota: Resource quota and usage tracking for this tenant.
     """
     __tablename__ = "tenant"
 
@@ -98,11 +118,22 @@ class UserRole(str, Enum):
 
 
 class User(SQLModel, table=True):
-    """
-    User account within a tenant.
+    """User account within a tenant.
 
-    Users belong to exactly one tenant. Cross-tenant access
-    requires separate user accounts.
+    Users belong to exactly one tenant. Cross-tenant access requires separate
+    user accounts.
+
+    Attributes:
+        id: Unique identifier for the user (UUID).
+        tenant_id: UUID of the tenant this user belongs to.
+        username: Username for login/display.
+        email: User's email address.
+        hashed_password: Hashed password string.
+        role: User's role within the tenant (Owner, Admin, Member, Viewer).
+        is_active: Whether the user account is active.
+        last_login: Timestamp of the last successful login.
+        created_at: Timestamp when the user was created.
+        tenant: The Tenant object this user belongs to.
     """
     __tablename__ = "user"
 
@@ -144,17 +175,22 @@ class User(SQLModel, table=True):
 # =============================================================================
 
 class Workspace(SQLModel, table=True):
-    """
-    Workspace - an isolated project environment within a tenant.
+    """Workspace - an isolated project environment within a tenant.
 
     Each workspace maps to a physical directory:
     data/tenants/{tenant_id}/workspaces/{workspace_id}/
 
-    Workspaces contain:
-    - .nexus/ (blackboard, state)
-    - agents/ (spawned agents)
-    - logs/ (event logs)
-    - memory/ (RAG vectors)
+    Attributes:
+        id: Unique identifier for the workspace (UUID).
+        tenant_id: UUID of the owning tenant.
+        name: Display name of the workspace.
+        slug: URL-safe identifier, unique within the tenant.
+        filesystem_path: Relative path to the workspace storage.
+        description: Optional description of the workspace.
+        created_at: Timestamp when the workspace was created.
+        updated_at: Timestamp when the workspace was last updated.
+        is_active: Whether the workspace is active.
+        tenant: The Tenant object that owns this workspace.
     """
     __tablename__ = "workspace"
 
@@ -188,11 +224,31 @@ class Workspace(SQLModel, table=True):
 # =============================================================================
 
 class Quota(SQLModel, table=True):
-    """
-    Quota and usage tracking per tenant.
+    """Quota and usage tracking per tenant.
 
-    Enforces resource limits based on plan tier and tracks
-    current usage for billing and throttling.
+    Enforces resource limits based on plan tier and tracks current usage for
+    billing and throttling.
+
+    Attributes:
+        id: Unique identifier for the quota record (UUID).
+        tenant_id: UUID of the associated tenant.
+        daily_budget_usd: Max allow daily spend in USD.
+        daily_requests_gemini: Max daily Gemini API requests.
+        daily_requests_claude: Max daily Claude API requests.
+        monthly_budget_usd: Max allow monthly spend in USD.
+        max_workspaces: Max number of workspaces allowed.
+        max_agents: Max number of agents allowed per workspace.
+        max_concurrent_tasks: Max number of concurrent tasks.
+        hive_mind_enabled: Whether Hive Mind features are enabled.
+        swarm_enabled: Whether Swarm features are enabled.
+        evolution_enabled: Whether Evolution features are enabled.
+        current_spend_usd: Amount spent today in USD.
+        current_requests_gemini: Gemini requests made today.
+        current_requests_claude: Claude requests made today.
+        monthly_spend_usd: Amount spent this month in USD.
+        daily_reset_at: Timestamp of the last daily reset.
+        monthly_reset_at: Timestamp of the last monthly reset.
+        tenant: The Tenant object associated with this quota.
     """
     __tablename__ = "quota"
 
@@ -233,15 +289,36 @@ class Quota(SQLModel, table=True):
     tenant: Optional[Tenant] = Relationship(back_populates="quota")
 
     def is_over_daily_budget(self) -> bool:
-        """Check if tenant has exceeded daily budget."""
+        """Checks if the tenant has exceeded their daily financial budget.
+
+        Compares the current daily spend against the daily budget limit.
+
+        Returns:
+            bool: True if current spend is greater than or equal to the daily budget,
+                False otherwise.
+        """
         return self.current_spend_usd >= self.daily_budget_usd
 
     def is_over_monthly_budget(self) -> bool:
-        """Check if tenant has exceeded monthly budget."""
+        """Checks if the tenant has exceeded their monthly financial budget.
+
+        Compares the current monthly spend against the monthly budget limit.
+
+        Returns:
+            bool: True if current spend is greater than or equal to the monthly budget,
+                False otherwise.
+        """
         return self.monthly_spend_usd >= self.monthly_budget_usd
 
     def remaining_daily_budget(self) -> float:
-        """Get remaining daily budget in USD."""
+        """Calculates the remaining daily budget in USD.
+
+        Subtracts the current spend from the daily budget, ensuring the result
+        is not negative.
+
+        Returns:
+            float: The remaining budget in USD, or 0.0 if over budget.
+        """
         return max(0.0, self.daily_budget_usd - self.current_spend_usd)
 
     def __repr__(self) -> str:
@@ -296,15 +373,14 @@ DEFAULT_QUOTAS = {
 
 
 def create_quota_for_plan(tenant_id: UUID, plan: PlanTier) -> Quota:
-    """
-    Create a Quota instance with defaults for the given plan tier.
+    """Creates a new Quota instance with default limits for the specified plan.
 
     Args:
-        tenant_id: The tenant's UUID
-        plan: The plan tier
+        tenant_id: The unique identifier of the tenant.
+        plan: The subscription plan tier to apply defaults for.
 
     Returns:
-        Quota instance with plan-appropriate limits
+        Quota: A new Quota instance populated with limits corresponding to the plan.
     """
     defaults = DEFAULT_QUOTAS.get(plan, DEFAULT_QUOTAS[PlanTier.FREE])
     return Quota(tenant_id=tenant_id, **defaults)

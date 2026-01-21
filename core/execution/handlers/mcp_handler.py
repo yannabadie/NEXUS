@@ -42,6 +42,22 @@ class MCPToolHandler(BaseHandler):
         server_name: str = "",
         mcp_tool_name: str = ""
     ):
+        """
+        Initialize the MCP tool handler.
+
+        Args:
+            workspace_path: Path to the workspace root.
+            validation_service: Service for validating tool execution.
+            mcp_registry: Registry containing MCP clients.
+            server_name: Name of the target MCP server.
+            mcp_tool_name: Name of the tool to execute on the server.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         super().__init__(workspace_path, validation_service)
         self._mcp_registry = mcp_registry
         self._server_name = server_name
@@ -56,13 +72,18 @@ class MCPToolHandler(BaseHandler):
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
         """
-        Execute an MCP tool.
+        Execute an MCP tool via the configured server client.
 
         Args:
-            args: Tool arguments to pass to the MCP server
+            args: A dictionary of arguments to pass to the MCP tool.
 
         Returns:
-            ToolResult with execution output
+            ToolResult: The result of the tool execution. Contains the output
+                text on success, or an error message on failure.
+
+        Raises:
+            None: Exceptions during execution are caught and returned as
+                failed ToolResult objects.
         """
         nexus_tool_name = self.tool_name
 
@@ -106,7 +127,7 @@ class MCPToolHandler(BaseHandler):
                 tool_name=nexus_tool_name,
                 status="FAILURE",
                 output="",
-                error=f"MCP server error: {e.error.message}"
+                error=f"MCP server error: {str(e)}"
             )
         except MCPClientError as e:
             return ToolResult(
@@ -135,14 +156,17 @@ def create_mcp_tool_handler(
     Factory function to create an MCP tool handler.
 
     Args:
-        workspace_path: Workspace root path
-        mcp_registry: MCPRegistry instance
-        server_name: Name of the MCP server
-        tool_name: Name of the tool on the server
-        validation_service: Optional validation service
+        workspace_path: The absolute path to the workspace root.
+        mcp_registry: The registry instance managing MCP clients.
+        server_name: The name of the target MCP server.
+        tool_name: The name of the tool to execute.
+        validation_service: Optional service for tool validation.
 
     Returns:
-        MCPToolHandler instance configured for the specific tool
+        MCPToolHandler: A configured handler instance for the specified tool.
+
+    Raises:
+        None: This factory function does not raise exceptions.
     """
     return MCPToolHandler(
         workspace_path=workspace_path,
@@ -163,11 +187,23 @@ def create_mcp_tool_executor(
     the ToolManager.tools dict pattern.
 
     Args:
-        handler: MCPToolHandler instance
+        handler: MCPToolHandler instance to be wrapped.
 
     Returns:
-        Callable that executes the handler
+        Callable[[Dict], ToolResult]: A callable that executes the handler.
+
+    Raises:
+        None
     """
     def executor(args: Dict) -> ToolResult:
+        """
+        Execute the wrapped MCP tool handler.
+
+        Args:
+            args: Dictionary of arguments for the tool.
+
+        Returns:
+            ToolResult containing the execution status and output.
+        """
         return handler.execute(args)
     return executor

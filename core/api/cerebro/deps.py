@@ -30,6 +30,11 @@ class WebSocketContext:
     Context extracted from WebSocket connection.
 
     Provides tenant isolation info for event filtering.
+
+    Attributes:
+        tenant_id: The identifier of the tenant associated with the connection.
+        user_id: The unique identifier of the user establishing the connection.
+        workspace_id: The identifier of the workspace context.
     """
 
     tenant_id: str
@@ -37,11 +42,29 @@ class WebSocketContext:
     workspace_id: str
 
     def __str__(self) -> str:
+        """
+        Return string representation of the WebSocketContext.
+
+        Returns:
+            str: String containing tenant_id, user_id, and workspace_id.
+        """
         return f"WebSocketContext(tenant={self.tenant_id}, user={self.user_id}, ws={self.workspace_id})"
 
 
 def _decode_token(token: str) -> Optional[dict]:
-    """Decode JWT token and return claims."""
+    """
+    Decode JWT token and return claims.
+
+    Args:
+        token: The JWT token string to verify and decode.
+
+    Returns:
+        Optional[dict]: A dictionary of claims if the token is valid,
+        None if decoding fails or the token is expired.
+
+    Raises:
+        None: Exceptions during decoding are caught and logged.
+    """
     try:
         from jose import jwt
         from .middleware import JWT_SECRET, JWT_ALGORITHM
@@ -166,6 +189,12 @@ class AuthenticatedUser:
     role: str = "viewer"  # V12.2: Default to most restrictive role
 
     def __str__(self) -> str:
+        """
+        Return string representation of the AuthenticatedUser.
+
+        Returns:
+            str: String containing user_id, tenant_id, and role.
+        """
         return f"AuthenticatedUser(user={self.user_id}, tenant={self.tenant_id}, role={self.role})"
 
 

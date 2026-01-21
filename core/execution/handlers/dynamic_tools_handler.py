@@ -39,11 +39,33 @@ class DynamicToolsHandlerBase(BaseHandler):
         validation_service: Any = None,
         dynamic_tool_manager: Optional[Any] = None
     ):
+        """Initializes the DynamicToolsHandlerBase.
+
+        Args:
+            workspace_path: The root path of the workspace.
+            validation_service: Optional service for validating operations.
+            dynamic_tool_manager: Optional instance of DynamicToolManager.
+                If not provided, it will be lazily initialized.
+
+        Raises:
+            None
+        """
         super().__init__(workspace_path, validation_service)
         self._dynamic_tool_manager = dynamic_tool_manager
 
     def _get_manager(self) -> Optional[Any]:
-        """Get or create DynamicToolManager."""
+        """Gets or creates the DynamicToolManager instance.
+
+        Lazily initializes the manager if it hasn't been created yet.
+        Checks if dynamic tools are available in the environment.
+
+        Returns:
+            The DynamicToolManager instance if available and successfully
+            initialized, otherwise None.
+
+        Raises:
+            None: Exceptions during initialization are caught and return None.
+        """
         if self._dynamic_tool_manager is not None:
             return self._dynamic_tool_manager
 
@@ -57,7 +79,16 @@ class DynamicToolsHandlerBase(BaseHandler):
             return None
 
     def _manager_not_available(self) -> ToolResult:
-        """Return error when manager is not available."""
+        """Constructs a ToolResult indicating the manager is unavailable.
+
+        Used when the DynamicToolManager cannot be imported or initialized.
+
+        Returns:
+            A ToolResult object with status="ERROR" and an error message.
+
+        Raises:
+            None
+        """
         return ToolResult(
             tool_name=self.tool_name,
             status="ERROR",
@@ -67,10 +98,13 @@ class DynamicToolsHandlerBase(BaseHandler):
 
 
 class CreateToolHandler(DynamicToolsHandlerBase):
-    """
-    Handler for creating new dynamic Python tools.
+    """Handler for creating new dynamic Python tools.
 
-    Tools are sandboxed Python functions with restricted capabilities.
+    This handler manages the creation of sandboxed Python tools that can be
+    executed dynamically. It validates the tool name and code before creation.
+
+    Attributes:
+        tool_name (str): The name of the tool ("create_tool").
     """
 
     @property
@@ -78,25 +112,21 @@ class CreateToolHandler(DynamicToolsHandlerBase):
         return "create_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Create a new dynamic Python tool.
+        """Executes the tool creation process.
 
         Args:
-            args: {
-                "name": "tool_name",
-                "code": "def run(x): return x * 2",
-                "description": "Optional description"
-            }
+            args: A dictionary containing the tool configuration.
+                Expected keys:
+                    name (str): The name of the tool to create.
+                    code (str): The Python source code for the tool.
+                    description (str, optional): A description of the tool.
 
         Returns:
-            ToolResult with creation status
+            ToolResult: The result of the creation operation. Contains the
+            tool path if successful, or error details if failed.
 
-        Example:
-            {
-                "name": "fibonacci",
-                "code": "def run(n):\\n    if n <= 1: return n\\n    return run(n-1) + run(n-2)",
-                "description": "Calculate fibonacci number"
-            }
+        Raises:
+            None: Errors are captured and returned in the ToolResult.
         """
         manager = self._get_manager()
         if manager is None:
@@ -133,23 +163,33 @@ class CreateToolHandler(DynamicToolsHandlerBase):
 
 
 class DeleteToolHandler(DynamicToolsHandlerBase):
-    """Handler for deleting dynamic tools."""
+    """Handler for deleting existing dynamic tools.
+
+    This handler allows for the removal of dynamic tools from the workspace
+    by their name.
+
+    Attributes:
+        tool_name (str): The name of the tool ("delete_tool").
+    """
 
     @property
     def tool_name(self) -> str:
         return "delete_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Delete a dynamic tool.
+        """Deletes a dynamic tool.
 
         Args:
-            args: {
-                "name": "tool_name"
-            }
+            args: A dictionary containing the arguments for the tool.
+                Expected keys:
+                    name (str): The name of the tool to delete.
 
         Returns:
-            ToolResult with deletion status
+            ToolResult: The result of the deletion operation, indicating
+            success or failure.
+
+        Raises:
+            None: Errors are returned as part of the ToolResult.
         """
         manager = self._get_manager()
         if manager is None:
@@ -178,14 +218,17 @@ class ListDynamicToolsHandler(DynamicToolsHandlerBase):
         return "list_dynamic_tools"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        List all available dynamic tools.
+        """Lists all available dynamic tools.
 
         Args:
-            args: {} (no arguments required)
+            args: A dictionary of arguments (unused for this handler).
 
         Returns:
-            ToolResult with list of tools
+            ToolResult: A result containing a formatted list of available
+            dynamic tools, or a message if none are found.
+
+        Raises:
+            None: Errors are returned as part of the ToolResult.
         """
         manager = self._get_manager()
         if manager is None:
@@ -216,30 +259,35 @@ class ListDynamicToolsHandler(DynamicToolsHandlerBase):
 
 
 class RunDynamicToolHandler(DynamicToolsHandlerBase):
-    """Handler for executing dynamic tools."""
+    """Handler for executing dynamic tools.
+
+    This handler manages the execution of previously created dynamic tools,
+    passing provided arguments to the tool's entry point.
+
+    Attributes:
+        tool_name (str): The name of the tool ("run_dynamic_tool").
+    """
 
     @property
     def tool_name(self) -> str:
         return "run_dynamic_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Execute a dynamic tool.
+        """Executes a specified dynamic tool with provided arguments.
 
         Args:
-            args: {
-                "name": "tool_name",
-                "args": {"arg1": value1, ...}  # Arguments for the tool
-            }
+            args: A dictionary containing execution parameters.
+                Expected keys:
+                    name (str): The name of the tool to run.
+                    args (Dict[str, Any], optional): A dictionary of arguments
+                        to pass to the tool's execution function.
 
         Returns:
-            ToolResult with execution output
+            ToolResult: The result of the tool execution, containing the output
+            if successful, or error details if the execution failed or timed out.
 
-        Example:
-            {
-                "name": "fibonacci",
-                "args": {"n": 10}
-            }
+        Raises:
+            None: Execution errors and timeouts are returned in the ToolResult.
         """
         manager = self._get_manager()
         if manager is None:

@@ -15,10 +15,10 @@ Fichiers créés:
 - workspace/logs/summary_YYYYMMDD.json    # Résumé session
 """
 import json
-import logging
+import threading
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, Any
+from datetime import datetime, timezone
+from typing import Optional, Any
 from enum import Enum
 import sys
 
@@ -80,7 +80,7 @@ class NexusLogger:
     - Non-bloquant (append-only writes)
     """
 
-    def __init__(self, workspace_path: Path, log_level: str = "INFO"):
+    def __init__(self, workspace_path: Path, log_level: Optional[str] = "INFO") -> None:
         """
         Args:
             workspace_path: Workspace NEXUS
@@ -92,7 +92,7 @@ class NexusLogger:
 
         # Parse log level
         try:
-            self.log_level = LogLevel[log_level.upper()]
+            self.log_level = LogLevel[(log_level or "INFO").upper()]
         except KeyError:
             self.log_level = LogLevel.INFO
 
@@ -106,7 +106,7 @@ class NexusLogger:
         self.summary_file = self.log_dir / f"summary_{self.current_date}.json"
 
         # Session metadata
-        self.session_start = datetime.utcnow()
+        self.session_start = datetime.now(timezone.utc)
         self.session_id = self.session_start.strftime("%Y%m%d_%H%M%S")
 
         # Metrics
@@ -130,7 +130,7 @@ class NexusLogger:
             "log_level": log_level
         })
 
-    def log_event(self, event_type: EventType, data: Dict[str, Any],
+    def log_event(self, event_type: EventType, data: dict[str, Any],
                   level: LogLevel = LogLevel.INFO):
         """
         Log event structuré
@@ -152,7 +152,7 @@ class NexusLogger:
         # Check log level
         if self._should_log(level):
             event = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "session_id": self.session_id,
                 "event_type": event_type.value,
                 "level": level.value,
@@ -174,7 +174,7 @@ class NexusLogger:
             # Update metrics
             self._update_metrics(event_type, data)
 
-    def log_fsm_transition(self, from_state: str, to_state: str, iteration: int):
+    def log_fsm_transition(self, from_state: str, to_state: str, iteration: int) -> None:
         """Log transition FSM"""
         self.log_event(EventType.FSM_TRANSITION, {
             "from_state": from_state,
@@ -187,7 +187,7 @@ class NexusLogger:
         self.metrics["fsm_transitions"][transition_key] = \
             self.metrics["fsm_transitions"].get(transition_key, 0) + 1
 
-    def log_agent_invocation(self, agent: str, iteration: int, context_size: int = 0):
+    def log_agent_invocation(self, agent: str, iteration: int, context_size: int = 0) -> None:
         """Log invocation agent"""
         self.log_event(EventType.AGENT_INVOKE, {
             "agent": agent,
@@ -198,7 +198,7 @@ class NexusLogger:
         self.metrics["agent_invocations"][agent] += 1
 
     def log_agent_response(self, agent: str, action_type: str,
-                           has_tool: bool, duration_ms: float):
+                           has_tool: bool, duration_ms: float) -> None:
         """Log réponse agent"""
         self.log_event(EventType.AGENT_RESPONSE, {
             "agent": agent,
@@ -207,7 +207,7 @@ class NexusLogger:
             "duration_ms": round(duration_ms, 2)
         }, LogLevel.INFO)
 
-    def log_agent_error(self, agent: str, error_type: str, error_msg: str):
+    def log_agent_error(self, agent: str, error_type: str, error_msg: str) -> None:
         """Log erreur agent"""
         self.log_event(EventType.AGENT_ERROR, {
             "agent": agent,
@@ -217,7 +217,7 @@ class NexusLogger:
 
         self.metrics["total_errors"] += 1
 
-    def log_tool_execution(self, tool_name: str, args: Dict, iteration: int):
+    def log_tool_execution(self, tool_name: str, args: dict[str, Any], iteration: int) -> None:
         """Log début exécution tool"""
         self.log_event(EventType.TOOL_EXECUTE, {
             "tool_name": tool_name,
@@ -226,7 +226,7 @@ class NexusLogger:
         }, LogLevel.INFO)
 
     def log_tool_result(self, tool_name: str, status: str,
-                       duration_ms: float, output_size: int):
+                       duration_ms: float, output_size: int) -> None:
         """Log résultat tool"""
         self.log_event(EventType.TOOL_RESULT, {
             "tool_name": tool_name,
@@ -239,7 +239,7 @@ class NexusLogger:
         self.metrics["tools_used"][tool_name] = \
             self.metrics["tools_used"].get(tool_name, 0) + 1
 
-    def log_tool_error(self, tool_name: str, error_msg: str):
+    def log_tool_error(self, tool_name: str, error_msg: str) -> None:
         """Log erreur tool"""
         self.log_event(EventType.TOOL_ERROR, {
             "tool_name": tool_name,
@@ -248,7 +248,7 @@ class NexusLogger:
 
         self.metrics["total_errors"] += 1
 
-    def log_stagnation(self, similarity: float, window_size: int):
+    def log_stagnation(self, similarity: float, window_size: int) -> None:
         """Log détection stagnation"""
         self.log_event(EventType.STAGNATION_DETECTED, {
             "similarity": round(similarity, 3),
@@ -258,7 +258,7 @@ class NexusLogger:
         self.metrics["stagnation_count"] += 1
 
     def log_plan_health(self, status: str, message: str,
-                       turns_since_progress: int, turns_since_completion: int):
+                       turns_since_progress: int, turns_since_completion: int) -> None:
         """Log plan health"""
         level = LogLevel.DEBUG if status == "HEALTHY" else \
                 LogLevel.WARNING if status in ["WARNING", "STAGNANT"] else \
@@ -271,7 +271,7 @@ class NexusLogger:
             "turns_since_completion": turns_since_completion
         }, level)
 
-    def log_panic(self, reason: str, details: str):
+    def log_panic(self, reason: str, details: str) -> None:
         """Log panic trigger"""
         self.log_event(EventType.PANIC_TRIGGERED, {
             "reason": reason,
@@ -280,25 +280,25 @@ class NexusLogger:
 
         self.metrics["panic_count"] += 1
 
-    def log_panic_cleared(self):
+    def log_panic_cleared(self) -> None:
         """Log panic cleared"""
         self.log_event(EventType.PANIC_CLEARED, {}, LogLevel.INFO)
 
-    def log_backup(self, reason: str, backup_file: str):
+    def log_backup(self, reason: str, backup_file: str) -> None:
         """Log backup created"""
         self.log_event(EventType.BACKUP_CREATED, {
             "reason": reason,
             "backup_file": backup_file
         }, LogLevel.DEBUG)
 
-    def log_rollback(self, backup_file: str, success: bool):
+    def log_rollback(self, backup_file: str, success: bool) -> None:
         """Log state rollback"""
         self.log_event(EventType.STATE_ROLLBACK, {
             "backup_file": backup_file,
             "success": success
         }, LogLevel.WARNING if success else LogLevel.ERROR)
 
-    def log_user_input(self, input_text: str, iteration: int):
+    def log_user_input(self, input_text: str, iteration: int) -> None:
         """Log user input"""
         self.log_event(EventType.USER_INPUT, {
             "input": input_text[:200],  # Truncate long inputs
@@ -306,7 +306,7 @@ class NexusLogger:
         }, LogLevel.DEBUG)
 
     def log_iteration_complete(self, iteration: int, state: str,
-                              duration_ms: float, success: bool):
+                              duration_ms: float, success: bool) -> None:
         """Log fin d'itération"""
         self.log_event(EventType.ITERATION_COMPLETE, {
             "iteration": iteration,
@@ -317,42 +317,42 @@ class NexusLogger:
 
         self.metrics["total_iterations"] = iteration
 
-    def debug(self, message: str, context: Optional[Dict] = None):
+    def debug(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log debug message"""
         self.log_event(EventType.FSM_STATE, {
             "message": message,
             "context": context or {}
         }, LogLevel.DEBUG)
 
-    def info(self, message: str, context: Optional[Dict] = None):
+    def info(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log info message"""
         self.log_event(EventType.FSM_STATE, {
             "message": message,
             "context": context or {}
         }, LogLevel.INFO)
 
-    def warning(self, message: str, context: Optional[Dict] = None):
+    def warning(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log warning message"""
         self.log_event(EventType.FSM_STATE, {
             "message": message,
             "context": context or {}
         }, LogLevel.WARNING)
 
-    def error(self, message: str, context: Optional[Dict] = None):
+    def error(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log error message"""
         self.log_event(EventType.FSM_STATE, {
             "message": message,
             "context": context or {}
         }, LogLevel.ERROR)
 
-    def critical(self, message: str, context: Optional[Dict] = None):
+    def critical(self, message: str, context: Optional[dict[str, Any]] = None) -> None:
         """Log critical message"""
         self.log_event(EventType.FSM_STATE, {
             "message": message,
             "context": context or {}
         }, LogLevel.CRITICAL)
 
-    def trace(self, message: str):
+    def trace(self, message: str) -> None:
         """
         Log trace (très verbose)
 
@@ -360,7 +360,7 @@ class NexusLogger:
         """
         if self.log_level == LogLevel.DEBUG:
             try:
-                timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                 with open(self.trace_file, 'a', encoding='utf-8') as f:
                     f.write(f"[{timestamp}] {message}\n")
             except Exception:
@@ -368,17 +368,17 @@ class NexusLogger:
                 # but allow SystemExit and KeyboardInterrupt to propagate
                 pass
 
-    def end_session(self):
+    def end_session(self) -> None:
         """Termine session et écrit summary"""
         self.log_event(EventType.SESSION_END, {
             "session_id": self.session_id,
-            "duration_seconds": (datetime.utcnow() - self.session_start).total_seconds()
+            "duration_seconds": (datetime.now(timezone.utc) - self.session_start).total_seconds()
         })
 
         # Write summary
-        self.metrics["end_time"] = datetime.utcnow().isoformat()
+        self.metrics["end_time"] = datetime.now(timezone.utc).isoformat()
         self.metrics["duration_seconds"] = \
-            (datetime.utcnow() - self.session_start).total_seconds()
+            (datetime.now(timezone.utc) - self.session_start).total_seconds()
 
         try:
             with open(self.summary_file, 'w', encoding='utf-8') as f:
@@ -387,10 +387,10 @@ class NexusLogger:
             # V9: Don't use bare except: - silently ignore summary write errors
             pass
 
-    def _log_error(self, event_type: EventType, data: Dict, level: LogLevel):
+    def _log_error(self, event_type: EventType, data: dict[str, Any], level: LogLevel) -> None:
         """Log erreur dans error file (human-readable)"""
         try:
-            timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             with open(self.errors_file, 'a', encoding='utf-8') as f:
                 f.write(f"[{timestamp}] [{level.value}] {event_type.value}\n")
                 f.write(f"  {json.dumps(data, indent=2, ensure_ascii=False)}\n")
@@ -405,28 +405,27 @@ class NexusLogger:
                        LogLevel.ERROR, LogLevel.CRITICAL]
         return levels_order.index(level) >= levels_order.index(self.log_level)
 
-    def _update_metrics(self, event_type: EventType, data: Dict):
+    def _update_metrics(self, event_type: EventType, data: dict[str, Any]) -> None:
         """Update metrics internes"""
         # Metrics are updated in specific log methods
         pass
 
-    def get_session_summary(self) -> Dict:
+    def get_session_summary(self) -> dict[str, Any]:
         """Retourne résumé session actuelle"""
         return {
             **self.metrics,
             "current_duration_seconds":
-                (datetime.utcnow() - self.session_start).total_seconds()
+                (datetime.now(timezone.utc) - self.session_start).total_seconds()
         }
 
 
 # Singleton global logger (initialisé par orchestrator)
 # V9: Thread-safe initialization with double-checked locking
-import threading
 _global_logger: Optional[NexusLogger] = None
-_logger_lock = threading.Lock()
+_logger_lock: threading.Lock = threading.Lock()
 
 
-def init_logger(workspace_path: Path, log_level: str = "INFO") -> NexusLogger:
+def init_logger(workspace_path: Path, log_level: Optional[str] = "INFO") -> NexusLogger:
     """
     Initialize global logger.
 
@@ -444,7 +443,7 @@ def get_logger() -> Optional[NexusLogger]:
     return _global_logger
 
 
-def cleanup_old_logs(workspace_path: Path, keep_days: int = 7):
+def cleanup_old_logs(workspace_path: Path, keep_days: int = 7) -> None:
     """
     Cleanup logs plus vieux que N jours
 

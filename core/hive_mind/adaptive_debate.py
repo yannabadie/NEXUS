@@ -25,7 +25,7 @@ Usage:
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from enum import Enum
 from datetime import datetime
 
@@ -117,8 +117,8 @@ class AdaptiveDebateConfig:
         self,
         complexity: TaskComplexity,
         initial_disagreement: float = 0.5,
-        error_history: List[bool] = None,
-        domain_tags: List[str] = None
+        error_history: Optional[List[bool]] = None,
+        domain_tags: Optional[List[str]] = None
     ) -> DebateParams:
         """
         Get debate parameters adapted to context.
@@ -294,7 +294,7 @@ class AdaptiveDebateConfig:
         agent_id: str,
         opponent_id: str,
         topic: str
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Get optimal debate strategy based on agent metrics.
 

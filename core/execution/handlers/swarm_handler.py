@@ -37,6 +37,16 @@ class SwarmDelegateHandler(BaseHandler):
         validation_service: Any = None,
         swarm_bridge: Optional[Any] = None
     ):
+        """Initializes the SwarmDelegateHandler.
+
+        Args:
+            workspace_path: The absolute path to the workspace root.
+            validation_service: Optional service for validating operations.
+            swarm_bridge: Optional bridge interface for Swarm interactions.
+
+        Raises:
+            None: This method does not explicitly raise exceptions.
+        """
         super().__init__(workspace_path, validation_service)
         self._swarm_bridge = swarm_bridge
         self._logger = logging.getLogger(__name__)
@@ -56,25 +66,26 @@ class SwarmDelegateHandler(BaseHandler):
         self._swarm_bridge = bridge
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Delegate subtask to Swarm Engine.
+        """Delegates a subtask to the Swarm Engine for collaborative execution.
 
         Args:
-            args: {
-                "task": "The subtask to delegate",
-                "mode": "parallel|sequential|lead_support|ping_pong|specialist|red_blue",
-                "phase": "analysis|debate|architecture|execution|diagnosis|consolidation" (optional),
-                "context_categories": ["task", "architecture", ...] (optional),
-                "_swarm_depth": int (internal - recursion tracking)
-            }
+            args: A dictionary containing the arguments for the task delegation:
+                task (str): The subtask description to delegate.
+                mode (str, optional): The collaboration mode (e.g., "parallel",
+                    "sequential", "lead_support", "ping_pong", "specialist",
+                    "red_blue"). Defaults to "specialist".
+                phase (str, optional): The hive phase (e.g., "analysis", "debate",
+                    "architecture", "execution").
+                context_categories (List[str], optional): Categories of context
+                    to include (e.g., ["task", "architecture"]).
+                _swarm_depth (int, optional): Internal recursion depth tracking.
 
         Returns:
-            ToolResult with swarm execution output
+            ToolResult: The result of the swarm execution, containing status,
+                output, and error information.
 
-        Examples:
-            {"task": "Run security review", "mode": "red_blue", "phase": "debate"}
-            {"task": "Analyze files in parallel", "mode": "parallel"}
-            {"task": "Iterative refinement", "mode": "ping_pong", "phase": "architecture"}
+        Raises:
+            None: Exceptions are caught and returned as error ToolResults.
         """
         # V8.3.1-hotfix: Anti-recursion depth guard ("Inception Trap" prevention)
         current_depth = args.get("_swarm_depth", 0)
@@ -177,7 +188,20 @@ class SwarmDelegateHandler(BaseHandler):
             )
 
     def _parse_mode(self, mode_str: str, CollaborationMode: Any) -> Any:
-        """Parse collaboration mode string to enum."""
+        """Parses the collaboration mode string into a CollaborationMode enum member.
+
+        Args:
+            mode_str: The string representation of the collaboration mode.
+            CollaborationMode: The enum class containing valid collaboration modes.
+
+        Returns:
+            The matching CollaborationMode enum member if found, otherwise a
+            ToolResult object containing an error message.
+
+        Raises:
+            None: Exceptions (ValueError, AttributeError) are caught and converted
+                to error results.
+        """
         try:
             return CollaborationMode.from_string(mode_str)
         except (ValueError, AttributeError):
@@ -195,7 +219,20 @@ class SwarmDelegateHandler(BaseHandler):
                 )
 
     def _parse_phase(self, phase_str: Optional[str], HivePhase: Any) -> Any:
-        """Parse HivePhase string to enum (or None)."""
+        """Parses the hive phase string into a HivePhase enum member.
+
+        Args:
+            phase_str: The string representation of the hive phase.
+            HivePhase: The enum class containing valid hive phases.
+
+        Returns:
+            The matching HivePhase enum member if found, None if phase_str is
+            empty, or a ToolResult object containing an error message if the
+            phase is invalid.
+
+        Raises:
+            None: ValueError is caught and converted to an error result.
+        """
         if not phase_str:
             return None
 

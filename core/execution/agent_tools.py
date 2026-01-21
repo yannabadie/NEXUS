@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from core.swarm.agent_metrics import AgentPool, AgentProfile
     from core.orchestration.agent_invoker import AgentInvoker
     from core.bootstrap.agent_loader import SpawnedAgentLoader
+    from core.execution.tool_manager import ToolManager, ToolResult
 
 
 # =============================================================================
@@ -75,7 +76,13 @@ class AgentToolDefinition:
     domains: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for tool registration."""
+        """
+        Convert to dictionary for tool registration.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the tool name, description,
+            parameters schema, capabilities, and domains.
+        """
         return {
             "name": self.tool_name,
             "description": self.description,
@@ -108,6 +115,13 @@ class AgentToolResult:
     duration_seconds: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the result to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing success status, agent ID,
+            output, error message (if any), and duration.
+        """
         return {
             "success": self.success,
             "agent_id": self.agent_id,
@@ -290,13 +304,13 @@ class AgentToolRegistry:
         Execute an agent as a tool.
 
         Args:
-            tool_name: Tool name (e.g., "agent_security_expert")
-            args: Tool arguments:
-                - task: str (required) - The task for the agent
-                - context: str (optional) - Additional context
+            tool_name: Tool name (e.g., "agent_security_expert").
+            args: Tool arguments dictionary containing:
+                - task (str): The task for the agent (required).
+                - context (str): Additional context (optional).
 
         Returns:
-            AgentToolResult with execution output
+            AgentToolResult: The result of the agent execution, including output and status.
         """
         import time
         start_time = time.time()
@@ -479,13 +493,16 @@ def get_agent_tool_registry(
     Get or create the global AgentToolRegistry instance.
 
     Args:
-        workspace_path: Required for first initialization
-        agent_pool: Optional AgentPool (can be set later)
-        agent_invoker: Optional AgentInvoker (can be set later)
-        agent_loader: Optional SpawnedAgentLoader (can be set later)
+        workspace_path: Required for first initialization.
+        agent_pool: Optional AgentPool (can be set later).
+        agent_invoker: Optional AgentInvoker (can be set later).
+        agent_loader: Optional SpawnedAgentLoader (can be set later).
 
     Returns:
-        AgentToolRegistry instance
+        AgentToolRegistry: The global AgentToolRegistry instance.
+
+    Raises:
+        ValueError: If workspace_path is None during the first initialization.
     """
     global _registry
 

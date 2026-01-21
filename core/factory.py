@@ -61,13 +61,16 @@ T = TypeVar("T")
 
 
 class ServiceFactory:
-    """
-    Factory for creating and caching context-scoped service instances.
+    """Factory for creating and caching context-scoped service instances.
 
     Replaces global singletons with tenant-isolated instances.
     Each tenant gets their own set of services, preventing data bleeding.
-
     Thread-safe with per-tenant instance caching.
+
+    Attributes:
+        _instances (Dict[str, Dict[str, Any]]): Cache of service instances per tenant.
+        _lock (threading.RLock): Reentrant lock for thread safety.
+        _nexus_root (Optional[Path]): Path to the NEXUS installation root.
     """
 
     # Instance cache: {tenant_id: {service_name: instance}}
@@ -79,19 +82,22 @@ class ServiceFactory:
 
     @classmethod
     def initialize(cls, nexus_root: Path) -> None:
-        """
-        Initialize the factory with NEXUS root path.
+        """Initialize the factory with NEXUS root path.
 
         Must be called once at startup before using the factory.
 
         Args:
-            nexus_root: Path to NEXUS installation root
+            nexus_root (Path): Path to NEXUS installation root.
         """
         cls._nexus_root = nexus_root.resolve()
 
     @classmethod
     def get_nexus_root(cls) -> Path:
-        """Get the NEXUS root path."""
+        """Get the NEXUS root path.
+
+        Returns:
+            Path: The absolute path to the NEXUS installation root.
+        """
         if cls._nexus_root is None:
             # Fallback: try to detect from current file
             cls._nexus_root = Path(__file__).parent.parent.resolve()
@@ -99,7 +105,14 @@ class ServiceFactory:
 
     @classmethod
     def _get_tenant_cache(cls, tenant_id: str) -> Dict[str, Any]:
-        """Get or create the instance cache for a tenant."""
+        """Get or create the instance cache for a tenant.
+
+        Args:
+            tenant_id (str): The ID of the tenant to retrieve the cache for.
+
+        Returns:
+            Dict[str, Any]: The dictionary containing service instances for the tenant.
+        """
         with cls._lock:
             if tenant_id not in cls._instances:
                 cls._instances[tenant_id] = {}
@@ -112,16 +125,16 @@ class ServiceFactory:
         factory_func,
         ctx: Optional[SessionContext] = None
     ) -> Any:
-        """
-        Get or create a service instance for the current context.
+        """Get or create a service instance for the current context.
 
         Args:
-            service_name: Unique name for the service
-            factory_func: Callable that creates the service instance
-            ctx: Optional explicit context (uses current if not provided)
+            service_name (str): Unique name for the service.
+            factory_func (Callable): Function that creates the service instance.
+            ctx (Optional[SessionContext]): Optional explicit context. If None,
+                uses the current session context.
 
         Returns:
-            Service instance scoped to the tenant
+            Any: The service instance scoped to the tenant.
         """
         if ctx is None:
             ctx = get_current_session_or_none()
@@ -139,14 +152,14 @@ class ServiceFactory:
 
     @classmethod
     def get_tenant_workspace_path(cls, ctx: Optional[SessionContext] = None) -> Path:
-        """
-        Get the workspace path for the current tenant.
+        """Get the workspace path for the current tenant.
 
         Args:
-            ctx: Optional explicit context
+            ctx (Optional[SessionContext]): Optional explicit context. If None,
+                uses the current session context.
 
         Returns:
-            Path to data/tenants/{tenant_id}/workspaces/{workspace_id}/
+            Path: Path to data/tenants/{tenant_id}/workspaces/{workspace_id}/.
         """
         if ctx is None:
             ctx = get_current_session_or_none()
@@ -172,11 +185,14 @@ class ServiceFactory:
 
     @classmethod
     def get_registry(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the agent registry for the current tenant.
+        """Get the agent registry for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            UnifiedAgentRegistry instance
+            UnifiedAgentRegistry: The agent registry instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .agents.unified_registry import UnifiedAgentRegistry
@@ -186,11 +202,14 @@ class ServiceFactory:
 
     @classmethod
     def get_workspace_manager(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the workspace manager for the current tenant.
+        """Get the workspace manager for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            SessionWorkspaceManager instance
+            SessionWorkspaceManager: The workspace manager instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .session.workspace_manager import SessionWorkspaceManager
@@ -201,11 +220,14 @@ class ServiceFactory:
 
     @classmethod
     def get_tool_registry(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the tool registry for the current tenant.
+        """Get the tool registry for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            ToolRegistry instance
+            ToolRegistry: The tool registry instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .execution.tool_registry import ToolRegistry
@@ -215,14 +237,17 @@ class ServiceFactory:
 
     @classmethod
     def get_rate_limiter_registry(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the rate limiter registry for the current tenant.
+        """Get the rate limiter registry for the current tenant.
 
         Each tenant has their own rate limits to prevent
         one tenant from blocking others.
 
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            RateLimiterRegistry instance
+            RateLimiterRegistry: The rate limiter registry instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .api.rate_limiter import RateLimiterRegistry
@@ -235,11 +260,14 @@ class ServiceFactory:
 
     @classmethod
     def get_interaction_provider(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the interaction provider for the current tenant.
+        """Get the interaction provider for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            InteractionProvider instance
+            InteractionProvider: The interaction provider instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             import os
@@ -258,11 +286,14 @@ class ServiceFactory:
 
     @classmethod
     def get_execution_engine(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the execution engine for the current tenant.
+        """Get the execution engine for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            ExecutionEngine instance
+            ExecutionEngine: The execution engine instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .execution.execution_engine import ExecutionEngine
@@ -273,11 +304,14 @@ class ServiceFactory:
 
     @classmethod
     def get_system_health(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the system health monitor for the current tenant.
+        """Get the system health monitor for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            SystemHealth instance
+            SystemHealth: The system health monitor instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .resilience.system_health import SystemHealth
@@ -288,11 +322,14 @@ class ServiceFactory:
 
     @classmethod
     def get_budget_tracker(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the budget tracker for the current tenant.
+        """Get the budget tracker for the current tenant.
+
+        Args:
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
+                If not provided, uses the current context.
 
         Returns:
-            BudgetTracker instance
+            BudgetTracker: The budget tracker instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .telemetry.budget_tracker import BudgetTracker
@@ -308,8 +345,12 @@ class ServiceFactory:
 
         PathGuardian validates file operations are within allowed zones.
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            PathGuardian instance
+            PathGuardian: The path guardian instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .security.path_guardian import PathGuardian
@@ -329,8 +370,12 @@ class ServiceFactory:
 
         The config is enhanced with tenant-specific paths.
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            Config instance with tenant paths
+            Config: The config instance for the tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .config import Config
@@ -382,8 +427,12 @@ class ServiceFactory:
         V10 MEMORY FORGE: Uses shared EmbeddingEngine for encoding,
         but storage is isolated per tenant.
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            ProjectMemory instance with tenant-isolated storage
+            ProjectMemory: The project memory instance with tenant-isolated storage.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.project_memory import ProjectMemory
@@ -404,8 +453,12 @@ class ServiceFactory:
 
         AutoMemory provides automatic context management for agents.
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            AutoMemory instance scoped to tenant
+            AutoMemory: The auto memory instance scoped to tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.auto_memory import AutoMemory
@@ -422,8 +475,12 @@ class ServiceFactory:
         SuccessMemory tracks successful tool executions for
         learning and improvement.
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            SuccessMemory instance scoped to tenant
+            SuccessMemory: The success memory instance scoped to tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.success_memory import SuccessMemory
@@ -440,14 +497,36 @@ class ServiceFactory:
         Spotlighter provides RAG content datamarking for
         security (OWASP LLM01:2025 - Prompt Injection detection).
 
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
         Returns:
-            Spotlighter instance scoped to tenant
+            Spotlighter: The spotlighter instance scoped to tenant.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.spotlighting import Spotlighter
             return Spotlighter()
 
         return cls._get_or_create("spotlighter", factory, ctx)
+
+    @classmethod
+    def get_process_registry(cls, ctx: Optional[SessionContext] = None):
+        """
+        Get the process registry for the current tenant.
+
+        Args:
+            ctx: Optional session context to determine the tenant.
+                If not provided, uses the current context.
+
+        Returns:
+            ProcessHandleRegistry: The process registry instance.
+        """
+        def factory(ctx: Optional[SessionContext]):
+            from .async_primitives.process_handle import ProcessHandleRegistry
+            return ProcessHandleRegistry()
+
+        return cls._get_or_create("process_registry", factory, ctx)
 
     # =========================================================================
     # CACHE MANAGEMENT

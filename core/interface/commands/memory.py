@@ -5,16 +5,31 @@ These commands manage Project Memory (RAG) for context retrieval.
 Uses MemoryService for business logic (Service Layer Pattern).
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 from .registry import Command, CommandContext, CommandResult, CommandStatus
+
+if TYPE_CHECKING:
+    from .registry import CommandRegistry
 
 
 def _get_memory_service(context: CommandContext):
-    """
-    Get or create MemoryService from context.
+    """Retrieves or initializes a MemoryService instance from the command context.
 
-    MemoryService requires project_memory, workspace_path, and console.
-    These are available through the CommandContext.
+    This helper function extracts the necessary dependencies (project_memory,
+    workspace_path, console) from the provided CommandContext to create a
+    MemoryService instance. It attempts to retrieve a cached service from
+    extras first.
+
+    Args:
+        context (CommandContext): The command execution context containing
+            the orchestrator, console, and extra parameters.
+
+    Returns:
+        MemoryService: An initialized and configured memory service instance.
+
+    Raises:
+        ValueError: If project_memory or workspace_path cannot be resolved
+            from the context.
     """
     from core.memory import MemoryService
 
@@ -53,26 +68,67 @@ def _get_memory_service(context: CommandContext):
 
 
 class LearnCommand(Command):
-    """Add knowledge to Project Memory."""
+    """Command to add knowledge to Project Memory.
+
+    This command handles indexing files or directories into the
+    Project Memory (RAG) system.
+
+    Attributes:
+        name (str): The command name ("/learn").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+        usage (str): Usage syntax.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the command name.
+
+        Returns:
+            str: The primary command name "/learn".
+        """
         return "/learn"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the command aliases.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A short description of the command's purpose.
+        """
         return "Index file or directory into Project Memory (RAG)"
 
     @property
     def usage(self) -> str:
+        """Gets the command usage syntax.
+
+        Returns:
+            str: The usage string showing arguments.
+        """
         return "/learn <path> (e.g., /learn core/)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute learn command using MemoryService."""
+        """Executes the learn command using MemoryService.
+
+        Args:
+            args (str): The command arguments, expected to be the path to
+                the file or directory to learn.
+            context (CommandContext): The execution context containing
+                dependencies and system state.
+
+        Returns:
+            CommandResult: The result of the execution, indicating
+                success or failure.
+        """
         try:
             service = _get_memory_service(context)
             result = service.learn(args.strip() if args else "")
@@ -95,26 +151,67 @@ class LearnCommand(Command):
 
 
 class ForgetCommand(Command):
-    """Remove knowledge from Project Memory."""
+    """Command to remove knowledge from Project Memory.
+
+    This command handles removing files or directories from the
+    Project Memory (RAG) system.
+
+    Attributes:
+        name (str): The command name ("/forget").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+        usage (str): Usage syntax.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the command name.
+
+        Returns:
+            str: The primary command name "/forget".
+        """
         return "/forget"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the command aliases.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A short description of the command's purpose.
+        """
         return "Remove file or directory from Project Memory"
 
     @property
     def usage(self) -> str:
+        """Gets the command usage syntax.
+
+        Returns:
+            str: The usage string showing arguments.
+        """
         return "/forget <path>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute forget command using MemoryService."""
+        """Executes the forget command using MemoryService.
+
+        Args:
+            args (str): The command arguments, expected to be the path to
+                the file or directory to forget.
+            context (CommandContext): The execution context containing
+                dependencies and system state.
+
+        Returns:
+            CommandResult: The result of the execution, indicating
+                success or failure.
+        """
         try:
             service = _get_memory_service(context)
             result = service.forget(args.strip() if args else "")
@@ -137,22 +234,56 @@ class ForgetCommand(Command):
 
 
 class MemoryStatusCommand(Command):
-    """Show Project Memory status."""
+    """Command to show Project Memory status.
+
+    This command displays current statistics and status of the
+    Project Memory (RAG) system.
+
+    Attributes:
+        name (str): The command name ("/memory-status").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the command name.
+
+        Returns:
+            str: The primary command name "/memory-status".
+        """
         return "/memory-status"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the command aliases.
+
+        Returns:
+            List[str]: A list of alternative names like "/ms".
+        """
         return ["/ms"]
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A short description of the command's purpose.
+        """
         return "Show Project Memory (RAG) status and statistics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute memory-status command using MemoryService."""
+        """Executes the memory-status command using MemoryService.
+
+        Args:
+            args (str): Command arguments (unused).
+            context (CommandContext): The execution context containing
+                dependencies.
+
+        Returns:
+            CommandResult: The result of the execution, indicating
+                success or failure.
+        """
         try:
             service = _get_memory_service(context)
             service.get_status()
@@ -168,26 +299,66 @@ class MemoryStatusCommand(Command):
 
 
 class RagCommand(Command):
-    """RAG operations for Project Memory."""
+    """Command for RAG operations in Project Memory.
+
+    This command handles various RAG operations including initialization,
+    clearing memory, and querying the memory.
+
+    Attributes:
+        name (str): The command name ("/rag").
+        aliases (List[str]): List of command aliases.
+        description (str): Command description.
+        usage (str): Usage syntax.
+    """
 
     @property
     def name(self) -> str:
+        """Gets the command name.
+
+        Returns:
+            str: The primary command name "/rag".
+        """
         return "/rag"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the command aliases.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets the command description.
+
+        Returns:
+            str: A short description of the command's purpose.
+        """
         return "RAG operations: init, clear, query"
 
     @property
     def usage(self) -> str:
+        """Gets the command usage syntax.
+
+        Returns:
+            str: The usage string showing arguments.
+        """
         return "/rag <init|clear|query <text>>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute rag command using MemoryService."""
+        """Executes the rag command using MemoryService.
+
+        Args:
+            args (str): The arguments for the RAG command (subcommand + args).
+            context (CommandContext): The execution context containing
+                dependencies.
+
+        Returns:
+            CommandResult: The result of the execution, indicating
+                success or failure.
+        """
         try:
             service = _get_memory_service(context)
             service.handle_rag_command(args.strip() if args else "")
@@ -203,7 +374,12 @@ class RagCommand(Command):
 
 
 def register_memory_commands(registry: "CommandRegistry") -> None:
-    """Register all memory commands with a registry."""
+    """Registers all memory commands with the provided registry.
+
+    Args:
+        registry (CommandRegistry): The command registry instance to register
+            the memory commands with.
+    """
     registry.register(LearnCommand())
     registry.register(ForgetCommand())
     registry.register(MemoryStatusCommand())

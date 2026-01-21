@@ -296,7 +296,21 @@ class CLISessionManager(SessionManager):
         parent_id: Optional[str] = None,
         tags: Optional[List[str]] = None,
     ) -> SessionMetadata:
-        """Create a new CLI session."""
+        """
+        Create a new CLI session.
+
+        Args:
+            provider: The provider identifier (e.g., "gemini" or "claude").
+            mode: The session mode (FRESH, CONTINUE, BRANCH). Defaults to FRESH.
+            parent_id: The ID of the parent session if mode is BRANCH. Defaults to None.
+            tags: A list of tags to categorize the session. Defaults to None.
+
+        Returns:
+            SessionMetadata: The metadata for the newly created session.
+
+        Raises:
+            ValueError: If mode is BRANCH but parent_id is missing or invalid.
+        """
         with self._lock:
             session_id = f"{provider}_{uuid.uuid4().hex[:12]}"
 
@@ -436,10 +450,14 @@ class CLISessionManager(SessionManager):
 
     def cleanup_old_sessions(self, max_age_hours: float = 24.0) -> int:
         """
-        Cleanup sessions older than max_age.
+        Cleanup sessions older than the specified age.
+
+        Args:
+            max_age_hours: The maximum age of a session in hours before it is
+                considered for cleanup. Defaults to 24.0.
 
         Returns:
-            Number of sessions cleaned up
+            int: The number of sessions that were cleaned up.
         """
         with self._lock:
             now = datetime.now()
@@ -495,13 +513,30 @@ class SessionRegistry:
         manager: SessionManager,
         set_default: bool = False,
     ) -> None:
-        """Register a session manager."""
+        """
+        Register a session manager with the registry.
+
+        Args:
+            name: A unique name for the session manager.
+            manager: The SessionManager instance to register.
+            set_default: If True, sets this manager as the default. Defaults to False.
+        """
         self._managers[name] = manager
         if set_default or self._default_manager is None:
             self._default_manager = name
 
     def get_manager(self, name: Optional[str] = None) -> Optional[SessionManager]:
-        """Get a session manager by name, or default if not specified."""
+        """
+        Retrieves a registered session manager.
+
+        Args:
+            name: The name of the session manager to retrieve. If None, the
+                default manager is returned.
+
+        Returns:
+            The requested SessionManager if found, or the default manager if
+            name is None. Returns None if no manager matches or no default is set.
+        """
         if name:
             return self._managers.get(name)
         if self._default_manager:
@@ -515,7 +550,20 @@ class SessionRegistry:
         manager_name: Optional[str] = None,
         **kwargs: Any,
     ) -> Optional[SessionMetadata]:
-        """Create session using specified or default manager."""
+        """
+        Creates a new session using the specified or default manager.
+
+        Args:
+            provider: The provider identifier (e.g., "gemini" or "claude").
+            mode: The session mode (FRESH, CONTINUE, BRANCH). Defaults to FRESH.
+            manager_name: The name of the specific manager to use. If None,
+                uses the default manager.
+            **kwargs: Additional arguments passed to the manager's create_session method.
+
+        Returns:
+            SessionMetadata for the new session if created successfully, or None
+            if no suitable manager could be found.
+        """
         manager = self.get_manager(manager_name)
         if manager:
             return manager.create_session(provider, mode, **kwargs)
@@ -526,7 +574,18 @@ class SessionRegistry:
         session_id: str,
         manager_name: Optional[str] = None,
     ) -> Optional[SessionMetadata]:
-        """Get session by ID."""
+        """
+        Retrieves metadata for an existing session.
+
+        Args:
+            session_id: The unique identifier of the session to retrieve.
+            manager_name: The name of the specific manager to query. If None,
+                uses the default manager.
+
+        Returns:
+            The SessionMetadata for the requested session if found, or None
+            if the session does not exist or no manager could be found.
+        """
         manager = self.get_manager(manager_name)
         if manager:
             return manager.get_session(session_id)

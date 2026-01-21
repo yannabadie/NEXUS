@@ -14,11 +14,12 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
+from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel
 
 
@@ -86,10 +87,9 @@ class HITLRequestType(str, Enum):
 # =============================================================================
 
 class AuditLog(SQLModel, table=True):
-    """
-    Immutable audit trail for compliance.
+    """Immutable audit trail for compliance.
 
-    Design: Append-only (no UPDATE/DELETE operations)
+    Design: Append-only (no UPDATE/DELETE operations).
 
     All sensitive operations should create an AuditLog entry:
     - Authentication events
@@ -97,6 +97,19 @@ class AuditLog(SQLModel, table=True):
     - Workflow execution
     - User management
     - Permission checks
+
+    Attributes:
+        id (UUID): Unique identifier for the log entry.
+        tenant_id (UUID): The UUID of the tenant associated with the event.
+        user_id (UUID): The UUID of the user who performed the action.
+        action (str): The specific action performed (e.g., "file:read", "user:login").
+        resource_type (str): The type of resource affected (e.g., "file", "user").
+        resource_id (Optional[str]): The identifier of the specific resource (e.g., file path).
+        status (str): The outcome of the action ("success", "denied", "error").
+        details (Optional[str]): JSON string containing additional context or parameters.
+        ip_address (Optional[str]): The IP address of the client initiating the event.
+        user_agent (Optional[str]): The User-Agent string of the client.
+        timestamp (datetime): The UTC timestamp when the event occurred.
 
     Example:
         await AuditLogger.log(
@@ -109,6 +122,7 @@ class AuditLog(SQLModel, table=True):
         )
     """
     __tablename__ = "audit_logs"
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: UUID = Field(index=True)
@@ -128,9 +142,10 @@ class AuditLog(SQLModel, table=True):
     user_agent: Optional[str] = Field(default=None, max_length=500)
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
 
     def __repr__(self) -> str:
+        """Return a string representation of the AuditLog entry."""
         return f"AuditLog({self.action}, user={self.user_id}, status={self.status})"
 
 
@@ -139,8 +154,7 @@ class AuditLog(SQLModel, table=True):
 # =============================================================================
 
 class HITLRequest(SQLModel, table=True):
-    """
-    Human-in-the-Loop request for async handling.
+    """Human-in-the-Loop request for async handling.
 
     Persists HITL requests to database so they survive:
     - Server restarts
@@ -148,6 +162,20 @@ class HITLRequest(SQLModel, table=True):
     - Browser refreshes
 
     Requests have a TTL (default 24h) after which they expire.
+
+    Attributes:
+        id (UUID): Unique identifier for the request.
+        tenant_id (UUID): The UUID of the tenant.
+        workspace_id (str): The identifier of the workspace.
+        request_type (str): The type of request ("ask", "confirm", "choose").
+        prompt (str): The question or prompt presented to the user.
+        options (Optional[str]): JSON array of available choices for "choose" requests.
+        context_data (Optional[str]): JSON data preserving the workflow context.
+        status (str): The current state ("pending", "answered", "expired", "cancelled").
+        answer (Optional[str]): The user's provided response.
+        created_at (datetime): The UTC timestamp when the request was created.
+        answered_at (Optional[datetime]): The UTC timestamp when the request was answered.
+        expires_at (datetime): The UTC timestamp when the request expires.
 
     Example:
         request = await HITLPersistence.create_request(
@@ -158,6 +186,7 @@ class HITLRequest(SQLModel, table=True):
         )
     """
     __tablename__ = "hitl_requests"
+    model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: UUID = Field(index=True)
@@ -176,17 +205,39 @@ class HITLRequest(SQLModel, table=True):
     answer: Optional[str] = Field(default=None, max_length=2000)
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     answered_at: Optional[datetime] = Field(default=None)
-    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=24))
 
     def is_expired(self) -> bool:
-        """Check if request has expired."""
-        return datetime.utcnow() > self.expires_at
+        """Checks if the request has expired based on the current UTC time.
+
+        This method compares the current UTC time with the expiration timestamp
+        of the request. If the expiration timestamp is naive (no timezone info),
+        it is assumed to be UTC.
+
+        Returns:
+            bool: True if the request has expired (current time > expires_at),
+                False otherwise.
+        """
+        now = datetime.now(timezone.utc)
+        expires = self.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        return now > expires
 
     def is_pending(self) -> bool:
-        """Check if request is still pending."""
+        """Checks if the request is currently in a pending state and not expired.
+
+        A request is considered pending if its status is 'pending' and the
+        expiration time has not yet passed.
+
+        Returns:
+            bool: True if the status is PENDING and the request has not expired,
+                False otherwise.
+        """
         return self.status == HITLRequestStatus.PENDING.value and not self.is_expired()
 
     def __repr__(self) -> str:
+        """Return a string representation of the HITL request."""
         return f"HITLRequest({self.request_type}, status={self.status})"

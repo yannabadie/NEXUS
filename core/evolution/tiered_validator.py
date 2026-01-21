@@ -120,6 +120,13 @@ class TieredValidator:
     ]
 
     def __init__(self, child_path: Path, config=None):
+        """Initializes the TieredValidator with a child path and configuration.
+
+        Args:
+            child_path: The file system path to the NEXUS child instance directory.
+            config: Optional configuration object containing validator settings like
+                parallel_benchmark_workers. Defaults to None.
+        """
         self.child_path = Path(child_path)
         self.child_id = self.child_path.name
         self.config = config
@@ -271,7 +278,19 @@ class TieredValidator:
         )
 
     def _check_imports(self) -> Dict:
-        """Check if critical modules can be imported"""
+        """Check if critical modules can be imported.
+
+        Validates that all critical modules listed in CRITICAL_MODULES can be
+        imported successfully in the child process environment. This runs in
+        a subprocess to ensure isolation.
+
+        Returns:
+            Dict: A dictionary containing:
+                - passed (bool): True if all imports succeeded.
+                - message (str): Status message describing the result.
+                - errors (List[str], optional): List of import error strings if failed.
+                - stderr (str, optional): Captured stderr if an unexpected error occurred.
+        """
         import_script = f"""
 import sys
 sys.path.insert(0, r'{self.child_path}')
@@ -319,8 +338,19 @@ else:
             return {"passed": False, "message": str(e)}
 
     def _run_tier2_smoke(self) -> TierResult:
-        """
-        TIER 2: Smoke test - verify system initializes (<30s)
+        """Executes Tier 2 validation (Smoke Test).
+
+        Verifies that the child system can initialize its core components (configuration
+        and orchestrator) without errors. This runs in a subprocess to ensure isolation
+        and mocks prompt_toolkit to prevent blocking interactions.
+
+        Returns:
+            TierResult: The result of the smoke test, indicating success or failure
+            along with any error messages and execution duration.
+
+        Raises:
+            subprocess.TimeoutExpired: Caught internally and returned as a failed result.
+            Exception: All other exceptions are caught and returned as failed results.
         """
         start = time.time()
 
@@ -533,7 +563,23 @@ except Exception as e:
         result: TieredValidationResult,
         output_path: Optional[Path] = None
     ) -> Path:
-        """Save validation report to JSON file"""
+        """Save validation report to a JSON file.
+
+        Serializes the TieredValidationResult to JSON and writes it to the
+        specified output path. If no path is provided, defaults to
+        'TIERED_VALIDATION_REPORT.json' in the child directory.
+
+        Args:
+            result: The validation result object to serialize.
+            output_path: Optional path where the JSON report should be saved.
+                Defaults to None, which uses the child instance directory.
+
+        Returns:
+            Path: The absolute path to the saved JSON report file.
+
+        Raises:
+            IOError: If the report file cannot be written.
+        """
         if output_path is None:
             output_path = self.child_path / "TIERED_VALIDATION_REPORT.json"
 

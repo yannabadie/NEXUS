@@ -4,8 +4,8 @@ Panic System - Gestion des erreurs critiques et panic states
 Architecture V7: Improved panic handling with detailed logging.
 """
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import datetime, UTC
+from typing import Optional
 import json
 
 
@@ -60,7 +60,7 @@ class PanicSystem:
 
         return False
 
-    def reset_stalemate(self):
+    def reset_stalemate(self) -> None:
         """Reset stalemate counter (appelé après progrès)"""
         self.stalemate_counter = 0
 
@@ -83,7 +83,7 @@ class PanicSystem:
             "error_type": error_type,
             "message": error_message,
             "consecutive_errors": self.consecutive_errors,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         })
 
         # Trigger panic après 3 erreurs consécutives
@@ -96,11 +96,11 @@ class PanicSystem:
 
         return False
 
-    def reset_errors(self):
+    def reset_errors(self) -> None:
         """Reset error counter (appelé après succès)"""
         self.consecutive_errors = 0
 
-    def trigger_panic_explicit(self, reason: str, details: str):
+    def trigger_panic_explicit(self, reason: str, details: str) -> None:
         """
         Trigger panic explicitement (appelé par orchestrator)
 
@@ -119,7 +119,7 @@ class PanicSystem:
         self.panic_reason = reason
 
         panic_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "reason": reason,
             "details": details,
             "stalemate_counter": self.stalemate_counter,
@@ -139,7 +139,7 @@ class PanicSystem:
         """Check if system is in panic"""
         return self.is_in_panic
 
-    def get_panic_info(self) -> Optional[Dict]:
+    def get_panic_info(self) -> Optional[dict]:
         """
         Récupère les infos de panic
 
@@ -155,7 +155,7 @@ class PanicSystem:
             # V8.5.0: Return None on JSON parse or file read error
             return None
 
-    def clear_panic(self):
+    def clear_panic(self) -> None:
         """
         Clear panic state (appelé par /reset ou auto-recovery)
         """
@@ -171,11 +171,11 @@ class PanicSystem:
         # Log recovery
         self._log_to_history({
             "type": "RECOVERY",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "message": "Panic cleared, system recovered"
         })
 
-    def _log_to_history(self, event: Dict):
+    def _log_to_history(self, event: dict):
         """Log event to panic history (JSONL)"""
         try:
             with open(self.panic_history, 'a', encoding='utf-8') as f:
@@ -184,7 +184,7 @@ class PanicSystem:
             # V8.5.0: Silently ignore logging failures to prevent crash loops
             pass
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """
         Get current panic system status
 

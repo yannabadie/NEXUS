@@ -30,8 +30,9 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Optional, List
+import re
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlmodel import select
@@ -39,6 +40,36 @@ from sqlmodel import select
 from .models import AuditLog, AuditAction, AuditStatus
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_file_path(file_path: str) -> str:
+    """
+    Sanitize file path to prevent path traversal attacks.
+    
+    Removes or neutralizes path traversal patterns like ../ or ..\\
+    """
+    if not file_path:
+        return file_path
+    
+    # Replace backslashes with forward slashes for consistency
+    sanitized = file_path.replace('\\', '/')
+    
+    # Remove path traversal attempts
+    # This pattern matches ../ or ..\\ repeated any number of times
+    while True:
+        new_sanitized = re.sub(r'\.\./', '', sanitized)
+        if new_sanitized == sanitized:
+            break
+        sanitized = new_sanitized
+    
+    # Remove any remaining .. at the start or after /
+    sanitized = re.sub(r'(^|/)\.\.(?=/|$)', r'\1__invalid__', sanitized)
+    
+    # Limit the length to prevent DoS
+    if len(sanitized) > 500:
+        sanitized = sanitized[:500]
+    
+    return sanitized
 
 
 # =============================================================================
@@ -76,7 +107,7 @@ def _query_audit_logs(
     filters: dict,
     limit: int,
     offset: int,
-) -> List[dict]:
+) -> list[dict]:
     """
     Sync query of audit logs with filters.
 
@@ -164,7 +195,7 @@ def _cleanup_old_logs(retention_days: int) -> int:
     from sqlalchemy import delete
     from core.db import get_session, get_engine
 
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
     engine = get_engine()
     with engine.connect() as conn:
@@ -224,7 +255,14 @@ class AuditLogger:
             if request:
                 try:
                     ip_address = getattr(request.client, 'host', None) if hasattr(request, 'client') else None
-                    user_agent = request.headers.get("user-agent") if hasattr(request, 'headers') else None
+                    raw_user_agent = request.headers.get("user-agent") if hasattr(request, 'headers') else None
+                    # Sanitize user agent: remove control characters and limit length
+                    if raw_user_agent:
+                        # Remove control characters and non-printable characters
+                        sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', raw_user_agent)
+                        # Also remove potential script injection patterns
+                        sanitized = re.sub(r'[<>]', '', sanitized)
+                        user_agent = sanitized[:500] if sanitized else None
                 except Exception:
                     pass
 
@@ -303,12 +341,15 @@ class AuditLogger:
             request: Optional FastAPI Request
             details: Optional additional details
         """
+        # Validate file path to prevent path traversal attacks
+        sanitized_path = _sanitize_file_path(file_path)
+        
         return await AuditLogger.log(
             tenant_id=tenant_id,
             user_id=user_id,
             action=action,
             resource_type="file",
-            resource_id=file_path,
+            resource_id=sanitized_path,
             status=AuditStatus.SUCCESS if success else AuditStatus.ERROR,
             request=request,
             details=details,
@@ -356,7 +397,7 @@ class AuditLogger:
         until: Optional[datetime] = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Query audit logs with filters.
 

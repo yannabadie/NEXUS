@@ -132,6 +132,23 @@ def _default_index_paths(root: Path) -> List[Path]:
 
 
 def _resolve_index_paths(root: Path, paths: Optional[List[str]]) -> List[Path]:
+    """
+    Resolves a list of index paths relative to the project root.
+
+    If no paths are provided, defaults to standard index locations (e.g. 'core', 'docs')
+    or the root itself if those don't exist.
+
+    Args:
+        root: The absolute path to the project root directory.
+        paths: A list of file or directory paths to resolve. Can be absolute or
+            relative to the root.
+
+    Returns:
+        A list of resolved Path objects.
+
+    Raises:
+        ValueError: If a resolved path is not located under the project root.
+    """
     if not paths:
         return _default_index_paths(root)
 
@@ -148,6 +165,22 @@ def _resolve_index_paths(root: Path, paths: Optional[List[str]]) -> List[Path]:
 
 
 def _resolve_output_dir(workspace: Path, output_dir: Optional[str]) -> Optional[Path]:
+    """
+    Resolves the output directory path relative to the workspace.
+
+    Args:
+        workspace: The absolute path to the workspace directory.
+        output_dir: The path to the output directory. Can be absolute or
+            relative to the workspace. If None, returns None.
+
+    Returns:
+        The resolved absolute Path object for the output directory, or None
+        if output_dir was not provided.
+
+    Raises:
+        ValueError: If the resolved output directory is not located under the
+            workspace directory.
+    """
     if output_dir is None:
         return None
     candidate = Path(output_dir)
@@ -190,6 +223,27 @@ def build_memory_search(
     min_score: float = 0.2,
     paths: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
+    """
+    Builds a memory search result from the project's indexed memory.
+
+    Args:
+        query: The search query string.
+        root_path: Optional root path for the project. Defaults to configured root.
+        mode: Search mode, either "mock" or "local". Defaults to "mock".
+        backend: Search backend (e.g., "tfidf", "chroma"). Defaults to "tfidf" for mock mode, "auto" otherwise.
+        limit: Maximum number of results to return. Defaults to 5.
+        min_score: Minimum relevance score for results. Defaults to 0.2.
+        paths: Optional list of specific paths to search within.
+
+    Returns:
+        A dictionary containing the search results, metadata, and matched sources.
+        The dictionary includes keys like 'query', 'mode', 'backend', 'generated_at',
+        'root_path', 'index_paths', 'indexed_chunks', and 'sources'.
+
+    Raises:
+        ValueError: If the query is empty or if an unsupported mode is specified.
+        RuntimeError: If ProjectMemory is unavailable.
+    """
     if not query or not query.strip():
         raise ValueError("Query cannot be empty.")
 
@@ -251,6 +305,30 @@ def build_evidence_pack(
     min_score: float = 0.2,
     paths: Optional[List[str]] = None,
 ) -> Dict[str, str]:
+    """
+    Builds a comprehensive evidence pack for a research question.
+
+    This function orchestrates a research process, gathering evidence from the
+    codebase and generating reports and artifacts.
+
+    Args:
+        question: The research question or topic.
+        root_path: Optional root path for the project. Defaults to configured root.
+        workspace_path: Optional workspace path. Defaults to configured workspace.
+        output_dir: Directory to save the evidence pack. Defaults to a subdirectory in workspace.
+        mode: Research mode, either "mock" or "local". Defaults to "mock".
+        backend: Search backend to use. Defaults to "tfidf" for mock mode.
+        limit: Maximum number of search results to consider. Defaults to 5.
+        min_score: Minimum relevance score for search results. Defaults to 0.2.
+        paths: Optional list of paths to restrict the research to.
+
+    Returns:
+        A dictionary mapping artifact keys (e.g., 'report', 'sources') to their
+        absolute file paths.
+
+    Raises:
+        ValueError: If the question is empty or if an unsupported mode is specified.
+    """
     if not question or not question.strip():
         raise ValueError("Question cannot be empty.")
 

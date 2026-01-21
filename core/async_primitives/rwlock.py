@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import AsyncGenerator, Optional
 from dataclasses import dataclass
 
 
@@ -48,24 +48,22 @@ class AsyncRWLock:
         _condition: Condition variable for synchronization
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._readers: int = 0
         self._writer: bool = False
         self._pending_writers: int = 0
         self._condition: asyncio.Condition = asyncio.Condition()
 
     @asynccontextmanager
-    async def read(self):
-        """
-        Acquire read lock (shared access).
+    async def read(self) -> AsyncGenerator[None, None]:
+        """Acquires a read lock for shared access.
 
-        Multiple readers can hold this lock simultaneously.
-        Blocks if a writer holds the lock or writers are waiting.
+        Multiple readers can hold this lock simultaneously. The lock will block
+        if a writer currently holds the lock or if there are writers waiting
+        to acquire the lock, ensuring writer priority to prevent starvation.
 
-        Usage:
-            async with lock.read():
-                # Read shared data
-                value = shared_dict[key]
+        Yields:
+            None: This context manager does not yield a value.
         """
         async with self._condition:
             # Wait if writer holds lock OR writers are waiting (priority)
@@ -83,16 +81,14 @@ class AsyncRWLock:
                     self._condition.notify_all()
 
     @asynccontextmanager
-    async def write(self):
-        """
-        Acquire write lock (exclusive access).
+    async def write(self) -> AsyncGenerator[None, None]:
+        """Acquires a write lock for exclusive access.
 
-        Only one writer can hold this lock. Blocks all readers.
+        This lock allows only a single writer. It blocks if there are any active
+        readers or if another writer holds the lock.
 
-        Usage:
-            async with lock.write():
-                # Modify shared data
-                shared_dict[key] = new_value
+        Yields:
+            None: This context manager does not yield a value.
         """
         async with self._condition:
             self._pending_writers += 1
@@ -113,7 +109,11 @@ class AsyncRWLock:
 
     @property
     def readers(self) -> int:
-        """Current number of readers holding the lock."""
+        """Gets the current number of active readers.
+
+        Returns:
+            int: The count of readers currently holding the read lock.
+        """
         return self._readers
 
     @property
@@ -202,12 +202,12 @@ class AsyncRWLockWithTimeout(AsyncRWLock):
                 self._writer = False
                 self._condition.notify_all()
 
-    async def _wait_for_read(self):
+    async def _wait_for_read(self) -> None:
         """Wait until read is possible."""
         while self._writer or self._pending_writers > 0:
             await self._condition.wait()
 
-    async def _wait_for_write(self):
+    async def _wait_for_write(self) -> None:
         """Wait until write is possible."""
         while self._writer or self._readers > 0:
             await self._condition.wait()
@@ -241,7 +241,17 @@ class InstrumentedAsyncRWLock(AsyncRWLock):
 
     @asynccontextmanager
     async def read(self):
-        """Instrumented read lock acquisition."""
+        """Instrumented read lock acquisition.
+
+        Tracks the duration of the lock acquisition wait time and increments
+        the total read count.
+
+        Yields:
+            None: Context manager yields nothing.
+
+        Raises:
+            asyncio.CancelledError: If the wait operation is cancelled.
+        """
         import time
         start = time.monotonic()
 
@@ -262,7 +272,17 @@ class InstrumentedAsyncRWLock(AsyncRWLock):
 
     @asynccontextmanager
     async def write(self):
-        """Instrumented write lock acquisition."""
+        """Instrumented write lock acquisition.
+
+        Tracks the duration of the lock acquisition wait time and increments
+        the total write count.
+
+        Yields:
+            None: Context manager yields nothing.
+
+        Raises:
+            asyncio.CancelledError: If the wait operation is cancelled.
+        """
         import time
         start = time.monotonic()
 
@@ -285,7 +305,12 @@ class InstrumentedAsyncRWLock(AsyncRWLock):
                 self._condition.notify_all()
 
     def stats(self) -> RWLockStats:
-        """Get current lock statistics."""
+        """Get current lock statistics.
+
+        Returns:
+            RWLockStats: A data class containing current metrics such as
+                total_reads, total_writes, wait times, and active counts.
+        """
         return RWLockStats(
             total_reads=self._total_reads,
             total_writes=self._total_writes,

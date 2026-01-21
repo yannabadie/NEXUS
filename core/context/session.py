@@ -46,7 +46,15 @@ from contextlib import asynccontextmanager, contextmanager
 
 
 class UserRole(Enum):
-    """User roles for authorization."""
+    """
+    Enumeration of available user roles for authorization.
+
+    Attributes:
+        ADMIN: Administrator with full access.
+        USER: Standard user with restricted access.
+        SERVICE: Automated service account for headless operations.
+        GUEST: Guest user with limited read-only access.
+    """
     ADMIN = "admin"
     USER = "user"
     SERVICE = "service"  # For automated/headless operations
@@ -82,7 +90,14 @@ class SessionContext:
     workspace_root: Optional[Path] = None
 
     def __post_init__(self):
-        """Validate context on creation."""
+        """
+        Validate context on creation.
+
+        Ensures that the required fields are present and valid.
+
+        Raises:
+            ValueError: If tenant_id is missing or empty.
+        """
         if not self.tenant_id:
             raise ValueError("tenant_id is required")
 
@@ -91,11 +106,11 @@ class SessionContext:
         """
         Get the resolved workspace path for this tenant.
 
-        Returns:
-            Path to data/tenants/{tenant_id}/workspaces/{workspace_id}/
+        If a workspace_root was provided during initialization, it is returned.
+        Otherwise, a default path is computed based on the tenant and workspace IDs.
 
-        Raises:
-            ValueError: If workspace_root not set
+        Returns:
+            Path: The resolved path to the workspace directory.
         """
         if self.workspace_root is None:
             # Compute default path
@@ -278,13 +293,17 @@ def require_context(func: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that ensures a session context is active.
 
-    Use this on functions that require tenant context to work.
+    Use this on functions that require tenant context to work. The decorated
+    function will raise a RuntimeError if called without an active session.
 
     Args:
-        func: Function to wrap
+        func: The function to be wrapped and protected.
 
     Returns:
-        Wrapped function that raises RuntimeError if no context
+        Callable: The wrapped function.
+
+    Raises:
+        RuntimeError: If the decorated function is called without an active session.
 
     Example:
         @require_context

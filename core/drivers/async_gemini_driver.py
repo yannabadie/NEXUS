@@ -44,15 +44,17 @@ import shutil
 import platform
 import uuid as uuid_module
 import sys
+import re
 from pathlib import Path
 from datetime import datetime
-from typing import AsyncIterator, Optional, Dict, Any, Callable
+from typing import AsyncIterator, Optional, Dict, Any, Callable, Tuple
 from dataclasses import dataclass, field
 
 from core.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
 from core.async_primitives.process_handle import get_process_registry
 from core.agents.unified_registry import get_registry
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
+from core.security.path_guardian import PathGuardian
 
 
 @dataclass
@@ -104,6 +106,12 @@ class AsyncGeminiDriver:
 
         # Global registry
         self._registry = get_process_registry()
+
+        # SECURITY: Initialize path guardian for validation
+        self.path_guardian = PathGuardian(
+            workspace_path=self.workspace_path,
+            parent_path=self.workspace_path.parent
+        )
 
     async def invoke(
         self,
@@ -182,20 +190,35 @@ class AsyncGeminiDriver:
         effective_io_buffer = self.workspace_path / "_IO_BUFFER"
         effective_io_buffer.mkdir(parents=True, exist_ok=True)
 
+        # SECURITY FIX #2: Sanitize unique_id to prevent path traversal
+        sanitized_id = self._sanitize_unique_id(unique_id)
+
+        # SECURITY FIX #3: Sanitize context content
+        sanitized_context = self._sanitize_context(context)
+
         # Write context to file in main workspace's IO buffer
-        context_file = effective_io_buffer / f"gemini_context_{unique_id}.md"
-        context_file.write_text(context, encoding="utf-8")
+        context_file = effective_io_buffer / f"gemini_context_{sanitized_id}.md"
+        context_file.write_text(sanitized_context, encoding="utf-8")
 
         # V9.7.1: Path relative to workspace (CWD is always workspace root)
-        context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{unique_id}.md"
+        context_file_relative = Path("_IO_BUFFER") / f"gemini_context_{sanitized_id}.md"
 
         # Find CLI executable
         cli_executable = shutil.which(str(self.config.cli_path))
         if not cli_executable:
             cli_executable = str(self.config.cli_path)
 
+        # SECURITY FIX #1: Validate CLI executable
+        if not self._validate_cli_path(cli_executable):
+            raise SecurityError(f"Invalid or unsafe CLI path: {cli_executable}")
+
         # Calculate NEXUS root for --include-directories
         nexus_root = self._get_nexus_root()
+
+        # SECURITY FIX #1: Validate configuration parameters before command construction
+        is_valid, error_msg = self._validate_config_params()
+        if not is_valid:
+            raise SecurityError(f"Invalid configuration: {error_msg}")
 
         # Build command parts
         cmd = [
@@ -449,6 +472,160 @@ class AsyncGeminiDriver:
             "status": "CONTINUE",
             "next_agent": registry.get_alternate("gemini"),
         }
+
+    # SECURITY FIXES: Helper methods for input validation
+
+    def _sanitize_unique_id(self, unique_id: str) -> str:
+        """
+        SECURITY FIX #2: Sanitize unique_id to prevent path traversal.
+
+        Only allows alphanumeric characters, hyphens, and underscores.
+        Replaces any other characters with safe alternatives.
+
+        Args:
+            unique_id: The ID to sanitize
+
+        Returns:
+            Sanitized ID safe for use in filenames
+        """
+        if not unique_id:
+            return "default"
+
+        # Only allow alphanumeric, hyphens, underscores, and dots (for UUIDs)
+        sanitized = re.sub(r'[^a-zA-Z0-9._-]', '_', str(unique_id))
+
+        # Limit length to prevent buffer overflow issues
+        max_length = 128
+        if len(sanitized) > max_length:
+            sanitized = sanitized[:max_length]
+
+        # Ensure it doesn't start with a dot (hidden files)
+        if sanitized.startswith('.'):
+            sanitized = 'x' + sanitized
+
+        return sanitized
+
+    def _validate_cli_path(self, cli_path: str) -> bool:
+        """
+        SECURITY FIX #1: Validate CLI executable path.
+
+        Checks that:
+        1. Path is not empty
+        2. Path contains no shell metacharacters
+        3. Binary exists and is executable
+        4. The command name is valid (with or without Windows extensions)
+
+        Args:
+            cli_path: Path to CLI executable
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not cli_path:
+            return False
+
+        # Check for shell metacharacters
+        dangerous_chars = [';', '|', '&', '$', '`', '>', '<', '(', ')']
+        if any(char in cli_path for char in dangerous_chars):
+            return False
+
+        # Get the basename to check the actual command name
+        cli_name = Path(cli_path).name
+
+        # Only allow expected CLI commands (with or without Windows extensions)
+        base_commands = {'gemini', 'gemini-cli', 'npx', 'node'}
+        
+        # Check if the base name matches (strip Windows extensions if present)
+        # Windows extensions: .cmd, .exe, .bat, .com, .ps1
+        cli_name_base = cli_name
+        for ext in ['.cmd', '.exe', '.bat', '.com', '.ps1']:
+            if cli_name.lower().endswith(ext):
+                cli_name_base = cli_name[:-len(ext)]
+                break
+        
+        if cli_name_base not in base_commands:
+            # Check if it's in PATH and resolves to an allowed command
+            resolved = shutil.which(cli_path)
+            if not resolved:
+                return False
+            resolved_name = Path(resolved).name
+            
+            # Strip Windows extensions from resolved name too
+            resolved_name_base = resolved_name
+            for ext in ['.cmd', '.exe', '.bat', '.com', '.ps1']:
+                if resolved_name.lower().endswith(ext):
+                    resolved_name_base = resolved_name[:-len(ext)]
+                    break
+            
+            if resolved_name_base not in base_commands:
+                return False
+
+        return True
+
+    def _validate_config_params(self) -> Tuple[bool, str]:
+        """
+        SECURITY FIX #1: Validate configuration parameters before command construction.
+
+        Checks that model, approval_mode, and allowed_tools contain safe values.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Validate model format (alphanumeric, hyphens, dots, slashes)
+        model_pattern = r'^[a-zA-Z0-9._/-]+$'
+        if not re.match(model_pattern, self.config.model):
+            return False, f"Invalid model name: {self.config.model}"
+
+        # Validate approval_mode
+        allowed_modes = {'yolo', 'suggest', 'auto', 'manual'}
+        if self.config.approval_mode not in allowed_modes:
+            return False, f"Invalid approval_mode: {self.config.approval_mode}"
+
+        # Validate allowed_tools (comma-separated tool names)
+        tools_pattern = r'^[a-zA-Z0-9_,-]+$'
+        if not re.match(tools_pattern, self.config.allowed_tools):
+            return False, f"Invalid allowed_tools format: {self.config.allowed_tools}"
+
+        return True, "OK"
+
+    def _sanitize_context(self, context: str) -> str:
+        """
+        SECURITY FIX #3: Sanitize context content before writing to file.
+
+        Prevents potential content-based attacks by:
+        1. Limiting maximum size
+        2. Removing null bytes
+        3. Normalizing line endings
+
+        Args:
+            context: The context content to sanitize
+
+        Returns:
+            Sanitized context
+        """
+        if not context:
+            return ""
+
+        # Convert to string if needed
+        context_str = str(context)
+
+        # Limit maximum size (10MB)
+        max_size = 10 * 1024 * 1024
+        if len(context_str) > max_size:
+            context_str = context_str[:max_size]
+
+        # Remove null bytes
+        context_str = context_str.replace('\x00', '')
+
+        # Normalize line endings
+        context_str = context_str.replace('\r\n', '\n').replace('\r', '\n')
+
+        return context_str
+
+
+class SecurityError(Exception):
+    """Raised when a security validation fails."""
+    pass
 
 
     def invoke_sync(

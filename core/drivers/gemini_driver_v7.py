@@ -64,7 +64,21 @@ _persistent_process = None  # Singleton persistent process
 
 
 def _cleanup_processes():
-    """Kill any remaining Gemini processes at exit."""
+    """Kill any remaining Gemini processes at exit.
+
+    Iterates through registered active processes and terminates them.
+    Also handles cleanup of the singleton persistent process if it exists.
+    Uses thread-safe locking to ensure safe access to the process list.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
     global _persistent_process
 
     # Cleanup persistent process first
@@ -111,6 +125,24 @@ class GeminiDriverV7:
         agent_id: Optional[str] = None,
         persistent: Optional[bool] = None
     ):
+        """Initializes the GeminiDriverV7.
+
+        Sets up the driver with configuration, workspace path, and session management settings.
+        Configures the model, timeout, and session persistence behavior based on the provided config.
+
+        Args:
+            config: Configuration object containing settings like gemini_cli_path, timeout, etc.
+            workspace_path: Path object pointing to the current workspace directory.
+            model: Optional string specifying the Gemini model to use.
+            agent_id: Optional string identifier for the agent using this driver.
+            persistent: Optional boolean to enable legacy persistent mode.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self.cli_path = config.gemini_cli_path
         self.workspace_path = workspace_path
         self.io_buffer = workspace_path / "_IO_BUFFER"
@@ -214,26 +246,25 @@ Rules:
         session_uuid: Optional[str] = None,
         isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
-        """
-        Invoke Gemini CLI avec contexte markdown.
+        """Invokes the Gemini CLI with the provided markdown context.
 
         V7 Sprint 12: Uses session resume for context persistence.
         V9.7.1: Session isolation via HOME spoofing (replaces V9.7 CWD isolation).
 
         Args:
-            context: Contexte markdown avec system prompt
-            session_uuid: Optional session UUID for NEXUS tracking (file naming).
-            isolated_env: V9.7.1 - Isolated environment dict with HOME/USERPROFILE.
-                         When provided, subprocess uses this env and --resume latest.
-                         CWD stays at project root (no ghost files).
-                         Different HOME = Different session storage = Isolation.
+            context: Markdown context string containing the system prompt and message history.
+            session_uuid: Optional session UUID used for NEXUS tracking and file naming.
+            isolated_env: V9.7.1 - Isolated environment dictionary containing HOME/USERPROFILE.
+                When provided, the subprocess uses this environment and `--resume latest`.
+                The CWD remains at the project root to prevent ghost files.
+                Different HOME paths result in different session storage, providing isolation.
 
         Returns:
-            Dict structuré NEXUS (JSON parsé)
+            A dictionary containing the structured NEXUS response (parsed JSON).
 
         Raises:
-            RuntimeError: Si Gemini CLI échoue
-            TimeoutError: Si timeout dépassé
+            RuntimeError: If the Gemini CLI fails to execute or returns an error code.
+            TimeoutError: If the execution time exceeds the configured timeout.
         """
         return self._invoke_subprocess(context, session_uuid=session_uuid, isolated_env=isolated_env)
 
@@ -244,26 +275,25 @@ Rules:
         session_uuid: Optional[str] = None,
         isolated_env: Optional[Dict[str, str]] = None
     ) -> Dict:
-        """
-        Invoke Gemini CLI with streaming output (V7.7 Phase 15).
+        """Invokes the Gemini CLI with streaming output (V7.7 Phase 15).
 
-        Streams text tokens in real-time via callback, then returns
+        Streams text tokens in real-time via the provided callback, then returns
         the full parsed JSON response.
 
         V9.7.1: Session isolation via HOME spoofing.
 
         Args:
-            context: Contexte markdown avec system prompt
-            on_token: Callback called with each text chunk
-            session_uuid: Optional session UUID for NEXUS tracking
-            isolated_env: V9.7.1 - Isolated environment for session isolation
+            context: Markdown context string containing the system prompt and message history.
+            on_token: Callback function that receives each text chunk as it is streamed.
+            session_uuid: Optional session UUID used for NEXUS tracking.
+            isolated_env: V9.7.1 - Isolated environment dictionary for session isolation.
 
         Returns:
-            Dict structuré NEXUS (JSON parsé)
+            A dictionary containing the structured NEXUS response (parsed JSON).
 
         Raises:
-            RuntimeError: Si Gemini CLI échoue
-            TimeoutError: Si timeout dépassé
+            RuntimeError: If the Gemini CLI fails to execute or returns an error code.
+            TimeoutError: If the execution time exceeds the configured timeout.
         """
         return self._invoke_subprocess_stream(context, on_token, session_uuid=session_uuid, isolated_env=isolated_env)
 

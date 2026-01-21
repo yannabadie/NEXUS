@@ -26,14 +26,20 @@ class ReadHandler(BaseHandler):
         return "read"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Read file contents.
+        """Executes the file reading operation.
 
         Args:
-            args: {"file_path": str}
+            args (Dict[str, Any]): A dictionary containing the arguments:
+                file_path (str): The path to the file to read.
 
         Returns:
-            ToolResult with file content or error
+            ToolResult: The result of the operation containing:
+                status (str): 'SUCCESS', 'FAILURE', or 'ERROR'.
+                output (str): The file content.
+                error (str): Error message if applicable.
+
+        Raises:
+            None: All exceptions are handled and returned as ToolResult.
         """
         file_path_str = args.get("file_path", "")
 
@@ -82,14 +88,21 @@ class WriteHandler(BaseHandler):
         return "write"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Write file contents.
+        """Executes the file writing operation.
 
         Args:
-            args: {"file_path": str, "content": str}
+            args (Dict[str, Any]): A dictionary containing the arguments:
+                file_path (str): The path to the file to write.
+                content (str): The content to write to the file.
 
         Returns:
-            ToolResult with success message or error
+            ToolResult: The result of the operation containing:
+                status (str): 'SUCCESS', 'FAILURE', or 'ERROR'.
+                output (str): Success message.
+                error (str): Error message if applicable.
+
+        Raises:
+            None: All exceptions are handled and returned as ToolResult.
         """
         file_path_str = args.get("file_path", "")
         content = args.get("content", "")
@@ -135,14 +148,22 @@ class EditHandler(BaseHandler):
         return "edit"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        Edit file with search and replace.
+        """Executes the file editing operation (search and replace).
 
         Args:
-            args: {"file_path": str, "old_string": str, "new_string": str}
+            args (Dict[str, Any]): A dictionary containing the arguments:
+                file_path (str): The path to the file to edit.
+                old_string (str): The exact string to search for.
+                new_string (str): The replacement string.
 
         Returns:
-            ToolResult with success message or error
+            ToolResult: The result of the operation containing:
+                status (str): 'SUCCESS', 'FAILURE', or 'ERROR'.
+                output (str): Success message.
+                error (str): Error message if applicable.
+
+        Raises:
+            None: All exceptions are handled and returned as ToolResult.
         """
         file_path_str = args.get("file_path", "")
         old_string = args.get("old_string", "")
@@ -203,14 +224,20 @@ class ListDirHandler(BaseHandler):
         return "list_dir"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
-        """
-        List directory contents.
+        """Executes the list directory operation.
 
         Args:
-            args: {"path": str}
+            args (Dict[str, Any]): A dictionary containing the arguments:
+                path (str, optional): The directory path to list. Defaults to ".".
 
         Returns:
-            ToolResult with directory listing or error
+            ToolResult: The result of the operation containing:
+                status (str): 'SUCCESS', 'FAILURE', or 'ERROR'.
+                output (str): The formatted list of files and directories.
+                error (str): Error message if applicable.
+
+        Raises:
+            None: All exceptions are handled and returned as ToolResult.
         """
         dir_path_str = args.get("path", ".")
 

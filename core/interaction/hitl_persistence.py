@@ -32,7 +32,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import List, Optional
 from uuid import UUID
 
@@ -69,7 +69,7 @@ def _insert_hitl_request(
         prompt=prompt,
         options=json.dumps(options) if options else None,
         context_data=json.dumps(context_data) if context_data else None,
-        expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+        expires_at=datetime.now(UTC) + timedelta(hours=ttl_hours),
     )
 
     with get_session() as session:
@@ -103,7 +103,7 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
         statement = select(HITLRequest).where(
             HITLRequest.tenant_id == tenant_id,
             HITLRequest.status == HITLRequestStatus.PENDING.value,
-            HITLRequest.expires_at > datetime.utcnow(),
+            HITLRequest.expires_at > datetime.now(UTC),
         )
 
         if workspace_id:
@@ -150,7 +150,7 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
 
         request.status = HITLRequestStatus.ANSWERED.value
         request.answer = answer
-        request.answered_at = datetime.utcnow()
+        request.answered_at = datetime.now(UTC)
 
         session.add(request)
         session.commit()
@@ -209,7 +209,7 @@ def _cleanup_expired() -> int:
             update(HITLRequest)
             .where(
                 HITLRequest.status == HITLRequestStatus.PENDING.value,
-                HITLRequest.expires_at < datetime.utcnow(),
+                HITLRequest.expires_at < datetime.now(UTC),
             )
             .values(status=HITLRequestStatus.EXPIRED.value)
         )

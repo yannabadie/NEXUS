@@ -97,13 +97,16 @@ class WebSearchHandler(BaseHandler):
         Execute web search via Gemini CLI.
 
         Args:
-            args: {
-                "query": "search query string",
-                "num_results": 5 (optional, default: 5)
-            }
+            args: Dictionary containing execution arguments:
+                - query (str): The search query string.
+                - num_results (int, optional): Number of results to return. Defaults to 5.
 
         Returns:
-            ToolResult with search results
+            ToolResult: The result of the tool execution, containing the search results
+                in the output field or an error message.
+
+        Raises:
+            None: Exceptions are caught and returned as a failure ToolResult.
         """
         query = args.get("query", "")
         num_results = args.get("num_results", 5)
@@ -177,8 +180,16 @@ class WebFetchHandler(BaseHandler):
         """
         V12.4 Security: Check if URL targets internal/metadata endpoints.
 
+        Args:
+            url: The URL to check for SSRF vulnerabilities.
+
         Returns:
-            (is_blocked, reason) - True if URL should be blocked
+            tuple[bool, str]: A tuple containing:
+                - is_blocked (bool): True if the URL should be blocked.
+                - reason (str): The reason for blocking, or empty string if allowed.
+
+        Raises:
+            None: Exceptions during parsing are caught and result in blocking.
         """
         try:
             parsed = urlparse(url)
@@ -315,13 +326,33 @@ class WebFetchHandler(BaseHandler):
             return self._error(f"Web fetch error: {str(e)}")
 
     def _extract_encoding(self, content_type: str) -> str:
-        """Extract encoding from Content-Type header."""
+        """
+        Extracts the character encoding from the Content-Type header.
+
+        Args:
+            content_type: The Content-Type header value (e.g., "text/html; charset=utf-8").
+
+        Returns:
+            The extracted encoding string (e.g., "utf-8"). Returns "utf-8" if no charset is specified.
+        """
         if "charset=" in content_type:
             return content_type.split("charset=")[1].split(";")[0].strip()
         return "utf-8"
 
     def _decode_content(self, content_bytes: bytes, encoding: str) -> str:
-        """Decode bytes with fallback to UTF-8."""
+        """
+        Decodes content bytes using the specified encoding with fallback.
+
+        Attempts to decode using the provided encoding. If that fails, falls back to
+        UTF-8 decoding with error replacement.
+
+        Args:
+            content_bytes: The raw bytes to decode.
+            encoding: The target encoding to attempt first.
+
+        Returns:
+            The decoded string content.
+        """
         try:
             return content_bytes.decode(encoding, errors="replace")
         except Exception:

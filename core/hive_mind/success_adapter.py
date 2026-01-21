@@ -17,17 +17,21 @@ from typing import List, Optional, Any
 
 @dataclass
 class PseudoExecutionResult:
-    """
-    Pseudo ExecutionResult for SuccessMemory compatibility.
+    """Pseudo ExecutionResult for SuccessMemory compatibility.
 
-    SuccessMemory looks for:
-    - total_rounds
-    - agent_outputs (list with agent_id attribute)
+    Attributes:
+        total_rounds: Total number of execution rounds (default: 1).
+        agent_outputs: List of pseudo-objects with 'agent_id' and 'status' attributes.
     """
     total_rounds: int = 1
-    agent_outputs: List[Any] = field(default_factory=list)
+    agent_outputs: Any = field(default_factory=list)
 
     def __post_init__(self):
+        """Initializes default values for agent outputs if they are missing.
+
+        Ensures that agent_outputs is populated with pseudo-objects for 'gemini' and 'claude'
+        if no outputs are provided.
+        """
         if not self.agent_outputs:
             # Create pseudo agent outputs
             self.agent_outputs = [
@@ -38,21 +42,27 @@ class PseudoExecutionResult:
 
 @dataclass
 class HiveMindAnalysisAdapter:
-    """
-    Pseudo-TaskAnalysis for HiveMind -> SuccessMemory compatibility.
+    """Pseudo-TaskAnalysis for HiveMind -> SuccessMemory compatibility.
 
-    SuccessMemory extracts:
-    - raw_input: task description
-    - complexity: enum with .name attribute
-    - domains: list of enums with .value attribute
-    - primary_domain: single enum with .value attribute
+    Adapts HiveMind input data to match the structure expected by SuccessMemory.
+
+    Attributes:
+        raw_input: The original task description or input text.
+        complexity: Pseudo-enum object with a 'name' attribute.
+        domains: List of pseudo-enum objects with a 'value' attribute.
+        primary_domain: Single pseudo-enum object with a 'value' attribute.
     """
     raw_input: str
     complexity: Any = None
-    domains: List[str] = field(default_factory=lambda: ["hive_mind"])
-    primary_domain: Optional[str] = "hive_mind"
+    domains: Any = field(default_factory=lambda: ["hive_mind"])
+    primary_domain: Any = "hive_mind"
 
     def __post_init__(self):
+        """Initializes complexity, domains, and primary_domain objects.
+
+        Converts string inputs for complexity and domains into pseudo-objects with
+        required attributes for SuccessMemory compatibility.
+        """
         # Create pseudo-complexity enum if not provided
         if self.complexity is None:
             self.complexity = type('Complexity', (), {'name': 'MODERATE', 'value': 3})()
@@ -74,29 +84,36 @@ class HiveMindAnalysisAdapter:
 
 @dataclass
 class HiveMindResultAdapter:
-    """
-    Pseudo-SwarmResult for HiveMind -> SuccessMemory compatibility.
+    """Pseudo-SwarmResult for HiveMind -> SuccessMemory compatibility.
 
-    SuccessMemory extracts:
-    - selected_mode or mode: CollaborationMode enum
-    - status: string or enum
-    - total_time_seconds: float
-    - execution_result: object with total_rounds and agent_outputs
-    - agent_outputs: list with agent_id attribute (fallback)
+    Adapts HiveMind execution results to match the structure expected by SuccessMemory.
+
+    Attributes:
+        selected_mode: The collaboration mode used (default: "hive_mind").
+        status: Execution status string (e.g., "completed").
+        total_time_seconds: Total duration of the execution in seconds.
+        execution_result: Object containing detailed execution stats.
+        agent_outputs: List of agent output objects (fallback if execution_result missing).
+        total_rounds: Number of phases/rounds in the HiveMind process (default: 7).
     """
     selected_mode: str = "hive_mind"
     status: str = "completed"
     total_time_seconds: float = 0.0
     execution_result: Any = None
-    agent_outputs: List[Any] = field(default_factory=list)
+    agent_outputs: Any = field(default_factory=list)
     total_rounds: int = 7  # HiveMind has 7 phases
 
     def __post_init__(self):
+        """Initializes execution result and agent outputs.
+
+        Creates a PseudoExecutionResult if execution_result is missing, and ensures
+        agent_outputs serves as a fallback or is derived from execution_result.
+        """
         # Create pseudo execution_result if not provided
         if self.execution_result is None:
             self.execution_result = PseudoExecutionResult(
                 total_rounds=self.total_rounds,
-                agent_outputs=self.agent_outputs if self.agent_outputs else None
+                agent_outputs=self.agent_outputs or []
             )
 
         # Ensure agent_outputs has fallback
@@ -105,24 +122,39 @@ class HiveMindResultAdapter:
 
     @property
     def mode(self):
-        """Alias for selected_mode (SuccessMemory checks both)."""
+        """Alias for selected_mode (SuccessMemory checks both).
+
+        Returns:
+            str: The selected mode.
+        """
         return self.selected_mode
 
 
 @dataclass
 class SwarmDelegationAnalysisAdapter:
-    """
-    V8.3.2: Adapter for SwarmBridge delegation -> SuccessMemory.
+    """V8.3.2: Adapter for SwarmBridge delegation -> SuccessMemory.
 
     Records Swarm delegations so the system learns which modes work best.
+
+    Attributes:
+        raw_input: The delegated task description.
+        complexity: Object representing task complexity.
+        domains: List of domain objects.
+        primary_domain: Primary domain object.
+        mode_used: The collaboration mode string used for the delegation.
     """
     raw_input: str
     complexity: Any = None
-    domains: List[str] = field(default_factory=lambda: ["swarm_delegation"])
-    primary_domain: Optional[str] = "swarm_delegation"
+    domains: Any = field(default_factory=lambda: ["swarm_delegation"])
+    primary_domain: Any = "swarm_delegation"
     mode_used: str = ""
 
     def __post_init__(self):
+        """Initializes complexity, domains, and primary_domain objects.
+
+        Converts string inputs for complexity and domains into pseudo-objects with
+        required attributes for SuccessMemory compatibility.
+        """
         if self.complexity is None:
             self.complexity = type('Complexity', (), {'name': 'MODERATE', 'value': 3})()
         if self.domains and isinstance(self.domains[0], str):
@@ -139,28 +171,46 @@ class SwarmDelegationAnalysisAdapter:
 
 @dataclass
 class SwarmDelegationResultAdapter:
-    """
-    V8.3.2: Adapter for SwarmBridge delegation result -> SuccessMemory.
+    """V8.3.2: Adapter for SwarmBridge delegation result -> SuccessMemory.
+
+    Attributes:
+        selected_mode: The collaboration mode used (default: "specialist").
+        status: Execution status string ("completed" or "failed").
+        total_time_seconds: Total duration of the delegation in seconds.
+        execution_result: Object containing execution details.
+        agent_outputs: List of agent output objects.
+        total_rounds: Total number of rounds including fallbacks (default: 1).
+        fallback_count: Number of times the system fell back to another mode.
     """
     selected_mode: str = "specialist"
     status: str = "completed"
     total_time_seconds: float = 0.0
     execution_result: Any = None
-    agent_outputs: List[Any] = field(default_factory=list)
+    agent_outputs: Any = field(default_factory=list)
     total_rounds: int = 1
     fallback_count: int = 0
 
     def __post_init__(self):
+        """Initializes execution result and agent outputs.
+
+        Ensures execution_result exists (creating a PseudoExecutionResult if needed)
+        and synchronizes agent_outputs with the execution result.
+        """
         if self.execution_result is None:
             self.execution_result = PseudoExecutionResult(
                 total_rounds=self.total_rounds,
-                agent_outputs=self.agent_outputs if self.agent_outputs else None
+                agent_outputs=self.agent_outputs or []
             )
         if not self.agent_outputs:
             self.agent_outputs = self.execution_result.agent_outputs
 
     @property
     def mode(self):
+        """Returns the selected mode.
+
+        Returns:
+            str: The selected collaboration mode.
+        """
         return self.selected_mode
 
 
@@ -170,7 +220,7 @@ def create_swarm_delegation_adapters(
     duration: float,
     success: bool,
     fallback_count: int = 0,
-    agents_used: List[str] = None
+    agents_used: Any = None
 ) -> tuple:
     """
     V8.3.2: Create adapters for SwarmBridge delegation.
@@ -214,7 +264,7 @@ def create_hive_mind_adapters(
     duration: float,
     success: bool,
     phases_completed: int = 7,
-    agents_used: List[str] = None
+    agents_used: Any = None
 ) -> tuple:
     """
     Convenience function to create both adapters.

@@ -50,6 +50,13 @@ class ComponentHealth:
     checked_at: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Converts the component health status to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the component's name,
+                status value, message, details, and checked_at timestamp
+                in ISO format.
+        """
         return {
             "name": self.name,
             "status": self.status.value,
@@ -93,6 +100,14 @@ class HealthReport:
         return "\n".join(lines)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Converts the health report to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the overall status value,
+                counts of healthy and unhealthy components, a list of
+                component health dictionaries, and the checked_at timestamp
+                in ISO format.
+        """
         return {
             "overall_status": self.overall_status.value,
             "healthy_count": self.healthy_count,
@@ -116,7 +131,12 @@ class SystemHealth:
     """
 
     def __init__(self, workspace_path: Optional[Path] = None):
-        """Initialize health monitor."""
+        """Initialize the health monitor.
+
+        Args:
+            workspace_path: Optional path to the workspace directory.
+                If not provided, defaults to the current working directory.
+        """
         self.workspace_path = workspace_path or Path.cwd()
         self._last_report: Optional[HealthReport] = None
 
@@ -153,7 +173,19 @@ class SystemHealth:
         return report
 
     def _check_constants(self) -> ComponentHealth:
-        """Check constants module."""
+        """Verifies the Constants module availability and configuration.
+
+        Checks if the constants module can be imported and if critical values
+        like timeouts are positive.
+
+        Returns:
+            ComponentHealth: The health status of the constants module.
+                Returns HEALTHY if valid, DEGRADED if timeouts are invalid,
+                or UNHEALTHY/UNKNOWN on error.
+
+        Raises:
+            None: Exceptions are caught and converted to health status.
+        """
         try:
             from core.constants import (
                 TIMEOUTS,
@@ -193,7 +225,19 @@ class SystemHealth:
             )
 
     def _check_safe_task_manager(self) -> ComponentHealth:
-        """Check SafeTaskManager."""
+        """Verifies the SafeTaskManager state and statistics.
+
+        Retrieves current statistics and active task counts from the
+        SafeTaskManager to ensure it is operational.
+
+        Returns:
+            ComponentHealth: The health status containing task metrics.
+                Returns HEALTHY with details if successful, or
+                UNHEALTHY/UNKNOWN if the module is missing or fails.
+
+        Raises:
+            None: Exceptions are caught and converted to health status.
+        """
         try:
             from core.async_primitives.safe_task_manager import (
                 SafeTaskManager,
@@ -227,7 +271,20 @@ class SystemHealth:
             )
 
     async def _check_event_bus(self) -> ComponentHealth:
-        """Check EventBus."""
+        """Verifies the EventBus connectivity and functionality.
+
+        Retrieves the global event bus instance and checks its statistics.
+        Simulates an event creation to verify responsiveness without
+        publishing.
+
+        Returns:
+            ComponentHealth: The health status of the event bus.
+                Returns HEALTHY with publish stats if operational,
+                or UNHEALTHY/UNKNOWN on failure.
+
+        Raises:
+            None: Exceptions are caught and converted to health status.
+        """
         try:
             from core.async_primitives.event_bus import (
                 get_event_bus,
@@ -266,7 +323,19 @@ class SystemHealth:
             )
 
     def _check_tool_registry(self) -> ComponentHealth:
-        """Check ToolRegistry."""
+        """Verifies the ToolRegistry and registered tools.
+
+        Accesses the tool registry to count registered tools and list core
+        tools, ensuring the registry is populated.
+
+        Returns:
+            ComponentHealth: The health status of the tool registry.
+                Returns HEALTHY with tool counts if successful,
+                or UNHEALTHY/UNKNOWN on error.
+
+        Raises:
+            None: Exceptions are caught and converted to health status.
+        """
         try:
             from core.execution.tool_registry import get_tool_registry
 
@@ -296,7 +365,19 @@ class SystemHealth:
             )
 
     def _check_circuit_breaker(self) -> ComponentHealth:
-        """Check CircuitBreaker."""
+        """Verifies the status of the default circuit breaker.
+
+        Retrieves the 'default' circuit breaker instance and checks its
+        current state and failure count.
+
+        Returns:
+            ComponentHealth: The health status of the circuit breaker.
+                Returns HEALTHY with state details if successful,
+                or UNHEALTHY/UNKNOWN on error.
+
+        Raises:
+            None: Exceptions are caught and converted to health status.
+        """
         try:
             from core.resilience.circuit_breaker import (
                 get_circuit_breaker,

@@ -23,10 +23,10 @@ Date: 2025-12-16
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from threading import RLock
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,6 @@ class RedisWorkflowRegistry:
 
             self._redis = redis_async.from_url(
                 self._redis_url,
-                encoding="utf-8",
                 decode_responses=True,
             )
 
@@ -211,14 +210,14 @@ class RedisWorkflowRegistry:
             "status": WorkflowStatus.PENDING.value,
             "result": None,
             "error": None,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         if self._connected and self._redis:
             try:
                 key = self._workflow_key(tenant_id)
-                await self._redis.hset(key, workflow_id, self._serialize(workflow))
+                await self._redis.hset(key, mapping={workflow_id: self._serialize(workflow)})
                 await self._redis.sadd(f"{self.KEY_PREFIX}:active", workflow_id)
                 logger.debug(f"[WORKFLOW] Created {workflow_id} in Redis")
             except Exception as e:
@@ -268,7 +267,7 @@ class RedisWorkflowRegistry:
             return None
 
         workflow["status"] = status
-        workflow["updated_at"] = datetime.utcnow().isoformat()
+        workflow["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         if result is not None:
             workflow["result"] = result
@@ -278,7 +277,7 @@ class RedisWorkflowRegistry:
         if self._connected and self._redis:
             try:
                 key = self._workflow_key(tenant_id)
-                await self._redis.hset(key, workflow_id, self._serialize(workflow))
+                await self._redis.hset(key, mapping={workflow_id: self._serialize(workflow)})
 
                 # Set TTL on completed/failed workflows
                 if status in (WorkflowStatus.COMPLETED.value, WorkflowStatus.FAILED.value, WorkflowStatus.CANCELLED.value):
@@ -429,10 +428,10 @@ class RedisWorkflowRegistry:
             Number of workflows cleaned up
         """
         cleaned = 0
-        cutoff = datetime.utcnow().isoformat()
+        cutoff = datetime.now(timezone.utc).isoformat()
         # Calculate cutoff time (simplified - just check age in hours)
         from datetime import timedelta
-        cutoff_dt = datetime.utcnow() - timedelta(hours=max_age_hours)
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
         cutoff = cutoff_dt.isoformat()
 
         # Clean in-memory store

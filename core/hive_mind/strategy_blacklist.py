@@ -80,6 +80,19 @@ class BlacklistedStrategy:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "BlacklistedStrategy":
+        """
+        Create a BlacklistedStrategy instance from a dictionary.
+
+        Args:
+            data: A dictionary containing strategy data.
+
+        Returns:
+            BlacklistedStrategy: A new instance populated from the dictionary.
+
+        Raises:
+            KeyError: If required fields are missing from the data.
+            ValueError: If date strings are invalid or failure category is unknown.
+        """
         return cls(
             strategy_hash=data["strategy_hash"],
             strategy_description=data["strategy_description"],
@@ -107,8 +120,8 @@ class StrategyBlacklist:
 
     def __init__(
         self,
-        workspace_path: Path = None,
-        expiration_hours: int = None
+        workspace_path: Optional[Path] = None,
+        expiration_hours: Optional[int] = None
     ):
         """
         Initialize strategy blacklist.
@@ -126,13 +139,35 @@ class StrategyBlacklist:
             self._load_blacklist()
 
     def _get_strategy_hash(self, strategy: str) -> str:
-        """Generate a hash for a strategy."""
+        """
+        Generate a consistent hash for a strategy description.
+
+        Normalizes the strategy string by converting to lowercase and
+        collapsing whitespace before hashing.
+
+        Args:
+            strategy: The strategy description string to hash.
+
+        Returns:
+            str: The first 12 characters of the MD5 hash of the normalized strategy.
+        """
         # Normalize: lowercase, remove extra whitespace
         normalized = " ".join(strategy.lower().split())
         return hashlib.md5(normalized.encode()).hexdigest()[:12]
 
     def _extract_keywords(self, strategy: str) -> Set[str]:
-        """Extract keywords from a strategy for similarity matching."""
+        """
+        Extract meaningful keywords from a strategy description.
+
+        Removes common stop words and words shorter than 3 characters
+        to facilitate similarity matching.
+
+        Args:
+            strategy: The strategy description to extract keywords from.
+
+        Returns:
+            Set[str]: A set of unique keywords extracted from the strategy.
+        """
         # Remove common words and split
         stop_words = {
             "the", "a", "an", "to", "for", "of", "in", "on", "with", "and",
@@ -143,7 +178,16 @@ class StrategyBlacklist:
         return {w for w in words if w not in stop_words and len(w) > 2}
 
     def _calculate_similarity(self, strategy1: str, strategy2: str) -> float:
-        """Calculate similarity between two strategies using Jaccard index."""
+        """
+        Calculate similarity between two strategies using Jaccard index.
+
+        Args:
+            strategy1: The first strategy description.
+            strategy2: The second strategy description.
+
+        Returns:
+            float: A similarity score between 0.0 and 1.0, where 1.0 means identical sets of keywords.
+        """
         keywords1 = self._extract_keywords(strategy1)
         keywords2 = self._extract_keywords(strategy2)
 
@@ -206,7 +250,7 @@ class StrategyBlacklist:
         failure_reason: str,
         diagnosis: str = "",
         failure_category: FailureCategory = FailureCategory.UNKNOWN,
-        tags: List[str] = None
+        tags: Optional[List[str]] = None
     ):
         """
         Add a failed strategy to the blacklist.

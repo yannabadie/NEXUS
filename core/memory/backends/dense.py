@@ -193,11 +193,38 @@ class DenseBackend(MemoryBackend):
             return False
 
     def _chunk_to_id(self, chunk: 'Chunk') -> str:
-        """Generate unique ID for a chunk."""
+        """
+        Generate a unique identifier for a code chunk.
+
+        Constructs an ID string combining the file path and the line range
+        to uniquely identify a specific chunk of code.
+
+        Args:
+            chunk: The Chunk object to generate an ID for. Must contain
+                file_path, start_line, and end_line attributes.
+
+        Returns:
+            str: A unique identifier string in the format "path:start-end".
+
+        Raises:
+            AttributeError: If the chunk object is missing required attributes.
+        """
         return f"{chunk.file_path}:{chunk.start_line}-{chunk.end_line}"
 
     def _chunk_to_metadata(self, chunk: 'Chunk') -> str:
-        """Serialize chunk to JSON metadata."""
+        """
+        Serialize a Chunk object to a JSON string for storage metadata.
+
+        Args:
+            chunk: The Chunk object to serialize.
+
+        Returns:
+            str: A JSON-formatted string containing the chunk's data dictionary.
+
+        Raises:
+            TypeError: If the chunk's dictionary representation contains
+                non-serializable types.
+        """
         return json.dumps(chunk.to_dict())
 
     def _metadata_to_chunk(self, metadata: str) -> 'Chunk':
@@ -334,7 +361,21 @@ class DenseBackend(MemoryBackend):
             return []
 
     def clear(self) -> None:
-        """Clear the dense index."""
+        """
+        Clear the dense index and reset backend state.
+
+        Drops the LanceDB table containing embeddings and resets internal state
+        counters. This operation is irreversible.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None: Exceptions during table drop are caught and logged as warnings.
+        """
         if self._db is not None and TABLE_NAME in self._db.table_names():
             try:
                 self._db.drop_table(TABLE_NAME)
@@ -346,7 +387,23 @@ class DenseBackend(MemoryBackend):
         self._chunk_count = 0
 
     def get_info(self) -> Dict[str, Any]:
-        """Get Dense backend information."""
+        """
+        Get runtime information about the Dense backend.
+
+        Retrieves the current state of the backend, including availability of
+        dependencies (LanceDB, SentenceTransformers), model details, and
+        storage statistics.
+
+        Args:
+            None
+
+        Returns:
+            Dict[str, Any]: A dictionary containing backend status, configuration,
+                and statistics.
+
+        Raises:
+            None
+        """
         # Ensure storage is loaded so on-disk indexes are reflected in info.
         self._ensure_db()
         engine_info = {}

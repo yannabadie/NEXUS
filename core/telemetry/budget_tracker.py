@@ -21,7 +21,7 @@ import time
 from datetime import datetime, date
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 
 
@@ -58,7 +58,7 @@ BUDGET_LIMIT_THRESHOLD = 1.00     # 100% -> hard stop
 class BudgetExceededError(Exception):
     """Raised when daily budget limit is exceeded."""
 
-    def __init__(self, spent: float, limit: float, message: str = None):
+    def __init__(self, spent: float, limit: float, message: Optional[str] = None):
         self.spent = spent
         self.limit = limit
         self.message = message or f"Budget exceeded: ${spent:.2f} / ${limit:.2f} limit"
@@ -83,7 +83,7 @@ class BudgetState:
     api_calls_today: int = 0
     last_updated: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
     @classmethod
@@ -121,7 +121,7 @@ class BudgetTracker:
 
     def __init__(
         self,
-        config=None,
+        config: Optional[Any] = None,
         workspace_path: Optional[Path] = None,
         budget_file: Optional[Path] = None,
     ):
@@ -158,7 +158,15 @@ class BudgetTracker:
         self._check_daily_reset()
 
     def _load_state(self) -> BudgetState:
-        """Load budget state from file."""
+        """
+        Load budget state from file.
+
+        Reads the JSON file to restore the previous state. Returns a fresh
+        state initialized for today if the file is missing or invalid.
+
+        Returns:
+            BudgetState: The restored or new budget state object.
+        """
         if self.budget_file.exists():
             try:
                 data = json.loads(self.budget_file.read_text(encoding='utf-8'))
@@ -167,8 +175,17 @@ class BudgetTracker:
                 pass
         return BudgetState(reset_date=date.today().isoformat())
 
-    def _save_state(self):
-        """Save budget state to file."""
+    def _save_state(self) -> None:
+        """
+        Save the current budget state to the persistence file.
+
+        Updates the 'last_updated' timestamp and writes the state as a JSON
+        object to the configured budget file. Handles potential IO errors
+        gracefully by logging them to stdout.
+
+        Returns:
+            None
+        """
         self._state.last_updated = datetime.now().isoformat()
         try:
             self.budget_file.write_text(
@@ -178,8 +195,17 @@ class BudgetTracker:
         except Exception as e:
             print(f"[BudgetTracker] Save error: {e}")
 
-    def _check_daily_reset(self):
-        """Reset counters if it's a new day."""
+    def _check_daily_reset(self) -> None:
+        """
+        Check if the day has changed and reset daily counters if necessary.
+
+        Compares the stored reset date with the current date. If they differ,
+        resets the daily spending and API call counts to zero and updates the
+        reset date to today.
+
+        Returns:
+            None
+        """
         today = date.today().isoformat()
         if self._state.reset_date != today:
             with self._lock:
@@ -345,11 +371,20 @@ class BudgetTracker:
         return None
 
     def get_remaining(self) -> float:
-        """Get remaining budget for today in USD."""
+        """
+        Get the remaining budget for the current day in USD.
+
+        Calculates the difference between the daily limit and the amount spent
+        so far today. Ensures the result is not negative.
+
+        Returns:
+            float: The remaining budget amount in USD. Returns 0.0 if the
+                budget is exhausted.
+        """
         self._check_daily_reset()
         return max(0, self.limit_usd - self._state.spent_today_usd)
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Get comprehensive budget statistics.
 
@@ -371,7 +406,15 @@ class BudgetTracker:
         }
 
     def reset_daily(self):
-        """Manually reset daily counters (for testing or emergency)."""
+        """
+        Manually reset daily counters.
+
+        Forces a reset of the daily spending and call counts, setting the
+        reset date to today. Useful for testing or manual overrides.
+
+        Returns:
+            None
+        """
         with self._lock:
             self._state.spent_today_usd = 0.0
             self._state.api_calls_today = 0
@@ -398,7 +441,19 @@ _tracker: Optional[BudgetTracker] = None
 
 
 def get_budget_tracker(config=None, workspace_path: Optional[Path] = None) -> BudgetTracker:
-    """Get or create the global budget tracker."""
+    """
+    Get or create the global budget tracker.
+
+    Uses the Singleton pattern to ensure only one tracker instance exists.
+    Initializes the tracker with config and workspace path if it doesn't exist.
+
+    Args:
+        config: Optional configuration object containing budget settings.
+        workspace_path: Optional path to the workspace directory.
+
+    Returns:
+        BudgetTracker: The global BudgetTracker instance.
+    """
     global _tracker
     if _tracker is None:
         _tracker = BudgetTracker(config, workspace_path)

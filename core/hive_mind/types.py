@@ -102,7 +102,19 @@ class FailureType(Enum):
 
 @dataclass
 class IndependentAnalysis:
-    """Result of independent analysis by one agent."""
+    """Result of independent analysis by one agent.
+
+    Args:
+        agent_id (str): Identifier of the analyzing agent (e.g., 'gemini', 'claude').
+        task_understanding (str): The agent's interpretation of the task.
+        complexity_assessment (str): Assessment of task complexity (e.g., 'high', 'low').
+        proposed_approach (str): High-level strategy proposed by the agent.
+        required_capabilities (List[str]): List of capabilities needed for the task.
+        potential_risks (List[str]): List of identified risks.
+        confidence (float): Confidence score (0.0 to 1.0) in the analysis.
+        reasoning (str): Detailed explanation of the agent's thought process.
+        timestamp (datetime, optional): Time of analysis. Defaults to current time.
+    """
     agent_id: str
     task_understanding: str
     complexity_assessment: str
@@ -114,6 +126,11 @@ class IndependentAnalysis:
     timestamp: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> Dict:
+        """Converts the analysis object to a dictionary.
+
+        Returns:
+            Dict: A dictionary representation of the analysis, suitable for JSON serialization.
+        """
         return {
             "agent_id": self.agent_id,
             "task_understanding": self.task_understanding,
@@ -190,7 +207,17 @@ class DebateResult:
 
 @dataclass
 class AgentSpec:
-    """Specification for an agent to spawn."""
+    """Specification for an agent to spawn.
+
+    Args:
+        role (str): The specific role the agent will fulfill (e.g., 'researcher', 'coder').
+        mission (str): The primary mission or objective for this agent.
+        capabilities (List[str]): List of capabilities required for this agent.
+        tools_priority (List[str], optional): Prioritized list of tools this agent should favor. Defaults to empty list.
+        spawn_if_missing (bool, optional): Whether to spawn a new agent if no suitable one exists. Defaults to True.
+        fallback_agent (str, optional): Agent ID to use if spawning fails. Defaults to "claude".
+        estimated_cost (int, optional): Estimated cost in tokens for this agent's operation. Defaults to 500.
+    """
     role: str
     mission: str
     capabilities: List[str]
@@ -211,7 +238,18 @@ class RAGConfig:
 
 @dataclass
 class ExecutionStep:
-    """A step in the execution plan."""
+    """A step in the execution plan.
+
+    Args:
+        name (str): Unique name or identifier for the step.
+        agent_id (str): ID of the agent assigned to execute this step.
+        action (str): Description of the action to be performed.
+        expected_duration (float, optional): Expected duration of the step in seconds. Defaults to 30.0.
+        depends_on (List[str], optional): List of step names that this step depends on. Defaults to empty list.
+        verification_required (bool, optional): Whether the result needs explicit verification. Defaults to False.
+        swarm_mode (Optional[str], optional): Swarm delegation mode (e.g., "parallel", "red_blue"). 
+            If set, execution is delegated via SwarmBridge. Defaults to None.
+    """
     name: str
     agent_id: str
     action: str
@@ -282,7 +320,19 @@ class MonitoredStepResult:
 
 @dataclass
 class FailureDiagnosis:
-    """Detailed diagnosis of a failure."""
+    """Detailed diagnosis of a failure.
+
+    Args:
+        failure_type (FailureType): Classification of the failure.
+        root_cause (str): Primary cause of the failure.
+        contributing_factors (List[str]): Secondary factors that led to the failure.
+        evidence (List[str]): Observations or logs supporting the diagnosis.
+        recommended_changes (List[str]): Suggested fixes or adjustments.
+        confidence (float): Confidence level (0.0 to 1.0) in the diagnosis.
+        gemini_diagnosis (Optional[str], optional): Diagnosis specific to Gemini. Defaults to None.
+        claude_diagnosis (Optional[str], optional): Diagnosis specific to Claude. Defaults to None.
+        missing_capability (Optional[str], optional): Specific capability missing, if applicable. Defaults to None.
+    """
     failure_type: FailureType
     root_cause: str
     contributing_factors: List[str]
@@ -294,6 +344,11 @@ class FailureDiagnosis:
     missing_capability: Optional[str] = None
 
     def to_dict(self) -> Dict:
+        """Converts the diagnosis object to a dictionary.
+
+        Returns:
+            Dict: A dictionary representation of the diagnosis.
+        """
         return {
             "failure_type": self.failure_type.value,
             "root_cause": self.root_cause,

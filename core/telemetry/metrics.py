@@ -15,18 +15,14 @@ Usage:
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Any
 from threading import Lock
 
-from core.telemetry.budget_tracker import (
-    BudgetTracker,
-    BudgetExceededError,
-    get_budget_tracker,
-)
+from core.telemetry.budget_tracker import BudgetTracker
 
 
 class MetricType(Enum):
@@ -135,7 +131,7 @@ class TelemetryCollector:
         event = {
             "type": event_type.value,
             "session_id": self.session_id,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "data": data
         }
 
@@ -195,7 +191,7 @@ class TelemetryCollector:
                 print(f"[Telemetry] Cost tracking error: {e}")
 
         metric = APICallMetric(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             provider=provider,
             model=model,
             tokens_in=tokens_in,
@@ -237,7 +233,7 @@ class TelemetryCollector:
             self._errors += 1
 
         metric = SwarmTaskMetric(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             mode=mode,
             rounds=rounds,
             duration_seconds=duration_seconds,
@@ -321,7 +317,7 @@ class TelemetryCollector:
         """Print session summary to console"""
         summary = self.get_session_summary()
         print(f"\n{'='*50}")
-        print(f"TELEMETRY SESSION SUMMARY")
+        print("TELEMETRY SESSION SUMMARY")
         print(f"{'='*50}")
         print(f"Session ID: {summary.session_id}")
         print(f"Duration: {summary.duration_seconds:.1f}s")

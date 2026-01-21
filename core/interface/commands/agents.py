@@ -10,11 +10,17 @@ from .registry import Command, CommandContext, CommandResult, CommandStatus
 
 
 def _get_agent_service(context: CommandContext):
-    """
-    Get or create AgentService from context.
+    """Retrieves or creates an AgentService instance from the command context.
 
-    AgentService requires orchestrator, workspace_path, and console.
-    These are available through the CommandContext.
+    Args:
+        context: The command execution context containing orchestrator,
+            workspace_path, and console access.
+
+    Returns:
+        AgentService: An initialized agent service instance.
+
+    Raises:
+        ValueError: If workspace_path cannot be determined from the context.
     """
     from core.agents import AgentService
 
@@ -49,22 +55,50 @@ class SpawnCommand(Command):
 
     @property
     def name(self) -> str:
+        """Gets the unique name of the command.
+
+        Returns:
+            str: The command name (e.g., "/spawn").
+        """
         return "/spawn"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of aliases for the command.
+
+        Returns:
+            List[str]: A list of alternative names for the command.
+        """
         return []
 
     @property
     def description(self) -> str:
+        """Gets a brief description of the command's purpose.
+
+        Returns:
+            str: The command description.
+        """
         return "Spawn a new specialized agent with a specific role"
 
     @property
     def usage(self) -> str:
+        """Gets the usage syntax for the command.
+
+        Returns:
+            str: The command usage string showing arguments.
+        """
         return "/spawn <role> (e.g., /spawn SQL Expert)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute spawn command using AgentService."""
+        """Executes the spawn command to create a new specialized agent.
+
+        Args:
+            args: The command arguments, expected to be the agent role.
+            context: The execution context containing dependencies.
+
+        Returns:
+            CommandResult: The result indicating success or failure of the spawn operation.
+        """
         if not args.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -93,22 +127,49 @@ class SpawnCommand(Command):
 
 
 class AgentsCommand(Command):
-    """List all registered agents."""
+    """Command to list all currently registered agents.
+
+    Attributes:
+        None
+    """
 
     @property
     def name(self) -> str:
+        """Gets the unique name of the command.
+
+        Returns:
+            str: The command name ("/agents").
+        """
         return "/agents"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of aliases for the command.
+
+        Returns:
+            List[str]: A list of alternative names (e.g., ["/a"]).
+        """
         return ["/a"]
 
     @property
     def description(self) -> str:
+        """Gets a brief description of the command.
+
+        Returns:
+            str: The command description.
+        """
         return "List all registered agents and their capabilities"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute agents command using AgentService."""
+        """Executes the agents command to list registered agents.
+
+        Args:
+            args: The command arguments (unused for this command).
+            context: The execution context containing dependencies.
+
+        Returns:
+            CommandResult: The result indicating success or failure of the list operation.
+        """
         try:
             service = _get_agent_service(context)
             service.list_agents()
@@ -124,22 +185,49 @@ class AgentsCommand(Command):
 
 
 class PoolStatsCommand(Command):
-    """Show agent pool statistics."""
+    """Command to display statistics about the agent pool.
+
+    Attributes:
+        None
+    """
 
     @property
     def name(self) -> str:
+        """Gets the unique name of the command.
+
+        Returns:
+            str: The command name ("/pool-stats").
+        """
         return "/pool-stats"
 
     @property
     def aliases(self) -> List[str]:
+        """Gets the list of aliases for the command.
+
+        Returns:
+            List[str]: A list of alternative names (e.g., ["/ps"]).
+        """
         return ["/ps"]
 
     @property
     def description(self) -> str:
+        """Gets a brief description of the command.
+
+        Returns:
+            str: The command description.
+        """
         return "Show agent pool statistics and usage metrics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Execute pool-stats command using AgentService."""
+        """Executes the pool-stats command to show agent pool metrics.
+
+        Args:
+            args: The command arguments (unused for this command).
+            context: The execution context containing dependencies.
+
+        Returns:
+            CommandResult: The result indicating success or failure of the stats operation.
+        """
         try:
             service = _get_agent_service(context)
             service.get_pool_stats()
@@ -155,7 +243,14 @@ class PoolStatsCommand(Command):
 
 
 def register_agent_commands(registry: "CommandRegistry") -> None:
-    """Register all agent commands with a registry."""
+    """Registers all agent-related commands with the provided registry.
+
+    Args:
+        registry: The command registry to register the commands with.
+
+    Returns:
+        None
+    """
     registry.register(SpawnCommand())
     registry.register(AgentsCommand())
     registry.register(PoolStatsCommand())

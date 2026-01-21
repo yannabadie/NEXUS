@@ -16,7 +16,6 @@ Usage:
 
 import json
 import re
-import ast
 import logging
 from typing import Any, Dict, Optional
 
@@ -147,15 +146,9 @@ def parse_json_response(
     except json.JSONDecodeError:
         pass
 
-    # Strategy 2: Python dict literal (single quotes, True/False/None)
-    try:
-        result = ast.literal_eval(json_str)
-        if isinstance(result, dict):
-            return result
-    except (ValueError, SyntaxError):
-        pass
-
-    # Strategy 3: Fix common JSON issues (V10 FIX F6: Smart quote handling)
+    # Strategy 3: Fix common JSON issues (single quotes, True/False/None)
+    # V11 SECURITY FIX: Removed unsafe ast.literal_eval() usage
+    # Now handled safely by _smart_quote_replace() and regex replacements
     try:
         fixed = _smart_quote_replace(json_str)
         # Fix Python booleans/None

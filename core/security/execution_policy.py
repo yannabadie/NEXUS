@@ -118,8 +118,8 @@ class ExecutionPolicy:
         (r"\.aws/", "AWS credentials access"),
         (r"\.gnupg/", "GPG keys access"),
 
-        # Path traversal - deep parent access
-        (r"\.\.(/|\\)\.\.(/|\\)\.\.", "Deep path traversal"),
+        # Path traversal - 2+ levels of parent directory access
+        (r"\.\.(/|\\)\.\.", "Deep path traversal (2+ levels)"),
 
         # Parent directory write operations
         (r">\s*\.\.(/|\\)", "Write redirect to parent"),

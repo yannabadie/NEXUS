@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
 from rich.markdown import Markdown
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import os
 
 from core.agents.unified_registry import get_registry  # V8.4.0
@@ -34,7 +34,7 @@ class ConsoleV7:
         self.console = Console()
         self.verbose = verbose
 
-    def print_banner(self, gemini_model: str, claude_model: str, version: str = None, codename: str = None):
+    def print_banner(self, gemini_model: str, claude_model: str, version: Optional[str] = None, codename: Optional[str] = None) -> None:
         """
         Print NEXUS banner au démarrage
 
@@ -62,7 +62,7 @@ Type your task or use slash commands (/help for list)
 """
         self.console.print(banner, style="bold cyan")
 
-    def display_result(self, result: Dict):
+    def display_result(self, result: Dict[str, Any]) -> None:
         """
         Display turn result (appelé après chaque process_turn)
 
@@ -124,7 +124,7 @@ Type your task or use slash commands (/help for list)
         elif "✗" in str(output):
             self.console.print(output, style="yellow")
 
-    def print_status(self, status: Dict):
+    def print_status(self, status: Dict[str, Any]) -> None:
         """
         Print orchestrator status (/status command)
 
@@ -148,7 +148,7 @@ Objective: {status['objective']}"""
         )
         self.console.print(panel)
 
-    def print_doctor_results(self, results: Dict):
+    def print_doctor_results(self, results: Dict[str, Any]) -> None:
         """
         Print diagnostics results (/doctor command)
 
@@ -178,15 +178,15 @@ Objective: {status['objective']}"""
         )
         self.console.print(panel)
 
-    def print_help(self, help_message: str):
+    def print_help(self, help_message: str) -> None:
         """Print help message"""
         self.console.print(Panel(help_message, title="Help", border_style="cyan"))
 
-    def print_error(self, error: str):
+    def print_error(self, error: str) -> None:
         """Print error message"""
         self.console.print(f"[red]❌ {error}[/red]")
 
-    def print(self, message: str, style: Optional[str] = None):
+    def print(self, message: str, style: Optional[str] = None) -> None:
         """
         Print simple message
 
@@ -199,11 +199,11 @@ Objective: {status['objective']}"""
         else:
             self.console.print(message)
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear terminal screen"""
         os.system('cls' if os.name == 'nt' else 'clear')
 
-    def show_spinner(self, text: str):
+    def show_spinner(self, text: str) -> Live:
         """
         Show animated spinner (context manager)
 
@@ -221,7 +221,7 @@ Objective: {status['objective']}"""
             refresh_per_second=10
         )
 
-    def print_markdown(self, markdown_text: str):
+    def print_markdown(self, markdown_text: str) -> None:
         """
         Print formatted markdown
 

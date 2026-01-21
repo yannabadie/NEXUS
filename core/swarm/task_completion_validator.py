@@ -232,7 +232,17 @@ class TaskCompletionValidator:
         )
 
     def _get_completion_criteria(self, analysis: TaskAnalysis) -> CompletionCriteria:
-        """Get completion criteria based on task analysis."""
+        """
+        Determines the criteria required for task completion based on the analysis.
+
+        Args:
+            analysis: The analysis of the task, including complexity and domains.
+
+        Returns:
+            CompletionCriteria: A configured criteria object specifying what is
+                required for the task to be considered complete (e.g., file changes,
+                tool calls).
+        """
         criteria = CompletionCriteria()
 
         # Complexity-based criteria
@@ -262,7 +272,22 @@ class TaskCompletionValidator:
         response: str,
         tool_results: List[Dict]
     ) -> bool:
-        """Check if response depth matches task complexity."""
+        """
+        Verifies that the agent's response depth aligns with the task's complexity.
+
+        Checks if the length of the response and the number of tools used are
+        sufficient for the determined complexity level of the task.
+
+        Args:
+            analysis: The analysis of the task containing the complexity level.
+            response: The agent's final response string.
+            tool_results: A list of dictionaries representing the results of tools
+                executed during the task.
+
+        Returns:
+            bool: True if the response alignment is sufficient for the task
+                complexity, False otherwise.
+        """
         response_length = len(response)
         tool_count = len(tool_results)
 
@@ -299,13 +324,20 @@ class TaskCompletionValidator:
     # =========================================================================
 
     def _extract_task_requirements(self, task_input: str) -> Dict[str, Set[str]]:
-        """
-        Extract key requirements from task description.
+        """Extracts key requirements from the task description.
 
-        V10 FIX F13: Goes beyond keywords to extract semantic requirements.
+        This method analyzes the task description to identify action verbs, target entities,
+        file patterns, and key terms that represent the requirements of the task.
+        V10 FIX F13: Goes beyond simple keyword matching to extract semantic requirements.
+
+        Args:
+            task_input: The original task description string.
 
         Returns:
-            Dict with 'actions', 'targets', 'key_terms'
+            A dictionary containing sets of extracted requirements with keys:
+                'actions': Set of action verbs found (e.g., 'create', 'fix').
+                'targets': Set of target nouns associated with actions.
+                'key_terms': Set of other significant terms and quoted strings.
         """
         task_lower = task_input.lower()
         words = set(re.findall(r'\b\w+\b', task_lower))
@@ -350,13 +382,20 @@ class TaskCompletionValidator:
         task_input: str,
         response: str
     ) -> Tuple[float, List[str]]:
-        """
-        Calculate semantic alignment between task and response.
+        """Calculates the semantic alignment between the task and the agent's response.
 
-        V10 FIX F13: Checks if response addresses task requirements.
+        V10 FIX F13: Checks if the agent's response adequately addresses the extracted
+        requirements of the task. It scores alignment based on actions performed,
+        targets mentioned, and key term overlap.
+
+        Args:
+            task_input: The original task description.
+            response: The agent's final response claiming completion.
 
         Returns:
-            Tuple of (alignment_score, unaddressed_requirements)
+            A tuple containing:
+                float: The alignment score between 0.0 and 1.0 (capped).
+                List[str]: A list of descriptions for requirements that appear unaddressed.
         """
         requirements = self._extract_task_requirements(task_input)
         response_lower = response.lower()

@@ -125,7 +125,17 @@ class CircuitBreaker:
             self._last_failure_time = None
 
     def _on_failure(self, error: Exception):
-        """Handle failed call - increment counter, potentially open circuit."""
+        """
+        Handle a failed call by updating failure counts and circuit state.
+
+        Increments the failure counter and checks if the failure threshold has been
+        reached. If the circuit was in HALF_OPEN state, it immediately re-opens
+        with an increased backoff time. If in CLOSED state and the threshold is
+        met, it transitions to OPEN.
+
+        Args:
+            error: The exception that caused the failure.
+        """
         with self._lock:
             self._failure_count += 1
             self._last_failure_time = time.time()
@@ -343,9 +353,18 @@ class HierarchicalCircuitBreaker:
 
     def _check_cascade(self, provider: str) -> bool:
         """
-        Check if we're in a cascade failure scenario.
+        Check if a cascade failure condition is met across providers.
 
-        Returns True if cascade detected (should trip global breaker).
+        Records the failure for the given provider and checks if the number of
+        unique failed providers within the configured time window exceeds the
+        cascade threshold.
+
+        Args:
+            provider: The identifier of the provider that failed (e.g., "gemini").
+
+        Returns:
+            True if a cascade failure is detected (indicating the global breaker
+            should be tripped), False otherwise.
         """
         now = time.time()
 
@@ -519,7 +538,19 @@ class HierarchicalCircuitBreaker:
         return self._global.state
 
     def get_provider_state(self, provider: str) -> CircuitState:
-        """Get specific provider circuit state."""
+        """
+        Retrieves the current circuit state for a specific provider.
+
+        If the provider's circuit breaker has not been created yet, it is
+        assumed to be in a healthy (CLOSED) state.
+
+        Args:
+            provider: The identifier of the provider (e.g., 'gemini', 'claude').
+
+        Returns:
+            CircuitState: The current state of the provider's circuit breaker.
+                Returns CircuitState.CLOSED if the provider is unknown.
+        """
         if provider in self._per_provider:
             return self._per_provider[provider].state
         return CircuitState.CLOSED  # Not created yet = healthy
@@ -577,7 +608,24 @@ def reset_all_circuits():
 
 
 def get_all_circuit_status() -> Dict[str, Dict[str, Any]]:
-    """Get status of all circuit breakers."""
+    """
+    Retrieves the status of all registered circuit breakers.
+
+    Collects the current state, failure metrics, and configuration for every
+    circuit breaker stored in the global registry. This is useful for
+    monitoring system health and debugging circuit states.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: A dictionary where keys are circuit names
+            and values are status dictionaries containing:
+            - name: Name of the circuit breaker.
+            - state: Current state ('closed', 'open', 'half_open').
+            - failure_count: Number of consecutive failures.
+            - failure_threshold: Configured failure limit.
+            - current_backoff: Current wait time before retry.
+            - time_until_retry: Seconds remaining until retry is allowed.
+            - last_failure: Timestamp of the last failure (if any).
+    """
     with _registry_lock:
         return {
             name: breaker.get_status()

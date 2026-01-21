@@ -11,7 +11,7 @@ Historique stocké dans workspace/.nexus/evolution_history.json
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Any
 
 
 class EvolutionRateLimiter:
@@ -19,7 +19,7 @@ class EvolutionRateLimiter:
     Enforces rate limits on evolution cycles
     """
 
-    def __init__(self, workspace_path: Path, config):
+    def __init__(self, workspace_path: Path, config: Any):
         self.workspace_path = workspace_path
         self.history_file = workspace_path / ".nexus" / "evolution_history.json"
 
@@ -48,7 +48,7 @@ class EvolutionRateLimiter:
         """Load evolution history"""
         return json.loads(self.history_file.read_text(encoding='utf-8'))
 
-    def _save_history(self, history: Dict):
+    def _save_history(self, history: Dict[str, Any]) -> None:
         """Save evolution history"""
         self.history_file.write_text(json.dumps(history, indent=2), encoding='utf-8')
 
@@ -134,7 +134,7 @@ class EvolutionRateLimiter:
 
         return stats
 
-    def reset_daily(self):
+    def reset_daily(self) -> None:
         """
         Reset daily counters (admin command)
         Use with caution!

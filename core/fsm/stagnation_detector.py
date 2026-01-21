@@ -36,7 +36,7 @@ class StagnationDetector:
     """
 
     # V11 FIX F5: Action verbs that indicate progress
-    _PROGRESS_INDICATORS = {
+    _PROGRESS_INDICATORS: set[str] = {
         # Tool usage (strong progress)
         "<tool_use", "</tool_use>", "tool_use",
         # Action verbs
@@ -68,7 +68,7 @@ class StagnationDetector:
         self.similarity_threshold = similarity_threshold
         self.window_size = window_size
         self.message_history: List[str] = []
-        self._stagnation_count = 0  # V8.0: Track stagnation occurrences
+        self._stagnation_count: int = 0  # V8.0: Track stagnation occurrences
 
         # V11 FIX F5: Semantic progress tracking
         self.semantic_progress_threshold = semantic_progress_threshold
@@ -250,7 +250,7 @@ class StagnationDetector:
 ---
 """
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, any]:
         """
         Get detector statistics (pour debugging)
 
@@ -405,7 +405,7 @@ class StagnationDetector:
         # Swap if stagnation detected AND we've seen multiple stagnations
         return self.is_stagnant() and self._stagnation_count >= failure_count
 
-    def get_swap_recommendation(self, current_lead: str) -> dict:
+    def get_swap_recommendation(self, current_lead: str) -> dict[str, any]:
         """
         V8.0.1: Get recommendation for lead agent swap.
 
