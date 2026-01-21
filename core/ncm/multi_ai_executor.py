@@ -384,7 +384,8 @@ class MultiAIExecutor:
         """
         Execute story via OpenCode CLI (authenticated via Zen subscription).
 
-        Uses: opencode run "prompt" --format json
+        Uses: echo prompt | opencode run --format json
+        Note: Uses stdin to avoid Windows command line length limits.
         Reference: https://opencode.ai/docs/cli/
         """
         start_time = time.time()
@@ -404,21 +405,23 @@ class MultiAIExecutor:
                     error="OpenCode CLI not found. Install with: npm install -g opencode",
                 )
 
-            # Build prompt for the task
-            prompt = self._build_prompt(story, include_context=True)
+            # Build prompt for the task (shorter version without full file content)
+            prompt = self._build_prompt(story, include_context=False)
 
-            # Use OpenCode CLI with JSON output format for better parsing
-            # opencode run "prompt" --format json
+            # Use OpenCode CLI with JSON output format
+            # Pass prompt via stdin to avoid command line length limits
             proc = await asyncio.create_subprocess_exec(
-                opencode_path, "run", prompt,
+                opencode_path, "run",
                 "--format", "json",
+                stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.workspace_path),
             )
 
+            # Send prompt via stdin
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
+                proc.communicate(input=prompt.encode("utf-8")),
                 timeout=self.config.opencode_timeout,
             )
 
@@ -480,6 +483,7 @@ class MultiAIExecutor:
         Execute story via Kimi K2 Thinking CLI (authenticated subscription).
 
         Uses: kimi --print -p "prompt" --yolo --output-format stream-json
+        Note: Uses short prompts (CLI reads files natively) to avoid command line limits.
         Reference: https://github.com/MoonshotAI/kimi-cli
 
         Key flags:
@@ -504,8 +508,9 @@ class MultiAIExecutor:
                     error="Kimi CLI not found. Install with: pip install kimi-cli",
                 )
 
-            # Build prompt with context
-            prompt = self._build_prompt(story, include_context=True)
+            # Build prompt WITHOUT file content (Kimi can read files natively)
+            # This avoids Windows command line length limits
+            prompt = self._build_prompt(story, include_context=False)
 
             # Use Kimi CLI with proper automation flags
             # --print: Non-interactive mode
@@ -755,8 +760,9 @@ class MultiAIExecutor:
                     error="Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
                 )
 
-            # Build prompt
-            prompt = self._build_prompt(story, include_context=True)
+            # Build prompt WITHOUT file content (Claude can read files natively)
+            # This avoids Windows command line length limits
+            prompt = self._build_prompt(story, include_context=False)
 
             # Use Claude CLI with headless mode flags for FULL AUTONOMY
             # -p: Print mode (non-interactive)
