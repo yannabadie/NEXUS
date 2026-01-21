@@ -12,10 +12,12 @@
 
 ## Module READMEs (Core)
 - `core/README.md`: core architecture overview, layers, entry points.
+- `core/bootstrap/README.md`: project bootstrap, agent discovery, spinoff support.
 - `core/interface/README.md`: REPL, slash commands, CLI flow.
 - `core/interface/commands/README.md`: command registry and handlers.
 - `core/workspace/README.md`: workspace lifecycle and isolation.
 - `core/interaction/README.md`: interaction provider abstraction and HITL.
+- `core/agents/README.md`: unified agent registry, spawning service, DyLAN tracking.
 - `core/async_primitives/README.md`: cancellation, blackboard, event bus, task manager.
 - `core/fsm/README.md`: FSM states, transitions, health monitoring.
 - `core/hive_mind/README.md`: 7-phase pipeline and breakpoints.
@@ -25,6 +27,7 @@
 - `core/execution/README.md`: tool registry, handlers, validation.
 - `core/execution/handlers/README.md`: tool handler categories and APIs.
 - `core/drivers/README.md`: driver protocol and provider adapters.
+- `core/synapse/README.md`: agent message schemas, auto-repair protocol rules.
 - `core/routing/README.md`: model routing decisions and DyLAN integration.
 - `core/memory/README.md`: memory layers, backends, and RAG.
 - `core/memory/backends/README.md`: TF-IDF, BM25, dense, hybrid backends.
@@ -39,6 +42,7 @@
 - `core/api/cerebro/routes/README.md`: REST/WS routes and RBAC patterns.
 - `core/db/README.md`: SQLModel data model and tenancy.
 - `core/events/README.md`: Redis event bus for UI.
+- `core/workflow/README.md`: Redis workflow registry, distributed locks, TTL cleanup.
 - `core/session/README.md`: HOME isolation and workspace management.
 - `core/orchestration/README.md`: orchestration components extracted from OrchestratorV7.
 - `core/prompts/README.md`: prompt loader and includes.

@@ -21,9 +21,13 @@ NEXUS is a multi-agent orchestration system (Gemini + Claude) with a CLI REPL, F
 
 ## Support Modules
 - Context and multi-tenancy: `core/context/`, `core/db/`, `core/api/`.
+- Bootstrap and spinoffs: `core/bootstrap/` (project deployment, agent discovery).
+- Agent registry: `core/agents/` (unified registry, spawn service, DyLAN stats).
 - Workspace/session isolation: `core/workspace/`, `core/session/`.
 - Interaction: `core/interaction/`, notifications in `core/notifications/`.
 - Events: `core/events/` (Redis event bus for UI).
+- Workflow registry: `core/workflow/` (Redis-backed workflow storage, locks).
+- Synapse protocol: `core/synapse/` (agent message schemas, auto-repair).
 
 ## UI (interface/ui/cerebro)
 React 19 dashboard with Vite build, Vitest unit tests, Playwright E2E, and Zustand state stores. WebSocket and REST API integrations target `core/api/cerebro`.
