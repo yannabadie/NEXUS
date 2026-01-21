@@ -10,3 +10,7 @@
 - Docs crawl refresh: updated codebase map and docs digest with missing core READMEs (bootstrap, agents, synapse, workflow).
 - Baseline verify rerun: full pytest pass (2355 passed, 12 skipped); `python nexus7.py --verify` OK (V8.4.0); npm audit still reports 7 vulnerabilities.
 - Test alignment fixes: updated Phase 16 DX expectations, DebateResult construction, project memory no-match threshold, and swarm invoke mocks to match current interfaces.
+
+## 2026-01-21
+- Market refresh: revalidated sources (MCP, Anthropic docs, OpenAI evals, LM Eval Harness, Ollama, Langfuse) and added per-source access dates + risks section in `PRODUCTS/04_LANDSCAPE_2026.md`.
+- Portfolio confirmed: flagship = Research CLI + Evidence Pack, companion = MCP Server, bonus = Architecture Map Generator (see `PRODUCTS/10_PORTFOLIO.md`).

@@ -16,20 +16,25 @@ The 2025-2026 landscape favors local-first agent tooling, standardized tool inte
 - Local model runners: Ollama for offline/local inference.
 - Observability: Langfuse for traces, metrics, and evaluation workflows.
 
-## Gaps and Opportunities
+## Differentiation Opportunities
 - Few products combine MCP integration with evidence-pack outputs (sources + trace + hashes).
 - Most eval stacks are generic; there is room for task-specific, auditable harnesses targeting agent workflows.
 - Security/compliance stakeholders need reproducible reports, not just chat transcripts.
+
+## Risks and Assumptions
+- Assumes MCP remains the default interoperability standard for agent tooling.
+- Assumes demand for local-first execution continues due to cost/privacy pressure.
+- Evidence-pack expectations may raise UX complexity; needs <5 minute time-to-value.
 
 ## Implications for NEXUS
 - Position flagship around evidence-pack research or compliance-ready analysis with offline/mock mode.
 - Ship a companion MCP server to embed NEXUS into modern toolchains.
 - Add a lightweight evaluation harness to differentiate on quality and reproducibility.
 
-## Sources (accessed 2026-01-20)
-- https://modelcontextprotocol.io/
-- https://docs.anthropic.com/
-- https://github.com/openai/evals
-- https://github.com/EleutherAI/lm-evaluation-harness
-- https://ollama.com/
-- https://docs.langfuse.com/
+## Sources
+- https://modelcontextprotocol.io/ (accessed 2026-01-21)
+- https://docs.anthropic.com/ (accessed 2026-01-21)
+- https://github.com/openai/evals (accessed 2026-01-21)
+- https://github.com/EleutherAI/lm-evaluation-harness (accessed 2026-01-21)
+- https://ollama.com/ (accessed 2026-01-21)
+- https://docs.langfuse.com/ (accessed 2026-01-21)
