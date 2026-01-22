@@ -25,6 +25,7 @@ class ReportPaths:
     top_down: Path
     bottom_up: Path
     security: Path
+    module_catalog: Path
 
 
 def generate_reports(
@@ -40,18 +41,21 @@ def generate_reports(
     top_down_path = output_dir / "top_down.md"
     bottom_up_path = output_dir / "bottom_up.md"
     security_path = output_dir / "security_hotspots.md"
+    module_catalog_path = output_dir / "module_catalog.md"
 
     entrypoints = entrypoints or DEFAULT_ENTRYPOINTS
     _write_overview(overview_path, graph, chunks_count, vector_count)
     _write_top_down(top_down_path, graph, entrypoints)
     _write_bottom_up(bottom_up_path, graph)
     _write_security(security_path, graph)
+    _write_module_catalog(module_catalog_path, graph)
 
     return ReportPaths(
         overview=overview_path,
         top_down=top_down_path,
         bottom_up=bottom_up_path,
         security=security_path,
+        module_catalog=module_catalog_path,
     )
 
 
@@ -118,6 +122,8 @@ def _write_bottom_up(path: Path, graph: GraphStore) -> None:
     for node_id, node in graph.nodes.items():
         if node.node_type != "file":
             continue
+        if not _is_code_file(node):
+            continue
         outgoing = [edge for edge in adjacency.get(node_id, []) if edge.edge_type == "imports"]
         if not outgoing:
             leaf_nodes.append(node_id)
@@ -162,12 +168,42 @@ def _write_security(path: Path, graph: GraphStore) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _write_module_catalog(path: Path, graph: GraphStore) -> None:
+    catalog: Dict[str, Dict[str, List[str]]] = {}
+    for node in graph.nodes.values():
+        if not _is_code_symbol(node):
+            continue
+        entry = catalog.setdefault(node.path, {})
+        entry.setdefault(node.node_type, []).append(node.name)
+
+    lines = [
+        "# Module Catalog (Code-First)",
+        "",
+        f"Generated: {_utc_now()}",
+        "",
+    ]
+
+    for file_path in sorted(catalog.keys())[:200]:
+        lines.append(f"## {file_path}")
+        node_types = catalog[file_path]
+        for node_type in sorted(node_types.keys()):
+            names = sorted(set(node_types[node_type]))[:20]
+            lines.append(f"- {node_type}: {', '.join(names)}")
+        lines.append("")
+
+    if len(lines) == 4:
+        lines.append("- (no code symbols detected)")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _find_entry_nodes(graph: GraphStore, entrypoints: List[str]) -> List[Tuple[str, List[str]]]:
     results: List[Tuple[str, List[str]]] = []
     for entry in entrypoints:
         matched = []
         for node_id, node in graph.nodes.items():
             if node.node_type != "file":
+                continue
+            if not _is_code_file(node):
                 continue
             if node.path == entry or node.path.startswith(entry):
                 matched.append(node_id)
@@ -201,6 +237,20 @@ def _render_dependency_tree(
             continue
         lines.extend(_render_dependency_tree(edge.target, graph, adjacency, depth - 1, indent + 1, visited))
     return lines
+
+
+def _is_code_file(node: GraphNode) -> bool:
+    source_type = node.metadata.get("source_type", "")
+    if source_type in {"code", "test", "config"}:
+        return True
+    extension = node.metadata.get("extension", "")
+    return extension in {".py", ".ts", ".tsx", ".js", ".jsx"}
+
+
+def _is_code_symbol(node: GraphNode) -> bool:
+    if node.node_type in {"python_class", "python_function", "method", "class", "function"}:
+        return True
+    return False
 
 
 def _utc_now() -> str:

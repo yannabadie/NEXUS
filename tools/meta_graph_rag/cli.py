@@ -7,8 +7,10 @@ from dataclasses import replace
 
 from .config import load_config
 from .indexer import MetaGraphIndexer
+from .deep_research import run_deep_research
 from .reports import generate_reports
 from .research import fetch_sources
+from .http_client import HttpConfig
 
 
 def main() -> int:
@@ -31,6 +33,10 @@ def main() -> int:
     research_parser = subparsers.add_parser("research", help="Fetch web sources")
     research_parser.add_argument("--url", action="append", help="Specific URL to fetch")
 
+    deep_parser = subparsers.add_parser("deep-research", help="Run Gemini-assisted deep research")
+    deep_parser.add_argument("--query", action="append", help="Override research query (repeatable)")
+    deep_parser.add_argument("--limit", type=int, help="Override results per query")
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -41,8 +47,18 @@ def main() -> int:
         config = replace(config, embedding_backend=args.backend)
 
     if args.command == "research":
-        fetch_sources(config.sources_path, urls=args.url)
+        http_config = HttpConfig(ssl_mode=config.ssl_mode, ca_bundle_path=config.ca_bundle_path)
+        fetch_sources(config.sources_path, urls=args.url, http_config=http_config)
         print(f"Saved sources to {config.sources_path}")
+        return 0
+
+    if args.command == "deep-research":
+        if args.limit:
+            config = replace(config, research_limit=args.limit)
+        if args.query:
+            config = replace(config, research_queries=args.query)
+        paths = run_deep_research(config)
+        print(f"Deep research saved to {config.sources_path} ({len(paths)} files)")
         return 0
 
     indexer = MetaGraphIndexer(config)

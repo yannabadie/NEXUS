@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Protocol
+from typing import Dict, List, Optional, Protocol
 import json
 import math
 import re
 from pathlib import Path
 import urllib.request
 
+from .http_client import HttpConfig, urlopen
+
 
 class EmbeddingBackend(Protocol):
     """Protocol for embedding backends."""
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         ...
 
     def info(self) -> Dict[str, str]:
@@ -27,7 +29,7 @@ class HashEmbeddingBackend:
     def __init__(self, dim: int = 256) -> None:
         self.dim = dim
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         return [self._embed(text) for text in texts]
 
     def info(self) -> Dict[str, str]:
@@ -46,7 +48,7 @@ class HashEmbeddingBackend:
 class NoopEmbeddingBackend:
     """No-op backend for graph-only indexing (no embeddings)."""
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         return [[0.0] for _ in texts]
 
     def info(self) -> Dict[str, str]:
@@ -64,7 +66,7 @@ class SentenceTransformerBackend:
         self._model_name = model_name
         self._model = SentenceTransformer(model_name)
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         embeddings = self._model.encode(texts, convert_to_numpy=False)
         result: List[List[float]] = []
         for row in embeddings:
@@ -84,28 +86,35 @@ class GeminiEmbeddingBackend:
     def __init__(
         self,
         api_key: str,
-        model_name: str = "text-embedding-004",
+        model_name: str = "gemini-embedding-001",
         batch_size: int = 8,
+        output_dimensionality: Optional[int] = None,
+        default_task_type: Optional[str] = None,
+        http_config: Optional[HttpConfig] = None,
     ) -> None:
         if not api_key:
             raise ValueError("Gemini API key is required")
         self._api_key = api_key
         self._model_name = model_name
         self._batch_size = max(1, batch_size)
+        self._output_dimensionality = output_dimensionality
+        self._default_task_type = default_task_type
+        self._http_config = http_config or HttpConfig.from_env()
 
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
+        effective_task = task_type or self._default_task_type
         if len(texts) <= 1:
-            return [self._embed_single(texts[0])] if texts else []
+            return [self._embed_single(texts[0], effective_task)] if texts else []
         embeddings: List[List[float]] = []
         for start in range(0, len(texts), self._batch_size):
             batch = texts[start:start + self._batch_size]
-            embeddings.extend(self._embed_batch(batch))
+            embeddings.extend(self._embed_batch(batch, effective_task))
         return embeddings
 
     def info(self) -> Dict[str, str]:
         return {"backend": "gemini", "model": self._model_name}
 
-    def _embed_single(self, text: str) -> List[float]:
+    def _embed_single(self, text: str, task_type: Optional[str]) -> List[float]:
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self._model_name}:embedContent?key={self._api_key}"
@@ -117,6 +126,10 @@ class GeminiEmbeddingBackend:
                 ]
             }
         }
+        if task_type:
+            payload["taskType"] = task_type
+        if self._output_dimensionality:
+            payload["outputDimensionality"] = self._output_dimensionality
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             url,
@@ -124,14 +137,14 @@ class GeminiEmbeddingBackend:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=30, http_config=self._http_config) as response:
             result = json.loads(response.read().decode("utf-8"))
         embedding = result.get("embedding", {}).get("values")
         if not embedding:
             raise RuntimeError("Gemini embedding response missing values")
         return embedding
 
-    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def _embed_batch(self, texts: List[str], task_type: Optional[str]) -> List[List[float]]:
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self._model_name}:batchEmbedContents?key={self._api_key}"
@@ -147,6 +160,12 @@ class GeminiEmbeddingBackend:
                 for text in texts
             ]
         }
+        if task_type or self._output_dimensionality:
+            for request in payload["requests"]:
+                if task_type:
+                    request["taskType"] = task_type
+                if self._output_dimensionality:
+                    request["outputDimensionality"] = self._output_dimensionality
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             url,
@@ -155,7 +174,7 @@ class GeminiEmbeddingBackend:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urlopen(request, timeout=30, http_config=self._http_config) as response:
                 result = json.loads(response.read().decode("utf-8"))
             embeddings = result.get("embeddings")
             if not embeddings:
@@ -165,7 +184,7 @@ class GeminiEmbeddingBackend:
                 values.append(item.get("values", []))
             return values
         except Exception:
-            return [self._embed_single(text) for text in texts]
+            return [self._embed_single(text, task_type) for text in texts]
 
 
 @dataclass
@@ -178,13 +197,22 @@ class VectorRecord:
 class VectorIndex:
     """Simple JSON-backed vector index."""
 
-    def __init__(self, backend: EmbeddingBackend) -> None:
+    def __init__(
+        self,
+        backend: EmbeddingBackend,
+        document_task_type: Optional[str] = None,
+        query_task_type: Optional[str] = None,
+        source_weights: Optional[Dict[str, float]] = None,
+    ) -> None:
         self.backend = backend
         self.entries: Dict[str, VectorRecord] = {}
+        self.document_task_type = document_task_type
+        self.query_task_type = query_task_type
+        self.source_weights = source_weights or {}
 
     def add_texts(self, records: List[VectorRecord]) -> None:
         texts = [record.metadata.get("text", "") for record in records]
-        embeddings = self.backend.embed_texts(texts)
+        embeddings = self.backend.embed_texts(texts, task_type=self.document_task_type)
         for record, embedding in zip(records, embeddings):
             self.entries[record.chunk_id] = VectorRecord(
                 chunk_id=record.chunk_id,
@@ -197,11 +225,13 @@ class VectorIndex:
             self.entries.pop(chunk_id, None)
 
     def query(self, query_text: str, limit: int = 5) -> List[VectorRecord]:
-        query_embedding = self.backend.embed_texts([query_text])[0]
+        query_embedding = self.backend.embed_texts([query_text], task_type=self.query_task_type)[0]
         scored: List[tuple[float, VectorRecord]] = []
         for record in self.entries.values():
             score = _cosine_similarity(query_embedding, record.embedding)
-            scored.append((score, record))
+            source_type = record.metadata.get("source_type", "")
+            weight = self.source_weights.get(source_type, 1.0)
+            scored.append((score * weight, record))
         scored.sort(key=lambda item: item[0], reverse=True)
         return [record for _, record in scored[:limit]]
 
@@ -209,6 +239,9 @@ class VectorIndex:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "backend": self.backend.info(),
+            "document_task_type": self.document_task_type,
+            "query_task_type": self.query_task_type,
+            "source_weights": self.source_weights,
             "entries": [
                 {
                     "chunk_id": record.chunk_id,
@@ -221,8 +254,20 @@ class VectorIndex:
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
 
     @classmethod
-    def load(cls, path: Path, backend: EmbeddingBackend) -> "VectorIndex":
-        index = cls(backend)
+    def load(
+        cls,
+        path: Path,
+        backend: EmbeddingBackend,
+        document_task_type: Optional[str] = None,
+        query_task_type: Optional[str] = None,
+        source_weights: Optional[Dict[str, float]] = None,
+    ) -> "VectorIndex":
+        index = cls(
+            backend,
+            document_task_type=document_task_type,
+            query_task_type=query_task_type,
+            source_weights=source_weights,
+        )
         if not path.exists():
             return index
         payload = json.loads(path.read_text(encoding="utf-8"))

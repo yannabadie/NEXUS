@@ -68,3 +68,4 @@ def test_meta_graph_rag_reports(tmp_path, monkeypatch):
     assert paths.top_down.exists()
     assert paths.bottom_up.exists()
     assert paths.security.exists()
+    assert paths.module_catalog.exists()

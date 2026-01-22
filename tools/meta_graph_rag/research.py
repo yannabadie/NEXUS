@@ -12,8 +12,29 @@ import json
 import re
 import urllib.request
 
+from .http_client import HttpConfig, urlopen
 
 DEFAULT_SOURCES = [
+    {
+        "url": "https://arxiv.org/abs/2601.11144",
+        "title": "Deep GraphRAG (ArXiv)",
+        "tags": ["graphrag", "paper"],
+    },
+    {
+        "url": "https://arxiv.org/abs/2501.14050",
+        "title": "GraphRAG under Fire (ArXiv)",
+        "tags": ["graphrag", "security", "paper"],
+    },
+    {
+        "url": "https://arxiv.org/abs/2506.05690",
+        "title": "When to use Graphs in RAG (ArXiv)",
+        "tags": ["graphrag", "benchmark", "paper"],
+    },
+    {
+        "url": "https://arxiv.org/abs/2509.22009",
+        "title": "GraphSearch (ArXiv)",
+        "tags": ["graphrag", "agentic", "paper"],
+    },
     {
         "url": "https://github.com/microsoft/graphrag",
         "title": "Microsoft GraphRAG (GitHub)",
@@ -70,13 +91,15 @@ class _TextExtractor(HTMLParser):
 def fetch_sources(
     sources_path: Path,
     urls: Optional[List[str]] = None,
+    http_config: Optional[HttpConfig] = None,
 ) -> List[SourceRecord]:
     sources_path.mkdir(parents=True, exist_ok=True)
     records: List[SourceRecord] = []
     targets = urls or [source["url"] for source in DEFAULT_SOURCES]
+    http_config = http_config or HttpConfig.from_env()
 
     for url in targets:
-        payload = _fetch_url(url)
+        payload = _fetch_url(url, http_config)
         text = _sanitize_text(payload)
         content_hash = _hash_text(text)
         slug = _slugify(url)
@@ -99,12 +122,12 @@ def fetch_sources(
     return records
 
 
-def _fetch_url(url: str) -> str:
+def _fetch_url(url: str, http_config: HttpConfig) -> str:
     request = urllib.request.Request(
         url,
         headers={"User-Agent": "NEXUS-MetaGraphRAG/1.0"},
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urlopen(request, timeout=30, http_config=http_config) as response:
         content_type = response.headers.get("Content-Type", "")
         raw = response.read().decode("utf-8", errors="ignore")
     if "text/html" in content_type:

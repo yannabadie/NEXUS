@@ -10,6 +10,7 @@ import ast
 import hashlib
 import json
 import os
+import re
 
 from .config import MetaGraphRagConfig
 from .embeddings import (
@@ -22,6 +23,8 @@ from .embeddings import (
     VectorRecord,
 )
 from .graph import GraphEdge, GraphNode, GraphStore
+from .graph_db import GraphDatabase
+from .http_client import HttpConfig
 
 
 SECURITY_PATTERNS = {
@@ -126,21 +129,42 @@ class MetaGraphIndexer:
 
     def __init__(self, config: MetaGraphRagConfig) -> None:
         self.config = config
+        self.graph_db = GraphDatabase(config.graph_db_path, backend=config.graph_backend)
         self.graph = GraphStore.load(config.graph_path)
+        db_status = self.graph_db.status()
+        if not self.graph.nodes and db_status["nodes"]:
+            self.graph = self.graph_db.load_graph()
+            self.graph.save(config.graph_path)
+        elif self.graph.nodes and not db_status["nodes"]:
+            self.graph_db.upsert_nodes(self.graph.nodes.values())
+            self.graph_db.upsert_edges(self.graph.edges)
         self.chunks = ChunkStore.load(config.chunks_path)
         self.manifest = IndexManifest.load(config.manifest_path)
         self.embedding_backend = self._select_backend()
-        self.vector_index = VectorIndex.load(config.vector_path, self.embedding_backend)
+        self.vector_index = VectorIndex.load(
+            config.vector_path,
+            self.embedding_backend,
+            document_task_type=config.gemini_task_type_document,
+            query_task_type=config.gemini_task_type_query,
+            source_weights=config.source_weights,
+        )
 
     def _select_backend(self) -> EmbeddingBackend:
         backend = self.config.embedding_backend
         if backend == "gemini":
             if not self.config.gemini_api_key:
                 raise RuntimeError("META_RAG_EMBEDDINGS=gemini requires GEMINI_API_KEY or GOOGLE_API_KEY")
+            http_config = HttpConfig(
+                ssl_mode=self.config.ssl_mode,
+                ca_bundle_path=self.config.ca_bundle_path,
+            )
             return GeminiEmbeddingBackend(
                 api_key=self.config.gemini_api_key,
                 model_name=self.config.gemini_embedding_model,
                 batch_size=self.config.gemini_batch_size,
+                output_dimensionality=self.config.gemini_embedding_dim,
+                default_task_type=self.config.gemini_task_type_document,
+                http_config=http_config,
             )
         if backend == "sentence" or backend == "sentence-transformers":
             return SentenceTransformerBackend(self.config.embedding_model)
@@ -153,15 +177,24 @@ class MetaGraphIndexer:
             return SentenceTransformerBackend(self.config.embedding_model)
         except Exception:
             if self.config.gemini_api_key:
+                http_config = HttpConfig(
+                    ssl_mode=self.config.ssl_mode,
+                    ca_bundle_path=self.config.ca_bundle_path,
+                )
                 return GeminiEmbeddingBackend(
                     api_key=self.config.gemini_api_key,
                     model_name=self.config.gemini_embedding_model,
                     batch_size=self.config.gemini_batch_size,
+                    output_dimensionality=self.config.gemini_embedding_dim,
+                    default_task_type=self.config.gemini_task_type_document,
+                    http_config=http_config,
                 )
             return HashEmbeddingBackend()
 
     def index(self, full: bool = False) -> None:
         """Index codebase and external sources into graph + vector store."""
+        if full:
+            self.graph_db.reset()
         files = list(self._scan_files())
         known_files = set(self.manifest.files.keys())
         current_files = set(str(path) for path in files)
@@ -173,6 +206,7 @@ class MetaGraphIndexer:
                 continue
             self._remove_entry(entry)
 
+        indexed_files = 0
         for path in files:
             entry_key = str(path)
             content_hash = _hash_file(path)
@@ -190,12 +224,17 @@ class MetaGraphIndexer:
                 self.graph.add_edge(edge)
             for chunk in chunks:
                 self.chunks.add(chunk)
+            self.graph_db.upsert_nodes(nodes)
+            self.graph_db.upsert_edges(edges)
             self._add_vectors(chunks)
             self.manifest.files[entry_key] = {
                 "hash": content_hash,
                 "nodes": node_ids,
                 "chunks": chunk_ids,
             }
+            indexed_files += 1
+            if self.config.persist_every_files > 0 and indexed_files % self.config.persist_every_files == 0:
+                self._persist()
 
         self._index_external_sources(full=full)
         self._persist()
@@ -211,12 +250,14 @@ class MetaGraphIndexer:
         )
 
     def status(self) -> Dict[str, object]:
+        db_status = self.graph_db.status()
         return {
             "nodes": len(self.graph.nodes),
             "edges": len(self.graph.edges),
             "chunks": len(self.chunks.chunks),
             "vector_entries": len(self.vector_index.entries),
             "embedding_backend": self.embedding_backend.info(),
+            "graph_db": db_status,
         }
 
     def _persist(self) -> None:
@@ -252,6 +293,8 @@ class MetaGraphIndexer:
 
     def _index_file(self, path: Path, content_hash: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
         relative_path = _relative_path(path, self.config.root_path)
+        source_type = _source_type_for_path(relative_path, path.suffix.lower())
+        language = _language_for_extension(path.suffix.lower())
         file_node_id = f"file:{relative_path}"
         file_node = GraphNode(
             node_id=file_node_id,
@@ -263,6 +306,8 @@ class MetaGraphIndexer:
             content_hash=content_hash,
             metadata={
                 "extension": path.suffix.lower(),
+                "source_type": source_type,
+                "language": language,
             },
         )
         nodes = [file_node]
@@ -271,12 +316,12 @@ class MetaGraphIndexer:
 
         content = path.read_text(encoding="utf-8", errors="ignore")
         if path.suffix.lower() == ".py":
-            py_nodes, py_edges, py_chunks = _chunk_python(content, relative_path, file_node_id)
+            py_nodes, py_edges, py_chunks = _chunk_python(content, relative_path, file_node_id, source_type)
             nodes.extend(py_nodes)
             edges.extend(py_edges)
             chunks.extend(py_chunks)
         elif path.suffix.lower() == ".md":
-            md_nodes, md_edges, md_chunks = _chunk_markdown(content, relative_path, file_node_id)
+            md_nodes, md_edges, md_chunks = _chunk_markdown(content, relative_path, file_node_id, source_type)
             nodes.extend(md_nodes)
             edges.extend(md_edges)
             chunks.extend(md_chunks)
@@ -285,6 +330,7 @@ class MetaGraphIndexer:
                 content,
                 relative_path,
                 file_node_id,
+                source_type,
                 self.config.chunk_lines,
                 self.config.chunk_overlap,
             )
@@ -299,6 +345,7 @@ class MetaGraphIndexer:
     def _add_vectors(self, chunks: List[Chunk]) -> None:
         records: List[VectorRecord] = []
         for chunk in chunks:
+            source_type = chunk.metadata.get("source_type", "")
             records.append(VectorRecord(
                 chunk_id=chunk.chunk_id,
                 embedding=[],
@@ -307,6 +354,7 @@ class MetaGraphIndexer:
                     "path": chunk.path,
                     "node_id": chunk.node_id,
                     "kind": chunk.kind,
+                    "source_type": source_type,
                 },
             ))
         if records:
@@ -317,6 +365,7 @@ class MetaGraphIndexer:
         chunk_ids = entry.get("chunks", [])
         if node_ids:
             self.graph.remove_nodes(node_ids)
+            self.graph_db.remove_nodes(node_ids)
         if chunk_ids:
             self.chunks.remove(chunk_ids)
             self.vector_index.remove(chunk_ids)
@@ -363,6 +412,8 @@ class MetaGraphIndexer:
                 self.graph.add_edge(edge)
             for chunk in chunks:
                 self.chunks.add(chunk)
+            self.graph_db.upsert_nodes(nodes)
+            self.graph_db.upsert_edges(edges)
             self._add_vectors(chunks)
             self.manifest.sources[source_id] = {
                 "hash": content_hash,
@@ -406,7 +457,68 @@ def _scan_security_tags(text: str) -> List[str]:
     return tags
 
 
-def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
+def _source_type_for_path(relative_path: str, suffix: str) -> str:
+    lowered = relative_path.lower()
+    if lowered.startswith("tests/") or "/tests/" in lowered:
+        return "test"
+    if lowered.startswith("docs/") or "/docs/" in lowered:
+        return "doc"
+    if lowered.startswith("prompts/") or "/prompts/" in lowered:
+        return "prompt"
+    if lowered.startswith("audit/") or "/audit/" in lowered:
+        return "audit"
+    if lowered.startswith("products/") or "/products/" in lowered:
+        return "product"
+    if suffix in {".py", ".ts", ".tsx", ".js", ".jsx"}:
+        return "code"
+    if suffix in {".md", ".txt"}:
+        return "doc"
+    if suffix in {".json", ".jsonl", ".yaml", ".yml", ".toml", ".ini"}:
+        return "config"
+    return "data"
+
+
+def _language_for_extension(suffix: str) -> str:
+    mapping = {
+        ".py": "python",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".md": "markdown",
+        ".ps1": "powershell",
+        ".sh": "shell",
+        ".bat": "batch",
+        ".json": "json",
+        ".jsonl": "jsonl",
+        ".yaml": "yaml",
+        ".yml": "yaml",
+        ".toml": "toml",
+        ".ini": "ini",
+    }
+    return mapping.get(suffix, "text")
+
+
+_JS_IMPORT_RE = re.compile(r"^\s*import\s+(?:.+?\s+from\s+)?[\"']([^\"']+)[\"']", re.MULTILINE)
+_JS_REQUIRE_RE = re.compile(r"\brequire\(\s*[\"']([^\"']+)[\"']\s*\)")
+
+
+def _extract_js_imports(text: str) -> List[str]:
+    modules = set(_JS_IMPORT_RE.findall(text))
+    modules.update(_JS_REQUIRE_RE.findall(text))
+    return sorted(modules)
+
+
+def _is_relative_import(module: str) -> bool:
+    return module.startswith(".") or module.startswith("/")
+
+
+def _chunk_python(
+    content: str,
+    relative_path: str,
+    file_node_id: str,
+    source_type: str,
+) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
     nodes: List[GraphNode] = []
     edges: List[GraphEdge] = []
     chunks: List[Chunk] = []
@@ -443,6 +555,7 @@ def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[
                 metadata={
                     "file": relative_path,
                     "security_tags": ",".join(tags),
+                    "source_type": source_type,
                 },
             )
             nodes.append(graph_node)
@@ -459,6 +572,7 @@ def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[
                 content_hash=_hash_text(node_text),
                 metadata={
                     "security_tags": ",".join(tags),
+                    "source_type": source_type,
                 },
             ))
 
@@ -467,7 +581,7 @@ def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[
         if isinstance(node, ast.Import):
             for alias in node.names:
                 module = alias.name
-                module_id = f"module:{module}"
+                module_id = f"module:{relative_path}:{module}"
                 nodes.append(GraphNode(
                     node_id=module_id,
                     node_type="module",
@@ -476,14 +590,18 @@ def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[
                     start_line=0,
                     end_line=0,
                     content_hash="",
-                    metadata={"origin": "import"},
+                    metadata={
+                        "origin": "import",
+                        "source_type": source_type,
+                        "module_name": module,
+                    },
                 ))
                 edges.append(GraphEdge(source=file_node_id, target=module_id, edge_type="imports"))
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
             if not module:
                 continue
-            module_id = f"module:{module}"
+            module_id = f"module:{relative_path}:{module}"
             nodes.append(GraphNode(
                 node_id=module_id,
                 node_type="module",
@@ -492,7 +610,11 @@ def _chunk_python(content: str, relative_path: str, file_node_id: str) -> Tuple[
                 start_line=0,
                 end_line=0,
                 content_hash="",
-                metadata={"origin": "import"},
+                metadata={
+                    "origin": "import",
+                    "source_type": source_type,
+                    "module_name": module,
+                },
             ))
             edges.append(GraphEdge(source=file_node_id, target=module_id, edge_type="imports"))
 
@@ -524,7 +646,12 @@ def _call_name(call: ast.Call) -> Optional[str]:
     return None
 
 
-def _chunk_markdown(content: str, relative_path: str, file_node_id: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
+def _chunk_markdown(
+    content: str,
+    relative_path: str,
+    file_node_id: str,
+    source_type: str,
+) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
     nodes: List[GraphNode] = []
     edges: List[GraphEdge] = []
     chunks: List[Chunk] = []
@@ -544,6 +671,7 @@ def _chunk_markdown(content: str, relative_path: str, file_node_id: str) -> Tupl
                     section_start,
                     idx - 1,
                     lines,
+                    source_type,
                     nodes,
                     edges,
                     chunks,
@@ -558,6 +686,7 @@ def _chunk_markdown(content: str, relative_path: str, file_node_id: str) -> Tupl
         section_start,
         len(lines),
         lines,
+        source_type,
         nodes,
         edges,
         chunks,
@@ -573,6 +702,7 @@ def _emit_md_section(
     start: int,
     end: int,
     lines: List[str],
+    source_type: str,
     nodes: List[GraphNode],
     edges: List[GraphEdge],
     chunks: List[Chunk],
@@ -593,6 +723,7 @@ def _emit_md_section(
         metadata={
             "file": relative_path,
             "security_tags": ",".join(tags),
+            "source_type": source_type,
         },
     ))
     edges.append(GraphEdge(source=file_node_id, target=node_id, edge_type="contains"))
@@ -607,6 +738,7 @@ def _emit_md_section(
         content_hash=_hash_text(section_text),
         metadata={
             "security_tags": ",".join(tags),
+            "source_type": source_type,
         },
     ))
     return nodes, edges, chunks
@@ -616,6 +748,7 @@ def _chunk_generic(
     content: str,
     relative_path: str,
     file_node_id: str,
+    source_type: str,
     chunk_lines: int,
     chunk_overlap: int,
 ) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
@@ -625,6 +758,26 @@ def _chunk_generic(
 
     sanitized = _sanitize_text(content)
     lines = sanitized.splitlines()
+    ext = Path(relative_path).suffix.lower()
+    if ext in {".js", ".jsx", ".ts", ".tsx"}:
+        for module in _extract_js_imports(sanitized):
+            module_type = "external" if not _is_relative_import(module) else "code"
+            module_id = f"module:{relative_path}:{module}"
+            nodes.append(GraphNode(
+                node_id=module_id,
+                node_type="module",
+                name=module,
+                path=module,
+                start_line=0,
+                end_line=0,
+                content_hash="",
+                metadata={
+                    "origin": "import",
+                    "source_type": module_type,
+                    "module_name": module,
+                },
+            ))
+            edges.append(GraphEdge(source=file_node_id, target=module_id, edge_type="imports"))
     total = len(lines)
     start = 1
     chunk_index = 1
@@ -645,6 +798,7 @@ def _chunk_generic(
                 metadata={
                     "file": relative_path,
                     "security_tags": ",".join(tags),
+                    "source_type": source_type,
                 },
             ))
             edges.append(GraphEdge(source=file_node_id, target=node_id, edge_type="contains"))
@@ -659,6 +813,7 @@ def _chunk_generic(
                 content_hash=_hash_text(chunk_text),
                 metadata={
                     "security_tags": ",".join(tags),
+                    "source_type": source_type,
                 },
             ))
         chunk_index += 1
@@ -690,6 +845,7 @@ def _chunk_external_source(content: str, source: Dict[str, object]) -> Tuple[Lis
         metadata={
             "source_id": str(source.get("id")),
             "security_tags": ",".join(tags),
+            "source_type": "external",
         },
     ))
     chunks.append(Chunk(
@@ -703,6 +859,7 @@ def _chunk_external_source(content: str, source: Dict[str, object]) -> Tuple[Lis
         content_hash=_hash_text(sanitized),
         metadata={
             "security_tags": ",".join(tags),
+            "source_type": "external",
         },
     ))
     return nodes, edges, chunks
