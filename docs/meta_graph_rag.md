@@ -41,6 +41,13 @@ Meta GraphRAG is exposed via the NEXUS MCP server:
 - `nexus_meta_graphrag_reports`
 - `nexus_meta_graphrag_reload`
 
+## HTTP Access
+Meta GraphRAG is also available via the CEREBRO HTTP API:
+- `GET /api/meta-graphrag/status`
+- `POST /api/meta-graphrag/query`
+- `POST /api/meta-graphrag/reports`
+- `POST /api/meta-graphrag/briefing`
+
 ## Embeddings
 - Default: Gemini embeddings (`gemini-embedding-001`) when `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set
 - Task-aware embedding for retrieval (document vs query)

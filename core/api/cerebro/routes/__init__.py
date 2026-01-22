@@ -13,8 +13,9 @@ Routes:
 - files: Secure file access (/api/files/content)
 - auth: Authentication (V11.6) (/api/auth/login, /api/auth/me)
 - memory: RAG memory management (V13.0) (/api/memory/*)
+- meta_graphrag: Meta GraphRAG access (/api/meta-graphrag/*)
 """
 
-from . import health, stream, state, interactions, workflow, files, auth, memory
+from . import health, stream, state, interactions, workflow, files, auth, memory, meta_graphrag
 
-__all__ = ["health", "stream", "state", "interactions", "workflow", "files", "auth", "memory"]
+__all__ = ["health", "stream", "state", "interactions", "workflow", "files", "auth", "memory", "meta_graphrag"]

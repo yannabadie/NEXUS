@@ -33,6 +33,13 @@ Meta GraphRAG is available via the NEXUS MCP server:
 - `nexus_meta_graphrag_reports`
 - `nexus_meta_graphrag_reload`
 
+## HTTP Access
+Meta GraphRAG is also exposed via the CEREBRO HTTP API:
+- `GET /api/meta-graphrag/status`
+- `POST /api/meta-graphrag/query`
+- `POST /api/meta-graphrag/reports`
+- `POST /api/meta-graphrag/briefing`
+
 ## Embedding Backends
 - `gemini` (default): Gemini embeddings via API key
 - `auto`: sentence-transformers -> gemini -> hash

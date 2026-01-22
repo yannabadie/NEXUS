@@ -146,6 +146,10 @@ def create_cerebro_app() -> FastAPI:
     from .routes import memory
     app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 
+    # V13.x META GRAPHRAG routers
+    from .routes import meta_graphrag
+    app.include_router(meta_graphrag.router, prefix="/api/meta-graphrag", tags=["meta_graphrag"])
+
     # Root endpoint
     @app.get("/", tags=["root"])
     async def root():
@@ -171,6 +175,11 @@ def create_cerebro_app() -> FastAPI:
             "memory": "/api/memory/stats",
             "memory_namespaces": "/api/memory/namespaces",
             "memory_ingest": "/api/memory/ingest",
+            # V13.x META GRAPHRAG endpoints
+            "meta_graphrag_status": "/api/meta-graphrag/status",
+            "meta_graphrag_query": "/api/meta-graphrag/query",
+            "meta_graphrag_reports": "/api/meta-graphrag/reports",
+            "meta_graphrag_briefing": "/api/meta-graphrag/briefing",
         }
 
     return app

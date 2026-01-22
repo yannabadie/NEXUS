@@ -1,7 +1,7 @@
 # Cerebro Routes
 
 ## Synopsis
-FastAPI route modules for CEREBRO API. Organized by domain: health, streaming, state, interactions, workflow, files, auth, users, and memory.
+FastAPI route modules for CEREBRO API. Organized by domain: health, streaming, state, interactions, workflow, files, auth, users, memory, and meta GraphRAG.
 
 ## Component Map
 | File | Endpoints | Purpose |
@@ -15,6 +15,7 @@ FastAPI route modules for CEREBRO API. Organized by domain: health, streaming, s
 | `auth.py` | `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`, `POST /api/auth/logout` | JWT auth (V11.6) |
 | `users.py` | `GET /api/users`, `POST /api/users/invite`, `DELETE /api/users/{id}`, `PUT /api/users/{id}/role` | User management (V12.2) |
 | `memory.py` | `GET /api/memory/stats`, `GET /api/memory/namespaces`, `POST /api/memory/ingest` | Memory API (V13.0) |
+| `meta_graphrag.py` | `GET /api/meta-graphrag/status`, `POST /api/meta-graphrag/query`, `POST /api/meta-graphrag/reports`, `POST /api/meta-graphrag/briefing` | Meta GraphRAG API (V13.x) |
 
 ## Common Patterns
 
@@ -78,3 +79,4 @@ await AuditLogger.log_file(
 - V11.6 KEYMAKER: Auth (JWT)
 - V12.2 IRONCLAD: Users (RBAC)
 - V13.0 MEMORIA: Memory (RAG)
+- V13.x META GRAPHRAG: Meta GraphRAG queries + briefing reports
