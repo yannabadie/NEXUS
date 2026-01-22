@@ -8,6 +8,10 @@ Build a code-first GraphRAG system so any AI can understand NEXUS without readin
 - GraphRAG under Fire (arXiv:2501.14050v4) for poisoning and relation attacks
 - When to use Graphs in RAG (arXiv:2506.05690v2) + GraphRAG-Bench guidance
 - GraphSearch (arXiv:2509.22009v2) for agentic deep search patterns
+- SCIP Code Intelligence Protocol (sourcegraph/scip README)
+- LSIF specification (language-server-protocol index format)
+- Tree-sitter (incremental parsing library)
+- CodeQL documentation (query code as data)
 
 ## Non-Negotiables
 - Graph DB persistence (no JSON-only)
@@ -28,11 +32,30 @@ Output:
 - JSON graph snapshot for portability
 - Sync between manifest, graph DB, and vector index
 
+## Phase 1.5 - Semantic Code Graph (Beyond Simple AST)
+Output:
+- Cross-file symbol references via SCIP/LSIF indexes where available
+- Multi-language parsing via Tree-sitter for TS/JS/MD/Configs
+- Optional CodeQL/semgrep-based dataflow hints for security edges
+- Replace regex imports with compiler/LSP-backed resolution
+
 ## Phase 2 - High-Quality Embeddings
 Output:
 - Gemini embeddings (gemini-embedding-001) with 3072 dims
 - TaskType per embed (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY)
 - Source-type weighting (code > tests > config > docs)
+
+## Phase 2.5 - Standardized Access (MCP/HTTP)
+Output:
+- MCP or HTTP API for GraphRAG queries (top-k + graph expansion)
+- Stateless query endpoint for any external agent
+- No re-embedding required (read-only over graph DB + vector index)
+
+## Phase 2.6 - Agent Briefing Reports
+Output:
+- Generate top-down, bottom-up, module catalog reports
+- Expose reports for agent onboarding (briefing pack)
+- Refresh reports after each index update
 
 ## Phase 3 - Deep GraphRAG Retrieval
 Output:
