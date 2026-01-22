@@ -870,9 +870,11 @@ def _chunk_generic(
                 },
             ))
         chunk_index += 1
-        start = end - chunk_overlap + 1
-        if start <= 0:
+        next_start = end - chunk_overlap + 1
+        if next_start <= start:
             start = end + 1
+        else:
+            start = next_start
 
     return nodes, edges, chunks
 
