@@ -20,6 +20,13 @@ Build a code-first GraphRAG system so any AI can understand NEXUS without readin
 - Security-first: detect injection and graph poisoning vectors
 - Code-first weighting; docs are secondary
 
+## Limit Mitigations (Planned Additions)
+- Hybrid retrieval (BM25 + vector + graph) with path-aware boosts and reranking
+- AST/LSP-aware chunking (tree-sitter + SCIP/LSIF) to preserve structure
+- Vector store scaling: move from JSON to ANN-backed DB (SQLite+VSS/HNSW/FAISS)
+- Coverage audit report for excluded/oversized/binary files + reindex triggers
+- Incremental watch mode (git diff or file watcher) to keep manifest current
+
 ## Phase 0 - Baseline Inventory (Code-First)
 Output:
 - File inventory from core, interface, tools, tests
