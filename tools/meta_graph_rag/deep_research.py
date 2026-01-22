@@ -156,7 +156,10 @@ def _static_sources(http_config: HttpConfig) -> List[ResearchSource]:
         url = source["url"]
         title = source.get("title", url)
         tags = source.get("tags", [])
-        content = _fetch_text(url, http_config)
+        try:
+            content = _fetch_text(url, http_config)
+        except Exception as exc:
+            content = f"URL: {url}\nFetchError: {exc}"
         source_id = _slugify(title)
         items.append(ResearchSource(
             source_id=source_id,
@@ -176,7 +179,10 @@ def _search_arxiv(query: str, limit: int, http_config: HttpConfig) -> List[Resea
         "https://export.arxiv.org/api/query?"
         f"search_query=all:{safe_query}&start=0&max_results={limit}"
     )
-    raw = _fetch_text(url, http_config)
+    try:
+        raw = _fetch_text(url, http_config)
+    except Exception:
+        return []
     entries = []
     try:
         root = ET.fromstring(raw)
