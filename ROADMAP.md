@@ -30,6 +30,81 @@
 | **HybridBackend** | COMPLETE | RRF fusion (Dense + BM25S) for +15% RAG recall |
 | **MemoryCoordinator** | COMPLETE | Adaptive domain weights with EMA learning |
 | **OutputGuard DialogueAct** | COMPLETE | Classification to reduce false positives |
+| **NCM Phase 0** | COMPLETE | Meta-bootstrapping framework (8 components, 99 tests) |
+| **/ncm Command** | COMPLETE | REPL integration for pilot execution |
+
+---
+
+## NCM - NEXUS Code Modernization
+
+**Objective**: Meta-bootstrapping - Use NEXUS to complete NEXUS (10,602 audit issues → 95%+ automated resolution)
+
+**Status**: Phase 0 Complete | Phase 1 Ready
+
+### Phase 0: Pre-NCM Preparation ✅ COMPLETE (2026-01-22)
+
+**Goal**: Build NCM core + validate with stress tests
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **NCMOrchestrator** | COMPLETE | Story queue coordinator, uses OrchestratorV7.process_turn() |
+| **StoryShardEngine** | COMPLETE | Audit report parser with RAG validation gate |
+| **CrewManager** | COMPLETE | Agent assignment with skill matrix (blind spot #8) |
+| **LockManager** | COMPLETE | File locking layer (blind spot #2) |
+| **PromptRefreshSystem** | COMPLETE | Refresh every 500 tool calls (blind spot #3) |
+| **TokenBudgetMonitor** | COMPLETE | Token tracking with alerts (blind spot #5) |
+| **StateSnapshotSystem** | COMPLETE | Blackboard snapshots every 100 stories (blind spot #6) |
+| **Models (Pydantic)** | COMPLETE | Story, NCMConfig, StoryPriority, IssueDomain |
+| **Stress Test** | COMPLETE | 1000 stories, 94.90% success, 0 deadlocks |
+| **/ncm REPL Command** | COMPLETE | status, pilot, stories, execute subcommands |
+| **Test Suite** | COMPLETE | 99 tests, 100% pass rate |
+
+**Deliverables**:
+- ✅ 8 core components (core/ncm/)
+- ✅ 8 blind spot mitigations
+- ✅ Stress test: 1000 stories, 94.90% success, 75.66 stories/sec
+- ✅ 99 tests passing
+- ✅ [NCM User Guide](docs/NCM_USER_GUIDE.md)
+- ✅ [Phase 0 Completion Report](docs/NCM_PHASE0_COMPLETION_REPORT.md)
+
+### Phase 1: Pilot 🔄 READY TO START
+
+**Goal**: Validate NCM with 5-10 real P2 stories
+
+| Task | Status | Description |
+|------|--------|-------------|
+| **Pilot Stories** | READY | 10 documentation stories (low-risk) |
+| **Execution** | PENDING | /ncm pilot --count=10 |
+| **Validation** | PENDING | ≥80% success rate, no test failures |
+| **Report** | PENDING | docs/NCM_PILOT_REPORT.md |
+
+**Success Criteria**:
+- ≥80% completion rate (8/10 stories)
+- No syntax errors introduced
+- Test suite still passes
+- Avg duration < 3 min/story
+
+**How to Execute**:
+```bash
+python nexus7.py
+nexus7> /ncm pilot --count=10
+```
+
+### Phase 2-3: Scale-Up 📋 PLANNED
+
+**Goal**: Execute 10,602 audit issues → 95%+ automated resolution
+
+**Timeline**: 6-10 weeks
+
+**Incremental Scaling**:
+- Phase 2A (Week 1-2): 500 P2 stories (dead imports, type hints)
+- Phase 2B (Week 3-4): 1000 P1 stories (type errors, deprecations)
+- Phase 3A (Week 5-7): 2000 P1 stories (god classes, complex refactoring)
+- Phase 3B (Week 8-10): Remaining P0+P1 (security, evolution)
+
+**Target**: 95%+ completion (10,100+ issues resolved autonomously)
+
+---
 
 ### V12.3 - SCALE-OUT (2025-12-15)
 

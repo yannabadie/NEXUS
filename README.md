@@ -195,6 +195,7 @@ Agents:
 | `/spawn <name> <mission>` | Create specialized agent |
 | `/evolve` | Trigger evolution cycle |
 | `/specialize <mission>` | Create project spinoff |
+| `/ncm <subcommand>` | NCM code modernization (status, pilot, stories, execute) |
 | `/learn <path>` | Add to RAG memory |
 | `/forget <path>` | Remove from RAG memory |
 | `/rag <query>` | Direct RAG search |
