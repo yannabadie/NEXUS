@@ -216,7 +216,7 @@ class NCMCommand(Command):
         console.print(f"  Current Phase:     {ncm.current_phase}")
         console.print(f"  Tokens Used:       {ncm.tokens_used:,} / {ncm.token_limit:,}")
         console.print(f"  Token %:           {ncm.tokens_used / ncm.token_limit * 100:.1f}%")
-        console.print()
+        console.print("")
 
         return CommandResult(
             status=CommandStatus.SUCCESS,
@@ -232,7 +232,7 @@ class NCMCommand(Command):
         await ncm_service.orchestrator.load_story_queue(stories)
 
         console.print(f"[green]✓[/green] Loaded {len(stories)} stories")
-        console.print()
+        console.print("")
 
         # Execute stories
         console.print("[bold]Executing stories...[/bold]\n")
@@ -255,7 +255,7 @@ class NCMCommand(Command):
                 story.status = StoryStatus.FAILED
                 story.error_message = str(e)
 
-            console.print()
+            console.print("")
 
         # Summary
         completed = sum(1 for s in stories if s.status == StoryStatus.SUCCESS)
@@ -264,7 +264,7 @@ class NCMCommand(Command):
         console.print("[bold]Pilot Results:[/bold]")
         console.print(f"  Completed: {completed}/{count} ({completed/count*100:.1f}%)")
         console.print(f"  Failed:    {failed}/{count}")
-        console.print()
+        console.print("")
 
         if completed / count >= 0.80:
             console.print("[green]✓ Pilot PASSED (≥80% success)[/green]\n")
@@ -284,7 +284,7 @@ class NCMCommand(Command):
             console.print(f"  {story.story_id}: {story.description}")
             console.print(f"    Priority: {story.priority.value} | Domain: {', '.join(d.value for d in story.domains)}")
             console.print(f"    Target: {', '.join(str(f) for f in story.target_files)}")
-            console.print()
+            console.print("")
 
         return CommandResult(
             status=CommandStatus.SUCCESS,
