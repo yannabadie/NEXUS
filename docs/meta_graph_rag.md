@@ -42,7 +42,7 @@ python -m tools.meta_graph_rag.cli query "memory coordinator"
 
 ## Tuning
 You can scope or reduce indexing load with environment variables:
-- `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root)
+- `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
 - `META_RAG_EXCLUDE` = comma-separated exclude dir names
 - `META_RAG_EXTENSIONS` = comma-separated file extensions
 - `META_RAG_MAX_FILE_KB` = max file size per file

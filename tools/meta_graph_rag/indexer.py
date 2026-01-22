@@ -274,12 +274,22 @@ class MetaGraphIndexer:
         extensions = set(ext.lower() for ext in self.config.extensions)
         include_dirs = [self.config.root_path / name for name in self.config.include_dirs]
         exclude = set(self.config.exclude_dirs)
+        seen: set[str] = set()
+
+        def _record(path: Path) -> bool:
+            key = str(path.resolve())
+            if key in seen:
+                return False
+            seen.add(key)
+            return True
 
         # Include root files
-        for file_path in self.config.root_path.iterdir():
-            if file_path.is_file() and file_path.suffix.lower() in extensions:
-                if file_path.stat().st_size <= max_bytes:
-                    yield file_path
+        include_root = any(base.resolve() == self.config.root_path.resolve() for base in include_dirs)
+        if not include_root:
+            for file_path in self.config.root_path.iterdir():
+                if file_path.is_file() and file_path.suffix.lower() in extensions:
+                    if file_path.stat().st_size <= max_bytes and _record(file_path):
+                        yield file_path
 
         for base in include_dirs:
             if not base.exists():
@@ -292,7 +302,8 @@ class MetaGraphIndexer:
                         continue
                     if path.stat().st_size > max_bytes:
                         continue
-                    yield path
+                    if _record(path):
+                        yield path
 
     def _index_file(self, path: Path, content_hash: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
         relative_path = _relative_path(path, self.config.root_path)

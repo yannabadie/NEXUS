@@ -11,16 +11,7 @@ from core.config import Config
 
 
 DEFAULT_INCLUDE_DIRS = [
-    "core",
-    "interface",
-    "tests",
-    "scripts",
-    "tools",
-    "prompts",
-    "audit",
-    "PRODUCTS",
-    "memory-bank",
-    "docs",
+    ".",
 ]
 
 DEFAULT_EXCLUDE_DIRS = [

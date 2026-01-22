@@ -47,7 +47,7 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
-- `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root)
+- `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
 - `META_RAG_EXCLUDE` = comma-separated exclude dir names
 - `META_RAG_EXTENSIONS` = comma-separated file extensions
 - `META_RAG_MAX_FILE_KB` = max file size to index
