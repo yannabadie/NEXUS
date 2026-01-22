@@ -16,8 +16,8 @@ from .http_client import HttpConfig, urlopen
 
 DEFAULT_SOURCES = [
     {
-        "url": "https://arxiv.org/abs/2601.11144",
-        "title": "Deep GraphRAG (ArXiv)",
+        "url": "https://arxiv.org/abs/2601.09457",
+        "title": "Deep GraphRAG (ArXiv 2026)",
         "tags": ["graphrag", "paper"],
     },
     {
@@ -36,6 +36,11 @@ DEFAULT_SOURCES = [
         "tags": ["graphrag", "agentic", "paper"],
     },
     {
+        "url": "https://arxiv.org/abs/2404.16130",
+        "title": "From Local to Global: GraphRAG Paper (ArXiv)",
+        "tags": ["graphrag", "paper"],
+    },
+    {
         "url": "https://github.com/microsoft/graphrag",
         "title": "Microsoft GraphRAG (GitHub)",
         "tags": ["graphrag", "knowledge-graph"],
@@ -46,14 +51,59 @@ DEFAULT_SOURCES = [
         "tags": ["graphrag", "research"],
     },
     {
-        "url": "https://arxiv.org/abs/2404.16130",
-        "title": "GraphRAG Paper (ArXiv)",
-        "tags": ["graphrag", "paper"],
+        "url": "https://microsoft.github.io/graphrag/",
+        "title": "GraphRAG Documentation",
+        "tags": ["graphrag", "docs"],
+    },
+    {
+        "url": "https://www.microsoft.com/en-us/research/blog/graphrag-improving-global-search-via-dynamic-community-selection/",
+        "title": "GraphRAG Dynamic Community Selection",
+        "tags": ["graphrag", "global", "blog"],
+    },
+    {
+        "url": "https://microsoft.github.io/graphrag/posts/drift_search/",
+        "title": "GraphRAG DRIFT Search",
+        "tags": ["graphrag", "local", "global", "docs"],
+    },
+    {
+        "url": "https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/",
+        "title": "LazyGraphRAG Cost Quality",
+        "tags": ["graphrag", "efficiency", "blog"],
     },
     {
         "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
         "title": "OWASP LLM Top 10",
         "tags": ["security", "llm"],
+    },
+    {
+        "url": "https://docs.ragas.io/en/latest/",
+        "title": "RAGAS Evaluation Framework",
+        "tags": ["rag", "evaluation"],
+    },
+    {
+        "url": "https://www.trulens.org/",
+        "title": "TruLens Evaluation and Observability",
+        "tags": ["rag", "evaluation", "observability"],
+    },
+    {
+        "url": "https://phoenix.arize.com/",
+        "title": "Arize Phoenix Observability",
+        "tags": ["rag", "evaluation", "observability"],
+    },
+    {
+        "url": "https://github.com/confident-ai/deepeval",
+        "title": "DeepEval LLM Tests",
+        "tags": ["rag", "evaluation", "testing"],
+    },
+    {
+        "url": "https://ai.google.dev/gemini-api/docs/embeddings",
+        "title": "Gemini Embeddings API",
+        "tags": ["embeddings", "gemini", "docs"],
+    },
+    {
+        "url": "https://ai.google.dev/gemini-api/tutorials/vector_search",
+        "title": "Gemini Embeddings Vector Search",
+        "tags": ["embeddings", "vector", "docs"],
     },
     {
         "url": "https://arxiv.org/abs/2312.10997",

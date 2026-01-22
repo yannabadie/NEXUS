@@ -4,10 +4,14 @@
 Build a code-first GraphRAG system so any AI can understand NEXUS without reading the entire repo. Docs are useful but not authoritative; code and tests are the source of truth.
 
 ## Research Inputs (Jan 2026)
-- Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration (arXiv:2601.11144v2)
+- Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration (arXiv:2601.09457)
+- From Local to Global: A Graph RAG Approach to Query-Focused Summarization (arXiv:2404.16130)
 - GraphRAG under Fire (arXiv:2501.14050v4) for poisoning and relation attacks
 - When to use Graphs in RAG (arXiv:2506.05690v2) + GraphRAG-Bench guidance
 - GraphSearch (arXiv:2509.22009v2) for agentic deep search patterns
+- Microsoft GraphRAG docs, DRIFT search, LazyGraphRAG blog
+- RAG evaluation frameworks: RAGAS, TruLens, Phoenix, DeepEval
+- Gemini embeddings docs (task types + MRL output dimensionality)
 - SCIP Code Intelligence Protocol (sourcegraph/scip README)
 - LSIF specification (language-server-protocol index format)
 - Tree-sitter (incremental parsing library)
@@ -26,6 +30,7 @@ Build a code-first GraphRAG system so any AI can understand NEXUS without readin
 - Vector store scaling: move from JSON to ANN-backed DB (SQLite+VSS/HNSW/FAISS)
 - Coverage audit report for excluded/oversized/binary files + reindex triggers
 - Incremental watch mode (git diff or file watcher) to keep manifest current
+- Embedding compression via MRL (lower output dims for cost and latency)
 
 ## Phase 0 - Baseline Inventory (Code-First)
 Output:
@@ -48,8 +53,8 @@ Output:
 
 ## Phase 2 - High-Quality Embeddings
 Output:
-- Gemini embeddings (gemini-embedding-001) with 3072 dims
-- TaskType per embed (RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY)
+- Gemini embeddings (gemini-embedding-001) with MRL dims (default 1536)
+- TaskType per embed (RETRIEVAL_DOCUMENT / CODE_RETRIEVAL_QUERY)
 - Source-type weighting (code > tests > config > docs)
 
 ## Phase 2.5 - Standardized Access (MCP/HTTP)
@@ -70,6 +75,7 @@ Output:
   - inter-community filter
   - subgraph refinement
   - entity-level search
+- DRIFT-style hybrid search to balance precision and global recall
 - Beam-search reranking for efficiency and recall
 
 ## Phase 4 - Knowledge Integration Module
@@ -88,6 +94,8 @@ Output:
 Output:
 - Query suites from tests and real incidents
 - Recall, faithfulness, and latency dashboards
+- RAG triad metrics (context precision/recall, faithfulness, answer relevance)
+- LLM-as-judge eval harness (RAGAS/TruLens/DeepEval) + tracing (Phoenix)
 - Drift detection on embeddings and graph topology
 
 ## Phase 7 - DX for AI Agents

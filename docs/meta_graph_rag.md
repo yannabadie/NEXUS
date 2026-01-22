@@ -44,6 +44,8 @@ Meta GraphRAG is exposed via the NEXUS MCP server:
 ## Embeddings
 - Default: Gemini embeddings (`gemini-embedding-001`) when `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set
 - Task-aware embedding for retrieval (document vs query)
+- Recommended task types: `RETRIEVAL_DOCUMENT` for code chunks and `CODE_RETRIEVAL_QUERY` for queries
+- Matryoshka embeddings are supported via `META_RAG_GEMINI_EMBED_DIM` (smaller dims reduce storage and latency)
 - Hashing fallback for offline or quick runs
 - `none` for graph-only indexing (fast, no semantic search)
 
@@ -55,9 +57,9 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_MAX_FILE_KB` = max file size per file (0 = no limit)
 - `META_RAG_CHUNK_LINES` / `META_RAG_CHUNK_OVERLAP` = chunk sizing
 - `META_RAG_GEMINI_EMBED_MODEL` = Gemini embedding model name
-- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 3072)
+- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 1536)
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents
-- `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries
+- `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
 - `META_RAG_GRAPH_BACKEND` = sqlite
@@ -77,6 +79,10 @@ You can scope or reduce indexing load with environment variables:
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.
 - Use `META_RAG_CA_REFRESH=true` to regenerate the bundle when corporate roots change.
 - If TLS errors persist, set `META_RAG_SSL_MODE=auto` to retry once with relaxed verification.
+- External tools may also require CA variables: `REQUESTS_CA_BUNDLE`, `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, or `GIT_SSL_CAINFO`.
+
+## Embedding Compatibility
+- Changing `META_RAG_GEMINI_EMBED_DIM` requires re-embedding the corpus to keep vector dimensions consistent.
 
 ## Notes
 - Content is normalized to ASCII for storage consistency.

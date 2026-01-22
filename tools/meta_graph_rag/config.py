@@ -36,13 +36,15 @@ RECOMMENDED_EXCLUDE_DIRS = [
 DEFAULT_EXTENSIONS: List[str] = []
 
 DEFAULT_RESEARCH_QUERIES = [
-    "Deep GraphRAG",
-    "GraphRAG hierarchical retrieval",
+    "Deep GraphRAG hierarchical retrieval",
+    "GraphRAG global local search",
+    "GraphRAG DRIFT search",
+    "LazyGraphRAG",
     "GraphRAG security poisoning",
     "GraphRAG benchmark",
-    "Agentic deep search GraphRAG",
+    "RAG evaluation RAGAS TruLens Phoenix DeepEval",
+    "Gemini embedding MRL output dimensionality",
     "Model Context Protocol MCP",
-    "LLM evaluation harness",
 ]
 
 DEFAULT_SOURCE_WEIGHTS = {
@@ -87,9 +89,9 @@ class MetaGraphRagConfig:
     embed_persist_every: int = 250
     embedding_model: str = "all-MiniLM-L6-v2"
     gemini_embedding_model: str = "gemini-embedding-001"
-    gemini_embedding_dim: int = 3072
+    gemini_embedding_dim: int = 1536
     gemini_task_type_document: str = "RETRIEVAL_DOCUMENT"
-    gemini_task_type_query: str = "RETRIEVAL_QUERY"
+    gemini_task_type_query: str = "CODE_RETRIEVAL_QUERY"
     gemini_batch_size: int = 8
     gemini_generation_model: str = "gemini-3-pro-preview"
     gemini_api_key: Optional[str] = None
@@ -126,6 +128,8 @@ def load_config(
         or os.getenv("SSL_CERT_FILE")
         or os.getenv("REQUESTS_CA_BUNDLE")
         or os.getenv("CURL_CA_BUNDLE")
+        or os.getenv("NODE_EXTRA_CA_CERTS")
+        or os.getenv("GIT_SSL_CAINFO")
     )
     ca_bundle_path = Path(ca_bundle) if ca_bundle else None
 
@@ -137,7 +141,7 @@ def load_config(
     gemini_embedding_model = os.getenv("META_RAG_GEMINI_EMBED_MODEL", "gemini-embedding-001")
     gemini_embedding_dim = int(os.getenv("META_RAG_GEMINI_EMBED_DIM", "3072"))
     gemini_task_type_document = os.getenv("META_RAG_GEMINI_TASK_DOC", "RETRIEVAL_DOCUMENT")
-    gemini_task_type_query = os.getenv("META_RAG_GEMINI_TASK_QUERY", "RETRIEVAL_QUERY")
+    gemini_task_type_query = os.getenv("META_RAG_GEMINI_TASK_QUERY", "CODE_RETRIEVAL_QUERY")
     gemini_generation_model = os.getenv("META_RAG_GEMINI_MODEL", "gemini-3-pro-preview")
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     gemini_batch_size = int(os.getenv("META_RAG_GEMINI_BATCH", "8"))

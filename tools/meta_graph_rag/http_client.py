@@ -24,6 +24,8 @@ class HttpConfig:
             or os.getenv("SSL_CERT_FILE")
             or os.getenv("REQUESTS_CA_BUNDLE")
             or os.getenv("CURL_CA_BUNDLE")
+            or os.getenv("NODE_EXTRA_CA_CERTS")
+            or os.getenv("GIT_SSL_CAINFO")
         )
         ca_bundle_path = Path(ca_bundle) if ca_bundle else None
         if not ca_bundle_path:

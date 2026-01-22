@@ -49,9 +49,9 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_EMBEDDINGS` = gemini|auto|sentence|hash
 - `META_RAG_EMBEDDING_MODEL` = sentence-transformers model name
 - `META_RAG_GEMINI_EMBED_MODEL` = Gemini embedding model name
-- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 3072)
+- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 1536)
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents (default RETRIEVAL_DOCUMENT)
-- `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default RETRIEVAL_QUERY)
+- `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
@@ -80,3 +80,5 @@ Set with `META_RAG_EMBEDDINGS`.
 - Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
 - On Windows, a CA bundle is auto-exported to `workspace/meta_rag/corp_ca_bundle.pem` if none is provided.
 - Set `META_RAG_SSL_MODE=auto` to retry with relaxed TLS if strict verification fails.
+- External tools may also require `REQUESTS_CA_BUNDLE`, `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, or `GIT_SSL_CAINFO`.
+- Changing `META_RAG_GEMINI_EMBED_DIM` requires re-embedding the corpus.
