@@ -270,7 +270,13 @@ class VectorIndex:
         )
         if not path.exists():
             return index
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+        if not raw.strip():
+            return index
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return index
         for entry in payload.get("entries", []):
             index.entries[entry["chunk_id"]] = VectorRecord(
                 chunk_id=entry["chunk_id"],
