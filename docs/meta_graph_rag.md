@@ -61,6 +61,7 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_SOURCE_WEIGHTS` = comma-separated weights (e.g. code:1.0,doc:0.6,test:0.9)
 - `META_RAG_SKIP_EMBEDDINGS` = true to build graph/chunks without embeddings
 - `META_RAG_EMBED_BATCH` = chunks per embed flush (default 64)
+- `META_RAG_EMBED_PERSIST` = persist embeddings every N chunks (default 250)
 - `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store

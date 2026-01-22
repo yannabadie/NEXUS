@@ -104,6 +104,7 @@ class MetaGraphRagConfig:
     embedding_backend: str = "gemini"
     skip_embeddings: bool = False
     embed_batch_limit: int = 64
+    embed_persist_every: int = 250
     embedding_model: str = "all-MiniLM-L6-v2"
     gemini_embedding_model: str = "gemini-embedding-001"
     gemini_embedding_dim: int = 3072
@@ -152,6 +153,7 @@ def load_config(
     embedding_model = os.getenv("META_RAG_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     skip_embeddings = os.getenv("META_RAG_SKIP_EMBEDDINGS", "False").lower() == "true"
     embed_batch_limit = int(os.getenv("META_RAG_EMBED_BATCH", "64"))
+    embed_persist_every = int(os.getenv("META_RAG_EMBED_PERSIST", "250"))
     gemini_embedding_model = os.getenv("META_RAG_GEMINI_EMBED_MODEL", "gemini-embedding-001")
     gemini_embedding_dim = int(os.getenv("META_RAG_GEMINI_EMBED_DIM", "3072"))
     gemini_task_type_document = os.getenv("META_RAG_GEMINI_TASK_DOC", "RETRIEVAL_DOCUMENT")
@@ -199,6 +201,7 @@ def load_config(
         embedding_backend=embedding_backend,
         skip_embeddings=skip_embeddings,
         embed_batch_limit=embed_batch_limit,
+        embed_persist_every=embed_persist_every,
         embedding_model=embedding_model,
         gemini_embedding_model=gemini_embedding_model,
         gemini_embedding_dim=gemini_embedding_dim,

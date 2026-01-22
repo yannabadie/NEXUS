@@ -369,6 +369,7 @@ class MetaGraphIndexer:
         """Embed missing chunks into the vector index."""
         records: List[VectorRecord] = []
         embedded = 0
+        progress_path = self.config.data_path / "embed_progress.json"
         for chunk in self.chunks.chunks.values():
             if chunk.chunk_id in self.vector_index.entries:
                 continue
@@ -388,16 +389,21 @@ class MetaGraphIndexer:
                 if remaining > 0:
                     self.vector_index.add_texts(records[:remaining])
                     embedded += remaining
+                    _write_progress(progress_path, "embedding", chunk.path)
                 records = []
                 break
             if len(records) >= self.config.embed_batch_limit:
                 self.vector_index.add_texts(records)
                 embedded += len(records)
+                _write_progress(progress_path, "embedding", chunk.path)
+                if self.config.embed_persist_every > 0 and embedded % self.config.embed_persist_every == 0:
+                    self.vector_index.save(self.config.vector_path)
                 records = []
 
         if records:
             self.vector_index.add_texts(records)
             embedded += len(records)
+            _write_progress(progress_path, "embedding", records[-1].metadata.get("path", ""))
 
         if embedded:
             self.vector_index.save(self.config.vector_path)
