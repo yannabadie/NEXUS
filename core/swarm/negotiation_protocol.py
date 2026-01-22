@@ -37,6 +37,7 @@ from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 class NegotiationStatus(Enum):
     """Status of negotiation process"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     CONSENSUS = "consensus"
@@ -51,6 +52,7 @@ class NegotiationProposal:
 
     Contains the agent's formal position on mode selection.
     """
+
     proposed_mode: Optional[str] = None
     proposed_lead: Optional[str] = None
     confidence: float = 0.5
@@ -63,8 +65,10 @@ class NegotiationProposal:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "NegotiationProposal":
-        """
-        Parses a proposal from a dictionary.
+        """Parses a proposal from a dictionary.
+
+        Extracts proposal fields, handling nested subtask structures by converting
+        list-based subtasks to the expected dictionary format if necessary.
 
         Args:
             data (Dict): Dictionary containing proposal fields like 'proposed_mode',
@@ -72,6 +76,9 @@ class NegotiationProposal:
 
         Returns:
             NegotiationProposal: The parsed proposal object.
+
+        Raises:
+            None: This method handles malformed subtasks gracefully.
         """
         # Validate subtasks is a dict, not a list
         subtasks_raw = data.get("subtasks")
@@ -100,7 +107,7 @@ class NegotiationProposal:
             agrees_with_partner=data.get("agrees_with_partner", False),
             consensus_reached=data.get("consensus_reached", False),
             subtasks=subtasks,
-            counter_proposal=data.get("counter_proposal")
+            counter_proposal=data.get("counter_proposal"),
         )
 
     def to_dict(self) -> Dict:
@@ -121,7 +128,7 @@ class NegotiationProposal:
             "agrees_with_partner": self.agrees_with_partner,
             "consensus_reached": self.consensus_reached,
             "subtasks": self.subtasks,
-            "counter_proposal": self.counter_proposal
+            "counter_proposal": self.counter_proposal,
         }
 
 
@@ -133,6 +140,7 @@ class HybridNegotiationMessage:
     The natural content is for rich discussion,
     the structured proposal is for machine-readable consensus detection.
     """
+
     sender: str  # "gemini" or "claude"
     natural_content: str
     structured_proposal: Optional[NegotiationProposal] = None
@@ -141,18 +149,36 @@ class HybridNegotiationMessage:
 
     @property
     def agrees_with_partner(self) -> bool:
+        """
+        Checks if the structured proposal indicates agreement with the partner.
+
+        Returns:
+            bool: True if the proposal exists and agrees with partner, False otherwise.
+        """
         if self.structured_proposal:
             return self.structured_proposal.agrees_with_partner
         return False
 
     @property
     def consensus_reached(self) -> bool:
+        """
+        Checks if the structured proposal indicates that consensus has been reached.
+
+        Returns:
+            bool: True if the proposal exists and marks consensus reached, False otherwise.
+        """
         if self.structured_proposal:
             return self.structured_proposal.consensus_reached
         return False
 
     @property
     def proposed_mode(self) -> Optional[CollaborationMode]:
+        """
+        Extracts the proposed collaboration mode from the structured proposal.
+
+        Returns:
+            Optional[CollaborationMode]: The proposed mode object, or None if not present or invalid.
+        """
         if self.structured_proposal and self.structured_proposal.proposed_mode:
             try:
                 return CollaborationMode.from_string(
@@ -174,11 +200,10 @@ class HybridNegotiationMessage:
             "sender": self.sender,
             "natural_content": self.natural_content,
             "structured_proposal": (
-                self.structured_proposal.to_dict()
-                if self.structured_proposal else None
+                self.structured_proposal.to_dict() if self.structured_proposal else None
             ),
             "timestamp": self.timestamp.isoformat(),
-            "turn_number": self.turn_number
+            "turn_number": self.turn_number,
         }
 
 
@@ -189,6 +214,7 @@ class NegotiationResult:
 
     Contains final mode selection and negotiation history.
     """
+
     status: NegotiationStatus
     selected_mode: CollaborationMode
     agent_assignments: List[AgentAssignment]
@@ -209,17 +235,13 @@ class NegotiationResult:
             "status": self.status.value,
             "selected_mode": self.selected_mode.value,
             "agent_assignments": [
-                {
-                    "agent_id": a.agent_id,
-                    "role": a.role,
-                    "subtask": a.subtask
-                }
+                {"agent_id": a.agent_id, "role": a.role, "subtask": a.subtask}
                 for a in self.agent_assignments
             ],
             "negotiation_history": [m.to_dict() for m in self.negotiation_history],
             "total_turns": self.total_turns,
             "consensus_confidence": round(self.consensus_confidence, 3),
-            "final_subtasks": self.final_subtasks
+            "final_subtasks": self.final_subtasks,
         }
 
 
@@ -239,17 +261,16 @@ class NegotiationProtocol:
 
     # Regex to extract <negotiate> JSON
     NEGOTIATE_PATTERN = re.compile(
-        r'<negotiate>\s*(\{.*?\})\s*</negotiate>',
-        re.DOTALL | re.IGNORECASE
+        r"<negotiate>\s*(\{.*?\})\s*</negotiate>", re.DOTALL | re.IGNORECASE
     )
 
     # V10 FIX F7: Adaptive max_turns by complexity
     ADAPTIVE_MAX_TURNS = {
-        1: 2,   # TRIVIAL: Quick consensus or skip
-        2: 3,   # SIMPLE: Brief negotiation
-        3: 4,   # MODERATE: Standard negotiation
-        4: 6,   # COMPLEX: Extended discussion
-        5: 8,   # EXPERT: Thorough deliberation
+        1: 2,  # TRIVIAL: Quick consensus or skip
+        2: 3,  # SIMPLE: Brief negotiation
+        3: 4,  # MODERATE: Standard negotiation
+        4: 6,  # COMPLEX: Extended discussion
+        5: 8,  # EXPERT: Thorough deliberation
     }
 
     def __init__(
@@ -258,17 +279,17 @@ class NegotiationProtocol:
         consensus_threshold: float = 0.6,
         skip_trivial: bool = True,
         timeout_seconds: Optional[float] = 60.0,
-        adaptive_turns: bool = True  # V10 FIX F7
+        adaptive_turns: bool = True,  # V10 FIX F7
     ):
         """
         Initialize NegotiationProtocol.
 
         Args:
-            max_turns: Maximum negotiation turns before timeout (base value)
-            consensus_threshold: Minimum confidence for consensus
-            skip_trivial: Skip negotiation for trivial tasks
-            timeout_seconds: Maximum time in seconds for negotiation (None = no limit)
-            adaptive_turns: V10 FIX F7 - Adjust max_turns based on task complexity
+            max_turns (int): Maximum negotiation turns before timeout (base value).
+            consensus_threshold (float): Minimum confidence for consensus.
+            skip_trivial (bool): Skip negotiation for trivial tasks.
+            timeout_seconds (Optional[float]): Maximum time in seconds for negotiation (None = no limit).
+            adaptive_turns (bool): V10 FIX F7 - Adjust max_turns based on task complexity.
         """
         self.base_max_turns = max_turns
         self.max_turns = max_turns  # Will be adjusted per-task if adaptive
@@ -279,27 +300,39 @@ class NegotiationProtocol:
         self.negotiation_log: List[Dict] = []
 
     def _get_adaptive_max_turns(self, task_analysis: TaskAnalysis) -> int:
-        """
-        V10 FIX F7: Calculate adaptive max_turns based on task complexity.
+        """Calculates adaptive max_turns based on task complexity (V10 FIX F7).
 
-        Complex tasks get more negotiation rounds, trivial tasks get fewer.
+        Adjusts the number of allowed negotiation turns based on the complexity
+        score in the task analysis. Complex tasks allow for more extensive debate.
 
         Args:
-            task_analysis: Task analysis with complexity level
+            task_analysis (TaskAnalysis): Task analysis object containing the
+                complexity level (1-5).
 
         Returns:
-            Adjusted max_turns value
+            int: The adjusted maximum number of turns for the negotiation.
+
+        Raises:
+            None: Fallbacks to base_max_turns if complexity lookup fails.
         """
         if not self.adaptive_turns:
             return self.base_max_turns
 
-        complexity_value = task_analysis.complexity.value if hasattr(task_analysis.complexity, 'value') else int(task_analysis.complexity)
+        complexity_value = (
+            task_analysis.complexity.value
+            if hasattr(task_analysis.complexity, "value")
+            else int(task_analysis.complexity)
+        )
         adaptive = self.ADAPTIVE_MAX_TURNS.get(complexity_value, self.base_max_turns)
 
         # Log adjustment if different from base
         if adaptive != self.base_max_turns:
             import sys
-            print(f"[NEGOTIATION] Adaptive max_turns: {adaptive} (complexity={complexity_value})", file=sys.stderr)
+
+            print(
+                f"[NEGOTIATION] Adaptive max_turns: {adaptive} (complexity={complexity_value})",
+                file=sys.stderr,
+            )
 
         return adaptive
 
@@ -308,20 +341,31 @@ class NegotiationProtocol:
         task_analysis: TaskAnalysis,
         initial_proposal: ModeProposal,
         invoke_agent: Callable[[str, str, str], str],
-        on_turn: Optional[Callable[["HybridNegotiationMessage"], None]] = None
+        on_turn: Optional[Callable[["HybridNegotiationMessage"], None]] = None,
     ) -> NegotiationResult:
-        """
-        Run full negotiation process.
+        """Runs the full negotiation process between agents.
+
+        Orchestrates the alternating turns between agents (Gemini/Claude) until
+        consensus is reached, a timeout occurs, or the maximum number of turns
+        is exceeded.
 
         Args:
-            task_analysis: Analysis of the task
-            initial_proposal: Initial mode proposal from ModeSelector
-            invoke_agent: Callable(agent_id, task_type, context) -> response
-            on_turn: Optional callback called after each negotiation turn (V7.5 streaming)
+            task_analysis (TaskAnalysis): Analysis of the task being negotiated.
+            initial_proposal (ModeProposal): The initial mode proposal from the
+                ModeSelector.
+            invoke_agent (Callable[[str, str, str], str]): Callback function to
+                invoke an agent. Signature: (agent_id, task_type, context) -> response.
+            on_turn (Optional[Callable[[HybridNegotiationMessage], None]]): Optional
+                callback executed after each turn (e.g., for streaming updates).
 
         Returns:
-            NegotiationResult with final mode and history
+            NegotiationResult: A data object containing the final selected mode,
+                agent assignments, and the full negotiation history.
+
+        Raises:
+            Exception: Propagates any exceptions raised by the invoke_agent callback.
         """
+
         # Skip negotiation for trivial tasks
         if self.skip_trivial and task_analysis.should_skip_negotiation:
             return NegotiationResult(
@@ -330,7 +374,7 @@ class NegotiationProtocol:
                 agent_assignments=initial_proposal.agent_assignments,
                 negotiation_history=[],
                 total_turns=0,
-                consensus_confidence=initial_proposal.confidence
+                consensus_confidence=initial_proposal.confidence,
             )
 
         history: List[HybridNegotiationMessage] = []
@@ -356,17 +400,14 @@ class NegotiationProtocol:
                         agent_assignments=current_proposal.agent_assignments,
                         negotiation_history=history,
                         total_turns=current_turn,
-                        consensus_confidence=current_proposal.confidence
+                        consensus_confidence=current_proposal.confidence,
                     )
 
             agent_id = agents[current_turn % 2]
 
             # Build context for agent
             context = self._build_negotiation_context(
-                task_analysis,
-                current_proposal,
-                history,
-                agent_id
+                task_analysis, current_proposal, history, agent_id
             )
 
             # Invoke agent
@@ -379,14 +420,13 @@ class NegotiationProtocol:
             # V13.0 CEREBRO LIVE: Emit negotiation exchange
             other_agent = "claude" if agent_id == "gemini" else "gemini"
             emit_agent_speak(
-                agent_id,
-                message.natural_content[:200],
-                action_type="NEGOTIATE"
+                agent_id, message.natural_content[:200], action_type="NEGOTIATE"
             )
             emit_agent_exchange(
-                agent_id, other_agent,
+                agent_id,
+                other_agent,
                 f"Mode: {message.structured_proposal.proposed_mode if message.structured_proposal else 'N/A'}",
-                exchange_type="negotiate"
+                exchange_type="negotiate",
             )
 
             # V7.5: Stream turn to callback for real-time display
@@ -397,15 +437,16 @@ class NegotiationProtocol:
             if message.consensus_reached:
                 final_mode = message.proposed_mode or current_proposal.mode
                 final_assignments = self._finalize_assignments(
-                    final_mode,
-                    message,
-                    current_proposal.agent_assignments
+                    final_mode, message, current_proposal.agent_assignments
                 )
 
                 # V7 Enhancement: Log negotiation outcome
                 import sys
-                print(f"[NEGOTIATION] Consensus reached in {current_turn + 1} turns: {final_mode.value}",
-                      file=sys.stderr)
+
+                print(
+                    f"[NEGOTIATION] Consensus reached in {current_turn + 1} turns: {final_mode.value}",
+                    file=sys.stderr,
+                )
 
                 return NegotiationResult(
                     status=NegotiationStatus.CONSENSUS,
@@ -413,29 +454,28 @@ class NegotiationProtocol:
                     agent_assignments=final_assignments,
                     negotiation_history=history,
                     total_turns=current_turn + 1,
-                    consensus_confidence=self._calculate_consensus_confidence(
-                        history
-                    ),
+                    consensus_confidence=self._calculate_consensus_confidence(history),
                     final_subtasks=(
                         message.structured_proposal.subtasks
-                        if message.structured_proposal else None
-                    )
+                        if message.structured_proposal
+                        else None
+                    ),
                 )
 
             # Update proposal if counter-proposed
             if message.proposed_mode:
-                current_proposal = self._update_proposal(
-                    current_proposal,
-                    message
-                )
+                current_proposal = self._update_proposal(current_proposal, message)
 
             current_turn += 1
 
         # Timeout: use initial proposal
         # V7 Enhancement: Log negotiation timeout
         import sys
-        print(f"[NEGOTIATION] Timeout after {current_turn} turns, using initial: {initial_proposal.mode.value}",
-              file=sys.stderr)
+
+        print(
+            f"[NEGOTIATION] Timeout after {current_turn} turns, using initial: {initial_proposal.mode.value}",
+            file=sys.stderr,
+        )
 
         return NegotiationResult(
             status=NegotiationStatus.TIMEOUT,
@@ -443,7 +483,7 @@ class NegotiationProtocol:
             agent_assignments=initial_proposal.agent_assignments,
             negotiation_history=history,
             total_turns=current_turn,
-            consensus_confidence=initial_proposal.confidence
+            consensus_confidence=initial_proposal.confidence,
         )
 
     def _build_negotiation_context(
@@ -451,7 +491,7 @@ class NegotiationProtocol:
         analysis: TaskAnalysis,
         proposal: ModeProposal,
         history: List[HybridNegotiationMessage],
-        agent_id: str
+        agent_id: str,
     ) -> str:
         """
         Builds the enriched context string for an agent's negotiation turn.
@@ -491,57 +531,60 @@ class NegotiationProtocol:
             for msg in history[-4:]:  # Last 4 messages
                 lines.append(f"[{msg.sender.upper()}]: {msg.natural_content[:300]}")
                 if msg.structured_proposal:
-                    lines.append(f"  └─ Proposal: {msg.structured_proposal.proposed_mode or 'none'}, "
-                                 f"agrees: {msg.structured_proposal.agrees_with_partner}")
+                    lines.append(
+                        f"  └─ Proposal: {msg.structured_proposal.proposed_mode or 'none'}, "
+                        f"agrees: {msg.structured_proposal.agrees_with_partner}"
+                    )
             lines.append("")
 
-        lines.extend([
-            "─── YOUR TURN ───",
-            f"Agent: {agent_id}",
-            "",
-            "INSTRUCTIONS:",
-            "1. Briefly discuss your perspective on the proposed collaboration mode",
-            "2. Either AGREE with partner or COUNTER-PROPOSE a different mode",
-            "3. MANDATORY: Include a <negotiate> block with your formal position",
-            "",
-            "RESPONSE FORMAT EXAMPLE:",
-            '"""',
-            "I agree that PARALLEL mode makes sense for this task since we can",
-            "work on independent subtasks simultaneously.",
-            "",
-            "<negotiate>",
-            "{",
-            '  "proposed_mode": "parallel",',
-            '  "proposed_lead": null,',
-            '  "confidence": 0.85,',
-            '  "my_role": "equal",',
-            '  "agrees_with_partner": true,',
-            '  "consensus_reached": true',
-            "}",
-            "</negotiate>",
-            '"""',
-            "",
-            "AVAILABLE MODES:",
-            "• parallel     - Work simultaneously, merge results",
-            "• sequential   - First agent then second agent",
-            "• lead_support - Lead (80%) + Support reviewer (20%)",
-            "• ping_pong    - Rapid alternation until convergence",
-            "• specialist   - Single expert handles everything",
-            "• red_blue     - Adversarial: propose/attack/defend",
-            "",
-            "Set 'consensus_reached': true when you agree with your partner to end negotiation."
-        ])
+        lines.extend(
+            [
+                "─── YOUR TURN ───",
+                f"Agent: {agent_id}",
+                "",
+                "INSTRUCTIONS:",
+                "1. Briefly discuss your perspective on the proposed collaboration mode",
+                "2. Either AGREE with partner or COUNTER-PROPOSE a different mode",
+                "3. MANDATORY: Include a <negotiate> block with your formal position",
+                "",
+                "RESPONSE FORMAT EXAMPLE:",
+                '"""',
+                "I agree that PARALLEL mode makes sense for this task since we can",
+                "work on independent subtasks simultaneously.",
+                "",
+                "<negotiate>",
+                "{",
+                '  "proposed_mode": "parallel",',
+                '  "proposed_lead": null,',
+                '  "confidence": 0.85,',
+                '  "my_role": "equal",',
+                '  "agrees_with_partner": true,',
+                '  "consensus_reached": true',
+                "}",
+                "</negotiate>",
+                '"""',
+                "",
+                "AVAILABLE MODES:",
+                "• parallel     - Work simultaneously, merge results",
+                "• sequential   - First agent then second agent",
+                "• lead_support - Lead (80%) + Support reviewer (20%)",
+                "• ping_pong    - Rapid alternation until convergence",
+                "• specialist   - Single expert handles everything",
+                "• red_blue     - Adversarial: propose/attack/defend",
+                "",
+                "Set 'consensus_reached': true when you agree with your partner to end negotiation.",
+            ]
+        )
 
         return "\n".join(lines)
 
     def _parse_response(
-        self,
-        response: str,
-        sender: str,
-        turn_number: int
+        self, response: str, sender: str, turn_number: int
     ) -> HybridNegotiationMessage:
-        """
-        Parses the agent's response to extract natural content and structured proposal.
+        """Parses the agent's response to extract natural content and structured proposal.
+
+        Separates the conversational text from the <negotiate> JSON block.
+        If JSON parsing fails, the message is created without a structured proposal.
 
         Args:
             response (str): The raw string response from the agent.
@@ -550,6 +593,9 @@ class NegotiationProtocol:
 
         Returns:
             HybridNegotiationMessage: The parsed message object containing content and proposal.
+
+        Raises:
+            None: JSON errors are caught and handled internally.
         """
         # Extract natural content (everything outside <negotiate>)
         natural_content = self.NEGOTIATE_PATTERN.sub("", response).strip()
@@ -569,13 +615,11 @@ class NegotiationProtocol:
             sender=sender,
             natural_content=natural_content,
             structured_proposal=structured_proposal,
-            turn_number=turn_number
+            turn_number=turn_number,
         )
 
     def _update_proposal(
-        self,
-        current: ModeProposal,
-        message: HybridNegotiationMessage
+        self, current: ModeProposal, message: HybridNegotiationMessage
     ) -> ModeProposal:
         """
         Updates the current proposal based on an agent's counter-proposal.
@@ -604,20 +648,25 @@ class NegotiationProtocol:
 
         return ModeProposal(
             mode=new_mode,
-            confidence=message.structured_proposal.confidence if message.structured_proposal else 0.6,
+            confidence=message.structured_proposal.confidence
+            if message.structured_proposal
+            else 0.6,
             agent_assignments=new_assignments,
             reasoning=f"Counter-proposed by {message.sender}",
-            alternatives=current.alternatives
+            alternatives=current.alternatives,
         )
 
     def _finalize_assignments(
         self,
         mode: CollaborationMode,
         message: HybridNegotiationMessage,
-        default_assignments: List[AgentAssignment]
+        default_assignments: List[AgentAssignment],
     ) -> List[AgentAssignment]:
-        """
-        Finalizes agent assignments based on the reached consensus.
+        """Finalizes agent assignments based on the reached consensus.
+
+        Translates the negotiated subtasks and roles into concrete AgentAssignment objects.
+        Resolves specific agent identities (e.g., 'Gemini' -> 'gemini_primary') using
+        the agent registry.
 
         Args:
             mode (CollaborationMode): The selected collaboration mode.
@@ -628,10 +677,17 @@ class NegotiationProtocol:
 
         Returns:
             List[AgentAssignment]: The final list of agent assignments with roles and subtasks.
+
+        Raises:
+            None: Fallback assignments are used if negotiation details are missing.
         """
         assignments = []
 
-        subtasks = message.structured_proposal.subtasks if message.structured_proposal else None
+        subtasks = (
+            message.structured_proposal.subtasks
+            if message.structured_proposal
+            else None
+        )
 
         # Defensive check: ensure subtasks is a dict before iterating
         if subtasks and isinstance(subtasks, dict) and message.structured_proposal:
@@ -639,7 +695,10 @@ class NegotiationProtocol:
             for agent_id, subtask in subtasks.items():
                 role = "equal"
                 if message.structured_proposal.proposed_lead:
-                    if agent_id.lower() == message.structured_proposal.proposed_lead.lower():
+                    if (
+                        agent_id.lower()
+                        == message.structured_proposal.proposed_lead.lower()
+                    ):
                         role = "lead"
                     else:
                         role = "support"
@@ -651,12 +710,14 @@ class NegotiationProtocol:
                 else:
                     full_agent_id = "claude_opus"
 
-                assignments.append(AgentAssignment(
-                    agent_id=full_agent_id,
-                    role=role,
-                    subtask=subtask,
-                    confidence=0.8
-                ))
+                assignments.append(
+                    AgentAssignment(
+                        agent_id=full_agent_id,
+                        role=role,
+                        subtask=subtask,
+                        confidence=0.8,
+                    )
+                )
 
         if not assignments:
             # Use default assignments
@@ -665,8 +726,7 @@ class NegotiationProtocol:
         return assignments
 
     def _calculate_consensus_confidence(
-        self,
-        history: List[HybridNegotiationMessage]
+        self, history: List[HybridNegotiationMessage]
     ) -> float:
         """
         Calculates confidence in the reached consensus based on negotiation history.
@@ -689,9 +749,7 @@ class NegotiationProtocol:
 
         # Average confidence from proposals
         confidences = [
-            m.structured_proposal.confidence
-            for m in history
-            if m.structured_proposal
+            m.structured_proposal.confidence for m in history if m.structured_proposal
         ]
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0.5
 
@@ -705,7 +763,7 @@ class NegotiationProtocol:
         self,
         mode: CollaborationMode,
         task_analysis: TaskAnalysis,
-        reason: str = "User forced"
+        reason: str = "User forced",
     ) -> NegotiationResult:
         """
         Forces a specific collaboration mode without going through negotiation.
@@ -731,14 +789,11 @@ class NegotiationProtocol:
             agent_assignments=proposal.agent_assignments,
             negotiation_history=[],
             total_turns=0,
-            consensus_confidence=1.0  # Full confidence (user choice)
+            consensus_confidence=1.0,  # Full confidence (user choice)
         )
 
     def create_negotiation_prompt(
-        self,
-        agent_id: str,
-        task_description: str,
-        initial_mode: CollaborationMode
+        self, agent_id: str, task_description: str, initial_mode: CollaborationMode
     ) -> str:
         """
         Creates a negotiation prompt for an agent to initiate or continue negotiation.

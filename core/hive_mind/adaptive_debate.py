@@ -109,7 +109,7 @@ class AdaptiveDebateConfig:
 
     def __init__(self):
         """Initialize adaptive debate config."""
-        self._debate_history: List[Dict] = []
+        self._debate_history: List[Dict[str, Any]] = []
         self._agent_metrics: Dict[str, AgentDebateMetrics] = {}
         self._error_history: List[bool] = []  # True = error occurred
 
@@ -392,7 +392,7 @@ class AdaptiveDebateConfig:
         claude_confidence: float,
         gemini_satisfaction: float,
         claude_satisfaction: float
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """
         Calculate final decision when forced vote is needed.
 
@@ -443,7 +443,7 @@ class AdaptiveDebateConfig:
             "was_tie": winner == "merged"
         }
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get debate statistics."""
         if not self._debate_history:
             return {

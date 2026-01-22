@@ -12,7 +12,7 @@ import pytest
 import json
 import csv
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -53,14 +53,14 @@ def populated_telemetry(workspace_path):
     """
     telemetry_file = workspace_path / "telemetry.jsonl"
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     events = [
         # API calls
         {
             "type": "api_call",
             "session_id": "test_session_1",
-            "timestamp": (now - timedelta(hours=2)).isoformat() + "Z",
+            "timestamp": (now - timedelta(hours=2)).isoformat(),
             "data": {
                 "provider": "gemini",
                 "model": "gemini-3-pro",
@@ -73,7 +73,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "api_call",
             "session_id": "test_session_1",
-            "timestamp": (now - timedelta(hours=1)).isoformat() + "Z",
+            "timestamp": (now - timedelta(hours=1)).isoformat(),
             "data": {
                 "provider": "claude",
                 "model": "claude-sonnet-4-5",
@@ -86,7 +86,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "api_call",
             "session_id": "test_session_2",
-            "timestamp": now.isoformat() + "Z",
+            "timestamp": now.isoformat(),
             "data": {
                 "provider": "gemini",
                 "model": "gemini-3-pro",
@@ -101,7 +101,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "swarm_task",
             "session_id": "test_session_1",
-            "timestamp": (now - timedelta(hours=1, minutes=30)).isoformat() + "Z",
+            "timestamp": (now - timedelta(hours=1, minutes=30)).isoformat(),
             "data": {
                 "mode": "ping_pong",
                 "duration_seconds": 15.5,
@@ -111,7 +111,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "swarm_task",
             "session_id": "test_session_2",
-            "timestamp": (now - timedelta(minutes=30)).isoformat() + "Z",
+            "timestamp": (now - timedelta(minutes=30)).isoformat(),
             "data": {
                 "mode": "specialist",
                 "duration_seconds": 8.2,
@@ -122,7 +122,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "tool_execution",
             "session_id": "test_session_1",
-            "timestamp": (now - timedelta(hours=1, minutes=45)).isoformat() + "Z",
+            "timestamp": (now - timedelta(hours=1, minutes=45)).isoformat(),
             "data": {
                 "tool_name": "read_file",
                 "duration_seconds": 0.1,
@@ -132,7 +132,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "tool_execution",
             "session_id": "test_session_1",
-            "timestamp": (now - timedelta(hours=1, minutes=40)).isoformat() + "Z",
+            "timestamp": (now - timedelta(hours=1, minutes=40)).isoformat(),
             "data": {
                 "tool_name": "write_file",
                 "duration_seconds": 0.2,
@@ -144,7 +144,7 @@ def populated_telemetry(workspace_path):
         {
             "type": "error",
             "session_id": "test_session_2",
-            "timestamp": (now - timedelta(minutes=15)).isoformat() + "Z",
+            "timestamp": (now - timedelta(minutes=15)).isoformat(),
             "data": {
                 "error_type": "ValidationError",
                 "message": "Invalid JSON response"
@@ -262,7 +262,7 @@ class TestEventCounting:
 
     def test_iter_events_filters_by_time(self, populated_telemetry):
         """_iter_events filters by timestamp."""
-        since = datetime.utcnow() - timedelta(hours=1)
+        since = datetime.now(timezone.utc) - timedelta(hours=1)
         recent_events = list(populated_telemetry._iter_events(since=since))
 
         # Should include events from last hour only
@@ -441,14 +441,14 @@ class TestIntegration:
     def test_full_workflow(self, workspace_path):
         """Test full workflow: write events, generate report, export CSV."""
         telemetry_file = workspace_path / "telemetry.jsonl"
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Write some events
         events = [
             {
                 "type": "api_call",
                 "session_id": "integration_test",
-                "timestamp": now.isoformat() + "Z",
+                "timestamp": now.isoformat(),
                 "data": {
                     "provider": "gemini",
                     "model": "test",
@@ -460,7 +460,7 @@ class TestIntegration:
             {
                 "type": "swarm_task",
                 "session_id": "integration_test",
-                "timestamp": now.isoformat() + "Z",
+                "timestamp": now.isoformat(),
                 "data": {
                     "mode": "parallel",
                     "duration_seconds": 5.0,

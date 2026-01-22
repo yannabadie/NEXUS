@@ -203,19 +203,43 @@ class AsyncRWLockWithTimeout(AsyncRWLock):
                 self._condition.notify_all()
 
     async def _wait_for_read(self) -> None:
-        """Wait until read is possible."""
+        """Waits until a read lock can be acquired.
+
+        Blocks execution until there are no active writers and no pending writers,
+        respecting writer priority to prevent starvation.
+
+        Raises:
+            asyncio.CancelledError: If the task is cancelled while waiting.
+        """
         while self._writer or self._pending_writers > 0:
             await self._condition.wait()
 
     async def _wait_for_write(self) -> None:
-        """Wait until write is possible."""
+        """Waits until a write lock can be acquired.
+
+        Blocks execution until there are no active readers and no other active
+        writers.
+
+        Raises:
+            asyncio.CancelledError: If the task is cancelled while waiting.
+        """
         while self._writer or self._readers > 0:
             await self._condition.wait()
 
 
 @dataclass
 class RWLockStats:
-    """Statistics for an AsyncRWLock."""
+    """Statistics for an AsyncRWLock.
+
+    Attributes:
+        total_reads: Total number of successful read lock acquisitions.
+        total_writes: Total number of successful write lock acquisitions.
+        read_wait_time_ms: Cumulative time spent waiting for read locks (in milliseconds).
+        write_wait_time_ms: Cumulative time spent waiting for write locks (in milliseconds).
+        current_readers: Current number of active readers holding the lock.
+        has_writer: True if a writer currently holds the lock, False otherwise.
+        pending_writers: Current number of writers waiting to acquire the lock.
+    """
     total_reads: int = 0
     total_writes: int = 0
     read_wait_time_ms: float = 0.0

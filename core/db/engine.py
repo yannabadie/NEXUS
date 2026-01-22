@@ -46,14 +46,14 @@ from .models import Tenant, User, Workspace, Quota  # Import all models
 try:
     from core.audit.models import AuditLog, HITLRequest
 except ImportError:
-    AuditLog = None  # type: ignore[assignment]
-    HITLRequest = None  # type: ignore[assignment]
+    AuditLog: Optional[type] = None  # type: ignore[assignment]
+    HITLRequest: Optional[type] = None  # type: ignore[assignment]
 
 # V12.2 IRONCLAD: Import hibernation model for table creation
 try:
     from core.fsm.hibernation_manager import HibernationState
 except ImportError:
-    HibernationState = None  # type: ignore[assignment]
+    HibernationState: Optional[type] = None  # type: ignore[assignment]
 
 
 # =============================================================================
@@ -258,7 +258,7 @@ def get_tenant_by_slug(session: Session, slug: str) -> Optional[Tenant]:
     return session.exec(statement).first()
 
 
-def get_tenant_quota(session: Session, tenant_id: str) -> Optional[Quota]:
+def get_tenant_quota(session: Session, tenant_id: str | UUID) -> Optional[Quota]:
     """
     Get quota for a tenant.
 

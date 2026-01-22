@@ -50,31 +50,32 @@ def _sanitize_file_path(file_path: str) -> str:
     """
     if not file_path:
         return file_path
-    
+
     # Replace backslashes with forward slashes for consistency
-    sanitized = file_path.replace('\\', '/')
-    
+    sanitized = file_path.replace("\\", "/")
+
     # Remove path traversal attempts
     # This pattern matches ../ or ..\\ repeated any number of times
     while True:
-        new_sanitized = re.sub(r'\.\./', '', sanitized)
+        new_sanitized = re.sub(r"\.\./", "", sanitized)
         if new_sanitized == sanitized:
             break
         sanitized = new_sanitized
-    
+
     # Remove any remaining .. at the start or after /
-    sanitized = re.sub(r'(^|/)\.\.(?=/|$)', r'\1__invalid__', sanitized)
-    
+    sanitized = re.sub(r"(^|/)\.\.(?=/|$)", r"\1__invalid__", sanitized)
+
     # Limit the length to prevent DoS
     if len(sanitized) > 500:
         sanitized = sanitized[:500]
-    
+
     return sanitized
 
 
 # =============================================================================
 # Sync DB Operations (run in thread pool)
 # =============================================================================
+
 
 def _insert_audit_log(entry: AuditLog) -> dict:
     """
@@ -129,7 +130,9 @@ def _query_audit_logs(
             statement = statement.where(AuditLog.status == filters["status"])
 
         if filters.get("resource_type"):
-            statement = statement.where(AuditLog.resource_type == filters["resource_type"])
+            statement = statement.where(
+                AuditLog.resource_type == filters["resource_type"]
+            )
 
         if filters.get("since"):
             statement = statement.where(AuditLog.timestamp >= filters["since"])
@@ -146,19 +149,21 @@ def _query_audit_logs(
         # Convert to dicts to avoid detached session issues
         results = []
         for log in session.exec(statement).all():
-            results.append({
-                "id": log.id,
-                "tenant_id": log.tenant_id,
-                "user_id": log.user_id,
-                "action": log.action,
-                "resource_type": log.resource_type,
-                "resource_id": log.resource_id,
-                "status": log.status,
-                "details": log.details,
-                "ip_address": log.ip_address,
-                "user_agent": log.user_agent,
-                "timestamp": log.timestamp,
-            })
+            results.append(
+                {
+                    "id": log.id,
+                    "tenant_id": log.tenant_id,
+                    "user_id": log.user_id,
+                    "action": log.action,
+                    "resource_type": log.resource_type,
+                    "resource_id": log.resource_id,
+                    "status": log.status,
+                    "details": log.details,
+                    "ip_address": log.ip_address,
+                    "user_agent": log.user_agent,
+                    "timestamp": log.timestamp,
+                }
+            )
         return results
 
 
@@ -168,11 +173,13 @@ def _count_audit_logs(tenant_id: UUID, filters: dict) -> int:
 
     Called from thread pool via asyncio.to_thread().
     """
-    from sqlalchemy import func
+    from sqlmodel import func
     from core.db import get_session
 
     with get_session() as session:
-        statement = select(func.count(AuditLog.id)).where(AuditLog.tenant_id == tenant_id)
+        statement = select(func.count(AuditLog.id)).where(
+            AuditLog.tenant_id == tenant_id
+        )
 
         if filters.get("user_id"):
             statement = statement.where(AuditLog.user_id == filters["user_id"])
@@ -192,16 +199,14 @@ def _cleanup_old_logs(retention_days: int) -> int:
 
     Called from thread pool via asyncio.to_thread().
     """
-    from sqlalchemy import delete
-    from core.db import get_session, get_engine
+    from sqlmodel import delete
+    from core.db import get_engine
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
     engine = get_engine()
     with engine.connect() as conn:
-        result = conn.execute(
-            delete(AuditLog).where(AuditLog.timestamp < cutoff)
-        )
+        result = conn.execute(delete(AuditLog).where(AuditLog.timestamp < cutoff))
         conn.commit()
         return result.rowcount
 
@@ -209,6 +214,7 @@ def _cleanup_old_logs(retention_days: int) -> int:
 # =============================================================================
 # Async Audit Logger
 # =============================================================================
+
 
 class AuditLogger:
     """
@@ -246,22 +252,34 @@ class AuditLogger:
         """
         try:
             # Normalize enums to strings
-            action_str = action.value if isinstance(action, AuditAction) else str(action)
-            status_str = status.value if isinstance(status, AuditStatus) else str(status)
+            action_str = (
+                action.value if isinstance(action, AuditAction) else str(action)
+            )
+            status_str = (
+                status.value if isinstance(status, AuditStatus) else str(status)
+            )
 
             # Extract request metadata
             ip_address = None
             user_agent = None
             if request:
                 try:
-                    ip_address = getattr(request.client, 'host', None) if hasattr(request, 'client') else None
-                    raw_user_agent = request.headers.get("user-agent") if hasattr(request, 'headers') else None
+                    ip_address = (
+                        getattr(request.client, "host", None)
+                        if hasattr(request, "client")
+                        else None
+                    )
+                    raw_user_agent = (
+                        request.headers.get("user-agent")
+                        if hasattr(request, "headers")
+                        else None
+                    )
                     # Sanitize user agent: remove control characters and limit length
                     if raw_user_agent:
                         # Remove control characters and non-printable characters
-                        sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', raw_user_agent)
+                        sanitized = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", raw_user_agent)
                         # Also remove potential script injection patterns
-                        sanitized = re.sub(r'[<>]', '', sanitized)
+                        sanitized = re.sub(r"[<>]", "", sanitized)
                         user_agent = sanitized[:500] if sanitized else None
                 except Exception:
                     pass
@@ -343,7 +361,7 @@ class AuditLogger:
         """
         # Validate file path to prevent path traversal attacks
         sanitized_path = _sanitize_file_path(file_path)
-        
+
         return await AuditLogger.log(
             tenant_id=tenant_id,
             user_id=user_id,
@@ -420,9 +438,13 @@ class AuditLogger:
         if user_id:
             filters["user_id"] = user_id
         if action:
-            filters["action"] = action.value if isinstance(action, AuditAction) else action
+            filters["action"] = (
+                action.value if isinstance(action, AuditAction) else action
+            )
         if status:
-            filters["status"] = status.value if isinstance(status, AuditStatus) else status
+            filters["status"] = (
+                status.value if isinstance(status, AuditStatus) else status
+            )
         if resource_type:
             filters["resource_type"] = resource_type
         if since:
@@ -430,7 +452,9 @@ class AuditLogger:
         if until:
             filters["until"] = until
 
-        return await asyncio.to_thread(_query_audit_logs, tenant_id, filters, limit, offset)
+        return await asyncio.to_thread(
+            _query_audit_logs, tenant_id, filters, limit, offset
+        )
 
     @staticmethod
     async def count(
@@ -456,9 +480,13 @@ class AuditLogger:
         if user_id:
             filters["user_id"] = user_id
         if action:
-            filters["action"] = action.value if isinstance(action, AuditAction) else action
+            filters["action"] = (
+                action.value if isinstance(action, AuditAction) else action
+            )
         if status:
-            filters["status"] = status.value if isinstance(status, AuditStatus) else status
+            filters["status"] = (
+                status.value if isinstance(status, AuditStatus) else status
+            )
 
         return await asyncio.to_thread(_count_audit_logs, tenant_id, filters)
 
@@ -477,7 +505,9 @@ class AuditLogger:
         """
         try:
             count = await asyncio.to_thread(_cleanup_old_logs, retention_days)
-            logger.info(f"[AUDIT] Cleaned up {count} logs older than {retention_days} days")
+            logger.info(
+                f"[AUDIT] Cleaned up {count} logs older than {retention_days} days"
+            )
             return count
         except Exception as e:
             logger.error(f"[AUDIT] Cleanup failed: {e}")

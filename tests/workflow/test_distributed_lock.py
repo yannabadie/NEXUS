@@ -318,3 +318,142 @@ class TestDefaultTTL:
         """Test custom TTL is used."""
         lock = DistributedLock(redis=None, resource="ttl:test", ttl=60)
         assert lock._ttl == 60
+
+
+class TestSecurityValidation:
+    """Security tests for input validation."""
+
+    @pytest.fixture
+    def mock_redis(self):
+        """Create a mock Redis client."""
+        redis = AsyncMock()
+        redis.set = AsyncMock(return_value=True)
+        redis.eval = AsyncMock(return_value=1)
+        return redis
+
+    def test_valid_resource_characters(self):
+        """Test that valid resource characters are accepted."""
+        # Alphanumeric, underscore, hyphen, colon, dot
+        valid_resources = [
+            "workflow:abc123",
+            "workflow-123",
+            "workflow_123",
+            "workflow.123",
+            "WORKFLOW:ABC",
+            "workflow123",
+        ]
+        for resource in valid_resources:
+            lock = DistributedLock(redis=None, resource=resource, ttl=30)
+            assert lock._resource == resource
+
+    def test_invalid_resource_characters(self):
+        """Test that invalid resource characters are rejected."""
+        invalid_resources = [
+            "workflow;abc",  # Semicolon
+            "workflow abc",  # Space
+            "workflow\nabc",  # Newline
+            "workflow\tabc",  # Tab
+            "workflow'abc",  # Quote
+            'workflow"abc',  # Double quote
+            "workflow`abc",  # Backtick
+            "workflow$abc",  # Dollar sign
+            "workflow&abc",  # Ampersand
+            "workflow|abc",  # Pipe
+            "workflow(abc",  # Parentheses
+            "workflow[abc",  # Brackets
+            "",  # Empty string
+            " ",  # Just space
+        ]
+        for resource in invalid_resources:
+            with pytest.raises(ValueError) as exc_info:
+                DistributedLock(redis=None, resource=resource, ttl=30)
+            assert "Invalid resource name" in str(exc_info.value)
+
+    def test_invalid_resource_types(self):
+        """Test that non-string resource types are rejected."""
+        invalid_types = [None, 123, [], {}, True, b"workflow"]
+        for resource in invalid_types:
+            with pytest.raises(ValueError) as exc_info:
+                DistributedLock(redis=None, resource=resource, ttl=30)  # type: ignore
+            assert "Invalid resource name" in str(exc_info.value)
+
+    def test_resource_length_limit(self):
+        """Test that overly long resource names are rejected."""
+        long_resource = "a" * 201  # Over 200 char limit
+        with pytest.raises(ValueError) as exc_info:
+            DistributedLock(redis=None, resource=long_resource, ttl=30)
+        assert "Invalid resource name" in str(exc_info.value)
+
+    def test_valid_ttl_range(self):
+        """Test that valid TTL values are accepted."""
+        valid_ttls = [1, 30, 60, 300, 3600, 86400]  # MIN to MAX
+        for ttl in valid_ttls:
+            lock = DistributedLock(redis=None, resource="test:ttl", ttl=ttl)
+            assert lock._ttl == ttl
+
+    def test_ttl_too_small(self):
+        """Test that TTL below minimum is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            DistributedLock(redis=None, resource="test:ttl", ttl=0)
+        assert "Invalid TTL" in str(exc_info.value)
+        assert "between 1 and 86400" in str(exc_info.value)
+
+    def test_ttl_too_large(self):
+        """Test that TTL above maximum is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            DistributedLock(redis=None, resource="test:ttl", ttl=86401)  # MAX + 1
+        assert "Invalid TTL" in str(exc_info.value)
+        assert "between 1 and 86400" in str(exc_info.value)
+
+    def test_ttl_negative(self):
+        """Test that negative TTL is rejected."""
+        with pytest.raises(ValueError) as exc_info:
+            DistributedLock(redis=None, resource="test:ttl", ttl=-1)
+        assert "Invalid TTL" in str(exc_info.value)
+
+    def test_ttl_non_integer(self):
+        """Test that non-integer TTL is rejected."""
+        invalid_ttls = ["30", 30.5, None, [], {}]
+        for ttl in invalid_ttls:
+            with pytest.raises(ValueError) as exc_info:
+                DistributedLock(redis=None, resource="test:ttl", ttl=ttl)  # type: ignore
+            assert "Invalid TTL" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_extend_with_invalid_ttl(self, mock_redis):
+        """Test that extend with invalid TTL is rejected."""
+        lock = DistributedLock(mock_redis, "test:extend")
+        await lock.acquire()
+
+        # Try to extend with invalid TTL
+        result = await lock.extend(additional_ttl=86401)
+        assert result == False
+
+    @pytest.mark.asyncio
+    async def test_extend_edge_cases(self, mock_redis):
+        """Test extend with edge case TTL values."""
+        lock = DistributedLock(mock_redis, "test:extend-edge")
+        await lock.acquire()
+
+        # Valid minimum
+        result = await lock.extend(additional_ttl=1)
+        assert result == True
+
+        # Valid maximum
+        result = await lock.extend(additional_ttl=86400)
+        assert result == True
+
+    def test_security_constants(self):
+        """Test that security constants are properly set."""
+        assert DistributedLock._validate_ttl(1) == True  # MIN_TTL
+        assert DistributedLock._validate_ttl(86400) == True  # MAX_TTL
+        assert DistributedLock._validate_ttl(0) == False
+        assert DistributedLock._validate_ttl(86401) == False
+
+        # Test resource pattern validation function
+        valid_func = DistributedLock._validate_resource("workflow:test")
+        assert valid_func == True
+
+        invalid_func = DistributedLock._validate_resource("workflow test")
+        assert invalid_func == False
+

@@ -16,8 +16,14 @@ from .base import BaseHandler, ToolResult
 
 
 class GlobHandler(BaseHandler):
-    """
-    Handler for finding files by pattern (like Claude Code's Glob tool).
+    """Handler for finding files by pattern (like Claude Code's Glob tool).
+
+    This handler allows searching for files within the workspace using glob patterns.
+    It supports standard glob syntax for recursive and non-recursive matching.
+
+    Attributes:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): Service for validating file operations.
 
     Patterns:
         * - matches any characters except /
@@ -113,13 +119,27 @@ class GlobHandler(BaseHandler):
 
 
 class GrepHandler(BaseHandler):
-    """
-    Handler for searching code by pattern (like Claude Code's Grep tool).
+    """Handler for searching code by pattern (like Claude Code's Grep tool).
+
+    This handler performs content searches across files in the workspace using
+    regular expressions. It supports case-sensitive and case-insensitive searching,
+    as well as file filtering.
+
+    Attributes:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): Service for validating file operations.
     """
 
     @property
     def tool_name(self) -> str:
-        """Get the name of the tool."""
+        """Gets the unique identifier for the tool.
+
+        Returns:
+            str: The tool name, which is 'grep'.
+
+        Raises:
+            None: This property does not raise exceptions.
+        """
         return "grep"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:

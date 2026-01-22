@@ -41,7 +41,10 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import AsyncContextManager, ContextManager
 
 logger = logging.getLogger(__name__)
 
@@ -125,20 +128,20 @@ class ConcurrencyLimiter:
             if self._initialized:
                 return
 
-            self._max_concurrent = _get_max_concurrent()
+            self._max_concurrent: int = _get_max_concurrent()
 
             # Async semaphore (for async paths)
-            self._async_semaphore = asyncio.Semaphore(self._max_concurrent)
+            self._async_semaphore: asyncio.Semaphore = asyncio.Semaphore(self._max_concurrent)
 
             # Sync semaphore (for legacy sync paths)
-            self._sync_semaphore = threading.Semaphore(self._max_concurrent)
+            self._sync_semaphore: threading.Semaphore = threading.Semaphore(self._max_concurrent)
 
             # Stats tracking
-            self._stats = ConcurrencyStats()
-            self._stats_lock = threading.Lock()
+            self._stats: ConcurrencyStats = ConcurrencyStats()
+            self._stats_lock: threading.Lock = threading.Lock()
 
             # Current active count (for monitoring)
-            self._active_count = 0
+            self._active_count: int = 0
 
             logger.info(
                 f"[SYNCHROTRON] ConcurrencyLimiter initialized: "
@@ -167,7 +170,7 @@ class ConcurrencyLimiter:
     # =========================================================================
 
     @asynccontextmanager
-    async def acquire_async(self, timeout: float = 60.0):
+    async def acquire_async(self, timeout: float = 60.0) -> AsyncContextManager[None]:
         """
         Async context manager for acquiring a permit.
 
@@ -248,7 +251,7 @@ class ConcurrencyLimiter:
         except Exception:
             return False
 
-    def release_async(self):
+    def release_async(self) -> None:
         """Release async permit (use only with acquire_async_nowait)."""
         self._async_semaphore.release()
         with self._stats_lock:
@@ -261,7 +264,7 @@ class ConcurrencyLimiter:
     # =========================================================================
 
     @contextmanager
-    def acquire_sync_context(self, timeout: float = 60.0):
+    def acquire_sync_context(self, timeout: float = 60.0) -> ContextManager[None]:
         """
         Sync context manager for acquiring a permit.
 
@@ -321,7 +324,7 @@ class ConcurrencyLimiter:
 
         return True
 
-    def release_sync(self):
+    def release_sync(self) -> None:
         """Release a sync permit."""
         self._sync_semaphore.release()
         with self._stats_lock:

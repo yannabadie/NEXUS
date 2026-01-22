@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import uuid
 import sys
@@ -99,6 +100,9 @@ class AsyncClaudeDriver:
 
         # Global registry for cross-driver coordination
         self._registry = get_process_registry()
+
+        # SECURITY: Prepare sanitized environment for subprocess
+        self._sanitized_env = self._create_sanitized_env()
 
         # SECURITY: Validate critical config values
         self._validate_config()
@@ -255,6 +259,88 @@ class AsyncClaudeDriver:
         except ValueError:
             return False
 
+    def _is_safe_task_id(self, task_id: str) -> bool:
+        """
+        SECURITY: Validate task_id format to prevent injection attacks.
+        
+        Task IDs should be simple identifiers without dangerous characters.
+        
+        Args:
+            task_id: The task ID to validate
+            
+        Returns:
+            True if the task_id is safe, False otherwise
+        """
+        # Block dangerous patterns (similar to session UUID but allow more flexibility)
+        dangerous_patterns = [
+            '/', '\\',  # Path separators
+            '..',       # Directory traversal
+            '~', '$', '%',  # Variable expansion
+            '|', '&', ';', '`', '\x00',  # Command injection
+        ]
+        
+        for pattern in dangerous_patterns:
+            if pattern in task_id:
+                return False
+        
+        # Allow alphanumeric, hyphens, underscores, and dots (common in task IDs)
+        safe_pattern = r'^[a-zA-Z0-9._-]+$'
+        return bool(re.match(safe_pattern, task_id))
+
+    def _sanitize_context_content(self, context: str) -> str:
+        """
+        SECURITY: Sanitize context content before writing to file.
+        
+        Prevents potential issues with:
+        - Null bytes that could cause file corruption
+        - Extremely long lines that could cause DoS
+        - Control characters that could be problematic
+        
+        Args:
+            context: Raw context content
+            
+        Returns:
+            Sanitized context content
+        """
+        # Remove null bytes which can be used for attacks
+        if '\x00' in context:
+            context = context.replace('\x00', '')
+        
+        # Limit line length to prevent resource exhaustion
+        max_line_length = 10000
+        lines = context.split('\n')
+        sanitized_lines = []
+        for line in lines:
+            if len(line) > max_line_length:
+                # Truncate extremely long lines
+                sanitized_lines.append(line[:max_line_length] + '... [truncated]')
+            else:
+                sanitized_lines.append(line)
+        
+        return '\n'.join(sanitized_lines)
+
+    def _create_sanitized_env(self) -> Dict[str, str]:
+        """
+        SECURITY: Create a sanitized environment for subprocess execution.
+        
+        Prevents leaking sensitive environment variables to child processes.
+        Only includes safe, necessary environment variables.
+        
+        Returns:
+            Dictionary of safe environment variables
+        """
+        safe_vars = [
+            'PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'TERM',
+            'PYTHONPATH', 'SYSTEMROOT', 'COMSPEC', 'PATHEXT'
+        ]
+        
+        sanitized_env = {}
+        for var in safe_vars:
+            if var in os.environ:
+                sanitized_env[var] = os.environ[var]
+        
+        return sanitized_env
+
     def _sanitize_model_param(self, model: str) -> str:
         """
         SECURITY: Sanitize model parameter before using in command.
@@ -319,6 +405,9 @@ class AsyncClaudeDriver:
         task_id: Optional[str] = None,
         on_token: Optional[Callable[[str], None]] = None,
     ) -> AsyncIterator[str]:
+        # SECURITY: Validate task_id if provided
+        if task_id is not None and not self._is_safe_task_id(task_id):
+            raise RuntimeError(f"[SECURITY] Invalid task_id format: {task_id}")
         """
         TRUE Non-blocking streaming invoke.
 
@@ -351,7 +440,9 @@ class AsyncClaudeDriver:
             raise RuntimeError(f"[SECURITY] Invalid context file path: {message}")
         
         context_file = resolved_path
-        context_file.write_text(context, encoding="utf-8")
+        # SECURITY: Sanitize context content before writing to file
+        sanitized_context = self._sanitize_context_content(context)
+        context_file.write_text(sanitized_context, encoding="utf-8")
 
         # Build command with validated parameters
         cmd = [
@@ -374,11 +465,13 @@ class AsyncClaudeDriver:
             if not self._is_safe_workspace_path(workspace_cwd):
                 raise RuntimeError(f"[SECURITY] Unsafe workspace path: {workspace_cwd}")
             
+            import os  # Add import for sanitized environment
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=workspace_cwd,
+                env=self._sanitized_env,  # SECURITY: Use sanitized environment
             )
 
             # Track by UUID
@@ -589,13 +682,31 @@ class AsyncClaudeDriver:
         }
 
     def _parse_keyvalue_args(self, args_text: str) -> Dict[str, str]:
-        """Parse arguments in key=value format (fallback if not JSON)."""
+        """
+        Parse arguments in key=value format (fallback if not JSON).
+        
+        SECURITY: Sanitize keys and values to prevent injection attacks.
+        """
         args = {}
         for line in args_text.split('\n'):
             line = line.strip()
             if '=' in line:
                 key, value = line.split('=', 1)
-                args[key.strip()] = value.strip()
+                # SECURITY: Sanitize key and value
+                key = key.strip()
+                value = value.strip()
+                
+                # Validate key is safe (alphanumeric, underscore, hyphen)
+                if not re.match(r'^[a-zA-Z0-9_-]+$', key):
+                    continue  # Skip unsafe keys
+                
+                # Remove null bytes and limit value length
+                if '\x00' in value:
+                    value = value.replace('\x00', '')
+                if len(value) > 10000:  # Prevent DoS with huge values
+                    value = value[:10000] + '... [truncated]'
+                
+                args[key] = value
         return args
 
 

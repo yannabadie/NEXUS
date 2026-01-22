@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def _get_memory_service(context: CommandContext):
-    """Retrieves or initializes a MemoryService instance from the command context.
+    """Retrieve or initialize a MemoryService instance from the command context.
 
     This helper function extracts the necessary dependencies (project_memory,
     workspace_path, console) from the provided CommandContext to create a
@@ -28,7 +28,7 @@ def _get_memory_service(context: CommandContext):
         MemoryService: An initialized and configured memory service instance.
 
     Raises:
-        ValueError: If project_memory or workspace_path cannot be resolved
+        ValueError: If `project_memory` or `workspace_path` cannot be resolved
             from the context.
     """
     from core.memory import MemoryService
@@ -40,7 +40,7 @@ def _get_memory_service(context: CommandContext):
 
     # Get project_memory from orchestrator
     project_memory = None
-    if hasattr(context.orchestrator, 'project_memory'):
+    if hasattr(context.orchestrator, "project_memory"):
         project_memory = context.orchestrator.project_memory
 
     if not project_memory:
@@ -48,13 +48,13 @@ def _get_memory_service(context: CommandContext):
 
     # Get workspace_path from extras or orchestrator
     workspace_path = context.extras.get("workspace_path")
-    if not workspace_path and hasattr(context.orchestrator, 'workspace_path'):
+    if not workspace_path and hasattr(context.orchestrator, "workspace_path"):
         workspace_path = context.orchestrator.workspace_path
 
     if not workspace_path:
         # Fallback: try to get from repl if available
         repl = context.extras.get("repl")
-        if repl and hasattr(repl, 'workspace_path'):
+        if repl and hasattr(repl, "workspace_path"):
             workspace_path = repl.workspace_path
 
     if not workspace_path:
@@ -63,7 +63,7 @@ def _get_memory_service(context: CommandContext):
     return MemoryService(
         project_memory=project_memory,
         workspace_path=workspace_path,
-        console=context.console
+        console=context.console,
     )
 
 
@@ -76,22 +76,22 @@ class LearnCommand(Command):
     Attributes:
         name (str): The command name ("/learn").
         aliases (List[str]): List of command aliases.
-        description (str): Command description.
-        usage (str): Usage syntax.
+        description (str): The command description.
+        usage (str): The usage syntax.
     """
 
     @property
     def name(self) -> str:
-        """Gets the command name.
+        """Get the command name.
 
         Returns:
-            str: The primary command name "/learn".
+            str: The primary command name, "/learn".
         """
         return "/learn"
 
     @property
     def aliases(self) -> List[str]:
-        """Gets the command aliases.
+        """Get the command aliases.
 
         Returns:
             List[str]: A list of alternative names for the command.
@@ -100,7 +100,7 @@ class LearnCommand(Command):
 
     @property
     def description(self) -> str:
-        """Gets the command description.
+        """Get the command description.
 
         Returns:
             str: A short description of the command's purpose.
@@ -109,7 +109,7 @@ class LearnCommand(Command):
 
     @property
     def usage(self) -> str:
-        """Gets the command usage syntax.
+        """Get the command usage syntax.
 
         Returns:
             str: The usage string showing arguments.
@@ -117,7 +117,7 @@ class LearnCommand(Command):
         return "/learn <path> (e.g., /learn core/)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Executes the learn command using MemoryService.
+        """Execute the learn command using MemoryService.
 
         Args:
             args (str): The command arguments, expected to be the path to
@@ -127,26 +127,21 @@ class LearnCommand(Command):
 
         Returns:
             CommandResult: The result of the execution, indicating
-                success or failure.
+                success (knowledge added) or failure.
         """
         try:
             service = _get_memory_service(context)
             result = service.learn(args.strip() if args else "")
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
                 return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Learn failed"
+                    status=CommandStatus.ERROR, message=result.error or "Learn failed"
                 )
         except Exception as e:
             return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Learn command failed: {e}"
+                status=CommandStatus.ERROR, message=f"Learn command failed: {e}"
             )
 
 
@@ -159,22 +154,22 @@ class ForgetCommand(Command):
     Attributes:
         name (str): The command name ("/forget").
         aliases (List[str]): List of command aliases.
-        description (str): Command description.
-        usage (str): Usage syntax.
+        description (str): The command description.
+        usage (str): The usage syntax.
     """
 
     @property
     def name(self) -> str:
-        """Gets the command name.
+        """Get the command name.
 
         Returns:
-            str: The primary command name "/forget".
+            str: The primary command name, "/forget".
         """
         return "/forget"
 
     @property
     def aliases(self) -> List[str]:
-        """Gets the command aliases.
+        """Get the command aliases.
 
         Returns:
             List[str]: A list of alternative names for the command.
@@ -183,7 +178,7 @@ class ForgetCommand(Command):
 
     @property
     def description(self) -> str:
-        """Gets the command description.
+        """Get the command description.
 
         Returns:
             str: A short description of the command's purpose.
@@ -192,7 +187,7 @@ class ForgetCommand(Command):
 
     @property
     def usage(self) -> str:
-        """Gets the command usage syntax.
+        """Get the command usage syntax.
 
         Returns:
             str: The usage string showing arguments.
@@ -200,7 +195,7 @@ class ForgetCommand(Command):
         return "/forget <path>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Executes the forget command using MemoryService.
+        """Execute the forget command using MemoryService.
 
         Args:
             args (str): The command arguments, expected to be the path to
@@ -210,26 +205,21 @@ class ForgetCommand(Command):
 
         Returns:
             CommandResult: The result of the execution, indicating
-                success or failure.
+                success (knowledge removed) or failure.
         """
         try:
             service = _get_memory_service(context)
             result = service.forget(args.strip() if args else "")
 
             if result.success:
-                return CommandResult(
-                    status=CommandStatus.SUCCESS,
-                    message=""
-                )
+                return CommandResult(status=CommandStatus.SUCCESS, message="")
             else:
                 return CommandResult(
-                    status=CommandStatus.ERROR,
-                    message=result.error or "Forget failed"
+                    status=CommandStatus.ERROR, message=result.error or "Forget failed"
                 )
         except Exception as e:
             return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Forget command failed: {e}"
+                status=CommandStatus.ERROR, message=f"Forget command failed: {e}"
             )
 
 
@@ -242,21 +232,21 @@ class MemoryStatusCommand(Command):
     Attributes:
         name (str): The command name ("/memory-status").
         aliases (List[str]): List of command aliases.
-        description (str): Command description.
+        description (str): The command description.
     """
 
     @property
     def name(self) -> str:
-        """Gets the command name.
+        """Get the command name.
 
         Returns:
-            str: The primary command name "/memory-status".
+            str: The primary command name, "/memory-status".
         """
         return "/memory-status"
 
     @property
     def aliases(self) -> List[str]:
-        """Gets the command aliases.
+        """Get the command aliases.
 
         Returns:
             List[str]: A list of alternative names like "/ms".
@@ -265,7 +255,7 @@ class MemoryStatusCommand(Command):
 
     @property
     def description(self) -> str:
-        """Gets the command description.
+        """Get the command description.
 
         Returns:
             str: A short description of the command's purpose.
@@ -273,7 +263,7 @@ class MemoryStatusCommand(Command):
         return "Show Project Memory (RAG) status and statistics"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Executes the memory-status command using MemoryService.
+        """Execute the memory-status command using MemoryService.
 
         Args:
             args (str): Command arguments (unused).
@@ -282,19 +272,15 @@ class MemoryStatusCommand(Command):
 
         Returns:
             CommandResult: The result of the execution, indicating
-                success or failure.
+                success (status displayed) or failure.
         """
         try:
             service = _get_memory_service(context)
             service.get_status()
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
             return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"Failed to get memory status: {e}"
+                status=CommandStatus.ERROR, message=f"Failed to get memory status: {e}"
             )
 
 
@@ -307,8 +293,8 @@ class RagCommand(Command):
     Attributes:
         name (str): The command name ("/rag").
         aliases (List[str]): List of command aliases.
-        description (str): Command description.
-        usage (str): Usage syntax.
+        description (str): The command description.
+        usage (str): The usage syntax.
     """
 
     @property
@@ -362,14 +348,10 @@ class RagCommand(Command):
         try:
             service = _get_memory_service(context)
             service.handle_rag_command(args.strip() if args else "")
-            return CommandResult(
-                status=CommandStatus.SUCCESS,
-                message=""
-            )
+            return CommandResult(status=CommandStatus.SUCCESS, message="")
         except Exception as e:
             return CommandResult(
-                status=CommandStatus.ERROR,
-                message=f"RAG command failed: {e}"
+                status=CommandStatus.ERROR, message=f"RAG command failed: {e}"
             )
 
 

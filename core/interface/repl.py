@@ -7,7 +7,16 @@ toute la session (persistent FSM architecture)
 import sys
 import os
 from pathlib import Path
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.config import Config
+    from core.evolution.rate_limiter import EvolutionRateLimiter
+    from core.evolution.manager import EvolutionManager
+    from core.workspace import WorkspaceManager
+    from core.memory import MemoryService
+    from core.swarm import SwarmService
+    from core.agents import AgentService
 
 # Fix VS Code terminal on Windows: unset TERM to let prompt_toolkit auto-detect
 if sys.platform == 'win32' and os.environ.get('TERM') == 'xterm-256color':
@@ -52,8 +61,8 @@ class InteractiveNexusV7:
     """
 
     def __init__(self, workspace_path: Path, gemini_info: Dict, claude_info: Dict) -> None:
-        self.workspace_path = workspace_path
-        self.config = load_config()
+        self.workspace_path: Path = workspace_path
+        self.config: 'Config' = load_config()
 
         # Calculate NEXUS root path robustly (with validation)
         self.nexus_root = self._calculate_nexus_root()
@@ -67,7 +76,7 @@ class InteractiveNexusV7:
         )
 
         # UI
-        self.console = ConsoleV7(verbose=self.config.ui_verbose)
+        self.console: ConsoleV7 = ConsoleV7(verbose=self.config.ui_verbose)
 
         # Prompt toolkit session with fallback for non-interactive terminals
         history_file = workspace_path / ".nexus" / "history.txt"
@@ -88,10 +97,10 @@ class InteractiveNexusV7:
         self.evolution_trigger_threshold: int = 50  # Trigger evolution after N successful turns
 
         # Rate limiter for evolution cycles
-        self.rate_limiter = EvolutionRateLimiter(workspace_path, self.config)
+        self.rate_limiter: 'EvolutionRateLimiter' = EvolutionRateLimiter(workspace_path, self.config)
 
         # V7.5 Phase 0a: EvolutionManager - Central orchestrator for evolution
-        self.evolution_manager = EvolutionManager(
+        self.evolution_manager: 'EvolutionManager' = EvolutionManager(
             workspace_path=workspace_path,
             nexus_root=self.nexus_root,
             config=self.config,
@@ -791,7 +800,7 @@ class InteractiveNexusV7:
 
         # Lazy init workspace manager
         if not hasattr(self, 'workspace_manager'):
-            self.workspace_manager = WorkspaceManager(self.nexus_root)
+            self.workspace_manager: 'WorkspaceManager' = WorkspaceManager(self.nexus_root)
 
         parts = args.strip().split(maxsplit=1)
         subcommand = parts[0].lower() if parts else ""
@@ -1061,11 +1070,11 @@ class InteractiveNexusV7:
     # Project Memory Commands (V9.1 - Delegated to MemoryService)
     # =========================================================================
 
-    def _get_memory_service(self) -> Any:
+    def _get_memory_service(self) -> 'MemoryService':
         """Get or create MemoryService instance."""
         if not hasattr(self, '_memory_service'):
             from core.memory import MemoryService
-            self._memory_service = MemoryService(
+            self._memory_service: 'MemoryService' = MemoryService(
                 getattr(self.orchestrator, 'project_memory', None),
                 self.workspace_path,
                 self.console
@@ -1295,11 +1304,11 @@ class InteractiveNexusV7:
     # Swarm Commands (V9.1 - Delegated to SwarmService)
     # =========================================================================
 
-    def _get_swarm_service(self) -> Any:
+    def _get_swarm_service(self) -> 'SwarmService':
         """Get or create SwarmService instance."""
         if not hasattr(self, '_swarm_service'):
             from core.swarm import SwarmService
-            self._swarm_service = SwarmService(
+            self._swarm_service: 'SwarmService' = SwarmService(
                 self.orchestrator,
                 self.console,
                 self.config
@@ -1322,11 +1331,11 @@ class InteractiveNexusV7:
     # Agent Commands (V9.1 - Delegated to AgentService)
     # =========================================================================
 
-    def _get_agent_service(self) -> Any:
+    def _get_agent_service(self) -> 'AgentService':
         """Get or create AgentService instance."""
         if not hasattr(self, '_agent_service'):
             from core.agents import AgentService
-            self._agent_service = AgentService(
+            self._agent_service: 'AgentService' = AgentService(
                 self.orchestrator,
                 self.workspace_path,
                 self.console

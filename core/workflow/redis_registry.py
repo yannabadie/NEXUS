@@ -23,7 +23,7 @@ Date: 2025-12-16
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from enum import Enum
 from threading import RLock
 from typing import Any, Optional
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class WorkflowStatus(str, Enum):
     """Workflow execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -83,13 +84,15 @@ class RedisWorkflowRegistry:
 
         # In-memory fallback storage
         # Key: workflow_id, Value: workflow dict
-        self._memory_store: Dict[str, Dict[str, Any]] = {}
+        self._memory_store: dict[str, dict[str, Any]] = {}
         # Tenant index for list operations
         # Key: tenant_id, Value: set of workflow_ids
-        self._tenant_index: Dict[str, set] = {}
+        self._tenant_index: dict[str, set] = {}
 
         self._initialized = True
-        logger.info("[WORKFLOW] RedisWorkflowRegistry initialized with in-memory fallback")
+        logger.info(
+            "[WORKFLOW] RedisWorkflowRegistry initialized with in-memory fallback"
+        )
 
     def configure(
         self,
@@ -108,7 +111,9 @@ class RedisWorkflowRegistry:
         self._redis_url = redis_url
         self._use_redis = use_redis
         self._workflow_ttl = workflow_ttl_hours * 3600
-        logger.info(f"[WORKFLOW] Configured: use_redis={use_redis}, ttl={workflow_ttl_hours}h")
+        logger.info(
+            f"[WORKFLOW] Configured: use_redis={use_redis}, ttl={workflow_ttl_hours}h"
+        )
 
     async def connect(self) -> bool:
         """
@@ -139,12 +144,16 @@ class RedisWorkflowRegistry:
             return True
 
         except ImportError:
-            logger.warning("[WORKFLOW] redis package not installed, using in-memory fallback")
+            logger.warning(
+                "[WORKFLOW] redis package not installed, using in-memory fallback"
+            )
             self._connected = False
             return False
 
         except Exception as e:
-            logger.warning(f"[WORKFLOW] Redis connection failed: {e}, using in-memory fallback")
+            logger.warning(
+                f"[WORKFLOW] Redis connection failed: {e}, using in-memory fallback"
+            )
             self._connected = False
             return False
 
@@ -163,7 +172,7 @@ class RedisWorkflowRegistry:
         """Generate Redis key for tenant's workflows hash."""
         return f"{self.KEY_PREFIX}:{tenant_id}"
 
-    def _serialize(self, data: Dict[str, Any]) -> str:
+    def _serialize(self, data: dict[str, Any]) -> str:
         """Serialize workflow data to JSON."""
         # Convert UUID to string if present
         serializable = {}
@@ -176,7 +185,7 @@ class RedisWorkflowRegistry:
                 serializable[k] = v
         return json.dumps(serializable)
 
-    def _deserialize(self, data: str) -> Dict[str, Any]:
+    def _deserialize(self, data: str) -> dict[str, Any]:
         """Deserialize workflow data from JSON."""
         return json.loads(data)
 
@@ -187,7 +196,7 @@ class RedisWorkflowRegistry:
         task: str,
         workspace_id: str = "default",
         complexity: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a new workflow entry.
 
@@ -210,14 +219,16 @@ class RedisWorkflowRegistry:
             "status": WorkflowStatus.PENDING.value,
             "result": None,
             "error": None,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         if self._connected and self._redis:
             try:
                 key = self._workflow_key(tenant_id)
-                await self._redis.hset(key, mapping={workflow_id: self._serialize(workflow)})
+                await self._redis.hset(
+                    key, mapping={workflow_id: self._serialize(workflow)}
+                )
                 await self._redis.sadd(f"{self.KEY_PREFIX}:active", workflow_id)
                 logger.debug(f"[WORKFLOW] Created {workflow_id} in Redis")
             except Exception as e:
@@ -232,7 +243,7 @@ class RedisWorkflowRegistry:
         self,
         workflow_id: str,
         tenant_id: str,
-        workflow: Dict[str, Any],
+        workflow: dict[str, Any],
     ) -> None:
         """Store workflow in in-memory fallback."""
         with self._lock:
@@ -248,7 +259,7 @@ class RedisWorkflowRegistry:
         status: str,
         result: Any = None,
         error: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Update workflow status.
 
@@ -267,7 +278,7 @@ class RedisWorkflowRegistry:
             return None
 
         workflow["status"] = status
-        workflow["updated_at"] = datetime.now(timezone.utc).isoformat()
+        workflow["updated_at"] = datetime.now(UTC).isoformat()
 
         if result is not None:
             workflow["result"] = result
@@ -277,10 +288,16 @@ class RedisWorkflowRegistry:
         if self._connected and self._redis:
             try:
                 key = self._workflow_key(tenant_id)
-                await self._redis.hset(key, mapping={workflow_id: self._serialize(workflow)})
+                await self._redis.hset(
+                    key, mapping={workflow_id: self._serialize(workflow)}
+                )
 
                 # Set TTL on completed/failed workflows
-                if status in (WorkflowStatus.COMPLETED.value, WorkflowStatus.FAILED.value, WorkflowStatus.CANCELLED.value):
+                if status in (
+                    WorkflowStatus.COMPLETED.value,
+                    WorkflowStatus.FAILED.value,
+                    WorkflowStatus.CANCELLED.value,
+                ):
                     await self._redis.srem(f"{self.KEY_PREFIX}:active", workflow_id)
                     # Note: Individual hash fields don't support TTL, would need separate key
                     # For now, rely on periodic cleanup
@@ -294,7 +311,7 @@ class RedisWorkflowRegistry:
 
         return workflow
 
-    def _update_in_memory(self, workflow_id: str, workflow: Dict[str, Any]) -> None:
+    def _update_in_memory(self, workflow_id: str, workflow: dict[str, Any]) -> None:
         """Update workflow in in-memory storage."""
         with self._lock:
             self._memory_store[workflow_id] = workflow
@@ -303,7 +320,7 @@ class RedisWorkflowRegistry:
         self,
         workflow_id: str,
         tenant_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Get a specific workflow.
 
@@ -335,9 +352,9 @@ class RedisWorkflowRegistry:
         tenant_id: str,
         status: Optional[str] = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
-        List workflows for a tenant.
+        list workflows for a tenant.
 
         Args:
             tenant_id: Tenant identifier
@@ -345,7 +362,7 @@ class RedisWorkflowRegistry:
             limit: Maximum results
 
         Returns:
-            List of workflow dicts
+            list of workflow dicts
         """
         workflows = []
 
@@ -428,17 +445,22 @@ class RedisWorkflowRegistry:
             Number of workflows cleaned up
         """
         cleaned = 0
-        cutoff = datetime.now(timezone.utc).isoformat()
+        cutoff = datetime.now(UTC).isoformat()
         # Calculate cutoff time (simplified - just check age in hours)
         from datetime import timedelta
-        cutoff_dt = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+
+        cutoff_dt = datetime.now(UTC) - timedelta(hours=max_age_hours)
         cutoff = cutoff_dt.isoformat()
 
         # Clean in-memory store
         with self._lock:
             to_delete = []
             for wf_id, workflow in self._memory_store.items():
-                if workflow.get("status") in (WorkflowStatus.COMPLETED.value, WorkflowStatus.FAILED.value, WorkflowStatus.CANCELLED.value):
+                if workflow.get("status") in (
+                    WorkflowStatus.COMPLETED.value,
+                    WorkflowStatus.FAILED.value,
+                    WorkflowStatus.CANCELLED.value,
+                ):
                     created = workflow.get("created_at", "")
                     if created < cutoff:
                         to_delete.append(wf_id)
@@ -452,7 +474,7 @@ class RedisWorkflowRegistry:
         logger.info(f"[WORKFLOW] Cleaned up {cleaned} expired workflows")
         return cleaned
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get registry statistics."""
         with self._lock:
             total = len(self._memory_store)
@@ -492,6 +514,7 @@ def get_workflow_registry() -> RedisWorkflowRegistry:
         # Try to load config
         try:
             from ..config import Config
+
             config = Config()
             redis_url = getattr(config, "redis_url", "redis://localhost:6379")
             use_redis = getattr(config, "use_redis_workflows", True)

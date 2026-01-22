@@ -1,21 +1,36 @@
 """
 Multi-AI Executor for NCM Phase 2B Acceleration.
 
-Routes NCM stories to optimal AI providers and enables parallel execution
-for 3-4x performance improvement.
+⚠️ **DEPRECATED - 2026-01-22** ⚠️
 
-Providers:
+This module implements external CLI-based execution (OpenCode, Kimi, Claude CLI).
+**Success Rate Achieved**: 23% (7/30 stories) - UNACCEPTABLE
+
+**Decision**: Abandoned in favor of native NEXUS integration via NCMOrchestrator
+(see core/ncm/orchestrator.py) which uses OrchestratorV7.process_turn() directly.
+
+**Why Deprecated**:
+1. ❌ External CLIs: No control over models/parameters (OpenCode = interface, not model)
+2. ❌ Low success rate: 23% vs expected 70-80% with NEXUS
+3. ❌ Missing NEXUS capabilities: No RAG, Evolution, HiveMind, Swarm integration
+4. ❌ Placeholder implementation: _execute_nexus() was TODO (line 799-808)
+5. ❌ Against NCM plan: Plan specified NCM = Client of OrchestratorV7, not CLIs
+
+**Replacement**: Use `core/ncm/orchestrator.py` (NCMOrchestrator) instead.
+
+**Session Reference**: docs/sessions/SESSION_2026-01-21_NCM_MULTI_AI_EXECUTION.md
+**Historical Value**: Kept for reference and lessons learned.
+
+---
+
+Original design (NOT USED):
 - SimpleExecutor: Trivial tasks (dead_import) - ~6s/story
 - OpenCode/GLM: Simple tasks (missing_doc) - ~45s/story
 - Codex: Moderate tasks (type_error) - ~90s/story
-- NEXUS: Complex tasks (dead_code, refactoring) - ~5min/story
-
-Usage:
-    executor = MultiAIExecutor(config)
-    results = await executor.execute_phase2b(stories)
+- NEXUS: Complex tasks (dead_code, refactoring) - ~5min/story (NEVER IMPLEMENTED)
 
 Author: Claude (NEXUS V12.4)
-Date: 2026-01-21
+Date: 2026-01-21 (Created), 2026-01-22 (Deprecated)
 """
 
 from __future__ import annotations
@@ -62,6 +77,9 @@ def _discover_cli_path(cli_name: str) -> Optional[str]:
     """
     Auto-discover CLI path using 'where' (Windows) or 'which' (Unix).
 
+    SECURITY: Validates cli_name to prevent command injection (CWE-78).
+    Uses strict allowlist of known CLI names.
+
     Args:
         cli_name: Name of the CLI to find (e.g., 'opencode', 'kimi', 'claude')
 
@@ -70,6 +88,14 @@ def _discover_cli_path(cli_name: str) -> Optional[str]:
     """
     import shutil
     import subprocess
+    import re
+
+    # SECURITY FIX: Validate cli_name (CWE-78 Prevention)
+    # Allow only alphanumeric and limited special chars
+    # Block: ;, &, |, `, $, (, ), <, >, spaces
+    if not cli_name or not re.match(r'^[a-zA-Z0-9._-]+$', cli_name):
+        logger.warning(f"SECURITY: Invalid CLI name '{cli_name}' blocked (potential CWE-78)")
+        return None
 
     # First try shutil.which (cross-platform)
     path = shutil.which(cli_name)
@@ -93,7 +119,17 @@ def _discover_cli_path(cli_name: str) -> Optional[str]:
             timeout=5
         )
         if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip().split('\n')[0]
+            # SECURITY FIX: Validate command output before parsing
+            # (CWE-20: Improper Input Validation)
+            stdout_lines = result.stdout.strip().split('\n')
+            if stdout_lines:
+                first_path = stdout_lines[0].strip()
+                # Validate the returned path is legitimate (not containing dangerous chars)
+                if re.match(r'^[a-zA-Z0-9\\/_:\.\- ]+$', first_path):
+                    return first_path
+                else:
+                    logger.warning(f"SECURITY: Suspicious CLI path '{first_path}' rejected")
+                    return None
     except Exception:
         pass
 
@@ -140,15 +176,57 @@ class MultiAIExecutorConfig:
     def __post_init__(self):
         """Auto-discover CLI paths if not provided."""
         # Check env vars first, then auto-discover
-        if self.opencode_cli is None:
-            self.opencode_cli = os.environ.get("OPENCODE_CLI_PATH") or _discover_cli_path("opencode")
-        if self.kimi_cli is None:
-            self.kimi_cli = os.environ.get("KIMI_CLI_PATH") or _discover_cli_path("kimi")
-        if self.claude_cli is None:
-            self.claude_cli = os.environ.get("CLAUDE_CLI_PATH") or _discover_cli_path("claude")
+        # SECURITY FIX: Validate environment variables before use (CWE-88: Argument Injection)
+        def _validate_and_get_env_path(env_var: str) -> Optional[str]:
+            """Validate environment variable path before use."""
+            import re
+            path = os.environ.get(env_var)
+            if not path:
+                return None
 
-        # Log discovered paths
-        logger.info(f"CLI paths discovered: opencode={self.opencode_cli}, kimi={self.kimi_cli}, claude={self.claude_cli}")
+            # Validate path format - prevent injection attacks
+            # Allow standard path characters but block shell metacharacters
+            if len(path) > 500:  # Reasonable path length limit
+                logger.warning(f"SECURITY: Environment variable {env_var} path too long, ignoring")
+                return None
+
+            # Block paths with suspicious characters
+            # This prevents: ; & | ` $ ( ) < > and other shell metacharacters
+            if re.search(r'[;&|`$()<>\n\r]', path):
+                logger.warning(f"SECURITY: Environment variable {env_var} contains suspicious characters, ignoring")
+                return None
+
+            # Check if path exists and is an executable file
+            path_obj = Path(path)
+            if path_obj.exists() and path_obj.is_file():
+                return str(path_obj.resolve())
+            elif not path_obj.exists() and not shutil.which(path):  # Also try as command name
+                logger.warning(f"SECURITY: CLI path from {env_var} not found or not executable: {path}")
+                return None
+
+            return path
+
+        if self.opencode_cli is None:
+            self.opencode_cli = _validate_and_get_env_path("OPENCODE_CLI_PATH") or _discover_cli_path("opencode")
+        if self.kimi_cli is None:
+            self.kimi_cli = _validate_and_get_env_path("KIMI_CLI_PATH") or _discover_cli_path("kimi")
+        if self.claude_cli is None:
+            self.claude_cli = _validate_and_get_env_path("CLAUDE_CLI_PATH") or _discover_cli_path("claude")
+
+        # SECURITY FIX: Sanitize CLI paths before logging (CWE-117: Log Injection)
+        # Only log if paths exist and are within reasonable length
+        def _safe_log_path(path: Optional[str]) -> str:
+            if not path:
+                return "None"
+            # Limit path length and sanitize for logging
+            path_str = str(path)
+            if len(path_str) > 200:
+                return path_str[:100] + "..." + path_str[-50:]
+            # Remove potential control characters
+            import re
+            return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', path_str)
+
+        logger.info(f"CLI paths discovered: opencode={_safe_log_path(self.opencode_cli)}, kimi={_safe_log_path(self.kimi_cli)}, claude={_safe_log_path(self.claude_cli)}")
 
 
 @dataclass
@@ -175,7 +253,7 @@ class MultiAIExecutor:
     - dead_code → NEXUS (full orchestration)
     """
 
-    def __init__(self, config: MultiAIExecutorConfig):
+    def __init__(self, config: MultiAIExecutorConfig) -> None:
         """Initialize Multi-AI Executor."""
         self.config = config
         self.workspace_path = config.workspace_path
@@ -233,8 +311,18 @@ class MultiAIExecutor:
             self._codex_driver = AsyncCodexDriver(config)
         return self._codex_driver
 
-    async def close_drivers(self):
-        """Close all drivers."""
+    async def close_drivers(self) -> None:
+        """Close all active driver connections.
+
+        Ensures that resources held by the OpenCode and Codex drivers are
+        properly released. Sets the driver instances to None after closing.
+
+        Returns:
+            None
+
+        Raises:
+            Exception: If there is an error while closing the drivers.
+        """
         if self._opencode_driver:
             await self._opencode_driver.close()
             self._opencode_driver = None
@@ -246,7 +334,7 @@ class MultiAIExecutor:
     # Story Routing
     # =========================================================================
 
-    def _route_story(self, story: Dict) -> Tuple[str, int]:
+    def _route_story(self, story: Dict[str, Any]) -> Tuple[str, int]:
         """
         Route story to optimal provider.
 
@@ -261,8 +349,8 @@ class MultiAIExecutor:
 
     def _group_stories_by_provider(
         self,
-        stories: List[Dict]
-    ) -> Dict[str, List[Dict]]:
+        stories: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """Group stories by their target provider.
 
         Routes each story to an optimal provider based on its category and groups
@@ -746,8 +834,24 @@ class MultiAIExecutor:
                 error=str(e),
             )
 
-    async def execute_story(self, story: Dict) -> StoryResult:
-        """Execute a single story with appropriate provider."""
+    async def execute_story(self, story: Dict[str, Any]) -> StoryResult:
+        """Execute a single story with appropriate provider.
+
+        Routes the story to the specific executor (Simple, OpenCode, Codex,
+        Claude, or NEXUS) based on the routing matrix determined by the
+        story category.
+
+        Args:
+            story: A dictionary containing details about the task, including
+                'story_id', 'category', 'description', and 'target_file'.
+
+        Returns:
+            A StoryResult object containing the execution status (SUCCESS, FAILED,
+            or SKIPPED), duration, and any output or error messages.
+
+        Raises:
+            Exception: If an unhandled error occurs during driver execution.
+        """
         provider, _ = self._route_story(story)
 
         if provider == "simple":
@@ -765,7 +869,7 @@ class MultiAIExecutor:
     # Prompt Building
     # =========================================================================
 
-    def _build_prompt(self, story: Dict, include_context: bool = False) -> str:
+    def _build_prompt(self, story: Dict[str, Any], include_context: bool = False) -> str:
         """Build prompt for AI execution."""
         category = story.get("category", "unknown")
         description = story.get("description", "")
@@ -800,7 +904,7 @@ class MultiAIExecutor:
 
         return "\n".join(prompt_parts)
 
-    async def _apply_changes(self, story: Dict, ai_output: str):
+    async def _apply_changes(self, story: Dict[str, Any], ai_output: str) -> None:
         """Apply AI-generated changes to file with validation."""
         target_file = story.get("target_file")
         if not target_file:
@@ -824,6 +928,7 @@ class MultiAIExecutor:
         """
         Parse newline-delimited JSON events from CLI output.
 
+        SECURITY: Validates output before parsing to prevent injection attacks (CWE-20).
         Both OpenCode (--format json) and Kimi (--output-format stream-json)
         return newline-delimited JSON events. Extract the final content.
 
@@ -832,15 +937,39 @@ class MultiAIExecutor:
 
         Returns:
             Extracted text content from JSON events, or original output if not JSON
+
+        Raises:
+            None: Returns empty string on security validation failure
         """
         if not output:
             return ""
 
-        result_parts = []
+        # SECURITY FIX: Validate output size to prevent DoS (CWE-400)
+        # Limit to 50MB of output to prevent memory exhaustion
+        MAX_OUTPUT_SIZE = 50 * 1024 * 1024  # 50MB
+        if len(output) > MAX_OUTPUT_SIZE:
+            logger.warning("SECURITY: CLI output exceeds size limit (CWE-400 prevention)")
+            return ""
 
-        for line in output.strip().split('\n'):
+        result_parts = []
+        line_count = 0
+        MAX_LINES = 100000  # Prevent processing too many lines
+
+        # SECURITY FIX: Validate line parsing (CWE-20)
+        # Use splitlines() which handles various line endings and is safer
+        for line in output.splitlines():
+            line_count += 1
+            if line_count > MAX_LINES:
+                logger.warning("SECURITY: CLI output has too many lines (CWE-20 prevention)")
+                break
+
             line = line.strip()
             if not line:
+                continue
+
+            # SECURITY FIX: Additional validation for very long lines
+            if len(line) > 100000:  # 100KB per line max
+                logger.warning(f"SECURITY: Suspiciously long line in CLI output ({len(line)} chars)")
                 continue
 
             # Try to parse as JSON

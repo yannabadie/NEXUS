@@ -22,7 +22,6 @@ Date: 2025-12-16
 """
 
 import logging
-import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
@@ -84,12 +83,18 @@ class HybridBackend(MemoryBackend):
         # Validate storage_path to prevent path traversal (CWE-22)
         if storage_path is not None:
             try:
-                # Resolve to absolute path and ensure it's within allowed boundaries
                 resolved_path = storage_path.resolve()
-                # Ensure the path is not trying to escape the workspace
-                if not str(resolved_path).startswith(str(Path.cwd().resolve())):
+                workspace = Path.cwd().resolve()
+                
+                # SECURITY: Use proper path containment check with relative_to()
+                # This prevents symlink attacks and path traversal vulnerabilities
+                # Unlike startswith(), relative_to() is immune to bypass attacks
+                try:
+                    resolved_path.relative_to(workspace)
+                    self._storage_path = resolved_path
+                except ValueError:
                     raise ValueError(f"Storage path {storage_path} is outside the current working directory")
-                self._storage_path = resolved_path
+                    
             except (OSError, RuntimeError) as e:
                 raise ValueError(f"Invalid storage path: {storage_path}") from e
         else:
@@ -120,7 +125,19 @@ class HybridBackend(MemoryBackend):
 
     @classmethod
     def is_available(cls) -> bool:
-        """Check if Hybrid backend can be used."""
+        """
+        Check if Hybrid backend can be used.
+
+        Determines if the hybrid backend is viable by checking the availability
+        of its component backends (Dense and BM25S).
+
+        Returns:
+            bool: True if either the Dense or BM25S backend is available,
+                False otherwise.
+
+        Raises:
+            None
+        """
         # Available if either sub-backend is available
         from .dense import DenseBackend
         from .bm25 import Bm25Backend
@@ -130,8 +147,16 @@ class HybridBackend(MemoryBackend):
         """
         Lazy-initialize sub-backends.
 
+        Attempts to initialize the Dense and BM25S backends if they are not
+        already loaded. This method handles backend-specific initialization
+        logic and logging.
+
         Returns:
-            True if at least one backend is available
+            bool: True if at least one backend (Dense or BM25S) is successfully
+                initialized and available.
+
+        Raises:
+            None: Initialization exceptions are caught and logged as debug messages.
         """
         if self._dense_backend is None:
             try:
@@ -220,6 +245,15 @@ class HybridBackend(MemoryBackend):
         if not self._index_built:
             return []
 
+        # V9 SECURITY: Validate limit parameter (CWE-20)
+        if not isinstance(limit, int) or limit < 1:
+            self._logger.warning(f"Invalid limit parameter: {limit}. Must be a positive integer.")
+            limit = 10  # Safe default
+        
+        if limit > 1000:  # Reasonable upper bound to prevent DoS
+            self._logger.warning(f"Limit {limit} exceeds maximum allowed (1000). Capping to prevent abuse.")
+            limit = 1000
+        
         # Retrieve from both backends (with higher limit for re-ranking)
         retrieve_limit = min(limit * 3, self._chunk_count) if self._chunk_count > 0 else limit * 3
 

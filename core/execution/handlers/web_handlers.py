@@ -260,17 +260,16 @@ class WebFetchHandler(BaseHandler):
         Fetch content from a URL.
 
         Args:
-            args: {
-                "url": "https://example.com",
-                "max_length": 10000 (optional, default: 10000 chars)
-            }
+            args (Dict[str, Any]): Dictionary containing execution arguments:
+                - url (str): The URL to fetch content from. Must start with http:// or https://.
+                - max_length (int, optional): Maximum number of characters to read. Defaults to 10000.
 
         Returns:
-            ToolResult with URL content
+            ToolResult: The result of the tool execution, containing the URL content
+                in the output field or an error message.
 
-        Examples:
-            {"url": "https://docs.python.org/3/library/asyncio.html"}
-            {"url": "https://api.github.com/repos/python/cpython", "max_length": 5000}
+        Raises:
+            None: Exceptions are caught and returned as a failure ToolResult.
         """
         url = args.get("url", "")
         max_length = args.get("max_length", 10000)
@@ -367,11 +366,15 @@ def create_web_handlers(
     Factory function to create web handlers.
 
     Args:
-        workspace_path: Workspace root path
-        validation_service: Optional validation service
+        workspace_path (Path): The root path of the workspace.
+        validation_service (Any, optional): Optional service for validating operations.
+            Defaults to None.
 
     Returns:
-        Dict mapping tool names to handlers
+        Dict[str, BaseHandler]: A dictionary mapping tool names to handlers.
+
+    Raises:
+        None: No specific exceptions are raised during handler creation.
     """
     return {
         "web_search": WebSearchHandler(workspace_path, validation_service),

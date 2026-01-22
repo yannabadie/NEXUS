@@ -21,10 +21,16 @@ Date: 2025-12-16
 """
 
 import logging
+import re
 import uuid
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# Security constants for input validation
+MAX_TTL = 86400  # Maximum TTL: 24 hours (86400 seconds)
+MIN_TTL = 1      # Minimum TTL: 1 second
+RESOURCE_PATTERN = re.compile(r'^[a-zA-Z0-9_\-:.]+$')  # Allowed characters in resource names
 
 
 class DistributedLock:
@@ -57,7 +63,23 @@ class DistributedLock:
             resource: Resource identifier to lock (e.g., "workflow:abc123")
             ttl: Lock TTL in seconds (auto-release after this time)
             owner_id: Unique owner identifier (generated if not provided)
+
+        Raises:
+            ValueError: If resource contains invalid characters or ttl is out of bounds
         """
+        # Security: Validate resource name to prevent injection
+        if not self._validate_resource(resource):
+            raise ValueError(
+                f"Invalid resource name: '{resource}'. "
+                f"Only alphanumeric, hyphen, underscore, colon, and dot characters are allowed."
+            )
+
+        # Security: Validate TTL to prevent DoS via extremely long locks
+        if not self._validate_ttl(ttl):
+            raise ValueError(
+                f"Invalid TTL: {ttl}. Must be between {MIN_TTL} and {MAX_TTL} seconds."
+            )
+
         self._redis = redis
         self._resource = resource
         self._ttl = ttl
@@ -170,6 +192,9 @@ class DistributedLock:
 
         Returns:
             True if extended, False if not held
+
+        Raises:
+            ValueError: If additional_ttl is provided and out of bounds
         """
         if not self._acquired:
             return False
@@ -178,6 +203,14 @@ class DistributedLock:
             return True
 
         ttl = additional_ttl or self._ttl
+
+        # Security: Validate extended TTL
+        if additional_ttl is not None and not self._validate_ttl(additional_ttl):
+            logger.warning(
+                f"[LOCK] Invalid extend TTL: {additional_ttl}. "
+                f"Must be between {MIN_TTL} and {MAX_TTL} seconds."
+            )
+            return False
 
         try:
             # Only extend if we own the lock
@@ -212,6 +245,47 @@ class DistributedLock:
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit - release lock."""
         await self.release()
+
+    # =========================================================================
+    # Security: Input validation methods
+    # =========================================================================
+
+    @staticmethod
+    def _validate_resource(resource: str) -> bool:
+        """
+        Validate resource name to prevent injection attacks.
+
+        Args:
+            resource: Resource identifier to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not resource or not isinstance(resource, str):
+            return False
+
+        # Check length (prevent oversized input)
+        if len(resource) > 200:
+            return False
+
+        # Check against allowed pattern
+        return bool(RESOURCE_PATTERN.match(resource))
+
+    @staticmethod
+    def _validate_ttl(ttl: int) -> bool:
+        """
+        Validate TTL value to prevent DoS via extreme lock durations.
+
+        Args:
+            ttl: TTL value in seconds to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not isinstance(ttl, int):
+            return False
+
+        return MIN_TTL <= ttl <= MAX_TTL
 
 
 class LockAcquisitionError(Exception):

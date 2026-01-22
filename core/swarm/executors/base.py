@@ -89,6 +89,12 @@ class AgentResponse:
         return not has_ongoing
 
     def to_dict(self) -> Dict:
+        """Converts the response to a dictionary representation.
+
+        Returns:
+            Dict: A dictionary containing the response attributes including
+                agent_id, content, status, metrics, and any error information.
+        """
         return {
             "agent_id": self.agent_id,
             "content": self.content,
@@ -118,7 +124,15 @@ class ExecutionContext:
     force_cot: bool = False
 
     def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
-        """Get agent assignment by role."""
+        """Retrieves the agent assignment associated with a specific role.
+
+        Args:
+            role: The role identifier to search for.
+
+        Returns:
+            Optional[AgentAssignment]: The matching agent assignment if found,
+                otherwise None.
+        """
         for assignment in self.agent_assignments:
             if assignment.role == role:
                 return assignment
@@ -129,7 +143,16 @@ class ExecutionContext:
         return self.agent_assignments
 
     def get_session_uuid(self, role: str, agent_id: str) -> Optional[str]:
-        """Get or create session UUID for an agent-role combination."""
+        """Gets or creates a session UUID for an agent-role combination.
+
+        Args:
+            role: The role of the agent in the collaboration.
+            agent_id: The unique identifier of the agent.
+
+        Returns:
+            Optional[str]: The session UUID if available, or None if the session
+                manager or task ID is missing, or if an error occurs.
+        """
         if self.session_manager is None or self.task_id is None:
             return None
 

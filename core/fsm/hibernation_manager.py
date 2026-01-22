@@ -21,6 +21,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -28,6 +29,115 @@ from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel, select
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Security Validation Utilities
+# =============================================================================
+
+def _is_safe_workspace_id(workspace_id: str) -> bool:
+    """
+    SECURITY: Validate workspace_id to prevent injection attacks.
+
+    Allowed characters: alphanumeric, hyphens, underscores, dots
+    Max length: 100 characters (matching DB constraint)
+
+    Args:
+        workspace_id: The workspace identifier to validate
+
+    Returns:
+        True if workspace_id is safe
+    """
+    if not workspace_id or not isinstance(workspace_id, str):
+        return False
+
+    if len(workspace_id) > 100:
+        return False
+
+    # Whitelist pattern: alphanumeric, dots, hyphens, underscores
+    if not re.match(r'^[a-zA-Z0-9._-]+$', workspace_id):
+        return False
+
+    # Block dangerous patterns
+    dangerous_patterns = ['..', ';', '|', '&', '`', '$', '(', ')', '<', '>', '\\', '/', '\x00', '\n', '\r']
+    if any(pattern in workspace_id for pattern in dangerous_patterns):
+        return False
+
+    return True
+
+
+def _is_safe_previous_state(previous_state: str) -> bool:
+    """
+    SECURITY: Validate previous_state to prevent log injection.
+
+    Args:
+        previous_state: The FSM state name to validate
+
+    Returns:
+        True if previous_state is safe
+    """
+    if not previous_state or not isinstance(previous_state, str):
+        return False
+
+    if len(previous_state) > 50:  # Reasonable limit for state names
+        return False
+
+    # Whitelist pattern: uppercase letters and underscores (standard enum format)
+    if not re.match(r'^[A-Z_]+$', previous_state):
+        return False
+
+    return True
+
+
+def _is_safe_active_agent(active_agent: Optional[str]) -> bool:
+    """
+    SECURITY: Validate active_agent to prevent injection attacks.
+
+    Args:
+        active_agent: The agent name to validate
+
+    Returns:
+        True if active_agent is safe
+    """
+    if active_agent is None:
+        return True
+
+    if not isinstance(active_agent, str):
+        return False
+
+    if len(active_agent) > 50:
+        return False
+
+    # Whitelist pattern: lowercase letters only (standard agent names: "claude", "gemini", "opencode")
+    if not re.match(r'^[a-z]+$', active_agent):
+        return False
+
+    return True
+
+
+def _validate_json_size(data: Optional[str or dict or list], max_size: int = 50000) -> bool:
+    """
+    SECURITY: Validate JSON data size to prevent DoS attacks.
+
+    Args:
+        data: The data to validate (can be string, dict, or list)
+        max_size: Maximum allowed size in bytes
+
+    Returns:
+        True if data size is within limits
+    """
+    if data is None:
+        return True
+
+    try:
+        if isinstance(data, (dict, list)):
+            json_str = json.dumps(data)
+        else:
+            json_str = str(data)
+
+        return len(json_str.encode('utf-8')) <= max_size
+    except Exception:
+        return False
 
 
 # =============================================================================
@@ -98,8 +208,18 @@ class RedisHibernationCache:
         state: dict,
         ttl_hours: int = 24,
     ) -> bool:
-        """Cache hibernation state in Redis."""
+        """
+        Cache hibernation state in Redis.
+
+        SECURITY: workspace_id should be validated by caller (HibernationManager).
+        This is a defense-in-depth check.
+        """
         if not self._enabled or not self._redis:
+            return False
+
+        # SECURITY: Validate workspace_id for defense-in-depth
+        if not _is_safe_workspace_id(workspace_id):
+            logger.warning(f"[SECURITY] Invalid workspace_id in Redis cache: {workspace_id}")
             return False
 
         try:
@@ -127,8 +247,18 @@ class RedisHibernationCache:
         tenant_id: UUID,
         workspace_id: str,
     ) -> Optional[dict]:
-        """Get hibernation state from Redis cache."""
+        """
+        Get hibernation state from Redis cache.
+
+        SECURITY: workspace_id should be validated by caller (HibernationManager).
+        This is a defense-in-depth check.
+        """
         if not self._enabled or not self._redis:
+            return None
+
+        # SECURITY: Validate workspace_id for defense-in-depth
+        if not _is_safe_workspace_id(workspace_id):
+            logger.warning(f"[SECURITY] Invalid workspace_id in Redis cache: {workspace_id}")
             return None
 
         try:
@@ -147,8 +277,18 @@ class RedisHibernationCache:
         tenant_id: UUID,
         workspace_id: str,
     ) -> bool:
-        """Delete hibernation state from Redis cache."""
+        """
+        Delete hibernation state from Redis cache.
+
+        SECURITY: workspace_id should be validated by caller (HibernationManager).
+        This is a defense-in-depth check.
+        """
         if not self._enabled or not self._redis:
+            return False
+
+        # SECURITY: Validate workspace_id for defense-in-depth
+        if not _is_safe_workspace_id(workspace_id):
+            logger.warning(f"[SECURITY] Invalid workspace_id in Redis cache: {workspace_id}")
             return False
 
         try:
@@ -190,15 +330,19 @@ class HibernationState(SQLModel, table=True):
     message_history: Optional[str] = Field(default=None, max_length=100000)  # JSON
 
     # Timestamps
-    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24))
+    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=24))
 
     # Status
     is_active: bool = Field(default=True, index=True)
 
     def is_expired(self) -> bool:
         """Check if hibernation has expired."""
-        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
+        # Handle both timezone-aware and naive datetimes
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > expires_at
 
 
 # =============================================================================
@@ -215,7 +359,12 @@ def _save_hibernation(
     message_history: Optional[list] = None,
     ttl_hours: int = 24,
 ) -> dict:
-    """Save hibernation state to database."""
+    """
+    Save hibernation state to database.
+
+    SECURITY: Input validation is performed at the async entry point.
+    This function should only be called through HibernationManager.enter_hibernate().
+    """
     from core.db import get_session
 
     # Deactivate any existing hibernation for this tenant/workspace
@@ -239,7 +388,7 @@ def _save_hibernation(
             active_agent=active_agent,
             turn_count=turn_count,
             message_history=json.dumps(message_history) if message_history else None,
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=ttl_hours),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=ttl_hours),
         )
 
         session.add(state)
@@ -265,7 +414,7 @@ def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict
             HibernationState.tenant_id == tenant_id,
             HibernationState.workspace_id == workspace_id,
             HibernationState.is_active,
-            HibernationState.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+            HibernationState.expires_at > datetime.now(timezone.utc),
         )
         state = session.exec(statement).first()
 
@@ -335,7 +484,7 @@ def _cleanup_expired() -> int:
             update(HibernationState)
             .where(
                 HibernationState.is_active,
-                HibernationState.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
+                HibernationState.expires_at < datetime.now(timezone.utc),
             )
             .values(is_active=False)
         )
@@ -397,7 +546,26 @@ class HibernationManager:
 
         Returns:
             Dict with hibernation info
+
+        Raises:
+            ValueError: If any parameter fails security validation
         """
+        # SECURITY: Validate input parameters
+        if not _is_safe_workspace_id(workspace_id):
+            raise ValueError(f"[SECURITY] Invalid workspace_id: {workspace_id}")
+
+        if not _is_safe_previous_state(previous_state):
+            raise ValueError(f"[SECURITY] Invalid previous_state: {previous_state}")
+
+        if not _is_safe_active_agent(active_agent):
+            raise ValueError(f"[SECURITY] Invalid active_agent: {active_agent}")
+
+        if not _validate_json_size(fsm_context, max_size=50000):
+            raise ValueError("[SECURITY] fsm_context exceeds maximum size limit")
+
+        if not _validate_json_size(message_history, max_size=100000):
+            raise ValueError("[SECURITY] message_history exceeds maximum size limit")
+
         # Save to SQLite (authoritative storage)
         result = await asyncio.to_thread(
             _save_hibernation,
@@ -441,7 +609,14 @@ class HibernationManager:
 
         Returns:
             Hibernation state dict or None
+
+        Raises:
+            ValueError: If workspace_id fails security validation
         """
+        # SECURITY: Validate workspace_id
+        if not _is_safe_workspace_id(workspace_id):
+            raise ValueError(f"[SECURITY] Invalid workspace_id: {workspace_id}")
+
         # V12.3: Try Redis cache first (fast path for multi-instance)
         try:
             cache = await RedisHibernationCache.get_instance()
@@ -468,7 +643,14 @@ class HibernationManager:
 
         Returns:
             Restored state dict or None if no active hibernation
+
+        Raises:
+            ValueError: If workspace_id fails security validation
         """
+        # SECURITY: Validate workspace_id
+        if not _is_safe_workspace_id(workspace_id):
+            raise ValueError(f"[SECURITY] Invalid workspace_id: {workspace_id}")
+
         result = await asyncio.to_thread(_exit_hibernation, tenant_id, workspace_id)
 
         if result:

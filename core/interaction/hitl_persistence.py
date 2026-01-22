@@ -27,18 +27,135 @@ Usage:
 
 Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
+Security Audit: V12.3 IRONCLAD - Input validation added
 """
 
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, UTC
-from typing import List, Optional
+import re
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Tuple
 from uuid import UUID
 
 from sqlmodel import select
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Security Validation Helpers
+# =============================================================================
+
+def _validate_workspace_id(workspace_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate workspace_id to prevent path traversal and injection attacks.
+
+    Args:
+        workspace_id: The workspace identifier to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if workspace_id is None:
+        return False, "workspace_id cannot be None"
+
+    if not isinstance(workspace_id, str):
+        return False, "workspace_id must be a string"
+
+    # Reject empty strings
+    if len(workspace_id) == 0:
+        return False, "workspace_id cannot be empty"
+
+    # Maximum length to prevent DoS
+    if len(workspace_id) > 255:
+        return False, "workspace_id exceeds maximum length (255)"
+
+    # Only allow alphanumeric, underscore, hyphen, and dot
+    # This prevents path traversal and special character injection
+    if not re.match(r'^[a-zA-Z0-9_.-]+$', workspace_id):
+        return False, "workspace_id contains invalid characters"
+
+    # Prevent path traversal attempts
+    if '..' in workspace_id or '/' in workspace_id or '\\' in workspace_id:
+        return False, "workspace_id cannot contain path traversal sequences"
+
+    return True, None
+
+
+def _validate_request_id(request_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate request_id is a valid UUID format.
+
+    Args:
+        request_id: The request ID to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if request_id is None:
+        return False, "request_id cannot be None"
+
+    # Handle UUID objects
+    if isinstance(request_id, UUID):
+        return True, None
+
+    if not isinstance(request_id, str):
+        return False, "request_id must be a string or UUID"
+
+    try:
+        # Try to parse as UUID
+        UUID(request_id)
+        return True, None
+    except (ValueError, AttributeError, TypeError):
+        return False, "request_id must be a valid UUID"
+
+
+def _sanitize_json_data(data: Optional[str]) -> Optional[dict]:
+    """
+    Safely parse JSON data from database, handling malformed JSON.
+
+    Args:
+        data: JSON string from database
+
+    Returns:
+        Parsed dict or None if parsing fails
+    """
+    if data is None:
+        return None
+
+    try:
+        parsed = json.loads(data)
+        # Ensure result is a dict or list (expected types)
+        if not isinstance(parsed, (dict, list)):
+            logger.warning(f"JSON data parsed to unexpected type: {type(parsed)}")
+            return None
+        return parsed
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"Failed to parse JSON data: {e}")
+        return None
+
+
+def _validate_request_type(request_type: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate request_type against allowed values.
+
+    Args:
+        request_type: The request type to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if request_type is None:
+        return False, "request_type cannot be None"
+
+    if not isinstance(request_type, str):
+        return False, "request_type must be a string"
+
+    allowed_types = {"ask", "confirm", "choose"}
+    if request_type not in allowed_types:
+        return False, f"request_type must be one of {allowed_types}"
+
+    return True, None
 
 
 # =============================================================================
@@ -69,7 +186,7 @@ def _insert_hitl_request(
         prompt=prompt,
         options=json.dumps(options) if options else None,
         context_data=json.dumps(context_data) if context_data else None,
-        expires_at=datetime.now(UTC) + timedelta(hours=ttl_hours),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=ttl_hours),
     )
 
     with get_session() as session:
@@ -103,16 +220,23 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
         statement = select(HITLRequest).where(
             HITLRequest.tenant_id == tenant_id,
             HITLRequest.status == HITLRequestStatus.PENDING.value,
-            HITLRequest.expires_at > datetime.now(UTC),
+            HITLRequest.expires_at > datetime.now(timezone.utc),
         )
 
         if workspace_id:
+            # SECURITY FIX: Validate workspace_id before using in query
+            is_valid, error_msg = _validate_workspace_id(workspace_id)
+            if not is_valid:
+                logger.warning(f"[HITL] Invalid workspace_id: {error_msg}")
+                return []
+            
             statement = statement.where(HITLRequest.workspace_id == workspace_id)
 
         statement = statement.order_by(HITLRequest.created_at.desc())
 
         results = []
         for req in session.exec(statement).all():
+            # SECURITY FIX: Use safe JSON parsing
             results.append({
                 "id": req.id,
                 "request_id": str(req.id),  # Alias for frontend compatibility
@@ -120,7 +244,7 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
                 "workspace_id": req.workspace_id,
                 "request_type": req.request_type,
                 "prompt": req.prompt,
-                "options": json.loads(req.options) if req.options else None,
+                "options": _sanitize_json_data(req.options),
                 "status": req.status,
                 "created_at": req.created_at,
                 "expires_at": req.expires_at,
@@ -138,6 +262,12 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
     from core.db import get_session
     from core.audit.models import HITLRequest, HITLRequestStatus
 
+    # SECURITY FIX: Validate request_id before using in query
+    is_valid, error_msg = _validate_request_id(request_id)
+    if not is_valid:
+        logger.warning(f"[HITL] Invalid request_id in _answer_request: {error_msg}")
+        return None
+
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
         request = session.exec(statement).first()
@@ -150,12 +280,13 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
 
         request.status = HITLRequestStatus.ANSWERED.value
         request.answer = answer
-        request.answered_at = datetime.now(UTC)
+        request.answered_at = datetime.now(timezone.utc)
 
         session.add(request)
         session.commit()
         session.refresh(request)
 
+        # SECURITY FIX: Use safe JSON parsing
         return {
             "id": request.id,
             "request_type": request.request_type,
@@ -163,7 +294,7 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
             "answer": request.answer,
             "status": request.status,
             "answered_at": request.answered_at,
-            "context_data": json.loads(request.context_data) if request.context_data else None,
+            "context_data": _sanitize_json_data(request.context_data),
         }
 
 
@@ -175,6 +306,12 @@ def _cancel_request(request_id: UUID) -> bool:
     """
     from core.db import get_session
     from core.audit.models import HITLRequest, HITLRequestStatus
+
+    # SECURITY FIX: Validate request_id before using in query
+    is_valid, error_msg = _validate_request_id(request_id)
+    if not is_valid:
+        logger.warning(f"[HITL] Invalid request_id in _cancel_request: {error_msg}")
+        return False
 
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
@@ -209,7 +346,7 @@ def _cleanup_expired() -> int:
             update(HITLRequest)
             .where(
                 HITLRequest.status == HITLRequestStatus.PENDING.value,
-                HITLRequest.expires_at < datetime.now(UTC),
+                HITLRequest.expires_at < datetime.now(timezone.utc),
             )
             .values(status=HITLRequestStatus.EXPIRED.value)
         )
@@ -226,6 +363,12 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
     from core.db import get_session
     from core.audit.models import HITLRequest
 
+    # SECURITY FIX: Validate request_id before using in query
+    is_valid, error_msg = _validate_request_id(request_id)
+    if not is_valid:
+        logger.warning(f"[HITL] Invalid request_id in _get_request_by_id: {error_msg}")
+        return None
+
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
         request = session.exec(statement).first()
@@ -233,6 +376,7 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
         if not request:
             return None
 
+        # SECURITY FIX: Use safe JSON parsing
         return {
             "id": request.id,
             "request_id": str(request.id),
@@ -240,10 +384,10 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
             "workspace_id": request.workspace_id,
             "request_type": request.request_type,
             "prompt": request.prompt,
-            "options": json.loads(request.options) if request.options else None,
+            "options": _sanitize_json_data(request.options),
             "status": request.status,
             "answer": request.answer,
-            "context_data": json.loads(request.context_data) if request.context_data else None,
+            "context_data": _sanitize_json_data(request.context_data),
             "created_at": request.created_at,
             "answered_at": request.answered_at,
             "expires_at": request.expires_at,
@@ -288,6 +432,16 @@ class HITLPersistence:
         Returns:
             Dict with created request info
         """
+        # SECURITY FIX: Validate request_type before processing
+        is_valid, error_msg = _validate_request_type(request_type)
+        if not is_valid:
+            raise ValueError(f"Invalid request_type: {error_msg}")
+
+        # SECURITY FIX: Validate workspace_id
+        is_valid, error_msg = _validate_workspace_id(workspace_id)
+        if not is_valid:
+            raise ValueError(f"Invalid workspace_id: {error_msg}")
+
         result = await asyncio.to_thread(
             _insert_hitl_request,
             tenant_id,
@@ -334,6 +488,12 @@ class HITLPersistence:
         Returns:
             Updated request dict, or None if not found/already answered
         """
+        # SECURITY FIX: Validate request_id before processing
+        is_valid, error_msg = _validate_request_id(request_id)
+        if not is_valid:
+            logger.warning(f"[HITL] Invalid request_id in answer_request: {error_msg}")
+            return None
+
         result = await asyncio.to_thread(_answer_request, request_id, answer)
 
         if result:
@@ -354,6 +514,12 @@ class HITLPersistence:
         Returns:
             True if cancelled, False if not found/already answered
         """
+        # SECURITY FIX: Validate request_id before processing
+        is_valid, error_msg = _validate_request_id(request_id)
+        if not is_valid:
+            logger.warning(f"[HITL] Invalid request_id in cancel_request: {error_msg}")
+            return False
+
         result = await asyncio.to_thread(_cancel_request, request_id)
 
         if result:
@@ -372,6 +538,12 @@ class HITLPersistence:
         Returns:
             Request dict or None if not found
         """
+        # SECURITY FIX: Validate request_id before processing
+        is_valid, error_msg = _validate_request_id(request_id)
+        if not is_valid:
+            logger.warning(f"[HITL] Invalid request_id in get_request: {error_msg}")
+            return None
+
         return await asyncio.to_thread(_get_request_by_id, request_id)
 
     @staticmethod

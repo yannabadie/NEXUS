@@ -15,14 +15,35 @@ from .base import BaseHandler, ToolResult
 
 
 class ReadHandler(BaseHandler):
-    """
-    Handler for reading file contents.
+    """Handler for reading file contents.
 
-    Security: PathGuardian validation required.
+    Executes read operations on files within the workspace. Ensures strict
+    security validation via PathGuardian before accessing the file system.
+
+    Args:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): The security validation service.
+
+    Returns:
+        ReadHandler: A new instance of ReadHandler.
+
+    Raises:
+        None
     """
 
     @property
     def tool_name(self) -> str:
+        """Gets the tool identifier.
+
+        Args:
+            None
+
+        Returns:
+            str: The tool name 'read'.
+
+        Raises:
+            None
+        """
         return "read"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -55,7 +76,7 @@ class ReadHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] Path blocked: {path}"
+                error=f"[SECURITY] Path blocked: {path}",
             )
 
         try:
@@ -77,14 +98,35 @@ class ReadHandler(BaseHandler):
 
 
 class WriteHandler(BaseHandler):
-    """
-    Handler for writing files (create or overwrite).
+    """Handler for writing files (create or overwrite).
 
-    Security: PathGuardian validation required.
+    Executes write operations to create or overwrite files within the workspace.
+    Ensures security validation prevents unauthorized file modification.
+
+    Args:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): The security validation service.
+
+    Returns:
+        WriteHandler: A new instance of WriteHandler.
+
+    Raises:
+        None
     """
 
     @property
     def tool_name(self) -> str:
+        """Gets the tool identifier.
+
+        Args:
+            None
+
+        Returns:
+            str: The tool name 'write'.
+
+        Raises:
+            None
+        """
         return "write"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -119,7 +161,7 @@ class WriteHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] Write blocked: {path}"
+                error=f"[SECURITY] Write blocked: {path}",
             )
 
         try:
@@ -137,14 +179,35 @@ class WriteHandler(BaseHandler):
 
 
 class EditHandler(BaseHandler):
-    """
-    Handler for editing files (search and replace).
+    """Handler for editing files (search and replace).
 
-    Security: PathGuardian validation required.
+    Performs search and replace operations on file content. Validates paths
+    and ensures the string to be replaced exists to prevent errors.
+
+    Args:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): The security validation service.
+
+    Returns:
+        EditHandler: A new instance of EditHandler.
+
+    Raises:
+        None
     """
 
     @property
     def tool_name(self) -> str:
+        """Gets the tool identifier.
+
+        Args:
+            None
+
+        Returns:
+            str: The tool name 'edit'.
+
+        Raises:
+            None
+        """
         return "edit"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -183,7 +246,7 @@ class EditHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] Edit blocked: {path}"
+                error=f"[SECURITY] Edit blocked: {path}",
             )
 
         try:
@@ -192,9 +255,7 @@ class EditHandler(BaseHandler):
 
             # Check if old_string exists
             if old_string not in content:
-                return self._fail(
-                    f"String not found in file: {old_string[:50]}..."
-                )
+                return self._fail(f"String not found in file: {old_string[:50]}...")
 
             # Replace (only first occurrence)
             new_content = content.replace(old_string, new_string, 1)
@@ -213,14 +274,35 @@ class EditHandler(BaseHandler):
 
 
 class ListDirHandler(BaseHandler):
-    """
-    Handler for listing directory contents.
+    """Handler for listing directory contents.
 
-    Security: PathGuardian validation required.
+    Retrieves the list of files and subdirectories within a specified path.
+    Results are sorted and formatted to distinguish directories from files.
+
+    Args:
+        workspace_path (Path): The root directory of the workspace.
+        validation_service (Optional[Any]): The security validation service.
+
+    Returns:
+        ListDirHandler: A new instance of ListDirHandler.
+
+    Raises:
+        None
     """
 
     @property
     def tool_name(self) -> str:
+        """Gets the tool identifier.
+
+        Args:
+            None
+
+        Returns:
+            str: The tool name 'list_dir'.
+
+        Raises:
+            None
+        """
         return "list_dir"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -250,7 +332,7 @@ class ListDirHandler(BaseHandler):
                 tool_name=self.tool_name,
                 status="BLOCKED",
                 output="",
-                error=f"[SECURITY] List blocked: {path}"
+                error=f"[SECURITY] List blocked: {path}",
             )
 
         try:
@@ -261,7 +343,9 @@ class ListDirHandler(BaseHandler):
                 return self._fail(f"Not a directory: {path}")
 
             # List directory contents
-            items = sorted(path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower()))
+            items = sorted(
+                path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())
+            )
 
             # Format output
             lines = []
@@ -288,15 +372,17 @@ def create_file_handlers(
     workspace_path: Path,
     validation_service: Optional[Any] = None,
 ) -> Dict[str, BaseHandler]:
-    """
-    Create all file handlers.
+    """Create all file handlers.
 
     Args:
-        workspace_path: Workspace root
-        validation_service: Optional ValidationService
+        workspace_path (Path): Workspace root path.
+        validation_service (Optional[Any], optional): Validation service. Defaults to None.
 
     Returns:
-        Dict mapping tool names to handlers
+        Dict[str, BaseHandler]: Dict mapping tool names to handlers.
+
+    Raises:
+        None
     """
     return {
         "read": ReadHandler(workspace_path, validation_service),

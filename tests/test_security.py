@@ -435,7 +435,7 @@ class TestMutationValidatorOpen:
 
     def test_open_windows_absolute_warned(self, mutation_validator):
         """open() with Windows absolute path should warn."""
-        code = 'f = open("C:\\Windows\\system.ini", "r")'
+        code = r'f = open("C:\Windows\system.ini", "r")'
         warnings, info = mutation_validator.validate(code, "test.py")
 
         # Should detect as absolute

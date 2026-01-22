@@ -14,7 +14,7 @@ Date: 2025-12-16
 
 import logging
 import os
-from typing import Callable, Optional
+from typing import Callable, Optional, Any, Dict, Tuple
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -125,7 +125,7 @@ def is_rate_limiting_enabled() -> bool:
     return _use_slowapi and _limiter is not None
 
 
-async def rate_limit_exceeded_handler(request: Request, exc) -> Response:
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> Response:
     """
     Handler for rate limit exceeded errors.
 
@@ -151,7 +151,7 @@ async def rate_limit_exceeded_handler(request: Request, exc) -> Response:
     )
 
 
-def setup_rate_limiting(app):
+def setup_rate_limiting(app: Any) -> None:
     """
     Configure rate limiting for FastAPI app.
 
@@ -197,7 +197,7 @@ def limit(limit_string: str):
         return _limiter.limit(limit_string)
     else:
         # No-op decorator if limiter not available
-        def noop_decorator(func: Callable) -> Callable:
+        def noop_decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             return func
         return noop_decorator
 
@@ -218,17 +218,17 @@ class SimpleRateLimiter:
     Not suitable for distributed deployments.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the simple rate limiter.
 
         Sets up the thread-safe token buckets storage for tracking request rates
         per client identifier (IP address).
         """
-        self._buckets: dict = defaultdict(lambda: {"tokens": 100, "last_update": time.time()})
+        self._buckets: Dict[str, Dict[str, float]] = defaultdict(lambda: {"tokens": 100.0, "last_update": time.time()})
         self._lock = Lock()
 
-    def _parse_limit(self, limit_string: str) -> tuple:
+    def _parse_limit(self, limit_string: str) -> Tuple[int, int]:
         """
         Parse a rate limit string into count and period in seconds.
 
@@ -259,12 +259,18 @@ class SimpleRateLimiter:
         """
         Check if request is within rate limit.
 
+        Verifies if the client identifier has sufficient tokens in their bucket
+        to proceed with the request based on the specified limit. Refills tokens
+        based on elapsed time before checking.
+
         Args:
-            key: Identifier (usually IP address)
-            limit_string: Rate limit (e.g., "10/minute")
+            key (str): Unique identifier for the client (usually IP address).
+            limit_string (str): Rate limit definition in "count/period" format
+                (e.g., "10/minute").
 
         Returns:
-            True if allowed, False if rate limited
+            bool: True if the request is allowed (token available), False if
+                rate limited (insufficient tokens).
         """
         max_tokens, period = self._parse_limit(limit_string)
 
@@ -294,14 +300,18 @@ def check_simple_rate_limit(request: Request, limit_string: str = "100/minute") 
     """
     Check rate limit using simple in-memory limiter.
 
-    Use this as fallback when slowapi is not available.
+    Acts as a fallback mechanism when the main slowapi limiter is not available.
+    Determines the client's IP address and checks against the global
+    SimpleRateLimiter instance.
 
     Args:
-        request: FastAPI request
-        limit_string: Rate limit string
+        request (Request): The incoming FastAPI request object used to identify
+            the client.
+        limit_string (str, optional): Rate limit string to enforce.
+            Defaults to "100/minute".
 
     Returns:
-        True if allowed, False if rate limited
+        bool: True if the request is allowed, False if rate limited.
     """
     if is_rate_limiting_enabled():
         # Use slowapi instead

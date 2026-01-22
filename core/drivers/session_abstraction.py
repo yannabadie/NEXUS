@@ -96,6 +96,13 @@ class SessionMetadata:
     extra: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the session metadata to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the session metadata,
+            suitable for serialization (e.g., to JSON).
+        """
         return {
             "session_id": self.session_id,
             "provider": self.provider,
@@ -111,6 +118,21 @@ class SessionMetadata:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SessionMetadata":
+        """
+        Creates a SessionMetadata instance from a dictionary.
+
+        Args:
+            data: A dictionary containing session metadata fields.
+                Must contain 'session_id', 'provider', 'state', 'created_at',
+                and 'last_active'.
+
+        Returns:
+            SessionMetadata: A new instance initialized with the provided data.
+
+        Raises:
+            KeyError: If required fields are missing from the dictionary.
+            ValueError: If date strings are not in valid ISO format.
+        """
         return cls(
             session_id=data["session_id"],
             provider=data["provider"],
@@ -385,9 +407,19 @@ class CLISessionManager(SessionManager):
         """
         Get driver context for a CLI session.
 
-        Returns kwargs that can be passed directly to driver.invoke():
-        - session_uuid: For session tracking
-        - isolated_env: For parallel isolation (if HomeIsolator available)
+        Retrieves the necessary context to invoke a driver for the specified
+        session. This includes the session UUID and any isolated environment
+        configuration if a HomeIsolator is active.
+
+        Args:
+            session_id: The unique identifier of the session.
+
+        Returns:
+            Dict[str, Any]: A dictionary of keyword arguments to be passed to
+            driver.invoke(). Keys may include:
+            - session_uuid: The session ID (always present).
+            - isolated_env: Environment variables for isolation (optional).
+            - resume_session: Boolean flag if resuming a Gemini session (optional).
         """
         meta = self.get_session(session_id)
         if not meta:

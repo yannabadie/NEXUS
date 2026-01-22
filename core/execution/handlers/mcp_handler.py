@@ -65,7 +65,22 @@ class MCPToolHandler(BaseHandler):
 
     @property
     def tool_name(self) -> str:
-        """Return full MCP tool name (mcp_{server}_{tool})."""
+        """
+        Get the full, namespaced name of the MCP tool.
+
+        Constructs a unique name combining the server name and tool name
+        to avoid collisions.
+
+        Args:
+            None
+
+        Returns:
+            str: The full tool name in the format 'mcp_{server}_{tool}',
+                or 'mcp_tool' if specific names are not set.
+
+        Raises:
+            None
+        """
         if self._server_name and self._mcp_tool_name:
             return f"mcp_{self._server_name}_{self._mcp_tool_name}"
         return "mcp_tool"
@@ -200,10 +215,14 @@ def create_mcp_tool_executor(
         Execute the wrapped MCP tool handler.
 
         Args:
-            args: Dictionary of arguments for the tool.
+            args: Dictionary of arguments to be passed to the tool.
 
         Returns:
-            ToolResult containing the execution status and output.
+            ToolResult: The result of the tool execution, containing status
+                and output data.
+
+        Raises:
+            None: Exceptions are caught and returned as error ToolResults.
         """
         return handler.execute(args)
     return executor

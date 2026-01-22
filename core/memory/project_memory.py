@@ -93,6 +93,7 @@ MAX_CHUNK_SIZE = 2000  # Characters per chunk
 MIN_CHUNK_SIZE = 50  # Minimum characters to index
 LINES_PER_CHUNK = 50  # For line-based chunking
 LINES_OVERLAP = 10  # Overlap between chunks
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB max file size (security: prevent DoS)
 
 
 # =============================================================================
@@ -244,6 +245,36 @@ class ProjectMemory:
         if not path.is_absolute():
             path = self.nexus_root / path
 
+        # SECURITY: Validate that the resolved path is within nexus_root
+        # This prevents path traversal attacks (CWE-22)
+        try:
+            # Resolve any .. or symlinks to get the real path
+            resolved_path = path.resolve()
+            resolved_nexus_root = self.nexus_root.resolve()
+            
+            # Check if the resolved path is within nexus_root
+            if not str(resolved_path).startswith(str(resolved_nexus_root)):
+                self._logger.warning(f"SECURITY: Attempt to access file outside nexus_root: {path}")
+                return 0
+                
+            # Also check for symlink attacks
+            if path.is_symlink():
+                # Verify symlink points within nexus_root
+                link_target = path.readlink()
+                if link_target.is_absolute():
+                    if not str(link_target).startswith(str(resolved_nexus_root)):
+                        self._logger.warning(f"SECURITY: Symlink points outside nexus_root: {path}")
+                        return 0
+                else:
+                    # Relative symlink - check where it resolves
+                    resolved_link = (path.parent / link_target).resolve()
+                    if not str(resolved_link).startswith(str(resolved_nexus_root)):
+                        self._logger.warning(f"SECURITY: Symlink points outside nexus_root: {path}")
+                        return 0
+        except Exception as e:
+            self._logger.warning(f"SECURITY: Path validation failed for {path}: {e}")
+            return 0
+
         if not path.exists():
             self._logger.warning(f"File not found: {path}")
             return 0
@@ -280,7 +311,13 @@ class ProjectMemory:
                 return 0
         else:
             # Standard text file reading
+            # SECURITY: Check file size before reading to prevent DoS
             try:
+                file_size = path.stat().st_size
+                if file_size > MAX_FILE_SIZE:
+                    self._logger.warning(f"File too large ({file_size} bytes), skipping {path} (max: {MAX_FILE_SIZE} bytes)")
+                    return 0
+                
                 content = path.read_text(encoding="utf-8", errors="ignore")
             except Exception as e:
                 self._logger.warning(f"Failed to read {path}: {e}")
@@ -680,6 +717,36 @@ class ProjectMemory:
         """
         if not path.is_absolute():
             path = self.nexus_root / path
+
+        # SECURITY: Validate that the resolved path is within nexus_root
+        # This prevents path traversal attacks (CWE-22)
+        try:
+            # Resolve any .. or symlinks to get the real path
+            resolved_path = path.resolve()
+            resolved_nexus_root = self.nexus_root.resolve()
+            
+            # Check if the resolved path is within nexus_root
+            if not str(resolved_path).startswith(str(resolved_nexus_root)):
+                self._logger.warning(f"SECURITY: Attempt to access file outside nexus_root: {path}")
+                return 0
+                
+            # Also check for symlink attacks
+            if path.is_symlink():
+                # Verify symlink points within nexus_root
+                link_target = path.readlink()
+                if link_target.is_absolute():
+                    if not str(link_target).startswith(str(resolved_nexus_root)):
+                        self._logger.warning(f"SECURITY: Symlink points outside nexus_root: {path}")
+                        return 0
+                else:
+                    # Relative symlink - check where it resolves
+                    resolved_link = (path.parent / link_target).resolve()
+                    if not str(resolved_link).startswith(str(resolved_nexus_root)):
+                        self._logger.warning(f"SECURITY: Symlink points outside nexus_root: {path}")
+                        return 0
+        except Exception as e:
+            self._logger.warning(f"SECURITY: Path validation failed for {path}: {e}")
+            return 0
 
         rel_path = str(path.relative_to(self.nexus_root) if path.is_relative_to(self.nexus_root) else path)
 

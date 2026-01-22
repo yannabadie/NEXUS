@@ -102,6 +102,11 @@ class Tenant(SQLModel, table=True):
     quota: Optional["Quota"] = Relationship(back_populates="tenant")
 
     def __repr__(self) -> str:
+        """Returns a string representation of the Tenant.
+
+        Returns:
+            str: String representation including id, name and plan.
+        """
         return f"Tenant(id={self.id}, name={self.name}, plan={self.plan_tier})"
 
 
@@ -110,11 +115,18 @@ class Tenant(SQLModel, table=True):
 # =============================================================================
 
 class UserRole(str, Enum):
-    """User roles within a tenant."""
-    OWNER = "owner"      # Full control, billing
-    ADMIN = "admin"      # Manage users, settings
-    MEMBER = "member"    # Standard access
-    VIEWER = "viewer"    # Read-only
+    """Enumeration of user roles within a tenant.
+
+    Attributes:
+        OWNER: Full control over tenant, billing, and all resources.
+        ADMIN: Can manage users, settings, and workspaces.
+        MEMBER: Standard access to workspaces and resources.
+        VIEWER: Read-only access to workspaces and resources.
+    """
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+    VIEWER = "viewer"
 
 
 class User(SQLModel, table=True):
@@ -167,6 +179,11 @@ class User(SQLModel, table=True):
         pass
 
     def __repr__(self) -> str:
+        """Returns a string representation of the User.
+
+        Returns:
+            str: String representation including id, username and role.
+        """
         return f"User(id={self.id}, username={self.username}, role={self.role})"
 
 
@@ -216,6 +233,11 @@ class Workspace(SQLModel, table=True):
     tenant: Optional[Tenant] = Relationship(back_populates="workspaces")
 
     def __repr__(self) -> str:
+        """Returns a string representation of the Workspace.
+
+        Returns:
+            str: String representation including id, name and path.
+        """
         return f"Workspace(id={self.id}, name={self.name}, path={self.filesystem_path})"
 
 
@@ -322,6 +344,11 @@ class Quota(SQLModel, table=True):
         return max(0.0, self.daily_budget_usd - self.current_spend_usd)
 
     def __repr__(self) -> str:
+        """Returns a string representation of the Quota.
+
+        Returns:
+            str: String representation including tenant_id and daily usage/budget.
+        """
         return (
             f"Quota(tenant={self.tenant_id}, "
             f"daily=${self.current_spend_usd:.2f}/${self.daily_budget_usd:.2f})"

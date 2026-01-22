@@ -58,7 +58,7 @@ BUDGET_LIMIT_THRESHOLD = 1.00     # 100% -> hard stop
 class BudgetExceededError(Exception):
     """Raised when daily budget limit is exceeded."""
 
-    def __init__(self, spent: float, limit: float, message: Optional[str] = None):
+    def __init__(self, spent: float, limit: float, message: Optional[str] = None) -> None:
         self.spent = spent
         self.limit = limit
         self.message = message or f"Budget exceeded: ${spent:.2f} / ${limit:.2f} limit"
@@ -215,17 +215,19 @@ class BudgetTracker:
                 self._save_state()
 
     def estimate_tokens(self, text: str) -> int:
-        """
-        Estimate token count from text.
+        """Estimates token count from text using a character-based heuristic.
 
-        Uses approximate ratio of 4 characters per token.
-        This is a rough estimate - actual tokenization varies by model.
+        Uses an approximate ratio of 4 characters per token. This is a rough
+        estimate intended for fallback when exact token counts are not available.
+        Actual tokenization varies by model and language.
 
         Args:
-            text: Input text
+            text: The input text to estimate tokens for. If None or empty,
+                returns 0.
 
         Returns:
-            Estimated token count
+            int: The estimated number of tokens. Guaranteed to be at least 1
+                for non-empty strings.
         """
         if not text:
             return 0
@@ -324,11 +326,16 @@ class BudgetTracker:
         return cost
 
     def get_budget_status(self) -> Tuple[float, float, float]:
-        """
-        Get current budget status.
+        """Retrieves the current status of the daily budget.
+
+        Automatically checks and performs a daily reset if the date has changed
+        before calculating the status.
 
         Returns:
-            Tuple of (spent_today, limit, percentage_used)
+            Tuple[float, float, float]: A tuple containing:
+                - spent_today_usd: The amount spent so far today in USD.
+                - limit_usd: The configured daily budget limit in USD.
+                - percentage_used: The percentage of the budget utilized (0.0 to 100.0+).
         """
         self._check_daily_reset()
         spent = self._state.spent_today_usd
@@ -405,7 +412,7 @@ class BudgetTracker:
             "warning_level": self.get_warning_level(),
         }
 
-    def reset_daily(self):
+    def reset_daily(self) -> None:
         """
         Manually reset daily counters.
 
@@ -421,12 +428,17 @@ class BudgetTracker:
             self._state.reset_date = date.today().isoformat()
             self._save_state()
 
-    def add_credit(self, amount_usd: float):
-        """
-        Add credit to today's budget (for emergency unlock).
+    def add_credit(self, amount_usd: float) -> None:
+        """Adds emergency credit to the current day's budget limit.
+
+        Increases the `limit_usd` by the specified amount. This change persists
+        and is saved to state.
 
         Args:
-            amount_usd: Amount to add to limit for today
+            amount_usd: The amount in USD to add to the daily limit.
+
+        Returns:
+            None
         """
         with self._lock:
             self.limit_usd += amount_usd
@@ -440,7 +452,7 @@ class BudgetTracker:
 _tracker: Optional[BudgetTracker] = None
 
 
-def get_budget_tracker(config=None, workspace_path: Optional[Path] = None) -> BudgetTracker:
+def get_budget_tracker(config: Optional[Any] = None, workspace_path: Optional[Path] = None) -> BudgetTracker:
     """
     Get or create the global budget tracker.
 
@@ -460,7 +472,7 @@ def get_budget_tracker(config=None, workspace_path: Optional[Path] = None) -> Bu
     return _tracker
 
 
-def reset_budget_tracker():
+def reset_budget_tracker() -> None:
     """Reset the global budget tracker (for testing)."""
     global _tracker
     _tracker = None

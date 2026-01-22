@@ -6,7 +6,7 @@ Uses SwarmService for business logic (Service Layer Pattern).
 """
 
 from typing import List
-from .registry import Command, CommandContext, CommandResult, CommandStatus
+from .registry import Command, CommandContext, CommandResult, CommandStatus, CommandRegistry
 
 
 def _get_swarm_service(context: CommandContext):
@@ -22,6 +22,10 @@ def _get_swarm_service(context: CommandContext):
 
     Returns:
         SwarmService: An initialized SwarmService instance.
+
+    Raises:
+        ImportError: If the SwarmService class cannot be imported.
+        AttributeError: If the context is invalid or missing required components.
     """
     from core.swarm import SwarmService
 
@@ -103,6 +107,9 @@ class SwarmCommand(Command):
 
         Returns:
             CommandResult: The result of the command execution, indicating success or failure.
+
+        Raises:
+            Exception: Any unexpected error during execution is caught and returned as a failure result.
         """
         if not args.strip():
             return CommandResult(
@@ -178,6 +185,9 @@ class SwarmStatusCommand(Command):
 
         Returns:
             CommandResult: The result of the command execution.
+
+        Raises:
+            Exception: Any unexpected error during execution is caught and returned as a failure result.
         """
         try:
             service = _get_swarm_service(context)
@@ -250,6 +260,9 @@ class SwarmFSMCommand(Command):
 
         Returns:
             CommandResult: The result of the command execution.
+
+        Raises:
+            Exception: Any unexpected error during execution is caught and returned as a failure result.
         """
         if not args.strip():
             return CommandResult(
@@ -278,11 +291,14 @@ class SwarmFSMCommand(Command):
             )
 
 
-def register_swarm_commands(registry: "CommandRegistry") -> None:
+def register_swarm_commands(registry: CommandRegistry) -> None:
     """Registers all swarm commands with the provided registry.
 
     Args:
         registry (CommandRegistry): The registry to register commands with.
+
+    Raises:
+        AttributeError: If the registry is None or missing the register method.
     """
     registry.register(SwarmCommand())
     registry.register(SwarmStatusCommand())

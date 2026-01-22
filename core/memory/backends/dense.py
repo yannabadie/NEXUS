@@ -129,9 +129,16 @@ class DenseBackend(MemoryBackend):
         Ensure the EmbeddingEngine is ready.
 
         V10 MEMORY FORGE: Delegates to global singleton or injected engine.
+        Lazily loads the embedding model if it hasn't been loaded yet.
+
+        Args:
+            None
 
         Returns:
-            True if engine is ready, False otherwise
+            bool: True if the engine is ready and model is loaded, False otherwise.
+
+        Raises:
+            None: Import errors and loading exceptions are caught and logged.
         """
         # Already have an engine
         if self._engine is not None and self._engine.is_loaded:
@@ -161,8 +168,17 @@ class DenseBackend(MemoryBackend):
         """
         Lazy-connect to LanceDB.
 
+        Initializes the LanceDB connection and checks for an existing table.
+        Creates the storage directory if it does not exist.
+
+        Args:
+            None
+
         Returns:
-            True if DB is ready, False otherwise
+            bool: True if the database connection is established and ready, False otherwise.
+
+        Raises:
+            None: Connection errors are caught and logged.
         """
         if self._db is not None:
             return True

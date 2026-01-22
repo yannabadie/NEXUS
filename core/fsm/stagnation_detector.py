@@ -15,7 +15,7 @@ V8.0 Integration: Feeds into StrategyBlacklist
 - Blacklist uses STAGNATION category
 - Helps prevent same conversation loops across retries
 """
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Any
 from difflib import SequenceMatcher
 
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ class StagnationDetector:
         """
         self._strategy_blacklist = blacklist
 
-    def add_message(self, content: str):
+    def add_message(self, content: str) -> None:
         """
         Ajoute un message à l'historique
 
@@ -214,7 +214,7 @@ class StagnationDetector:
         # Cap at 1.0
         return min(progress_score, 1.0)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset détecteur (appelé après switch agent ou action)"""
         self.message_history.clear()
         self._stagnation_count = 0
@@ -250,7 +250,7 @@ class StagnationDetector:
 ---
 """
 
-    def get_stats(self) -> dict[str, any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get detector statistics (pour debugging)
 
@@ -429,7 +429,7 @@ class StagnationDetector:
             "stagnant_strategy": self.extract_stagnant_strategy()
         }
 
-    def record_agent_failure(self, agent_id: str):
+    def record_agent_failure(self, agent_id: str) -> None:
         """
         V8.0.1: Record a failure for an agent (for swap decision).
 

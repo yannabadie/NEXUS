@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Any
+from typing import Optional, Any
 from threading import Lock
 
 from core.telemetry.budget_tracker import BudgetTracker
@@ -27,6 +27,7 @@ from core.telemetry.budget_tracker import BudgetTracker
 
 class MetricType(Enum):
     """Types of metrics tracked"""
+
     API_CALL = "api_call"
     SWARM_TASK = "swarm_task"
     TOOL_EXECUTION = "tool_execution"
@@ -38,6 +39,7 @@ class MetricType(Enum):
 @dataclass
 class APICallMetric:
     """Metrics for a single API call"""
+
     timestamp: str
     provider: str  # gemini, claude
     model: str
@@ -52,18 +54,20 @@ class APICallMetric:
 @dataclass
 class SwarmTaskMetric:
     """Metrics for a Swarm task"""
+
     timestamp: str
     mode: str  # ping_pong, parallel, lead_support, etc.
     rounds: int
     duration_seconds: float
     success: bool
-    agents_used: List[str] = None
+    agents_used: Optional[list[str]] = None
     negotiation_turns: int = 0
 
 
 @dataclass
 class SessionMetric:
     """Metrics for a session"""
+
     session_id: str
     start_time: str
     total_api_calls: int
@@ -81,7 +85,9 @@ class TelemetryCollector:
     Thread-safe and designed for minimal overhead.
     """
 
-    def __init__(self, config=None, output_file: Optional[Path] = None):
+    def __init__(
+        self, config: Optional[Any] = None, output_file: Optional[Path] = None
+    ):
         """
         Initialize TelemetryCollector.
 
@@ -89,16 +95,18 @@ class TelemetryCollector:
             config: NEXUS config (uses telemetry_file if available)
             output_file: Override output file path
         """
-        self.enabled = True
-        self.config = config
+        self.enabled: bool = True
+        self.config: Optional[Any] = config
         if config:
-            self.enabled = getattr(config, 'telemetry_enabled', True)
-            default_file = getattr(config, 'telemetry_file', 'workspace/telemetry.jsonl')
+            self.enabled = getattr(config, "telemetry_enabled", True)
+            default_file = getattr(
+                config, "telemetry_file", "workspace/telemetry.jsonl"
+            )
             self.output_file = output_file or Path(default_file)
         else:
             self.output_file = output_file or Path("workspace/telemetry.jsonl")
 
-        self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.session_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.session_start = time.time()
         self._lock = Lock()
 
@@ -111,7 +119,9 @@ class TelemetryCollector:
         self._tool_executions = 0
 
         # Budget tracking (Phase 14d)
-        workspace_path = getattr(config, 'workspace_path', None) if config else None
+        workspace_path: Optional[str] = (
+            getattr(config, "workspace_path", None) if config else None
+        )
         self._budget_tracker: Optional[BudgetTracker] = None
         if self.enabled:
             try:
@@ -123,7 +133,7 @@ class TelemetryCollector:
         if self.enabled:
             self.output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def _write_event(self, event_type: MetricType, data: Dict[str, Any]):
+    def _write_event(self, event_type: MetricType, data: dict[str, Any]) -> None:
         """Write an event to the telemetry file (thread-safe)"""
         if not self.enabled:
             return
@@ -132,13 +142,13 @@ class TelemetryCollector:
             "type": event_type.value,
             "session_id": self.session_id,
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "data": data
+            "data": data,
         }
 
         with self._lock:
             try:
-                with open(self.output_file, 'a', encoding='utf-8') as f:
-                    f.write(json.dumps(event, ensure_ascii=False) + '\n')
+                with open(self.output_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(event, ensure_ascii=False) + "\n")
             except Exception as e:
                 print(f"[Telemetry] Write error: {e}")
 
@@ -154,7 +164,7 @@ class TelemetryCollector:
         error: Optional[str] = None,
         input_text: Optional[str] = None,
         output_text: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Record an API call metric and track cost.
 
@@ -199,7 +209,7 @@ class TelemetryCollector:
             latency_seconds=latency_seconds,
             success=success,
             task_type=task_type,
-            error=error
+            error=error,
         )
 
         # Add cost to metric data
@@ -214,9 +224,9 @@ class TelemetryCollector:
         rounds: int,
         duration_seconds: float,
         success: bool,
-        agents_used: Optional[List[str]] = None,
-        negotiation_turns: int = 0
-    ):
+        agents_used: Optional[list[str]] = None,
+        negotiation_turns: int = 0,
+    ) -> None:
         """
         Record a Swarm task metric.
 
@@ -239,7 +249,7 @@ class TelemetryCollector:
             duration_seconds=duration_seconds,
             success=success,
             agents_used=agents_used or [],
-            negotiation_turns=negotiation_turns
+            negotiation_turns=negotiation_turns,
         )
 
         self._write_event(MetricType.SWARM_TASK, asdict(metric))
@@ -249,29 +259,33 @@ class TelemetryCollector:
         tool_name: str,
         duration_seconds: float,
         success: bool,
-        error: Optional[str] = None
-    ):
+        error: Optional[str] = None,
+    ) -> None:
         """Record a tool execution metric"""
         self._tool_executions += 1
         if not success:
             self._errors += 1
 
-        self._write_event(MetricType.TOOL_EXECUTION, {
-            "tool_name": tool_name,
-            "duration_seconds": duration_seconds,
-            "success": success,
-            "error": error
-        })
+        self._write_event(
+            MetricType.TOOL_EXECUTION,
+            {
+                "tool_name": tool_name,
+                "duration_seconds": duration_seconds,
+                "success": success,
+                "error": error,
+            },
+        )
 
-    def record_error(self, error_type: str, message: str, context: Optional[Dict] = None):
+    def record_error(
+        self, error_type: str, message: str, context: Optional[dict] = None
+    ) -> None:
         """Record an error event"""
         self._errors += 1
 
-        self._write_event(MetricType.ERROR, {
-            "error_type": error_type,
-            "message": message,
-            "context": context or {}
-        })
+        self._write_event(
+            MetricType.ERROR,
+            {"error_type": error_type, "message": message, "context": context or {}},
+        )
 
     def record_evolution(
         self,
@@ -280,18 +294,23 @@ class TelemetryCollector:
         parent_score: float,
         child_score: float,
         promoted: bool,
-        mutations: List[str]
-    ):
+        mutations: list[str],
+    ) -> None:
         """Record an evolution cycle metric"""
-        self._write_event(MetricType.EVOLUTION, {
-            "generation": generation,
-            "child_id": child_id,
-            "parent_score": parent_score,
-            "child_score": child_score,
-            "improvement_pct": ((child_score - parent_score) / parent_score * 100) if parent_score > 0 else 0,
-            "promoted": promoted,
-            "mutations": mutations
-        })
+        self._write_event(
+            MetricType.EVOLUTION,
+            {
+                "generation": generation,
+                "child_id": child_id,
+                "parent_score": parent_score,
+                "child_score": child_score,
+                "improvement_pct": ((child_score - parent_score) / parent_score * 100)
+                if parent_score > 0
+                else 0,
+                "promoted": promoted,
+                "mutations": mutations,
+            },
+        )
 
     def get_session_summary(self) -> SessionMetric:
         """Get summary metrics for the current session"""
@@ -305,7 +324,7 @@ class TelemetryCollector:
             total_errors=self._errors,
             swarm_tasks=self._swarm_tasks,
             tool_executions=self._tool_executions,
-            duration_seconds=round(duration, 2)
+            duration_seconds=round(duration, 2),
         )
 
     def write_session_summary(self):
@@ -313,12 +332,12 @@ class TelemetryCollector:
         summary = self.get_session_summary()
         self._write_event(MetricType.SESSION, asdict(summary))
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print session summary to console"""
         summary = self.get_session_summary()
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print("TELEMETRY SESSION SUMMARY")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
         print(f"Session ID: {summary.session_id}")
         print(f"Duration: {summary.duration_seconds:.1f}s")
         print(f"API Calls: {summary.total_api_calls}")
@@ -329,8 +348,10 @@ class TelemetryCollector:
         print(f"Errors: {summary.total_errors}")
         if self._budget_tracker:
             stats = self._budget_tracker.get_stats()
-            print(f"Budget: ${stats['spent_today_usd']:.2f} / ${stats['limit_usd']:.2f} ({stats['percentage_used']:.1f}%)")
-        print(f"{'='*50}\n")
+            print(
+                f"Budget: ${stats['spent_today_usd']:.2f} / ${stats['limit_usd']:.2f} ({stats['percentage_used']:.1f}%)"
+            )
+        print(f"{'=' * 50}\n")
 
     # =========================================================================
     # Budget Enforcement (Phase 14d)
@@ -350,7 +371,7 @@ class TelemetryCollector:
             return True
         return self._budget_tracker.check_budget()
 
-    def get_budget_stats(self) -> Optional[Dict]:
+    def get_budget_stats(self) -> Optional[dict]:
         """
         Get current budget statistics.
 
@@ -377,7 +398,7 @@ class TelemetryCollector:
 _collector: Optional[TelemetryCollector] = None
 
 
-def get_telemetry(config=None) -> TelemetryCollector:
+def get_telemetry(config: Optional[Any] = None) -> TelemetryCollector:
     """Get or create the global telemetry collector"""
     global _collector
     if _collector is None:

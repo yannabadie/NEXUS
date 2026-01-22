@@ -92,18 +92,38 @@ class BootstrapCommand(Command):
 
     @property
     def name(self) -> str:
+        """Get the command name.
+
+        Returns:
+            str: The command name.
+        """
         return "/bootstrap"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the command aliases.
+
+        Returns:
+            List[str]: The command aliases.
+        """
         return ["/bs"]
 
     @property
     def description(self) -> str:
+        """Get the command description.
+
+        Returns:
+            str: The command description.
+        """
         return "Generate NEXUS.md for a project directory"
 
     @property
     def usage(self) -> str:
+        """Get the command usage.
+
+        Returns:
+            str: The command usage.
+        """
         return "/bootstrap [path] (default: current directory)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
@@ -155,18 +175,38 @@ class SpecializeCommand(Command):
 
     @property
     def name(self) -> str:
+        """Get the command name.
+
+        Returns:
+            str: The command name.
+        """
         return "/specialize"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the command aliases.
+
+        Returns:
+            List[str]: The command aliases.
+        """
         return ["/spec"]
 
     @property
     def description(self) -> str:
+        """Get the command description.
+
+        Returns:
+            str: The command description.
+        """
         return "Create a specialized NEXUS spinoff for a specific mission"
 
     @property
     def usage(self) -> str:
+        """Get the command usage.
+
+        Returns:
+            str: The command usage.
+        """
         return "/specialize <mission_description>"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
@@ -220,18 +260,38 @@ class WorkspaceCommand(Command):
 
     @property
     def name(self) -> str:
+        """Get the command name.
+
+        Returns:
+            str: The command name.
+        """
         return "/workspace"
 
     @property
     def aliases(self) -> List[str]:
+        """Get the command aliases.
+
+        Returns:
+            List[str]: The command aliases.
+        """
         return ["/ws"]
 
     @property
     def description(self) -> str:
+        """Get the command description.
+
+        Returns:
+            str: The command description.
+        """
         return "Manage workspace (show, new, list, switch)"
 
     @property
     def usage(self) -> str:
+        """Get the command usage.
+
+        Returns:
+            str: The command usage.
+        """
         return "/workspace [new [name]|list|switch <name>]"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:

@@ -465,7 +465,23 @@ class LocalToolExecutor(ToolExecutor):
         return f"Successfully edited {path}"
 
     def _list_directory(self, args: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """List directory contents."""
+        """List directory contents.
+
+        Args:
+            args: Dictionary containing:
+                - path (str, optional): Directory path to list. Defaults to ".".
+
+        Returns:
+            List[Dict[str, Any]]: List of entries, where each entry contains:
+                - name (str): Name of the file or directory.
+                - type (str): "file", "directory", or "unknown".
+                - size (int, optional): Size in bytes if it's a file.
+                - error (str, optional): Error message if access failed.
+
+        Raises:
+            NotADirectoryError: If the path exists but is not a directory.
+            ValueError: If path traversal is detected.
+        """
         path = self._resolve_path(args.get("path", "."))
 
         if not path.is_dir():
@@ -541,7 +557,19 @@ class LocalToolExecutor(ToolExecutor):
         return results
 
     def _glob(self, args: Dict[str, Any]) -> List[str]:
-        """Find files matching glob pattern."""
+        """Find files matching glob pattern.
+
+        Args:
+            args: Dictionary containing:
+                - pattern (str): Glob pattern to match (e.g., "**/*.py").
+                - path (str, optional): Base path to search from. Defaults to ".".
+
+        Returns:
+            List[str]: Sorted list of matching file paths relative to the workspace.
+
+        Raises:
+            ValueError: If path traversal is detected.
+        """
         pattern = args["pattern"]
         base_path = self._resolve_path(args.get("path", "."))
 
@@ -559,7 +587,19 @@ class LocalToolExecutor(ToolExecutor):
         return sorted(results)
 
     def _read_many_files(self, args: Dict[str, Any]) -> Dict[str, str]:
-        """Read multiple files at once."""
+        """Read multiple files at once.
+
+        Args:
+            args: Dictionary containing:
+                - file_paths (List[str]): List of file paths to read.
+
+        Returns:
+            Dict[str, str]: Dictionary mapping file paths to their content.
+                If an error occurs or file is too large, the value will be an error message.
+
+        Raises:
+            KeyError: If "file_paths" is missing from args.
+        """
         file_paths = args["file_paths"]
         results = {}
 
@@ -641,7 +681,13 @@ class ToolRegistry:
         return list(self._tool_map.keys())
 
     def get_all_schemas(self) -> List[ToolSchema]:
-        """Get schemas for all tools."""
+        """Get schemas for all tools.
+
+        Aggregates schemas from all registered executors.
+
+        Returns:
+            List[ToolSchema]: List of tool schemas.
+        """
         schemas = []
         for executor in self._executors:
             for tool_name in executor.list_tools():

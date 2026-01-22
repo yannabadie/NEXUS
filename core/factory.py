@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Any, Dict, Optional, TypeVar, Type
+from typing import Any, Callable, Dict, Optional, TypeVar, Union
 
 from .context import (
     get_current_session,
@@ -88,6 +88,9 @@ class ServiceFactory:
 
         Args:
             nexus_root (Path): Path to NEXUS installation root.
+
+        Raises:
+            OSError: If the path resolution fails.
         """
         cls._nexus_root = nexus_root.resolve()
 
@@ -97,6 +100,9 @@ class ServiceFactory:
 
         Returns:
             Path: The absolute path to the NEXUS installation root.
+
+        Raises:
+            RuntimeError: If the root path has not been initialized and cannot be detected.
         """
         if cls._nexus_root is None:
             # Fallback: try to detect from current file
@@ -122,7 +128,7 @@ class ServiceFactory:
     def _get_or_create(
         cls,
         service_name: str,
-        factory_func,
+        factory_func: Callable[[Optional[SessionContext]], Any],
         ctx: Optional[SessionContext] = None
     ) -> Any:
         """Get or create a service instance for the current context.
@@ -135,6 +141,9 @@ class ServiceFactory:
 
         Returns:
             Any: The service instance scoped to the tenant.
+
+        Raises:
+            Exception: Propagates any exception raised by the factory_func.
         """
         if ctx is None:
             ctx = get_current_session_or_none()
@@ -160,6 +169,9 @@ class ServiceFactory:
 
         Returns:
             Path: Path to data/tenants/{tenant_id}/workspaces/{workspace_id}/.
+
+        Raises:
+            RuntimeError: If the NEXUS root path cannot be determined.
         """
         if ctx is None:
             ctx = get_current_session_or_none()
@@ -184,7 +196,7 @@ class ServiceFactory:
     # =========================================================================
 
     @classmethod
-    def get_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_registry(cls, ctx: Optional[SessionContext] = None) -> "UnifiedAgentRegistry":
         """Get the agent registry for the current tenant.
 
         Args:
@@ -193,6 +205,9 @@ class ServiceFactory:
 
         Returns:
             UnifiedAgentRegistry: The agent registry instance for the tenant.
+
+        Raises:
+            ImportError: If the UnifiedAgentRegistry cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .agents.unified_registry import UnifiedAgentRegistry
@@ -201,7 +216,7 @@ class ServiceFactory:
         return cls._get_or_create("registry", factory, ctx)
 
     @classmethod
-    def get_workspace_manager(cls, ctx: Optional[SessionContext] = None):
+    def get_workspace_manager(cls, ctx: Optional[SessionContext] = None) -> "SessionWorkspaceManager":
         """Get the workspace manager for the current tenant.
 
         Args:
@@ -210,6 +225,9 @@ class ServiceFactory:
 
         Returns:
             SessionWorkspaceManager: The workspace manager instance for the tenant.
+
+        Raises:
+            ImportError: If the SessionWorkspaceManager cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .session.workspace_manager import SessionWorkspaceManager
@@ -219,7 +237,7 @@ class ServiceFactory:
         return cls._get_or_create("workspace_manager", factory, ctx)
 
     @classmethod
-    def get_tool_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_tool_registry(cls, ctx: Optional[SessionContext] = None) -> "ToolRegistry":
         """Get the tool registry for the current tenant.
 
         Args:
@@ -228,6 +246,9 @@ class ServiceFactory:
 
         Returns:
             ToolRegistry: The tool registry instance for the tenant.
+
+        Raises:
+            ImportError: If the ToolRegistry cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .execution.tool_registry import ToolRegistry
@@ -236,7 +257,7 @@ class ServiceFactory:
         return cls._get_or_create("tool_registry", factory, ctx)
 
     @classmethod
-    def get_rate_limiter_registry(cls, ctx: Optional[SessionContext] = None):
+    def get_rate_limiter_registry(cls, ctx: Optional[SessionContext] = None) -> "RateLimiterRegistry":
         """Get the rate limiter registry for the current tenant.
 
         Each tenant has their own rate limits to prevent
@@ -248,6 +269,9 @@ class ServiceFactory:
 
         Returns:
             RateLimiterRegistry: The rate limiter registry instance for the tenant.
+
+        Raises:
+            ImportError: If the RateLimiterRegistry cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .api.rate_limiter import RateLimiterRegistry
@@ -259,7 +283,7 @@ class ServiceFactory:
         return cls._get_or_create("rate_limiter_registry", factory, ctx)
 
     @classmethod
-    def get_interaction_provider(cls, ctx: Optional[SessionContext] = None):
+    def get_interaction_provider(cls, ctx: Optional[SessionContext] = None) -> Union["CLIProvider", "HeadlessProvider"]:
         """Get the interaction provider for the current tenant.
 
         Args:
@@ -268,6 +292,9 @@ class ServiceFactory:
 
         Returns:
             InteractionProvider: The interaction provider instance for the tenant.
+
+        Raises:
+            ImportError: If the provider classes cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             import os
@@ -285,7 +312,7 @@ class ServiceFactory:
         return cls._get_or_create("interaction_provider", factory, ctx)
 
     @classmethod
-    def get_execution_engine(cls, ctx: Optional[SessionContext] = None):
+    def get_execution_engine(cls, ctx: Optional[SessionContext] = None) -> "ExecutionEngine":
         """Get the execution engine for the current tenant.
 
         Args:
@@ -294,6 +321,9 @@ class ServiceFactory:
 
         Returns:
             ExecutionEngine: The execution engine instance for the tenant.
+
+        Raises:
+            ImportError: If the ExecutionEngine cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .execution.execution_engine import ExecutionEngine
@@ -303,7 +333,7 @@ class ServiceFactory:
         return cls._get_or_create("execution_engine", factory, ctx)
 
     @classmethod
-    def get_system_health(cls, ctx: Optional[SessionContext] = None):
+    def get_system_health(cls, ctx: Optional[SessionContext] = None) -> "SystemHealth":
         """Get the system health monitor for the current tenant.
 
         Args:
@@ -312,6 +342,9 @@ class ServiceFactory:
 
         Returns:
             SystemHealth: The system health monitor instance for the tenant.
+
+        Raises:
+            ImportError: If the SystemHealth class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .resilience.system_health import SystemHealth
@@ -321,7 +354,7 @@ class ServiceFactory:
         return cls._get_or_create("system_health", factory, ctx)
 
     @classmethod
-    def get_budget_tracker(cls, ctx: Optional[SessionContext] = None):
+    def get_budget_tracker(cls, ctx: Optional[SessionContext] = None) -> "BudgetTracker":
         """Get the budget tracker for the current tenant.
 
         Args:
@@ -330,6 +363,9 @@ class ServiceFactory:
 
         Returns:
             BudgetTracker: The budget tracker instance for the tenant.
+
+        Raises:
+            ImportError: If the BudgetTracker class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .telemetry.budget_tracker import BudgetTracker
@@ -339,18 +375,20 @@ class ServiceFactory:
         return cls._get_or_create("budget_tracker", factory, ctx)
 
     @classmethod
-    def get_path_guardian(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the path guardian for the current tenant.
+    def get_path_guardian(cls, ctx: Optional[SessionContext] = None) -> "PathGuardian":
+        """Get the path guardian for the current tenant.
 
         PathGuardian validates file operations are within allowed zones.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             PathGuardian: The path guardian instance for the tenant.
+
+        Raises:
+            ImportError: If the PathGuardian class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .security.path_guardian import PathGuardian
@@ -364,18 +402,20 @@ class ServiceFactory:
         return cls._get_or_create("path_guardian", factory, ctx)
 
     @classmethod
-    def get_config(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the config for the current tenant.
+    def get_config(cls, ctx: Optional[SessionContext] = None) -> "Config":
+        """Get the config for the current tenant.
 
         The config is enhanced with tenant-specific paths.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             Config: The config instance for the tenant.
+
+        Raises:
+            ImportError: If the Config class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .config import Config
@@ -401,9 +441,8 @@ class ServiceFactory:
     _embedding_engine_lock = threading.RLock()
 
     @classmethod
-    def get_embedding_engine(cls):
-        """
-        Get the global EmbeddingEngine singleton.
+    def get_embedding_engine(cls) -> "EmbeddingEngine":
+        """Get the global EmbeddingEngine singleton.
 
         NOTE: This is GLOBAL, not tenant-scoped. The embedding model
         is shared across all tenants to save RAM (~500MB per model).
@@ -411,7 +450,10 @@ class ServiceFactory:
         V10 MEMORY FORGE: Shared compute, isolated storage.
 
         Returns:
-            EmbeddingEngine instance (global singleton)
+            EmbeddingEngine: The global embedding engine singleton.
+
+        Raises:
+            ImportError: If the EmbeddingEngine cannot be imported.
         """
         with cls._embedding_engine_lock:
             if cls._embedding_engine is None:
@@ -420,19 +462,21 @@ class ServiceFactory:
             return cls._embedding_engine
 
     @classmethod
-    def get_project_memory(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the project memory for the current tenant.
+    def get_project_memory(cls, ctx: Optional[SessionContext] = None) -> "ProjectMemory":
+        """Get the project memory for the current tenant.
 
         V10 MEMORY FORGE: Uses shared EmbeddingEngine for encoding,
         but storage is isolated per tenant.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             ProjectMemory: The project memory instance with tenant-isolated storage.
+
+        Raises:
+            ImportError: If the ProjectMemory or EmbeddingEngine cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.project_memory import ProjectMemory
@@ -447,18 +491,20 @@ class ServiceFactory:
         return cls._get_or_create("project_memory", factory, ctx)
 
     @classmethod
-    def get_auto_memory(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the auto memory for the current tenant.
+    def get_auto_memory(cls, ctx: Optional[SessionContext] = None) -> "AutoMemory":
+        """Get the auto memory for the current tenant.
 
         AutoMemory provides automatic context management for agents.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             AutoMemory: The auto memory instance scoped to tenant.
+
+        Raises:
+            ImportError: If the AutoMemory class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.auto_memory import AutoMemory
@@ -468,19 +514,21 @@ class ServiceFactory:
         return cls._get_or_create("auto_memory", factory, ctx)
 
     @classmethod
-    def get_success_memory(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the success memory for the current tenant.
+    def get_success_memory(cls, ctx: Optional[SessionContext] = None) -> "SuccessMemory":
+        """Get the success memory for the current tenant.
 
         SuccessMemory tracks successful tool executions for
         learning and improvement.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             SuccessMemory: The success memory instance scoped to tenant.
+
+        Raises:
+            ImportError: If the SuccessMemory class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.success_memory import SuccessMemory
@@ -490,19 +538,21 @@ class ServiceFactory:
         return cls._get_or_create("success_memory", factory, ctx)
 
     @classmethod
-    def get_spotlighter(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the spotlighter for the current tenant.
+    def get_spotlighter(cls, ctx: Optional[SessionContext] = None) -> "Spotlighter":
+        """Get the spotlighter for the current tenant.
 
         Spotlighter provides RAG content datamarking for
         security (OWASP LLM01:2025 - Prompt Injection detection).
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             Spotlighter: The spotlighter instance scoped to tenant.
+
+        Raises:
+            ImportError: If the Spotlighter class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .memory.spotlighting import Spotlighter
@@ -511,16 +561,18 @@ class ServiceFactory:
         return cls._get_or_create("spotlighter", factory, ctx)
 
     @classmethod
-    def get_process_registry(cls, ctx: Optional[SessionContext] = None):
-        """
-        Get the process registry for the current tenant.
+    def get_process_registry(cls, ctx: Optional[SessionContext] = None) -> "ProcessHandleRegistry":
+        """Get the process registry for the current tenant.
 
         Args:
-            ctx: Optional session context to determine the tenant.
+            ctx (Optional[SessionContext]): Optional session context to determine the tenant.
                 If not provided, uses the current context.
 
         Returns:
             ProcessHandleRegistry: The process registry instance.
+
+        Raises:
+            ImportError: If the ProcessHandleRegistry class cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
             from .async_primitives.process_handle import ProcessHandleRegistry
@@ -534,13 +586,12 @@ class ServiceFactory:
 
     @classmethod
     def clear_tenant_cache(cls, tenant_id: str) -> None:
-        """
-        Clear all cached instances for a tenant.
+        """Clear all cached instances for a tenant.
 
         Use when tenant is deleted or for testing.
 
         Args:
-            tenant_id: Tenant to clear
+            tenant_id (str): Tenant to clear.
         """
         with cls._lock:
             if tenant_id in cls._instances:
@@ -548,8 +599,7 @@ class ServiceFactory:
 
     @classmethod
     def clear_all_caches(cls) -> None:
-        """
-        Clear all cached instances.
+        """Clear all cached instances.
 
         Use for testing or complete reset.
         """
@@ -558,11 +608,10 @@ class ServiceFactory:
 
     @classmethod
     def get_cache_stats(cls) -> Dict[str, int]:
-        """
-        Get statistics about the instance cache.
+        """Get statistics about the instance cache.
 
         Returns:
-            Dict with tenant count and total instance count
+            Dict[str, int]: Dict with tenant count and total instance count.
         """
         with cls._lock:
             tenant_count = len(cls._instances)
@@ -581,27 +630,36 @@ class ServiceFactory:
 # These functions maintain API compatibility during migration
 
 def get_registry():
-    """
-    Backward-compatible registry getter.
+    """Backward-compatible registry getter.
 
     Deprecated: Use ServiceFactory.get_registry() instead.
+
+    Returns:
+        UnifiedAgentRegistry: The agent registry.
     """
     return ServiceFactory.get_registry()
 
 
 def get_workspace_manager(base_workspace: Optional[Path] = None):
-    """
-    Backward-compatible workspace manager getter.
+    """Backward-compatible workspace manager getter.
 
     Deprecated: Use ServiceFactory.get_workspace_manager() instead.
+
+    Args:
+        base_workspace (Optional[Path]): Ignored. Retained for compatibility.
+
+    Returns:
+        SessionWorkspaceManager: The workspace manager.
     """
     return ServiceFactory.get_workspace_manager()
 
 
 def get_tool_registry():
-    """
-    Backward-compatible tool registry getter.
+    """Backward-compatible tool registry getter.
 
     Deprecated: Use ServiceFactory.get_tool_registry() instead.
+
+    Returns:
+        ToolRegistry: The tool registry.
     """
     return ServiceFactory.get_tool_registry()

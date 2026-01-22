@@ -64,7 +64,7 @@ class BlacklistedStrategy:
     related_strategies: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, object]:
         return {
             "strategy_hash": self.strategy_hash,
             "strategy_description": self.strategy_description,
@@ -79,7 +79,7 @@ class BlacklistedStrategy:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "BlacklistedStrategy":
+    def from_dict(cls, data: Dict[str, object]) -> "BlacklistedStrategy":
         """
         Create a BlacklistedStrategy instance from a dictionary.
 
@@ -481,14 +481,40 @@ class StrategyBlacklist:
         )
 
     def clear(self, keep_success_patterns: bool = True):
-        """Clear the blacklist."""
+        """
+        Clear the blacklist.
+
+        Removes all entries from the blacklist. Optionally keeps or clears
+        the success patterns. Saves the empty state to disk.
+
+        Args:
+            keep_success_patterns: If True, preserves the set of success patterns.
+                If False, clears them as well. Defaults to True.
+
+        Raises:
+            IOError: If saving the empty state to disk fails.
+        """
         self._blacklist.clear()
         if not keep_success_patterns:
             self._success_patterns.clear()
         self._save_blacklist()
 
-    def get_stats(self) -> Dict:
-        """Get blacklist statistics."""
+    def get_stats(self) -> Dict[str, object]:
+        """
+        Get blacklist statistics.
+
+        Aggregates various statistics about the current state of the blacklist,
+        including total entries, success patterns, failure patterns, and
+        information about the oldest and most failed entries.
+
+        Returns:
+            Dict: A dictionary containing:
+                - total_entries (int): Total number of blacklisted strategies.
+                - success_patterns (int): Number of recorded success patterns.
+                - failure_patterns (Dict[str, int]): Count of failures by category.
+                - oldest_entry (datetime, optional): Timestamp of the oldest failure.
+                - most_failed (BlacklistedStrategy, optional): The strategy with the most attempts.
+        """
         return {
             "total_entries": len(self._blacklist),
             "success_patterns": len(self._success_patterns),

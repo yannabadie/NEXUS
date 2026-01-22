@@ -27,10 +27,17 @@ if TYPE_CHECKING:
 
 
 class MergeStrategyType(Enum):
-    """Available merge strategies for PARALLEL mode"""
-    NAIVE = "naive"              # Current behavior (backward compat)
-    DEDUPLICATE = "deduplicate"  # Remove semantic duplicates
-    WEIGHTED = "weighted"        # Weight by domain fit scores
+    """Available merge strategies for PARALLEL mode.
+
+    Attributes:
+        NAIVE: Simple concatenation (backward compatible, default).
+        DEDUPLICATE: Remove semantically similar sentences.
+        WEIGHTED: Weight by domain fit scores from TaskAnalysis.
+    """
+
+    NAIVE = "naive"
+    DEDUPLICATE = "deduplicate"
+    WEIGHTED = "weighted"
     # Future: requires LLM invocation
     # CONSENSUS = "consensus"    # LLM identifies agreements/conflicts
     # SUMMARY = "summary"        # LLM synthesizes into coherent summary
@@ -49,10 +56,11 @@ class MergeContext:
         task_analysis: Optional dictionary containing task analysis data.
         agent_assignments: Optional list of agent assignments.
     """
+
     task_input: str
     outputs: List["AgentResponse"]
     task_analysis: Optional[Dict[str, Any]] = None  # From blackboard
-    agent_assignments: Optional[List[Any]] = None   # AgentAssignment list
+    agent_assignments: Optional[List[Any]] = None  # AgentAssignment list
 
 
 @dataclass
@@ -67,14 +75,14 @@ class MergeResult:
         strategy_used: The type of strategy used for the merge.
         metadata: Additional metadata about the merge result.
     """
+
     content: str
     strategy_used: MergeStrategyType
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class MergeStrategy(ABC):
-    """
-    Base class for merge strategies.
+    """Base abstract class for merge strategies.
 
     Subclasses implement different algorithms for combining
     parallel agent outputs into a single coherent result.
@@ -120,8 +128,7 @@ class MergeStrategy(ABC):
 
 
 class NaiveMergeStrategy(MergeStrategy):
-    """
-    Naive merge: concatenate outputs with separators.
+    """Naive merge strategy that concatenates outputs with separators.
 
     This is the V8.3.2 behavior, preserved for backward compatibility.
     Simple but may result in redundant or contradictory content.
@@ -165,8 +172,8 @@ class NaiveMergeStrategy(MergeStrategy):
             strategy_used=self.strategy_type,
             metadata={
                 "agent_count": len(context.outputs),
-                "total_chars": sum(len(o.content) for o in context.outputs)
-            }
+                "total_chars": sum(len(o.content) for o in context.outputs),
+            },
         )
 
 
@@ -176,6 +183,10 @@ class DeduplicateMergeStrategy(MergeStrategy):
 
     Uses Jaccard similarity on word sets to identify duplicates.
     Keeps the first occurrence of each unique point.
+
+    Attributes:
+        SIMILARITY_THRESHOLD: Minimum similarity threshold (0.6) for
+            considering sentences as duplicates.
     """
 
     # Minimum similarity threshold for considering sentences as duplicates
@@ -265,8 +276,8 @@ class DeduplicateMergeStrategy(MergeStrategy):
                 "duplicates_removed": duplicates_removed,
                 "dedup_ratio": round(
                     duplicates_removed / max(len(all_sentences), 1), 2
-                )
-            }
+                ),
+            },
         )
 
     def _split_into_sentences(self, text: str) -> List[str]:
@@ -282,11 +293,11 @@ class DeduplicateMergeStrategy(MergeStrategy):
             A list of non-empty strings, where each string is a sentence or line.
         """
         # Split on sentence-ending punctuation followed by space or newline
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
         # Also split on newlines for list items
         result = []
         for s in sentences:
-            result.extend(s.split('\n'))
+            result.extend(s.split("\n"))
         return [s.strip() for s in result if s.strip()]
 
     def _get_word_set(self, text: str) -> set:
@@ -301,7 +312,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
         Returns:
             A set of strings containing the unique, significant words found in the text.
         """
-        words = re.findall(r'\b\w+\b', text.lower())
+        words = re.findall(r"\b\w+\b", text.lower())
         # Filter out very short words (articles, etc.)
         return set(w for w in words if len(w) > 2)
 
@@ -327,8 +338,7 @@ class DeduplicateMergeStrategy(MergeStrategy):
 
 
 class WeightedMergeStrategy(MergeStrategy):
-    """
-    Weighted merge: prioritize outputs by domain fit scores.
+    """Weighted merge strategy that prioritizes outputs by domain fit scores.
 
     Uses TaskAnalysis fit scores to determine which agent's
     output should be emphasized for the given task domain.
@@ -371,17 +381,21 @@ class WeightedMergeStrategy(MergeStrategy):
         registry = get_registry()
 
         def get_fit_score(output) -> float:
+            """Determines the fit score for a given agent output.
+
+            Args:
+                output: The agent response object to evaluate.
+
+            Returns:
+                float: The fit score for the agent, defaulting to 0.5.
+            """
             if registry.is_gemini(output.agent_id):
                 return gemini_fit
             elif registry.is_claude(output.agent_id):
                 return claude_fit
             return 0.5
 
-        sorted_outputs = sorted(
-            context.outputs,
-            key=get_fit_score,
-            reverse=True
-        )
+        sorted_outputs = sorted(context.outputs, key=get_fit_score, reverse=True)
 
         # Build merged output with fit indicators
         merged_parts = []
@@ -398,9 +412,7 @@ class WeightedMergeStrategy(MergeStrategy):
                 fit_indicator = ""
                 if fit_score >= 0.7:
                     fit_indicator = " ⭐ (domain expert)"
-                merged_parts.append(
-                    f"[{agent_name}{fit_indicator}]:\n{output.content}"
-                )
+                merged_parts.append(f"[{agent_name}{fit_indicator}]:\n{output.content}")
 
         return MergeResult(
             content="\n\n---\n\n".join(merged_parts),
@@ -410,8 +422,8 @@ class WeightedMergeStrategy(MergeStrategy):
                 "primary_domain": primary_domain,
                 "gemini_fit_score": gemini_fit,
                 "claude_fit_score": claude_fit,
-                "lead_agent": sorted_outputs[0].agent_id if sorted_outputs else None
-            }
+                "lead_agent": sorted_outputs[0].agent_id if sorted_outputs else None,
+            },
         )
 
 
@@ -424,7 +436,7 @@ _STRATEGY_REGISTRY: Dict[MergeStrategyType, type] = {
 
 
 def get_merge_strategy(
-    strategy_type: MergeStrategyType = MergeStrategyType.NAIVE
+    strategy_type: MergeStrategyType = MergeStrategyType.NAIVE,
 ) -> MergeStrategy:
     """
     Factory function for merge strategies.

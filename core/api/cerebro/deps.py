@@ -135,6 +135,9 @@ async def get_ws_context_optional(websocket: WebSocket) -> Optional[WebSocketCon
 
     Returns:
         WebSocketContext or None if no valid auth
+
+    Raises:
+        None: Authentication exceptions are caught and result in a None return.
     """
     try:
         return await get_ws_context(websocket)
@@ -181,6 +184,12 @@ class AuthenticatedUser:
 
     Extracted from JWT token claims.
     V12.2 IRONCLAD: Added role field for RBAC.
+
+    Attributes:
+        user_id: The unique identifier of the user.
+        tenant_id: The identifier of the tenant.
+        workspace_id: The identifier of the workspace.
+        role: The role of the user (e.g., 'viewer', 'admin'). Defaults to 'viewer'.
     """
 
     user_id: str

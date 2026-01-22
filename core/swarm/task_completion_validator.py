@@ -56,6 +56,13 @@ class ValidationResult:
     warnings: List[str]
 
     def to_dict(self) -> Dict:
+        """Converts the validation result to a dictionary.
+
+        Returns:
+            Dict: A dictionary representation of the validation result containing
+                validation status, confidence score, reason, missing criteria,
+                and warnings.
+        """
         return {
             "is_valid": self.is_valid,
             "confidence": round(self.confidence, 2),
@@ -310,7 +317,14 @@ class TaskCompletionValidator:
         return True
 
     def _get_confidence_threshold(self, complexity: TaskComplexity) -> float:
-        """Get minimum confidence threshold based on complexity."""
+        """Gets the minimum confidence threshold required based on task complexity.
+
+        Args:
+            complexity: The complexity level of the task.
+
+        Returns:
+            float: The confidence threshold value between 0.0 and 1.0.
+        """
         thresholds = {
             TaskComplexity.TRIVIAL: 0.5,
             TaskComplexity.MODERATE: 0.6,

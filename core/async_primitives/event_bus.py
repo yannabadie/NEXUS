@@ -255,17 +255,26 @@ class EventBus:
         timeout: float = 30.0,
     ) -> Optional[SyncEvent]:
         """
-        Publish an event and wait for a response event.
+        Publishes an event and asynchronously waits for a corresponding response.
 
-        Useful for request/response patterns.
+        This method facilitates a request-response pattern by temporarily subscribing
+        to a response event type and waiting for an event with a matching
+        correlation ID.
 
         Args:
-            event: Event to publish
-            response_type: Event type to wait for
-            timeout: Max wait time
+            event (SyncEvent): The initial event to publish. This event should
+                typically have a `correlation_id` set to ensure the response
+                can be matched correctly.
+            response_type (str): The type of event to wait for in response.
+            timeout (float): The maximum duration in seconds to wait for the
+                response event. Defaults to 30.0.
 
         Returns:
-            Response event or None if timeout
+            Optional[SyncEvent]: The matching response event if received within
+                the timeout period, or None if the operation timed out.
+
+        Raises:
+            None: Timeout errors are suppressed and result in a None return value.
         """
         response_future: asyncio.Future = asyncio.Future()
 
@@ -357,7 +366,21 @@ _global_bus: Optional[EventBus] = None
 
 
 def get_event_bus() -> EventBus:
-    """Get the global EventBus instance."""
+    """
+    Retrieves the global singleton instance of the EventBus.
+
+    If the instance does not exist, it creates a new one. This ensures
+    all components share the same event bus context.
+
+    Args:
+        None
+
+    Returns:
+        EventBus: The global shared EventBus instance.
+
+    Raises:
+        None
+    """
     global _global_bus
     if _global_bus is None:
         _global_bus = EventBus()

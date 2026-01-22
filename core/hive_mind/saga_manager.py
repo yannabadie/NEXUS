@@ -39,7 +39,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TYPE_CHECKING
 
 from core.utils.atomic_store import AtomicJsonStore
 from core.utils.serialization import NexusJSONEncoder, serialize_for_checkpoint, nexus_dumps
@@ -168,6 +168,17 @@ class SagaContext:
     Mutable context passed through the saga.
 
     This context tracks phase completion flags for guard evaluation.
+
+    Attributes:
+        analysis_complete: Whether the analysis phase is complete.
+        debate_complete: Whether the debate phase is complete.
+        debate_skipped: Whether the debate phase was skipped.
+        immediate_consensus: Whether immediate consensus was reached.
+        architecture_approved: Whether the architecture is approved.
+        execution_complete: Whether execution is complete.
+        execution_failed: Whether execution failed.
+        diagnosis_complete: Whether diagnosis is complete.
+        retry_exhausted: Whether retry attempts are exhausted.
     """
     analysis_complete: bool = False
     debate_complete: bool = False
@@ -221,6 +232,12 @@ class SagaManager:
     Provides checkpoint/rollback capability with context snapshot
     to prevent "hallucination" about events that didn't happen.
 
+    Attributes:
+        task_id: Unique identifier for the task.
+        context: Current saga context flags.
+        recovery_point: Name of the last successfully checkpointed phase.
+        checkpointed_phases: List of phases that have been checkpointed.
+
     Usage:
         saga = SagaManager(workspace / ".nexus" / "sagas", task_id)
 
@@ -269,7 +286,7 @@ class SagaManager:
         self._context = SagaContext()
 
         # Registered compensation functions
-        self._compensations: Dict[str, Callable] = {}
+        self._compensations: Dict[str, Callable[[], Awaitable[None]]] = {}
 
         # Metadata
         self._created_at = datetime.now()
@@ -301,7 +318,7 @@ class SagaManager:
     # Compensation Registration
     # -------------------------------------------------------------------------
 
-    def register_compensation(self, phase: str, func: Callable) -> None:
+    def register_compensation(self, phase: str, func: Callable[[], Awaitable[None]]) -> None:
         """Register a compensation function for a phase.
 
         Args:
@@ -314,7 +331,7 @@ class SagaManager:
         self._compensations[phase] = func
         logger.debug(f"Registered compensation for phase '{phase}'")
 
-    def register_default_compensations(self, orchestrator: Any) -> None:
+    def register_default_compensations(self, orchestrator: object) -> None:
         """Register default compensations based on orchestrator instance.
 
         Args:
@@ -326,6 +343,10 @@ class SagaManager:
         """
         # Analysis: Clear analysis results, reset comparison
         async def compensate_analysis():
+            """Compensate for analysis phase rollback.
+
+            Clears analysis results and comparison state from the orchestrator.
+            """
             if hasattr(orchestrator, '_analysis_comparison'):
                 orchestrator._analysis_comparison = None
             if hasattr(orchestrator, '_gemini_analysis'):
@@ -336,6 +357,10 @@ class SagaManager:
 
         # Debate: Clear debate result, restore analysis state
         async def compensate_debate():
+            """Compensate for debate phase rollback.
+
+            Clears the debate result from the orchestrator.
+            """
             if hasattr(orchestrator, '_debate_result'):
                 orchestrator._debate_result = None
             logger.info("Compensated debate phase")
@@ -343,6 +368,10 @@ class SagaManager:
         # Architecture: Despawn created agents, clear plan
         # V8.4.4b: Enhanced with file cleanup
         async def compensate_architecture():
+            """Compensate for architecture phase rollback.
+
+            Clears execution plans and deletes spawned agent files to ensure a clean state.
+            """
             if hasattr(orchestrator, '_execution_plan'):
                 orchestrator._execution_plan = None
             if hasattr(orchestrator, '_spawned_agents'):
@@ -364,6 +393,10 @@ class SagaManager:
 
         # Execution: Mark incomplete, cleanup artifacts
         async def compensate_execution():
+            """Compensate for execution phase rollback.
+
+            Clears execution results and resets the step counter.
+            """
             if hasattr(orchestrator, '_execution_results'):
                 orchestrator._execution_results = []
             if hasattr(orchestrator, '_current_step'):
@@ -372,12 +405,20 @@ class SagaManager:
 
         # Diagnosis: Clear diagnosis
         async def compensate_diagnosis():
+            """Compensate for diagnosis phase rollback.
+
+            Clears failure analysis data from the orchestrator.
+            """
             if hasattr(orchestrator, '_failure_analysis'):
                 orchestrator._failure_analysis = None
             logger.info("Compensated diagnosis phase")
 
         # Retry: Clear retry state
         async def compensate_retry():
+            """Compensate for retry phase rollback.
+
+            Resets the retry counter in the orchestrator.
+            """
             if hasattr(orchestrator, '_retry_count'):
                 orchestrator._retry_count = 0
             logger.info("Compensated retry phase")
@@ -510,7 +551,7 @@ class SagaManager:
     async def rollback_to(
         self,
         target_phase: str,
-        context_manager: Optional[Any] = None,
+        context_manager: Optional[object] = None,
     ) -> bool:
         """Rollback to a specific phase, running compensations and truncating context.
 
@@ -737,7 +778,7 @@ class SagaManager:
 
     @staticmethod
     def create_conversation_summary(
-        context_manager: Any,
+        context_manager: object,
         max_tokens: int = 1000
     ) -> str:
         """
@@ -771,7 +812,7 @@ class SagaManager:
             return ""
 
     @staticmethod
-    def create_agent_states(agents: Dict[str, Any]) -> Dict[str, str]:
+    def create_agent_states(agents: Dict[str, object]) -> Dict[str, str]:
         """
         V10 FIX F10: Capture current state of each agent for checkpoint.
 
@@ -844,6 +885,11 @@ Please continue from where we left off. The task was partially completed up to t
         }
 
     def __repr__(self) -> str:
+        """Return string representation of the SagaManager.
+
+        Returns:
+            str: String containing task ID, recovery point, and checkpointed phases.
+        """
         return (
             f"SagaManager(task_id={self._task_id[:8]}..., "
             f"recovery_point={self._recovery_point}, "

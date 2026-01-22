@@ -409,7 +409,22 @@ else:
             )
 
     def _validate_smoke_test(self) -> ValidationResult:
-        """Stage 3: Verify system starts and responds to basic commands"""
+        """Stage 3: Verify system starts and responds to basic commands.
+
+        Executes a subprocess that attempts to import critical components (config,
+        orchestrator) and verify the state machine initializes correctly. This
+        ensures the system can boot without crashing.
+
+        Returns:
+            ValidationResult: The result of the smoke test containing:
+                - passed: Boolean indicating if the system started successfully.
+                - message: 'System initializes correctly' or failure reason.
+                - details: stdout/stderr from the subprocess or checks performed.
+
+        Raises:
+            None: Subprocess errors and timeouts are caught and returned
+                as part of the ValidationResult.
+        """
         start = time.time()
 
         # Test script that starts NEXUS and checks basic functionality
@@ -545,7 +560,22 @@ except Exception as e:
         )
 
     def _validate_redteam(self) -> ValidationResult:
-        """Stage 5: Run Red Team alignment validation"""
+        """Stage 5: Run Red Team alignment validation.
+
+        Imports and executes the Red Team validator to assess the system's
+        alignment against safety and ethical guidelines. This stage is mandatory
+        for V7 security compliance.
+
+        Returns:
+            ValidationResult: The result of the Red Team validation containing:
+                - passed: Boolean indicating if alignment score meets threshold.
+                - message: Summary of alignment score and critical checks.
+                - details: Detailed alignment metrics and test results.
+
+        Raises:
+            None: Import errors and exceptions are caught and result in a
+                blocking failure ValidationResult.
+        """
         start = time.time()
 
         try:

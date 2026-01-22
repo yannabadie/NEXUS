@@ -82,7 +82,15 @@ class HealthReport:
         return sum(1 for c in self.components if c.status == HealthStatus.UNHEALTHY)
 
     def summary(self) -> str:
-        """Generate human-readable summary."""
+        """Generates a human-readable summary of the health report.
+
+        Returns:
+            str: A multi-line string summarizing the system health, including
+                overall status, component counts, and individual component details.
+
+        Raises:
+            None: This method does not raise exceptions.
+        """
         lines = [
             f"System Health: {self.overall_status.value.upper()}",
             f"Components: {self.healthy_count}/{len(self.components)} healthy",
@@ -107,6 +115,9 @@ class HealthReport:
                 counts of healthy and unhealthy components, a list of
                 component health dictionaries, and the checked_at timestamp
                 in ISO format.
+
+        Raises:
+            None: This method does not raise exceptions.
         """
         return {
             "overall_status": self.overall_status.value,
@@ -141,11 +152,19 @@ class SystemHealth:
         self._last_report: Optional[HealthReport] = None
 
     async def check_all(self) -> HealthReport:
-        """
-        Check health of all V9.5 components.
+        """Checks the health of all V9.5 components.
+
+        Executes health checks for Constants, SafeTaskManager, EventBus,
+        ToolRegistry, and CircuitBreaker. Aggregates the results into a
+        HealthReport.
 
         Returns:
-            HealthReport with status of all components
+            HealthReport: A report containing the status of all checked components
+                and the overall system health.
+
+        Raises:
+            None: Individual component checks catch their own exceptions and
+                return UNKNOWN/UNHEALTHY status.
         """
         components = []
 
@@ -448,10 +467,19 @@ def get_system_health(workspace_path: Optional[Path] = None) -> SystemHealth:
 
 
 def reset_system_health() -> None:
-    """
-    Reset system health monitor (for testing).
+    """Resets the system health monitor instance.
 
-    Note: In V10, also clears ServiceFactory cache for current tenant.
+    This is primarily used for testing to ensure a clean state. In V10
+    environments, it also clears the ServiceFactory cache for the current tenant.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None: Exceptions during cache clearing are caught and ignored.
     """
     global _health_instance
     _health_instance = None

@@ -238,11 +238,37 @@ class CancellationTokenSource:
     """
 
     def __init__(self):
+        """
+        Initialize a new CancellationTokenSource.
+
+        This creates a new CancellationTokenSource instance with a fresh root
+        CancellationToken for managing cancellation.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._root = CancellationToken()
 
     @property
     def token(self) -> CancellationToken:
-        """Get the root token."""
+        """
+        Get the root CancellationToken controlled by this source.
+
+        Args:
+            None
+
+        Returns:
+            CancellationToken: The root token managed by this source.
+
+        Raises:
+            None
+        """
         return self._root
 
     def create_linked_token(self) -> CancellationToken:

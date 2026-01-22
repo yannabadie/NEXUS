@@ -16,7 +16,7 @@ Input:
     audit/ANALYSIS_EXHAUSTIVE_2026-01-21.md (audit report)
 
 Output:
-    List[Story] objects, priority-ordered (P0 → P1 → P2)
+    list[Story] objects, priority-ordered (P0 → P1 → P2)
 
 Process:
     1. Parse audit report sections
@@ -28,14 +28,17 @@ Process:
 """
 
 from pathlib import Path
-from typing import Optional, Any, List, Dict
+from typing import Optional, Any
+from difflib import SequenceMatcher
 
 
 from core.ncm.models import (
     Story,
     StoryPriority,
     IssueDomain,
+    RAGValidationResult,
 )
+from core.memory.service import MemoryService
 from core.logging import get_logger
 
 
@@ -68,7 +71,8 @@ class StoryShardEngine:
     def __init__(
         self,
         audit_report_path: Path,
-        config: Optional[Dict] = None
+        config: Optional[dict] = None,
+        memory_service: Optional[MemoryService] = None
     ):
         """
         Initialize story sharding engine.
@@ -76,6 +80,7 @@ class StoryShardEngine:
         Args:
             audit_report_path: Path to audit report markdown
             config: Optional sharding configuration (batch sizes, etc.)
+            memory_service: Optional MemoryService for RAG validation (Phase 0.1)
 
         Raises:
             FileNotFoundError: If audit report doesn't exist
@@ -86,6 +91,7 @@ class StoryShardEngine:
         self.audit_path = audit_report_path
         self.config = config or {}
         self.logger = get_logger()
+        self.memory_service = memory_service  # For RAG validation (Blind Spot #4)
 
         # Story generation counters
         self.story_counter = 0
@@ -98,15 +104,19 @@ class StoryShardEngine:
             "dead_code": self.config.get("dead_code_batch_size", 30),       # 852 / 30 ≈ 28 stories
         }
 
+        # RAG validation threshold (80% similarity)
+        self.rag_similarity_threshold = self.config.get("rag_similarity_threshold", 0.8)
+
         self.logger.info("story_shard_engine_initialized", {
             "audit_path": str(audit_report_path),
-            "batch_config": self.batch_config
+            "batch_config": self.batch_config,
+            "rag_validation_enabled": self.memory_service is not None
         })
 
     async def shard_audit_report(
         self,
         priority_filter: Optional[StoryPriority] = None
-    ) -> List[Story]:
+    ) -> list[Story]:
         """
         Parse audit report into prioritized story queue.
 
@@ -133,13 +143,14 @@ class StoryShardEngine:
         audit_data = await self._parse_audit_report()
 
         # Create stories from different issue categories
-        stories: List[Story] = []
+        stories: list[Story] = []
 
         # P0: God class refactoring (HIGH priority)
         stories.extend(await self._create_god_class_stories(audit_data))
 
-        # P0: Evolution system TODOs (HIGH priority)
-        stories.extend(await self._create_evolution_todo_stories(audit_data))
+        # NOTE: Evolution system TODOs are COMPLETED (brainstorm_specialist,
+        # run_specialization, last_evolution tracking all implemented)
+        # No stories needed for this category.
 
         # P1: Type errors (HIGH priority, but batched)
         stories.extend(await self._create_type_error_stories(audit_data))
@@ -160,6 +171,31 @@ class StoryShardEngine:
         if priority_filter:
             stories = [s for s in stories if s.priority == priority_filter]
 
+        # RAG validation for stories with target files (Blind Spot #4 mitigation)
+        if self.memory_service:
+            self.logger.info("rag_validation_start", {
+                "stories_to_validate": sum(1 for s in stories if s.target_files)
+            })
+
+            for story in stories:
+                if not story.target_files:
+                    continue  # Skip stories without concrete target files
+
+                rag_result = await self._validate_rag_context(story)
+
+                if not rag_result.valid:
+                    story.needs_human_review = True
+                    self.logger.warning("story_flagged_for_review", {
+                        "story_id": story.story_id,
+                        "reason": "RAG validation failed",
+                        "file_validations": rag_result.file_validations
+                    })
+
+            flagged_count = sum(1 for s in stories if s.needs_human_review)
+            self.logger.info("rag_validation_complete", {
+                "flagged_for_review": flagged_count
+            })
+
         # Sort by priority (P0 → P1 → P2) and story_id
         stories.sort(key=lambda s: (s.priority.value, s.story_id))
 
@@ -168,11 +204,12 @@ class StoryShardEngine:
             "p0_count": sum(1 for s in stories if s.priority == StoryPriority.P0),
             "p1_count": sum(1 for s in stories if s.priority == StoryPriority.P1),
             "p2_count": sum(1 for s in stories if s.priority == StoryPriority.P2),
+            "flagged_for_review": sum(1 for s in stories if s.needs_human_review)
         })
 
         return stories
 
-    async def _parse_audit_report(self) -> Dict[str, Any]:
+    async def _parse_audit_report(self) -> dict[str, Any]:
         """
         Parse audit report markdown file.
 
@@ -180,7 +217,7 @@ class StoryShardEngine:
             Dict with extracted data:
                 - god_classes: List of God class entries
                 - evolution_todos: List of TODO entries
-                - issue_counts: Dict of category → count
+                - issue_counts: dict of category → count
                 - deprecation_patterns: List of deprecation patterns
 
         NOTE: For Phase 0, this is a simplified parser.
@@ -208,7 +245,7 @@ class StoryShardEngine:
 
         return data
 
-    def _extract_god_classes(self, content: str) -> List[Dict[str, str]]:
+    def _extract_god_classes(self, content: str) -> list[dict[str, str]]:
         """
         Extract God class entries from audit report.
 
@@ -242,7 +279,7 @@ class StoryShardEngine:
 
         return known_god_classes
 
-    def _extract_evolution_todos(self, content: str) -> List[Dict[str, str]]:
+    def _extract_evolution_todos(self, content: str) -> list[dict[str, str]]:
         """
         Extract Evolution system TODOs from audit report.
 
@@ -269,7 +306,7 @@ class StoryShardEngine:
 
         return evolution_todos
 
-    def _extract_issue_counts(self, content: str) -> Dict[str, int]:
+    def _extract_issue_counts(self, content: str) -> dict[str, int]:
         """
         Extract issue counts by category from audit report.
 
@@ -285,7 +322,7 @@ class StoryShardEngine:
             "deprecation": 398,
         }
 
-    def _extract_deprecation_patterns(self, content: str) -> List[str]:
+    def _extract_deprecation_patterns(self, content: str) -> list[str]:
         """
         Extract deprecation warning patterns from audit report.
 
@@ -298,7 +335,7 @@ class StoryShardEngine:
             "Async warnings: TelemetryBridge.emit not awaited"
         ]
 
-    async def _create_god_class_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_god_class_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for God class refactoring.
 
@@ -350,7 +387,7 @@ Target: Reduce file size from {god_class['loc']} LOC to <500 LOC per file.
 
         return stories
 
-    async def _create_evolution_todo_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_evolution_todo_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for Evolution system TODOs.
 
@@ -397,7 +434,7 @@ Reference: See core/agents/agent_service.py for delegation targets.
 
         return [story]
 
-    async def _create_type_error_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_type_error_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for type error fixes.
 
@@ -449,7 +486,7 @@ Note: This is a batched story. Target modules will be determined dynamically.
 
         return stories
 
-    async def _create_deprecation_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_deprecation_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for deprecation warning fixes.
 
@@ -491,7 +528,7 @@ Pattern: {pattern}
 
         return stories
 
-    async def _create_dead_code_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_dead_code_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for dead code removal.
 
@@ -541,7 +578,7 @@ Safety: Only remove code with high confidence of being unused.
 
         return stories
 
-    async def _create_dead_import_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_dead_import_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for dead import removal.
 
@@ -590,7 +627,7 @@ Safety: This is low-risk cleanup. Verify tests pass after removal.
 
         return stories
 
-    async def _create_documentation_stories(self, audit_data: Dict) -> List[Story]:
+    async def _create_documentation_stories(self, audit_data: dict) -> list[Story]:
         """
         Create stories for missing docstring additions.
 
@@ -638,6 +675,102 @@ Style: Follow Google docstring format (existing NEXUS pattern).
         })
 
         return stories
+
+    async def _validate_rag_context(self, story: Story) -> RAGValidationResult:
+        """
+        Validate that RAG system has accurate context for story's target files.
+
+        This prevents context poisoning (Blind Spot #4 mitigation):
+        - If RAG returns hallucinated code, story execution will fail
+        - Validate that retrieved docs match actual file content
+
+        Args:
+            story: Story to validate
+
+        Returns:
+            RAGValidationResult with validation status and file-level similarity scores
+
+        Process:
+            1. For each target file, query RAG for file content
+            2. Read actual file content from disk
+            3. Compare using fuzzy matching (SequenceMatcher)
+            4. If similarity < threshold (80%), mark as invalid
+            5. Return validation result
+        """
+        if not self.memory_service:
+            # RAG validation disabled (memory_service not provided)
+            return RAGValidationResult(
+                story_id=story.story_id,
+                valid=True,  # Optimistic - assume valid if no validation
+                file_validations={},
+                errors=["RAG validation skipped (MemoryService not provided)"]
+            )
+
+        file_validations = {}
+        errors = []
+
+        for file_path in story.target_files:
+            if not file_path.exists():
+                errors.append(f"Target file does not exist: {file_path}")
+                file_validations[str(file_path)] = 0.0
+                continue
+
+            try:
+                # Query RAG for file content
+                query_str = f"Show me the complete content of {file_path}"
+                rag_result = self.memory_service.query(query_str, limit=3)
+
+                if not rag_result.success or not rag_result.chunks:
+                    errors.append(f"RAG query failed for {file_path}: {rag_result.error}")
+                    file_validations[str(file_path)] = 0.0
+                    continue
+
+                # Combine RAG chunks (assuming they're ordered by relevance)
+                rag_content = "\n".join([chunk.content for chunk in rag_result.chunks[:3]])
+
+                # Read actual file content
+                actual_content = file_path.read_text(encoding='utf-8', errors='ignore')
+
+                # Compute similarity using SequenceMatcher (fuzzy match)
+                similarity = SequenceMatcher(None, rag_content, actual_content).ratio()
+
+                file_validations[str(file_path)] = similarity
+
+                if similarity < self.rag_similarity_threshold:
+                    errors.append(
+                        f"RAG context mismatch for {file_path}: "
+                        f"similarity {similarity:.2%} < threshold {self.rag_similarity_threshold:.2%}"
+                    )
+
+                    self.logger.warning("rag_context_mismatch", {
+                        "story_id": story.story_id,
+                        "file": str(file_path),
+                        "similarity": similarity,
+                        "threshold": self.rag_similarity_threshold
+                    })
+
+            except Exception as e:
+                errors.append(f"RAG validation error for {file_path}: {str(e)}")
+                file_validations[str(file_path)] = 0.0
+
+                self.logger.error("rag_validation_exception", {
+                    "story_id": story.story_id,
+                    "file": str(file_path),
+                    "error": str(e)
+                })
+
+        # Story is valid if all files pass threshold
+        all_valid = all(
+            sim >= self.rag_similarity_threshold
+            for sim in file_validations.values()
+        )
+
+        return RAGValidationResult(
+            story_id=story.story_id,
+            valid=all_valid,
+            file_validations=file_validations,
+            errors=errors
+        )
 
     def _generate_story_id(self) -> str:
         """

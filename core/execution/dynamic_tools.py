@@ -155,7 +155,7 @@ class DynamicToolManager:
 
     Security:
     - All code validated before saving (no dangerous imports/functions)
-    - Subprocess isolation (no direct exec())
+    - Subprocess isolation (direct code execution blocked)
     - 30 second timeout
     - Output truncation (50KB max)
     """
@@ -301,6 +301,13 @@ class DynamicToolManager:
         Returns:
             ToolExecutionResult with output and status
         """
+        # Validate tool name to prevent path traversal
+        if not self._validate_tool_name(name):
+            return ToolExecutionResult(
+                success=False,
+                error=f"Invalid tool name '{name}'. Use only alphanumeric characters and underscores."
+            )
+
         tool_path = self.tools_dir / f"{name}.py"
 
         if not tool_path.exists():
@@ -381,6 +388,10 @@ class DynamicToolManager:
         Returns:
             Tuple of (success, message)
         """
+        # Validate tool name to prevent path traversal
+        if not self._validate_tool_name(name):
+            return False, f"Invalid tool name '{name}'. Use only alphanumeric characters and underscores."
+
         tool_path = self.tools_dir / f"{name}.py"
         meta_path = self.tools_dir / f"{name}.meta.json"
 

@@ -62,8 +62,10 @@ from enum import Enum, auto
 # Response Types
 # =============================================================================
 
+
 class DriverResponseStatus(Enum):
     """Status of a driver response."""
+
     SUCCESS = auto()
     ERROR = auto()
     TIMEOUT = auto()
@@ -74,6 +76,7 @@ class DriverResponseStatus(Enum):
 @dataclass
 class ToolCall:
     """Represents a tool/function call from the LLM."""
+
     name: str
     arguments: Dict[str, Any]
     id: Optional[str] = None
@@ -117,6 +120,7 @@ class DriverResponse:
         raw: The raw response data for debugging purposes.
         timestamp: The timestamp when the response was created.
     """
+
     # Core content
     content: str
     status: DriverResponseStatus = DriverResponseStatus.SUCCESS
@@ -189,6 +193,7 @@ class StreamChunk:
         input_tokens: The total input tokens (only populated in final chunk).
         output_tokens: The total output tokens (only populated in final chunk).
     """
+
     content: str
     is_final: bool = False
     tool_call: Optional[ToolCall] = None
@@ -202,6 +207,7 @@ class StreamChunk:
 # =============================================================================
 # Driver Protocol (ABC)
 # =============================================================================
+
 
 @runtime_checkable
 class DriverProtocol(Protocol):
@@ -276,17 +282,27 @@ class DriverProtocol(Protocol):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """
-        Invoke the LLM and stream the response.
+        """Invoke the LLM and stream the response.
 
-        Same parameters as invoke(), but yields StreamChunk objects
-        as they become available.
+        Args:
+            prompt: The user prompt/message to send.
+            session_id: Optional session ID for context persistence.
+            system_prompt: Optional system prompt override.
+            tools: Optional list of tools to make available.
+            isolated_env: Optional environment dict for CLI isolation (V9.7.1).
+            timeout: Optional timeout override in seconds.
+            **kwargs: Additional driver-specific options.
 
         Yields:
-            StreamChunk objects, with is_final=True on last chunk
+            StreamChunk: StreamChunk objects as they become available.
+                The final chunk will have is_final=True.
+
+        Raises:
+            asyncio.TimeoutError: If timeout exceeded.
+            asyncio.CancelledError: If cancelled (MUST be re-raised).
         """
         ...
-        yield  # Make this a generator
+        yield StreamChunk(content="")  # Make this a generator
 
     async def cancel(self, session_id: Optional[str] = None) -> bool:
         """
@@ -317,6 +333,7 @@ class DriverProtocol(Protocol):
 # Session Protocol (F32 preparation)
 # =============================================================================
 
+
 @runtime_checkable
 class SessionProtocol(Protocol):
     """
@@ -339,37 +356,62 @@ class SessionProtocol(Protocol):
         ...
 
     async def start(self) -> str:
-        """
-        Start a new session.
+        """Starts a new session.
+
+        Initializes a new session context, generating a unique identifier and setting
+        up any necessary state or resources required for the session.
 
         Returns:
-            New session ID
+            str: The unique identifier (ID) of the newly created session.
+
+        Raises:
+            RuntimeError: If a session is already active and cannot be overwritten.
         """
         ...
 
     async def resume(self, session_id: str) -> bool:
-        """
-        Resume an existing session.
+        """Resumes an existing session.
+
+        Attempts to restore the state of a previously active session using its
+        identifier.
 
         Args:
-            session_id: Session to resume
+            session_id: The unique identifier of the session to resume.
 
         Returns:
-            True if session was found and resumed
+            bool: True if the session was successfully found and resumed, False otherwise.
+
+        Raises:
+            ValueError: If the provided session_id format is invalid.
         """
         ...
 
     async def end(self) -> None:
-        """End the current session."""
+        """Ends the current session.
+
+        Terminates the active session, performing any necessary cleanup such as
+        saving state, releasing resources, or logging completion.
+
+        Raises:
+            RuntimeError: If no session is currently active to end.
+        """
         ...
 
     def get_context_for_driver(self) -> Dict[str, Any]:
-        """Get session context in driver-appropriate format.
+        """Retrieves session context formatted for the driver.
+
+        Constructs a dictionary containing the necessary context information required
+        by the driver to maintain continuity, such as resume flags for CLI drivers
+        or conversation IDs for API drivers.
 
         Returns:
             Dict[str, Any]: A dictionary containing context information.
-                For CLI: {"resume_flag": "--resume latest"}
-                For API: {"conversation_id": "..."}
+                For example:
+                - CLI: {"resume_flag": "--resume latest"}
+                - API: {"conversation_id": "123-abc-456"}
+
+        Raises:
+            RuntimeError: If the session is not active or context cannot be generated.
         """
         ...
 
@@ -377,6 +419,7 @@ class SessionProtocol(Protocol):
 # =============================================================================
 # Tool Executor Protocol (F33 preparation)
 # =============================================================================
+
 
 @runtime_checkable
 class ToolExecutorProtocol(Protocol):
@@ -437,6 +480,7 @@ class ToolExecutorProtocol(Protocol):
 # Abstract Base Classes (for implementation guidance)
 # =============================================================================
 
+
 class BaseAsyncDriver(abc.ABC):
     """
     Abstract base class for async drivers.
@@ -482,7 +526,24 @@ class BaseAsyncDriver(abc.ABC):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> DriverResponse:
-        """Implement in subclass."""
+        """Invoke the LLM and return the complete response.
+
+        Args:
+            prompt: The user prompt/message to send.
+            session_id: Optional session ID for context persistence.
+            system_prompt: Optional system prompt override.
+            tools: Optional list of tools to make available.
+            isolated_env: Optional environment dict for CLI isolation (V9.7.1).
+            timeout: Optional timeout override in seconds.
+            **kwargs: Additional driver-specific options.
+
+        Returns:
+            DriverResponse: The complete response containing content, status, and metadata.
+
+        Raises:
+            asyncio.TimeoutError: If timeout exceeded.
+            asyncio.CancelledError: If cancelled (MUST be re-raised).
+        """
         ...
 
     @abc.abstractmethod
@@ -497,13 +558,42 @@ class BaseAsyncDriver(abc.ABC):
         timeout: Optional[float] = None,
         **kwargs: Any,
     ) -> AsyncIterator[StreamChunk]:
-        """Implement in subclass."""
+        """Invoke the LLM and stream the response.
+
+        Args:
+            prompt: The user prompt/message to send.
+            session_id: Optional session ID for context persistence.
+            system_prompt: Optional system prompt override.
+            tools: Optional list of tools to make available.
+            isolated_env: Optional environment dict for CLI isolation (V9.7.1).
+            timeout: Optional timeout override in seconds.
+            **kwargs: Additional driver-specific options.
+
+        Yields:
+            StreamChunk: StreamChunk objects as they become available.
+                The final chunk will have is_final=True.
+
+        Raises:
+            asyncio.TimeoutError: If timeout exceeded.
+            asyncio.CancelledError: If cancelled (MUST be re-raised).
+        """
         ...
-        yield  # pragma: no cover
+        yield StreamChunk(content="")  # pragma: no cover
 
     @abc.abstractmethod
     async def cancel(self, session_id: Optional[str] = None) -> bool:
-        """Implement in subclass."""
+        """Cancel an ongoing invocation.
+
+        Args:
+            session_id: If provided, cancel specific session.
+                If None, cancel all active invocations.
+
+        Returns:
+            bool: True if cancellation was successful, False otherwise.
+
+        Raises:
+            Exception: If cancellation fails due to driver error.
+        """
         ...
 
     async def health_check(self) -> bool:

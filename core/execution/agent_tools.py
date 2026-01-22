@@ -201,13 +201,16 @@ class AgentToolRegistry:
         self._agent_loader = agent_loader
 
     def refresh(self) -> int:
-        """
-        Refresh the registry by scanning for spawned agents.
+        """Refreshes the registry by scanning for spawned agents.
 
-        Called after /spawn or at startup.
+        Called after /spawn or at startup to update the list of available agent tools.
+        It clears existing tools and repopulates them from the AgentPool.
 
         Returns:
-            Number of agent tools registered
+            int: The total number of agent tools successfully registered.
+
+        Raises:
+            None: Exceptions during individual agent registration are caught and logged.
         """
         self._tools.clear()
 
@@ -300,17 +303,25 @@ class AgentToolRegistry:
         tool_name: str,
         args: Dict[str, Any]
     ) -> AgentToolResult:
-        """
-        Execute an agent as a tool.
+        """Executes a spawned agent as a tool.
+
+        Validates the tool and arguments, prepares the context, and delegates execution
+        to the AgentInvoker. Captures the execution result, error state, and duration.
 
         Args:
-            tool_name: Tool name (e.g., "agent_security_expert").
-            args: Tool arguments dictionary containing:
-                - task (str): The task for the agent (required).
-                - context (str): Additional context (optional).
+            tool_name (str): The unique name of the agent tool (e.g., "agent_security_expert").
+            args (Dict[str, Any]): A dictionary of arguments for the tool.
+                Required keys:
+                    - task (str): The primary instruction or query for the agent.
+                Optional keys:
+                    - context (str): Additional background information or code.
 
         Returns:
-            AgentToolResult: The result of the agent execution, including output and status.
+            AgentToolResult: The result of the execution containing success status,
+                output, error details, and duration.
+
+        Raises:
+            None: All exceptions are caught and returned as an error in AgentToolResult.
         """
         import time
         start_time = time.time()
@@ -383,17 +394,17 @@ class AgentToolRegistry:
             )
 
     def create_tool_handler(self, tool_name: str) -> Callable[[Dict], "ToolResult"]:
-        """
-        Create a ToolManager-compatible handler for an agent tool.
+        """Creates a ToolManager-compatible handler for an agent tool.
 
-        This allows agent tools to be registered in ToolManager alongside
-        built-in tools.
+        Wraps the agent tool execution in a function that matches the signature expected
+        by the ToolManager, bridging the gap between AgentToolRegistry and ToolManager.
 
         Args:
-            tool_name: Tool name
+            tool_name (str): The name of the agent tool to create a handler for.
 
         Returns:
-            Handler function compatible with ToolManager.tools dict
+            Callable[[Dict], ToolResult]: A handler function that accepts an arguments
+                dictionary and returns a ToolResult object.
         """
         # Import here to avoid circular dependency
         from core.execution.tool_manager import ToolResult

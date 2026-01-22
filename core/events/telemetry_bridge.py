@@ -127,7 +127,18 @@ class TelemetryBridge:
     # =========================================================================
 
     def _get_tenant(self) -> str:
-        """Get current tenant ID from subscribers or context."""
+        """
+        Get current tenant ID from subscribers or context.
+
+        V13.0 FIX: Checks active subscribers first as a more reliable source,
+        falling back to the current session context.
+
+        Returns:
+            str: The tenant ID if found, otherwise "anonymous".
+
+        Raises:
+            None: Exceptions during context extraction are caught and ignored.
+        """
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
             from core.events.redis_bus import get_redis_bus
@@ -151,7 +162,18 @@ class TelemetryBridge:
         return "anonymous"
 
     def _get_workspace(self) -> str:
-        """Get current workspace ID from subscribers or context."""
+        """
+        Get current workspace ID from subscribers or context.
+
+        V13.0 FIX: Checks active subscribers first as a more reliable source,
+        falling back to the current session context.
+
+        Returns:
+            str: The workspace ID if found, otherwise "default".
+
+        Raises:
+            None: Exceptions during context extraction are caught and ignored.
+        """
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
             from core.events.redis_bus import get_redis_bus

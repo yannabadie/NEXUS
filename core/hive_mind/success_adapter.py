@@ -20,8 +20,8 @@ class PseudoExecutionResult:
     """Pseudo ExecutionResult for SuccessMemory compatibility.
 
     Attributes:
-        total_rounds: Total number of execution rounds (default: 1).
-        agent_outputs: List of pseudo-objects with 'agent_id' and 'status' attributes.
+        total_rounds (int): Total number of execution rounds (default: 1).
+        agent_outputs (List[Any]): List of pseudo-objects with 'agent_id' and 'status' attributes.
     """
     total_rounds: int = 1
     agent_outputs: Any = field(default_factory=list)
@@ -47,10 +47,10 @@ class HiveMindAnalysisAdapter:
     Adapts HiveMind input data to match the structure expected by SuccessMemory.
 
     Attributes:
-        raw_input: The original task description or input text.
-        complexity: Pseudo-enum object with a 'name' attribute.
-        domains: List of pseudo-enum objects with a 'value' attribute.
-        primary_domain: Single pseudo-enum object with a 'value' attribute.
+        raw_input (str): The original task description or input text.
+        complexity (Any): Pseudo-enum object with a 'name' attribute.
+        domains (List[Any]): List of pseudo-enum objects with a 'value' attribute.
+        primary_domain (Any): Single pseudo-enum object with a 'value' attribute.
     """
     raw_input: str
     complexity: Any = None
@@ -89,12 +89,12 @@ class HiveMindResultAdapter:
     Adapts HiveMind execution results to match the structure expected by SuccessMemory.
 
     Attributes:
-        selected_mode: The collaboration mode used (default: "hive_mind").
-        status: Execution status string (e.g., "completed").
-        total_time_seconds: Total duration of the execution in seconds.
-        execution_result: Object containing detailed execution stats.
-        agent_outputs: List of agent output objects (fallback if execution_result missing).
-        total_rounds: Number of phases/rounds in the HiveMind process (default: 7).
+        selected_mode (str): The collaboration mode used (default: "hive_mind").
+        status (str): Execution status string (e.g., "completed").
+        total_time_seconds (float): Total duration of the execution in seconds.
+        execution_result (Any): Object containing detailed execution stats.
+        agent_outputs (List[Any]): List of agent output objects (fallback if execution_result missing).
+        total_rounds (int): Number of phases/rounds in the HiveMind process (default: 7).
     """
     selected_mode: str = "hive_mind"
     status: str = "completed"
@@ -137,11 +137,11 @@ class SwarmDelegationAnalysisAdapter:
     Records Swarm delegations so the system learns which modes work best.
 
     Attributes:
-        raw_input: The delegated task description.
-        complexity: Object representing task complexity.
-        domains: List of domain objects.
-        primary_domain: Primary domain object.
-        mode_used: The collaboration mode string used for the delegation.
+        raw_input (str): The delegated task description.
+        complexity (Any): Object representing task complexity.
+        domains (List[Any]): List of domain objects.
+        primary_domain (Any): Primary domain object.
+        mode_used (str): The collaboration mode string used for the delegation.
     """
     raw_input: str
     complexity: Any = None
@@ -174,13 +174,13 @@ class SwarmDelegationResultAdapter:
     """V8.3.2: Adapter for SwarmBridge delegation result -> SuccessMemory.
 
     Attributes:
-        selected_mode: The collaboration mode used (default: "specialist").
-        status: Execution status string ("completed" or "failed").
-        total_time_seconds: Total duration of the delegation in seconds.
-        execution_result: Object containing execution details.
-        agent_outputs: List of agent output objects.
-        total_rounds: Total number of rounds including fallbacks (default: 1).
-        fallback_count: Number of times the system fell back to another mode.
+        selected_mode (str): The collaboration mode used (default: "specialist").
+        status (str): Execution status string ("completed" or "failed").
+        total_time_seconds (float): Total duration of the delegation in seconds.
+        execution_result (Any): Object containing execution details.
+        agent_outputs (List[Any]): List of agent output objects.
+        total_rounds (int): Total number of rounds including fallbacks (default: 1).
+        fallback_count (int): Number of times the system fell back to another mode.
     """
     selected_mode: str = "specialist"
     status: str = "completed"
@@ -222,19 +222,21 @@ def create_swarm_delegation_adapters(
     fallback_count: int = 0,
     agents_used: Any = None
 ) -> tuple:
-    """
-    V8.3.2: Create adapters for SwarmBridge delegation.
+    """V8.3.2: Create adapters for SwarmBridge delegation.
 
     Args:
-        task: The delegated task description
-        mode_used: The collaboration mode that was used
-        duration: Execution time in seconds
-        success: Whether delegation succeeded
-        fallback_count: Number of fallbacks used
-        agents_used: List of agent IDs involved
+        task (str): The delegated task description.
+        mode_used (str): The collaboration mode that was used.
+        duration (float): Execution time in seconds.
+        success (bool): Whether delegation succeeded.
+        fallback_count (int): Number of fallbacks used.
+        agents_used (Optional[List[str]]): List of agent IDs involved.
 
     Returns:
-        Tuple of (SwarmDelegationAnalysisAdapter, SwarmDelegationResultAdapter)
+        tuple: Tuple of (SwarmDelegationAnalysisAdapter, SwarmDelegationResultAdapter).
+
+    Raises:
+        None
     """
     agents_used = agents_used or ["gemini", "claude"]
 
@@ -266,18 +268,20 @@ def create_hive_mind_adapters(
     phases_completed: int = 7,
     agents_used: Any = None
 ) -> tuple:
-    """
-    Convenience function to create both adapters.
+    """Convenience function to create both adapters.
 
     Args:
-        task: Original task description
-        duration: Total execution time in seconds
-        success: Whether task succeeded
-        phases_completed: Number of phases completed (default 7)
-        agents_used: List of agent IDs used
+        task (str): Original task description.
+        duration (float): Total execution time in seconds.
+        success (bool): Whether task succeeded.
+        phases_completed (int): Number of phases completed (default 7).
+        agents_used (Optional[List[str]]): List of agent IDs used.
 
     Returns:
-        Tuple of (HiveMindAnalysisAdapter, HiveMindResultAdapter)
+        tuple: Tuple of (HiveMindAnalysisAdapter, HiveMindResultAdapter).
+
+    Raises:
+        None
     """
     agents_used = agents_used or ["gemini", "claude"]
 

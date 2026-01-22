@@ -133,7 +133,7 @@ def parse_json_response(
         response = str(response)
 
     # Try to extract JSON from response
-    json_match = re.search(r'\{[\s\S]*\}', response)
+    json_match = re.search(r'\{[\s\S]*?\}', response)
     if not json_match:
         logger.debug(f"{agent_id} response not in JSON format")
         return default

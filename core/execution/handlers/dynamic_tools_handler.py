@@ -109,6 +109,11 @@ class CreateToolHandler(DynamicToolsHandlerBase):
 
     @property
     def tool_name(self) -> str:
+        """Returns the name of the tool.
+
+        Returns:
+            str: The tool name "create_tool".
+        """
         return "create_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -174,6 +179,11 @@ class DeleteToolHandler(DynamicToolsHandlerBase):
 
     @property
     def tool_name(self) -> str:
+        """Returns the name of the tool.
+
+        Returns:
+            str: The tool name "delete_tool".
+        """
         return "delete_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -211,10 +221,22 @@ class DeleteToolHandler(DynamicToolsHandlerBase):
 
 
 class ListDynamicToolsHandler(DynamicToolsHandlerBase):
-    """Handler for listing all dynamic tools."""
+    """Handler for listing all dynamic tools.
+
+    This handler retrieves the list of all registered dynamic tools from the
+    manager and returns their details.
+
+    Attributes:
+        tool_name (str): The name of the tool ("list_dynamic_tools").
+    """
 
     @property
     def tool_name(self) -> str:
+        """Returns the name of the tool.
+
+        Returns:
+            str: The tool name "list_dynamic_tools".
+        """
         return "list_dynamic_tools"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:
@@ -270,6 +292,11 @@ class RunDynamicToolHandler(DynamicToolsHandlerBase):
 
     @property
     def tool_name(self) -> str:
+        """Returns the name of the tool.
+
+        Returns:
+            str: The tool name "run_dynamic_tool".
+        """
         return "run_dynamic_tool"
 
     def execute(self, args: Dict[str, Any]) -> ToolResult:

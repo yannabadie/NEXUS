@@ -4,7 +4,7 @@ Panic System - Gestion des erreurs critiques et panic states
 Architecture V7: Improved panic handling with detailed logging.
 """
 from pathlib import Path
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Optional
 import json
 
@@ -20,7 +20,7 @@ class PanicSystem:
     - Panic history pour debugging
     """
 
-    def __init__(self, workspace_path: Path, max_stalemate: int = 5):
+    def __init__(self, workspace_path: Path, max_stalemate: int = 5) -> None:
         """
         Args:
             workspace_path: Workspace NEXUS
@@ -37,9 +37,9 @@ class PanicSystem:
         self.panic_history = self.panic_dir / "panic_history.jsonl"
 
         # State tracking
-        self.stalemate_counter = 0
-        self.consecutive_errors = 0
-        self.is_in_panic = False
+        self.stalemate_counter: int = 0
+        self.consecutive_errors: int = 0
+        self.is_in_panic: bool = False
         self.panic_reason: Optional[str] = None
 
     def check_stalemate(self) -> bool:
@@ -83,7 +83,7 @@ class PanicSystem:
             "error_type": error_type,
             "message": error_message,
             "consecutive_errors": self.consecutive_errors,
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         # Trigger panic après 3 erreurs consécutives
@@ -119,7 +119,7 @@ class PanicSystem:
         self.panic_reason = reason
 
         panic_data = {
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "reason": reason,
             "details": details,
             "stalemate_counter": self.stalemate_counter,
@@ -171,7 +171,7 @@ class PanicSystem:
         # Log recovery
         self._log_to_history({
             "type": "RECOVERY",
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": "Panic cleared, system recovered"
         })
 

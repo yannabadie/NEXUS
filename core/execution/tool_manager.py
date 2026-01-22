@@ -74,6 +74,14 @@ class ToolManager:
     }
 
     def __init__(self, workspace_path: Path):
+        """Initializes the ToolManager with the given workspace path.
+
+        Sets up security layers (PathGuardian, ExecutionPolicy), initializes
+        subsystems (MCP, Dynamic Tools), and creates tool handlers.
+
+        Args:
+            workspace_path: The absolute path to the workspace directory.
+        """
         self.workspace_path = workspace_path
 
         # Evolution mode flag (enabled only during /evolve)
@@ -350,7 +358,15 @@ class ToolManager:
     def _create_mcp_tool_handler(
         self, server_name: str, tool_name: str
     ) -> Callable[[Dict], ToolResult]:
-        """Create a handler function for an MCP tool."""
+        """Creates a closure to handle execution of a specific MCP tool.
+
+        Args:
+            server_name: The name of the MCP server providing the tool.
+            tool_name: The specific tool name on that server.
+
+        Returns:
+            A callable that accepts an arguments dictionary and returns a ToolResult.
+        """
         def handler(args: Dict) -> ToolResult:
             return self._execute_mcp_tool(server_name, tool_name, args)
         return handler

@@ -27,8 +27,10 @@ from sqlmodel import Field, SQLModel
 # Enums
 # =============================================================================
 
+
 class AuditAction(str, Enum):
     """Audit action categories."""
+
     # Authentication
     AUTH_LOGIN = "auth:login"
     AUTH_LOGOUT = "auth:logout"
@@ -62,6 +64,7 @@ class AuditAction(str, Enum):
 
 class AuditStatus(str, Enum):
     """Audit event status."""
+
     SUCCESS = "success"
     DENIED = "denied"
     ERROR = "error"
@@ -69,6 +72,7 @@ class AuditStatus(str, Enum):
 
 class HITLRequestStatus(str, Enum):
     """Human-in-the-Loop request status."""
+
     PENDING = "pending"
     ANSWERED = "answered"
     EXPIRED = "expired"
@@ -77,14 +81,16 @@ class HITLRequestStatus(str, Enum):
 
 class HITLRequestType(str, Enum):
     """Human-in-the-Loop request types."""
-    ASK = "ask"           # Free-form question
-    CONFIRM = "confirm"   # Yes/No confirmation
-    CHOOSE = "choose"     # Multiple choice
+
+    ASK = "ask"  # Free-form question
+    CONFIRM = "confirm"  # Yes/No confirmation
+    CHOOSE = "choose"  # Multiple choice
 
 
 # =============================================================================
 # AuditLog Model
 # =============================================================================
+
 
 class AuditLog(SQLModel, table=True):
     """Immutable audit trail for compliance.
@@ -121,6 +127,7 @@ class AuditLog(SQLModel, table=True):
             status=AuditStatus.SUCCESS,
         )
     """
+
     __tablename__ = "audit_logs"
     model_config = ConfigDict(from_attributes=True)
 
@@ -131,27 +138,38 @@ class AuditLog(SQLModel, table=True):
     # Action details
     action: str = Field(index=True)  # e.g., "file:read", "user:login"
     resource_type: str  # e.g., "file", "user", "workflow"
-    resource_id: Optional[str] = Field(default=None, max_length=500)  # e.g., file path, user UUID
+    resource_id: Optional[str] = Field(
+        default=None, max_length=500
+    )  # e.g., file path, user UUID
 
     # Result
     status: str = Field(default="success")  # "success", "denied", "error"
-    details: Optional[str] = Field(default=None, max_length=2000)  # JSON string for additional context
+    details: Optional[str] = Field(
+        default=None, max_length=2000
+    )  # JSON string for additional context
 
     # Request metadata
     ip_address: Optional[str] = Field(default=None, max_length=45)  # IPv6 max length
     user_agent: Optional[str] = Field(default=None, max_length=500)
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), index=True
+    )
 
     def __repr__(self) -> str:
-        """Return a string representation of the AuditLog entry."""
+        """Return a string representation of the AuditLog entry.
+
+        Returns:
+            str: A formatted string containing the action, user_id, and status.
+        """
         return f"AuditLog({self.action}, user={self.user_id}, status={self.status})"
 
 
 # =============================================================================
 # HITLRequest Model
 # =============================================================================
+
 
 class HITLRequest(SQLModel, table=True):
     """Human-in-the-Loop request for async handling.
@@ -185,6 +203,7 @@ class HITLRequest(SQLModel, table=True):
             prompt="Delete all files?",
         )
     """
+
     __tablename__ = "hitl_requests"
     model_config = ConfigDict(from_attributes=True)
 
@@ -195,19 +214,27 @@ class HITLRequest(SQLModel, table=True):
     # Request details
     request_type: str  # "ask", "confirm", "choose"
     prompt: str = Field(max_length=2000)
-    options: Optional[str] = Field(default=None, max_length=2000)  # JSON array for choices
+    options: Optional[str] = Field(
+        default=None, max_length=2000
+    )  # JSON array for choices
 
     # Context (for resuming workflow)
-    context_data: Optional[str] = Field(default=None, max_length=10000)  # JSON workflow context
+    context_data: Optional[str] = Field(
+        default=None, max_length=10000
+    )  # JSON workflow context
 
     # State
-    status: str = Field(default="pending", index=True)  # pending, answered, expired, cancelled
+    status: str = Field(
+        default="pending", index=True
+    )  # pending, answered, expired, cancelled
     answer: Optional[str] = Field(default=None, max_length=2000)
 
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     answered_at: Optional[datetime] = Field(default=None)
-    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=24))
+    expires_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(hours=24)
+    )
 
     def is_expired(self) -> bool:
         """Checks if the request has expired based on the current UTC time.
@@ -239,5 +266,9 @@ class HITLRequest(SQLModel, table=True):
         return self.status == HITLRequestStatus.PENDING.value and not self.is_expired()
 
     def __repr__(self) -> str:
-        """Return a string representation of the HITL request."""
+        """Return a string representation of the HITL request.
+
+        Returns:
+            str: A formatted string containing the request_type and status.
+        """
         return f"HITLRequest({self.request_type}, status={self.status})"

@@ -11,16 +11,19 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
 from rich.markdown import Markdown
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, TYPE_CHECKING
 import os
 
 from core.agents.unified_registry import get_registry  # V8.4.0
+
+if TYPE_CHECKING:
+    from rich.console import RenderableType
 
 
 class ConsoleV7:
     """Console UI minimaliste pour NEXUS"""
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False) -> None:
         """
         Initialize console
 
@@ -31,8 +34,8 @@ class ConsoleV7:
         # - Don't force legacy_windows=False (breaks on conhost.exe)
         # - Don't force force_terminal=True (let Rich decide)
         # Rich will use VT100 if available, fallback to Windows API otherwise
-        self.console = Console()
-        self.verbose = verbose
+        self.console: Console = Console()
+        self.verbose: bool = verbose
 
     def print_banner(self, gemini_model: str, claude_model: str, version: Optional[str] = None, codename: Optional[str] = None) -> None:
         """
@@ -80,10 +83,10 @@ Type your task or use slash commands (/help for list)
                     "error": Optional[str]
                 }
         """
-        state = result.get("state")
-        output = result.get("output")
-        agent = result.get("agent")
-        error = result.get("error")
+        state: Optional[str] = result.get("state")
+        output: Optional[str] = result.get("output")
+        agent: Optional[str] = result.get("agent")
+        error: Optional[str] = result.get("error")
 
         # State transition (verbose only)
         if self.verbose and state and state != "IDLE":
@@ -111,7 +114,7 @@ Type your task or use slash commands (/help for list)
 
         # Tool execution indication
         if state == "EXECUTING_TOOL" and "tool" in result:
-            tool_name = result["tool"]
+            tool_name: str = result["tool"]
             self.console.print(f"[yellow]⚙️  Executing: {tool_name}[/yellow]")
 
         # Error
@@ -119,9 +122,9 @@ Type your task or use slash commands (/help for list)
             self.console.print(f"[red]❌ {error}[/red]")
 
         # Validation results
-        if "✓" in str(output):
+        if output and "✓" in str(output):
             self.console.print(output, style="green")
-        elif "✗" in str(output):
+        elif output and "✗" in str(output):
             self.console.print(output, style="yellow")
 
     def print_status(self, status: Dict[str, Any]) -> None:
@@ -136,10 +139,15 @@ Type your task or use slash commands (/help for list)
                 "objective": str
             }
         """
-        content = f"""State: {status['state']}
-Active Agent: {status['agent']}
-Iteration: {status['iteration']}
-Objective: {status['objective']}"""
+        state: str = status.get('state', 'Unknown')
+        agent: str = status.get('agent', 'Unknown')
+        iteration: int = status.get('iteration', 0)
+        objective: str = status.get('objective', 'Unknown')
+        
+        content: str = f"""State: {state}
+Active Agent: {agent}
+Iteration: {iteration}
+Objective: {objective}"""
 
         panel = Panel(
             content,
@@ -160,11 +168,11 @@ Objective: {status['objective']}"""
                 "io_buffer": bool
             }
         """
-        gemini = results["gemini"]
-        claude = results["claude"]
+        gemini: Dict[str, Any] = results.get("gemini", {})
+        claude: Dict[str, Any] = results.get("claude", {})
 
-        gemini_status = "✓" if gemini["available"] else "❌"
-        claude_status = "✓" if claude["available"] else "❌"
+        gemini_status: str = "✓" if gemini.get("available", False) else "❌"
+        claude_status: str = "✓" if claude.get("available", False) else "❌"
 
         content = f"""{gemini_status} Gemini CLI: {gemini.get('model', 'N/A')}
 {claude_status} Claude CLI: {claude.get('model', 'N/A')}
@@ -180,11 +188,13 @@ Objective: {status['objective']}"""
 
     def print_help(self, help_message: str) -> None:
         """Print help message"""
-        self.console.print(Panel(help_message, title="Help", border_style="cyan"))
+        panel: Panel = Panel(help_message, title="Help", border_style="cyan")
+        self.console.print(panel)
 
     def print_error(self, error: str) -> None:
         """Print error message"""
-        self.console.print(f"[red]❌ {error}[/red]")
+        error_message: str = f"[red]❌ {error}[/red]"
+        self.console.print(error_message)
 
     def print(self, message: str, style: Optional[str] = None) -> None:
         """
@@ -195,7 +205,8 @@ Objective: {status['objective']}"""
             style: Rich style (e.g. "bold", "red", "cyan")
         """
         if style:
-            self.console.print(message, style=style)
+            renderable: "RenderableType" = message
+            self.console.print(renderable, style=style)
         else:
             self.console.print(message)
 
@@ -215,8 +226,9 @@ Objective: {status['objective']}"""
         Args:
             text: Spinner text
         """
+        spinner: Spinner = Spinner("dots", text=text)
         return Live(
-            Spinner("dots", text=text),
+            spinner,
             console=self.console,
             refresh_per_second=10
         )

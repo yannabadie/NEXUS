@@ -72,7 +72,7 @@ class RecoveryStrategy:
     """
     name: str
     description: str
-    action: Union[Callable[[], Optional[bool]], Callable[[], Awaitable[Optional[bool]]]]
+    action: Callable[[], Union[Optional[bool], Awaitable[Optional[bool]]]]
     cooldown_seconds: float = 30.0
     max_attempts: int = 3
     last_attempt: Optional[datetime] = None
@@ -198,7 +198,7 @@ class HealthStateMachine:
         self._strategies: List[RecoveryStrategy] = []
 
         # Event callbacks
-        self._on_state_change: List[Union[Callable[[HealthState, HealthState, str], None], Callable[[HealthState, HealthState, str], Awaitable[None]]]] = []
+        self._on_state_change: List[Callable[[HealthState, HealthState, str], Union[None, Awaitable[None]]]] = []
 
         # History for debugging
         self._history: List[Dict[str, Any]] = []
@@ -260,6 +260,12 @@ class HealthStateMachine:
 
         # 1. Reset stagnation detector
         async def reset_stagnation() -> bool:
+            """Resets the stagnation detector counters in the orchestrator.
+
+            Returns:
+                bool: True if the stagnation detector was found and reset,
+                    False otherwise.
+            """
             if hasattr(orch, 'stagnation_detector'):
                 orch.stagnation_detector.reset()
                 logger.info("Stagnation detector reset")
@@ -276,6 +282,14 @@ class HealthStateMachine:
 
         # 2. Switch active agent
         async def switch_agent() -> bool:
+            """Switches the active agent to an alternate one.
+
+            Attempts to switch execution to a different agent configuration to
+            overcome potential agent-specific loops or limitations.
+
+            Returns:
+                bool: True if the agent was successfully switched, False otherwise.
+            """
             if hasattr(orch, 'active_agent') and hasattr(orch, '_switch_agent'):
                 current = orch.active_agent
                 orch._switch_agent()
@@ -293,6 +307,14 @@ class HealthStateMachine:
 
         # 3. Compress context
         async def compress_context() -> bool:
+            """Compresses the conversation context to free up tokens.
+
+            Triggers the context manager to summarize or prune older messages,
+            which can help resolve issues caused by context window limits.
+
+            Returns:
+                bool: True if context compression was initiated, False otherwise.
+            """
             if hasattr(orch, 'context_manager') and hasattr(orch.context_manager, 'compress'):
                 await orch.context_manager.compress()
                 logger.info("Context compressed")
@@ -309,6 +331,14 @@ class HealthStateMachine:
 
         # 4. Clear tool cache
         async def clear_tool_cache() -> bool:
+            """Clears the execution cache for tools.
+
+            Forces tools to re-execute rather than returning cached results,
+            which helps resolve issues where stale data is causing errors.
+
+            Returns:
+                bool: True if the tool cache was cleared, False otherwise.
+            """
             if hasattr(orch, 'tool_manager') and hasattr(orch.tool_manager, 'clear_cache'):
                 orch.tool_manager.clear_cache()
                 logger.info("Tool cache cleared")
@@ -324,7 +354,15 @@ class HealthStateMachine:
         ))
 
         # 5. Rollback to checkpoint (if SagaManager available)
-        async def rollback_phase():
+        async def rollback_phase() -> bool:
+            """Rolls back the execution to the last valid checkpoint.
+
+            Uses the SagaManager to revert the system state to a previous
+            recovery point, effectively undoing recent problematic steps.
+
+            Returns:
+                bool: True if rollback was successful, False otherwise.
+            """
             if hasattr(orch, 'saga_manager') and orch.saga_manager:
                 saga = orch.saga_manager
                 if saga.recovery_point:
@@ -390,7 +428,7 @@ class HealthStateMachine:
 
         return True
 
-    def on_state_change(self, callback: Union[Callable[[HealthState, HealthState, str], None], Callable[[HealthState, HealthState, str], Awaitable[None]]]) -> None:
+    def on_state_change(self, callback: Callable[[HealthState, HealthState, str], Union[None, Awaitable[None]]]) -> None:
         """Registers a callback function to be invoked on state changes.
 
         The callback will be executed whenever the health state transitions to a
@@ -618,6 +656,11 @@ class HealthStateMachine:
         return self._history[-limit:]
 
     def __repr__(self) -> str:
+        """Returns a string representation of the HealthStateMachine.
+
+        Returns:
+            str: A string indicating the current state and error count.
+        """
         return f"HealthStateMachine(state={self._state.value}, errors={self._error_count})"
 
 

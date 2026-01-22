@@ -173,7 +173,22 @@ class AnalysisComparison:
 
 @dataclass
 class DebateArgument:
-    """A single argument in the debate."""
+    """A single argument in the strategic debate between agents.
+
+    Represents a specific point made by one agent during the debate phase,
+    including their position, supporting evidence, and any concessions.
+
+    Args:
+        agent_id (str): ID of the agent making the argument.
+        turn_number (int): Sequential number of the debate turn.
+        position (str): The stance taken, e.g., "SUPPORT" or "OPPOSE".
+        target_point (str): The specific point or argument being addressed.
+        argument (str): The core content of the argument.
+        evidence (List[str]): List of facts or observations supporting the argument.
+        proposed_modification (Optional[str], optional): Suggested change to the plan. Defaults to None.
+        concession (Optional[str], optional): Point conceded to the opposing view. Defaults to None.
+        timestamp (datetime, optional): Time when the argument was made. Defaults to current time.
+    """
     agent_id: str
     turn_number: int
     position: str  # "SUPPORT" or "OPPOSE"
@@ -187,7 +202,24 @@ class DebateArgument:
 
 @dataclass
 class DebateResult:
-    """Result of strategic debate."""
+    """Result of the strategic debate phase.
+
+    Encapsulates the outcome of the debate between agents, including the
+    final consensus, history of arguments, and satisfaction metrics.
+
+    Args:
+        status (str): Outcome status (e.g., "IMMEDIATE_CONSENSUS", "CONSENSUS_REACHED").
+        final_approach (str): The agreed-upon strategic approach.
+        final_capabilities (List[str]): List of capabilities decided for the task.
+        final_mode (str): The selected collaboration mode.
+        debate_history (List[DebateArgument]): Complete record of arguments exchanged.
+        total_turns (int): Total number of debate turns.
+        resolved_disagreements (List[str]): List of disagreements that were settled.
+        unresolved_disagreements (List[str]): List of disagreements still outstanding.
+        consensus_confidence (float): Confidence score (0.0 to 1.0) in the final consensus.
+        gemini_satisfaction (float): Satisfaction score (0.0 to 1.0) for Gemini.
+        claude_satisfaction (float): Satisfaction score (0.0 to 1.0) for Claude.
+    """
     status: str  # "IMMEDIATE_CONSENSUS", "CONSENSUS_REACHED", "FORCED_VOTE", "TIMEOUT"
     final_approach: str
     final_capabilities: List[str]

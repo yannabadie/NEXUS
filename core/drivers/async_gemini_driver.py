@@ -622,12 +622,6 @@ class AsyncGeminiDriver:
 
         return context_str
 
-
-class SecurityError(Exception):
-    """Raised when a security validation fails."""
-    pass
-
-
     def invoke_sync(
         self,
         context: str,
@@ -669,6 +663,11 @@ class SecurityError(Exception):
             task_id=task_id,
             isolated_env=isolated_env,
         ))
+
+
+class SecurityError(Exception):
+    """Raised when a security validation fails."""
+    pass
 
 
 # Factory function

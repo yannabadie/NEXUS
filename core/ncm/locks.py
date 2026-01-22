@@ -34,7 +34,7 @@ Usage:
 """
 
 from pathlib import Path
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Any
 from datetime import datetime, timedelta
 import asyncio
 from contextlib import asynccontextmanager
@@ -119,7 +119,7 @@ class LockManager:
         # Lock acquisition tracking (for debugging)
         # Key: Path
         # Value: {acquired_at: datetime, acquired_by: Optional[str]}
-        self.lock_info: Dict[Path, Dict] = {}
+        self.lock_info: Dict[Path, Dict[str, Any]] = {}
 
         # Active locks count (for monitoring)
         self.active_locks = 0
@@ -359,7 +359,7 @@ class LockManager:
                 f"(acquired {len(acquired_locks)} before timeout)"
             )
 
-    async def release_locks(self, locks: List[asyncio.Lock]):
+    async def release_locks(self, locks: List[asyncio.Lock]) -> None:
         """
         Release acquired locks (bulk release).
 
@@ -427,7 +427,7 @@ class LockManager:
             "lock_details": lock_details
         }
 
-    async def check_deadlock(self) -> List[Dict]:
+    async def check_deadlock(self) -> List[Dict[str, Any]]:
         """
         Check for potential deadlock conditions.
 

@@ -20,3 +20,7 @@
 - MCP stability pass: cached tool manager/orchestrator, moved blocking calls off the event loop, preloaded ProjectMemory, added stderr drain and longer init timeout; demo companion output path aligned.
 - Baseline verify: pip deps OK; npm install OK (7 vulnerabilities); full pytest pass (2360 passed, 12 skipped, warnings logged); CLI verify OK; flagship + companion demos OK; baseline doc updated.
 - Meta GraphRAG: added separate dev meta-memory tooling (graph + vector index), web research ingestion, and reports; documented in `docs/meta_graph_rag.md` with ADR-0005; created curator agent profile under `workspace/agents/`.
+
+## 2026-01-22
+- Meta GraphRAG: added Gemini 3 Pro deep-research pipeline with ArXiv + Semantic Scholar sources; generated new research summaries in `workspace/meta_rag/sources/`.
+- Meta GraphRAG: gemini index run in progress (full repo) with periodic persistence enabled.

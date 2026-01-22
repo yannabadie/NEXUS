@@ -94,7 +94,21 @@ class Bm25Backend(MemoryBackend):
         return BM25S_AVAILABLE
 
     def _init_stemmer(self) -> None:
-        """Initialize the Snowball stemmer (if available)."""
+        """Initialize the Snowball stemmer (if available).
+
+        This method attempts to create a Snowball stemmer instance for English
+        if the optional dependency is installed. It handles any initialization
+        errors by logging them and disabling stemming.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None: Exceptions are caught and logged internally.
+        """
         if STEMMER_AVAILABLE and self._stemmer is None:
             try:
                 self._stemmer = Stemmer.Stemmer("english")
@@ -227,7 +241,20 @@ class Bm25Backend(MemoryBackend):
             return []
 
     def clear(self) -> None:
-        """Clear the BM25S index."""
+        """Clear the BM25S index and reset state.
+
+        Resets the internal index, corpus tokens, and built status to their
+        initial values. This effectively empties the memory backend.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._index = None
         self._corpus_tokens = None
         self._index_built = False

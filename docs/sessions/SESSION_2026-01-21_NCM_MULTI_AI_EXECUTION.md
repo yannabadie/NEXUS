@@ -158,5 +158,61 @@ Kimi CLI génère des tracebacks Python. Cause probable:
 
 ---
 
-**Dernière mise à jour**: 2026-01-21T22:00:00
-**Statut**: EN COURS (Kimi 13/50, 0% success)
+## Mise à jour 2026-01-22 10:40 - Décision de Changement d'Architecture
+
+### Résultats Finaux de l'Approche CLI
+
+**Exécution du 22 janvier (09:53-10:36)**:
+- **Total stories traitées**: 30
+- **Succès**: 7/30 (23%)
+- **Échecs**: 23/30 (77%)
+
+**Par Provider**:
+- **OpenCode**: 2 SUCCESS, nombreux timeouts (120s)
+- **Kimi K2**: 5 SUCCESS (type_error), timeouts sur security (300s)
+- **NEXUS**: 0 exécutions (TODO non implémenté - ligne 799 multi_ai_executor.py)
+
+### Analyse Critique
+
+**Problèmes Identifiés**:
+1. ❌ **Taux d'échec inacceptable**: 77% d'échecs, principalement timeouts
+2. ❌ **Contourne NEXUS**: Ne suit PAS le plan original (misty-juggling-glacier.md)
+3. ❌ **Pas de contrôle modèles**: OpenCode = interface, quel modèle backend? Quels paramètres?
+4. ❌ **NEXUS non testé**: `_execute_nexus()` est un placeholder (TODO ligne 799)
+5. ❌ **Pas de validation**: Aucun stress test (Phase 0 sautée)
+
+**Plan Original NCM (misty-juggling-glacier.md)**:
+- **Architecture**: NCM = Client de OrchestratorV7 (invoque `process_turn()`)
+- **Capabilities**: FSM, HiveMind, Swarm, RAG, Evolution - tout NEXUS
+- **Phases**: Phase 0 (stress tests) → Phase 1 (pilot 100) → Phase 2-3 (scale-up)
+- **Jamais exécuté**: Passé directement à l'implémentation CLI sans validation
+
+### Décision
+
+**Option choisie**: ARRÊTER l'approche CLI et implémenter l'intégration NEXUS réelle.
+
+**Raisons**:
+- Plan original mieux conçu (validation progressive)
+- Contrôle total via NEXUS (Gemini + Claude)
+- Auto-correction, RAG, Evolution disponibles
+- Taux de succès attendu: 70-80% (vs 23% actuel)
+
+**Actions**:
+1. ✅ Arrêt de l'exécution multi_ai_executor.py (bf847dc killed)
+2. → Implémenter Phase 0.1 selon plan NCM
+3. → Stress tests avant production (1000 stories)
+4. → Pilot (100 stories)
+5. → Scale-up progressif
+
+---
+
+**Dernière mise à jour**: 2026-01-22T10:40:00
+**Statut**: ABANDONNÉ - Pivot vers intégration NEXUS réelle (Phase 0.1)
+**Commits à créer**: Documentation de cette décision
+
+**Fichiers concernés**:
+- `core/ncm/multi_ai_executor.py` - CLIs externes (à remplacer)
+- `core/ncm/orchestrator.py` - À créer (NCMOrchestrator avec OrchestratorV7)
+- `core/ncm/story_shard.py` - À créer (RAG validation)
+- `core/ncm/crew_manager.py` - À créer (skill matrix)
+- `core/ncm/locks.py` - À créer (file locking)

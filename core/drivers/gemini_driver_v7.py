@@ -36,7 +36,7 @@ import threading
 _logger = logging.getLogger(__name__)
 import uuid as uuid_module
 from pathlib import Path
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, List, Any
 
 # V7.5 HIVE MIND: Centralized JSON extraction
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
@@ -56,9 +56,9 @@ _logger = get_driver_logger("gemini")
 
 # Global reference for cleanup at exit
 # V9.8 DETOX: Thread-safe with lock (for multi-tenant/concurrent use)
-_active_processes = []
+_active_processes: List[subprocess.Popen] = []
 _active_processes_lock = threading.Lock()
-_persistent_process = None  # Singleton persistent process
+_persistent_process: Optional[subprocess.Popen] = None  # Singleton persistent process
 
 # PTY mode removed in V7.6 cleanup - see docs/archive/pty_mode_v7_archived.py
 
@@ -119,7 +119,7 @@ class GeminiDriverV7:
 
     def __init__(
         self,
-        config,
+        config: Any,
         workspace_path: Path,
         model: Optional[str] = None,
         agent_id: Optional[str] = None,
@@ -421,6 +421,10 @@ Rules:
 
         Returns:
             Dict structured NEXUS response
+
+        Raises:
+            RuntimeError: If the Gemini CLI fails to execute or returns an error code.
+            TimeoutError: If the execution time exceeds the configured timeout.
         """
         import sys
         import shutil
@@ -550,7 +554,7 @@ Rules:
                 stderr_data = []
                 output_queue = queue.Queue()
 
-                def read_stream(stream, stream_name, data_list):
+                def read_stream(stream: Any, stream_name: str, data_list: List[str]) -> None:
                     """Read stream in thread and queue lines for display."""
                     try:
                         for line in iter(stream.readline, ''):
@@ -755,6 +759,10 @@ Rules:
 
         Returns:
             Dict structured NEXUS response
+
+        Raises:
+            RuntimeError: If the Gemini CLI fails to execute or returns an error code.
+            TimeoutError: If the execution time exceeds the configured timeout.
         """
         import shutil
         import platform

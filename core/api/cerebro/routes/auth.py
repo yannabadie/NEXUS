@@ -54,6 +54,10 @@ def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[d
     """
     Authenticate user against database.
 
+    Implements constant-time authentication to prevent timing attacks
+    and user enumeration vulnerabilities. Always performs password
+    verification using either the real hash or a dummy hash.
+
     Args:
         username: Username to authenticate
         password: Plaintext password to verify
@@ -61,11 +65,15 @@ def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[d
     Returns:
         Tuple of (success, user_info_dict or None)
         user_info contains: user_id, tenant_id, role
+
+    Security Note:
+        Uses constant-time comparison by always verifying against a hash,
+        preventing timing-based username enumeration.
     """
     try:
         from sqlmodel import select
         from core.db import get_session, User
-        from core.security.password import verify_password
+        from core.security.password import verify_password, hash_password
 
         with get_session() as session:
             statement = select(User).where(
@@ -74,14 +82,29 @@ def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[d
             )
             user = session.exec(statement).first()
 
-            if user and verify_password(password, user.hashed_password):
-                return True, {
+            # Get the password hash to verify against
+            # If user doesn't exist, use a dummy hash to prevent timing attacks
+            if user:
+                hash_to_verify = user.hashed_password
+                user_info = {
                     "user_id": str(user.id),
                     "tenant_id": str(user.tenant_id),
                     "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
                 }
+            else:
+                # Generate a dummy hash for constant-time verification
+                # This prevents username enumeration via timing attacks
+                hash_to_verify = hash_password("dummy_password_for_timing_prevention")
+                user_info = None
 
-        return False, None
+            # Always perform password verification for constant-time operation
+            # This ensures the same execution path regardless of user existence
+            if verify_password(password, hash_to_verify):
+                # Only return success if user actually exists AND password is correct
+                if user_info is not None:
+                    return True, user_info
+
+            return False, None
 
     except Exception as e:
         logger.debug(f"[KEYMAKER] DB auth failed, will try fallback: {e}")

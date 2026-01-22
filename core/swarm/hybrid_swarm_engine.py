@@ -27,7 +27,12 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from .agent_metrics import AgentPool, AgentInvocationResult, AgentProfile, create_default_pool
+from .agent_metrics import (
+    AgentPool,
+    AgentInvocationResult,
+    AgentProfile,
+    create_default_pool,
+)
 from .collaboration_modes import CollaborationMode
 from .session_manager import SwarmSessionManager, generate_task_id
 from .task_analyzer import TaskAnalyzer, TaskAnalysis
@@ -36,7 +41,11 @@ from .mode_selector import ModeSelector, ModeProposal
 # V7.9: Spawned Agent Integration
 _AGENT_LOADER_AVAILABLE = False
 try:
-    from ..bootstrap.agent_loader import SpawnedAgentLoader, discover_and_register_spawned_agents
+    from ..bootstrap.agent_loader import (
+        SpawnedAgentLoader,
+        discover_and_register_spawned_agents,
+    )
+
     _AGENT_LOADER_AVAILABLE = True
 except ImportError:
     SpawnedAgentLoader = None
@@ -46,30 +55,37 @@ except ImportError:
 _SUCCESS_MEMORY_AVAILABLE = False
 try:
     from ..memory.success_memory import SuccessMemory
+
     _SUCCESS_MEMORY_AVAILABLE = True
 except ImportError:
     SuccessMemory = None
 from .negotiation_protocol import (
     NegotiationProtocol,
     NegotiationResult,
-    NegotiationStatus
+    NegotiationStatus,
 )
 from .mode_executors import (
     ExecutionContext,
     ExecutionResult,
     ExecutionStatus,
     AgentResponse,
-    get_executor
+    get_executor,
 )
 from .task_analyzer import TaskComplexity, TaskDomain
 from .task_completion_validator import get_adaptive_max_rounds
 
 # V10 SYNAPSE: Telemetry instrumentation
-from core.events.telemetry_bridge import get_telemetry_bridge, emit_agent_exchange, emit_agent_speak
+from core.events.telemetry_bridge import (
+    get_telemetry_bridge,
+    emit_agent_exchange,
+    emit_agent_speak,
+)
 from core.events.types import CerebroEventType
+
 
 class SwarmPhase(Enum):
     """Current phase of swarm processing"""
+
     IDLE = "idle"
     ANALYZING = "analyzing"
     SELECTING = "selecting"
@@ -86,6 +102,7 @@ class SwarmResult:
 
     Contains the output, metrics, and full processing history.
     """
+
     status: SwarmPhase
     final_output: str
     selected_mode: CollaborationMode
@@ -104,12 +121,11 @@ class SwarmResult:
             "task_analysis": self.task_analysis.to_dict(),
             "mode_proposal": self.mode_proposal.to_dict(),
             "negotiation_result": (
-                self.negotiation_result.to_dict()
-                if self.negotiation_result else None
+                self.negotiation_result.to_dict() if self.negotiation_result else None
             ),
             "execution_result": self.execution_result.to_dict(),
             "total_time_seconds": round(self.total_time_seconds, 2),
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -132,7 +148,7 @@ class HybridSwarmEngine:
         model_router: Optional[Any] = None,
         config: Optional[Any] = None,
         invoke_agent: Optional[Callable] = None,
-        workspace_path: Optional[Path] = None
+        workspace_path: Optional[Path] = None,
     ):
         """
         Initialize Hybrid Swarm Engine.
@@ -173,12 +189,11 @@ class HybridSwarmEngine:
         self.task_analyzer = TaskAnalyzer()
         # V7.6 Phase 10b: Pass SuccessMemory to ModeSelector
         self.mode_selector = ModeSelector(
-            agent_pool=self.agent_pool,
-            success_memory=self.success_memory
+            agent_pool=self.agent_pool, success_memory=self.success_memory
         )
         self.negotiation = NegotiationProtocol(
             max_turns=self._get_config("swarm_negotiation_max_turns", 4),
-            skip_trivial=self._get_config("swarm_skip_trivial", True)
+            skip_trivial=self._get_config("swarm_skip_trivial", True),
         )
 
         # State
@@ -204,7 +219,7 @@ class HybridSwarmEngine:
         force_mode: Optional[CollaborationMode] = None,
         skip_negotiation: bool = False,
         on_negotiation_turn: Optional[Callable] = None,
-        on_execution_round: Optional[Callable] = None
+        on_execution_round: Optional[Callable] = None,
     ) -> SwarmResult:
         """
         Process a task through the full Hybrid Swarm pipeline.
@@ -235,7 +250,7 @@ class HybridSwarmEngine:
             # V10 SYNAPSE: Emit phase change telemetry (sync)
             get_telemetry_bridge().emit_sync(
                 CerebroEventType.SWARM_PHASE_CHANGE,
-                {"phase": self.current_phase.value, "task_id": task_id}
+                {"phase": self.current_phase.value, "task_id": task_id},
             )
             analysis = self.task_analyzer.analyze(task_input)
             self._current_analysis = analysis
@@ -244,10 +259,11 @@ class HybridSwarmEngine:
             spawning_suggestion = self.get_spawning_suggestion(analysis)
             if spawning_suggestion:
                 import sys
+
                 print(
                     f"[SWARM SUGGESTION] {spawning_suggestion['reason']}\n"
                     f"  Recommended: {spawning_suggestion['command']}",
-                    file=sys.stderr
+                    file=sys.stderr,
                 )
 
             # Phase 2: Select mode (or use forced mode)
@@ -255,7 +271,7 @@ class HybridSwarmEngine:
             # V10 SYNAPSE: Emit phase change telemetry (sync)
             get_telemetry_bridge().emit_sync(
                 CerebroEventType.SWARM_PHASE_CHANGE,
-                {"phase": self.current_phase.value, "task_id": task_id}
+                {"phase": self.current_phase.value, "task_id": task_id},
             )
             if force_mode:
                 proposal = self._create_forced_proposal(force_mode, analysis)
@@ -272,7 +288,7 @@ class HybridSwarmEngine:
                 # V10 SYNAPSE: Emit phase change telemetry (sync)
                 get_telemetry_bridge().emit_sync(
                     CerebroEventType.SWARM_PHASE_CHANGE,
-                    {"phase": self.current_phase.value, "task_id": task_id}
+                    {"phase": self.current_phase.value, "task_id": task_id},
                 )
                 negotiation_result = self._run_negotiation(
                     analysis, proposal, on_turn=on_negotiation_turn
@@ -286,9 +302,10 @@ class HybridSwarmEngine:
 
                     # V13.0 CEREBRO LIVE: Emit negotiation consensus
                     emit_agent_exchange(
-                        "gemini", "claude",
+                        "gemini",
+                        "claude",
                         f"Consensus: {final_mode.value} mode agreed",
-                        exchange_type="consensus"
+                        exchange_type="consensus",
                     )
                 else:
                     final_mode = proposal.mode
@@ -300,15 +317,21 @@ class HybridSwarmEngine:
             # V7.5 Phase 7: Create isolated session for this task
             # V7.8.2 Phase 7b: EPHEMERAL sessions for trivial tasks (no persistence)
             if self.session_manager:
-                is_ephemeral = (analysis.complexity == TaskComplexity.TRIVIAL)
-                self.session_manager.create_task(task_id, final_mode.value, is_ephemeral=is_ephemeral)
+                is_ephemeral = analysis.complexity == TaskComplexity.TRIVIAL
+                self.session_manager.create_task(
+                    task_id, final_mode.value, is_ephemeral=is_ephemeral
+                )
 
             # Phase 4: Execute
             self.current_phase = SwarmPhase.EXECUTING
             # V10 SYNAPSE: Emit phase change telemetry (sync)
             get_telemetry_bridge().emit_sync(
                 CerebroEventType.SWARM_PHASE_CHANGE,
-                {"phase": self.current_phase.value, "task_id": task_id, "mode": final_mode.value}
+                {
+                    "phase": self.current_phase.value,
+                    "task_id": task_id,
+                    "mode": final_mode.value,
+                },
             )
 
             # V7.9: Adaptive max_rounds based on task complexity
@@ -338,7 +361,7 @@ class HybridSwarmEngine:
                 task_id=task_id,
                 session_manager=self.session_manager,
                 # V7.7 Phase 14e: Force CoT for EXPERT complexity
-                force_cot=(analysis.complexity == TaskComplexity.EXPERT)
+                force_cot=(analysis.complexity == TaskComplexity.EXPERT),
             )
 
             # V7.9: Pass workspace_path for artifact verification in PingPong
@@ -349,7 +372,7 @@ class HybridSwarmEngine:
             if use_self_healing:
                 execution_result = executor.execute_with_fallback(
                     execution_context,
-                    max_fallbacks=self._get_config("swarm_max_fallbacks", 2)
+                    max_fallbacks=self._get_config("swarm_max_fallbacks", 2),
                 )
             else:
                 execution_result = executor.execute(execution_context)
@@ -363,7 +386,11 @@ class HybridSwarmEngine:
             # V10 SYNAPSE: Emit phase change telemetry (sync)
             get_telemetry_bridge().emit_sync(
                 CerebroEventType.SWARM_PHASE_CHANGE,
-                {"phase": self.current_phase.value, "task_id": task_id, "duration": total_time}
+                {
+                    "phase": self.current_phase.value,
+                    "task_id": task_id,
+                    "duration": total_time,
+                },
             )
 
             result = SwarmResult(
@@ -374,23 +401,26 @@ class HybridSwarmEngine:
                 mode_proposal=proposal,
                 negotiation_result=negotiation_result,
                 execution_result=execution_result,
-                total_time_seconds=total_time
+                total_time_seconds=total_time,
             )
 
             # V7.9: Add spawning suggestion to execution_result metadata if applicable
             if spawning_suggestion:
-                result.execution_result.metadata["spawning_suggestion"] = spawning_suggestion
+                result.execution_result.metadata["spawning_suggestion"] = (
+                    spawning_suggestion
+                )
 
             # Record history
             self._record_processing(result)
 
             # V7.6 Phase 10a: Record success to memory
-            if self.success_memory and execution_result.status == ExecutionStatus.COMPLETED:
+            if (
+                self.success_memory
+                and execution_result.status == ExecutionStatus.COMPLETED
+            ):
                 try:
                     self.success_memory.record_success(
-                        task_id=task_id,
-                        analysis=analysis,
-                        result=result
+                        task_id=task_id, analysis=analysis, result=result
                     )
                 except Exception as mem_err:
                     # V12.3: Log memory recording errors (was silent pass)
@@ -401,6 +431,7 @@ class HybridSwarmEngine:
             # V7.5 Phase 7: Mark task as completed
             if self.session_manager:
                 from .session_manager import SessionStatus
+
                 self.session_manager.complete_task(task_id, SessionStatus.COMPLETED)
 
             return result
@@ -411,7 +442,11 @@ class HybridSwarmEngine:
             # V10 SYNAPSE: Emit phase change telemetry (sync) (sync since we're in except)
             get_telemetry_bridge().emit_sync(
                 CerebroEventType.SWARM_PHASE_CHANGE,
-                {"phase": self.current_phase.value, "task_id": task_id, "error": str(e)[:200]}
+                {
+                    "phase": self.current_phase.value,
+                    "task_id": task_id,
+                    "error": str(e)[:200],
+                },
             )
 
             # Create error result
@@ -419,17 +454,19 @@ class HybridSwarmEngine:
                 status=SwarmPhase.FAILED,
                 final_output=f"Swarm processing failed: {str(e)}",
                 selected_mode=force_mode or CollaborationMode.PING_PONG,
-                task_analysis=self._current_analysis or TaskAnalysis(
+                task_analysis=self._current_analysis
+                or TaskAnalysis(
                     complexity=TaskComplexity.TRIVIAL,
                     domains=[],
                     primary_domain=TaskDomain.CODING,
-                    raw_input=task_input
+                    raw_input=task_input,
                 ),
-                mode_proposal=self._current_proposal or ModeProposal(
+                mode_proposal=self._current_proposal
+                or ModeProposal(
                     mode=CollaborationMode.PING_PONG,
                     confidence=0.0,
                     agent_assignments=[],
-                    reasoning="Error fallback"
+                    reasoning="Error fallback",
                 ),
                 negotiation_result=None,
                 execution_result=ExecutionResult(
@@ -439,9 +476,9 @@ class HybridSwarmEngine:
                     agent_outputs=[],
                     total_rounds=0,
                     total_tokens=0,
-                    total_time_seconds=0.0
+                    total_time_seconds=0.0,
                 ),
-                total_time_seconds=total_time
+                total_time_seconds=total_time,
             )
 
         finally:
@@ -451,17 +488,22 @@ class HybridSwarmEngine:
                     task = self.session_manager.get_task(self._current_task_id)
                     if task and task.status.value == "active":
                         from .session_manager import SessionStatus
-                        status = SessionStatus.COMPLETED if self.current_phase == SwarmPhase.COMPLETED else SessionStatus.FAILED
-                        self.session_manager.complete_task(self._current_task_id, status)
+
+                        status = (
+                            SessionStatus.COMPLETED
+                            if self.current_phase == SwarmPhase.COMPLETED
+                            else SessionStatus.FAILED
+                        )
+                        self.session_manager.complete_task(
+                            self._current_task_id, status
+                        )
                 except Exception:
                     pass  # Don't fail the main task due to cleanup error
                 finally:
                     self._current_task_id = None
 
     def _create_forced_proposal(
-        self,
-        mode: CollaborationMode,
-        analysis: TaskAnalysis
+        self, mode: CollaborationMode, analysis: TaskAnalysis
     ) -> ModeProposal:
         """Create a proposal for a forced mode"""
         # Use selector to get proper assignments
@@ -475,23 +517,32 @@ class HybridSwarmEngine:
         self,
         analysis: TaskAnalysis,
         proposal: ModeProposal,
-        on_turn: Optional[Callable] = None
+        on_turn: Optional[Callable] = None,
     ) -> NegotiationResult:
         """Run negotiation protocol"""
         return self.negotiation.run_negotiation(
             task_analysis=analysis,
             initial_proposal=proposal,
             invoke_agent=self._invoke_for_negotiation,
-            on_turn=on_turn  # V7.5: Streaming callback
+            on_turn=on_turn,  # V7.5: Streaming callback
         )
 
     def _invoke_for_negotiation(
-        self,
-        agent_id: str,
-        task_type: str,
-        context: str
+        self, agent_id: str, task_type: str, context: str
     ) -> str:
-        """Invoke agent for negotiation (returns string)"""
+        """Invoke agent for negotiation phase.
+
+        Calls the configured agent invocation callback to get a response from a specific
+        agent during the negotiation process.
+
+        Args:
+            agent_id: The ID of the agent to invoke.
+            task_type: The type or domain of the task.
+            context: The context string or prompt to send to the agent.
+
+        Returns:
+            str: The agent's response content as a string.
+        """
         if self.invoke_agent is None:
             return f"[Mock {agent_id} negotiation response]"
 
@@ -499,45 +550,64 @@ class HybridSwarmEngine:
 
         if isinstance(response, str):
             return response
-        elif hasattr(response, 'content'):
+        elif hasattr(response, "content"):
             return response.content
         return str(response)
 
     def _wrap_invoke_agent(self) -> Callable:
-        """Wrap invoke_agent to return AgentResponse.
+        """Wraps the raw invoke_agent callable to normalize responses to AgentResponse.
+
+        Creates a wrapper function that handles various return types from the underlying
+        invoke_agent (str, dict, AgentResponse) and standardizes them into AgentResponse
+        objects. It also handles error detection, timing, and CoT injection for expert tasks.
 
         V8.1.6: Added session_uuid parameter for thread-safe parallel execution.
+
+        Returns:
+            Callable: A wrapper function that accepts (agent_id, task_type, context,
+                session_uuid) and returns an AgentResponse object.
         """
-        def wrapper(agent_id: str, task_type: str, context: str,
-                    session_uuid: Optional[str] = None) -> AgentResponse:
+
+        def wrapper(
+            agent_id: str,
+            task_type: str,
+            context: str,
+            session_uuid: Optional[str] = None,
+        ) -> AgentResponse:
             if self.invoke_agent is None:
                 return AgentResponse(
                     agent_id=agent_id,
                     content=f"[Mock {agent_id} response]",
-                    status="mock"
+                    status="mock",
                 )
 
             # V7.7 Phase 14e: Inject CoT instruction for EXPERT complexity
-            if (self._current_analysis and
-                self._current_analysis.complexity == TaskComplexity.EXPERT):
+            if (
+                self._current_analysis
+                and self._current_analysis.complexity == TaskComplexity.EXPERT
+            ):
                 context += "\n\n<instruction>BEFORE answering or using tools, you MUST wrap your step-by-step reasoning in <thinking>...</thinking> tags.</instruction>"
 
             start = datetime.now()
             # V8.1.6: Pass session_uuid for thread-safe file access
-            response = self.invoke_agent(agent_id, task_type, context, session_uuid=session_uuid)
+            response = self.invoke_agent(
+                agent_id, task_type, context, session_uuid=session_uuid
+            )
             elapsed = (datetime.now() - start).total_seconds()
 
             if isinstance(response, AgentResponse):
                 return response
             elif isinstance(response, str):
                 # V7 FIX: Detect error responses from _invoke_for_swarm
-                is_error = response.startswith("Error:") or "timed out" in response.lower()
+                is_error = (
+                    response.startswith("Error:") or "timed out" in response.lower()
+                )
                 return AgentResponse(
                     agent_id=agent_id,
                     content=response,
                     status="error" if is_error else "success",
                     error=response if is_error else None,
-                    time_seconds=elapsed
+                    time_seconds=elapsed,
                 )
             elif isinstance(response, dict):
                 return AgentResponse(
@@ -545,35 +615,42 @@ class HybridSwarmEngine:
                     content=response.get("content", str(response)),
                     status=response.get("status", "success"),
                     tokens_used=response.get("tokens_used", 0),
-                    time_seconds=elapsed
+                    time_seconds=elapsed,
                 )
             else:
                 return AgentResponse(
                     agent_id=agent_id,
                     content=str(response),
                     status="success",
-                    time_seconds=elapsed
+                    time_seconds=elapsed,
                 )
 
         return wrapper
 
-    def _update_metrics(
-        self,
-        analysis: TaskAnalysis,
-        result: ExecutionResult
-    ):
-        """Update DyLAN metrics after execution"""
+    def _update_metrics(self, analysis: TaskAnalysis, result: ExecutionResult):
+        """Update DyLAN metrics after execution.
+
+        Records invocation results for each agent involved in the task execution
+        to the agent pool's DyLAN metrics system.
+
+        Args:
+            analysis (TaskAnalysis): The analysis of the completed task.
+            result (ExecutionResult): The execution result containing agent outputs
+                and performance metrics.
+        """
         if self.agent_pool is None:
             return
 
         for agent_output in result.agent_outputs:
             invocation = AgentInvocationResult(
                 agent_id=agent_output.agent_id,
-                task_type=analysis.primary_domain.value if analysis.primary_domain else "unknown",
+                task_type=analysis.primary_domain.value
+                if analysis.primary_domain
+                else "unknown",
                 success=agent_output.status != "error",
                 quality_score=0.7 if agent_output.status != "error" else 0.0,
                 tokens_used=agent_output.tokens_used,
-                time_seconds=agent_output.time_seconds
+                time_seconds=agent_output.time_seconds,
             )
             self.agent_pool.record_invocation(invocation)
 
@@ -584,7 +661,7 @@ class HybridSwarmEngine:
             "mode": result.selected_mode.value,
             "complexity": result.task_analysis.complexity.name,
             "total_time": result.total_time_seconds,
-            "status": result.status.value
+            "status": result.status.value,
         }
         self.processing_history.append(record)
 
@@ -635,8 +712,7 @@ class HybridSwarmEngine:
         return proposal
 
     def start_negotiation(
-        self,
-        analysis: Optional[TaskAnalysis] = None
+        self, analysis: Optional[TaskAnalysis] = None
     ) -> Optional[NegotiationResult]:
         """
         Start negotiation phase.
@@ -670,9 +746,7 @@ class HybridSwarmEngine:
         return self._negotiation_result
 
     def execute_turn(
-        self,
-        task_input: str,
-        blackboard: Optional[Dict] = None
+        self, task_input: str, blackboard: Optional[Dict] = None
     ) -> ExecutionResult:
         """
         Execute current mode (for FSM integration).
@@ -689,20 +763,31 @@ class HybridSwarmEngine:
         """
         self.current_phase = SwarmPhase.EXECUTING
 
-        mode = self._current_proposal.mode if self._current_proposal else CollaborationMode.PING_PONG
-        if self._negotiation_result and self._negotiation_result.status == NegotiationStatus.CONSENSUS:
+        mode = (
+            self._current_proposal.mode
+            if self._current_proposal
+            else CollaborationMode.PING_PONG
+        )
+        if (
+            self._negotiation_result
+            and self._negotiation_result.status == NegotiationStatus.CONSENSUS
+        ):
             mode = self._negotiation_result.selected_mode
 
         assignments = (
             self._negotiation_result.agent_assignments
             if self._negotiation_result
-            else (self._current_proposal.agent_assignments if self._current_proposal else [])
+            else (
+                self._current_proposal.agent_assignments
+                if self._current_proposal
+                else []
+            )
         )
 
         # V7.7 Phase 14e: Check if EXPERT complexity for CoT
         is_expert = bool(
-            self._current_analysis and
-            self._current_analysis.complexity == TaskComplexity.EXPERT
+            self._current_analysis
+            and self._current_analysis.complexity == TaskComplexity.EXPERT
         )
 
         context = ExecutionContext(
@@ -711,7 +796,7 @@ class HybridSwarmEngine:
             blackboard=blackboard or {},
             max_rounds=self._get_config("swarm_max_rounds", 6),
             invoke_agent=self._wrap_invoke_agent(),
-            force_cot=is_expert
+            force_cot=is_expert,
         )
 
         executor = get_executor(mode)
@@ -725,7 +810,19 @@ class HybridSwarmEngine:
         self._negotiation_result = None
 
     def get_stats(self) -> Dict:
-        """Get swarm engine statistics"""
+        """Get swarm engine statistics.
+
+        Aggregates statistics from processing history, agent pool, and mode selector.
+
+        Returns:
+            Dict: A dictionary containing:
+                - current_phase (str): The current phase of the engine.
+                - total_processed (int): Total number of tasks processed.
+                - mode_distribution (Dict[str, int]): Count of tasks per mode.
+                - agent_pool_stats (Dict): Statistics from the agent pool.
+                - mode_selector_stats (Dict): Statistics from the mode selector.
+                - spawned_agents_count (int): Number of spawned agents.
+        """
         mode_counts = {}
         for record in self.processing_history:
             mode = record["mode"]
@@ -735,9 +832,11 @@ class HybridSwarmEngine:
             "current_phase": self.current_phase.value,
             "total_processed": len(self.processing_history),
             "mode_distribution": mode_counts,
-            "agent_pool_stats": self.agent_pool.get_pool_stats() if self.agent_pool else {},
+            "agent_pool_stats": self.agent_pool.get_pool_stats()
+            if self.agent_pool
+            else {},
             "mode_selector_stats": self.mode_selector.get_selection_stats(),
-            "spawned_agents_count": self._count_spawned_agents()
+            "spawned_agents_count": self._count_spawned_agents(),
         }
 
     # === V7.9: Spawned Agent Integration ===
@@ -761,7 +860,11 @@ class HybridSwarmEngine:
             return len(agents)
         except Exception as e:
             import sys
-            print(f"[SWARM] Warning: Failed to discover spawned agents: {e}", file=sys.stderr)
+
+            print(
+                f"[SWARM] Warning: Failed to discover spawned agents: {e}",
+                file=sys.stderr,
+            )
             return 0
 
     def _count_spawned_agents(self) -> int:
@@ -770,7 +873,8 @@ class HybridSwarmEngine:
             return 0
 
         return sum(
-            1 for agent in self.agent_pool.agents.values()
+            1
+            for agent in self.agent_pool.agents.values()
             if agent.provider == "spawned"
         )
 
@@ -780,7 +884,8 @@ class HybridSwarmEngine:
             return []
 
         return [
-            agent for agent in self.agent_pool.agents.values()
+            agent
+            for agent in self.agent_pool.agents.values()
             if agent.provider == "spawned"
         ]
 
@@ -833,7 +938,9 @@ class HybridSwarmEngine:
 
         # Build suggestion
         domains = [d.value for d in analysis.domains]
-        primary = analysis.primary_domain.value if analysis.primary_domain else "general"
+        primary = (
+            analysis.primary_domain.value if analysis.primary_domain else "general"
+        )
 
         return {
             "suggested": True,
@@ -841,7 +948,7 @@ class HybridSwarmEngine:
             "recommended_config": {
                 "mission": f"Specialist for {primary} tasks",
                 "domains": domains,
-                "role": f"{primary}_specialist"
+                "role": f"{primary}_specialist",
             },
-            "command": f'/spawn "{primary}_expert" --mission "Expert for {", ".join(domains)}"'
+            "command": f'/spawn "{primary}_expert" --mission "Expert for {", ".join(domains)}"',
         }

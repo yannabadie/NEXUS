@@ -165,13 +165,28 @@ class AsyncProcessHandle:
         return b""
 
     async def read_stderr(self) -> bytes:
-        """Read all stderr (only if pipe was set up)."""
+        """Reads all content from the process's stderr.
+
+        This method reads data from the standard error pipe if it was
+        configured during process creation.
+
+        Returns:
+            The bytes read from stderr, or an empty bytes object if
+            stderr is not available.
+        """
         if self.proc.stderr:
             return await self.proc.stderr.read()
         return b""
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for logging/debugging."""
+        """Converts the process handle state to a dictionary.
+
+        Useful for logging, debugging, and serialization purposes.
+
+        Returns:
+            A dictionary containing the process handle's metadata, state,
+            PID, and timing information.
+        """
         return {
             "session_uuid": self.session_uuid,
             "task_id": self.task_id,
@@ -376,10 +391,14 @@ def get_process_registry() -> ProcessHandleRegistry:
 
 
 def reset_process_registry() -> None:
-    """
-    Reset the global process registry (for testing).
+    """Resets the global process registry.
 
-    Note: In V10, also clears ServiceFactory cache for current tenant.
+    This function is primarily used for testing cleanup to ensure a clean state
+    between test executions. In V10 PRISM architecture, it also clears the
+    ServiceFactory cache for the current tenant.
+
+    Returns:
+        None
     """
     global _global_registry
     with _registry_lock:

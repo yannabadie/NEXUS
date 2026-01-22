@@ -28,7 +28,9 @@ import os
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable, TypeVar
+
+T = TypeVar('T')
 
 try:
     from core.memory.project_memory import ProjectMemory as _ProjectMemory
@@ -73,7 +75,7 @@ def get_tool_manager():
     return _TOOL_MANAGER
 
 
-def execute_tool(tool_name: str, params: dict):
+def execute_tool(tool_name: str, params: Dict[str, Any]) -> Any:
     """
     Helper to execute a tool via ToolManager.
 
@@ -123,6 +125,19 @@ def _resolve_workspace(workspace_path: Optional[Path]) -> Path:
 
 
 def _default_index_paths(root: Path) -> List[Path]:
+    """
+    Determines the default paths to index if none are specified.
+
+    Checks for the existence of standard directories ('core', 'docs') within
+    the root. If found, they are returned. If neither exists, the root
+    directory itself is returned.
+
+    Args:
+        root: The absolute path to the project root directory.
+
+    Returns:
+        A list of Path objects representing the default directories to index.
+    """
     candidates = []
     for name in ("core", "docs"):
         candidate = root / name
@@ -193,6 +208,24 @@ def _resolve_output_dir(workspace: Path, output_dir: Optional[str]) -> Optional[
 
 
 def _init_memory(root: Path, backend: str):
+    """
+    Initialize the ProjectMemory instance with a specific backend.
+
+    This function temporarily sets the 'PROJECT_MEMORY_BACKEND' environment
+    variable to the specified backend before initializing ProjectMemory.
+    It ensures the environment variable is restored to its original state
+    after initialization.
+
+    Args:
+        root: The absolute path to the project root directory.
+        backend: The name of the memory backend to use (e.g., 'tfidf', 'chroma').
+
+    Returns:
+        An instance of ProjectMemory initialized with the specified root and backend.
+
+    Raises:
+        RuntimeError: If the ProjectMemory class is not available.
+    """
     if _ProjectMemory is None:
         raise RuntimeError("ProjectMemory is unavailable in this environment.")
     previous_backend = os.environ.get("PROJECT_MEMORY_BACKEND")
@@ -206,7 +239,7 @@ def _init_memory(root: Path, backend: str):
             os.environ["PROJECT_MEMORY_BACKEND"] = previous_backend
 
 
-async def _run_blocking(func, *args, **kwargs):
+async def _run_blocking(func: Callable[..., T], *args, **kwargs) -> T:
     import anyio
     if kwargs:
         import functools
@@ -304,7 +337,7 @@ def build_evidence_pack(
     limit: int = 5,
     min_score: float = 0.2,
     paths: Optional[List[str]] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Builds a comprehensive evidence pack for a research question.
 

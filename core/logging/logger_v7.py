@@ -18,7 +18,7 @@ import json
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional, Any, Dict, Union
 from enum import Enum
 import sys
 
@@ -97,7 +97,7 @@ class NexusLogger:
             self.log_level = LogLevel.INFO
 
         # Date pour rotation
-        self.current_date = datetime.now().strftime("%Y%m%d")
+        self.current_date: str = datetime.now().strftime("%Y%m%d")
 
         # Fichiers de log
         self.events_file = self.log_dir / f"events_{self.current_date}.jsonl"
@@ -106,11 +106,11 @@ class NexusLogger:
         self.summary_file = self.log_dir / f"summary_{self.current_date}.json"
 
         # Session metadata
-        self.session_start = datetime.now(timezone.utc)
-        self.session_id = self.session_start.strftime("%Y%m%d_%H%M%S")
+        self.session_start: datetime = datetime.now(timezone.utc)
+        self.session_id: str = self.session_start.strftime("%Y%m%d_%H%M%S")
 
         # Metrics
-        self.metrics = {
+        self.metrics: dict[str, Any] = {
             "session_id": self.session_id,
             "start_time": self.session_start.isoformat(),
             "total_iterations": 0,
@@ -131,7 +131,7 @@ class NexusLogger:
         })
 
     def log_event(self, event_type: EventType, data: dict[str, Any],
-                  level: LogLevel = LogLevel.INFO):
+                  level: LogLevel = LogLevel.INFO) -> None:
         """
         Log event structuré
 
@@ -425,7 +425,12 @@ _global_logger: Optional[NexusLogger] = None
 _logger_lock: threading.Lock = threading.Lock()
 
 
-def init_logger(workspace_path: Path, log_level: Optional[str] = "INFO") -> NexusLogger:
+# Type aliases for clarity
+LogData = Dict[str, Any]
+MetricsDict = Dict[str, Any]
+
+
+def init_logger(workspace_path: Union[str, Path], log_level: Optional[str] = "INFO") -> NexusLogger:
     """
     Initialize global logger.
 
@@ -434,7 +439,7 @@ def init_logger(workspace_path: Path, log_level: Optional[str] = "INFO") -> Nexu
     global _global_logger
     with _logger_lock:
         if _global_logger is None:
-            _global_logger = NexusLogger(workspace_path, log_level)
+            _global_logger = NexusLogger(Path(workspace_path), log_level)
     return _global_logger
 
 
@@ -443,7 +448,7 @@ def get_logger() -> Optional[NexusLogger]:
     return _global_logger
 
 
-def cleanup_old_logs(workspace_path: Path, keep_days: int = 7) -> None:
+def cleanup_old_logs(workspace_path: Union[str, Path], keep_days: int = 7) -> None:
     """
     Cleanup logs plus vieux que N jours
 
@@ -451,7 +456,7 @@ def cleanup_old_logs(workspace_path: Path, keep_days: int = 7) -> None:
         workspace_path: Workspace NEXUS
         keep_days: Garder logs des N derniers jours
     """
-    log_dir = workspace_path / "logs"
+    log_dir = Path(workspace_path) / "logs"
     if not log_dir.exists():
         return
 

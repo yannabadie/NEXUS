@@ -13,12 +13,18 @@ Special handling:
 
 import ast
 import re
+import signal
 from pathlib import Path
 from typing import List, Tuple, Optional
 
 
 class MutationValidator:
     """Validates mutation code - warning mode (never blocks)."""
+
+    # Security limits to prevent DoS attacks
+    MAX_CODE_SIZE = 100_000  # Maximum code size in characters
+    MAX_REGEX_TIME = 1.0  # Maximum time allowed for regex matching in seconds
+    MAX_RECURSION_DEPTH = 50  # Maximum recursion depth for AST analysis
 
     # Imports potentiellement dangereux (WARNING seulement)
     SUSPICIOUS_IMPORTS = {
@@ -45,8 +51,8 @@ class MutationValidator:
         (r'\bexec\s*\(', "exec() - arbitrary code execution"),
         (r'\beval\s*\(', "eval() - arbitrary code execution"),
         (r'os\.(remove|unlink|rmdir)', "os file deletion"),
-        (r'Path\([^)]*\)\.unlink', "pathlib file deletion"),
-        (r'\.write\s*\([^)]*\.\.[^)]*\)', "write with parent path"),
+        (r'Path\([^)]{0,100}\)\.unlink', "pathlib file deletion"),  # Limit path length to prevent ReDoS
+        (r'\.write\s*\([^)]{0,50}\.\.[^)]{0,50}\)', "write with parent path"),  # Limit path length to prevent ReDoS
     ]
 
     def __init__(self, workspace_path: Optional[Path] = None):
@@ -57,6 +63,79 @@ class MutationValidator:
             workspace_path: Optional workspace path for relative path analysis
         """
         self.workspace_path = workspace_path
+
+    def _validate_code_size(self, code: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate code size to prevent DoS attacks.
+
+        Returns:
+            (is_valid, error_message)
+        """
+        if len(code) > self.MAX_CODE_SIZE:
+            return False, f"Code size exceeds maximum allowed limit ({self.MAX_CODE_SIZE} characters)"
+        return True, None
+
+    def _regex_search_with_timeout(self, pattern: str, text: str, timeout: float = MAX_REGEX_TIME) -> Optional[re.Match]:
+        """
+        Perform regex search with timeout protection to prevent ReDoS attacks.
+        Uses signal-based timeout on Unix-like systems and length limits on all systems.
+
+        Returns:
+            Match object if pattern matches, None otherwise or on error/timeout
+        """
+        # Limit text length for regex matching to prevent catastrophic backtracking
+        if len(text) > self.MAX_CODE_SIZE:
+            return None
+
+        # Use a reasonable recursion limit to prevent stack overflow
+        import sys
+        old_limit = sys.getrecursionlimit()
+
+        try:
+            # Only reduce if current limit is too high
+            target_limit = max(1000, self.MAX_RECURSION_DEPTH * 10)
+            if old_limit > target_limit:
+                sys.setrecursionlimit(target_limit)
+
+            # For platforms that support it (Unix-like), use signal-based timeout
+            # Windows doesn't have signal.SIGALRM, so we only enable this on Unix
+            use_signal_timeout = hasattr(signal, 'SIGALRM')
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Regex pattern took too long to execute")
+
+            if use_signal_timeout:
+                # Set up signal handler for timeout
+                old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(int(timeout))  # Set alarm for timeout seconds
+
+            try:
+                result = re.search(pattern, text, re.IGNORECASE)
+                
+                if use_signal_timeout:
+                    # Cancel the alarm if we completed successfully
+                    signal.alarm(0)
+                    # Restore old signal handler
+                    signal.signal(signal.SIGALRM, old_handler)
+                
+                return result
+                
+            except TimeoutError:
+                # Regex took too long, treat as no match for security
+                return None
+            except (MemoryError, RecursionError):
+                # If regex fails due to recursion/stack limits, treat as no match
+                return None
+            except Exception:
+                # Any other error, treat as no match
+                return None
+                
+        finally:
+            # Always restore recursion limit
+            try:
+                sys.setrecursionlimit(old_limit)
+            except:
+                pass
 
     def validate(
         self,
@@ -81,9 +160,15 @@ class MutationValidator:
         warnings: List[str] = []
         info: List[str] = []
 
+        # 0. Validate code size
+        size_valid, size_error = self._validate_code_size(code)
+        if not size_valid:
+            warnings.append(f"SECURITY: {size_error}")
+            return warnings, info
+
         # 1. Analyse statique par regex (rapide, catch-all)
         for pattern, description in self.SUSPICIOUS_PATTERNS:
-            if re.search(pattern, code, re.IGNORECASE):
+            if self._regex_search_with_timeout(pattern, code):
                 warnings.append(f"Pattern suspect: {description}")
 
         # 2. Analyse AST (plus précise)
@@ -188,16 +273,36 @@ class MutationValidator:
         if not path:
             return False
 
-        # Absolute paths
-        if path.startswith('/') or (len(path) > 1 and path[1] == ':'):
+        # Absolute paths (Unix and Windows)
+        # Check Unix absolute paths
+        if path.startswith('/'):
+            return True
+        
+        # Check Windows absolute paths (C:, D:, etc.)
+        # Use safer check to avoid IndexError on short strings
+        if len(path) >= 2 and path[0].isalpha() and path[1] == ':':
             return True
 
-        # Parent directory references
-        if path.startswith('..'):
-            return True
+        # Normalize path to handle various separators and encodings
+        # Replace backslashes with forward slashes for consistent checking
+        normalized_path = path.replace('\\', '/')
+        
+        # Check for parent directory references in normalized path
+        # More robust check that handles various bypass attempts
+        path_parts = normalized_path.split('/')
+        for part in path_parts:
+            # Check for .. and variations that could be used to bypass
+            if part == '..' or part.startswith('..\\') or part.startswith('../'):
+                return True
+            # Check for encoded or obfuscated .. attempts
+            if part.startswith('..') and len(part) > 2:
+                # Pattern matches .. followed by anything (e.g., .../, ..foo/)
+                return True
 
-        # Hidden parent references
-        if '/../' in path or path.endswith('/..'):
+        # Additional check for parent references using both slash types
+        if '/../' in normalized_path or '\\..\\' in path:
+            return True
+        if normalized_path.endswith('/..') or path.endswith('\\..\\'):
             return True
 
         return False

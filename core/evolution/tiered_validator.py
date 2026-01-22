@@ -530,7 +530,19 @@ except Exception as e:
             )
 
     def _print_tier_result(self, result: TierResult):
-        """Print tier result to console"""
+        """Prints the result of a single validation tier to the console.
+
+        Formats the output with an [OK] or [FAIL] indicator, the tier name,
+        message, and duration. If errors are present in the details, prints
+        the first three errors.
+
+        Args:
+            result: The result object containing the status, message, and
+                details of the executed tier validation.
+
+        Returns:
+            None
+        """
         icon = "[OK]" if result.passed else "[FAIL]"
         print(f"  {icon} TIER {result.tier.value} ({result.tier.name}): {result.message} ({result.duration_seconds:.1f}s)")
 
@@ -543,7 +555,19 @@ except Exception as e:
         result: TieredValidationResult,
         start_time: float
     ) -> TieredValidationResult:
-        """Finalize validation result"""
+        """Finalizes the validation process and prints the summary.
+
+        Calculates the total duration, prints the final status and recommendation
+        to the console, and returns the completed result object.
+
+        Args:
+            result: The accumulated validation result object to finalize.
+            start_time: The timestamp (from time.time()) when validation started.
+
+        Returns:
+            TieredValidationResult: The finalized result object with updated
+            total_duration and recommendation.
+        """
         result.total_duration = time.time() - start_time
 
         print(f"\n{'='*60}")

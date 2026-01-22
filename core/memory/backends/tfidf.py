@@ -32,7 +32,17 @@ class TfidfBackend(MemoryBackend):
     """
 
     def __init__(self):
-        """Initialize the TF-IDF backend."""
+        """Initialize the TF-IDF backend.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         self._logger = logging.getLogger("nexus.memory.tfidf")
         self._idf: Dict[str, float] = {}
         self._index_built = False
@@ -179,8 +189,10 @@ class TfidfBackend(MemoryBackend):
         self._index_built = False
 
     def get_info(self) -> Dict[str, Any]:
-        """
-        Get TF-IDF backend information.
+        """Get TF-IDF backend information.
+
+        Args:
+            None
 
         Returns:
             Dict[str, Any]: Backend status including:
@@ -188,6 +200,9 @@ class TfidfBackend(MemoryBackend):
                 - terms_indexed: Number of terms in IDF map
                 - index_built: Whether index is ready
                 - dependencies: External dependency status
+
+        Raises:
+            None
         """
         return {
             "backend": self.name,

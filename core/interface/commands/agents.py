@@ -51,53 +51,64 @@ def _get_agent_service(context: CommandContext):
 
 
 class SpawnCommand(Command):
-    """Spawn a new specialized agent."""
+    """Command to spawn a new specialized agent.
+
+    This command uses the AgentService to create a new agent instance
+    based on the provided role.
+
+    Attributes:
+        None
+    """
 
     @property
     def name(self) -> str:
-        """Gets the unique name of the command.
+        """Retrieves the unique identifier name of the command.
 
         Returns:
-            str: The command name (e.g., "/spawn").
+            str: The command name string (e.g., "/spawn").
         """
         return "/spawn"
 
     @property
     def aliases(self) -> List[str]:
-        """Gets the list of aliases for the command.
+        """Retrieves the list of alternative names for the command.
 
         Returns:
-            List[str]: A list of alternative names for the command.
+            List[str]: A list of string aliases.
         """
         return []
 
     @property
     def description(self) -> str:
-        """Gets a brief description of the command's purpose.
+        """Retrieves the user-friendly description of the command.
 
         Returns:
-            str: The command description.
+            str: A brief description of what the command does.
         """
         return "Spawn a new specialized agent with a specific role"
 
     @property
     def usage(self) -> str:
-        """Gets the usage syntax for the command.
+        """Retrieves the usage syntax for the command.
 
         Returns:
-            str: The command usage string showing arguments.
+            str: The command usage string showing expected arguments.
         """
         return "/spawn <role> (e.g., /spawn SQL Expert)"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
-        """Executes the spawn command to create a new specialized agent.
+        """Executes the spawn command logic.
+
+        Parses the arguments to get the agent role and delegates the creation
+        to the AgentService.
 
         Args:
-            args: The command arguments, expected to be the agent role.
-            context: The execution context containing dependencies.
+            args: The command arguments containing the agent role.
+            context: The command execution context providing access to services.
 
         Returns:
-            CommandResult: The result indicating success or failure of the spawn operation.
+            CommandResult: The outcome of the command execution, including
+                success status and any error messages.
         """
         if not args.strip():
             return CommandResult(
@@ -129,13 +140,16 @@ class SpawnCommand(Command):
 class AgentsCommand(Command):
     """Command to list all currently registered agents.
 
+    Retrieves the list of active agents from the AgentService and displays
+    them to the user via the console.
+
     Attributes:
         None
     """
 
     @property
     def name(self) -> str:
-        """Gets the unique name of the command.
+        """Retrieves the unique identifier name of the command.
 
         Returns:
             str: The command name ("/agents").
@@ -144,7 +158,7 @@ class AgentsCommand(Command):
 
     @property
     def aliases(self) -> List[str]:
-        """Gets the list of aliases for the command.
+        """Retrieves the list of alternative names for the command.
 
         Returns:
             List[str]: A list of alternative names (e.g., ["/a"]).
@@ -153,22 +167,24 @@ class AgentsCommand(Command):
 
     @property
     def description(self) -> str:
-        """Gets a brief description of the command.
+        """Retrieves the user-friendly description of the command.
 
         Returns:
-            str: The command description.
+            str: A brief description of what the command does.
         """
         return "List all registered agents and their capabilities"
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Executes the agents command to list registered agents.
 
+        Delegates the listing operation to the AgentService.
+
         Args:
             args: The command arguments (unused for this command).
-            context: The execution context containing dependencies.
+            context: The command execution context providing access to services.
 
         Returns:
-            CommandResult: The result indicating success or failure of the list operation.
+            CommandResult: The outcome of the command execution.
         """
         try:
             service = _get_agent_service(context)

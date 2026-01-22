@@ -139,6 +139,12 @@ class SessionContext:
         )
 
     def __repr__(self) -> str:
+        """
+        Return a string representation of the SessionContext.
+
+        Returns:
+            str: String representation of the context.
+        """
         return (
             f"SessionContext(tenant={self.tenant_id}, "
             f"user={self.user_id}, "
@@ -313,6 +319,19 @@ def require_context(func: Callable[P, R]) -> Callable[P, R]:
     """
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        """
+        Execute the wrapped function ensuring an active session.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            R: The return value of the wrapped function.
+
+        Raises:
+            RuntimeError: If no session context is active.
+        """
         if not has_active_session():
             raise RuntimeError(
                 f"Function {func.__name__} requires an active session context. "

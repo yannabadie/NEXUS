@@ -17,15 +17,21 @@ Date: 2025-12-16
 """
 
 import logging
+import os
+import re
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, validator
 
 from ..deps import AuthenticatedUser
-from ..rbac import require_permission, Permission
+from ..rbac import require_permission, Permission, get_user_role
+from ..rate_limit import limit
+
+from sqlmodel import select
+from core.db import get_session, User
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +66,138 @@ class InviteUserRequest(BaseModel):
     role: str = "member"  # Default role
     password: Optional[str] = None  # Optional, will generate if not provided
 
+    @validator('username')
+    def validate_username(cls, v):
+        """Validate username format - username validation."""
+        # Apply username validation
+        return sanitize_username(v)
+
+    @validator('email')
+    def validate_email_domain(cls, v):
+        """Validate email domain (basic protection)."""
+        # Add your allowed domains here
+        allowed_domains = os.getenv('ALLOWED_EMAIL_DOMAINS', '').split(',')
+        if allowed_domains and allowed_domains[0]:  # If domains are configured
+            domain = v.split('@')[-1].lower()
+            if domain not in [d.strip().lower() for d in allowed_domains]:
+                raise ValueError(f'Email domain {domain} is not allowed')
+        return v
+
+    @validator('role')
+    def validate_role(cls, v):
+        """Validate role is one of allowed values."""
+        from core.db import UserRole
+        try:
+            UserRole(v)
+        except ValueError:
+            raise ValueError(f'Invalid role: {v}. Must be one of: {[r.value for r in UserRole]}')
+        return v
+
+    class Config:
+        extra = "forbid"
+
 
 class ChangeRoleRequest(BaseModel):
     """Request to change user role."""
     role: str
+
+    @validator('role')
+    def validate_role(cls, v):
+        """Validate role is one of allowed values."""
+        from core.db import UserRole
+        try:
+            UserRole(v)
+        except ValueError:
+            raise ValueError(f'Invalid role: {v}. Must be one of: {[r.value for r in UserRole]}')
+        return v
+
+
+# =============================================================================
+# Security Validation Functions
+# =============================================================================
+
+def sanitize_username(username: str) -> str:
+    """
+    Sanitize username input to prevent injection attacks.
+    
+    Args:
+        username: Username string to sanitize
+        
+    Returns:
+        Sanitized username
+        
+    Raises:
+        ValueError: If username is invalid
+    """
+    if not username or len(username) < 3 or len(username) > 50:
+        raise ValueError('Username must be between 3 and 50 characters')
+    
+    # Only allow alphanumeric, hyphens, and underscores
+    if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+        raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
+    
+    return username.strip()
+
+
+def sanitize_email(email: str) -> str:
+    """
+    Sanitize and validate email input.
+    
+    Args:
+        email: Email string to sanitize
+        
+    Returns:
+        Sanitized email
+        
+    Raises:
+        ValueError: If email is invalid or domain not allowed
+    """
+    # Basic email format validation
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        raise ValueError('Invalid email format')
+    
+    # Check allowed domains if configured
+    allowed_domains = os.getenv('ALLOWED_EMAIL_DOMAINS', '').split(',')
+    if allowed_domains and allowed_domains[0]:  # If domains are configured
+        domain = email.split('@')[-1].lower()
+        if domain not in [d.strip().lower() for d in allowed_domains]:
+            raise ValueError(f'Email domain {domain} is not allowed')
+    
+    return email.strip().lower()
+
+
+def validate_user_belongs_to_tenant(target_user_id: UUID, tenant_id: UUID) -> bool:
+    """
+    Validate that a target user belongs to the specified tenant.
+    
+    Protects against IDOR (Insecure Direct Object Reference) attacks by ensuring
+    users can only access/modify users within their own tenant.
+    
+    Args:
+        target_user_id: The UUID of the user to validate
+        tenant_id: The tenant ID to check against
+        
+    Returns:
+        True if user belongs to tenant, False otherwise
+        
+    Raises:
+        HTTPException: If validation fails
+    """
+    try:
+        with get_session() as session:
+            statement = select(User).where(
+                User.id == target_user_id,
+                User.tenant_id == tenant_id,
+                User.is_active == True
+            )
+            user = session.exec(statement).first()
+            return user is not None
+    except Exception as e:
+        logger.error(f"[USERS] Failed to validate user tenant membership: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to validate user access"
+        )
 
 
 # =============================================================================
@@ -209,7 +343,9 @@ def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> Optional[dict
 # =============================================================================
 
 @router.get("", response_model=UserListResponse)
+@limit("30/minute")  # Rate limit user enumeration
 async def list_users(
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.USER_INVITE, "user")),
 ) -> UserListResponse:
     """
@@ -231,7 +367,9 @@ async def list_users(
 
 
 @router.post("/invite", response_model=UserResponse)
+@limit("10/minute")  # Rate limit user invitations
 async def invite_user(
+    request: Request,
     body: InviteUserRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.USER_INVITE, "user")),
 ) -> UserResponse:
@@ -288,8 +426,10 @@ async def invite_user(
 
 
 @router.delete("/{user_id}")
+@limit("20/minute")  # Rate limit user deletions
 async def remove_user(
     user_id: str,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.USER_REMOVE, "user")),
 ) -> dict:
     """
@@ -321,6 +461,17 @@ async def remove_user(
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
 
+    # IDOR protection: Validate user belongs to tenant
+    if not await asyncio.to_thread(
+        validate_user_belongs_to_tenant,
+        target_uuid,
+        UUID(user.tenant_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found or access denied"
+        )
+
     deleted = await asyncio.to_thread(
         _delete_user,
         UUID(user.tenant_id),
@@ -349,9 +500,11 @@ async def remove_user(
 
 
 @router.patch("/{user_id}/role")
+@limit("15/minute")  # Rate limit role changes
 async def change_role(
     user_id: str,
     body: ChangeRoleRequest,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.USER_CHANGE_ROLE, "user")),
 ) -> dict:
     """
@@ -377,6 +530,17 @@ async def change_role(
         target_uuid = UUID(user_id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID")
+
+    # IDOR protection: Validate user belongs to tenant
+    if not await asyncio.to_thread(
+        validate_user_belongs_to_tenant,
+        target_uuid,
+        UUID(user.tenant_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found or access denied"
+        )
 
     try:
         result = await asyncio.to_thread(

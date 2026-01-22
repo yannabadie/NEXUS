@@ -23,13 +23,16 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from threading import Lock
-from typing import Callable, Any, Optional, Dict
+from typing import Callable, Any, Optional, Dict, TypeVar, Union, Awaitable
 import asyncio
 import logging
 import time
 
 
 logger = logging.getLogger("nexus.circuit_breaker")
+
+# Type variable for callable return types
+T = TypeVar('T')
 
 
 class CircuitState(Enum):
@@ -99,7 +102,16 @@ class CircuitBreaker:
         return self._failure_count
 
     def _should_attempt_recovery(self) -> bool:
-        """Check if enough time has passed to attempt recovery."""
+        """
+        Check if enough time has passed to attempt recovery.
+
+        Determines if the cooldown period defined by `_current_backoff` has
+        elapsed since the last failure occurred.
+
+        Returns:
+            bool: True if recovery should be attempted (time elapsed or no prior
+                failure), False otherwise.
+        """
         if self._last_failure_time is None:
             return True
 
@@ -160,10 +172,10 @@ class CircuitBreaker:
 
     async def call(
         self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+        func: Callable[..., Union[T, Awaitable[T]]],
+        *args: Any,
+        **kwargs: Any
+    ) -> T:
         """
         Execute function through circuit breaker.
 
@@ -207,10 +219,10 @@ class CircuitBreaker:
 
     def call_sync(
         self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+        func: Callable[..., T],
+        *args: Any,
+        **kwargs: Any
+    ) -> T:
         """
         Synchronous version of call() for non-async contexts.
 
@@ -248,7 +260,7 @@ class CircuitBreaker:
             self._on_failure(e)
             raise
 
-    def reset(self):
+    def reset(self) -> None:
         """Manually reset circuit to CLOSED state."""
         with self._lock:
             logger.info(f"Circuit '{self.name}': Manual reset to CLOSED")
@@ -339,7 +351,19 @@ class HierarchicalCircuitBreaker:
         )
 
     def _get_provider_breaker(self, provider: str) -> CircuitBreaker:
-        """Get or create per-provider circuit breaker."""
+        """
+        Get or create per-provider circuit breaker.
+
+        Retrieves an existing circuit breaker for the specified provider or
+        creates a new one with default settings if it doesn't exist.
+        This method is thread-safe.
+
+        Args:
+            provider: The unique identifier for the provider (e.g., "gemini").
+
+        Returns:
+            CircuitBreaker: The circuit breaker instance associated with the provider.
+        """
         with self._lock:
             if provider not in self._per_provider:
                 self._per_provider[provider] = CircuitBreaker(
@@ -392,10 +416,10 @@ class HierarchicalCircuitBreaker:
     async def call(
         self,
         provider: str,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+        func: Callable[..., Union[T, Awaitable[T]]],
+        *args: Any,
+        **kwargs: Any
+    ) -> T:
         """
         Execute function through hierarchical circuit breaker.
 
@@ -453,10 +477,10 @@ class HierarchicalCircuitBreaker:
     def call_sync(
         self,
         provider: str,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+        func: Callable[..., T],
+        *args: Any,
+        **kwargs: Any
+    ) -> T:
         """
         Synchronous version of call().
 

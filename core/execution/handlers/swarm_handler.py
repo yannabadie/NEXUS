@@ -53,6 +53,11 @@ class SwarmDelegateHandler(BaseHandler):
 
     @property
     def tool_name(self) -> str:
+        """Returns the name of the tool.
+
+        Returns:
+            str: The tool name string identifier "swarm_delegate".
+        """
         return "swarm_delegate"
 
     @property
@@ -253,15 +258,17 @@ def create_swarm_handler(
     validation_service: Any = None,
     swarm_bridge: Any = None
 ) -> SwarmDelegateHandler:
-    """
-    Factory function to create SwarmDelegateHandler.
+    """Factory function to create a SwarmDelegateHandler instance.
 
     Args:
-        workspace_path: Workspace root path
-        validation_service: Optional validation service
-        swarm_bridge: Optional SwarmBridge instance (can be set later)
+        workspace_path: The absolute path to the workspace root.
+        validation_service: Optional service for validating operations.
+        swarm_bridge: Optional SwarmBridge instance (can be set later).
 
     Returns:
-        SwarmDelegateHandler instance
+        SwarmDelegateHandler: A configured instance of the handler.
+
+    Raises:
+        None: This function does not explicitly raise exceptions.
     """
     return SwarmDelegateHandler(workspace_path, validation_service, swarm_bridge)

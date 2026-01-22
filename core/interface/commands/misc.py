@@ -211,9 +211,6 @@ class ResetCommand(Command):
 
         Returns:
             CommandResult: A success result if reset, or error if an exception occurs.
-
-        Raises:
-            Exception: Captures and returns any exception during reset as an error result.
         """
         try:
             context.orchestrator.reset_to_idle()
@@ -272,9 +269,6 @@ class DoctorCommand(Command):
 
         Returns:
             CommandResult: A success result if diagnostics run, or error if REPL is missing or fails.
-
-        Raises:
-            Exception: Captures and returns any exception during diagnostics as an error result.
         """
         repl = context.extras.get("repl")
         if not repl:
@@ -349,9 +343,6 @@ class TelemetryCommand(Command):
 
         Returns:
             CommandResult: The result of the telemetry operation.
-
-        Raises:
-            Exception: Captures and returns any exception during execution as an error result.
         """
         try:
             service = _get_telemetry_service(context)
@@ -440,9 +431,6 @@ class BudgetCommand(Command):
 
         Returns:
             CommandResult: The result of the budget operation.
-
-        Raises:
-            Exception: Captures and returns any exception during execution as an error result.
         """
         try:
             service = _get_budget_service(context)
@@ -534,9 +522,6 @@ class TutorialCommand(Command):
 
         Returns:
             CommandResult: A success result if started, or error if REPL is missing or fails.
-
-        Raises:
-            Exception: Captures and returns any exception during tutorial start as an error result.
         """
         repl = context.extras.get("repl")
         if not repl:
@@ -602,9 +587,6 @@ class QuickstartCommand(Command):
 
         Returns:
             CommandResult: A success result if shown, or error if REPL is missing or fails.
-
-        Raises:
-            Exception: Captures and returns any exception during display as an error result.
         """
         repl = context.extras.get("repl")
         if not repl:
@@ -670,9 +652,6 @@ class ChatCommand(Command):
 
         Returns:
             CommandResult: A success result if toggled, or error if REPL is missing or fails.
-
-        Raises:
-            Exception: Captures and returns any exception during toggle as an error result.
         """
         repl = context.extras.get("repl")
         if not repl:
@@ -702,6 +681,9 @@ def register_misc_commands(registry: "CommandRegistry") -> None:
 
     Args:
         registry: The command registry to register commands with.
+
+    Raises:
+        ValueError: If a command with the same name or alias is already registered.
     """
     registry.register(ClearCommand())
     registry.register(ModeCommand())
