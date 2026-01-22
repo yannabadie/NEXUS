@@ -398,7 +398,8 @@ class NCMOrchestrator:
 
             # Invoke OrchestratorV7 (THIS IS WHERE NEXUS DOES THE WORK)
             # NCM just provides the task description and lets NEXUS orchestrate
-            result = await self.orchestrator.process_turn(
+            # NOTE: process_turn() is synchronous (not async), returns dict directly
+            result = self.orchestrator.process_turn(
                 user_input=simplified_task,
                 # context can be used to pass NCM-specific metadata
             )
