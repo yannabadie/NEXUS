@@ -65,57 +65,49 @@ def generate_pilot_stories(count: int = 10) -> list[Story]:
     stories = []
 
     # Generate dead import removal stories (SimpleExecutor-compatible)
-    # These are simple, deterministic, and avoid the Claude CLI hang issue
+    # These target a test file with intentional dead imports
+    test_file = "core/ncm/test_pilot_target.py"
+
     dead_import_targets = [
         (
-            "Remove dead import 'Optional' from core/ncm/orchestrator.py\n\nIssue:\nImport 'Optional' from 'typing' may be unused on line 40",
-            "core/ncm/orchestrator.py",
-            ["Optional"]
+            f"Remove dead import 'Dict' from {test_file}\n\nIssue:\nImport 'Dict' from 'typing' may be unused on line 7",
+            test_file,
+            ["Dict"]
         ),
         (
-            "Remove dead import 'Tuple' from core/ncm/story_shard.py\n\nIssue:\nImport 'Tuple' from 'typing' may be unused on line 15",
-            "core/ncm/story_shard.py",
+            f"Remove dead import 'List' from {test_file}\n\nIssue:\nImport 'List' from 'typing' may be unused on line 7",
+            test_file,
+            ["List"]
+        ),
+        (
+            f"Remove dead import 'Set' from {test_file}\n\nIssue:\nImport 'Set' from 'typing' may be unused on line 7",
+            test_file,
+            ["Set"]
+        ),
+        (
+            f"Remove dead import 'Tuple' from {test_file}\n\nIssue:\nImport 'Tuple' from 'typing' may be unused on line 7",
+            test_file,
             ["Tuple"]
         ),
         (
-            "Remove dead import 'Union' from core/ncm/crew_manager.py\n\nIssue:\nImport 'Union' from 'typing' may be unused on line 22",
-            "core/ncm/crew_manager.py",
+            f"Remove dead import 'Union' from {test_file}\n\nIssue:\nImport 'Union' from 'typing' may be unused on line 7",
+            test_file,
             ["Union"]
         ),
         (
-            "Remove dead import 'cast' from core/ncm/locks.py\n\nIssue:\nImport 'cast' from 'typing' may be unused on line 18",
-            "core/ncm/locks.py",
+            f"Remove dead import 'cast' from {test_file}\n\nIssue:\nImport 'cast' from 'typing' may be unused on line 7",
+            test_file,
             ["cast"]
         ),
         (
-            "Remove dead import 'overload' from core/ncm/models.py\n\nIssue:\nImport 'overload' from 'typing' may be unused on line 8",
-            "core/ncm/models.py",
-            ["overload"]
+            f"Remove dead import 'Optional' from {test_file}\n\nIssue:\nImport 'Optional' from 'typing' may be unused on line 7",
+            test_file,
+            ["Optional"]
         ),
         (
-            "Remove dead import 'Callable' from core/ncm/prompt_refresh.py\n\nIssue:\nImport 'Callable' from 'typing' may be unused on line 12",
-            "core/ncm/prompt_refresh.py",
-            ["Callable"]
-        ),
-        (
-            "Remove dead import 'Generator' from core/ncm/token_monitor.py\n\nIssue:\nImport 'Generator' from 'typing' may be unused on line 10",
-            "core/ncm/token_monitor.py",
-            ["Generator"]
-        ),
-        (
-            "Remove dead import 'Iterable' from core/ncm/snapshot.py\n\nIssue:\nImport 'Iterable' from 'typing' may be unused on line 14",
-            "core/ncm/snapshot.py",
-            ["Iterable"]
-        ),
-        (
-            "Remove dead import 'Sequence' from core/ncm/simple_executor.py\n\nIssue:\nImport 'Sequence' from 'typing' may be unused on line 16",
-            "core/ncm/simple_executor.py",
-            ["Sequence"]
-        ),
-        (
-            "Remove dead import 'Mapping' from core/ncm/multi_ai_executor.py\n\nIssue:\nImport 'Mapping' from 'typing' may be unused on line 20",
-            "core/ncm/multi_ai_executor.py",
-            ["Mapping"]
+            f"Remove dead import 'sys' from {test_file}\n\nIssue:\nImport 'sys' may be unused on line 8",
+            test_file,
+            ["sys"]
         ),
     ]
 
