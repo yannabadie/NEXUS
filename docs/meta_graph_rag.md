@@ -43,9 +43,9 @@ python -m tools.meta_graph_rag.cli query "memory coordinator"
 ## Tuning
 You can scope or reduce indexing load with environment variables:
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
-- `META_RAG_EXCLUDE` = comma-separated exclude dir names
-- `META_RAG_EXTENSIONS` = comma-separated file extensions
-- `META_RAG_MAX_FILE_KB` = max file size per file
+- `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
+- `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)
+- `META_RAG_MAX_FILE_KB` = max file size per file (0 = no limit)
 - `META_RAG_CHUNK_LINES` / `META_RAG_CHUNK_OVERLAP` = chunk sizing
 - `META_RAG_GEMINI_EMBED_MODEL` = Gemini embedding model name
 - `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 3072)
@@ -70,6 +70,11 @@ You can scope or reduce indexing load with environment variables:
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.
 - Use `META_RAG_CA_REFRESH=true` to regenerate the bundle when corporate roots change.
 - If TLS errors persist, set `META_RAG_SSL_MODE=auto` to retry once with relaxed verification.
+
+## Notes
+- Content is normalized to ASCII for storage consistency.
+- Security tags are heuristic and require manual validation.
+- Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.

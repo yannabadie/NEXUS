@@ -271,7 +271,10 @@ class MetaGraphIndexer:
 
     def _scan_files(self) -> Iterable[Path]:
         max_bytes = self.config.max_file_size_kb * 1024
+        if self.config.max_file_size_kb <= 0:
+            max_bytes = 0
         extensions = set(ext.lower() for ext in self.config.extensions)
+        filter_by_extension = bool(extensions)
         include_dirs = [self.config.root_path / name for name in self.config.include_dirs]
         exclude = set(self.config.exclude_dirs)
         seen: set[str] = set()
@@ -287,9 +290,14 @@ class MetaGraphIndexer:
         include_root = any(base.resolve() == self.config.root_path.resolve() for base in include_dirs)
         if not include_root:
             for file_path in self.config.root_path.iterdir():
-                if file_path.is_file() and file_path.suffix.lower() in extensions:
-                    if file_path.stat().st_size <= max_bytes and _record(file_path):
-                        yield file_path
+                if not file_path.is_file():
+                    continue
+                if filter_by_extension and file_path.suffix.lower() not in extensions:
+                    continue
+                if max_bytes and file_path.stat().st_size > max_bytes:
+                    continue
+                if _record(file_path):
+                    yield file_path
 
         for base in include_dirs:
             if not base.exists():
@@ -298,17 +306,22 @@ class MetaGraphIndexer:
                 dirs[:] = [d for d in dirs if d not in exclude]
                 for name in files:
                     path = Path(root) / name
-                    if path.suffix.lower() not in extensions:
+                    if filter_by_extension and path.suffix.lower() not in extensions:
                         continue
-                    if path.stat().st_size > max_bytes:
+                    if max_bytes and path.stat().st_size > max_bytes:
                         continue
                     if _record(path):
                         yield path
 
     def _index_file(self, path: Path, content_hash: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
         relative_path = _relative_path(path, self.config.root_path)
-        source_type = _source_type_for_path(relative_path, path.suffix.lower())
+        file_suffix = path.suffix.lower()
+        source_type = _source_type_for_path(relative_path, file_suffix)
         language = _language_for_extension(path.suffix.lower())
+        file_size_bytes = path.stat().st_size
+        is_binary = _is_binary_file(path)
+        if is_binary:
+            language = "binary"
         file_node_id = f"file:{relative_path}"
         file_node = GraphNode(
             node_id=file_node_id,
@@ -316,41 +329,56 @@ class MetaGraphIndexer:
             name=path.name,
             path=relative_path,
             start_line=1,
-            end_line=_count_lines(path),
+            end_line=1 if is_binary else _count_lines(path),
             content_hash=content_hash,
             metadata={
                 "extension": path.suffix.lower(),
                 "source_type": source_type,
                 "language": language,
+                "size_bytes": str(file_size_bytes),
+                "binary": "true" if is_binary else "false",
             },
         )
         nodes = [file_node]
         edges: List[GraphEdge] = []
         chunks: List[Chunk] = []
 
-        content = path.read_text(encoding="utf-8", errors="ignore")
-        if path.suffix.lower() == ".py":
-            py_nodes, py_edges, py_chunks = _chunk_python(content, relative_path, file_node_id, source_type)
-            nodes.extend(py_nodes)
-            edges.extend(py_edges)
-            chunks.extend(py_chunks)
-        elif path.suffix.lower() == ".md":
-            md_nodes, md_edges, md_chunks = _chunk_markdown(content, relative_path, file_node_id, source_type)
-            nodes.extend(md_nodes)
-            edges.extend(md_edges)
-            chunks.extend(md_chunks)
-        else:
-            generic_nodes, generic_edges, generic_chunks = _chunk_generic(
-                content,
+        if is_binary:
+            stub_nodes, stub_edges, stub_chunks = _chunk_binary_stub(
                 relative_path,
                 file_node_id,
+                content_hash,
+                file_size_bytes,
+                file_suffix,
                 source_type,
-                self.config.chunk_lines,
-                self.config.chunk_overlap,
             )
-            nodes.extend(generic_nodes)
-            edges.extend(generic_edges)
-            chunks.extend(generic_chunks)
+            nodes.extend(stub_nodes)
+            edges.extend(stub_edges)
+            chunks.extend(stub_chunks)
+        else:
+            content = path.read_text(encoding="utf-8", errors="ignore")
+            if file_suffix == ".py":
+                py_nodes, py_edges, py_chunks = _chunk_python(content, relative_path, file_node_id, source_type)
+                nodes.extend(py_nodes)
+                edges.extend(py_edges)
+                chunks.extend(py_chunks)
+            elif file_suffix == ".md":
+                md_nodes, md_edges, md_chunks = _chunk_markdown(content, relative_path, file_node_id, source_type)
+                nodes.extend(md_nodes)
+                edges.extend(md_edges)
+                chunks.extend(md_chunks)
+            else:
+                generic_nodes, generic_edges, generic_chunks = _chunk_generic(
+                    content,
+                    relative_path,
+                    file_node_id,
+                    source_type,
+                    self.config.chunk_lines,
+                    self.config.chunk_overlap,
+                )
+                nodes.extend(generic_nodes)
+                edges.extend(generic_edges)
+                chunks.extend(generic_chunks)
 
         nodes = _dedupe_nodes(nodes)
         edges = _dedupe_edges(edges)
@@ -567,6 +595,109 @@ def _language_for_extension(suffix: str) -> str:
         ".ini": "ini",
     }
     return mapping.get(suffix, "text")
+
+
+_BINARY_EXTENSIONS = {
+    ".7z",
+    ".bin",
+    ".bmp",
+    ".class",
+    ".dat",
+    ".db",
+    ".dll",
+    ".dylib",
+    ".exe",
+    ".gif",
+    ".gz",
+    ".ico",
+    ".jar",
+    ".jpeg",
+    ".jpg",
+    ".lock",
+    ".map",
+    ".mp3",
+    ".mp4",
+    ".o",
+    ".pdf",
+    ".png",
+    ".pkl",
+    ".pyc",
+    ".so",
+    ".tar",
+    ".tif",
+    ".tiff",
+    ".wav",
+    ".webp",
+    ".whl",
+    ".zip",
+}
+
+
+def _is_binary_file(path: Path) -> bool:
+    suffix = path.suffix.lower()
+    if suffix in _BINARY_EXTENSIONS:
+        return True
+    try:
+        sample = path.open("rb").read(2048)
+    except Exception:
+        return True
+    if not sample:
+        return False
+    return b"\x00" in sample
+
+
+def _chunk_binary_stub(
+    relative_path: str,
+    file_node_id: str,
+    content_hash: str,
+    file_size_bytes: int,
+    file_suffix: str,
+    source_type: str,
+) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
+    nodes: List[GraphNode] = []
+    edges: List[GraphEdge] = []
+    chunks: List[Chunk] = []
+
+    stub_text = (
+        f"Binary file: {relative_path}\n"
+        f"Size bytes: {file_size_bytes}\n"
+        f"Sha256: {content_hash}\n"
+        f"Extension: {file_suffix}"
+    )
+    tags = _scan_security_tags(stub_text)
+    node_id = f"file_chunk:{relative_path}:binary"
+    nodes.append(GraphNode(
+        node_id=node_id,
+        node_type="file_chunk",
+        name="binary_stub",
+        path=relative_path,
+        start_line=1,
+        end_line=1,
+        content_hash=_hash_text(stub_text),
+        metadata={
+            "file": relative_path,
+            "security_tags": ",".join(tags),
+            "source_type": source_type,
+            "binary": "true",
+        },
+    ))
+    edges.append(GraphEdge(source=file_node_id, target=node_id, edge_type="contains"))
+    chunks.append(Chunk(
+        chunk_id=f"chunk:{node_id}",
+        node_id=node_id,
+        path=relative_path,
+        start_line=1,
+        end_line=1,
+        kind="binary_stub",
+        text=stub_text,
+        content_hash=_hash_text(stub_text),
+        metadata={
+            "security_tags": ",".join(tags),
+            "source_type": source_type,
+            "binary": "true",
+        },
+    ))
+    return nodes, edges, chunks
 
 
 _JS_IMPORT_RE = re.compile(r"^\s*import\s+(?:.+?\s+from\s+)?[\"']([^\"']+)[\"']", re.MULTILINE)

@@ -14,7 +14,9 @@ DEFAULT_INCLUDE_DIRS = [
     ".",
 ]
 
-DEFAULT_EXCLUDE_DIRS = [
+DEFAULT_EXCLUDE_DIRS: List[str] = []
+
+RECOMMENDED_EXCLUDE_DIRS = [
     "__pycache__",
     ".git",
     ".nexus",
@@ -31,20 +33,7 @@ DEFAULT_EXCLUDE_DIRS = [
     "build",
 ]
 
-DEFAULT_EXTENSIONS = [
-    ".py",
-    ".md",
-    ".txt",
-    ".json",
-    ".jsonl",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".ini",
-    ".ps1",
-    ".bat",
-    ".sh",
-]
+DEFAULT_EXTENSIONS: List[str] = []
 
 DEFAULT_RESEARCH_QUERIES = [
     "Deep GraphRAG",
@@ -89,7 +78,7 @@ class MetaGraphRagConfig:
     include_dirs: List[str] = field(default_factory=lambda: DEFAULT_INCLUDE_DIRS.copy())
     exclude_dirs: List[str] = field(default_factory=lambda: DEFAULT_EXCLUDE_DIRS.copy())
     extensions: List[str] = field(default_factory=lambda: DEFAULT_EXTENSIONS.copy())
-    max_file_size_kb: int = 512
+    max_file_size_kb: int = 0
     chunk_lines: int = 50
     chunk_overlap: int = 10
     embedding_backend: str = "gemini"

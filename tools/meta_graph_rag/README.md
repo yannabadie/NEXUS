@@ -48,9 +48,9 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
-- `META_RAG_EXCLUDE` = comma-separated exclude dir names
-- `META_RAG_EXTENSIONS` = comma-separated file extensions
-- `META_RAG_MAX_FILE_KB` = max file size to index
+- `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
+- `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)
+- `META_RAG_MAX_FILE_KB` = max file size to index (0 = no limit)
 - `META_RAG_CHUNK_LINES` = chunk size (lines)
 - `META_RAG_CHUNK_OVERLAP` = chunk overlap (lines)
 - `META_RAG_QUERY_SEEDS` = number of seed chunks
@@ -70,5 +70,6 @@ Set with `META_RAG_EMBEDDINGS`.
 ## Notes
 - Content is normalized to ASCII for storage consistency.
 - Security tags are heuristic and require manual validation.
+- Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
 - On Windows, a CA bundle is auto-exported to `workspace/meta_rag/corp_ca_bundle.pem` if none is provided.
 - Set `META_RAG_SSL_MODE=auto` to retry with relaxed TLS if strict verification fails.
