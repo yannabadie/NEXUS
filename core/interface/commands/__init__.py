@@ -35,6 +35,7 @@ from .agents import register_agent_commands
 from .workspace import register_workspace_commands
 from .memory import register_memory_commands
 from .misc import register_misc_commands
+from .ncm import register_ncm_commands
 
 # Legacy: Re-export from slash_commands.py for backward compatibility
 from core.interface.slash_commands import (
@@ -74,6 +75,7 @@ def get_initialized_registry() -> CommandRegistry:
         register_workspace_commands(registry)
         register_memory_commands(registry)
         register_misc_commands(registry)
+        register_ncm_commands(registry)
 
         _registry_initialized = True
 
