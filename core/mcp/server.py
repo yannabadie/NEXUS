@@ -60,6 +60,7 @@ except ImportError:
 
 _TOOL_MANAGER = None
 _ORCHESTRATOR = None
+_META_GRAPHRAG_INDEXER = None
 
 
 def get_tool_manager():
@@ -102,6 +103,24 @@ def get_orchestrator():
     return _ORCHESTRATOR
 
 
+def get_meta_graphrag_indexer():
+    """Lazy load Meta GraphRAG indexer for MCP queries."""
+    global _META_GRAPHRAG_INDEXER
+    if _META_GRAPHRAG_INDEXER is not None:
+        return _META_GRAPHRAG_INDEXER
+    from tools.meta_graph_rag.config import load_config
+    from tools.meta_graph_rag.indexer import MetaGraphIndexer
+    config = load_config()
+    _META_GRAPHRAG_INDEXER = MetaGraphIndexer(config)
+    return _META_GRAPHRAG_INDEXER
+
+
+def reset_meta_graphrag_indexer() -> None:
+    """Reset cached Meta GraphRAG indexer (for refresh after reindex)."""
+    global _META_GRAPHRAG_INDEXER
+    _META_GRAPHRAG_INDEXER = None
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -122,6 +141,133 @@ def _resolve_workspace(workspace_path: Optional[Path]) -> Path:
     config = Config()
     workspace = Path(workspace_path) if workspace_path else config.workspace_path
     return workspace.resolve()
+
+
+def _format_meta_chunk(chunk, include_text: bool = False) -> Dict[str, Any]:
+    payload = {
+        "path": chunk.path,
+        "start_line": chunk.start_line,
+        "end_line": chunk.end_line,
+        "kind": chunk.kind,
+        "node_id": chunk.node_id,
+        "security_tags": chunk.metadata.get("security_tags", ""),
+        "source_type": chunk.metadata.get("source_type", ""),
+    }
+    if include_text:
+        payload["text"] = chunk.text
+    else:
+        payload["excerpt"] = chunk.text[:400]
+    return payload
+
+
+def build_meta_graphrag_query(
+    query: str,
+    seed_limit: Optional[int] = None,
+    expansion_depth: Optional[int] = None,
+    expansion_limit: Optional[int] = None,
+    include_text: bool = False,
+) -> Dict[str, Any]:
+    """Run a Meta GraphRAG query with optional graph expansion."""
+    if not query or not query.strip():
+        raise ValueError("Query cannot be empty.")
+
+    indexer = get_meta_graphrag_indexer()
+    seed_limit = seed_limit if seed_limit is not None else indexer.config.query_seed_limit
+    expansion_depth = (
+        expansion_depth if expansion_depth is not None else indexer.config.query_expansion_depth
+    )
+    expansion_limit = (
+        expansion_limit if expansion_limit is not None else indexer.config.query_expansion_limit
+    )
+
+    if seed_limit < 0:
+        seed_limit = 0
+    if expansion_depth < 0:
+        expansion_depth = 0
+    if expansion_limit < 0:
+        expansion_limit = 0
+
+    seed_records = indexer.vector_index.query(query, limit=seed_limit)
+    seed_chunks = []
+    for record in seed_records:
+        chunk = indexer.chunks.chunks.get(record.chunk_id)
+        if chunk:
+            seed_chunks.append(chunk)
+
+    expanded_chunks = []
+    if expansion_depth > 0 and expansion_limit > 0 and seed_chunks:
+        from tools.meta_graph_rag.indexer import _expand_nodes
+
+        adjacency = indexer.graph.build_adjacency()
+        expanded_nodes = []
+        for chunk in seed_chunks:
+            expanded_nodes.extend(_expand_nodes(adjacency, chunk.node_id, expansion_depth))
+        expanded_nodes = list(dict.fromkeys(expanded_nodes))
+        seed_chunk_ids = {chunk.chunk_id for chunk in seed_chunks}
+        for node_id in expanded_nodes:
+            for chunk in indexer.chunks.get_by_node(node_id):
+                if chunk.chunk_id in seed_chunk_ids:
+                    continue
+                expanded_chunks.append(chunk)
+                if len(expanded_chunks) >= expansion_limit:
+                    break
+            if len(expanded_chunks) >= expansion_limit:
+                break
+
+    return {
+        "query": query,
+        "generated_at": _iso_now(),
+        "seed_limit": seed_limit,
+        "expansion_depth": expansion_depth,
+        "expansion_limit": expansion_limit,
+        "seed_count": len(seed_chunks),
+        "expanded_count": len(expanded_chunks),
+        "seed_chunks": [_format_meta_chunk(chunk, include_text) for chunk in seed_chunks],
+        "expanded_chunks": [_format_meta_chunk(chunk, include_text) for chunk in expanded_chunks],
+    }
+
+
+def build_meta_graphrag_status() -> Dict[str, Any]:
+    """Return Meta GraphRAG index status."""
+    indexer = get_meta_graphrag_indexer()
+    return indexer.status()
+
+
+def build_meta_graphrag_reports(
+    entrypoints: Optional[List[str]] = None,
+    include_content: bool = False,
+) -> Dict[str, Any]:
+    """Generate and return Meta GraphRAG reports."""
+    indexer = get_meta_graphrag_indexer()
+    status = indexer.status()
+    from tools.meta_graph_rag.reports import generate_reports
+
+    paths = generate_reports(
+        graph=indexer.graph,
+        chunks_count=status["chunks"],
+        vector_count=status["vector_entries"],
+        output_dir=indexer.config.reports_path,
+        entrypoints=entrypoints,
+    )
+    payload = {
+        "generated_at": _iso_now(),
+        "paths": {
+            "overview": str(paths.overview),
+            "top_down": str(paths.top_down),
+            "bottom_up": str(paths.bottom_up),
+            "security": str(paths.security),
+            "module_catalog": str(paths.module_catalog),
+        },
+    }
+    if include_content:
+        payload["reports"] = {
+            "overview": paths.overview.read_text(encoding="utf-8", errors="ignore"),
+            "top_down": paths.top_down.read_text(encoding="utf-8", errors="ignore"),
+            "bottom_up": paths.bottom_up.read_text(encoding="utf-8", errors="ignore"),
+            "security": paths.security.read_text(encoding="utf-8", errors="ignore"),
+            "module_catalog": paths.module_catalog.read_text(encoding="utf-8", errors="ignore"),
+        }
+    return payload
 
 
 def _default_index_paths(root: Path) -> List[Path]:
@@ -619,6 +765,81 @@ if MCP_AVAILABLE:
             logger.error(f"nexus_memory_search error: {e}")
             return f"Error searching memory: {e}"
 
+    # =========================================================================
+    # Meta GraphRAG
+    # =========================================================================
+
+    @mcp.tool()
+    async def nexus_meta_graphrag_query(
+        query: str,
+        seed_limit: Optional[int] = None,
+        expansion_depth: Optional[int] = None,
+        expansion_limit: Optional[int] = None,
+        include_text: bool = False,
+    ) -> str:
+        """
+        Query the Meta GraphRAG index (vector search + graph expansion).
+        """
+        try:
+            payload = await _run_blocking(
+                build_meta_graphrag_query,
+                query=query,
+                seed_limit=seed_limit,
+                expansion_depth=expansion_depth,
+                expansion_limit=expansion_limit,
+                include_text=include_text,
+            )
+            import json
+            return json.dumps(payload, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_meta_graphrag_query error: {e}")
+            return f"Error querying meta GraphRAG: {e}"
+
+    @mcp.tool()
+    async def nexus_meta_graphrag_status() -> str:
+        """
+        Return Meta GraphRAG index status.
+        """
+        try:
+            payload = await _run_blocking(build_meta_graphrag_status)
+            import json
+            return json.dumps(payload, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_meta_graphrag_status error: {e}")
+            return f"Error fetching meta GraphRAG status: {e}"
+
+    @mcp.tool()
+    async def nexus_meta_graphrag_reports(
+        entrypoints: Optional[List[str]] = None,
+        include_content: bool = False,
+    ) -> str:
+        """
+        Generate and return Meta GraphRAG reports (overview/top-down/bottom-up).
+        """
+        try:
+            payload = await _run_blocking(
+                build_meta_graphrag_reports,
+                entrypoints=entrypoints,
+                include_content=include_content,
+            )
+            import json
+            return json.dumps(payload, indent=2, ensure_ascii=True)
+        except Exception as e:
+            logger.error(f"nexus_meta_graphrag_reports error: {e}")
+            return f"Error generating meta GraphRAG reports: {e}"
+
+    @mcp.tool()
+    async def nexus_meta_graphrag_reload() -> str:
+        """
+        Reset cached Meta GraphRAG indexer (use after reindex).
+        """
+        try:
+            await _run_blocking(reset_meta_graphrag_indexer)
+            return "Meta GraphRAG cache reset."
+        except Exception as e:
+            logger.error(f"nexus_meta_graphrag_reload error: {e}")
+            return f"Error resetting meta GraphRAG cache: {e}"
+
     @mcp.tool()
     async def nexus_export_evidence_pack(
         question: str,
@@ -731,7 +952,9 @@ def main():
     logger.info("Starting NEXUS MCP Server...")
     logger.info(
         "Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, "
-        "nexus_research, nexus_memory_search, nexus_export_evidence_pack, nexus_bash"
+        "nexus_research, nexus_memory_search, "
+        "nexus_meta_graphrag_query, nexus_meta_graphrag_status, nexus_meta_graphrag_reports, "
+        "nexus_meta_graphrag_reload, nexus_export_evidence_pack, nexus_bash"
     )
     logger.info("Resources: nexus://config, nexus://agents")
 

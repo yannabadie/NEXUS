@@ -138,6 +138,10 @@ Server tools (high-level):
 - `nexus_analyze`, `nexus_status` - agent analysis and system status
 - `nexus_research` - local-first research summary (mock/local mode)
 - `nexus_memory_search` - structured project memory search
+- `nexus_meta_graphrag_query` - Meta GraphRAG query (top-k + graph expansion)
+- `nexus_meta_graphrag_status` - Meta GraphRAG index status
+- `nexus_meta_graphrag_reports` - Meta GraphRAG onboarding reports
+- `nexus_meta_graphrag_reload` - reset cached Meta GraphRAG indexer
 - `nexus_export_evidence_pack` - evidence pack artifacts (report, sources, trace, graph, manifest)
 
 Configure in Claude Desktop (`claude_desktop_config.json`):

@@ -34,6 +34,13 @@ python -m tools.meta_graph_rag.cli report
 python -m tools.meta_graph_rag.cli query "memory coordinator"
 ```
 
+## MCP Access
+Meta GraphRAG is exposed via the NEXUS MCP server:
+- `nexus_meta_graphrag_query` (top-k + expansion)
+- `nexus_meta_graphrag_status`
+- `nexus_meta_graphrag_reports`
+- `nexus_meta_graphrag_reload`
+
 ## Embeddings
 - Default: Gemini embeddings (`gemini-embedding-001`) when `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set
 - Task-aware embedding for retrieval (document vs query)

@@ -26,6 +26,13 @@ python -m tools.meta_graph_rag.cli report
 python -m tools.meta_graph_rag.cli query "orchestrator state transitions"
 ```
 
+## MCP Access
+Meta GraphRAG is available via the NEXUS MCP server:
+- `nexus_meta_graphrag_query`
+- `nexus_meta_graphrag_status`
+- `nexus_meta_graphrag_reports`
+- `nexus_meta_graphrag_reload`
+
 ## Embedding Backends
 - `gemini` (default): Gemini embeddings via API key
 - `auto`: sentence-transformers -> gemini -> hash
