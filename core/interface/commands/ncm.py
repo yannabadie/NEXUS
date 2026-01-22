@@ -43,18 +43,24 @@ class NCMService:
             config=config,
         )
 
-        # Generate pilot stories
-        stories = generate_pilot_stories()
+        # Generate pilot stories (generate max pool, _ncm_pilot will select count)
+        # Max ~21 stories available from test_mixed_target.py
+        stories = generate_pilot_stories(count=100)  # Will cap at available stories
 
         return cls(orchestrator=ncm, stories=stories)
 
 
 def generate_pilot_stories(count: int = 10) -> list[Story]:
     """
-    Generate pilot stories for testing.
+    Generate pilot stories for testing - mixed types for comprehensive validation.
 
-    For now, generates synthetic dead import stories that SimpleExecutor can handle.
-    This avoids the Windows subprocess hang issue with process_turn() collaborative modes.
+    Generates a mix of:
+    - Dead import removal (35%)
+    - Docstring additions (35%)
+    - Type hint additions (20%)
+    - Deprecation fixes (10%)
+
+    All stories use SimpleExecutor to avoid Windows subprocess hang issue.
 
     Args:
         count: Number of stories to generate
@@ -64,60 +70,86 @@ def generate_pilot_stories(count: int = 10) -> list[Story]:
     """
     stories = []
 
-    # Generate dead import removal stories (SimpleExecutor-compatible)
-    # These target a test file with intentional dead imports
-    test_file = "core/ncm/test_pilot_target.py"
+    # Test file with various issues
+    test_file = "core/ncm/test_mixed_target.py"
 
-    dead_import_targets = [
-        (
-            f"Remove dead import 'Dict' from {test_file}\n\nIssue:\nImport 'Dict' from 'typing' may be unused on line 7",
-            test_file,
-            ["Dict"]
-        ),
-        (
-            f"Remove dead import 'List' from {test_file}\n\nIssue:\nImport 'List' from 'typing' may be unused on line 7",
-            test_file,
-            ["List"]
-        ),
-        (
-            f"Remove dead import 'Set' from {test_file}\n\nIssue:\nImport 'Set' from 'typing' may be unused on line 7",
-            test_file,
-            ["Set"]
-        ),
-        (
-            f"Remove dead import 'Tuple' from {test_file}\n\nIssue:\nImport 'Tuple' from 'typing' may be unused on line 7",
-            test_file,
-            ["Tuple"]
-        ),
-        (
-            f"Remove dead import 'Union' from {test_file}\n\nIssue:\nImport 'Union' from 'typing' may be unused on line 7",
-            test_file,
-            ["Union"]
-        ),
-        (
-            f"Remove dead import 'cast' from {test_file}\n\nIssue:\nImport 'cast' from 'typing' may be unused on line 7",
-            test_file,
-            ["cast"]
-        ),
-        (
-            f"Remove dead import 'Optional' from {test_file}\n\nIssue:\nImport 'Optional' from 'typing' may be unused on line 7",
-            test_file,
-            ["Optional"]
-        ),
-        (
-            f"Remove dead import 'sys' from {test_file}\n\nIssue:\nImport 'sys' may be unused on line 8",
-            test_file,
-            ["sys"]
-        ),
+    # Story templates for different types
+    all_stories = []
+
+    # 1. Dead import stories (8 stories = 35% of ~20)
+    dead_imports = [
+        ("Dict", "typing", 7),
+        ("List", "typing", 7),
+        ("Set", "typing", 7),
+        ("Tuple", "typing", 7),
+        ("Union", "typing", 7),
+        ("cast", "typing", 7),
+        ("Optional", "typing", 7),
+        ("sys", None, 10),
     ]
+    for import_name, module, line in dead_imports:
+        module_str = f" from '{module}'" if module else ""
+        all_stories.append((
+            "dead_import",
+            f"Remove dead import '{import_name}' from {test_file}\n\nIssue:\nImport '{import_name}'{module_str} may be unused on line {line}"
+        ))
 
-    for i, (description, file_path, imports) in enumerate(dead_import_targets[:count], 1):
+    # 2. Docstring stories (8 stories = 35%)
+    docstring_targets = [
+        ("function", "function_without_docstring"),
+        ("function", "another_function_no_docs"),
+        ("class", "ClassWithoutDocstring"),
+        ("function", "function_no_type_hints"),
+        ("function", "function_with_deprecated_datetime"),
+        ("function", "helper_function"),
+        ("class", "AnotherClass"),
+    ]
+    for target_type, target_name in docstring_targets:
+        all_stories.append((
+            "docstring",
+            f"Add docstring to {target_type} '{target_name}' in {test_file}\n\nIssue:\n{target_type.capitalize()} '{target_name}' is missing docstring"
+        ))
+
+    # 3. Type hint stories (5 stories = 20%)
+    type_hint_targets = [
+        ("function_without_docstring", "param1", "int"),
+        ("function_without_docstring", "param2", "int"),
+        ("another_function_no_docs", "x", "int"),
+        ("function_no_type_hints", "name", "str"),
+        ("function_no_type_hints", "age", "int"),
+    ]
+    for func_name, param_name, type_hint in type_hint_targets:
+        all_stories.append((
+            "type_hint",
+            f"Add type hint '{type_hint}' to parameter '{param_name}' in function '{func_name}' in {test_file}\n\nIssue:\nParameter '{param_name}' in function '{func_name}' is missing type hint"
+        ))
+
+    # 4. Deprecation stories (2 stories = 10%)
+    deprecation_targets = [
+        ("datetime.utcnow()", "datetime.now(timezone.utc)", "datetime.utcnow() is deprecated in Python 3.12+"),
+    ]
+    for old_pattern, new_pattern, reason in deprecation_targets:
+        all_stories.append((
+            "deprecation",
+            f"Fix deprecation in {test_file}: replace '{old_pattern}' with '{new_pattern}'\n\nIssue:\n{reason}"
+        ))
+
+    # Limit to requested count
+    for i, (story_type, description) in enumerate(all_stories[:count], 1):
+        # Map story type to domain
+        domain_map = {
+            "dead_import": IssueDomain.CLEANUP,
+            "docstring": IssueDomain.DOCUMENTATION,
+            "type_hint": IssueDomain.TYPING,
+            "deprecation": IssueDomain.EVOLUTION
+        }
+
         story = Story(
             story_id=f"PILOT-{i:03d}",
             priority=StoryPriority.P2,
-            domains={IssueDomain.CLEANUP},
+            domains={domain_map.get(story_type, IssueDomain.CLEANUP)},
             description=description,
-            target_files=[Path(file_path)],
+            target_files=[Path(test_file)],
             test_files=[],
         )
         stories.append(story)
