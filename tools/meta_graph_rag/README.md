@@ -53,7 +53,7 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents (default RETRIEVAL_DOCUMENT)
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
-- `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
+- `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research (default gemini-3-pro-preview)
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
 - `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
 - `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)

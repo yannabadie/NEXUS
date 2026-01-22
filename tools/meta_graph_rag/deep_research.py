@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import urllib.parse
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -43,9 +44,17 @@ class GeminiResearchClient:
         return _sanitize_text(response)
 
     def _generate(self, prompt: str) -> str:
+        try:
+            return self._generate_with_model(self._model_name, prompt)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404 and self._model_name != "gemini-3-pro-preview":
+                return self._generate_with_model("gemini-3-pro-preview", prompt)
+            raise
+
+    def _generate_with_model(self, model_name: str, prompt: str) -> str:
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self._model_name}:generateContent?key={self._api_key}"
+            f"{model_name}:generateContent?key={self._api_key}"
         )
         payload = {
             "contents": [

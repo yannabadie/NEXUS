@@ -61,7 +61,7 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
-- `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research
+- `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research (default gemini-3-pro-preview)
 - `META_RAG_GRAPH_BACKEND` = sqlite
 - `META_RAG_GRAPH_PATH` = graph db path (default `workspace/meta_rag/graph_db.sqlite`)
 - `META_RAG_RESEARCH_LIMIT` = results per query for deep research
