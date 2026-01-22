@@ -118,13 +118,16 @@ class NCMCommand(Command):
     def usage(self) -> str:
         return "/ncm <subcommand> [options]"
 
-    async def execute(self, context: CommandContext, args: str = "") -> CommandResult:
+    async def execute(self, args: str, context: CommandContext) -> CommandResult:
         """
-        Execute NCM command.
+        Execute NCM command (async).
+
+        This is an async command - CommandRegistry.dispatch() will handle
+        running it in an appropriate event loop context.
 
         Args:
-            context: Command execution context
             args: Command arguments (subcommand + options)
+            context: Command execution context
 
         Returns:
             CommandResult with execution status

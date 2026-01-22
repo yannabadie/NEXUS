@@ -168,6 +168,9 @@ class CommandRegistry:
         """
         Dispatch input to the appropriate command handler.
 
+        Supports both synchronous and asynchronous commands.
+        If execute() returns a coroutine, runs it in a new event loop.
+
         Args:
             input_str: Full input string (e.g., "/status detail")
             context: Execution context
@@ -175,6 +178,9 @@ class CommandRegistry:
         Returns:
             CommandResult from command execution
         """
+        import asyncio
+        import inspect
+
         if not input_str.strip():
             return CommandResult(
                 status=CommandStatus.INVALID_ARGS,
@@ -192,7 +198,24 @@ class CommandRegistry:
             )
 
         try:
-            return self._commands[cmd_name].execute(args, context)
+            result = self._commands[cmd_name].execute(args, context)
+
+            # If result is a coroutine, run it
+            if inspect.iscoroutine(result):
+                # Try to get existing event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    # Already in event loop - create task and wait
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, result)
+                        return future.result()
+                except RuntimeError:
+                    # No event loop - run directly
+                    return asyncio.run(result)
+
+            return result
+
         except Exception as e:
             return CommandResult(
                 status=CommandStatus.ERROR,
