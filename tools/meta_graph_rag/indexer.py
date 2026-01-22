@@ -195,6 +195,7 @@ class MetaGraphIndexer:
         """Index codebase and external sources into graph + vector store."""
         if full:
             self.graph_db.reset()
+        progress_path = self.config.data_path / "index_progress.json"
         files = list(self._scan_files())
         known_files = set(self.manifest.files.keys())
         current_files = set(str(path) for path in files)
@@ -209,6 +210,7 @@ class MetaGraphIndexer:
         indexed_files = 0
         for path in files:
             entry_key = str(path)
+            _write_progress(progress_path, "indexing", entry_key)
             content_hash = _hash_file(path)
             entry = self.manifest.files.get(entry_key)
             if entry and entry.get("hash") == content_hash and not full:
@@ -233,6 +235,7 @@ class MetaGraphIndexer:
                 "chunks": chunk_ids,
             }
             indexed_files += 1
+            _write_progress(progress_path, "indexed", entry_key)
             if self.config.persist_every_files > 0 and indexed_files % self.config.persist_every_files == 0:
                 self._persist()
 
@@ -343,6 +346,8 @@ class MetaGraphIndexer:
         return nodes, edges, chunks
 
     def _add_vectors(self, chunks: List[Chunk]) -> None:
+        if self.config.skip_embeddings:
+            return
         records: List[VectorRecord] = []
         for chunk in chunks:
             source_type = chunk.metadata.get("source_type", "")
@@ -359,6 +364,44 @@ class MetaGraphIndexer:
             ))
         if records:
             self.vector_index.add_texts(records)
+
+    def embed_missing(self, limit: int | None = None) -> int:
+        """Embed missing chunks into the vector index."""
+        records: List[VectorRecord] = []
+        embedded = 0
+        for chunk in self.chunks.chunks.values():
+            if chunk.chunk_id in self.vector_index.entries:
+                continue
+            records.append(VectorRecord(
+                chunk_id=chunk.chunk_id,
+                embedding=[],
+                metadata={
+                    "text": chunk.text,
+                    "path": chunk.path,
+                    "node_id": chunk.node_id,
+                    "kind": chunk.kind,
+                    "source_type": chunk.metadata.get("source_type", ""),
+                },
+            ))
+            if limit and (embedded + len(records)) >= limit:
+                remaining = limit - embedded
+                if remaining > 0:
+                    self.vector_index.add_texts(records[:remaining])
+                    embedded += remaining
+                records = []
+                break
+            if len(records) >= self.config.embed_batch_limit:
+                self.vector_index.add_texts(records)
+                embedded += len(records)
+                records = []
+
+        if records:
+            self.vector_index.add_texts(records)
+            embedded += len(records)
+
+        if embedded:
+            self.vector_index.save(self.config.vector_path)
+        return embedded
 
     def _remove_entry(self, entry: Dict[str, object]) -> None:
         node_ids = entry.get("nodes", [])
@@ -455,6 +498,16 @@ def _scan_security_tags(text: str) -> List[str]:
         if any(pattern in lowered for pattern in patterns):
             tags.append(tag)
     return tags
+
+
+def _write_progress(path: Path, stage: str, file_path: str) -> None:
+    payload = {
+        "stage": stage,
+        "file": file_path,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
 
 
 def _source_type_for_path(relative_path: str, suffix: str) -> str:

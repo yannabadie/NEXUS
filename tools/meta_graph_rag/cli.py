@@ -30,6 +30,9 @@ def main() -> int:
     report_parser = subparsers.add_parser("report", help="Generate analysis reports")
     report_parser.add_argument("--entrypoints", help="Comma-separated entrypoint paths")
 
+    embed_parser = subparsers.add_parser("embed", help="Embed missing chunks")
+    embed_parser.add_argument("--limit", type=int, help="Limit number of chunks to embed")
+
     research_parser = subparsers.add_parser("research", help="Fetch web sources")
     research_parser.add_argument("--url", action="append", help="Specific URL to fetch")
 
@@ -85,6 +88,11 @@ def main() -> int:
             print(f"- {chunk.path}:{chunk.start_line}-{chunk.end_line} {chunk.kind} {tags}")
         if result.expanded_chunks:
             print(f"Expanded results: {len(result.expanded_chunks)}")
+        return 0
+
+    if args.command == "embed":
+        embedded = indexer.embed_missing(limit=args.limit)
+        print(f"Embedded {embedded} chunks")
         return 0
 
     if args.command == "report":
