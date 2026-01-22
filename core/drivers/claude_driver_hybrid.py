@@ -183,7 +183,8 @@ class ClaudeDriverHybrid:
         # - Notebooks: NotebookEdit
         # NOTE: AskUserQuestion excluded - NEXUS has its own user interaction layer
         allowed_tools = "Read,Write,Edit,Bash,Glob,Grep,WebFetch,WebSearch,TodoWrite,Task,NotebookEdit"
-        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --allowed-tools "{allowed_tools}"'
+        # Add --no-session-persistence to force CLI termination after response (Windows subprocess hang fix)
+        command = f'"{self.cli_path}" -p @"{context_file}" --dangerously-skip-permissions --no-session-persistence --allowed-tools "{allowed_tools}"'
 
         try:
             # Use Popen with polling loop to allow CTRL+C interruption
