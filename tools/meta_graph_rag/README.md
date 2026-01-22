@@ -59,7 +59,7 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_RESEARCH_QUERIES` = comma-separated research queries
 - `META_RAG_PERSIST_EVERY` = checkpoint index every N files
 - `META_RAG_SOURCE_WEIGHTS` = comma-separated weights (e.g. code:1.0,doc:0.6,test:0.9)
-- `META_RAG_SSL_MODE` = strict | insecure (default strict)
+- `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
 
@@ -67,3 +67,4 @@ Set with `META_RAG_EMBEDDINGS`.
 - Content is normalized to ASCII for storage consistency.
 - Security tags are heuristic and require manual validation.
 - On Windows, a CA bundle is auto-exported to `workspace/meta_rag/corp_ca_bundle.pem` if none is provided.
+- Set `META_RAG_SSL_MODE=auto` to retry with relaxed TLS if strict verification fails.

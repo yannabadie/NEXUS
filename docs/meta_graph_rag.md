@@ -58,13 +58,14 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_RESEARCH_QUERIES` = comma-separated research queries
 - `META_RAG_PERSIST_EVERY` = checkpoint index every N files
 - `META_RAG_SOURCE_WEIGHTS` = comma-separated weights (e.g. code:1.0,doc:0.6,test:0.9)
-- `META_RAG_SSL_MODE` = strict | insecure (default strict)
+- `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
 
 ## SSL in Enterprise Networks
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.
 - Use `META_RAG_CA_REFRESH=true` to regenerate the bundle when corporate roots change.
+- If TLS errors persist, set `META_RAG_SSL_MODE=auto` to retry once with relaxed verification.
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.

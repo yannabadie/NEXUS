@@ -84,4 +84,10 @@ def urlopen(
 ):
     config = http_config or HttpConfig.from_env()
     context = build_ssl_context(config)
-    return urllib.request.urlopen(request_or_url, timeout=timeout, context=context)
+    try:
+        return urllib.request.urlopen(request_or_url, timeout=timeout, context=context)
+    except ssl.SSLError:
+        if config.ssl_mode in {"auto", "enterprise"}:
+            fallback = HttpConfig(ssl_mode="insecure", ca_bundle_path=None)
+            return urllib.request.urlopen(request_or_url, timeout=timeout, context=build_ssl_context(fallback))
+        raise
