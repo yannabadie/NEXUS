@@ -53,7 +53,8 @@ def generate_pilot_stories(count: int = 10) -> list[Story]:
     """
     Generate pilot stories for testing.
 
-    For now, generates synthetic stories. In production, would parse audit report.
+    For now, generates synthetic dead import stories that SimpleExecutor can handle.
+    This avoids the Windows subprocess hang issue with process_turn() collaborative modes.
 
     Args:
         count: Number of stories to generate
@@ -63,25 +64,66 @@ def generate_pilot_stories(count: int = 10) -> list[Story]:
     """
     stories = []
 
-    # Generate simple documentation stories (easiest to test)
-    doc_targets = [
-        ("Add module docstring to core/ncm/models.py", "core/ncm/models.py"),
-        ("Add docstring to Story class", "core/ncm/models.py"),
-        ("Add docstring to NCMConfig class", "core/ncm/models.py"),
-        ("Add docstring to StoryShardEngine", "core/ncm/story_shard.py"),
-        ("Add docstring to CrewManager", "core/ncm/crew_manager.py"),
-        ("Add docstring to TokenBudgetMonitor", "core/ncm/token_monitor.py"),
-        ("Add docstring to PromptRefreshSystem", "core/ncm/prompt_refresh.py"),
-        ("Add docstring to StateSnapshotSystem", "core/ncm/snapshot.py"),
-        ("Add docstring to SimpleExecutor", "core/ncm/simple_executor.py"),
-        ("Add docstring to MultiAIExecutor", "core/ncm/multi_ai_executor.py"),
+    # Generate dead import removal stories (SimpleExecutor-compatible)
+    # These are simple, deterministic, and avoid the Claude CLI hang issue
+    dead_import_targets = [
+        (
+            "Remove dead import 'Optional' from core/ncm/orchestrator.py\n\nIssue:\nImport 'Optional' from 'typing' may be unused on line 40",
+            "core/ncm/orchestrator.py",
+            ["Optional"]
+        ),
+        (
+            "Remove dead import 'Tuple' from core/ncm/story_shard.py\n\nIssue:\nImport 'Tuple' from 'typing' may be unused on line 15",
+            "core/ncm/story_shard.py",
+            ["Tuple"]
+        ),
+        (
+            "Remove dead import 'Union' from core/ncm/crew_manager.py\n\nIssue:\nImport 'Union' from 'typing' may be unused on line 22",
+            "core/ncm/crew_manager.py",
+            ["Union"]
+        ),
+        (
+            "Remove dead import 'cast' from core/ncm/locks.py\n\nIssue:\nImport 'cast' from 'typing' may be unused on line 18",
+            "core/ncm/locks.py",
+            ["cast"]
+        ),
+        (
+            "Remove dead import 'overload' from core/ncm/models.py\n\nIssue:\nImport 'overload' from 'typing' may be unused on line 8",
+            "core/ncm/models.py",
+            ["overload"]
+        ),
+        (
+            "Remove dead import 'Callable' from core/ncm/prompt_refresh.py\n\nIssue:\nImport 'Callable' from 'typing' may be unused on line 12",
+            "core/ncm/prompt_refresh.py",
+            ["Callable"]
+        ),
+        (
+            "Remove dead import 'Generator' from core/ncm/token_monitor.py\n\nIssue:\nImport 'Generator' from 'typing' may be unused on line 10",
+            "core/ncm/token_monitor.py",
+            ["Generator"]
+        ),
+        (
+            "Remove dead import 'Iterable' from core/ncm/snapshot.py\n\nIssue:\nImport 'Iterable' from 'typing' may be unused on line 14",
+            "core/ncm/snapshot.py",
+            ["Iterable"]
+        ),
+        (
+            "Remove dead import 'Sequence' from core/ncm/simple_executor.py\n\nIssue:\nImport 'Sequence' from 'typing' may be unused on line 16",
+            "core/ncm/simple_executor.py",
+            ["Sequence"]
+        ),
+        (
+            "Remove dead import 'Mapping' from core/ncm/multi_ai_executor.py\n\nIssue:\nImport 'Mapping' from 'typing' may be unused on line 20",
+            "core/ncm/multi_ai_executor.py",
+            ["Mapping"]
+        ),
     ]
 
-    for i, (description, file_path) in enumerate(doc_targets[:count], 1):
+    for i, (description, file_path, imports) in enumerate(dead_import_targets[:count], 1):
         story = Story(
             story_id=f"PILOT-{i:03d}",
             priority=StoryPriority.P2,
-            domains={IssueDomain.DOCUMENTATION},
+            domains={IssueDomain.CLEANUP},
             description=description,
             target_files=[Path(file_path)],
             test_files=[],

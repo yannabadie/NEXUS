@@ -462,22 +462,29 @@ class NCMOrchestrator:
             True if SimpleExecutor can handle this story
 
         Criteria for simple execution:
-            - Single target file only
-            - Dead import removal
-            - Priority P2 (low risk)
+            - Priority P2 (low risk) - ALL P2 stories
+            - Avoids process_turn() hang issue with collaborative modes
+
+        Note: For NCM pilot, we use SimpleExecutor for ALL P2 stories to avoid
+              the Windows subprocess hang issue where Claude CLI waits for Gemini
+              in collaborative modes but the FSM cycle doesn't complete cleanly.
         """
-        # Must be single file
-        if len(story.target_files) != 1:
-            return False
+        # For pilot: ALL P2 stories use SimpleExecutor
+        # This avoids the collaborative mode hang issue
+        if story.priority == StoryPriority.P2:
+            # For now, only handle simple patterns
+            # TODO: Expand SimpleExecutor for more patterns
+            desc_lower = story.description.lower()
+            supported_patterns = [
+                "dead import",
+                "unused import",
+                "docstring",
+                "add missing doc",
+                "type hint",
+                "deprecation"
+            ]
 
-        # Must be P2 (low risk)
-        if story.priority != StoryPriority.P2:
-            return False
-
-        # Check description for simple patterns
-        desc_lower = story.description.lower()
-        if "dead import" in desc_lower or "unused import" in desc_lower:
-            return True
+            return any(pattern in desc_lower for pattern in supported_patterns)
 
         return False
 
