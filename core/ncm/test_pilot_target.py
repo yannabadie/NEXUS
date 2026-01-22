@@ -4,9 +4,7 @@ Test file for NCM Pilot - contains intentional dead imports for testing.
 This file exists solely to validate NCM pilot execution with SimpleExecutor.
 """
 
-from typing import Optional, Dict, List, Set, Tuple, Union, cast
 from pathlib import Path
-import sys
 
 
 def hello_world():

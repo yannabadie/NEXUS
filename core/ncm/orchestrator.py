@@ -499,31 +499,94 @@ class NCMOrchestrator:
             (success: bool, error_message: Optional[str])
 
         Process:
-            1. Extract import names from story description
-            2. Remove imports using SimpleExecutor
+            1. Detect story type (dead import, docstring, type hint, deprecation)
+            2. Dispatch to appropriate SimpleExecutor method
             3. Validate syntax
             4. Run tests
 
         Note: This bypasses OrchestratorV7 entirely for speed.
         """
-        # Extract import names from description
-        import_names = []
-        for line in story.description.split('\n'):
-            if "Import '" in line and "may be unused" in line:
-                parts = line.split("'")
-                if len(parts) >= 2:
-                    import_names.append(parts[1])
-
-        if not import_names:
-            return False, "Could not extract import names from description"
-
+        desc_lower = story.description.lower()
         target_file = story.target_files[0]
+        success = False
+        error = None
 
-        # Execute dead import removal
-        success, error = await self.simple_executor.execute_dead_import_removal(
-            target_file,
-            import_names
-        )
+        # Dispatch based on story type
+        if "dead import" in desc_lower or "unused import" in desc_lower:
+            # Extract import names from description
+            import_names = []
+            for line in story.description.split('\n'):
+                if "Import '" in line and "may be unused" in line:
+                    parts = line.split("'")
+                    if len(parts) >= 2:
+                        import_names.append(parts[1])
+
+            if not import_names:
+                return False, "Could not extract import names from description"
+
+            success, error = await self.simple_executor.execute_dead_import_removal(
+                target_file,
+                import_names
+            )
+
+        elif "docstring" in desc_lower or "add missing doc" in desc_lower:
+            # Extract target function/class name
+            # Pattern: "Add docstring to function 'function_name'"
+            import re
+            match = re.search(r"(function|class)\s+'([^']+)'", story.description)
+            if not match:
+                return False, "Could not extract target name from description"
+
+            target_type = match.group(1)  # "function" or "class"
+            target_name = match.group(2)
+
+            success, error = await self.simple_executor.execute_docstring_addition(
+                target_file,
+                target_name,
+                target_type
+            )
+
+        elif "type hint" in desc_lower:
+            # Extract function name, parameter, and type hint
+            # Pattern: "Add type hint 'str' to parameter 'param_name' in function 'function_name'"
+            import re
+            match = re.search(
+                r"type hint\s+'([^']+)'\s+to parameter\s+'([^']+)'\s+in function\s+'([^']+)'",
+                story.description
+            )
+            if not match:
+                return False, "Could not extract type hint info from description"
+
+            type_hint = match.group(1)
+            param_name = match.group(2)
+            function_name = match.group(3)
+
+            success, error = await self.simple_executor.execute_type_hint_addition(
+                target_file,
+                function_name,
+                param_name,
+                type_hint
+            )
+
+        elif "deprecation" in desc_lower:
+            # Extract deprecated pattern and replacement
+            # Pattern: "Fix deprecation: replace 'old_pattern' with 'new_pattern'"
+            import re
+            match = re.search(r"replace\s+'([^']+)'\s+with\s+'([^']+)'", story.description)
+            if not match:
+                return False, "Could not extract deprecation info from description"
+
+            deprecated_pattern = match.group(1)
+            replacement = match.group(2)
+
+            success, error = await self.simple_executor.execute_deprecation_fix(
+                target_file,
+                deprecated_pattern,
+                replacement
+            )
+
+        else:
+            return False, f"Unknown story type: {story.description[:100]}"
 
         if not success:
             return False, error

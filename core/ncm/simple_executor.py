@@ -21,14 +21,16 @@ class SimpleExecutor:
     Direct executor for simple NCM stories.
 
     Handles:
-    - Dead import removal
-    - Simple docstring additions
-    - Dead code removal (with caution)
+    - Dead import removal (execute_dead_import_removal)
+    - Docstring additions (execute_docstring_addition)
+    - Type hint additions (execute_type_hint_addition)
+    - Deprecation fixes (execute_deprecation_fix)
 
     Does NOT handle:
-    - Complex refactoring
-    - Security fixes
-    - Multi-file changes
+    - Complex refactoring (use process_turn)
+    - Security fixes (use process_turn)
+    - Multi-file changes (use process_turn)
+    - God class refactoring (use process_turn)
     """
 
     def __init__(self):
@@ -163,6 +165,263 @@ class SimpleExecutor:
             return ""  # Remove entire line (will be caught by parent)
 
         return line
+
+    async def execute_docstring_addition(
+        self,
+        file_path: Path,
+        target_name: str,
+        target_type: str = "function"
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Add missing docstring to a function or class.
+
+        Args:
+            file_path: File to modify
+            target_name: Name of function/class to add docstring to
+            target_type: "function" or "class"
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+
+        Process:
+            1. Read file content
+            2. Parse AST to find target function/class
+            3. Check if docstring already exists
+            4. Add basic docstring template
+            5. Write back to file
+        """
+        self.logger.info("simple_executor_docstring_start", {
+            "file": str(file_path),
+            "target": target_name,
+            "type": target_type
+        })
+
+        try:
+            # 1. Read file
+            if not file_path.exists():
+                return False, f"File not found: {file_path}"
+
+            content = file_path.read_text(encoding="utf-8")
+            lines = content.split('\n')
+
+            # 2. Find target definition
+            target_line_idx = None
+            indent_level = 0
+
+            if target_type == "function":
+                pattern = rf'^\s*def {re.escape(target_name)}\('
+            else:  # class
+                pattern = rf'^\s*class {re.escape(target_name)}[:\(]'
+
+            for idx, line in enumerate(lines):
+                if re.match(pattern, line):
+                    target_line_idx = idx
+                    # Calculate indentation
+                    indent_level = len(line) - len(line.lstrip())
+                    break
+
+            if target_line_idx is None:
+                return False, f"{target_type.capitalize()} '{target_name}' not found"
+
+            # 3. Check if docstring already exists
+            next_line_idx = target_line_idx + 1
+            if next_line_idx < len(lines):
+                next_line = lines[next_line_idx].strip()
+                if next_line.startswith('"""') or next_line.startswith("'''"):
+                    return False, f"Docstring already exists for {target_name}"
+
+            # 4. Generate docstring template
+            indent = ' ' * (indent_level + 4)  # +4 for inside function/class
+            if target_type == "function":
+                docstring = f'{indent}"""TODO: Add function description."""'
+            else:
+                docstring = f'{indent}"""TODO: Add class description."""'
+
+            # 5. Insert docstring
+            lines.insert(next_line_idx, docstring)
+            new_content = '\n'.join(lines)
+
+            # 6. Validate syntax
+            try:
+                ast.parse(new_content)
+            except SyntaxError as e:
+                return False, f"Syntax error after adding docstring: {e}"
+
+            # 7. Write back
+            file_path.write_text(new_content, encoding="utf-8")
+
+            self.logger.info("simple_executor_docstring_success", {
+                "file": str(file_path),
+                "target": target_name
+            })
+
+            return True, None
+
+        except Exception as e:
+            self.logger.error("simple_executor_docstring_failed", {
+                "file": str(file_path),
+                "error": str(e)
+            })
+            return False, str(e)
+
+    async def execute_type_hint_addition(
+        self,
+        file_path: Path,
+        target_name: str,
+        param_name: str,
+        type_hint: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Add type hint to a function parameter.
+
+        Args:
+            file_path: File to modify
+            target_name: Name of function
+            param_name: Parameter name to add type hint to
+            type_hint: Type hint to add (e.g., "str", "int", "Optional[str]")
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+
+        Process:
+            1. Read file content
+            2. Find target function signature
+            3. Add type hint to parameter
+            4. Validate syntax
+            5. Write back to file
+        """
+        self.logger.info("simple_executor_type_hint_start", {
+            "file": str(file_path),
+            "target": target_name,
+            "param": param_name,
+            "hint": type_hint
+        })
+
+        try:
+            # 1. Read file
+            if not file_path.exists():
+                return False, f"File not found: {file_path}"
+
+            content = file_path.read_text(encoding="utf-8")
+
+            # 2. Find and modify function signature
+            # Pattern: def function_name(...param_name...)
+            pattern = rf'(def {re.escape(target_name)}\([^)]*\b{re.escape(param_name)}\b)'
+
+            # Check if type hint already exists
+            existing_pattern = rf'{re.escape(param_name)}:\s*\w+'
+            if re.search(existing_pattern, content):
+                return False, f"Type hint already exists for parameter '{param_name}'"
+
+            # Add type hint
+            replacement = rf'\1: {type_hint}'
+            new_content = re.sub(
+                rf'(\bdef {re.escape(target_name)}\([^)]*)\b({re.escape(param_name)})\b',
+                rf'\1\2: {type_hint}',
+                content,
+                count=1
+            )
+
+            if new_content == content:
+                return False, f"Could not find parameter '{param_name}' in function '{target_name}'"
+
+            # 3. Validate syntax
+            try:
+                ast.parse(new_content)
+            except SyntaxError as e:
+                return False, f"Syntax error after adding type hint: {e}"
+
+            # 4. Write back
+            file_path.write_text(new_content, encoding="utf-8")
+
+            self.logger.info("simple_executor_type_hint_success", {
+                "file": str(file_path),
+                "target": target_name,
+                "param": param_name
+            })
+
+            return True, None
+
+        except Exception as e:
+            self.logger.error("simple_executor_type_hint_failed", {
+                "file": str(file_path),
+                "error": str(e)
+            })
+            return False, str(e)
+
+    async def execute_deprecation_fix(
+        self,
+        file_path: Path,
+        deprecated_pattern: str,
+        replacement: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Fix deprecation warnings by replacing old patterns with new ones.
+
+        Args:
+            file_path: File to modify
+            deprecated_pattern: Deprecated code pattern (regex)
+            replacement: Replacement code
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+
+        Common fixes:
+            - datetime.utcnow() -> datetime.now(timezone.utc)
+            - LanceDB v0.13 -> v0.16 API changes
+            - Enum _generate_next_value_ signature changes
+
+        Process:
+            1. Read file content
+            2. Search for deprecated pattern
+            3. Replace with new pattern
+            4. Validate syntax
+            5. Write back to file
+        """
+        self.logger.info("simple_executor_deprecation_start", {
+            "file": str(file_path),
+            "pattern": deprecated_pattern
+        })
+
+        try:
+            # 1. Read file
+            if not file_path.exists():
+                return False, f"File not found: {file_path}"
+
+            content = file_path.read_text(encoding="utf-8")
+
+            # 2. Check if pattern exists
+            if not re.search(deprecated_pattern, content):
+                return False, f"Deprecated pattern not found: {deprecated_pattern}"
+
+            # 3. Replace pattern
+            new_content = re.sub(deprecated_pattern, replacement, content)
+
+            if new_content == content:
+                return False, "No changes made (pattern not matched)"
+
+            # 4. Validate syntax
+            try:
+                ast.parse(new_content)
+            except SyntaxError as e:
+                return False, f"Syntax error after deprecation fix: {e}"
+
+            # 5. Write back
+            file_path.write_text(new_content, encoding="utf-8")
+
+            self.logger.info("simple_executor_deprecation_success", {
+                "file": str(file_path),
+                "replacements": new_content.count(replacement)
+            })
+
+            return True, None
+
+        except Exception as e:
+            self.logger.error("simple_executor_deprecation_failed", {
+                "file": str(file_path),
+                "error": str(e)
+            })
+            return False, str(e)
 
     async def run_tests(self, test_files: List[Path]) -> Tuple[bool, Optional[str]]:
         """

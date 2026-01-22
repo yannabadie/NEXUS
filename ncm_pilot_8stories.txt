@@ -1,0 +1,2 @@
+/ncm pilot --count=8
+exit
