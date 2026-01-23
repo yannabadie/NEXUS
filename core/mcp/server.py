@@ -949,6 +949,13 @@ def main():
             "MCP SDK not installed. Install with: pip install mcp"
         )
 
+    if os.name == "nt":
+        try:
+            import asyncio
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except Exception as exc:
+            logger.debug("MCP stdio event loop policy setup failed: %s", exc)
+
     logger.info("Starting NEXUS MCP Server...")
     logger.info(
         "Tools: nexus_read, nexus_glob, nexus_grep, nexus_analyze, nexus_status, "
