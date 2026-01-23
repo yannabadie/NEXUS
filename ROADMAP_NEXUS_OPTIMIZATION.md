@@ -23,7 +23,7 @@ Docs are treated as secondary. Code and tests are the source of truth.
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
 
-1) Expand SimpleExecutor coverage
+1) Expand SimpleExecutor coverage (done 2026-01-23)
 - core/ncm/orchestrator.py:476
 - Add patterns beyond P2 and route to OrchestratorV7 for P1/P0 stories.
 - Impact: core/interface/commands/ncm.py and tests/ncm/*.

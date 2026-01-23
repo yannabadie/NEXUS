@@ -42,6 +42,7 @@ from datetime import datetime
 import asyncio
 import time
 import json
+import re
 
 from core.ncm.models import (
     Story,
@@ -113,6 +114,7 @@ class NCMOrchestrator:
         self.workspace_path = workspace_path
         self.config = config
         self.logger = get_logger()
+        self.repo_root = self._detect_repo_root(workspace_path)
 
         # NCM workspace paths
         self.ncm_workspace = workspace_path / "ncm"
@@ -161,6 +163,20 @@ class NCMOrchestrator:
             "refresh_interval": config.refresh_interval,
             "use_simple_executor": self.use_simple_executor
         })
+
+    def _detect_repo_root(self, workspace_path: Path) -> Path:
+        """
+        Resolve repository root for relative path normalization.
+        """
+        candidates = [
+            workspace_path,
+            workspace_path.parent,
+            workspace_path.parent.parent,
+        ]
+        for candidate in candidates:
+            if (candidate / "core").exists():
+                return candidate
+        return workspace_path
 
     async def load_story_queue(
         self,
@@ -481,12 +497,92 @@ class NCMOrchestrator:
                 "docstring",
                 "add missing doc",
                 "type hint",
-                "deprecation"
+                "deprecation",
+                "deprecated"
             ]
 
-            return any(pattern in desc_lower for pattern in supported_patterns)
+            if not any(pattern in desc_lower for pattern in supported_patterns):
+                return False
+
+            target_files = self._get_existing_target_files(story)
+            if len(target_files) != 1:
+                return False
+
+            return True
 
         return False
+
+    def _get_story_target_files(self, story: Story) -> List[Path]:
+        """
+        Resolve target files from story or infer from description.
+        """
+        if story.target_files:
+            return self._dedupe_paths(story.target_files)
+
+        inferred = self._infer_target_files_from_description(story.description)
+        if inferred:
+            story.target_files = self._dedupe_paths(inferred)
+
+        return story.target_files
+
+    def _get_existing_target_files(self, story: Story) -> List[Path]:
+        """
+        Resolve story target files to existing paths on disk.
+        """
+        targets = self._get_story_target_files(story)
+        resolved = []
+        for path in targets:
+            resolved_path = self._resolve_existing_path(path)
+            if resolved_path:
+                resolved.append(resolved_path)
+        return self._dedupe_paths(resolved)
+
+    def _infer_target_files_from_description(self, description: str) -> List[Path]:
+        """
+        Infer target files from a story description.
+        """
+        pattern = re.compile(
+            r"(?i)\b(?:in|from|at)\s+"
+            r"([A-Za-z]:\\[^\s:]+?\.[A-Za-z0-9_]+|"
+            r"[\w./\\-]+\.[A-Za-z0-9_]+)"
+        )
+        matches = pattern.findall(description)
+        paths = []
+        for match in matches:
+            cleaned = match.rstrip(").,;")
+            paths.append(Path(cleaned))
+        return paths
+
+    def _resolve_existing_path(self, path: Path) -> Optional[Path]:
+        """
+        Resolve a path to an existing file if possible.
+        """
+        if path.is_absolute():
+            return path if path.exists() else None
+
+        candidates = [
+            path,
+            self.repo_root / path,
+            self.workspace_path / path,
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _dedupe_paths(self, paths: List[Path]) -> List[Path]:
+        """
+        Deduplicate paths while preserving order.
+        """
+        seen = set()
+        deduped = []
+        for path in paths:
+            key = str(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(path)
+        return deduped
 
     async def _execute_story_simple(self, story: Story) -> tuple[bool, Optional[str]]:
         """
@@ -502,12 +598,18 @@ class NCMOrchestrator:
             1. Detect story type (dead import, docstring, type hint, deprecation)
             2. Dispatch to appropriate SimpleExecutor method
             3. Validate syntax
-            4. Run tests
+        4. Run tests
 
         Note: This bypasses OrchestratorV7 entirely for speed.
         """
         desc_lower = story.description.lower()
-        target_file = story.target_files[0]
+        target_files = self._get_existing_target_files(story)
+        if not target_files:
+            return False, "No resolvable target file for SimpleExecutor"
+        if len(target_files) > 1:
+            return False, "SimpleExecutor only supports single-file stories"
+
+        target_file = target_files[0]
         success = False
         error = None
 
@@ -522,6 +624,15 @@ class NCMOrchestrator:
                         import_names.append(parts[1])
 
             if not import_names:
+                match = re.search(
+                    r"remove\s+(?:dead|unused)\s+import\s+'([^']+)'",
+                    story.description,
+                    flags=re.IGNORECASE
+                )
+                if match:
+                    import_names.append(match.group(1))
+
+            if not import_names:
                 return False, "Could not extract import names from description"
 
             success, error = await self.simple_executor.execute_dead_import_removal(
@@ -532,8 +643,13 @@ class NCMOrchestrator:
         elif "docstring" in desc_lower or "add missing doc" in desc_lower:
             # Extract target function/class name
             # Pattern: "Add docstring to function 'function_name'"
-            import re
             match = re.search(r"(function|class)\s+'([^']+)'", story.description)
+            if not match:
+                match = re.search(
+                    r"docstring\s+to\s+(function|class)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                    story.description,
+                    flags=re.IGNORECASE
+                )
             if not match:
                 return False, "Could not extract target name from description"
 
@@ -549,11 +665,17 @@ class NCMOrchestrator:
         elif "type hint" in desc_lower:
             # Extract function name, parameter, and type hint
             # Pattern: "Add type hint 'str' to parameter 'param_name' in function 'function_name'"
-            import re
             match = re.search(
                 r"type hint\s+'([^']+)'\s+to parameter\s+'([^']+)'\s+in function\s+'([^']+)'",
                 story.description
             )
+            if not match:
+                match = re.search(
+                    r"type hint\s+'([^']+)'\s+to parameter\s+([A-Za-z_][A-Za-z0-9_]*)\s+"
+                    r"in function\s+([A-Za-z_][A-Za-z0-9_]*)",
+                    story.description,
+                    flags=re.IGNORECASE
+                )
             if not match:
                 return False, "Could not extract type hint info from description"
 
@@ -571,8 +693,12 @@ class NCMOrchestrator:
         elif "deprecation" in desc_lower:
             # Extract deprecated pattern and replacement
             # Pattern: "Fix deprecation: replace 'old_pattern' with 'new_pattern'"
-            import re
             match = re.search(r"replace\s+'([^']+)'\s+with\s+'([^']+)'", story.description)
+            if not match:
+                match = re.search(
+                    r"([A-Za-z0-9_().]+)\s*->\s*([A-Za-z0-9_().]+)",
+                    story.description
+                )
             if not match:
                 return False, "Could not extract deprecation info from description"
 
@@ -626,7 +752,9 @@ class NCMOrchestrator:
         first_line = story.description.split('\n')[0]
 
         # Add target file explicitly (in case it's not clear)
-        target_files_str = ", ".join([f.name for f in story.target_files])
+        target_files = self._get_story_target_files(story)
+        target_files_str = ", ".join([f.name for f in target_files])
+        target_file = target_files[0] if target_files else None
 
         # Build simplified instruction based on category pattern
         if "dead import" in first_line.lower() or "unused import" in first_line.lower():
@@ -641,25 +769,38 @@ class NCMOrchestrator:
 
             if import_names:
                 imports_str = ", ".join([f"'{name}'" for name in import_names])
-                return f"Remove unused imports from {story.target_files[0]}: {imports_str}"
-            else:
-                return f"Remove unused imports from {story.target_files[0]}"
+                if target_file:
+                    return f"Remove unused imports from {target_file}: {imports_str}"
+                return f"Remove unused imports: {imports_str}"
+            if target_file:
+                return f"Remove unused imports from {target_file}"
+            return "Remove unused imports"
 
         elif "type hint" in first_line.lower() or "type error" in first_line.lower():
-            return f"Add missing type hints to {story.target_files[0]}"
+            if target_file:
+                return f"Add missing type hints to {target_file}"
+            return "Add missing type hints"
 
         elif "docstring" in first_line.lower() or "missing doc" in first_line.lower():
-            return f"Add missing docstrings to {story.target_files[0]}"
+            if target_file:
+                return f"Add missing docstrings to {target_file}"
+            return "Add missing docstrings"
 
         elif "dead code" in first_line.lower() or "unused" in first_line.lower():
-            return f"Remove unused code from {story.target_files[0]}"
+            if target_file:
+                return f"Remove unused code from {target_file}"
+            return "Remove unused code"
 
         elif "deprecation" in first_line.lower() or "deprecated" in first_line.lower():
-            return f"Fix deprecation warnings in {story.target_files[0]}"
+            if target_file:
+                return f"Fix deprecation warnings in {target_file}"
+            return "Fix deprecation warnings"
 
         else:
             # Fallback: Use first line + target file
-            return f"{first_line} (target: {target_files_str})"
+            if target_files_str:
+                return f"{first_line} (target: {target_files_str})"
+            return first_line
 
     async def _validate_story_result(self, story: Story) -> ValidationResult:
         """
