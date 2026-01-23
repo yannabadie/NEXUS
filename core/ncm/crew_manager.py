@@ -37,6 +37,7 @@ from core.ncm.models import (
     SwarmMode,
 )
 from core.logging import get_logger
+from core.utils.atomic_store import AtomicJsonStore
 
 
 class CrewManager:
@@ -93,6 +94,11 @@ class CrewManager:
         self.agents_per_story = self.config.get("agents_per_story", 2)
         self.min_skill_overlap = self.config.get("min_skill_overlap", 0.5)
 
+        # Assignment persistence
+        self.assignments_path = self.workspace_path / ".nexus" / "ncm_assignments.json"
+        self._assignment_store = AtomicJsonStore(self.assignments_path)
+        self.assignments: Dict[str, CrewAssignment] = {}
+
         # Skill matrix (agent_id → expertise domains)
         self.skill_matrix: Dict[str, AgentSkill] = {}
 
@@ -104,12 +110,63 @@ class CrewManager:
 
         # Build skill matrix
         self._build_skill_matrix()
+        self._load_assignments()
 
         self.logger.info("crew_manager_initialized", {
             "workspace": str(workspace_path),
             "agents_per_story": self.agents_per_story,
             "agents_available": len(self.skill_matrix)
         })
+
+    def _serialize_assignment(self, assignment: CrewAssignment) -> Dict[str, Any]:
+        """Serialize a CrewAssignment for persistence."""
+        return {
+            "story_id": assignment.story_id,
+            "agent_ids": assignment.agent_ids,
+            "swarm_mode": assignment.swarm_mode.value,
+            "assigned_at": assignment.assigned_at.isoformat(),
+            "lead_agent_id": assignment.lead_agent_id,
+            "role_assignments": assignment.role_assignments,
+        }
+
+    def _deserialize_assignment(self, payload: Dict[str, Any]) -> Optional[CrewAssignment]:
+        """Deserialize a CrewAssignment from persisted data."""
+        try:
+            assigned_at = datetime.fromisoformat(payload["assigned_at"]) if payload.get("assigned_at") else datetime.now()
+            swarm_mode = SwarmMode(payload["swarm_mode"])
+            assignment = CrewAssignment(
+                story_id=payload["story_id"],
+                agent_ids=payload.get("agent_ids", []),
+                swarm_mode=swarm_mode,
+                assigned_at=assigned_at,
+                lead_agent_id=payload.get("lead_agent_id"),
+                role_assignments=payload.get("role_assignments", {})
+            )
+            return assignment
+        except Exception as e:
+            self.logger.warning("crew_assignment_deserialize_failed", {
+                "error": str(e),
+                "payload": payload
+            })
+            return None
+
+    def _load_assignments(self) -> None:
+        """Load persisted assignments from disk."""
+        data = self._assignment_store.load_safe(default={})
+        assignments = {}
+        for story_id, payload in data.items():
+            assignment = self._deserialize_assignment(payload)
+            if assignment:
+                assignments[story_id] = assignment
+        self.assignments = assignments
+
+    def _save_assignments(self) -> None:
+        """Persist current assignments to disk."""
+        data = {
+            story_id: self._serialize_assignment(assignment)
+            for story_id, assignment in self.assignments.items()
+        }
+        self._assignment_store.save(data)
 
     def _build_skill_matrix(self):
         """
@@ -347,6 +404,9 @@ class CrewManager:
             assigned_at=datetime.now()
         )
 
+        self.assignments[story.story_id] = assignment
+        self._save_assignments()
+
         # 7. Update workload tracking
         for agent_id in selected_agents:
             self.workload[agent_id] = self.workload.get(agent_id, 0) + 1
@@ -453,11 +513,20 @@ class CrewManager:
         Returns:
             CrewAssignment if found, None otherwise
 
-        NOTE: For Phase 0, assignments are stored in memory.
-              Phase 0.3 will implement persistent storage.
+        NOTE: For Phase 0, assignments are stored in memory and persisted.
         """
-        # TODO: Implement persistent assignment storage
-        return None
+        if story_id not in self.assignments:
+            self._load_assignments()
+        return self.assignments.get(story_id)
+
+    def get_assignments_snapshot(self) -> Dict[str, Any]:
+        """
+        Return a serializable snapshot of current assignments.
+        """
+        return {
+            story_id: self._serialize_assignment(assignment)
+            for story_id, assignment in self.assignments.items()
+        }
 
     def get_workload_status(self) -> Dict[str, Any]:
         """

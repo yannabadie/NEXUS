@@ -43,6 +43,7 @@ import asyncio
 import time
 import json
 import re
+import importlib.util
 
 from core.ncm.models import (
     Story,
@@ -837,10 +838,16 @@ class NCMOrchestrator:
             result.syntax_valid = await self._check_syntax(story.target_files)
 
             # Phase 2: Import check
-            result.imports_valid = await self._check_imports(story.target_files)
+            result.imports_valid, import_errors = await self._check_imports(story.target_files)
+            if import_errors:
+                result.errors.extend(import_errors)
 
-            # Phase 3: Type check (TODO: Phase 0.3)
-            result.types_valid = True  # Stub for now
+            # Phase 3: Type check (Phase 0.2)
+            result.types_valid, type_errors, type_warnings = await self._check_types(story.target_files)
+            if type_errors:
+                result.errors.extend(type_errors)
+            if type_warnings:
+                result.warnings.extend(type_warnings)
 
             # Phase 4: Tests (Phase 2A - Real implementation)
             result.tests_passed = await self._run_tests(story.test_files)
@@ -900,7 +907,7 @@ class NCMOrchestrator:
 
         return True
 
-    async def _check_imports(self, files: List[Path]) -> bool:
+    async def _check_imports(self, files: List[Path]) -> tuple[bool, List[str]]:
         """
         Check for circular imports.
 
@@ -913,9 +920,203 @@ class NCMOrchestrator:
         NOTE: Basic implementation for Phase 0.
               Full circular import detection will be added in Phase 0.3.
         """
-        # TODO: Implement circular import detection
-        # For now, just check that imports don't fail
-        return True
+        import ast
+
+        resolved_files = []
+        for file_path in files:
+            resolved = self._resolve_existing_path(file_path)
+            if resolved and resolved.suffix == ".py":
+                resolved_files.append(resolved)
+
+        if len(resolved_files) < 2:
+            return True, []
+
+        module_map = {}
+        for file_path in resolved_files:
+            module_name = self._module_name_from_path(file_path)
+            if module_name:
+                module_map[module_name] = file_path
+
+        if len(module_map) < 2:
+            return True, []
+
+        graph: Dict[str, List[str]] = {module: [] for module in module_map}
+
+        for module_name, file_path in module_map.items():
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                tree = ast.parse(content)
+            except Exception as e:
+                self.logger.warning("ncm_import_check_parse_failed", {
+                    "file": str(file_path),
+                    "error": str(e)
+                })
+                continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        imported = alias.name
+                        if imported in module_map:
+                            graph[module_name].append(imported)
+                elif isinstance(node, ast.ImportFrom):
+                    imported = self._resolve_import_from_module(module_name, node.module, node.level)
+                    if imported and imported in module_map:
+                        graph[module_name].append(imported)
+
+        cycles = self._detect_import_cycles(graph)
+        if not cycles:
+            return True, []
+
+        errors = []
+        for cycle in cycles:
+            cycle_paths = [str(module_map.get(module, module)) for module in cycle]
+            errors.append(f"Circular import detected: {' -> '.join(cycle_paths)}")
+
+        self.logger.error("ncm_circular_imports_detected", {
+            "cycles": errors
+        })
+
+        return False, errors
+
+    def _module_name_from_path(self, file_path: Path) -> Optional[str]:
+        """
+        Convert a file path to a module name relative to repo root.
+        """
+        try:
+            relative = file_path.resolve().relative_to(self.repo_root.resolve())
+        except Exception:
+            relative = file_path
+
+        if relative.name == "__init__.py":
+            parts = relative.parts[:-1]
+        else:
+            parts = relative.with_suffix("").parts
+
+        if not parts:
+            return None
+
+        return ".".join(parts)
+
+    def _resolve_import_from_module(
+        self,
+        current_module: str,
+        imported_module: Optional[str],
+        level: int
+    ) -> Optional[str]:
+        """
+        Resolve an ast.ImportFrom module to an absolute module name.
+        """
+        if level == 0:
+            return imported_module
+
+        if not current_module:
+            return imported_module
+
+        current_parts = current_module.split(".")
+        if level > len(current_parts):
+            base_parts = []
+        else:
+            base_parts = current_parts[:-level]
+
+        if imported_module:
+            base_parts.extend(imported_module.split("."))
+
+        if not base_parts:
+            return None
+
+        return ".".join(base_parts)
+
+    def _detect_import_cycles(self, graph: Dict[str, List[str]]) -> List[List[str]]:
+        """
+        Detect cycles in an import graph.
+        """
+        cycles: List[List[str]] = []
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        stack: List[str] = []
+
+        def dfs(node: str):
+            visiting.add(node)
+            stack.append(node)
+
+            for neighbor in graph.get(node, []):
+                if neighbor in visiting:
+                    if neighbor in stack:
+                        start_index = stack.index(neighbor)
+                        cycle = stack[start_index:] + [neighbor]
+                        if cycle not in cycles:
+                            cycles.append(cycle)
+                    continue
+                if neighbor not in visited:
+                    dfs(neighbor)
+
+            visiting.remove(node)
+            stack.pop()
+            visited.add(node)
+
+        for node in graph:
+            if node not in visited:
+                dfs(node)
+
+        return cycles
+
+    async def _check_types(self, files: List[Path]) -> tuple[bool, List[str], List[str]]:
+        """
+        Run type checking on target files using mypy (strict).
+
+        Returns:
+            (types_valid, errors, warnings)
+        """
+        import subprocess
+
+        resolved_files = []
+        for file_path in files:
+            resolved = self._resolve_existing_path(file_path)
+            if resolved and resolved.suffix == ".py":
+                resolved_files.append(resolved)
+
+        if not resolved_files:
+            return True, [], []
+
+        if importlib.util.find_spec("mypy") is None:
+            message = "Type check skipped: mypy not installed"
+            self.logger.warning("ncm_type_check_skipped", {
+                "reason": message
+            })
+            if self.config.validation_mode == "strict":
+                return False, [message], []
+            return True, [], [message]
+
+        command = [
+            "python",
+            "-m",
+            "mypy",
+            "--strict",
+            "--show-error-codes",
+        ] + [str(path) for path in resolved_files]
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                cwd=str(self.repo_root)
+            )
+        except subprocess.TimeoutExpired:
+            return False, ["Type check timed out"], []
+        except Exception as e:
+            return False, [f"Type check error: {e}"], []
+
+        if result.returncode == 0:
+            return True, [], []
+
+        output = (result.stdout + "\n" + result.stderr).strip()
+        if len(output) > 2000:
+            output = output[:1500] + "\n...[truncated]...\n" + output[-400:]
+
+        return False, [f"Type check failed:\n{output}"], []
 
     async def _run_tests(self, test_files: List[Path]) -> bool:
         """
@@ -999,15 +1200,32 @@ class NCMOrchestrator:
         NOTE: For Phase 0, this is a stub.
               Full implementation will be added in Phase 0.3.
         """
+        from core.prompts import list_prompts, load_prompt
+
         self.logger.info("ncm_prompt_refresh_start", {
             "tool_calls": self.tool_calls_since_refresh
         })
 
-        # TODO: Implement prompt refresh
-        # For now, just reset counter
+        refreshed = 0
+        failures = 0
+
+        for prompt_name in list_prompts():
+            try:
+                load_prompt(prompt_name)
+                refreshed += 1
+            except Exception as e:
+                failures += 1
+                self.logger.warning("ncm_prompt_refresh_failed", {
+                    "prompt": prompt_name,
+                    "error": str(e)
+                })
+
         self.tool_calls_since_refresh = 0
 
-        self.logger.info("ncm_prompt_refresh_complete")
+        self.logger.info("ncm_prompt_refresh_complete", {
+            "refreshed": refreshed,
+            "failed": failures
+        })
 
     async def _take_state_snapshot(self):
         """
@@ -1030,24 +1248,57 @@ class NCMOrchestrator:
             "stories_completed": completed_count
         })
 
+        blackboard_state = {}
+        if getattr(self.orchestrator, "blackboard", None) is not None:
+            blackboard_state = self.orchestrator.blackboard
+        elif getattr(self.orchestrator, "memory", None) is not None:
+            blackboard_state = getattr(self.orchestrator.memory, "blackboard", {})
+
+        agent_metrics = {}
+        agent_pool = getattr(self.orchestrator, "agent_pool", None)
+        if agent_pool and getattr(agent_pool, "agents", None):
+            agent_metrics = {
+                agent_id: profile.to_dict(include_history=False)
+                for agent_id, profile in agent_pool.agents.items()
+            }
+
+        crew_snapshot = {}
+        if getattr(self, "crew_manager", None):
+            try:
+                crew_snapshot = {
+                    "workload": self.crew_manager.get_workload_status(),
+                    "assignments": self.crew_manager.get_assignments_snapshot()
+                }
+            except Exception as e:
+                self.logger.warning("ncm_snapshot_crew_failed", {
+                    "error": str(e)
+                })
+
         snapshot = StateSnapshot(
             snapshot_id=f"SNAP-{completed_count}",
             stories_completed=completed_count,
-            blackboard_state={},  # TODO: Get from orchestrator.memory_manager
+            blackboard_state=blackboard_state,
             story_queue=[s.story_id for s in self.story_queue],
-            agent_metrics={},  # TODO: Get from crew_manager
+            agent_metrics=agent_metrics,
             tokens_remaining=self.token_limit - self.tokens_used,
             snapshot_path=self.ncm_workspace / "snapshots" / f"snapshot_{completed_count}.json"
         )
 
+        snapshot.snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+
         # Save snapshot to disk
-        snapshot.snapshot_path.write_text(json.dumps({
+        snapshot_data = {
             "snapshot_id": snapshot.snapshot_id,
             "stories_completed": snapshot.stories_completed,
             "story_queue": snapshot.story_queue,
             "tokens_remaining": snapshot.tokens_remaining,
             "created_at": snapshot.created_at.isoformat(),
-        }, indent=2))
+            "blackboard_state": snapshot.blackboard_state,
+            "agent_metrics": snapshot.agent_metrics,
+            "crew_snapshot": crew_snapshot,
+        }
+
+        snapshot.snapshot_path.write_text(json.dumps(snapshot_data, indent=2, default=str))
 
         self.snapshots.append(snapshot)
         self.last_snapshot_count = completed_count

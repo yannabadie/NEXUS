@@ -28,27 +28,27 @@ Goal: NCM should run end-to-end without manual intervention.
 - Add patterns beyond P2 and route to OrchestratorV7 for P1/P0 stories.
 - Impact: core/interface/commands/ncm.py and tests/ncm/*.
 
-2) Implement Type Check stage
+2) Implement Type Check stage (done 2026-01-23)
 - core/ncm/orchestrator.py:701
 - Integrate mypy or pyright and store errors in StoryValidationResult.
 - Impact: tests/ncm/test_ncm_models.py and CI runtime.
 
-3) Implement circular import detection
+3) Implement circular import detection (done 2026-01-23)
 - core/ncm/orchestrator.py:775
 - Build import graph on target files and fail fast on cycles.
 - Impact: core/ncm/orchestrator.py:762 for import check.
 
-4) Implement prompt refresh
+4) Implement prompt refresh (done 2026-01-23)
 - core/ncm/orchestrator.py:846 and core/ncm/orchestrator.py:865
 - Reload prompts from disk via core/prompts/prompt_loader.py.
 - Impact: prompt drift and long-running stability.
 
-5) Complete state snapshot
+5) Complete state snapshot (done 2026-01-23)
 - core/ncm/orchestrator.py:892, core/ncm/orchestrator.py:895, core/ncm/orchestrator.py:897
 - Persist blackboard state and agent metrics.
 - Impact: core/ncm/crew_manager.py persistence and recovery tooling.
 
-6) Persist crew assignments
+6) Persist crew assignments (done 2026-01-23)
 - core/ncm/crew_manager.py:456
 - Store assignments under workspace/.nexus and reload on startup.
 - Impact: NCM retries and recovery.
