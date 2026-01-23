@@ -32,10 +32,7 @@ from typing import Optional, Dict, Any, List, Callable, TypeVar
 
 T = TypeVar('T')
 
-try:
-    from core.memory.project_memory import ProjectMemory as _ProjectMemory
-except Exception:
-    _ProjectMemory = None
+_ProjectMemory = None
 
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
 logging.basicConfig(
@@ -227,8 +224,23 @@ def build_meta_graphrag_query(
     }
 
 
-def build_meta_graphrag_status() -> Dict[str, Any]:
+def build_meta_graphrag_status(fast: bool = True) -> Dict[str, Any]:
     """Return Meta GraphRAG index status."""
+    if fast:
+        from tools.meta_graph_rag.config import load_config
+        from tools.meta_graph_rag.snapshot import load_snapshot
+        config = load_config()
+        snapshot = load_snapshot(config)
+        return {
+            "nodes": len(snapshot.graph.nodes),
+            "edges": len(snapshot.graph.edges),
+            "chunks": snapshot.chunks,
+            "vector_entries": snapshot.vector_entries,
+            "embedding_backend": snapshot.embedding_backend,
+            "graph_db": snapshot.graph_db,
+            "manifest_generated_at": snapshot.manifest_generated_at,
+            "status_source": "snapshot",
+        }
     indexer = get_meta_graphrag_indexer()
     return indexer.status()
 
@@ -236,19 +248,32 @@ def build_meta_graphrag_status() -> Dict[str, Any]:
 def build_meta_graphrag_reports(
     entrypoints: Optional[List[str]] = None,
     include_content: bool = False,
+    fast: bool = True,
 ) -> Dict[str, Any]:
     """Generate and return Meta GraphRAG reports."""
-    indexer = get_meta_graphrag_indexer()
-    status = indexer.status()
     from tools.meta_graph_rag.reports import generate_reports
-
-    paths = generate_reports(
-        graph=indexer.graph,
-        chunks_count=status["chunks"],
-        vector_count=status["vector_entries"],
-        output_dir=indexer.config.reports_path,
-        entrypoints=entrypoints,
-    )
+    if fast:
+        from tools.meta_graph_rag.config import load_config
+        from tools.meta_graph_rag.snapshot import load_snapshot
+        config = load_config()
+        snapshot = load_snapshot(config)
+        paths = generate_reports(
+            graph=snapshot.graph,
+            chunks_count=snapshot.chunks,
+            vector_count=snapshot.vector_entries,
+            output_dir=config.reports_path,
+            entrypoints=entrypoints,
+        )
+    else:
+        indexer = get_meta_graphrag_indexer()
+        status = indexer.status()
+        paths = generate_reports(
+            graph=indexer.graph,
+            chunks_count=status["chunks"],
+            vector_count=status["vector_entries"],
+            output_dir=indexer.config.reports_path,
+            entrypoints=entrypoints,
+        )
     payload = {
         "generated_at": _iso_now(),
         "paths": {
@@ -372,8 +397,12 @@ def _init_memory(root: Path, backend: str):
     Raises:
         RuntimeError: If the ProjectMemory class is not available.
     """
+    global _ProjectMemory
     if _ProjectMemory is None:
-        raise RuntimeError("ProjectMemory is unavailable in this environment.")
+        try:
+            from core.memory.project_memory import ProjectMemory as _ProjectMemory
+        except Exception as exc:
+            raise RuntimeError("ProjectMemory is unavailable in this environment.") from exc
     previous_backend = os.environ.get("PROJECT_MEMORY_BACKEND")
     os.environ["PROJECT_MEMORY_BACKEND"] = backend
     try:
@@ -796,12 +825,12 @@ if MCP_AVAILABLE:
             return f"Error querying meta GraphRAG: {e}"
 
     @mcp.tool()
-    async def nexus_meta_graphrag_status() -> str:
+    async def nexus_meta_graphrag_status(fast: bool = True) -> str:
         """
         Return Meta GraphRAG index status.
         """
         try:
-            payload = await _run_blocking(build_meta_graphrag_status)
+            payload = await _run_blocking(build_meta_graphrag_status, fast=fast)
             import json
             return json.dumps(payload, indent=2, ensure_ascii=True)
         except Exception as e:
@@ -812,6 +841,7 @@ if MCP_AVAILABLE:
     async def nexus_meta_graphrag_reports(
         entrypoints: Optional[List[str]] = None,
         include_content: bool = False,
+        fast: bool = True,
     ) -> str:
         """
         Generate and return Meta GraphRAG reports (overview/top-down/bottom-up).
@@ -821,6 +851,7 @@ if MCP_AVAILABLE:
                 build_meta_graphrag_reports,
                 entrypoints=entrypoints,
                 include_content=include_content,
+                fast=fast,
             )
             import json
             return json.dumps(payload, indent=2, ensure_ascii=True)

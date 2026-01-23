@@ -15,9 +15,10 @@ Docs are treated as secondary. Code and tests are the source of truth.
 ## Current Meta GraphRAG Index Status
 - nodes: 27430
 - edges: 28676
-- chunks: 22343
-- vector_entries: 22343
-- embedding_backend: gemini-embedding-001
+- chunks: 22200
+- vector_entries: 22200 (snapshot from manifest)
+- embedding_backend: gemini-embedding-001 (dim 3072)
+- status_source: MCP snapshot (nexus_meta_graphrag_status fast=true)
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.

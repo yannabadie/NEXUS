@@ -133,18 +133,31 @@ def _build_meta_graphrag_query(
 def _build_meta_graphrag_reports(
     entrypoints: Optional[List[str]],
     include_content: bool,
+    fast: bool,
 ) -> Dict[str, Any]:
-    indexer = _get_meta_graphrag_indexer()
-    status = indexer.status()
     from tools.meta_graph_rag.reports import generate_reports
-
-    paths = generate_reports(
-        graph=indexer.graph,
-        chunks_count=status["chunks"],
-        vector_count=status["vector_entries"],
-        output_dir=indexer.config.reports_path,
-        entrypoints=entrypoints,
-    )
+    if fast:
+        from tools.meta_graph_rag.config import load_config
+        from tools.meta_graph_rag.snapshot import load_snapshot
+        config = load_config()
+        snapshot = load_snapshot(config)
+        paths = generate_reports(
+            graph=snapshot.graph,
+            chunks_count=snapshot.chunks,
+            vector_count=snapshot.vector_entries,
+            output_dir=config.reports_path,
+            entrypoints=entrypoints,
+        )
+    else:
+        indexer = _get_meta_graphrag_indexer()
+        status = indexer.status()
+        paths = generate_reports(
+            graph=indexer.graph,
+            chunks_count=status["chunks"],
+            vector_count=status["vector_entries"],
+            output_dir=indexer.config.reports_path,
+            entrypoints=entrypoints,
+        )
     payload: Dict[str, Any] = {
         "generated_at": _iso_now(),
         "paths": {
@@ -181,6 +194,7 @@ class ReportsRequest(BaseModel):
 
     entrypoints: Optional[List[str]] = Field(default=None, description="Top-down entrypoints")
     include_content: bool = Field(default=False, description="Include report contents")
+    fast: bool = Field(default=True, description="Use snapshot status (avoid loading vector index)")
 
 
 class BriefingRequest(BaseModel):
@@ -188,13 +202,30 @@ class BriefingRequest(BaseModel):
 
     entrypoints: Optional[List[str]] = Field(default=None, description="Top-down entrypoints")
     include_content: bool = Field(default=True, description="Include report contents")
+    fast: bool = Field(default=True, description="Use snapshot status (avoid loading vector index)")
 
 
 @router.get("/status")
 async def meta_graphrag_status(
+    fast: bool = True,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Return Meta GraphRAG index status."""
+    if fast:
+        from tools.meta_graph_rag.config import load_config
+        from tools.meta_graph_rag.snapshot import load_snapshot
+        config = load_config()
+        snapshot = load_snapshot(config)
+        return {
+            "nodes": len(snapshot.graph.nodes),
+            "edges": len(snapshot.graph.edges),
+            "chunks": snapshot.chunks,
+            "vector_entries": snapshot.vector_entries,
+            "embedding_backend": snapshot.embedding_backend,
+            "graph_db": snapshot.graph_db,
+            "manifest_generated_at": snapshot.manifest_generated_at,
+            "status_source": "snapshot",
+        }
     return _get_meta_graphrag_indexer().status()
 
 
@@ -229,6 +260,7 @@ async def meta_graphrag_reports(
         return _build_meta_graphrag_reports(
             entrypoints=body.entrypoints,
             include_content=body.include_content,
+            fast=body.fast,
         )
     except Exception as exc:
         logger.error(f"[META_GRAPHRAG] Report generation failed: {exc}")
@@ -245,6 +277,7 @@ async def meta_graphrag_briefing(
         payload = _build_meta_graphrag_reports(
             entrypoints=body.entrypoints,
             include_content=body.include_content,
+            fast=body.fast,
         )
         reports = payload.get("reports", {})
         payload["briefing"] = {

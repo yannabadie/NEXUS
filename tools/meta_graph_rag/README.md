@@ -29,16 +29,16 @@ python -m tools.meta_graph_rag.cli query "orchestrator state transitions"
 ## MCP Access
 Meta GraphRAG is available via the NEXUS MCP server:
 - `nexus_meta_graphrag_query`
-- `nexus_meta_graphrag_status`
-- `nexus_meta_graphrag_reports`
+- `nexus_meta_graphrag_status` (`fast=true` uses snapshot)
+- `nexus_meta_graphrag_reports` (`fast=true` uses snapshot)
 - `nexus_meta_graphrag_reload`
 
 ## HTTP Access
 Meta GraphRAG is also exposed via the CEREBRO HTTP API:
-- `GET /api/meta-graphrag/status`
+- `GET /api/meta-graphrag/status` (`fast=true` uses snapshot)
 - `POST /api/meta-graphrag/query`
-- `POST /api/meta-graphrag/reports`
-- `POST /api/meta-graphrag/briefing`
+- `POST /api/meta-graphrag/reports` (`fast=true` uses snapshot)
+- `POST /api/meta-graphrag/briefing` (`fast=true` uses snapshot)
 
 ## Embedding Backends
 - `gemini` (default): Gemini embeddings via API key

@@ -37,16 +37,16 @@ python -m tools.meta_graph_rag.cli query "memory coordinator"
 ## MCP Access
 Meta GraphRAG is exposed via the NEXUS MCP server:
 - `nexus_meta_graphrag_query` (top-k + expansion)
-- `nexus_meta_graphrag_status`
-- `nexus_meta_graphrag_reports`
+- `nexus_meta_graphrag_status` (supports `fast=true` snapshot mode)
+- `nexus_meta_graphrag_reports` (supports `fast=true` snapshot mode)
 - `nexus_meta_graphrag_reload`
 
 ## HTTP Access
 Meta GraphRAG is also available via the CEREBRO HTTP API:
-- `GET /api/meta-graphrag/status`
+- `GET /api/meta-graphrag/status` (`fast=true` uses snapshot)
 - `POST /api/meta-graphrag/query`
-- `POST /api/meta-graphrag/reports`
-- `POST /api/meta-graphrag/briefing`
+- `POST /api/meta-graphrag/reports` (`fast=true` uses snapshot)
+- `POST /api/meta-graphrag/briefing` (`fast=true` uses snapshot)
 
 ## Embeddings
 - Default: Gemini embeddings (`gemini-embedding-001`) when `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set
