@@ -154,6 +154,16 @@ class MultiAIExecutorConfig:
     codex_model: str = "gpt-5.2-codex"
     codex_reasoning: str = "xhigh"
 
+    # Kimi API (Moonshot)
+    kimi_api_key: Optional[str] = None
+    kimi_api_base: str = "https://api.moonshot.ai/v1"
+    kimi_model: str = "kimi-k2-thinking"
+    kimi_timeout: float = 60.0
+    kimi_max_tokens: int = 4096
+    kimi_temperature: float = 0.2
+    kimi_verify_ssl: bool = True
+    kimi_ca_bundle: Optional[str] = None
+
     # CLI Paths - Auto-discovered or configured via .env
     # Set these via env vars: OPENCODE_CLI_PATH, KIMI_CLI_PATH, CLAUDE_CLI_PATH
     # If not set, will auto-discover from PATH
@@ -214,6 +224,16 @@ class MultiAIExecutorConfig:
         if self.claude_cli is None:
             self.claude_cli = _validate_and_get_env_path("CLAUDE_CLI_PATH") or _discover_cli_path("claude")
 
+        if self.kimi_api_key is None:
+            self.kimi_api_key = os.environ.get("KIMI_API_KEY") or os.environ.get("MOONSHOT_API_KEY")
+        self.kimi_api_base = os.environ.get("KIMI_API_BASE") or os.environ.get("MOONSHOT_API_BASE", self.kimi_api_base)
+        self.kimi_model = os.environ.get("KIMI_MODEL", self.kimi_model)
+        self.kimi_timeout = float(os.environ.get("KIMI_TIMEOUT", str(self.kimi_timeout)))
+        self.kimi_max_tokens = int(os.environ.get("KIMI_MAX_TOKENS", str(self.kimi_max_tokens)))
+        self.kimi_temperature = float(os.environ.get("KIMI_TEMPERATURE", str(self.kimi_temperature)))
+        self.kimi_verify_ssl = os.environ.get("KIMI_SSL_VERIFY", str(self.kimi_verify_ssl)).lower() == "true"
+        self.kimi_ca_bundle = os.environ.get("KIMI_CA_BUNDLE") or os.environ.get("MOONSHOT_CA_BUNDLE") or self.kimi_ca_bundle
+
         # SECURITY FIX: Sanitize CLI paths before logging (CWE-117: Log Injection)
         # Only log if paths exist and are within reasonable length
         def _safe_log_path(path: Optional[str]) -> str:
@@ -268,6 +288,7 @@ class MultiAIExecutor:
         self._opencode_driver: Optional[AsyncOpenCodeDriver] = None
         self._codex_driver: Optional[AsyncCodexDriver] = None
         self._ncm_orchestrator = None
+        self._kimi_driver = None
 
         # Security: Path validation (fix CWE-22 path traversal)
         self.path_guardian = PathGuardian(
@@ -312,6 +333,25 @@ class MultiAIExecutor:
             )
             self._codex_driver = AsyncCodexDriver(config)
         return self._codex_driver
+
+    async def _get_kimi_driver(self):
+        """Get or create Kimi API driver if configured."""
+        if not self.config.kimi_api_key:
+            return None
+        if self._kimi_driver is None:
+            from core.drivers.async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
+            config = AsyncKimiDriverConfig(
+                api_key=self.config.kimi_api_key,
+                api_base=self.config.kimi_api_base,
+                model=self.config.kimi_model,
+                timeout=self.config.kimi_timeout,
+                max_tokens=self.config.kimi_max_tokens,
+                temperature=self.config.kimi_temperature,
+                verify_ssl=self.config.kimi_verify_ssl,
+                ca_bundle=self.config.kimi_ca_bundle,
+            )
+            self._kimi_driver = AsyncKimiDriver(config)
+        return self._kimi_driver
 
     async def close_drivers(self) -> None:
         """Close all active driver connections.
@@ -650,7 +690,7 @@ class MultiAIExecutor:
 
     async def _execute_codex(self, story: Dict) -> StoryResult:
         """
-        Execute story via Kimi K2 Thinking CLI (authenticated subscription).
+        Execute story via Kimi K2 Thinking (API if configured, CLI fallback).
 
         Uses: kimi -p "prompt" --yolo
         Note: Uses short prompts (CLI reads files natively) to avoid command line limits.
@@ -665,6 +705,33 @@ class MultiAIExecutor:
         category = story.get("category", "unknown")
 
         try:
+            kimi_driver = await self._get_kimi_driver()
+            if kimi_driver:
+                prompt = self._build_prompt(story, include_context=True)
+                response = await kimi_driver.invoke(prompt)
+                result_text = response.get("content", "")
+                duration = time.time() - start_time
+
+                if not result_text:
+                    return StoryResult(
+                        story_id=story_id,
+                        category=category,
+                        provider="kimi",
+                        status="FAILED",
+                        duration_seconds=duration,
+                        error="Kimi API returned empty response",
+                    )
+
+                await self._apply_changes(story, result_text)
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="kimi",
+                    status="SUCCESS",
+                    duration_seconds=duration,
+                    output=result_text[:500],
+                )
+
             # Check if CLI is available
             kimi_path = self.config.kimi_cli
             if not kimi_path:

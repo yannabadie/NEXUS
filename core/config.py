@@ -28,6 +28,14 @@ class Config:
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")
         self.claude_cli_path: str = os.getenv("CLAUDE_CLI_PATH", "claude")
+        self.kimi_api_key: Optional[str] = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY")
+        self.kimi_api_base: str = os.getenv("KIMI_API_BASE") or os.getenv("MOONSHOT_API_BASE", "https://api.moonshot.ai/v1")
+        self.kimi_model: str = os.getenv("KIMI_MODEL", "kimi-k2-thinking")
+        self.kimi_timeout: float = float(os.getenv("KIMI_TIMEOUT", "60"))
+        self.kimi_max_tokens: int = int(os.getenv("KIMI_MAX_TOKENS", "4096"))
+        self.kimi_temperature: float = float(os.getenv("KIMI_TEMPERATURE", "0.2"))
+        self.kimi_verify_ssl: bool = os.getenv("KIMI_SSL_VERIFY", "True").lower() == "true"
+        self.kimi_ca_bundle: Optional[str] = os.getenv("KIMI_CA_BUNDLE") or os.getenv("MOONSHOT_CA_BUNDLE")
 
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))

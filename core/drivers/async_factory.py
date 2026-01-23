@@ -34,6 +34,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
+from .async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
 from core.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ class AsyncDriverFactory:
         # Lazy-initialized drivers
         self._claude_driver: Optional[AsyncClaudeDriver] = None
         self._gemini_driver: Optional[AsyncGeminiDriver] = None
+        self._kimi_driver: Optional[AsyncKimiDriver] = None
 
     def get_claude_driver(
         self,
@@ -120,6 +122,40 @@ class AsyncDriverFactory:
 
         return self._gemini_driver
 
+    def get_kimi_driver(
+        self,
+        model: Optional[str] = None
+    ) -> AsyncKimiDriver:
+        """
+        Get or create the Kimi driver.
+
+        Args:
+            model: Optional model override
+
+        Returns:
+            AsyncKimiDriver instance
+        """
+        if self._kimi_driver is None:
+            api_key = getattr(self.config, "kimi_api_key", None)
+            if not api_key:
+                raise ValueError("KIMI_API_KEY is not configured")
+
+            config = AsyncKimiDriverConfig(
+                api_key=api_key,
+                api_base=getattr(self.config, "kimi_api_base", "https://api.moonshot.ai/v1"),
+                model=model or getattr(self.config, "kimi_model", "kimi-k2-thinking"),
+                timeout=getattr(self.config, "kimi_timeout", 60.0),
+                max_tokens=getattr(self.config, "kimi_max_tokens", 4096),
+                temperature=getattr(self.config, "kimi_temperature", 0.2),
+                verify_ssl=getattr(self.config, "kimi_verify_ssl", True),
+                ca_bundle=getattr(self.config, "kimi_ca_bundle", None),
+            )
+            self._kimi_driver = AsyncKimiDriver(config)
+        elif model:
+            self._kimi_driver.config.model = model
+
+        return self._kimi_driver
+
     def get_driver(
         self,
         agent_id: str,
@@ -144,8 +180,10 @@ class AsyncDriverFactory:
             return self.get_claude_driver(model)
         elif agent_lower == "gemini":
             return self.get_gemini_driver(model)
+        elif agent_lower == "kimi":
+            return self.get_kimi_driver(model)
         else:
-            raise ValueError(f"Unknown agent: {agent_id}. Use 'claude' or 'gemini'.")
+            raise ValueError(f"Unknown agent: {agent_id}. Use 'claude', 'gemini', or 'kimi'.")
 
     async def cancel_by_uuid(self, session_uuid: str) -> bool:
         """

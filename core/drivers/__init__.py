@@ -52,6 +52,7 @@ from .tool_executor import (
 # V9 Async Drivers (preferred)
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig, create_async_claude_driver
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig, create_async_gemini_driver
+from .async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
 from .async_factory import AsyncDriverFactory, get_driver_factory, set_driver_factory, create_driver_factory
 
 # Legacy sync drivers (backwards compatibility)
@@ -94,6 +95,8 @@ __all__ = [
     "AsyncGeminiDriver",
     "AsyncGeminiDriverConfig",
     "create_async_gemini_driver",
+    "AsyncKimiDriver",
+    "AsyncKimiDriverConfig",
     "AsyncDriverFactory",
     "get_driver_factory",
     "set_driver_factory",

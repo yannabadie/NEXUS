@@ -602,7 +602,12 @@ class FSMHandlers:
             return self._make_result("BRAINSTORMING", "Swarm disabled", self._orch.active_agent, False)
 
         objective = self._orch.blackboard.get("objective", "")
-        execution_result = self._orch.swarm_engine.execute_turn(objective, self._orch.blackboard)
+        cancellation_token = getattr(self._orch, "_cancellation_token", None)
+        execution_result = self._orch.swarm_engine.execute_turn(
+            objective,
+            self._orch.blackboard,
+            cancellation_token=cancellation_token
+        )
 
         if execution_result.finished:
             formatted_output = f"[Swarm] Mode: {execution_result.mode.value} | Rounds: {execution_result.total_rounds}\n"

@@ -650,19 +650,9 @@ class AsyncGeminiDriver:
         .. deprecated:: V8.4.4
             Use `await driver.invoke()` in async code.
         """
-        import warnings
-        warnings.warn(
-            "invoke_sync() is deprecated since V8.4.4. "
-            "Use `await driver.invoke()` in async code.",
-            DeprecationWarning,
-            stacklevel=2
+        raise RuntimeError(
+            "invoke_sync() has been removed. Use `await driver.invoke()`."
         )
-        return asyncio.run(self.invoke(
-            context,
-            session_uuid=session_uuid,
-            task_id=task_id,
-            isolated_env=isolated_env,
-        ))
 
 
 class SecurityError(Exception):

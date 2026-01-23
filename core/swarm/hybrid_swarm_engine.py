@@ -81,6 +81,7 @@ from core.events.telemetry_bridge import (
     emit_agent_speak,
 )
 from core.events.types import CerebroEventType
+from core.async_primitives import CancellationToken
 
 
 class SwarmPhase(Enum):
@@ -746,7 +747,10 @@ class HybridSwarmEngine:
         return self._negotiation_result
 
     def execute_turn(
-        self, task_input: str, blackboard: Optional[Dict] = None
+        self,
+        task_input: str,
+        blackboard: Optional[Dict] = None,
+        cancellation_token: Optional[CancellationToken] = None
     ) -> ExecutionResult:
         """
         Execute current mode (for FSM integration).
@@ -797,6 +801,7 @@ class HybridSwarmEngine:
             max_rounds=self._get_config("swarm_max_rounds", 6),
             invoke_agent=self._wrap_invoke_agent(),
             force_cot=is_expert,
+            cancellation_token=cancellation_token,
         )
 
         executor = get_executor(mode)

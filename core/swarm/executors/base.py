@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
 from ..collaboration_modes import CollaborationMode
 from ..mode_selector import AgentAssignment
 from ...utils.artifact_verifier import ArtifactVerifier
+from core.async_primitives import CancellationToken
 from ...agents.unified_registry import get_registry
 from ...api.rate_limiter import get_rate_limiter, RateLimitExceeded
 from ...api.concurrency_limiter import get_concurrency_limiter
@@ -122,6 +123,7 @@ class ExecutionContext:
     task_id: Optional[str] = None
     session_manager: Optional[Any] = None
     force_cot: bool = False
+    cancellation_token: Optional[CancellationToken] = None
 
     def get_agent_by_role(self, role: str) -> Optional[AgentAssignment]:
         """Retrieves the agent assignment associated with a specific role.
@@ -286,6 +288,14 @@ class ModeExecutor(ABC):
         Raises:
             None: Exceptions are caught and returned as an error AgentResponse.
         """
+        if context.cancellation_token and context.cancellation_token.is_cancelled:
+            return AgentResponse(
+                agent_id=agent_id,
+                content="Execution cancelled",
+                status="error",
+                error="cancelled"
+            )
+
         if context.invoke_agent is None:
 
             return AgentResponse(

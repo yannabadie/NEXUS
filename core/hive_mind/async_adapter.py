@@ -247,17 +247,10 @@ class DriverBridge:
         .. deprecated:: V8.4.4
             Use `driver.invoke_sync()` instead of DriverBridge.
         """
-        import warnings
-        warnings.warn(
-            "DriverBridge is deprecated since V8.4.4. "
-            "Use async drivers directly with `await driver.invoke()` or "
-            "`driver.invoke_sync()` for sync fallback. "
-            "DriverBridge will be removed in V9.0.",
-            DeprecationWarning,
-            stacklevel=2
+        raise RuntimeError(
+            "DriverBridge has been removed. "
+            "Use async drivers directly with await driver.invoke()."
         )
-        self.async_driver = async_driver
-        self._loop = loop
 
     def invoke(self, context: str, **kwargs) -> Dict[str, Any]:
         """
@@ -269,21 +262,10 @@ class DriverBridge:
         .. deprecated:: V8.4.4
             Use `driver.invoke_sync()` instead.
         """
-        # V11.4 ASYNC: Python 3.12+ compatibility
-        # Try get_running_loop() first (in async context), then fallback
-        try:
-            loop = self._loop or asyncio.get_running_loop()
-            # Loop is running - use run_coroutine_threadsafe
-            future = asyncio.run_coroutine_threadsafe(
-                self.async_driver.invoke(context, **kwargs),
-                loop
-            )
-            return future.result(timeout=300)
-        except RuntimeError:
-            # No running loop - create one and run
-            return asyncio.run(
-                self.async_driver.invoke(context, **kwargs)
-            )
+        raise RuntimeError(
+            "DriverBridge.invoke() has been removed. "
+            "Use async drivers directly with await driver.invoke()."
+        )
 
 
 # ============================================================================

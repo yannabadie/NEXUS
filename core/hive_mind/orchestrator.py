@@ -368,8 +368,13 @@ class TrueHiveMind:
                 )
                 # Check if we can afford it
                 if not self.cost_estimator.check_usd_budget(estimated_cost):
-                    logger.warning(
-                        f"[HiveMind] Execution may exceed USD budget"
+                    logger.error(
+                        "[HiveMind] USD budget exceeded, cancelling task"
+                    )
+                    return self._create_cancelled_result(
+                        phases_completed,
+                        start_time,
+                        "Budget limit exceeded"
                     )
 
             # =========================================================

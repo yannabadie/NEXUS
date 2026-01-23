@@ -32,6 +32,7 @@ from ..deps import AuthenticatedUser, require_auth
 
 # V12.3 SCALE-OUT: Redis-backed workflow registry
 from core.workflow import get_workflow_registry, WorkflowStatus
+from core.async_primitives import CancellationToken
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ router = APIRouter()
 
 # V12.3: Get shared registry instance (Redis or in-memory fallback)
 _registry = get_workflow_registry()
+_active_workflow_tasks: Dict[str, asyncio.Task] = {}
+_active_workflow_tokens: Dict[str, CancellationToken] = {}
 
 
 class WorkflowStartRequest(BaseModel):
@@ -119,9 +122,11 @@ async def start_workflow(
         complexity=body.complexity,
     )
 
+    token = CancellationToken()
+    _active_workflow_tokens[workflow_id] = token
+
     async def run_workflow():
         """Background task to execute the workflow."""
-        import concurrent.futures
         from core.events.telemetry_bridge import get_telemetry_bridge
         from core.events.types import CerebroEventType
 
@@ -157,16 +162,22 @@ async def start_workflow(
             # Get orchestrator
             orchestrator = _get_orchestrator()
 
-            # V12.0: Run sync process_turn in executor to avoid blocking event loop
-            # This allows WebSocket events to be processed during workflow execution
-            # V12.4 FIX F19: Use get_running_loop() instead of deprecated get_event_loop()
-            loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                result = await loop.run_in_executor(
-                    executor,
-                    orchestrator.process_turn,
-                    body.task
-                )
+            workflow_state = await _registry.get_workflow(workflow_id, tenant_id)
+            if workflow_state and workflow_state.get("status") == WorkflowStatus.CANCELLED.value:
+                return
+
+            # V12.5: Use async process_turn with cancellation support
+            task = asyncio.create_task(
+                orchestrator.process_turn_async(body.task, token=token),
+                name=f"workflow_{workflow_id}"
+            )
+            _active_workflow_tasks[workflow_id] = task
+
+            try:
+                result = await task
+            finally:
+                _active_workflow_tasks.pop(workflow_id, None)
+                _active_workflow_tokens.pop(workflow_id, None)
 
             # V12.3: Update status in shared registry
             await _registry.update_status(
@@ -182,6 +193,17 @@ async def start_workflow(
                 workspace_id=workspace_id
             )
 
+        except asyncio.CancelledError:
+            await _registry.update_status(
+                workflow_id, tenant_id, WorkflowStatus.CANCELLED.value, error="cancelled"
+            )
+            await bridge.emit(
+                CerebroEventType.HIVE_PHASE_END,
+                {"phase": "WORKFLOW", "workflow_id": workflow_id, "status": "cancelled"},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id
+            )
+            raise
         except Exception as e:
             # V12.3: Update status in shared registry
             await _registry.update_status(
@@ -290,8 +312,15 @@ async def stop_workflow(
             f"Workflow {workflow_id} is {workflow['status']}, cannot stop"
         )
 
+    token = _active_workflow_tokens.get(workflow_id)
+    if token:
+        token.cancel(reason=f"Workflow {workflow_id} cancelled by user")
+
+    task = _active_workflow_tasks.get(workflow_id)
+    if task:
+        task.cancel()
+
     # V12.3: Mark as cancelled in shared registry
-    # TODO: Integrate CancellationToken for graceful cancellation
     await _registry.update_status(
         workflow_id, user.tenant_id, WorkflowStatus.CANCELLED.value
     )

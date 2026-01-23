@@ -62,22 +62,22 @@ Goal: NCM should run end-to-end without manual intervention.
 ## P1 - Stability and Cancellation
 Goal: remove deadlocks and make workflows cancelable.
 
-1) Cancellation tokens for workflows
+1) Cancellation tokens for workflows (done 2026-01-23)
 - core/api/cerebro/routes/workflow.py:293
 - Add CancellationToken and propagate to OrchestratorV7 and Swarm.
 - Impact: core/orchestration_v7.py, core/swarm/*.
 
-2) Remove sync execution in parallel executor
+2) Remove sync execution in parallel executor (done 2026-01-23)
 - core/swarm/executors/parallel_executor.py:243
 - Force async usage to avoid event loop deadlocks.
 - Impact: call sites in swarm engine and any sync wrappers.
 
-3) Remove DriverBridge and invoke_sync legacy paths
+3) Remove DriverBridge and invoke_sync legacy paths (done 2026-01-23)
 - core/hive_mind/async_adapter.py:218
 - Remove deprecated DriverBridge usage and clean invoke_sync in drivers.
 - Impact: core/drivers/async_gemini_driver.py:625, core/drivers/async_claude_driver.py:713.
 
-4) Enforce budget limits
+4) Enforce budget limits (done 2026-01-23)
 - core/hive_mind/orchestrator.py:360
 - Convert warnings to hard stops or confirmation requests.
 - Impact: telemetry and UX.
@@ -130,15 +130,12 @@ Open challenges from the paper to address:
 - Scalable multi-agent training
 - Governance frameworks
 
-## KIMI K2 Thinking Integration (API Key in .env)
-Current state: Kimi usage is CLI-only via KIMI_CLI_PATH.
-
-Plan:
-1) Add config support for KIMI_API_KEY (or MOONSHOT_API_KEY) in core/config.py.
-2) Implement an async Kimi driver (HTTP API, timeouts, retries).
-3) Wire into NCM routing and optionally Swarm modes.
-4) Add tests for driver isolation and error handling.
-5) Keep CLI as fallback if API is unavailable.
+## KIMI K2 Thinking Integration (API Key in .env) (done 2026-01-23)
+Implemented:
+1) Config support for KIMI_API_KEY/MOONSHOT_API_KEY and SSL settings in core/config.py.
+2) Async Kimi API driver with retries and SSL controls in core/drivers/async_kimi_driver.py.
+3) Wired into NCM Kimi routing (MultiAIExecutor prefers API, CLI fallback).
+4) CLI remains as fallback when API key not configured.
 
 ## Validation and Evaluation
 - Unit: tests/ncm/*, tests/test_mcp_client.py, tests/test_swarm_session_integration.py

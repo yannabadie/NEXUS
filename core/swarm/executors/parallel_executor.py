@@ -262,36 +262,26 @@ class ParallelExecutor(ModeExecutor):
             stacklevel=2
         )
 
-        # V12.4: Check if we're in an async context first
+        # V12.4: Block sync execution inside an active event loop to avoid deadlocks
         try:
-            loop = asyncio.get_running_loop()
-            # We're inside an async context - this is problematic
-            # Use run_coroutine_threadsafe but with reduced timeout
-            logger.warning(
+            asyncio.get_running_loop()
+            logger.error(
                 "ParallelExecutor.execute() called from async context. "
-                "Consider using execute_async() directly."
+                "Use execute_async() instead."
             )
-            future = asyncio.run_coroutine_threadsafe(
-                self.execute_async(context), loop
-            )
-            # V12.4: Reduced timeout from 300s to 60s
-            return future.result(timeout=60)
-        except RuntimeError:
-            # No running event loop - safe to use asyncio.run()
-            return asyncio.run(self.execute_async(context))
-        except TimeoutError:
-            # V12.4: Handle timeout gracefully instead of blocking forever
-            logger.error("ParallelExecutor.execute() timed out after 60s")
             return ExecutionResult(
                 mode=self.mode,
                 status=ExecutionStatus.FAILED,
-                final_output="Parallel execution timed out after 60 seconds",
+                final_output="ParallelExecutor.execute() not allowed in async context",
                 agent_outputs=[],
                 total_rounds=0,
                 total_tokens=0,
-                total_time_seconds=60.0,
-                metadata={"error": "timeout", "timeout_seconds": 60}
+                total_time_seconds=0.0,
+                metadata={"error": "async_context_blocked"}
             )
+        except RuntimeError:
+            # No running event loop - safe to use asyncio.run()
+            return asyncio.run(self.execute_async(context))
 
     async def execute_async(self, context: ExecutionContext) -> ExecutionResult:
         """

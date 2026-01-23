@@ -40,6 +40,7 @@ from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge, FSMHandlers  # V7.8 Phase 14c.2
+from core.async_primitives import CancellationToken
 from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
 from core.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
 from pydantic import ValidationError
@@ -154,6 +155,7 @@ class OrchestratorV7:
 
         # V7.7 Phase 14e: Force Chain-of-Thought for EXPERT tasks
         self._current_complexity: Optional[TaskComplexity] = None
+        self._cancellation_token: Optional[CancellationToken] = None
 
         # Metrics
         self.gemini_info = gemini_info
@@ -557,7 +559,11 @@ class OrchestratorV7:
     # V9 CYBORG: Async Process Turn
     # =========================================================================
 
-    async def process_turn_async(self, user_input: Optional[str] = None) -> Dict:
+    async def process_turn_async(
+        self,
+        user_input: Optional[str] = None,
+        token: Optional[CancellationToken] = None
+    ) -> Dict:
         """
         V9 Cyborg Async version of process_turn().
 
@@ -574,48 +580,62 @@ class OrchestratorV7:
         Returns:
             Same result dict as process_turn()
         """
+        self._cancellation_token = token
         self.iteration += 1
 
-        # KERNEL RUNTIME INTEGRITY CHECK (every 100 iterations) - sync is OK, fast
-        if KERNEL_AVAILABLE and self.iteration % 100 == 0:
-            self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
-            if not runtime_integrity_check():
-                self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
-                self.state = OrchestratorState.PANIC
-                return self._make_result(
-                    "PANIC",
-                    "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
-                    None, True, error="KERNEL_INTEGRITY_VIOLATION"
-                )
+        try:
+            if token:
+                token.check()
 
-        # V8.8: INPUT GUARD - Prompt Injection Prevention (async path)
-        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
-            input_guard = get_input_guard()
-            validation = input_guard.validate(user_input)
-            if not validation.is_safe and validation.threat_level == ThreatLevel.CRITICAL:
-                self.logger.warning("Prompt injection blocked (async)", {
-                    "threat_type": validation.threat_type.value,
-                    "risk_score": validation.risk_score
-                })
-                return self._make_result(
-                    self.state.name,
-                    f"[SECURITY] Input blocked: {validation.reason}",
-                    None, False, error="PROMPT_INJECTION_BLOCKED"
-                )
+            # KERNEL RUNTIME INTEGRITY CHECK (every 100 iterations) - sync is OK, fast
+            if KERNEL_AVAILABLE and self.iteration % 100 == 0:
+                self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
+                if not runtime_integrity_check():
+                    self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
+                    self.state = OrchestratorState.PANIC
+                    return self._make_result(
+                        "PANIC",
+                        "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
+                        None, True, error="KERNEL_INTEGRITY_VIOLATION"
+                    )
 
-        # States that benefit from async LLM calls
-        async_states = {
-            OrchestratorState.BRAINSTORMING,
-            OrchestratorState.VALIDATING_CFL,
-        }
+            # V8.8: INPUT GUARD - Prompt Injection Prevention (async path)
+            if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
+                input_guard = get_input_guard()
+                validation = input_guard.validate(user_input)
+                if not validation.is_safe and validation.threat_level == ThreatLevel.CRITICAL:
+                    self.logger.warning("Prompt injection blocked (async)", {
+                        "threat_type": validation.threat_type.value,
+                        "risk_score": validation.risk_score
+                    })
+                    return self._make_result(
+                        self.state.name,
+                        f"[SECURITY] Input blocked: {validation.reason}",
+                        None, False, error="PROMPT_INJECTION_BLOCKED"
+                    )
 
-        if self.state in async_states:
-            return await self._handle_async_state(user_input)
-        else:
+            # States that benefit from async LLM calls
+            async_states = {
+                OrchestratorState.BRAINSTORMING,
+                OrchestratorState.VALIDATING_CFL,
+            }
+
+            if self.state in async_states:
+                return await self._handle_async_state(user_input, token=token)
+
+            if token:
+                token.check()
+
             # Non-LLM states: use sync handlers (fast, no I/O blocking)
             return self.process_turn(user_input)
+        finally:
+            self._cancellation_token = None
 
-    async def _handle_async_state(self, user_input: Optional[str] = None) -> Dict:
+    async def _handle_async_state(
+        self,
+        user_input: Optional[str] = None,
+        token: Optional[CancellationToken] = None
+    ) -> Dict:
         """
         Handle states that require async LLM invocation.
 
@@ -633,13 +653,17 @@ class OrchestratorV7:
             return self.process_turn(user_input)
 
         if self.state == OrchestratorState.BRAINSTORMING:
-            return await self._handle_brainstorming_async(factory, user_input)
-        elif self.state == OrchestratorState.VALIDATING_CFL:
-            return await self._handle_cfl_async(factory)
-        else:
-            return self.process_turn(user_input)
+            return await self._handle_brainstorming_async(factory, user_input, token=token)
+        if self.state == OrchestratorState.VALIDATING_CFL:
+            return await self._handle_cfl_async(factory, token=token)
+        return self.process_turn(user_input)
 
-    async def _handle_brainstorming_async(self, factory, user_input: Optional[str]) -> Dict:
+    async def _handle_brainstorming_async(
+        self,
+        factory,
+        user_input: Optional[str],
+        token: Optional[CancellationToken] = None
+    ) -> Dict:
         """
         Async brainstorming with streaming output.
 
@@ -662,12 +686,13 @@ class OrchestratorV7:
                 response_parts = []
 
                 # V9: Stream tokens in real-time
-                async for token in driver.invoke_stream(
+                async for chunk in driver.invoke_stream(
                     context,
                     session_uuid=session_uuid,
+                    token=token,
                     on_token=lambda t: print(t, end="", flush=True)
                 ):
-                    response_parts.append(token)
+                    response_parts.append(chunk)
 
                 print()  # Newline after streaming
                 full_response = "".join(response_parts)
@@ -677,12 +702,13 @@ class OrchestratorV7:
                 driver = factory.get_gemini_driver()
                 response_parts = []
 
-                async for token in driver.invoke_stream(
+                async for chunk in driver.invoke_stream(
                     context,
                     session_uuid=session_uuid,
+                    token=token,
                     on_token=lambda t: print(t, end="", flush=True)
                 ):
-                    response_parts.append(token)
+                    response_parts.append(chunk)
 
                 print()
                 full_response = "".join(response_parts)
@@ -700,7 +726,11 @@ class OrchestratorV7:
             # Fallback to sync on error
             return self.fsm_handlers.handle_brainstorming()
 
-    async def _handle_cfl_async(self, factory) -> Dict:
+    async def _handle_cfl_async(
+        self,
+        factory,
+        token: Optional[CancellationToken] = None
+    ) -> Dict:
         """
         Async CFL (Cognitive Feedback Loop) validation.
 
@@ -721,13 +751,13 @@ class OrchestratorV7:
                 driver = factory.get_claude_driver()
                 # CFL needs faster response - use non-streaming
                 response = await asyncio.wait_for(
-                    driver.invoke(context, session_uuid=session_uuid),
+                    driver.invoke(context, session_uuid=session_uuid, token=token),
                     timeout=30.0
                 )
             else:
                 driver = factory.get_gemini_driver()
                 response = await asyncio.wait_for(
-                    driver.invoke(context, session_uuid=session_uuid),
+                    driver.invoke(context, session_uuid=session_uuid, token=token),
                     timeout=30.0
                 )
 
