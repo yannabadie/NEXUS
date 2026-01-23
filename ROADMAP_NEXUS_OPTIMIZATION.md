@@ -53,7 +53,7 @@ Goal: NCM should run end-to-end without manual intervention.
 - Store assignments under workspace/.nexus and reload on startup.
 - Impact: NCM retries and recovery.
 
-7) Decide fate of multi_ai_executor
+7) Decide fate of multi_ai_executor (done 2026-01-23)
 - core/ncm/multi_ai_executor.py:787 and core/ncm/multi_ai_executor.py:814
 - Option A: remove from active pipelines and keep as deprecated artifact.
 - Option B: route "nexus" provider to NCMOrchestrator directly.

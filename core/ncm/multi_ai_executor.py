@@ -13,7 +13,8 @@ This module implements external CLI-based execution (OpenCode, Kimi, Claude CLI)
 1. ❌ External CLIs: No control over models/parameters (OpenCode = interface, not model)
 2. ❌ Low success rate: 23% vs expected 70-80% with NEXUS
 3. ❌ Missing NEXUS capabilities: No RAG, Evolution, HiveMind, Swarm integration
-4. ❌ Placeholder implementation: _execute_nexus() was TODO (line 799-808)
+4. ⚠️ Placeholder implementation: _execute_nexus() now has a minimal NCMOrchestrator fallback,
+   but this path is still deprecated and only supported inside a live NEXUS session
 5. ❌ Against NCM plan: Plan specified NCM = Client of OrchestratorV7, not CLIs
 
 **Replacement**: Use `core/ncm/orchestrator.py` (NCMOrchestrator) instead.
@@ -266,6 +267,7 @@ class MultiAIExecutor:
         # Drivers (lazy init)
         self._opencode_driver: Optional[AsyncOpenCodeDriver] = None
         self._codex_driver: Optional[AsyncCodexDriver] = None
+        self._ncm_orchestrator = None
 
         # Security: Path validation (fix CWE-22 path traversal)
         self.path_guardian = PathGuardian(
@@ -788,16 +790,16 @@ class MultiAIExecutor:
         """Execute story via full NEXUS orchestration.
 
         This method handles complex tasks that require full orchestration capabilities,
-        routing them to the NEXUS provider. Currently acts as a placeholder for
-        future integration with OrchestratorV7.
+        routing them to the NEXUS provider. Uses NCMOrchestrator when an
+        OrchestratorV7 instance is already active (e.g., inside a NEXUS session).
 
         Args:
             story: A dictionary containing details about the task, including
                 'story_id', 'category', 'description', and 'target_file'.
 
         Returns:
-            A StoryResult object indicating the execution status (currently always
-            PENDING or FAILED), execution duration, and any error messages.
+            A StoryResult object indicating the execution status, execution duration,
+            and any error messages.
 
         Raises:
             None: Exceptions are caught and returned as a FAILED StoryResult.
@@ -807,20 +809,108 @@ class MultiAIExecutor:
         category = story.get("category", "unknown")
 
         try:
-            # For NEXUS stories, we use subprocess to call the orchestrator
-            # This is a placeholder - actual implementation would invoke OrchestratorV7
-            prompt = self._build_prompt(story, include_context=True)
+            from core.factory import get_orchestrator
+            from core.ncm.models import Story, StoryPriority, IssueDomain, StoryStatus, NCMConfig
+            from core.ncm.orchestrator import NCMOrchestrator
 
-            # TODO: Implement actual NEXUS orchestration call
-            # For now, mark as pending for manual execution
+            try:
+                orchestrator = get_orchestrator()
+            except Exception as e:
+                duration = time.time() - start_time
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="nexus",
+                    status="FAILED",
+                    duration_seconds=duration,
+                    error=f"NEXUS orchestrator not initialized: {e}",
+                )
+
+            if self._ncm_orchestrator is None:
+                ncm_config = NCMConfig(
+                    story_batch_size=1,
+                    token_limit=10_000_000,
+                    parallel_execution=False,
+                )
+                self._ncm_orchestrator = NCMOrchestrator(
+                    orchestrator=orchestrator,
+                    workspace_path=self.workspace_path,
+                    config=ncm_config,
+                )
+
+            description = story.get("description", "")
+            target_files = []
+            target_file = story.get("target_file")
+            if target_file:
+                target_files = [Path(target_file)]
+            elif story.get("target_files"):
+                target_files = [Path(path) for path in story.get("target_files", [])]
+
+            test_files = [Path(path) for path in story.get("test_files", [])]
+
+            priority_map = {
+                "security": StoryPriority.P0,
+                "refactoring": StoryPriority.P1,
+                "dead_code": StoryPriority.P1,
+                "type_error": StoryPriority.P1,
+                "missing_doc": StoryPriority.P2,
+                "dead_import": StoryPriority.P2,
+                "deprecation": StoryPriority.P1,
+            }
+            domain_map = {
+                "security": IssueDomain.SECURITY,
+                "refactoring": IssueDomain.REFACTORING,
+                "dead_code": IssueDomain.CLEANUP,
+                "type_error": IssueDomain.TYPING,
+                "missing_doc": IssueDomain.DOCUMENTATION,
+                "dead_import": IssueDomain.CLEANUP,
+                "deprecation": IssueDomain.CLEANUP,
+            }
+
+            priority = priority_map.get(category, StoryPriority.P1)
+            domain = domain_map.get(category, IssueDomain.CLEANUP)
+
+            ncm_story = Story(
+                story_id=story_id,
+                priority=priority,
+                domains={domain},
+                description=description or self._build_prompt(story, include_context=False),
+                target_files=target_files,
+                test_files=test_files,
+            )
+
+            status = await self._ncm_orchestrator.execute_story(ncm_story)
             duration = time.time() - start_time
+
+            if status == StoryStatus.SUCCESS:
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="nexus",
+                    status="SUCCESS",
+                    duration_seconds=duration,
+                    output="Executed via NCMOrchestrator",
+                    tokens_used=ncm_story.tokens_used,
+                )
+            if status == StoryStatus.PARTIAL:
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="nexus",
+                    status="PARTIAL",
+                    duration_seconds=duration,
+                    error=ncm_story.error_message,
+                    tokens_used=ncm_story.tokens_used,
+                )
+
             return StoryResult(
                 story_id=story_id,
                 category=category,
                 provider="nexus",
-                status="PENDING",
+                status="FAILED",
                 duration_seconds=duration,
-                error="NEXUS orchestration not yet integrated",
+                error=ncm_story.error_message,
+                tokens_used=ncm_story.tokens_used,
             )
 
         except Exception as e:
