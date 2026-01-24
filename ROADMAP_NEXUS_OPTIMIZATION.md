@@ -2,6 +2,34 @@
 
 Created: 2026-01-23
 Owner: Codex (meta GraphRAG assisted)
+**Updated**: 2026-01-24 (index refresh + DeepSeek research)
+
+## 🚨 CRITICAL: Claude CLI Subprocess Bug (Windows)
+
+**Status**: CONFIRMED in v2.1.19
+**Impact**: NCM pilot blocked, 88+ hours wasted on timeouts
+
+### Bug Summary
+- Claude CLI `-p` flag hangs indefinitely in subprocess mode (Python + direct shell)
+- All 8 flag variations tested: 0/8 success rate
+- Affects: Windows (confirmed), macOS (reported #9026), Linux (unknown)
+- Root cause: Process lifecycle bug in non-interactive mode
+- Related issues: #9026, #13287, #18552, #771
+
+### Workarounds Deployed
+- ✅ `NEXUS_SIMPLE_AGENT=gemini` - NCM pilot uses Gemini instead
+- ✅ Kimi K2 Thinking fallback - Deep research in Meta GraphRAG
+- ⏳ API direct fallback - To be implemented in claude_driver_hybrid.py
+
+### Action Items
+- [ ] **P0**: Implement API fallback in `core/drivers/claude_driver_hybrid.py`
+- [ ] **P0**: Add `NEXUS_CLAUDE_MODE=api` env var
+- [ ] **P1**: File GitHub issue with test suite results
+- [ ] **P1**: Add telemetry for CLI timeout tracking
+- [ ] **P2**: Document Windows limitation in README
+- [ ] **P3**: Explore ConPTY/WSL bridge for pseudo-TTY
+
+**See**: `docs/bugs/claude_cli/CLAUDE_CLI_SUBPROCESS_BUG_ANALYSIS.md` for full report
 
 ## Context and Evidence
 Code-first plan built from:
@@ -13,14 +41,17 @@ Code-first plan built from:
 Docs are treated as secondary. Code and tests are the source of truth.
 
 ## Current Meta GraphRAG Index Status
-- nodes: 9057
-- edges: 10417
-- chunks: 5913
-- vector_entries: 5913
+- nodes: 27831
+- edges: 29033
+- chunks: 22722
+- vector_entries: 22722
 - embedding_backend: gemini-embedding-001 (dim 3072)
-- graph_db: nodes 6125 / edges 7098 (sqlite)
-- manifest_coverage: 731 files indexed vs ~2983 files expected (gap: needs full reindex)
-- status_source: local index snapshot (tools.meta_graph_rag MetaGraphIndexer)
+- graph_db: nodes 27831 / edges 29033 (sqlite)
+- manifest_coverage: 1498 files indexed (excludes .git/meta_rag via META_RAG_EXCLUDE)
+- rg_files: 845 (gitignore-respecting view)
+- status_source: python -m tools.meta_graph_rag.cli status
+- last_full_index: 2026-01-24 (gemini-embedding-001)
+- note: graph.json contains no .git nodes; full reindex completed
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`
@@ -37,17 +68,19 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - tools/meta_graph_rag/config.py
 - Excludes .git, meta_rag, workspace, node_modules, etc.
 - Impact: prevents index bloat and unsafe metadata ingestion.
+- Note: `.env` overrides to `META_RAG_EXCLUDE=.git,meta_rag` to index all repo directories.
 
-2) Reindex full repo with Gemini embeddings (pending)
+2) Reindex full repo with Gemini embeddings (done 2026-01-24)
 - tools/meta_graph_rag/cli.py index --full
-- Verify manifest coverage ~= total repo files; alert on gaps.
+- Verify manifest coverage ~= rg --files count; alert on gaps.
+- Rebuild after purging .git artifacts to remove noisy blobs.
 - Impact: Meta GraphRAG completeness and agent onboarding accuracy.
 
 3) Coverage audit report (pending)
 - Add report of skipped/oversized/binary files + include/exclude settings.
 - Impact: visibility into blind spots.
 
-4) Purge .git nodes from existing index artifacts (pending)
+4) Purge .git nodes from existing index artifacts (done 2026-01-24)
 - Remove nodes/chunks whose path starts with `.git/` from graph/chunks/vector files before reindex.
 - Impact: reduce index bloat and improve retrieval signal.
 
@@ -61,7 +94,20 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 
 7) Index health checks (pending)
 - Detect mismatched counts (chunks < files), embedding backend/dim changes, and stale manifests.
-- Fail CI when GraphRAG coverage drops below threshold.
+- Fail CI when GraphRAG coverage drops below threshold or .git nodes are detected.
+- Warn when sources.json is older than newest source file (partial deep-research run).
+
+8) Fix static research sources (done 2026-01-24)
+- Update Deep GraphRAG source URL to correct arXiv id; prefer arXiv API abstracts over HTML pages.
+- Impact: better deep-research coverage and fewer raw HTML sources.
+
+9) Enforce exclude filters in scanner (pending)
+- Ensure `META_RAG_EXCLUDE` from `.env` is honored consistently; add tests asserting excluded dirs are absent.
+- Add a coverage report section that prints the active exclude list at index time.
+
+10) Query-time embedding timeout + cache (done 2026-01-24)
+- tools/meta_graph_rag/config.py, tools/meta_graph_rag/embeddings.py, tools/meta_graph_rag/indexer.py
+- Added META_RAG_GEMINI_TIMEOUT and query embedding cache (TTL + max entries).
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
@@ -142,6 +188,21 @@ Goal: remove deadlocks and make workflows cancelable.
 - Convert warnings to hard stops or confirmation requests.
 - Impact: telemetry and UX.
 
+## P1.5 - Corporate SSL CA Support
+Goal: avoid SSL errors for API calls in enterprise networks without disabling verification.
+
+1) Add global CA bundle config (done 2026-01-24)
+- core/config.py + core/utils/ssl_utils.py
+- Supports NEXUS_CA_BUNDLE + standard *_CA_BUNDLE envs; auto-export on Windows.
+- Propagated to Kimi + DeepSeek API drivers.
+
+2) Document CA extraction on Windows (pending)
+- Provide steps to export corporate root CA and set env vars.
+- Prefer CA bundle over `*_SSL_VERIFY=False`.
+
+3) Add sanity check on startup (pending)
+- Log active CA path and verify file exists; warn if missing.
+
 ## P2 - Security Signal and Noise Reduction
 Goal: fewer false positives, clearer security hotspots.
 
@@ -154,6 +215,10 @@ Goal: fewer false positives, clearer security hotspots.
 - core/api/cerebro/routes/meta_graphrag.py
 - Record query usage for traceability.
 - Impact: core/audit/audit_logger.py.
+
+3) Security hotspot weighting by source type (pending)
+- De-emphasize archives/workspace/test artifacts; prioritize core code and tests.
+- Keep full coverage but adjust ranking to reduce noise.
 
 ## P3 - Performance and DX
 Goal: reduce latency and improve maintainability.
@@ -177,11 +242,31 @@ Goal: reduce latency and improve maintainability.
 4) Repo hygiene for analysis artifacts (pending)
 - Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/`.
 - Move transient pilot input/output files to `workspace/` or `logs/`.
+- Candidates: `docs/bugs/claude_cli/*`, `scripts/debug/claude_cli/*`, `docs/analysis/lean_formalization_review.md`.
 - Impact: cleaner root and fewer accidental commits.
 
 5) Fast-path orchestration for trivial tasks (pending)
 - Add lightweight execution path to bypass 7-phase HiveMind when complexity is low.
 - Guardrails: skip only when risk score is low and tests unchanged.
+
+## P3.5 - Meta GraphRAG Access Surface (MCP + HTTP)
+Goal: standardized access for any agent (top-k + graph expansion + briefing).
+
+1) MCP tool exposure + docs (pending)
+- Ensure `core/mcp/server.py` exports nexus_meta_graphrag_* tools; add usage docs in `core/mcp/README.md`.
+- Provide client config snippet (mcp.json) for quick onboarding.
+
+2) HTTP API hardening (pending)
+- Validate request schema (top_k, expand_nodes, expansion_depth) and add tests.
+- Add caching for reports/briefing payloads to avoid regen per request.
+
+3) Briefing pack generation (pending)
+- Auto-generate top-down, bottom-up, module catalog as agent bootstrap.
+- Expose via `/api/meta-graphrag/briefing` with version stamp.
+
+4) GraphRAG query expansions (pending)
+- Confirm expansion strategy parameters are plumbed end-to-end (CLI + HTTP + MCP).
+- Add sample queries to `workspace/meta_rag/analysis_queries.json`.
 
 ## P4 - Agentic Reasoning Alignment (Paper 2601.12538v1)
 Goal: align architecture with modern agentic reasoning taxonomy.
@@ -192,6 +277,9 @@ Goal: align architecture with modern agentic reasoning taxonomy.
   - core/ncm/orchestrator.py and core/memory/*
 - Collective reasoning: multi-agent coordination
   - core/hive_mind/* and core/swarm/*
+- Optimization modes:
+  - In-context: orchestration, tool use, structured workflows (current strength)
+  - Post-training: future RL/SFT loops for policy upgrades and memory control
 
 Open challenges from the paper to address:
 - Personalization
@@ -200,8 +288,9 @@ Open challenges from the paper to address:
 - Scalable multi-agent training
 - Governance frameworks
 
-## P4.5 - Lean Formalization as Oracle (from analyse.md)
+## P4.5 - Lean Formalization as Oracle (from docs/analysis/lean_formalization_review.md)
 Goal: turn Lean into an executable spec and regression oracle for refactors/rewrite.
+Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 modes (incl. LEAD_SUPPORT).
 
 1) Align Lean specs with real system counts (pending)
 - Update Lean FSM to match actual orchestrator states (12) and Swarm modes (6 incl. LEAD_SUPPORT).
@@ -219,6 +308,18 @@ Goal: turn Lean into an executable spec and regression oracle for refactors/rewr
 - Lean = oracle; Python/Rust = implementations.
 - Property-based sequences of events; compare transitions and invariants.
 - Impact: safe refactor and rewrite.
+
+5) Refactor FSM handlers by state (pending)
+- One module per state (or state family) with pure-ish handlers: (context, event) -> (new_state, actions).
+- Impact: better testability and a direct mapping for Lean-based differential tests.
+
+6) Stabilize interface contracts (pending)
+- FSM -> HiveMind -> Swarm I/O contract for events, actions, telemetry.
+- Impact: clearer refactor boundaries and less implicit coupling.
+
+7) Formalize resource scoping (pending)
+- ServiceFactory, EmbeddingEngine, RedisEventBus must be tenant-scoped; eliminate implicit globals.
+- Impact: multi-tenant isolation invariants align with Lean spec.
 
 ## P6 - Strategic Rewrite Track (Optional)
 Goal: de-risk a Rust core without losing behavior.
@@ -266,6 +367,28 @@ Implemented:
 3) Wired into NCM Kimi routing (MultiAIExecutor prefers API, CLI fallback).
 4) CLI remains as fallback when API key not configured.
 
+## DeepSeek Reasoning Integration (pending)
+Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
+
+1) Provider plumbing (done 2026-01-24)
+- Add DeepSeek API endpoint + key (`DEEPSEEK_API_KEY`) to config and driver registry.
+- Reuse OpenAI-compatible request/response schema; add SSL CA handling.
+- Added AsyncDeepSeek driver + async factory integration + rate limiter entry.
+- Optional routing for NCM security stories when key is present.
+
+2) Model routing (pending)
+- Route summaries to DeepSeek-V3.2, complex reasoning to R1-series; keep Gemini/Kimi fallback.
+- Add model allowlist + per-task policy controls.
+- Add explicit model constants for V3.2 and R1-0528 to avoid string drift.
+
+3) Evaluation (pending)
+- Add eval suite to compare DeepSeek vs Gemini/Kimi on reasoning/code tasks (MMLU, GSM8K, HumanEval).
+- Track cost/latency metrics in telemetry.
+
+4) Governance (pending)
+- Data sensitivity guardrails: disable DeepSeek for secrets or regulated data.
+- Document data residency and retention considerations.
+
 ## Validation and Evaluation
 - Unit: tests/ncm/*, tests/test_mcp_client.py, tests/test_swarm_session_integration.py
 - Smoke: python nexus7.py --verify
@@ -284,12 +407,38 @@ Implemented:
 - 2026-01-24: Deep-research run fetched new sources, but Gemini summarization frequently returned empty content (needs fallback).
 - 2026-01-24: NCM pilot (P2, 5 stories) stalled in Claude processing on Windows; run aborted after ~2.5 min.
 - 2026-01-24: Added `NEXUS_SIMPLE_AGENT` override to force Gemini/Claude in SIMPLE mode for pilots.
+- 2026-01-24: New research sources created (GraphSearch, GraphRAG-Bench, GraphRAG under Fire); sources.json not refreshed (partial run).
+- 2026-01-24: DeepSeek sources added; Deep GraphRAG arXiv id corrected in DEFAULT_SOURCES.
+- 2026-01-24: sources.json rebuilt from 142 deep-research source files after long-running run was stopped.
+- 2026-01-24: Full Meta GraphRAG reindex completed (Gemini backend).
+- 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 10 warnings (pre-fix).
+- 2026-01-24: Added pytest stress mark, switched NCM test mocks to sync, fixed hybrid security tests returning bool, fixed Windows path string to avoid SyntaxWarning; targeted retest passed (10 passed, 1 skipped).
+- 2026-01-24: Stress test stability fix: mocked validation + disabled prompt refresh during stress loop.
+- 2026-01-24: Remaining warning to investigate: TelemetryBridge.emit coroutine not awaited in tests/v11/test_keymaker.py.
+- 2026-01-24: Meta GraphRAG query CLI hung on embedding call; add query timeout/backoff + SSL CA support.
+- 2026-01-24: Added query embedding cache + Gemini timeout config for Meta GraphRAG.
+- 2026-01-24: Added core SSL utilities + CA auto-export; propagated to Kimi/DeepSeek API drivers.
+- 2026-01-24: Added AsyncDeepSeek driver + NCM optional routing.
+- 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 1 warning (TelemetryBridge.emit not awaited).
+- 2026-01-24: Meta GraphRAG query "security hotspots auth files upload path traversal" returned seed hits in core/security/mutation_validator.py, core/security/path_guardian.py, core/execution/tool_manager.py, core/drivers/async_claude_driver.py, core/ncm/multi_ai_executor.py, scripts/verify/verify_users_security.py, tools/meta_graph_rag/reports.py (expanded results: 10).
+- 2026-01-24: Extracted Agentic Reasoning survey text to workspace/meta_rag/tmp/2601.12538v1.txt for roadmap alignment.
 
 ## Web Research Addenda (24/01/2026)
-Sources pulled (ArXiv/GitHub/Docs): Deep GraphRAG 2026, GraphRAG under Fire, GraphSearch, DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10.
+Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
+
+DeepSeek highlights:
+- DeepSeek-V3: MoE 671B total params (37B active), 128K context, FP8 training; reasoning distilled from R1 series.
+- DeepSeek API: OpenAI-compatible; active cadence includes V3.2/V3.1 and R1-series updates.
+- Ecosystem: 100+ integrations, heavy RAG + MCP usage, strong local-first trend.
+
+Agentic Reasoning survey highlights:
+- Three-layer taxonomy: foundational, self-evolving, collective (maps to Orchestrator, NCM/Memory, HiveMind/Swarm).
+- Two optimization modes: in-context orchestration vs post-training updates (NEXUS is in-context heavy today).
+- Benchmark split: mechanism-level vs application-level; use both for eval harness coverage.
 
 Planned adaptations:
 1) Deep GraphRAG retrieval stack (pending)
+- Keep embeddings stable; changes should operate on existing vectors/graph unless chunking changes.
 - Implement hierarchical retrieval + adaptive integration (global→local + refinement).
 - Place under GraphRAG query path with toggles for precision vs recall.
 
@@ -304,11 +453,19 @@ Planned adaptations:
 - Add poisoning detection and relation attack checks on shared nodes.
 - Extend security tags with trust scores per source type.
 
-5) Evaluation frameworks (pending)
+5) GraphRAG-Bench gating (pending)
+- Use GraphRAG-Bench to define when graph retrieval outperforms vanilla RAG.
+- Add query classifier: only expand graph for hierarchical/multi-hop tasks.
+
+6) GraphSearch dual-channel retrieval (pending)
+- Add agentic loops combining semantic chunk retrieval with graph relation traversal.
+- Use for multi-hop reasoning and evidence synthesis.
+
+7) Evaluation frameworks (pending)
 - Use RAGAS/TruLens/Phoenix/DeepEval for nightly retrieval QA.
 - Add OWASP LLM Top 10 checks to threat model and red-team suites.
 
-6) Deep-research summarization fallback (pending)
+8) Deep-research summarization fallback (pending)
 - When LLM summary fails, store raw abstract/body to keep sources usable.
 - Add optional Kimi K2 Thinking fallback for summarization.
 Status: done 2026-01-24 (raw content fallback + Kimi optional).

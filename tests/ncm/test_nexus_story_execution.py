@@ -45,8 +45,8 @@ class TestNEXUSStoryExecution:
         )
 
         # Mock OrchestratorV7
-        mock_orchestrator = AsyncMock()
-        mock_orchestrator.process_turn = AsyncMock(return_value={
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.process_turn = MagicMock(return_value={
             "status": "success",
             "tool_calls_count": 5,
             "final_response": "Removed unused import from test_file.py"
@@ -115,8 +115,8 @@ class TestNEXUSStoryExecution:
         )
 
         # Mock OrchestratorV7
-        mock_orchestrator = AsyncMock()
-        mock_orchestrator.process_turn = AsyncMock(return_value={
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.process_turn = MagicMock(return_value={
             "status": "success",
             "tool_calls_count": 15,
             "final_response": "Refactored into 3 helper functions"

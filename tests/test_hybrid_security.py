@@ -64,7 +64,7 @@ def test_path_traversal_prevention():
         print(f"  ✗ FAIL: Valid absolute path rejected: {e}")
         all_passed = False
     
-    return all_passed
+    assert all_passed
 
 
 def test_input_validation_limit():
@@ -91,7 +91,7 @@ def test_input_validation_limit():
             print(f"  ✗ FAIL: limit={input_limit} caused error: {e}")
             all_passed = False
     
-    return all_passed
+    assert all_passed
 
 
 def test_secure_path_resolution():
@@ -135,7 +135,7 @@ def test_secure_path_resolution():
             print(f"  ✗ FAIL: Normal path rejected: {e}")
             all_passed = False
         
-        return all_passed
+        assert all_passed
 
 
 if __name__ == "__main__":

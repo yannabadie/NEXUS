@@ -31,6 +31,7 @@ from core.ncm.models import (
     IssueDomain,
     StoryStatus,
     NCMConfig,
+    ValidationResult,
 )
 from core.ncm.orchestrator import NCMOrchestrator
 
@@ -320,11 +321,10 @@ class TestNCMStress:
 
         # Mock OrchestratorV7 with variable success rate
         print("[2/5] Setting up mock NEXUS orchestrator...")
-        mock_orchestrator = AsyncMock()
+        mock_orchestrator = MagicMock()
 
-        async def mock_process_turn(user_input: str = None, **kwargs):
+        def mock_process_turn(user_input: str = None, **kwargs):
             """Mock process_turn with chaos injection."""
-            await asyncio.sleep(0.001)  # Simulate processing time
 
             # Inject chaos for some stories
             if chaos.should_inject_timeout():
@@ -370,7 +370,18 @@ class TestNCMStress:
         ncm.lock_manager.acquire_locks = AsyncMock(return_value=[])
         ncm.lock_manager.release_locks = AsyncMock()
 
+        ncm._validate_story_result = AsyncMock(return_value=ValidationResult(
+            story_id="STRESS-VALIDATION",
+            passed=True,
+            syntax_valid=True,
+            imports_valid=True,
+            types_valid=True,
+            tests_passed=True,
+        ))
+
         ncm.use_simple_executor = False  # Force NEXUS execution
+        ncm.refresh_interval = 1_000_000  # Avoid prompt refresh during stress test
+        ncm._refresh_prompts = AsyncMock()
         print("      [OK] NCM orchestrator initialized\n")
 
         # Execute all stories
