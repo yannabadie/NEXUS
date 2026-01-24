@@ -282,6 +282,7 @@ Implemented:
 - 2026-01-24: Added retry/backoff for Gemini embeddings and research ingestion.
 - 2026-01-24: Meta GraphRAG docs updated to reflect defaults and retry behavior.
 - 2026-01-24: Deep-research run fetched new sources, but Gemini summarization frequently returned empty content (needs fallback).
+- 2026-01-24: NCM pilot (P2, 5 stories) stalled in Claude processing on Windows; run aborted after ~2.5 min.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): Deep GraphRAG 2026, GraphRAG under Fire, GraphSearch, DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10.
