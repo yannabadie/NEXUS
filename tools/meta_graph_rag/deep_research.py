@@ -486,7 +486,7 @@ def _truncate_text(text: str, limit: int) -> str:
 
 
 def _build_kimi_client(http_config: HttpConfig) -> Optional[KimiResearchClient]:
-    api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY")
+    api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI")
     if not api_key:
         return None
     api_base = os.getenv("KIMI_API_BASE") or os.getenv("MOONSHOT_API_BASE", "https://api.moonshot.ai/v1")
