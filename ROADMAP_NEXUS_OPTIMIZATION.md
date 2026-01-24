@@ -59,6 +59,10 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - analyze_project.py, deep_analysis.py, explore_advanced_systems.py, lean_exploration.py
 - Use gemini embeddings by default, keep hash only for offline/debug.
 
+7) Index health checks (pending)
+- Detect mismatched counts (chunks < files), embedding backend/dim changes, and stale manifests.
+- Fail CI when GraphRAG coverage drops below threshold.
+
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
 
@@ -175,6 +179,10 @@ Goal: reduce latency and improve maintainability.
 - Move transient pilot input/output files to `workspace/` or `logs/`.
 - Impact: cleaner root and fewer accidental commits.
 
+5) Fast-path orchestration for trivial tasks (pending)
+- Add lightweight execution path to bypass 7-phase HiveMind when complexity is low.
+- Guardrails: skip only when risk score is low and tests unchanged.
+
 ## P4 - Agentic Reasoning Alignment (Paper 2601.12538v1)
 Goal: align architecture with modern agentic reasoning taxonomy.
 
@@ -191,6 +199,42 @@ Open challenges from the paper to address:
 - World modeling
 - Scalable multi-agent training
 - Governance frameworks
+
+## P4.5 - Lean Formalization as Oracle (from analyse.md)
+Goal: turn Lean into an executable spec and regression oracle for refactors/rewrite.
+
+1) Align Lean specs with real system counts (pending)
+- Update Lean FSM to match actual orchestrator states (12) and Swarm modes (6 incl. LEAD_SUPPORT).
+- Impact: `LEAN_FORMALIZATION.md`, `nexus_formalization.lean`, `nexus_advanced_systems.lean`.
+
+2) Replace tautologies with real invariants (pending)
+- Target invariants: valid transitions, cancellation propagation, tenant isolation.
+- Impact: spec credibility + regression prevention.
+
+3) Formalize interface contracts (pending)
+- FSM ↔ HiveMind ↔ Swarm I/O contracts (events, actions, telemetry).
+- Impact: stable refactor boundaries.
+
+4) Differential testing harness (pending)
+- Lean = oracle; Python/Rust = implementations.
+- Property-based sequences of events; compare transitions and invariants.
+- Impact: safe refactor and rewrite.
+
+## P6 - Strategic Rewrite Track (Optional)
+Goal: de-risk a Rust core without losing behavior.
+
+1) Lean-first "NEXUS_PROTOCOL.md" (pending)
+- Define node ontology, legal FSM transitions, and kill criteria.
+- Use as pre-rewrite contract.
+
+2) Rust kernel / Python cortex (pending)
+- Rust handles parsing (tree-sitter), graph storage (petgraph), retrieval, concurrency primitives.
+- Python keeps LLM routing, prompts, orchestration policies.
+- Bridge via PyO3.
+
+3) Incremental migration (pending)
+- Replace indexing + retrieval in Python with Rust core, keep orchestration in Python.
+- Validate with Lean oracle and differential tests.
 
 ## P5 - Productized Use Cases (Meta GraphRAG)
 Goal: turn the meta-memory into operational tooling.
@@ -209,6 +253,11 @@ Goal: turn the meta-memory into operational tooling.
 - Graph navigation API + Mermaid expansion around a query.
 - Q&A with always-cited sources (code/test/doc sections).
 - Output: onboarding briefing pack + interactive graph.
+
+4) Autonomous Self-Healer (CI-driven fix loop)
+- Feed test failures into HiveMind pipeline; locate culprit via GraphRAG.
+- Generate patch + rerun tests; auto-create PR, human approval gate.
+- Escalate to HUMAN_INTERVENTION after N failed attempts.
 
 ## KIMI K2 Thinking Integration (API Key in .env) (done 2026-01-23)
 Implemented:
@@ -232,6 +281,34 @@ Implemented:
 - 2026-01-24: Meta GraphRAG defaults now exclude repo noise (e.g., .git/meta_rag/workspace).
 - 2026-01-24: Added retry/backoff for Gemini embeddings and research ingestion.
 - 2026-01-24: Meta GraphRAG docs updated to reflect defaults and retry behavior.
+- 2026-01-24: Deep-research run fetched new sources, but Gemini summarization frequently returned empty content (needs fallback).
+
+## Web Research Addenda (24/01/2026)
+Sources pulled (ArXiv/GitHub/Docs): Deep GraphRAG 2026, GraphRAG under Fire, GraphSearch, DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10.
+
+Planned adaptations:
+1) Deep GraphRAG retrieval stack (pending)
+- Implement hierarchical retrieval + adaptive integration (global→local + refinement).
+- Place under GraphRAG query path with toggles for precision vs recall.
+
+2) DRIFT + dynamic community selection (pending)
+- Add DRIFT-style hybrid traversal and community-aware pruning for large graphs.
+- Expose in query API (`expansion_strategy=drift|community|default`).
+
+3) LazyGraphRAG cost controls (pending)
+- Add budget-based early stopping and summary caching to reduce token spend.
+
+4) GraphRAG under Fire hardening (pending)
+- Add poisoning detection and relation attack checks on shared nodes.
+- Extend security tags with trust scores per source type.
+
+5) Evaluation frameworks (pending)
+- Use RAGAS/TruLens/Phoenix/DeepEval for nightly retrieval QA.
+- Add OWASP LLM Top 10 checks to threat model and red-team suites.
+
+6) Deep-research summarization fallback (pending)
+- When LLM summary fails, store raw abstract/body to keep sources usable.
+- Add optional Kimi K2 Thinking fallback for summarization.
 
 ## Recommended Execution Order
 1) P0 NCM blockers
