@@ -131,6 +131,7 @@ The report includes a simple availability check for optional evaluators
 - Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
 - Security tag matching uses regex patterns to reduce false positives.
 - External fetch, deep research, and Gemini embedding calls include retry/backoff for 429 and transient failures.
+- Deep research summarization falls back to raw content if Gemini fails, with optional Kimi K2 Thinking fallback.
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.

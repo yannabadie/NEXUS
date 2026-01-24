@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 import hashlib
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -110,6 +111,66 @@ class GeminiResearchClient:
         return parts[0].get("text", "")
 
 
+class KimiResearchClient:
+    def __init__(
+        self,
+        api_key: str,
+        api_base: str,
+        model_name: str,
+        http_config: HttpConfig,
+        timeout: int = 60,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
+    ) -> None:
+        if not api_key:
+            raise ValueError("KIMI_API_KEY is required")
+        self._api_key = api_key
+        self._api_base = api_base.rstrip("/")
+        self._model_name = model_name
+        self._http_config = http_config
+        self._timeout = timeout
+        self._max_tokens = max_tokens
+        self._temperature = temperature
+
+    def summarize(self, source: ResearchSource) -> str:
+        prompt = _build_prompt(source)
+        response = self._generate(prompt)
+        return _sanitize_text(response)
+
+    def _generate(self, prompt: str) -> str:
+        url = f"{self._api_base}/chat/completions"
+        payload = {
+            "model": self._model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            "temperature": self._temperature,
+            "max_tokens": self._max_tokens,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+            },
+            method="POST",
+        )
+        result = _request_json(request, timeout=self._timeout, http_config=self._http_config)
+        choices = result.get("choices", [])
+        if not choices:
+            raise RuntimeError("Kimi chat completions returned no choices")
+        message = choices[0].get("message", {})
+        content = message.get("content")
+        if not content:
+            raise RuntimeError("Kimi chat completions returned empty content")
+        return content
+
+
 def run_deep_research(config: MetaGraphRagConfig) -> List[Path]:
     if not config.gemini_api_key:
         raise RuntimeError("GOOGLE_API_KEY or GEMINI_API_KEY is required for deep research")
@@ -121,6 +182,7 @@ def run_deep_research(config: MetaGraphRagConfig) -> List[Path]:
         model_name=config.gemini_generation_model,
         http_config=http_config,
     )
+    kimi_client = _build_kimi_client(http_config)
 
     sources: List[ResearchSource] = []
     sources.extend(_static_sources(http_config))
@@ -139,7 +201,7 @@ def run_deep_research(config: MetaGraphRagConfig) -> List[Path]:
         try:
             summary = client.summarize(source)
         except Exception as exc:
-            summary = _fallback_summary(source, exc)
+            summary = _fallback_with_kimi(source, exc, kimi_client)
         content = _format_summary(source, summary)
         text_path = f"{source.source_id}.md"
         full_path = config.sources_path / text_path
@@ -306,13 +368,27 @@ def _format_summary(source: ResearchSource, summary: str) -> str:
     return "\n".join(lines)
 
 
-def _fallback_summary(source: ResearchSource, exc: Exception) -> str:
-    return (
-        "Summary\n"
-        "- Gemini summarization failed; storing raw content instead.\n\n"
-        "Key Findings\n"
-        f"- Error: {exc}\n"
-    )
+def _fallback_summary(
+    source: ResearchSource,
+    exc: Exception,
+    fallback_exc: Optional[Exception] = None,
+) -> str:
+    raw_excerpt = _truncate_text(_sanitize_text(source.content), 12000)
+    lines = [
+        "Summary",
+        "- Gemini summarization failed; storing raw content instead.",
+        "",
+        "Key Findings",
+        f"- Gemini Error: {exc}",
+    ]
+    if fallback_exc is not None:
+        lines.append(f"- Kimi Error: {fallback_exc}")
+    lines.extend([
+        "",
+        "Raw Content",
+        raw_excerpt,
+    ])
+    return "\n".join(lines)
 
 
 def _fetch_text(url: str, http_config: HttpConfig) -> str:
@@ -374,3 +450,69 @@ def _sleep_backoff(attempt: int, status_code: Optional[int]) -> None:
     base = 2 ** (attempt - 1)
     delay = min(base, 16)
     time.sleep(delay)
+
+
+def _request_json(
+    request: urllib.request.Request,
+    timeout: int,
+    http_config: HttpConfig,
+) -> Dict[str, object]:
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            with urlopen(request, timeout=timeout, http_config=http_config) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                _sleep_backoff(attempt, exc.code)
+                continue
+            raise
+        except urllib.error.URLError as exc:
+            last_exc = exc
+            if attempt < 3:
+                _sleep_backoff(attempt, None)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("HTTP request failed")
+
+
+def _truncate_text(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "\n...[truncated]..."
+
+
+def _build_kimi_client(http_config: HttpConfig) -> Optional[KimiResearchClient]:
+    api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY")
+    if not api_key:
+        return None
+    api_base = os.getenv("KIMI_API_BASE") or os.getenv("MOONSHOT_API_BASE", "https://api.moonshot.ai/v1")
+    model_name = os.getenv("KIMI_MODEL", "kimi-k2-thinking")
+    timeout = int(os.getenv("KIMI_TIMEOUT", "60"))
+    max_tokens = int(os.getenv("KIMI_MAX_TOKENS", "1024"))
+    temperature = float(os.getenv("KIMI_TEMPERATURE", "0.2"))
+    return KimiResearchClient(
+        api_key=api_key,
+        api_base=api_base,
+        model_name=model_name,
+        http_config=http_config,
+        timeout=timeout,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+
+def _fallback_with_kimi(
+    source: ResearchSource,
+    exc: Exception,
+    kimi_client: Optional[KimiResearchClient],
+) -> str:
+    if kimi_client is None:
+        return _fallback_summary(source, exc)
+    try:
+        return kimi_client.summarize(source)
+    except Exception as kimi_exc:
+        return _fallback_summary(source, exc, kimi_exc)

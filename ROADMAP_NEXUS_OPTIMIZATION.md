@@ -309,6 +309,7 @@ Planned adaptations:
 6) Deep-research summarization fallback (pending)
 - When LLM summary fails, store raw abstract/body to keep sources usable.
 - Add optional Kimi K2 Thinking fallback for summarization.
+Status: done 2026-01-24 (raw content fallback + Kimi optional).
 
 ## Recommended Execution Order
 1) P0 NCM blockers
