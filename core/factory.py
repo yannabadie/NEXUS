@@ -210,6 +210,7 @@ class ServiceFactory:
             ImportError: If the UnifiedAgentRegistry cannot be imported.
         """
         def factory(ctx: Optional[SessionContext]):
+            """TODO: Add function description."""
             from .agents.unified_registry import UnifiedAgentRegistry
             return UnifiedAgentRegistry()
 

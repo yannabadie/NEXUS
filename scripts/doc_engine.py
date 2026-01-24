@@ -82,7 +82,7 @@ class Issue:
     current: str = ""
     expected: str = ""
 
-    def __str__(self):
+    def __str__(self) -> str:
         result = f"[{self.severity}] {self.file}: {self.message}"
         if self.current and self.expected:
             result += f"\n  Current:  {self.current}\n  Expected: {self.expected}"
@@ -98,7 +98,7 @@ class Change:
     new_value: str
     line_number: int = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.file}:{self.line_number} | '{self.old_value}' -> '{self.new_value}'"
 
 
@@ -194,7 +194,7 @@ class DocEngine:
         ],
     }
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path) -> None:
         self.root = project_root
         self.version = self._read_env_value("NEXUS_VERSION", "0.0.0")
         self.codename = self._read_env_value("NEXUS_CODENAME", "UNKNOWN")
@@ -265,15 +265,15 @@ class DocEngine:
         self._print_check_results()
         return self.issues
 
-    def _check_module_readmes(self):
+    def _check_module_readmes(self) -> None:
         """Check that each core/* module has a README."""
-        core_path = self.root / "core"
+        core_path: Path = self.root / "core"
         if not core_path.exists():
             return
         for module_dir in sorted(core_path.iterdir()):
             if not module_dir.is_dir() or module_dir.name.startswith("_"):
                 continue
-            readme_path = module_dir / "README.md"
+            readme_path: Path = module_dir / "README.md"
             if not readme_path.exists():
                 self.issues.append(Issue(
                     severity="WARNING",
@@ -281,7 +281,7 @@ class DocEngine:
                     message="Missing README.md"
                 ))
             else:
-                content = readme_path.read_text(encoding="utf-8")
+                content: str = readme_path.read_text(encoding="utf-8")
                 if "V7." in content and "V8" not in content:
                     self.issues.append(Issue(
                         severity="WARNING",
@@ -289,10 +289,10 @@ class DocEngine:
                         message="May be outdated (references V7 but not V8)"
                     ))
 
-    def _print_check_results(self):
+    def _print_check_results(self) -> None:
         """Print check results."""
-        errors = [i for i in self.issues if i.severity == "ERROR"]
-        warnings = [i for i in self.issues if i.severity == "WARNING"]
+        errors: List[Issue] = [i for i in self.issues if i.severity == "ERROR"]
+        warnings: List[Issue] = [i for i in self.issues if i.severity == "WARNING"]
         if errors:
             print("[ERRORS]")
             for issue in errors:
@@ -331,7 +331,12 @@ class DocEngine:
 
             for pattern, replacement in patterns:
                 expected = self._format_pattern(replacement)
-                def replacer(match, exp=expected, cont=content, fc=file_changes):
+                def replacer(
+                    match: re.Match[str],
+                    exp: str = expected,
+                    cont: str = content,
+                    fc: List[Change] = file_changes
+                ) -> str:
                     old_value = match.group(0)
                     if old_value != exp:
                         line_num = cont[:match.start()].count('\n') + 1
@@ -468,7 +473,7 @@ class DocEngine:
 class CodebaseScanner:
     """Scans the codebase and extracts structural information."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path) -> None:
         self.root = root
 
     def scan(self) -> List[ComponentInfo]:
@@ -517,27 +522,27 @@ class CodebaseScanner:
 class CodeAnalyzer(ast.NodeVisitor):
     """AST visitor to extract code structure."""
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str) -> None:
         self.file_path = file_path
         self.classes: List[ClassInfo] = []
         self.functions: List[FunctionInfo] = []
 
-    def visit_ClassDef(self, node: ast.ClassDef):
-        bases = [self._get_name(b) for b in node.bases]
-        is_dataclass = any(self._get_name(d) == "dataclass" for d in node.decorator_list)
-        is_enum = "Enum" in bases or "IntEnum" in bases or "StrEnum" in bases
-        methods = [n.name for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        bases: List[str] = [self._get_name(b) for b in node.bases]
+        is_dataclass: bool = any(self._get_name(d) == "dataclass" for d in node.decorator_list)
+        is_enum: bool = "Enum" in bases or "IntEnum" in bases or "StrEnum" in bases
+        methods: List[str] = [n.name for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
 
         # Extract fields for dataclasses
-        fields = []
+        fields: List[Tuple[str, str]] = []
         if is_dataclass:
             for item in node.body:
                 if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                    field_name = item.target.id
-                    field_type = self._get_annotation(item.annotation) if item.annotation else "Any"
+                    field_name: str = item.target.id
+                    field_type: str = self._get_annotation(item.annotation) if item.annotation else "Any"
                     fields.append((field_name, field_type))
 
-        class_info = ClassInfo(
+        class_info: ClassInfo = ClassInfo(
             name=node.name, file_path=self.file_path, line_number=node.lineno,
             bases=bases, docstring=ast.get_docstring(node), methods=methods,
             fields=fields, is_dataclass=is_dataclass, is_enum=is_enum
@@ -545,7 +550,7 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.classes.append(class_info)
         self.generic_visit(node)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
                 name=node.name, file_path=self.file_path, line_number=node.lineno,
@@ -553,7 +558,7 @@ class CodeAnalyzer(ast.NodeVisitor):
             ))
         self.generic_visit(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
                 name=node.name, file_path=self.file_path, line_number=node.lineno,
@@ -561,7 +566,7 @@ class CodeAnalyzer(ast.NodeVisitor):
             ))
         self.generic_visit(node)
 
-    def _get_name(self, node) -> str:
+    def _get_name(self, node: ast.AST) -> str:
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
@@ -570,7 +575,7 @@ class CodeAnalyzer(ast.NodeVisitor):
             return self._get_name(node.func)
         return ""
 
-    def _get_annotation(self, node) -> str:
+    def _get_annotation(self, node: ast.AST) -> str:
         """Get type annotation as string."""
         if isinstance(node, ast.Name):
             return node.id
@@ -595,10 +600,10 @@ class CodeAnalyzer(ast.NodeVisitor):
 class StructureExtractor:
     """Extracts high-level structures from the codebase."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path) -> None:
         self.root = root
 
-    def extract(self) -> Dict:
+    def extract(self) -> Dict[str, Any]:
         """Extract all structures."""
         return {
             "fsm_states": self._extract_enum_values(
@@ -649,7 +654,7 @@ class StructureExtractor:
 
     def _extract_commands_detailed(self) -> Dict[str, List[CommandInfo]]:
         """Extract slash commands with categories."""
-        categories = {
+        categories: Dict[str, List[CommandInfo]] = {
             "Collaboration": [],
             "Evolution": [],
             "Monitoring": [],
@@ -659,7 +664,7 @@ class StructureExtractor:
         }
 
         # Command -> Category mapping
-        cmd_categories = {
+        cmd_categories: Dict[str, Tuple[str, str]] = {
             "swarm": ("Collaboration", "Route task through Hybrid Swarm Engine"),
             "swarm-status": ("Collaboration", "Show current mode + DyLAN metrics"),
             "swarm-fsm": ("Collaboration", "Debug: route via FSM states"),
@@ -692,12 +697,12 @@ class StructureExtractor:
             "export-telemetry": ("Monitoring", "Export session telemetry"),
         }
 
-        repl_file = self.root / "core" / "interface" / "repl.py"
+        repl_file: Path = self.root / "core" / "interface" / "repl.py"
         if repl_file.exists():
-            content = repl_file.read_text(encoding="utf-8")
+            content: str = repl_file.read_text(encoding="utf-8")
             # Find all commands
-            pattern = r'elif\s+command\s*==\s*["\']/?([^"\']+)["\']'
-            matches = re.findall(pattern, content)
+            pattern: str = r'elif\s+command\s*==\s*["\']/?([^"\']+)["\']'
+            matches: List[str] = re.findall(pattern, content)
 
             for cmd in sorted(set(matches)):
                 if cmd in cmd_categories:
@@ -710,16 +715,16 @@ class StructureExtractor:
 
     def _extract_all_enums(self) -> List[Tuple[str, str]]:
         """Extract all enum names with their files."""
-        enums = []
+        enums: List[Tuple[str, str]] = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
-                content = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(content)
+                content: str = py_file.read_text(encoding="utf-8")
+                tree: ast.Module = ast.parse(content)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
-                        bases = [self._get_base_name(b) for b in node.bases]
+                        bases: List[str] = [self._get_base_name(b) for b in node.bases]
                         if any(b in ("Enum", "IntEnum", "StrEnum") for b in bases):
-                            rel_path = str(py_file.relative_to(self.root))
+                            rel_path: str = str(py_file.relative_to(self.root))
                             enums.append((node.name, rel_path))
             except Exception:
                 pass
@@ -727,21 +732,21 @@ class StructureExtractor:
 
     def _extract_all_dataclasses_detailed(self) -> List[DataclassInfo]:
         """Extract all dataclasses with their fields."""
-        dataclasses = []
+        dataclasses_list: List[DataclassInfo] = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
-                content = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(content)
+                content: str = py_file.read_text(encoding="utf-8")
+                tree: ast.Module = ast.parse(content)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
                         for decorator in node.decorator_list:
                             if self._get_base_name(decorator) == "dataclass":
-                                fields = []
+                                fields: List[Tuple[str, str, str]] = []
                                 for item in node.body:
                                     if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
-                                        field_name = item.target.id
-                                        field_type = self._get_annotation(item.annotation) if item.annotation else "Any"
-                                        default = ""
+                                        field_name: str = item.target.id
+                                        field_type: str = self._get_annotation(item.annotation) if item.annotation else "Any"
+                                        default: str = ""
                                         if item.value:
                                             if isinstance(item.value, ast.Constant):
                                                 default = repr(item.value.value)
@@ -749,8 +754,8 @@ class StructureExtractor:
                                                 default = "..."
                                         fields.append((field_name, field_type, default))
 
-                                rel_path = str(py_file.relative_to(self.root))
-                                dataclasses.append(DataclassInfo(
+                                rel_path: str = str(py_file.relative_to(self.root))
+                                dataclasses_list.append(DataclassInfo(
                                     name=node.name,
                                     file_path=rel_path,
                                     fields=fields,
@@ -759,31 +764,31 @@ class StructureExtractor:
                                 break
             except Exception:
                 pass
-        return sorted(dataclasses, key=lambda x: x.name)
+        return sorted(dataclasses_list, key=lambda x: x.name)
 
     def _get_test_stats(self) -> Dict[str, int]:
         """Get test statistics."""
-        stats = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
-        tests_dir = self.root / "tests"
+        stats: Dict[str, int] = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+        tests_dir: Path = self.root / "tests"
         if tests_dir.exists():
             # Count test files and functions
             for py_file in tests_dir.rglob("test_*.py"):
                 try:
-                    content = py_file.read_text(encoding="utf-8")
+                    content: str = py_file.read_text(encoding="utf-8")
                     # Count test functions
-                    test_count = len(re.findall(r'def test_', content))
+                    test_count: int = len(re.findall(r'def test_', content))
                     stats["total"] += test_count
                 except Exception:
                     pass
         return stats
 
-    def _extract_model_routing(self) -> Dict[str, Dict[str, str]]:
+    def _extract_model_routing(self) -> Dict[str, Dict[str, Any]]:
         """
         Extract model routing configuration dynamically from ModelRouter.
 
         V2.1: Dynamic extraction - adapts automatically to routing changes.
         """
-        routing = {
+        routing: Dict[str, Dict[str, Any]] = {
             "claude": {"model": "", "opus_tasks": [], "sonnet_tasks": []},
             "gemini": {"model": "", "pro_tasks": [], "flash_tasks": []},
         }
@@ -818,7 +823,7 @@ class StructureExtractor:
 
         V2.1: Dynamic extraction - adapts automatically to mode changes.
         """
-        fallbacks = {}
+        fallbacks: Dict[str, Optional[str]] = {}
 
         try:
             # Try to import CollaborationMode and extract from fallback_mode property
@@ -841,13 +846,13 @@ class StructureExtractor:
 
         return fallbacks
 
-    def _extract_mode_characteristics(self) -> Dict[str, Dict]:
+    def _extract_mode_characteristics(self) -> Dict[str, Dict[str, Any]]:
         """
         Extract mode characteristics dynamically from MODE_CHARACTERISTICS.
 
         V2.1: Dynamic extraction - adapts automatically to new modes.
         """
-        characteristics = {}
+        characteristics: Dict[str, Dict[str, Any]] = {}
 
         try:
             from core.swarm.collaboration_modes import MODE_CHARACTERISTICS
@@ -867,7 +872,7 @@ class StructureExtractor:
 
         return characteristics
 
-    def _get_base_name(self, node) -> str:
+    def _get_base_name(self, node: ast.AST) -> str:
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
@@ -876,7 +881,7 @@ class StructureExtractor:
             return self._get_base_name(node.func)
         return ""
 
-    def _get_annotation(self, node) -> str:
+    def _get_annotation(self, node: ast.AST) -> str:
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Constant):
@@ -898,11 +903,11 @@ class StructureExtractor:
 
     def _extract_async_primitives(self) -> Dict[str, List[str]]:
         """Extract async primitives from core/async_primitives/."""
-        primitives = {
+        primitives: Dict[str, List[str]] = {
             "classes": [],
             "files": []
         }
-        async_path = self.root / "core" / "async_primitives"
+        async_path: Path = self.root / "core" / "async_primitives"
         if not async_path.exists():
             return primitives
 
@@ -911,8 +916,8 @@ class StructureExtractor:
                 continue
             primitives["files"].append(py_file.name)
             try:
-                content = py_file.read_text(encoding="utf-8")
-                tree = ast.parse(content)
+                content: str = py_file.read_text(encoding="utf-8")
+                tree: ast.Module = ast.parse(content)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
                         primitives["classes"].append(node.name)
@@ -922,15 +927,15 @@ class StructureExtractor:
 
     def _extract_async_handlers(self) -> List[str]:
         """Extract async handler methods from fsm_handlers.py."""
-        handlers = []
-        handler_file = self.root / "core" / "orchestration" / "fsm_handlers.py"
+        handlers: List[str] = []
+        handler_file: Path = self.root / "core" / "orchestration" / "fsm_handlers.py"
         if not handler_file.exists():
             return handlers
 
         try:
-            content = handler_file.read_text(encoding="utf-8")
+            content: str = handler_file.read_text(encoding="utf-8")
             # Find async def handle_*_async methods
-            pattern = r'async\s+def\s+(handle_\w+_async)'
+            pattern: str = r'async\s+def\s+(handle_\w+_async)'
             handlers = re.findall(pattern, content)
         except Exception:
             pass
@@ -938,17 +943,17 @@ class StructureExtractor:
 
     def _extract_saga_phases(self) -> List[str]:
         """Extract PHASE_ORDER from saga_manager.py."""
-        phases = []
-        saga_file = self.root / "core" / "hive_mind" / "saga_manager.py"
+        phases: List[str] = []
+        saga_file: Path = self.root / "core" / "hive_mind" / "saga_manager.py"
         if not saga_file.exists():
             return phases
 
         try:
-            content = saga_file.read_text(encoding="utf-8")
+            content: str = saga_file.read_text(encoding="utf-8")
             # Find PHASE_ORDER list
-            match = re.search(r'PHASE_ORDER\s*=\s*\[(.*?)\]', content, re.DOTALL)
+            match: Optional[re.Match[str]] = re.search(r'PHASE_ORDER\s*=\s*\[(.*?)\]', content, re.DOTALL)
             if match:
-                phase_str = match.group(1)
+                phase_str: str = match.group(1)
                 phases = re.findall(r'"(\w+)"', phase_str)
         except Exception:
             pass
@@ -956,15 +961,15 @@ class StructureExtractor:
 
     def _extract_recovery_strategies(self) -> List[str]:
         """Extract recovery strategies from health_state_machine.py."""
-        strategies = []
-        health_file = self.root / "core" / "fsm" / "health_state_machine.py"
+        strategies: List[str] = []
+        health_file: Path = self.root / "core" / "fsm" / "health_state_machine.py"
         if not health_file.exists():
             return strategies
 
         try:
-            content = health_file.read_text(encoding="utf-8")
+            content: str = health_file.read_text(encoding="utf-8")
             # Find strategy registrations
-            pattern = r'RecoveryStrategy\s*\(\s*name\s*=\s*"(\w+)"'
+            pattern: str = r'RecoveryStrategy\s*\(\s*name\s*=\s*"(\w+)"'
             strategies = re.findall(pattern, content)
         except Exception:
             pass
@@ -972,20 +977,20 @@ class StructureExtractor:
 
     def _extract_torture_tests(self) -> Dict[str, Any]:
         """Extract Torture Protocol V8 test statistics."""
-        torture_stats = {
+        torture_stats: Dict[str, Any] = {
             "total_tests": 0,
             "categories": {},
             "files": [],
             "markers": []
         }
 
-        torture_dir = self.root / "tests" / "torture"
+        torture_dir: Path = self.root / "tests" / "torture"
         if not torture_dir.exists():
             return torture_stats
 
         # Extract category stats from scenario files
-        scenarios_dir = torture_dir / "scenarios"
-        category_map = {
+        scenarios_dir: Path = torture_dir / "scenarios"
+        category_map: Dict[str, Tuple[str, str]] = {
             "saga_crash.py": ("Saga Crash Recovery", "CR"),
             "saga_concurrency.py": ("Saga Concurrency", "CC"),
             "context_edge.py": ("Context Edge Cases", "CE"),
@@ -994,12 +999,12 @@ class StructureExtractor:
         }
 
         for filename, (category_name, prefix) in category_map.items():
-            file_path = scenarios_dir / filename
+            file_path: Path = scenarios_dir / filename
             if file_path.exists():
                 try:
-                    content = file_path.read_text(encoding="utf-8")
+                    content: str = file_path.read_text(encoding="utf-8")
                     # Count test functions
-                    test_count = len(re.findall(rf'def test_{prefix.lower()}\d+', content))
+                    test_count: int = len(re.findall(rf'def test_{prefix.lower()}\d+', content))
                     torture_stats["categories"][category_name] = test_count
                     torture_stats["total_tests"] += test_count
                     torture_stats["files"].append(filename)
@@ -1007,11 +1012,11 @@ class StructureExtractor:
                     pass
 
         # Extract markers from base.py or torture_v8.py
-        torture_v8 = self.root / "tests" / "torture_v8.py"
+        torture_v8: Path = self.root / "tests" / "torture_v8.py"
         if torture_v8.exists():
             try:
-                content = torture_v8.read_text(encoding="utf-8")
-                markers = re.findall(r'@pytest\.mark\.(\w+)', content)
+                content_v8: str = torture_v8.read_text(encoding="utf-8")
+                markers: List[str] = re.findall(r'@pytest\.mark\.(\w+)', content_v8)
                 torture_stats["markers"] = list(set(m for m in markers if m.startswith("torture")))
             except Exception:
                 pass
@@ -1027,7 +1032,7 @@ class MapGeneratorV2:
     """Generates the complete architecture map document V2."""
 
     def __init__(self, version: str, codename: str, components: List[ComponentInfo],
-                 structures: Dict, root: Path):
+                 structures: Dict[str, Any], root: Path) -> None:
         self.version = version
         self.codename = codename
         self.components = components
@@ -1234,19 +1239,19 @@ graph TD
 """
 
     def _generate_llm_drivers_zoom(self) -> str:
-        routing = self.structures.get("model_routing", {})
+        routing: Dict[str, Dict[str, Any]] = self.structures.get("model_routing", {})
 
         # Build dynamic routing table from extracted data
-        claude_routing = routing.get("claude", {})
-        gemini_routing = routing.get("gemini", {})
+        claude_routing: Dict[str, Any] = routing.get("claude", {})
+        gemini_routing: Dict[str, Any] = routing.get("gemini", {})
 
-        opus_tasks = claude_routing.get("opus_tasks", [])
-        sonnet_tasks = claude_routing.get("sonnet_tasks", [])
-        pro_tasks = gemini_routing.get("pro_tasks", [])
-        flash_tasks = gemini_routing.get("flash_tasks", [])
+        opus_tasks: List[str] = claude_routing.get("opus_tasks", [])
+        sonnet_tasks: List[str] = claude_routing.get("sonnet_tasks", [])
+        pro_tasks: List[str] = gemini_routing.get("pro_tasks", [])
+        flash_tasks: List[str] = gemini_routing.get("flash_tasks", [])
 
         # Build routing table rows dynamically
-        routing_rows = []
+        routing_rows: List[str] = []
         for task in opus_tasks:
             routing_rows.append(f"| {task.upper()} | Claude Opus 4.5 | Complex reasoning, creativity |")
         for task in sonnet_tasks:
@@ -1321,34 +1326,34 @@ graph TD
 """
 
     def _generate_swarm_zoom(self) -> str:
-        modes = self.structures.get("swarm_modes", [])
-        fallbacks = self.structures.get("fallback_chains", {})
-        characteristics = self.structures.get("mode_characteristics", {})
+        modes: List[str] = self.structures.get("swarm_modes", [])
+        fallbacks: Dict[str, Optional[str]] = self.structures.get("fallback_chains", {})
+        characteristics: Dict[str, Dict[str, Any]] = self.structures.get("mode_characteristics", {})
 
         # Build dynamic fallback chain for Mermaid diagram
-        fallback_mermaid = []
-        mode_abbrev = {"PARALLEL": "M1", "SEQUENTIAL": "M2", "LEAD_SUPPORT": "M3",
+        fallback_mermaid: List[str] = []
+        mode_abbrev: Dict[str, str] = {"PARALLEL": "M1", "SEQUENTIAL": "M2", "LEAD_SUPPORT": "M3",
                        "PING_PONG": "M4", "SPECIALIST": "M5", "RED_BLUE": "M6"}
         for mode, fallback in fallbacks.items():
             if fallback:
-                src = mode_abbrev.get(mode, mode[:2])
-                dst = mode_abbrev.get(fallback, fallback[:2])
+                src: str = mode_abbrev.get(mode, mode[:2])
+                dst: str = mode_abbrev.get(fallback, fallback[:2])
                 fallback_mermaid.append(f"        {src} -.->|fail| {dst}")
-        fallback_diagram = "\n".join(fallback_mermaid)
+        fallback_diagram: str = "\n".join(fallback_mermaid)
 
         # Build dynamic mode descriptions from characteristics
-        mode_table_rows = []
+        mode_table_rows: List[str] = []
         for mode in modes:
-            mode_lower = mode.lower()
-            mode_upper = mode.upper() if mode != mode.upper() else mode
-            char = characteristics.get(mode_lower, {})
-            desc = char.get("description", "")
-            fallback = fallbacks.get(mode_upper, fallbacks.get(mode, "None"))
-            fallback_str = fallback if fallback else "None (terminal)"
+            mode_lower: str = mode.lower()
+            mode_upper: str = mode.upper() if mode != mode.upper() else mode
+            char: Dict[str, Any] = characteristics.get(mode_lower, {})
+            desc: str = char.get("description", "")
+            fallback_val: Optional[str] = fallbacks.get(mode_upper, fallbacks.get(mode, "None"))
+            fallback_str: str = fallback_val if fallback_val else "None (terminal)"
             mode_table_rows.append(f"| `{mode_upper}` | {desc} | {fallback_str} |")
-        mode_table = "\n".join(mode_table_rows)
+        mode_table: str = "\n".join(mode_table_rows)
 
-        fallback_table = "\n".join(
+        fallback_table: str = "\n".join(
             f"| `{m}` | `{fallbacks.get(m, 'None')}` |"
             for m in [mode.upper() if mode != mode.upper() else mode for mode in modes]
         )
@@ -1412,11 +1417,11 @@ graph TD
 """
 
     def _generate_hive_mind_zoom(self) -> str:
-        states = self.structures.get("hive_states", [])
-        phases = self.structures.get("hive_phases", [])
+        states: List[str] = self.structures.get("hive_states", [])
+        phases: List[str] = self.structures.get("hive_phases", [])
 
         # Group states by phase
-        phase_states = defaultdict(list)
+        phase_states: Dict[str, List[str]] = defaultdict(list)
         for state in states:
             if "ANALYZING" in state:
                 phase_states["Phase 1: Analysis"].append(state)
@@ -1437,7 +1442,7 @@ graph TD
             else:
                 phase_states["Other"].append(state)
 
-        phase_table = ""
+        phase_table: str = ""
         for phase, phase_state_list in phase_states.items():
             if phase_state_list:
                 phase_table += f"| {phase} | {', '.join(f'`{s}`' for s in phase_state_list)} |\n"
@@ -1517,14 +1522,14 @@ graph TD
 
     def _generate_async_primitives_zoom(self) -> str:
         """Generate V8.4.4 Async Primitives section."""
-        primitives = self.structures.get("async_primitives", {})
-        classes = primitives.get("classes", [])
-        files = primitives.get("files", [])
-        async_handlers = self.structures.get("async_handlers", [])
+        primitives: Dict[str, List[str]] = self.structures.get("async_primitives", {})
+        classes: List[str] = primitives.get("classes", [])
+        files: List[str] = primitives.get("files", [])
+        async_handlers: List[str] = self.structures.get("async_handlers", [])
 
-        classes_list = ", ".join(f"`{c}`" for c in classes) if classes else "None found"
-        files_list = ", ".join(f"`{f}`" for f in files) if files else "None found"
-        handlers_list = "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers) if async_handlers else "| None | - |"
+        classes_list: str = ", ".join(f"`{c}`" for c in classes) if classes else "None found"
+        files_list: str = ", ".join(f"`{f}`" for f in files) if files else "None found"
+        handlers_list: str = "\n".join(f"| `{h}()` | Non-blocking handler |" for h in async_handlers) if async_handlers else "| None | - |"
 
         return f"""## 6. ZOOM: Async Primitives (V8.4.4)
 
@@ -1582,15 +1587,15 @@ graph TD
 
     def _generate_blind_spot_remediations_zoom(self) -> str:
         """Generate V8.4.4 Blind Spot Remediations section."""
-        health_states = self.structures.get("health_states", [])
-        prediction_levels = self.structures.get("prediction_levels", [])
-        saga_phases = self.structures.get("saga_phases", [])
-        recovery_strategies = self.structures.get("recovery_strategies", [])
+        health_states: List[str] = self.structures.get("health_states", [])
+        prediction_levels: List[str] = self.structures.get("prediction_levels", [])
+        saga_phases: List[str] = self.structures.get("saga_phases", [])
+        recovery_strategies: List[str] = self.structures.get("recovery_strategies", [])
 
-        health_table = "\n".join(f"| `{s}` |" for s in health_states) if health_states else "| None |"
-        prediction_table = "\n".join(f"| `{p}` |" for p in prediction_levels) if prediction_levels else "| None |"
-        saga_table = " → ".join(saga_phases) if saga_phases else "Not found"
-        recovery_table = "\n".join(f"| `{s}` |" for s in recovery_strategies) if recovery_strategies else "| None |"
+        health_table: str = "\n".join(f"| `{s}` |" for s in health_states) if health_states else "| None |"
+        prediction_table: str = "\n".join(f"| `{p}` |" for p in prediction_levels) if prediction_levels else "| None |"
+        saga_table: str = " → ".join(saga_phases) if saga_phases else "Not found"
+        recovery_table: str = "\n".join(f"| `{s}` |" for s in recovery_strategies) if recovery_strategies else "| None |"
 
         return f"""## 7. ZOOM: Blind Spot Remediations (V8.4.4)
 
@@ -1882,19 +1887,19 @@ The KERNEL.py file is the **immutable alignment core** that:
 """
 
     def _generate_functional_inventory(self) -> str:
-        commands = self.structures.get("commands", {})
+        commands: Dict[str, List[CommandInfo]] = self.structures.get("commands", {})
 
-        cmd_sections = []
+        cmd_sections: List[str] = []
         for category, cmd_list in commands.items():
             if cmd_list:
                 cmd_sections.append(f"\n#### {category}\n")
                 cmd_sections.append("| Command | Description |")
                 cmd_sections.append("|---------|-------------|")
                 for cmd in cmd_list:
-                    desc = cmd.description or "-"
+                    desc: str = cmd.description or "-"
                     cmd_sections.append(f"| `/{cmd.name}` | {desc} |")
 
-        total_cmds = sum(len(cmds) for cmds in commands.values())
+        total_cmds: int = sum(len(cmds) for cmds in commands.values())
 
         return f"""## 11. FUNCTIONAL INVENTORY
 
@@ -1905,26 +1910,26 @@ The KERNEL.py file is the **immutable alignment core** that:
 """
 
     def _generate_key_dataclasses(self) -> str:
-        dataclasses = self.structures.get("dataclasses", [])
+        dataclasses_structs: List[DataclassInfo] = self.structures.get("dataclasses", [])
 
         # Select key dataclasses
-        key_names = [
+        key_names: List[str] = [
             "TaskAnalysis", "ModeProposal", "AgentProfile", "InferenceConfig",
             "SuccessEntry", "HiveMindResult", "DebateResult", "ExecutionPlan",
             "FailureDiagnosis", "SwarmDelegationResult", "ToolResult"
         ]
 
-        key_dc = [dc for dc in dataclasses if dc.name in key_names]
+        key_dc: List[DataclassInfo] = [dc for dc in dataclasses_structs if dc.name in key_names]
 
-        dc_table = ""
+        dc_table: str = ""
         for dc in key_dc:
-            fields_str = ", ".join(f[0] for f in dc.fields[:5])
+            fields_str: str = ", ".join(f[0] for f in dc.fields[:5])
             if len(dc.fields) > 5:
                 fields_str += f" (+{len(dc.fields)-5} more)"
             dc_table += f"| `{dc.name}` | {fields_str} | `{dc.file_path}` |\n"
 
-        enums = self.structures.get("enums", [])
-        enum_list = ", ".join(f"`{e[0]}`" for e in enums[:25])
+        enums: List[Tuple[str, str]] = self.structures.get("enums", [])
+        enum_list: str = ", ".join(f"`{e[0]}`" for e in enums[:25])
         if len(enums) > 25:
             enum_list += f" (+{len(enums)-25} more)"
 
@@ -1940,27 +1945,27 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 {enum_list}
 
-### All Dataclasses ({len(dataclasses)} total)
+### All Dataclasses ({len(dataclasses_structs)} total)
 
-{", ".join(f"`{dc.name}`" for dc in dataclasses[:30])}{"..." if len(dataclasses) > 30 else ""}
+{", ".join(f"`{dc.name}`" for dc in dataclasses_structs[:30])}{"..." if len(dataclasses_structs) > 30 else ""}
 
 """
 
     def _generate_statistics(self) -> str:
-        total_files = sum(len(c.modules) for c in self.components)
-        total_loc = sum(c.total_loc for c in self.components)
-        total_classes = sum(c.total_classes for c in self.components)
-        total_functions = sum(c.total_functions for c in self.components)
-        total_dataclasses = len(self.structures.get("dataclasses", []))
-        total_enums = len(self.structures.get("enums", []))
-        test_stats = self.structures.get("test_stats", {})
+        total_files: int = sum(len(c.modules) for c in self.components)
+        total_loc: int = sum(c.total_loc for c in self.components)
+        total_classes: int = sum(c.total_classes for c in self.components)
+        total_functions: int = sum(c.total_functions for c in self.components)
+        total_dataclasses: int = len(self.structures.get("dataclasses", []))
+        total_enums: int = len(self.structures.get("enums", []))
+        test_stats: Dict[str, int] = self.structures.get("test_stats", {})
 
         # LOC chart
-        loc_chart = []
-        max_loc = max((c.total_loc for c in self.components), default=1)
+        loc_chart: List[str] = []
+        max_loc: int = max((c.total_loc for c in self.components), default=1)
         for comp in sorted(self.components, key=lambda c: -c.total_loc)[:15]:
-            bar_len = int((comp.total_loc / max_loc) * 30)
-            bar = "#" * bar_len
+            bar_len: int = int((comp.total_loc / max_loc) * 30)
+            bar: str = "#" * bar_len
             loc_chart.append(f"{comp.name:<15} | {bar} {comp.total_loc:,}")
 
         return f"""## 13. STATISTICS
@@ -2000,10 +2005,10 @@ The KERNEL.py file is the **immutable alignment core** that:
 
     def _generate_torture_protocol_zoom(self) -> str:
         """Generate Torture Protocol V8.2.0d section."""
-        torture = self.structures.get("torture_tests", {})
-        total_tests = torture.get("total_tests", 0)
-        categories = torture.get("categories", {})
-        markers = torture.get("markers", [])
+        torture: Dict[str, Any] = self.structures.get("torture_tests", {})
+        total_tests: int = torture.get("total_tests", 0)
+        categories: Dict[str, int] = torture.get("categories", {})
+        markers: List[str] = torture.get("markers", [])
 
         if total_tests == 0:
             return """## 14. TORTURE PROTOCOL (V8.2.0d)
@@ -2012,11 +2017,11 @@ The KERNEL.py file is the **immutable alignment core** that:
 
 """
 
-        category_table = "\n".join(
+        category_table: str = "\n".join(
             f"| {cat} | {count} |" for cat, count in categories.items()
         ) if categories else "| N/A | 0 |"
 
-        markers_list = ", ".join(f"`@pytest.mark.{m}`" for m in markers) if markers else "None"
+        markers_list: str = ", ".join(f"`@pytest.mark.{m}`" for m in markers) if markers else "None"
 
         return f"""## 14. TORTURE PROTOCOL (V8.2.0d)
 
@@ -2093,9 +2098,9 @@ pytest tests/torture_v8.py -m torture_slow -v   # Slow tests
 """
 
     def _generate_anti_hallucination(self) -> str:
-        fsm_states = self.structures.get("fsm_states", [])
-        hive_states = self.structures.get("hive_states", [])
-        swarm_modes = self.structures.get("swarm_modes", [])
+        fsm_states: List[str] = self.structures.get("fsm_states", [])
+        hive_states: List[str] = self.structures.get("hive_states", [])
+        swarm_modes: List[str] = self.structures.get("swarm_modes", [])
 
         return f"""## 15. ANTI-HALLUCINATION REFERENCE
 
@@ -2175,8 +2180,8 @@ python scripts/doc_engine.py --full --apply
 # CLI
 # =============================================================================
 
-def main():
-    parser = argparse.ArgumentParser(
+def main() -> None:  # noqa: C901
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="NEXUS Documentation Engine V2",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__
@@ -2197,29 +2202,29 @@ def main():
     parser.add_argument("--output", type=str,
                        help="Output path for architecture map")
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     if not any([args.check, args.sync, args.gen_map, args.audit, args.full]):
         args.check = True
 
-    project_root = Path(__file__).parent.parent
-    engine = DocEngine(project_root)
+    project_root: Path = Path(__file__).parent.parent
+    engine: DocEngine = DocEngine(project_root)
 
-    exit_code = 0
+    exit_code: int = 0
 
     try:
         if args.full:
-            success = engine.full(apply=args.apply)
+            success: bool = engine.full(apply=args.apply)
             exit_code = 0 if success else 1
         else:
             if args.check:
-                issues = engine.check()
+                issues: List[Issue] = engine.check()
                 if any(i.severity == "ERROR" for i in issues):
                     exit_code = 1
             if args.sync:
                 engine.sync(apply=args.apply)
             if args.gen_map:
-                output = Path(args.output) if args.output else None
+                output: Optional[Path] = Path(args.output) if args.output else None
                 engine.generate_map(output_path=output, apply=args.apply)
             if args.audit:
                 engine.audit()
