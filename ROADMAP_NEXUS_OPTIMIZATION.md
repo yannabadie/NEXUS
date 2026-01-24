@@ -98,8 +98,8 @@ Goal: fewer false positives, clearer security hotspots.
 ## P3 - Performance and DX
 Goal: reduce latency and improve maintainability.
 
-1) Shrink OrchestratorV7 surface
-- core/orchestration_v7.py:64
+1) Shrink OrchestratorV7 surface (done 2026-01-23)
+- core/orchestration_v7.py, core/orchestration/fsm_handlers.py, core/orchestration/context_builder.py
 - Move more logic into core/orchestration/fsm_handlers.py and ContextBuilder.
 - Impact: regression risk across CLI and API workflows.
 
@@ -141,13 +141,15 @@ Implemented:
 ## Validation and Evaluation
 - Unit: tests/ncm/*, tests/test_mcp_client.py, tests/test_swarm_session_integration.py
 - Smoke: python nexus7.py --verify
-- RAG eval: add RAGAS/TruLens/DeepEval harness and baseline queries.
+- RAG eval: add GraphRAG eval harness and baseline queries (done 2026-01-23).
 
 ## Updates
 - 2026-01-23: Meta GraphRAG security tag detection now uses regex patterns to cut false positives.
 - 2026-01-23: Meta GraphRAG HTTP endpoints emit audit logs (query/status/reports/briefing).
 - 2026-01-23: Meta GraphRAG index/embed emits telemetry events (`rag_ingest`).
 - 2026-01-23: MCP tool list caching added (TTL via `MCP_TOOLS_CACHE_TTL`).
+- 2026-01-23: OrchestratorV7 surface reduced (delegated startup context, scoring and metrics).
+- 2026-01-23: GraphRAG evaluation harness added (`tools/meta_graph_rag/eval.py`).
 
 ## Recommended Execution Order
 1) P0 NCM blockers

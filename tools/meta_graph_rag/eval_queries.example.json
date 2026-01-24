@@ -1,0 +1,30 @@
+{
+  "queries": [
+    {
+      "id": "orchestrator-fsm",
+      "query": "fsm state transitions and orchestration flow",
+      "expected_paths": [
+        "core/orchestration_v7.py",
+        "core/orchestration/fsm_handlers.py"
+      ],
+      "notes": "Core FSM flow and handlers."
+    },
+    {
+      "id": "meta-graphrag-indexer",
+      "query": "meta graphrag indexing pipeline and chunking",
+      "expected_paths": [
+        "tools/meta_graph_rag/indexer.py"
+      ],
+      "notes": "Indexer, chunking, and security tags."
+    },
+    {
+      "id": "mcp-registry",
+      "query": "mcp registry configuration and tool loading",
+      "expected_paths": [
+        "core/mcp/registry.py",
+        "core/execution/tool_manager.py"
+      ],
+      "notes": "Registry and dynamic tool loading."
+    }
+  ]
+}

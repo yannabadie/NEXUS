@@ -31,6 +31,7 @@ python -m tools.meta_graph_rag.cli deep-research
 python -m tools.meta_graph_rag.cli index
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
+python -m tools.meta_graph_rag.cli eval --queries workspace/meta_rag/eval/queries.json
 python -m tools.meta_graph_rag.cli query "memory coordinator"
 ```
 
@@ -93,6 +94,25 @@ You can scope or reduce indexing load with environment variables:
 ## Telemetry
 - Indexing and embedding stages emit telemetry events (`rag_ingest`) when telemetry is enabled.
 - Events include stage, duration, total chunks, and vector counts for monitoring.
+
+## Evaluation
+Use `eval` to score retrieval quality against a labeled query set.
+
+Example query file (JSON):
+```json
+{
+  "queries": [
+    {
+      "id": "orchestrator-fsm",
+      "query": "fsm state transitions and orchestration flow",
+      "expected_paths": ["core/orchestration_v7.py", "core/orchestration/fsm_handlers.py"]
+    }
+  ]
+}
+```
+
+Output report:
+- `workspace/meta_rag/reports/eval_report.json`
 
 ## SSL in Enterprise Networks
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.

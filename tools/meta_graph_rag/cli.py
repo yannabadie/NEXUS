@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+from pathlib import Path
 
 from .config import load_config
 from .indexer import MetaGraphIndexer
@@ -29,6 +30,13 @@ def main() -> int:
 
     report_parser = subparsers.add_parser("report", help="Generate analysis reports")
     report_parser.add_argument("--entrypoints", help="Comma-separated entrypoint paths")
+
+    eval_parser = subparsers.add_parser("eval", help="Evaluate retrieval quality")
+    eval_parser.add_argument("--queries", help="Path to eval queries JSON")
+    eval_parser.add_argument("--seed-limit", type=int, default=None, help="Override seed limit")
+    eval_parser.add_argument("--expansion-depth", type=int, default=None, help="Override expansion depth")
+    eval_parser.add_argument("--expansion-limit", type=int, default=None, help="Override expansion limit")
+    eval_parser.add_argument("--output", help="Output report path")
 
     embed_parser = subparsers.add_parser("embed", help="Embed missing chunks")
     embed_parser.add_argument("--limit", type=int, help="Limit number of chunks to embed")
@@ -108,6 +116,33 @@ def main() -> int:
             entrypoints=entrypoints,
         )
         print(f"Reports written to {paths.overview.parent}")
+        return 0
+
+    if args.command == "eval":
+        from .eval import DEFAULT_EVAL_QUERIES, load_queries, run_eval, write_report
+
+        queries_path = Path(args.queries) if args.queries else (config.data_path / DEFAULT_EVAL_QUERIES)
+        queries = load_queries(queries_path)
+        seed_limit = args.seed_limit if args.seed_limit is not None else config.query_seed_limit
+        expansion_depth = (
+            args.expansion_depth if args.expansion_depth is not None else config.query_expansion_depth
+        )
+        expansion_limit = (
+            args.expansion_limit if args.expansion_limit is not None else config.query_expansion_limit
+        )
+        report = run_eval(
+            indexer,
+            queries,
+            seed_limit=seed_limit,
+            expansion_depth=expansion_depth,
+            expansion_limit=expansion_limit,
+        )
+        output_path = Path(args.output) if args.output else (config.reports_path / "eval_report.json")
+        write_report(report, output_path)
+        summary = report.get("summary", {})
+        print(f"Eval report written to {output_path}")
+        if summary:
+            print(f"Seed recall: {summary.get('seed_avg_recall')} | Expanded recall: {summary.get('expanded_avg_recall')}")
         return 0
 
     parser.print_help()

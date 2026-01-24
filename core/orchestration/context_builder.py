@@ -349,6 +349,72 @@ Complete the task efficiently. No need for extensive debate.
 Execute efficiently. You are the sole agent for this task.
 """
 
+    def check_project_context(self, project_path: Optional[Path] = None) -> Dict[str, Any]:
+        """
+        Check project context and suggest bootstrap if NEXUS.md is missing.
+
+        Args:
+            project_path: Path to check (defaults to workspace parent)
+
+        Returns:
+            Dict with has_nexus_md, project_path, suggestion, tech_hint
+        """
+        if project_path is None:
+            project_path = self._orch.workspace_path.parent
+
+        nexus_md_path = project_path / "NEXUS.md"
+        has_nexus_md = nexus_md_path.exists()
+
+        result: Dict[str, Any] = {
+            "has_nexus_md": has_nexus_md,
+            "project_path": str(project_path),
+            "suggestion": None,
+            "tech_hint": None,
+        }
+
+        if not has_nexus_md:
+            result["suggestion"] = (
+                f"No NEXUS.md found in {project_path}. "
+                "Use /bootstrap to auto-generate project context."
+            )
+
+            tech_hints = []
+            if (project_path / "pyproject.toml").exists() or (project_path / "requirements.txt").exists():
+                tech_hints.append("Python")
+            if (project_path / "package.json").exists():
+                tech_hints.append("JavaScript/Node")
+            if (project_path / "Cargo.toml").exists():
+                tech_hints.append("Rust")
+            if (project_path / "go.mod").exists():
+                tech_hints.append("Go")
+
+            if tech_hints:
+                result["tech_hint"] = f"Detected: {', '.join(tech_hints)}"
+
+        if hasattr(self._orch, "logger") and self._orch.logger:
+            self._orch.logger.debug("Project context check", result)
+
+        return result
+
+    def get_startup_hints(self) -> list[str]:
+        """
+        Get startup hints for REPL display.
+
+        Returns list of hint strings to show user on startup.
+        """
+        hints: list[str] = []
+
+        ctx = self.check_project_context()
+        if not ctx["has_nexus_md"]:
+            if ctx["tech_hint"]:
+                hints.append(f"Detected stack: {ctx['tech_hint']}")
+            hints.append("Tip: Use /bootstrap to generate project context (NEXUS.md)")
+
+        if getattr(self._orch, "swarm_engine", None):
+            hints.append("Hybrid Swarm Engine: enabled")
+
+        return hints
+
     # =========================================================================
     # Private Helpers
     # =========================================================================

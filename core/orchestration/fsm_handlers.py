@@ -943,16 +943,78 @@ class FSMHandlers:
         return self._orch._validate_message(response, expect_heavy)
 
     def _calculate_quality_score(self, message: dict, validation_ok: bool, is_stagnant: bool) -> float:
-        """Calculate quality - delegate to agent_invoker or orchestrator."""
+        """Calculate quality - prefer agent_invoker, fallback to local scoring."""
         if hasattr(self._orch, 'agent_invoker'):
             return self._orch.agent_invoker.calculate_quality_score(message, validation_ok, is_stagnant)
-        return self._orch._calculate_quality_score(message, validation_ok, is_stagnant)
 
-    def _record_invocation(self, agent_name: str, task_type: str, success: bool, duration: float, quality: float):
-        """Record invocation - delegate to agent_invoker or orchestrator."""
+        score = 0.3
+        if validation_ok:
+            score += 0.2
+
+        content = message.get("content", "")
+        if 50 < len(content) < 5000:
+            score += 0.1
+
+        if not is_stagnant:
+            score += 0.2
+
+        status = message.get("status", "")
+        if status == "FINISHED":
+            score += 0.2
+        elif status == "CONTINUE":
+            score += 0.1
+
+        return min(1.0, score)
+
+    def _record_invocation(
+        self,
+        agent_name: str,
+        task_type: str,
+        success: bool,
+        duration: float,
+        quality: float,
+        response_text: Optional[str] = None,
+    ):
+        """Record invocation - prefer agent_invoker, fallback to local recording."""
         if hasattr(self._orch, 'agent_invoker'):
-            return self._orch.agent_invoker.record_invocation(agent_name, task_type, success, duration, quality)
-        return self._orch._record_invocation(agent_name, task_type, success, duration, quality)
+            return self._orch.agent_invoker.record_invocation(
+                agent_name, task_type, success, duration, quality, response_text
+            )
+
+        if not self._orch.agent_pool:
+            return
+
+        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
+        estimated_tokens = 500
+        if response_text:
+            try:
+                import tiktoken
+
+                encoding = tiktoken.get_encoding("cl100k_base")
+                estimated_tokens = len(encoding.encode(response_text))
+            except Exception:
+                estimated_tokens = len(response_text) // 4
+
+        from core.swarm import AgentInvocationResult
+
+        invocation = AgentInvocationResult(
+            agent_id=agent_id,
+            task_type=task_type,
+            success=success,
+            quality_score=quality,
+            tokens_used=estimated_tokens,
+            time_seconds=duration
+        )
+        self._orch.agent_pool.record_invocation(invocation)
+
+        self._logger.debug("Agent invocation recorded", {
+            "agent_id": agent_id,
+            "task_type": task_type,
+            "success": success,
+            "duration": f"{duration:.2f}s",
+            "tokens": estimated_tokens,
+            "importance": f"{invocation.importance_score:.4f}"
+        })
 
     def _detect_mutation_complete(self, content: str) -> bool:
         """Detect mutation - delegate to detectors or orchestrator."""

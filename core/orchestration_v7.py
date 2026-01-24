@@ -25,7 +25,7 @@ from core.synapse.memory_v7 import MemoryManagerV7
 from core.execution.tool_manager import ToolManager
 from core.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
 from core.logging import init_logger, get_logger
-from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
+from core.swarm import create_default_pool
 from core.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
 from core.swarm import (
     HybridSwarmEngine,
@@ -48,7 +48,6 @@ import asyncio
 import time
 import json
 import sys
-import tiktoken
 
 # KERNEL import - path set by nexus7.py bootstrap
 try:
@@ -409,42 +408,7 @@ class OrchestratorV7:
                 "tech_hint": Optional[str]  # Quick detected stack
             }
         """
-        # Default to parent of workspace (typically project root)
-        if project_path is None:
-            project_path = self.workspace_path.parent
-
-        nexus_md_path = project_path / "NEXUS.md"
-        has_nexus_md = nexus_md_path.exists()
-
-        result = {
-            "has_nexus_md": has_nexus_md,
-            "project_path": str(project_path),
-            "suggestion": None,
-            "tech_hint": None
-        }
-
-        if not has_nexus_md:
-            result["suggestion"] = (
-                f"No NEXUS.md found in {project_path}. "
-                "Use /bootstrap to auto-generate project context."
-            )
-
-            # Quick tech detection
-            tech_hints = []
-            if (project_path / "pyproject.toml").exists() or (project_path / "requirements.txt").exists():
-                tech_hints.append("Python")
-            if (project_path / "package.json").exists():
-                tech_hints.append("JavaScript/Node")
-            if (project_path / "Cargo.toml").exists():
-                tech_hints.append("Rust")
-            if (project_path / "go.mod").exists():
-                tech_hints.append("Go")
-
-            if tech_hints:
-                result["tech_hint"] = f"Detected: {', '.join(tech_hints)}"
-
-        self.logger.debug("Project context check", result)
-        return result
+        return self.context_builder.check_project_context(project_path)
 
     def get_startup_hints(self) -> list:
         """
@@ -452,20 +416,7 @@ class OrchestratorV7:
 
         Returns list of hint strings to show user on startup.
         """
-        hints = []
-
-        # Check project context
-        ctx = self.check_project_context()
-        if not ctx["has_nexus_md"]:
-            if ctx["tech_hint"]:
-                hints.append(f"📦 {ctx['tech_hint']}")
-            hints.append("💡 Tip: Use /bootstrap to generate project context (NEXUS.md)")
-
-        # Swarm status
-        if self.swarm_engine:
-            hints.append("🐝 Hybrid Swarm Engine: enabled")
-
-        return hints
+        return self.context_builder.get_startup_hints()
 
     def process_turn(self, user_input: Optional[str] = None) -> Dict:
         """
@@ -670,13 +621,7 @@ class OrchestratorV7:
         Streams tokens in real-time to console while building response.
         """
         # Build context using sync method (fast, no I/O)
-        context = self.context_builder.build_context(
-            history=self.memory.history,
-            blackboard=self.blackboard,
-            active_agent=self.active_agent,
-            current_task=self.current_task,
-            objective=self.objective
-        )
+        context = self.context_builder.build_context()
 
         session_uuid = f"brain_{self.iteration}"
 
@@ -737,12 +682,7 @@ class OrchestratorV7:
         Uses shorter timeout for CFL validation responses.
         """
         # Build CFL context
-        context = self.context_builder.build_cfl_context(
-            history=self.memory.history,
-            blackboard=self.blackboard,
-            active_agent=self.active_agent,
-            tool_result=self.blackboard.get("last_tool_result")
-        )
+        context = self.context_builder.build_context_with_tool_result()
 
         session_uuid = f"cfl_{self.iteration}"
 
@@ -883,108 +823,6 @@ class OrchestratorV7:
         """Trigger panic state"""
         self._transition_to(OrchestratorState.PANIC)
         return self._make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
-
-    def _calculate_quality_score(
-        self,
-        message: dict,
-        validation_ok: bool,
-        is_stagnant: bool
-    ) -> float:
-        """
-        Calculate DyLAN quality score for agent invocation.
-
-        Quality is based on multiple factors:
-        - Message validation success (+0.2)
-        - Response length appropriate (+0.1)
-        - No stagnation detected (+0.2)
-        - Task completion status (+0.2 FINISHED, +0.1 CONTINUE)
-
-        Args:
-            message: Parsed message dict from agent
-            validation_ok: Whether message validation succeeded
-            is_stagnant: Whether stagnation was detected
-
-        Returns:
-            Quality score between 0.0 and 1.0
-        """
-        score = 0.3  # Base score
-
-        # Validation success
-        if validation_ok:
-            score += 0.2
-
-        # Response length (neither too short nor too long)
-        content = message.get("content", "")
-        if 50 < len(content) < 5000:
-            score += 0.1
-
-        # No stagnation
-        if not is_stagnant:
-            score += 0.2
-
-        # Task status
-        status = message.get("status", "")
-        if status == "FINISHED":
-            score += 0.2
-        elif status == "CONTINUE":
-            score += 0.1
-
-        return min(1.0, score)
-
-    def _record_invocation(
-        self,
-        agent_name: str,
-        task_type: str,
-        success: bool,
-        duration: float,
-        quality_score: float = 0.5,
-        response_text: Optional[str] = None
-    ):
-        """
-        Record agent invocation for DyLAN-style metrics (V7 Sprint 3).
-
-        Args:
-            agent_name: "Gemini" or "Claude"
-            task_type: Task type (brainstorm, tool, etc.)
-            success: Whether invocation succeeded
-            duration: Time in seconds
-            quality_score: Quality score 0.0-1.0 (default 0.5)
-            response_text: Optional response text for accurate token counting
-        """
-        if not self.agent_pool:
-            return
-
-        # V8.4.0: Use registry for agent identification
-        agent_id = "gemini_primary" if self._registry.is_gemini(agent_name) else "claude_opus"
-
-        # Count tokens using tiktoken (accurate) or fallback to estimate
-        estimated_tokens = 500  # Default estimate
-        if response_text:
-            try:
-                encoding = tiktoken.get_encoding("cl100k_base")
-                estimated_tokens = len(encoding.encode(response_text))
-            except Exception:
-                # Fallback: rough estimate (1 token ≈ 4 chars)
-                estimated_tokens = len(response_text) // 4
-
-        invocation = AgentInvocationResult(
-            agent_id=agent_id,
-            task_type=task_type,
-            success=success,
-            quality_score=quality_score,
-            tokens_used=estimated_tokens,
-            time_seconds=duration
-        )
-        self.agent_pool.record_invocation(invocation)
-
-        self.logger.debug("Agent invocation recorded", {
-            "agent_id": agent_id,
-            "task_type": task_type,
-            "success": success,
-            "duration": f"{duration:.2f}s",
-            "tokens": estimated_tokens,
-            "importance": f"{invocation.importance_score:.4f}"
-        })
 
     def _build_context(self) -> str:
         """Build context markdown for agent. V7.8: Delegates to ContextBuilder."""

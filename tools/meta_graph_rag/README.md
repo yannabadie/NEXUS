@@ -23,6 +23,7 @@ python -m tools.meta_graph_rag.cli deep-research
 python -m tools.meta_graph_rag.cli index
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
+python -m tools.meta_graph_rag.cli eval --queries workspace/meta_rag/eval/queries.json
 python -m tools.meta_graph_rag.cli query "orchestrator state transitions"
 ```
 
@@ -80,6 +81,27 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
+
+## Evaluation
+Use `eval` to score retrieval quality against a labeled query set.
+
+Example query file (JSON):
+```json
+{
+  "queries": [
+    {
+      "id": "orchestrator-fsm",
+      "query": "fsm state transitions and orchestration flow",
+      "expected_paths": ["core/orchestration_v7.py", "core/orchestration/fsm_handlers.py"]
+    }
+  ]
+}
+```
+
+Sample template: `tools/meta_graph_rag/eval_queries.example.json`
+
+Output report:
+- `workspace/meta_rag/reports/eval_report.json`
 
 ## Notes
 - Content is normalized to ASCII for storage consistency.
