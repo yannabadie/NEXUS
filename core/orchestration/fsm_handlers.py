@@ -1047,14 +1047,20 @@ class FSMHandlers:
         """
         from core.routing.model_router import TaskType
 
-        # Select best agent based on fit scores
-        if task_analysis.recommended_lead == "gemini":
-            agent = "Gemini"
-        elif task_analysis.recommended_lead == "claude":
-            agent = "Claude"
+        # Select best agent based on fit scores (allow override for pilot runs)
+        import os
+
+        forced_agent = os.getenv("NEXUS_SIMPLE_AGENT", "").strip().lower()
+        if forced_agent in {"gemini", "claude"}:
+            agent = "Gemini" if forced_agent == "gemini" else "Claude"
         else:
-            # Equal fit - use Gemini by default (faster)
-            agent = "Gemini"
+            if task_analysis.recommended_lead == "gemini":
+                agent = "Gemini"
+            elif task_analysis.recommended_lead == "claude":
+                agent = "Claude"
+            else:
+                # Equal fit - use Gemini by default (faster)
+                agent = "Gemini"
 
         self._logger.info(f"[SIMPLE MODE] Single agent: {agent}", {
             "task": user_input[:80],
