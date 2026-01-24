@@ -343,7 +343,7 @@ class ToolManager:
                 self._logger.warning(f"Could not connect to MCP server: {server_name}")
                 return
 
-            tools = client.list_tools()
+            tools = self._mcp_registry.list_tools(server_name)
             self._logger.info(f"MCP server '{server_name}' provides {len(tools)} tool(s)")
 
             for tool in tools:

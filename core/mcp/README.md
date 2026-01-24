@@ -100,6 +100,13 @@ class MCPRegistry:
     def list_servers(self) -> List[str]
 ```
 
+#### Tool Cache
+`MCPRegistry.list_tools()` caches tool lists per server with a TTL to avoid
+repeated `tools/list` calls on every ToolManager initialization.
+
+Environment:
+- `MCP_TOOLS_CACHE_TTL` (seconds, default 30). Set to 0 to disable caching.
+
 ## Client Usage
 
 ```python

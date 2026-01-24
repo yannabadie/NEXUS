@@ -6,12 +6,16 @@ and manages active server connections.
 """
 
 import json
+import os
+import time
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
 import logging
+import threading
 
 from .client import MCPClient, MCPClientError
+from .protocol import MCPTool
 
 
 # =============================================================================
@@ -114,6 +118,11 @@ class MCPRegistry:
         # Active clients (lazy initialization)
         self._clients: Dict[str, MCPClient] = {}
 
+        # Tool list cache (server -> (timestamp, tools))
+        self._tools_cache: Dict[str, tuple[float, List[MCPTool]]] = {}
+        self._tools_cache_ttl: float = float(os.getenv("MCP_TOOLS_CACHE_TTL", "30"))
+        self._tools_cache_lock = threading.Lock()
+
         # Logger
         self._logger = logging.getLogger("nexus.mcp.registry")
 
@@ -183,6 +192,7 @@ class MCPRegistry:
     def reload(self) -> None:
         """Reload configuration from file."""
         self._configs = None
+        self._tools_cache.clear()
         self._ensure_loaded()
 
     # =========================================================================
@@ -271,11 +281,48 @@ class MCPRegistry:
         if name in self._clients:
             self._clients[name].close()
             del self._clients[name]
+        self._tools_cache.pop(name, None)
 
     def close_all(self) -> None:
         """Close all active clients."""
         for name in list(self._clients.keys()):
             self.close_client(name)
+        self._tools_cache.clear()
+
+    def list_tools(self, name: str, force_refresh: bool = False) -> List[MCPTool]:
+        """
+        List tools for a server with optional TTL caching.
+
+        Args:
+            name: Server name
+            force_refresh: If True, bypass cache
+
+        Returns:
+            List of MCPTool definitions
+        """
+        if force_refresh:
+            with self._tools_cache_lock:
+                self._tools_cache.pop(name, None)
+
+        if self._tools_cache_ttl <= 0:
+            return self._fetch_tools(name)
+
+        now = time.time()
+        with self._tools_cache_lock:
+            cached = self._tools_cache.get(name)
+            if cached and (now - cached[0]) < self._tools_cache_ttl:
+                return cached[1]
+
+        tools = self._fetch_tools(name)
+        with self._tools_cache_lock:
+            self._tools_cache[name] = (now, tools)
+        return tools
+
+    def _fetch_tools(self, name: str) -> List[MCPTool]:
+        client = self.get_client(name)
+        if client is None:
+            return []
+        return client.list_tools()
 
     # =========================================================================
     # Internal Methods

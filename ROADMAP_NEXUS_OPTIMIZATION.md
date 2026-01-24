@@ -104,7 +104,8 @@ Goal: reduce latency and improve maintainability.
 - Impact: regression risk across CLI and API workflows.
 
 2) Cache MCP tool registry
-- core/execution/tool_manager.py:304
+2) Cache MCP tool registry (done 2026-01-23)
+- core/mcp/registry.py, core/execution/tool_manager.py
 - Add TTL cache to reduce network overhead per run.
 - Impact: tool discovery latency and stability.
 
@@ -146,6 +147,7 @@ Implemented:
 - 2026-01-23: Meta GraphRAG security tag detection now uses regex patterns to cut false positives.
 - 2026-01-23: Meta GraphRAG HTTP endpoints emit audit logs (query/status/reports/briefing).
 - 2026-01-23: Meta GraphRAG index/embed emits telemetry events (`rag_ingest`).
+- 2026-01-23: MCP tool list caching added (TTL via `MCP_TOOLS_CACHE_TTL`).
 
 ## Recommended Execution Order
 1) P0 NCM blockers
