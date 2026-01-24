@@ -7,8 +7,10 @@ from typing import Dict, List, Optional, Protocol
 import json
 import math
 import re
+import time
 from pathlib import Path
 import urllib.request
+import urllib.error
 
 from .http_client import HttpConfig, urlopen
 
@@ -137,8 +139,7 @@ class GeminiEmbeddingBackend:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(request, timeout=30, http_config=self._http_config) as response:
-            result = json.loads(response.read().decode("utf-8"))
+        result = self._request_json(request, timeout=30)
         embedding = result.get("embedding", {}).get("values")
         if not embedding:
             raise RuntimeError("Gemini embedding response missing values")
@@ -174,8 +175,7 @@ class GeminiEmbeddingBackend:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=30, http_config=self._http_config) as response:
-                result = json.loads(response.read().decode("utf-8"))
+            result = self._request_json(request, timeout=30)
             embeddings = result.get("embeddings")
             if not embeddings:
                 raise RuntimeError("Gemini batch embedding response missing embeddings")
@@ -185,6 +185,28 @@ class GeminiEmbeddingBackend:
             return values
         except Exception:
             return [self._embed_single(text, task_type) for text in texts]
+
+    def _request_json(self, request: urllib.request.Request, timeout: int) -> Dict[str, object]:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, 4):
+            try:
+                with urlopen(request, timeout=timeout, http_config=self._http_config) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                last_exc = exc
+                if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                    _sleep_backoff(attempt, exc.code)
+                    continue
+                raise
+            except urllib.error.URLError as exc:
+                last_exc = exc
+                if attempt < 3:
+                    _sleep_backoff(attempt, None)
+                    continue
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Gemini request failed")
 
 
 @dataclass
@@ -298,3 +320,9 @@ def _cosine_similarity(left: List[float], right: List[float]) -> float:
         right_norm += r_val * r_val
     denom = math.sqrt(left_norm) * math.sqrt(right_norm)
     return dot / denom if denom else 0.0
+
+
+def _sleep_backoff(attempt: int, status_code: Optional[int]) -> None:
+    base = 2 ** (attempt - 1)
+    delay = min(base, 16)
+    time.sleep(delay)

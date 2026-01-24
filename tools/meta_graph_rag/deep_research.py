@@ -9,6 +9,7 @@ from typing import Dict, Iterable, List, Optional
 import hashlib
 import json
 import re
+import time
 import urllib.parse
 import urllib.error
 import urllib.request
@@ -77,8 +78,28 @@ class GeminiResearchClient:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(request, timeout=60, http_config=self._http_config) as response:
-            result = json.loads(response.read().decode("utf-8"))
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, 4):
+            try:
+                with urlopen(request, timeout=60, http_config=self._http_config) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                last_exc = exc
+                if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                    _sleep_backoff(attempt, exc.code)
+                    continue
+                raise
+            except urllib.error.URLError as exc:
+                last_exc = exc
+                if attempt < 3:
+                    _sleep_backoff(attempt, None)
+                    continue
+                raise
+        else:
+            if last_exc:
+                raise last_exc
+            raise RuntimeError("Gemini generateContent failed")
         candidates = result.get("candidates", [])
         if not candidates:
             raise RuntimeError("Gemini generateContent returned no candidates")
@@ -299,8 +320,7 @@ def _fetch_text(url: str, http_config: HttpConfig) -> str:
         url,
         headers={"User-Agent": "NEXUS-MetaGraphRAG/1.0"},
     )
-    with urlopen(request, timeout=60, http_config=http_config) as response:
-        data = response.read().decode("utf-8", errors="ignore")
+    data = _fetch_with_retry(request, http_config=http_config)
     return _sanitize_text(data)
 
 
@@ -309,8 +329,7 @@ def _fetch_json(url: str, http_config: HttpConfig) -> Dict[str, object]:
         url,
         headers={"User-Agent": "NEXUS-MetaGraphRAG/1.0"},
     )
-    with urlopen(request, timeout=60, http_config=http_config) as response:
-        data = response.read().decode("utf-8", errors="ignore")
+    data = _fetch_with_retry(request, http_config=http_config)
     return json.loads(data)
 
 
@@ -326,3 +345,32 @@ def _sanitize_text(text: str) -> str:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _fetch_with_retry(request: urllib.request.Request, http_config: HttpConfig) -> str:
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            with urlopen(request, timeout=60, http_config=http_config) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                _sleep_backoff(attempt, exc.code)
+                continue
+            raise
+        except urllib.error.URLError as exc:
+            last_exc = exc
+            if attempt < 3:
+                _sleep_backoff(attempt, None)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("HTTP request failed")
+
+
+def _sleep_backoff(attempt: int, status_code: Optional[int]) -> None:
+    base = 2 ** (attempt - 1)
+    delay = min(base, 16)
+    time.sleep(delay)

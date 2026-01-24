@@ -10,6 +10,8 @@ from typing import List, Optional
 import hashlib
 import json
 import re
+import time
+import urllib.error
 import urllib.request
 
 from .http_client import HttpConfig, urlopen
@@ -177,14 +179,38 @@ def _fetch_url(url: str, http_config: HttpConfig) -> str:
         url,
         headers={"User-Agent": "NEXUS-MetaGraphRAG/1.0"},
     )
-    with urlopen(request, timeout=30, http_config=http_config) as response:
-        content_type = response.headers.get("Content-Type", "")
-        raw = response.read().decode("utf-8", errors="ignore")
-    if "text/html" in content_type:
-        parser = _TextExtractor()
-        parser.feed(raw)
-        return parser.get_text()
-    return raw
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            with urlopen(request, timeout=30, http_config=http_config) as response:
+                content_type = response.headers.get("Content-Type", "")
+                raw = response.read().decode("utf-8", errors="ignore")
+            if "text/html" in content_type:
+                parser = _TextExtractor()
+                parser.feed(raw)
+                return parser.get_text()
+            return raw
+        except urllib.error.HTTPError as exc:
+            last_exc = exc
+            if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                _sleep_backoff(attempt, exc.code)
+                continue
+            raise
+        except urllib.error.URLError as exc:
+            last_exc = exc
+            if attempt < 3:
+                _sleep_backoff(attempt, None)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Failed to fetch URL")
+
+
+def _sleep_backoff(attempt: int, status_code: Optional[int]) -> None:
+    base = 2 ** (attempt - 1)
+    delay = min(base, 16)
+    time.sleep(delay)
 
 
 def _sanitize_text(text: str) -> str:

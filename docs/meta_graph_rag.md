@@ -68,7 +68,7 @@ Audit details include query length/hash, expansion settings, and entrypoint coun
 ## Tuning
 You can scope or reduce indexing load with environment variables:
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
-- `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
+- `META_RAG_EXCLUDE` = comma-separated exclude dir names (default recommended set: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, meta_rag, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
 - `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)
 - `META_RAG_MAX_FILE_KB` = max file size per file (0 = no limit)
 - `META_RAG_CHUNK_LINES` / `META_RAG_CHUNK_OVERLAP` = chunk sizing
@@ -130,6 +130,7 @@ The report includes a simple availability check for optional evaluators
 - Security tags are heuristic and require manual validation.
 - Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
 - Security tag matching uses regex patterns to reduce false positives.
+- External fetch, deep research, and Gemini embedding calls include retry/backoff for 429 and transient failures.
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.

@@ -13,12 +13,51 @@ Code-first plan built from:
 Docs are treated as secondary. Code and tests are the source of truth.
 
 ## Current Meta GraphRAG Index Status
-- nodes: 27430
-- edges: 28676
-- chunks: 22200
-- vector_entries: 22200 (snapshot from manifest)
+- nodes: 9057
+- edges: 10417
+- chunks: 5913
+- vector_entries: 5913
 - embedding_backend: gemini-embedding-001 (dim 3072)
-- status_source: MCP snapshot (nexus_meta_graphrag_status fast=true)
+- graph_db: nodes 6125 / edges 7098 (sqlite)
+- manifest_coverage: 731 files indexed vs ~2983 files expected (gap: needs full reindex)
+- status_source: local index snapshot (tools.meta_graph_rag MetaGraphIndexer)
+
+## New Artifacts Discovered (Uncommitted)
+- NCM real-mode generator: `core/ncm/real_story_generator.py`
+- P0/P1 story generator: `core/ncm/p0_p1_story_generator.py`
+- NCM + Meta GraphRAG automation: `ncm_deep_analysis.py`, `ncm_pilot_meta_graphrag.py`, `run_ncm_pilot_meta.py`
+- Reports and verification loop: `docs/NCM_DEEP_ANALYSIS_REPORT.md`, `workspace/ncm_analysis/*`
+- Lean formalization: `LEAN_FORMALIZATION.md`, `ADVANCED_SYSTEMS_FORMALIZATION.md`, `nexus_formalization.lean`, `nexus_advanced_systems.lean`
+- Windows Claude CLI hang report: `CLAUDE_CLI_BUG_REPORT.md`
+
+## P0 - Meta GraphRAG Completeness and Reliability
+Goal: full repo coverage with stable ingestion and repeatable embeddings.
+
+1) Enforce recommended excludes by default (done 2026-01-24)
+- tools/meta_graph_rag/config.py
+- Excludes .git, meta_rag, workspace, node_modules, etc.
+- Impact: prevents index bloat and unsafe metadata ingestion.
+
+2) Reindex full repo with Gemini embeddings (pending)
+- tools/meta_graph_rag/cli.py index --full
+- Verify manifest coverage ~= total repo files; alert on gaps.
+- Impact: Meta GraphRAG completeness and agent onboarding accuracy.
+
+3) Coverage audit report (pending)
+- Add report of skipped/oversized/binary files + include/exclude settings.
+- Impact: visibility into blind spots.
+
+4) Purge .git nodes from existing index artifacts (pending)
+- Remove nodes/chunks whose path starts with `.git/` from graph/chunks/vector files before reindex.
+- Impact: reduce index bloat and improve retrieval signal.
+
+5) Retry/backoff for external ingestion and embeddings (done 2026-01-24)
+- tools/meta_graph_rag/research.py, tools/meta_graph_rag/deep_research.py, tools/meta_graph_rag/embeddings.py
+- Eliminates 429/5xx holes in sources and embeddings.
+
+6) Remove hash embeddings from production scripts (pending)
+- analyze_project.py, deep_analysis.py, explore_advanced_systems.py, lean_exploration.py
+- Use gemini embeddings by default, keep hash only for offline/debug.
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
@@ -58,6 +97,23 @@ Goal: NCM should run end-to-end without manual intervention.
 - Option A: remove from active pipelines and keep as deprecated artifact.
 - Option B: route "nexus" provider to NCMOrchestrator directly.
 - Impact: scripts/execute_ncm_phase2b_multi_ai.py, tests/test_multi_ai_executor_security.py.
+
+## Meta GraphRAG Task Inventory (Phase 1)
+Source: `workspace/ncm_analysis/ncm_deep_analysis_output.json` (80 tasks, 38 files).
+P0 security targets (line-precise list in JSON):
+- core/api/cerebro/deps.py:L181-L207
+- core/api/cerebro/deps.py:L210-L260
+- core/api/cerebro/deps.py:L263-L304
+- core/api/cerebro/routes/auth.py:L53-L111
+- core/api/cerebro/routes/auth.py:L114-L136
+- core/api/cerebro/routes/auth.py:L139-L171
+- core/api/cerebro/routes/auth.py:L206-L260
+- core/api/cerebro/routes/files.py:L61-L79
+- core/drivers/async_gemini_driver.py:L668-L670
+- core/security/input_guard.py:L51-L59
+- interface/ui/cerebro/src/context/AuthContext.tsx:L1-L90
+- scripts/debug/test_auth_simple.py:L8-L88
+- scripts/verify/verify_users_security.py:L17-L63
 
 ## P1 - Stability and Cancellation
 Goal: remove deadlocks and make workflows cancelable.
@@ -114,6 +170,11 @@ Goal: reduce latency and improve maintainability.
 - Emit ingest metrics and errors for alerting.
 - Impact: monitoring dashboards.
 
+4) Repo hygiene for analysis artifacts (pending)
+- Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/`.
+- Move transient pilot input/output files to `workspace/` or `logs/`.
+- Impact: cleaner root and fewer accidental commits.
+
 ## P4 - Agentic Reasoning Alignment (Paper 2601.12538v1)
 Goal: align architecture with modern agentic reasoning taxonomy.
 
@@ -130,6 +191,24 @@ Open challenges from the paper to address:
 - World modeling
 - Scalable multi-agent training
 - Governance frameworks
+
+## P5 - Productized Use Cases (Meta GraphRAG)
+Goal: turn the meta-memory into operational tooling.
+
+1) The Guardian (Architectural CI/CD)
+- Extract MUST/MUST-NOT rules from ARCHITECTURE_MAP.md + AGENTS.md.
+- On PRs, embed changed code, retrieve top-k rules, and run LLM check for violations.
+- Output: annotated PR comments + policy report.
+
+2) R&D Synthesizer (Research-to-Prototype)
+- Ingest papers and link to internal modules.
+- Prompt: "Implement concept X from paper Y using module Z."
+- Output: spike branch with tests and citations.
+
+3) HiveMind Oracle (Onboarding + Debugging UI)
+- Graph navigation API + Mermaid expansion around a query.
+- Q&A with always-cited sources (code/test/doc sections).
+- Output: onboarding briefing pack + interactive graph.
 
 ## KIMI K2 Thinking Integration (API Key in .env) (done 2026-01-23)
 Implemented:
@@ -150,6 +229,9 @@ Implemented:
 - 2026-01-23: MCP tool list caching added (TTL via `MCP_TOOLS_CACHE_TTL`).
 - 2026-01-23: OrchestratorV7 surface reduced (delegated startup context, scoring and metrics).
 - 2026-01-23: GraphRAG evaluation harness added (`tools/meta_graph_rag/eval.py`).
+- 2026-01-24: Meta GraphRAG defaults now exclude repo noise (e.g., .git/meta_rag/workspace).
+- 2026-01-24: Added retry/backoff for Gemini embeddings and research ingestion.
+- 2026-01-24: Meta GraphRAG docs updated to reflect defaults and retry behavior.
 
 ## Recommended Execution Order
 1) P0 NCM blockers

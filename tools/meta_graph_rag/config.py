@@ -8,13 +8,12 @@ from typing import Dict, List, Optional
 import os
 
 from core.config import Config
+from .http_client import HttpConfig
 
 
 DEFAULT_INCLUDE_DIRS = [
     ".",
 ]
-
-DEFAULT_EXCLUDE_DIRS: List[str] = []
 
 RECOMMENDED_EXCLUDE_DIRS = [
     "__pycache__",
@@ -25,6 +24,7 @@ RECOMMENDED_EXCLUDE_DIRS = [
     "archive",
     "archives",
     "logs",
+    "meta_rag",
     "workspace",
     "workspace_archive",
     ".pytest_cache",
@@ -32,6 +32,7 @@ RECOMMENDED_EXCLUDE_DIRS = [
     "dist",
     "build",
 ]
+DEFAULT_EXCLUDE_DIRS: List[str] = RECOMMENDED_EXCLUDE_DIRS.copy()
 
 DEFAULT_EXTENSIONS: List[str] = []
 
@@ -132,6 +133,10 @@ def load_config(
         or os.getenv("GIT_SSL_CAINFO")
     )
     ca_bundle_path = Path(ca_bundle) if ca_bundle else None
+    if ca_bundle_path is None:
+        auto_http = HttpConfig.from_env()
+        if auto_http.ca_bundle_path:
+            ca_bundle_path = auto_http.ca_bundle_path
 
     embedding_backend = os.getenv("META_RAG_EMBEDDINGS", "gemini").lower()
     embedding_model = os.getenv("META_RAG_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
