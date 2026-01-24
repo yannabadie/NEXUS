@@ -50,6 +50,7 @@ class RateLimitConfig:
 DEFAULT_LIMITS: Dict[str, RateLimitConfig] = {
     "gemini": RateLimitConfig(requests_per_minute=60, burst_size=10),
     "claude": RateLimitConfig(requests_per_minute=50, burst_size=8),
+    "deepseek": RateLimitConfig(requests_per_minute=60, burst_size=10),
     "default": RateLimitConfig(requests_per_minute=30, burst_size=5),
 }
 

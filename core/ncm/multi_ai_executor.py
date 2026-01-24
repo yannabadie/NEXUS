@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import signal
 import time
 from dataclasses import dataclass, field
@@ -63,7 +64,7 @@ logger = logging.getLogger(__name__)
 
 ROUTING_MATRIX = {
     # Category → (Provider, Estimated Time in seconds)
-    # Providers: simple (no AI), opencode (CLI), kimi (K2 Thinking), claude (headless), nexus (full orchestration)
+    # Providers: simple (no AI), opencode (CLI), kimi (K2 Thinking), deepseek (API), claude (headless), nexus (full orchestration)
     "dead_import": ("simple", 6),
     "missing_doc": ("opencode", 45),      # OpenCode CLI via Zen subscription
     "type_error": ("kimi", 60),           # Kimi K2 Thinking CLI
@@ -162,7 +163,19 @@ class MultiAIExecutorConfig:
     kimi_max_tokens: int = 4096
     kimi_temperature: float = 0.2
     kimi_verify_ssl: bool = True
+    kimi_ssl_mode: str = "strict"
     kimi_ca_bundle: Optional[str] = None
+
+    # DeepSeek API (OpenAI-compatible)
+    deepseek_api_key: Optional[str] = None
+    deepseek_api_base: str = "https://api.deepseek.com/v1"
+    deepseek_model: str = "deepseek-reasoner"
+    deepseek_timeout: float = 60.0
+    deepseek_max_tokens: int = 4096
+    deepseek_temperature: float = 0.2
+    deepseek_verify_ssl: bool = True
+    deepseek_ssl_mode: str = "strict"
+    deepseek_ca_bundle: Optional[str] = None
 
     # CLI Paths - Auto-discovered or configured via .env
     # Set these via env vars: OPENCODE_CLI_PATH, KIMI_CLI_PATH, CLAUDE_CLI_PATH
@@ -232,7 +245,32 @@ class MultiAIExecutorConfig:
         self.kimi_max_tokens = int(os.environ.get("KIMI_MAX_TOKENS", str(self.kimi_max_tokens)))
         self.kimi_temperature = float(os.environ.get("KIMI_TEMPERATURE", str(self.kimi_temperature)))
         self.kimi_verify_ssl = os.environ.get("KIMI_SSL_VERIFY", str(self.kimi_verify_ssl)).lower() == "true"
+        self.kimi_ssl_mode = os.environ.get("KIMI_SSL_MODE") or os.environ.get("NEXUS_SSL_MODE", self.kimi_ssl_mode)
         self.kimi_ca_bundle = os.environ.get("KIMI_CA_BUNDLE") or os.environ.get("MOONSHOT_CA_BUNDLE") or self.kimi_ca_bundle
+
+        shared_ca_bundle = (
+            os.environ.get("NEXUS_CA_BUNDLE")
+            or os.environ.get("SSL_CERT_FILE")
+            or os.environ.get("REQUESTS_CA_BUNDLE")
+            or os.environ.get("CURL_CA_BUNDLE")
+            or os.environ.get("NODE_EXTRA_CA_CERTS")
+            or os.environ.get("GIT_SSL_CAINFO")
+        )
+        if not self.kimi_ca_bundle:
+            self.kimi_ca_bundle = shared_ca_bundle
+
+        if self.deepseek_api_key is None:
+            self.deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK")
+        self.deepseek_api_base = os.environ.get("DEEPSEEK_API_BASE", self.deepseek_api_base)
+        self.deepseek_model = os.environ.get("DEEPSEEK_MODEL", self.deepseek_model)
+        self.deepseek_timeout = float(os.environ.get("DEEPSEEK_TIMEOUT", str(self.deepseek_timeout)))
+        self.deepseek_max_tokens = int(os.environ.get("DEEPSEEK_MAX_TOKENS", str(self.deepseek_max_tokens)))
+        self.deepseek_temperature = float(os.environ.get("DEEPSEEK_TEMPERATURE", str(self.deepseek_temperature)))
+        self.deepseek_verify_ssl = os.environ.get("DEEPSEEK_SSL_VERIFY", str(self.deepseek_verify_ssl)).lower() == "true"
+        self.deepseek_ssl_mode = os.environ.get("DEEPSEEK_SSL_MODE") or os.environ.get("NEXUS_SSL_MODE", self.deepseek_ssl_mode)
+        self.deepseek_ca_bundle = os.environ.get("DEEPSEEK_CA_BUNDLE") or self.deepseek_ca_bundle
+        if not self.deepseek_ca_bundle:
+            self.deepseek_ca_bundle = shared_ca_bundle
 
         # SECURITY FIX: Sanitize CLI paths before logging (CWE-117: Log Injection)
         # Only log if paths exist and are within reasonable length
@@ -289,6 +327,7 @@ class MultiAIExecutor:
         self._codex_driver: Optional[AsyncCodexDriver] = None
         self._ncm_orchestrator = None
         self._kimi_driver = None
+        self._deepseek_driver = None
 
         # Security: Path validation (fix CWE-22 path traversal)
         self.path_guardian = PathGuardian(
@@ -348,10 +387,34 @@ class MultiAIExecutor:
                 max_tokens=self.config.kimi_max_tokens,
                 temperature=self.config.kimi_temperature,
                 verify_ssl=self.config.kimi_verify_ssl,
+                ssl_mode=self.config.kimi_ssl_mode,
                 ca_bundle=self.config.kimi_ca_bundle,
             )
             self._kimi_driver = AsyncKimiDriver(config)
         return self._kimi_driver
+
+    async def _get_deepseek_driver(self):
+        """Get or create DeepSeek API driver if configured."""
+        if not self.config.deepseek_api_key:
+            return None
+        if self._deepseek_driver is None:
+            from core.drivers.async_deepseek_driver import (
+                AsyncDeepSeekDriver,
+                AsyncDeepSeekDriverConfig,
+            )
+            config = AsyncDeepSeekDriverConfig(
+                api_key=self.config.deepseek_api_key,
+                api_base=self.config.deepseek_api_base,
+                model=self.config.deepseek_model,
+                timeout=self.config.deepseek_timeout,
+                max_tokens=self.config.deepseek_max_tokens,
+                temperature=self.config.deepseek_temperature,
+                verify_ssl=self.config.deepseek_verify_ssl,
+                ssl_mode=self.config.deepseek_ssl_mode,
+                ca_bundle=self.config.deepseek_ca_bundle,
+            )
+            self._deepseek_driver = AsyncDeepSeekDriver(config)
+        return self._deepseek_driver
 
     async def close_drivers(self) -> None:
         """Close all active driver connections.
@@ -387,6 +450,8 @@ class MultiAIExecutor:
             Tuple of (provider_name, estimated_seconds)
         """
         category = story.get("category", "unknown")
+        if category == "security" and self.config.deepseek_api_key:
+            return ("deepseek", 90)
         return ROUTING_MATRIX.get(category, ("nexus", 300))
 
     def _group_stories_by_provider(
@@ -412,6 +477,7 @@ class MultiAIExecutor:
             "simple": [],
             "opencode": [],
             "kimi": [],
+            "deepseek": [],
             "claude": [],
             "nexus": [],
         }
@@ -853,6 +919,72 @@ class MultiAIExecutor:
                 error=str(e),
             )
 
+    async def _execute_deepseek(self, story: Dict) -> StoryResult:
+        """Execute story via DeepSeek API (reasoning model)."""
+        start_time = time.time()
+        story_id = story.get("story_id", "unknown")
+        category = story.get("category", "unknown")
+
+        try:
+            deepseek_driver = await self._get_deepseek_driver()
+            if not deepseek_driver:
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="deepseek",
+                    status="SKIPPED",
+                    duration_seconds=time.time() - start_time,
+                    error="DeepSeek API key not configured",
+                )
+
+            prompt = self._build_prompt(story, include_context=True)
+            response = await deepseek_driver.invoke(prompt)
+            result_text = response.get("content", "")
+            duration = time.time() - start_time
+
+            if not result_text:
+                return StoryResult(
+                    story_id=story_id,
+                    category=category,
+                    provider="deepseek",
+                    status="FAILED",
+                    duration_seconds=duration,
+                    error="DeepSeek API returned empty response",
+                )
+
+            await self._apply_changes(story, result_text)
+            return StoryResult(
+                story_id=story_id,
+                category=category,
+                provider="deepseek",
+                status="SUCCESS",
+                duration_seconds=duration,
+                output=result_text[:500],
+            )
+
+        except asyncio.TimeoutError:
+            duration = time.time() - start_time
+            return StoryResult(
+                story_id=story_id,
+                category=category,
+                provider="deepseek",
+                status="FAILED",
+                duration_seconds=duration,
+                error="Timeout",
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            duration = time.time() - start_time
+            return StoryResult(
+                story_id=story_id,
+                category=category,
+                provider="deepseek",
+                status="FAILED",
+                duration_seconds=duration,
+                error=str(e),
+            )
+
     async def _execute_nexus(self, story: Dict) -> StoryResult:
         """Execute story via full NEXUS orchestration.
 
@@ -1017,6 +1149,8 @@ class MultiAIExecutor:
             return await self._execute_opencode(story)
         elif provider in ("kimi", "codex"):
             return await self._execute_codex(story)  # Uses Kimi K2 CLI
+        elif provider == "deepseek":
+            return await self._execute_deepseek(story)
         elif provider == "claude":
             return await self._execute_claude(story)  # Uses Claude Code CLI
         else:
@@ -1479,7 +1613,7 @@ class MultiAIExecutor:
 
             # 3. Kimi K2 Thinking tasks (type errors, security)
             if groups["kimi"]:
-                print(f"\n[3/5] Executing {len(groups['kimi'])} Kimi K2 tasks...")
+                print(f"\n[3/6] Executing {len(groups['kimi'])} Kimi K2 tasks...")
                 kimi_results = await self.execute_parallel(
                     groups["kimi"],
                     max_concurrent=2  # Respect rate limits
@@ -1490,9 +1624,22 @@ class MultiAIExecutor:
                 self._save_state()
                 return {"status": "PAUSED", "completed": len(self._results)}
 
-            # 4. Claude tasks (dead code removal, complex analysis)
+            # 4. DeepSeek reasoning tasks (security, analysis)
+            if groups["deepseek"]:
+                print(f"\n[4/6] Executing {len(groups['deepseek'])} DeepSeek tasks...")
+                deepseek_results = await self.execute_parallel(
+                    groups["deepseek"],
+                    max_concurrent=2  # Respect rate limits
+                )
+                self._results.extend(deepseek_results)
+
+            if self._pause_requested:
+                self._save_state()
+                return {"status": "PAUSED", "completed": len(self._results)}
+
+            # 5. Claude tasks (dead code removal, complex analysis)
             if groups["claude"]:
-                print(f"\n[4/5] Executing {len(groups['claude'])} Claude tasks...")
+                print(f"\n[5/6] Executing {len(groups['claude'])} Claude tasks...")
                 claude_results = await self.execute_parallel(
                     groups["claude"],
                     max_concurrent=2  # Respect rate limits
@@ -1503,9 +1650,9 @@ class MultiAIExecutor:
                 self._save_state()
                 return {"status": "PAUSED", "completed": len(self._results)}
 
-            # 5. NEXUS tasks (complex, full orchestration)
+            # 6. NEXUS tasks (complex, full orchestration)
             if groups["nexus"]:
-                print(f"\n[5/5] Executing {len(groups['nexus'])} NEXUS tasks...")
+                print(f"\n[6/6] Executing {len(groups['nexus'])} NEXUS tasks...")
                 nexus_results = await self.execute_parallel(
                     groups["nexus"],
                     max_concurrent=1  # Sequential for complex tasks

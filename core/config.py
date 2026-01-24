@@ -28,6 +28,24 @@ class Config:
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")
         self.claude_cli_path: str = os.getenv("CLAUDE_CLI_PATH", "claude")
+        # SSL (enterprise CA support)
+        self.ssl_mode: str = os.getenv("NEXUS_SSL_MODE", "strict").lower()
+        self.ssl_ca_bundle: Optional[str] = (
+            os.getenv("NEXUS_CA_BUNDLE")
+            or os.getenv("SSL_CERT_FILE")
+            or os.getenv("REQUESTS_CA_BUNDLE")
+            or os.getenv("CURL_CA_BUNDLE")
+            or os.getenv("NODE_EXTRA_CA_CERTS")
+            or os.getenv("GIT_SSL_CAINFO")
+        )
+        if not self.ssl_ca_bundle:
+            try:
+                from core.utils.ssl_utils import auto_windows_ca_bundle
+                auto_bundle = auto_windows_ca_bundle()
+                if auto_bundle:
+                    self.ssl_ca_bundle = str(auto_bundle)
+            except Exception:
+                pass
         self.kimi_api_key: Optional[str] = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY")
         self.kimi_api_base: str = os.getenv("KIMI_API_BASE") or os.getenv("MOONSHOT_API_BASE", "https://api.moonshot.ai/v1")
         self.kimi_model: str = os.getenv("KIMI_MODEL", "kimi-k2-thinking")
@@ -35,7 +53,21 @@ class Config:
         self.kimi_max_tokens: int = int(os.getenv("KIMI_MAX_TOKENS", "4096"))
         self.kimi_temperature: float = float(os.getenv("KIMI_TEMPERATURE", "0.2"))
         self.kimi_verify_ssl: bool = os.getenv("KIMI_SSL_VERIFY", "True").lower() == "true"
-        self.kimi_ca_bundle: Optional[str] = os.getenv("KIMI_CA_BUNDLE") or os.getenv("MOONSHOT_CA_BUNDLE")
+        self.kimi_ssl_mode: str = os.getenv("KIMI_SSL_MODE", self.ssl_mode)
+        self.kimi_ca_bundle: Optional[str] = (
+            os.getenv("KIMI_CA_BUNDLE")
+            or os.getenv("MOONSHOT_CA_BUNDLE")
+            or self.ssl_ca_bundle
+        )
+        self.deepseek_api_key: Optional[str] = os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK")
+        self.deepseek_api_base: str = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
+        self.deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
+        self.deepseek_timeout: float = float(os.getenv("DEEPSEEK_TIMEOUT", "60"))
+        self.deepseek_max_tokens: int = int(os.getenv("DEEPSEEK_MAX_TOKENS", "4096"))
+        self.deepseek_temperature: float = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.2"))
+        self.deepseek_verify_ssl: bool = os.getenv("DEEPSEEK_SSL_VERIFY", "True").lower() == "true"
+        self.deepseek_ssl_mode: str = os.getenv("DEEPSEEK_SSL_MODE", self.ssl_mode)
+        self.deepseek_ca_bundle: Optional[str] = os.getenv("DEEPSEEK_CA_BUNDLE") or self.ssl_ca_bundle
 
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))

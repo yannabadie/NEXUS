@@ -1,5 +1,5 @@
 """
-Async Kimi Driver - API-based Moonshot/Kimi client.
+Async DeepSeek Driver - API-based DeepSeek client.
 
 Uses standard library HTTP to avoid extra dependencies.
 Provides async wrappers via asyncio.to_thread().
@@ -20,11 +20,11 @@ from core.utils.ssl_utils import SslConfig, urlopen_ssl
 
 
 @dataclass
-class AsyncKimiDriverConfig:
-    """Configuration for AsyncKimiDriver."""
+class AsyncDeepSeekDriverConfig:
+    """Configuration for AsyncDeepSeekDriver."""
     api_key: str
-    api_base: str = "https://api.moonshot.ai/v1"
-    model: str = "kimi-k2-thinking"
+    api_base: str = "https://api.deepseek.com/v1"
+    model: str = "deepseek-reasoner"
     timeout: float = 60.0
     max_tokens: int = 4096
     temperature: float = 0.2
@@ -34,10 +34,10 @@ class AsyncKimiDriverConfig:
     ssl_mode: str = "strict"
 
 
-class AsyncKimiDriver:
-    """Async API driver for Kimi (Moonshot)."""
+class AsyncDeepSeekDriver:
+    """Async API driver for DeepSeek (OpenAI-compatible)."""
 
-    def __init__(self, config: AsyncKimiDriverConfig) -> None:
+    def __init__(self, config: AsyncDeepSeekDriverConfig) -> None:
         self.config = config
 
     async def invoke(
@@ -47,14 +47,12 @@ class AsyncKimiDriver:
         session_uuid: Optional[str] = None,
         token: Optional[CancellationToken] = None,
     ) -> Dict[str, Any]:
-        """
-        Invoke Kimi API and return parsed response.
-        """
+        """Invoke DeepSeek API and return parsed response."""
         return await asyncio.to_thread(
             self._invoke_sync,
             context,
             session_uuid=session_uuid,
-            token=token
+            token=token,
         )
 
     async def invoke_stream(
@@ -64,9 +62,7 @@ class AsyncKimiDriver:
         session_uuid: Optional[str] = None,
         token: Optional[CancellationToken] = None,
     ) -> AsyncIterator[str]:
-        """
-        Stream response (non-streaming API fallback).
-        """
+        """Stream response (non-streaming API fallback)."""
         response = await self.invoke(context, session_uuid=session_uuid, token=token)
         content = response.get("content", "")
         if content:
@@ -131,4 +127,4 @@ class AsyncKimiDriver:
                     break
                 time.sleep(0.5 * (2 ** attempt))
 
-        raise RuntimeError(f"Kimi API request failed: {last_error}")
+        raise RuntimeError(f"DeepSeek API request failed: {last_error}")

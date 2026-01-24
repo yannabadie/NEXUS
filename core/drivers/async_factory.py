@@ -35,6 +35,7 @@ from typing import Optional, Dict, Any, TYPE_CHECKING
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
+from .async_deepseek_driver import AsyncDeepSeekDriver, AsyncDeepSeekDriverConfig
 from core.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
@@ -65,6 +66,7 @@ class AsyncDriverFactory:
         self._claude_driver: Optional[AsyncClaudeDriver] = None
         self._gemini_driver: Optional[AsyncGeminiDriver] = None
         self._kimi_driver: Optional[AsyncKimiDriver] = None
+        self._deepseek_driver: Optional[AsyncDeepSeekDriver] = None
 
     def get_claude_driver(
         self,
@@ -149,12 +151,48 @@ class AsyncDriverFactory:
                 temperature=getattr(self.config, "kimi_temperature", 0.2),
                 verify_ssl=getattr(self.config, "kimi_verify_ssl", True),
                 ca_bundle=getattr(self.config, "kimi_ca_bundle", None),
+                ssl_mode=getattr(self.config, "kimi_ssl_mode", "strict"),
             )
             self._kimi_driver = AsyncKimiDriver(config)
         elif model:
             self._kimi_driver.config.model = model
 
         return self._kimi_driver
+
+    def get_deepseek_driver(
+        self,
+        model: Optional[str] = None
+    ) -> AsyncDeepSeekDriver:
+        """
+        Get or create the DeepSeek driver.
+
+        Args:
+            model: Optional model override
+
+        Returns:
+            AsyncDeepSeekDriver instance
+        """
+        if self._deepseek_driver is None:
+            api_key = getattr(self.config, "deepseek_api_key", None)
+            if not api_key:
+                raise ValueError("DEEPSEEK_API_KEY is not configured")
+
+            config = AsyncDeepSeekDriverConfig(
+                api_key=api_key,
+                api_base=getattr(self.config, "deepseek_api_base", "https://api.deepseek.com/v1"),
+                model=model or getattr(self.config, "deepseek_model", "deepseek-reasoner"),
+                timeout=getattr(self.config, "deepseek_timeout", 60.0),
+                max_tokens=getattr(self.config, "deepseek_max_tokens", 4096),
+                temperature=getattr(self.config, "deepseek_temperature", 0.2),
+                verify_ssl=getattr(self.config, "deepseek_verify_ssl", True),
+                ca_bundle=getattr(self.config, "deepseek_ca_bundle", None),
+                ssl_mode=getattr(self.config, "deepseek_ssl_mode", "strict"),
+            )
+            self._deepseek_driver = AsyncDeepSeekDriver(config)
+        elif model:
+            self._deepseek_driver.config.model = model
+
+        return self._deepseek_driver
 
     def get_driver(
         self,
@@ -182,8 +220,10 @@ class AsyncDriverFactory:
             return self.get_gemini_driver(model)
         elif agent_lower == "kimi":
             return self.get_kimi_driver(model)
+        elif agent_lower == "deepseek":
+            return self.get_deepseek_driver(model)
         else:
-            raise ValueError(f"Unknown agent: {agent_id}. Use 'claude', 'gemini', or 'kimi'.")
+            raise ValueError(f"Unknown agent: {agent_id}. Use 'claude', 'gemini', 'kimi', or 'deepseek'.")
 
     async def cancel_by_uuid(self, session_uuid: str) -> bool:
         """
