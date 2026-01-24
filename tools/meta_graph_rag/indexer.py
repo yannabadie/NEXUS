@@ -20,6 +20,7 @@ from .embeddings import (
     HashEmbeddingBackend,
     NoopEmbeddingBackend,
     SentenceTransformerBackend,
+    QueryEmbeddingCache,
     VectorIndex,
     VectorRecord,
 )
@@ -166,12 +167,18 @@ class MetaGraphIndexer:
         self.chunks = ChunkStore.load(config.chunks_path)
         self.manifest = IndexManifest.load(config.manifest_path)
         self.embedding_backend = self._select_backend()
+        self._query_cache = QueryEmbeddingCache(
+            config.query_cache_path,
+            ttl_seconds=config.query_cache_ttl_seconds,
+            max_entries=config.query_cache_max_entries,
+        )
         self.vector_index = VectorIndex.load(
             config.vector_path,
             self.embedding_backend,
             document_task_type=config.gemini_task_type_document,
             query_task_type=config.gemini_task_type_query,
             source_weights=config.source_weights,
+            query_cache=self._query_cache,
         )
         self._telemetry = _init_telemetry(config)
 
@@ -191,6 +198,7 @@ class MetaGraphIndexer:
                 output_dimensionality=self.config.gemini_embedding_dim,
                 default_task_type=self.config.gemini_task_type_document,
                 http_config=http_config,
+                timeout=self.config.gemini_request_timeout,
             )
         if backend == "sentence" or backend == "sentence-transformers":
             return SentenceTransformerBackend(self.config.embedding_model)
@@ -214,6 +222,7 @@ class MetaGraphIndexer:
                     output_dimensionality=self.config.gemini_embedding_dim,
                     default_task_type=self.config.gemini_task_type_document,
                     http_config=http_config,
+                    timeout=self.config.gemini_request_timeout,
                 )
             return HashEmbeddingBackend()
 

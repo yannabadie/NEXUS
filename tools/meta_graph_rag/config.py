@@ -94,11 +94,15 @@ class MetaGraphRagConfig:
     gemini_task_type_document: str = "RETRIEVAL_DOCUMENT"
     gemini_task_type_query: str = "CODE_RETRIEVAL_QUERY"
     gemini_batch_size: int = 8
+    gemini_request_timeout: int = 30
     gemini_generation_model: str = "gemini-3-pro-preview"
     gemini_api_key: Optional[str] = None
     query_seed_limit: int = 8
     query_expansion_depth: int = 1
     query_expansion_limit: int = 20
+    query_cache_path: Path = Path("query_cache.json")
+    query_cache_ttl_seconds: int = 3600
+    query_cache_max_entries: int = 1000
     research_limit: int = 5
     research_queries: List[str] = field(default_factory=lambda: DEFAULT_RESEARCH_QUERIES.copy())
     persist_every_files: int = 25
@@ -150,6 +154,7 @@ def load_config(
     gemini_generation_model = os.getenv("META_RAG_GEMINI_MODEL", "gemini-3-pro-preview")
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     gemini_batch_size = int(os.getenv("META_RAG_GEMINI_BATCH", "8"))
+    gemini_request_timeout = int(os.getenv("META_RAG_GEMINI_TIMEOUT", "30"))
 
     max_file_size_kb = int(os.getenv("META_RAG_MAX_FILE_KB", "512"))
     chunk_lines = int(os.getenv("META_RAG_CHUNK_LINES", "50"))
@@ -158,6 +163,9 @@ def load_config(
     query_seed_limit = int(os.getenv("META_RAG_QUERY_SEEDS", "8"))
     query_expansion_depth = int(os.getenv("META_RAG_QUERY_DEPTH", "1"))
     query_expansion_limit = int(os.getenv("META_RAG_QUERY_EXPANSION", "20"))
+    query_cache_path = Path(os.getenv("META_RAG_QUERY_CACHE", data_path / "query_cache.json"))
+    query_cache_ttl_seconds = int(os.getenv("META_RAG_QUERY_CACHE_TTL", "3600"))
+    query_cache_max_entries = int(os.getenv("META_RAG_QUERY_CACHE_MAX", "1000"))
     research_limit = int(os.getenv("META_RAG_RESEARCH_LIMIT", "5"))
     research_queries = _parse_env_list("META_RAG_RESEARCH_QUERIES", DEFAULT_RESEARCH_QUERIES)
     persist_every_files = int(os.getenv("META_RAG_PERSIST_EVERY", "25"))
@@ -197,11 +205,15 @@ def load_config(
         gemini_task_type_document=gemini_task_type_document,
         gemini_task_type_query=gemini_task_type_query,
         gemini_batch_size=gemini_batch_size,
+        gemini_request_timeout=gemini_request_timeout,
         gemini_generation_model=gemini_generation_model,
         gemini_api_key=gemini_api_key,
         query_seed_limit=query_seed_limit,
         query_expansion_depth=query_expansion_depth,
         query_expansion_limit=query_expansion_limit,
+        query_cache_path=query_cache_path,
+        query_cache_ttl_seconds=query_cache_ttl_seconds,
+        query_cache_max_entries=query_cache_max_entries,
         research_limit=research_limit,
         research_queries=research_queries,
         persist_every_files=persist_every_files,

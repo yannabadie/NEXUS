@@ -18,9 +18,24 @@ from .http_client import HttpConfig, urlopen
 
 DEFAULT_SOURCES = [
     {
-        "url": "https://arxiv.org/abs/2601.09457",
-        "title": "Deep GraphRAG (ArXiv 2026)",
+        "url": "https://arxiv.org/abs/2601.11144",
+        "title": "Deep GraphRAG: A Balanced Approach to Hierarchical Retrieval and Adaptive Integration (ArXiv 2026)",
         "tags": ["graphrag", "paper"],
+    },
+    {
+        "url": "https://raw.githubusercontent.com/deepseek-ai/DeepSeek-V3/main/README.md",
+        "title": "DeepSeek V3 (GitHub README)",
+        "tags": ["deepseek", "model", "reasoning", "opensource"],
+    },
+    {
+        "url": "https://api-docs.deepseek.com/",
+        "title": "DeepSeek API Docs",
+        "tags": ["deepseek", "api", "docs"],
+    },
+    {
+        "url": "https://raw.githubusercontent.com/deepseek-ai/awesome-deepseek-integration/main/README.md",
+        "title": "Awesome DeepSeek Integration (GitHub README)",
+        "tags": ["deepseek", "integrations"],
     },
     {
         "url": "https://arxiv.org/abs/2501.14050",

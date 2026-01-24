@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Protocol
 import json
+import hashlib
 import math
 import re
 import time
@@ -93,6 +94,7 @@ class GeminiEmbeddingBackend:
         output_dimensionality: Optional[int] = None,
         default_task_type: Optional[str] = None,
         http_config: Optional[HttpConfig] = None,
+        timeout: int = 30,
     ) -> None:
         if not api_key:
             raise ValueError("Gemini API key is required")
@@ -102,6 +104,7 @@ class GeminiEmbeddingBackend:
         self._output_dimensionality = output_dimensionality
         self._default_task_type = default_task_type
         self._http_config = http_config or HttpConfig.from_env()
+        self._timeout = timeout
 
     def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         effective_task = task_type or self._default_task_type
@@ -139,7 +142,7 @@ class GeminiEmbeddingBackend:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        result = self._request_json(request, timeout=30)
+        result = self._request_json(request, timeout=self._timeout)
         embedding = result.get("embedding", {}).get("values")
         if not embedding:
             raise RuntimeError("Gemini embedding response missing values")
@@ -175,7 +178,7 @@ class GeminiEmbeddingBackend:
             method="POST",
         )
         try:
-            result = self._request_json(request, timeout=30)
+            result = self._request_json(request, timeout=self._timeout)
             embeddings = result.get("embeddings")
             if not embeddings:
                 raise RuntimeError("Gemini batch embedding response missing embeddings")
@@ -216,6 +219,102 @@ class VectorRecord:
     metadata: Dict[str, str]
 
 
+class QueryEmbeddingCache:
+    """Simple JSON-backed cache for query embeddings."""
+
+    def __init__(self, path: Path, ttl_seconds: int = 3600, max_entries: int = 1000) -> None:
+        self._path = path
+        self._ttl_seconds = ttl_seconds
+        self._max_entries = max_entries
+        self._loaded = False
+        self._entries: Dict[str, Dict[str, object]] = {}
+
+    def get(
+        self,
+        query_text: str,
+        backend_info: Dict[str, str],
+        task_type: Optional[str],
+    ) -> Optional[List[float]]:
+        if self._ttl_seconds <= 0 or self._max_entries <= 0:
+            return None
+        self._load()
+        key = self._make_key(query_text, backend_info, task_type)
+        entry = self._entries.get(key)
+        if not entry:
+            return None
+        updated_at = float(entry.get("updated_at", 0.0))
+        if self._ttl_seconds and (time.time() - updated_at) > self._ttl_seconds:
+            self._entries.pop(key, None)
+            self._save()
+            return None
+        embedding = entry.get("embedding")
+        if isinstance(embedding, list):
+            return embedding
+        return None
+
+    def set(
+        self,
+        query_text: str,
+        backend_info: Dict[str, str],
+        task_type: Optional[str],
+        embedding: List[float],
+    ) -> None:
+        if self._ttl_seconds <= 0 or self._max_entries <= 0:
+            return
+        self._load()
+        key = self._make_key(query_text, backend_info, task_type)
+        self._entries[key] = {
+            "embedding": embedding,
+            "updated_at": time.time(),
+        }
+        self._evict()
+        self._save()
+
+    def _make_key(
+        self,
+        query_text: str,
+        backend_info: Dict[str, str],
+        task_type: Optional[str],
+    ) -> str:
+        payload = {
+            "backend": backend_info,
+            "task_type": task_type or "",
+            "query": query_text,
+        }
+        encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    def _evict(self) -> None:
+        if len(self._entries) <= self._max_entries:
+            return
+        oldest = sorted(self._entries.items(), key=lambda item: float(item[1].get("updated_at", 0.0)))
+        excess = len(self._entries) - self._max_entries
+        for key, _ in oldest[:excess]:
+            self._entries.pop(key, None)
+
+    def _load(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+        if not self._path.exists():
+            return
+        try:
+            payload = json.loads(self._path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return
+        entries = payload.get("entries") if isinstance(payload, dict) else None
+        if isinstance(entries, dict):
+            self._entries = entries
+
+    def _save(self) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "entries": self._entries,
+        }
+        self._path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
 class VectorIndex:
     """Simple JSON-backed vector index."""
 
@@ -225,12 +324,14 @@ class VectorIndex:
         document_task_type: Optional[str] = None,
         query_task_type: Optional[str] = None,
         source_weights: Optional[Dict[str, float]] = None,
+        query_cache: Optional[QueryEmbeddingCache] = None,
     ) -> None:
         self.backend = backend
         self.entries: Dict[str, VectorRecord] = {}
         self.document_task_type = document_task_type
         self.query_task_type = query_task_type
         self.source_weights = source_weights or {}
+        self.query_cache = query_cache
 
     def add_texts(self, records: List[VectorRecord]) -> None:
         texts = [record.metadata.get("text", "") for record in records]
@@ -247,7 +348,22 @@ class VectorIndex:
             self.entries.pop(chunk_id, None)
 
     def query(self, query_text: str, limit: int = 5) -> List[VectorRecord]:
-        query_embedding = self.backend.embed_texts([query_text], task_type=self.query_task_type)[0]
+        query_embedding = None
+        if self.query_cache is not None:
+            query_embedding = self.query_cache.get(
+                query_text,
+                backend_info=self.backend.info(),
+                task_type=self.query_task_type,
+            )
+        if query_embedding is None:
+            query_embedding = self.backend.embed_texts([query_text], task_type=self.query_task_type)[0]
+            if self.query_cache is not None:
+                self.query_cache.set(
+                    query_text,
+                    backend_info=self.backend.info(),
+                    task_type=self.query_task_type,
+                    embedding=query_embedding,
+                )
         scored: List[tuple[float, VectorRecord]] = []
         for record in self.entries.values():
             score = _cosine_similarity(query_embedding, record.embedding)
@@ -283,12 +399,14 @@ class VectorIndex:
         document_task_type: Optional[str] = None,
         query_task_type: Optional[str] = None,
         source_weights: Optional[Dict[str, float]] = None,
+        query_cache: Optional[QueryEmbeddingCache] = None,
     ) -> "VectorIndex":
         index = cls(
             backend,
             document_task_type=document_task_type,
             query_task_type=query_task_type,
             source_weights=source_weights,
+            query_cache=query_cache,
         )
         if not path.exists():
             return index

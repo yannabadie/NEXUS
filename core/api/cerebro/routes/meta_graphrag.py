@@ -247,8 +247,8 @@ class BriefingRequest(BaseModel):
 
 @router.get("/status")
 async def meta_graphrag_status(
-    fast: bool = True,
     request: Request,
+    fast: bool = True,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Return Meta GraphRAG index status."""
