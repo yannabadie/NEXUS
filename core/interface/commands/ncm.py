@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from core.interface.commands.registry import Command, CommandContext, CommandResult, CommandStatus
 from core.ncm.models import Story, StoryPriority, IssueDomain, StoryStatus, NCMConfig
 from core.ncm.orchestrator import NCMOrchestrator
+from core.ncm.real_story_generator import RealStoryGenerator
 
 
 @dataclass
@@ -23,9 +24,10 @@ class NCMService:
 
     orchestrator: NCMOrchestrator
     stories: list[Story]
+    mode: str = "test"  # "test" or "real"
 
     @classmethod
-    def create(cls, context: CommandContext) -> "NCMService":
+    def create(cls, context: CommandContext, mode: str = "test") -> "NCMService":
         """Create NCM service from command context."""
         workspace_path = context.extras["repl"].workspace_path
 
@@ -43,11 +45,17 @@ class NCMService:
             config=config,
         )
 
-        # Generate pilot stories (generate max pool, _ncm_pilot will select count)
-        # Max ~21 stories available from test_mixed_target.py
-        stories = generate_pilot_stories(count=100)  # Will cap at available stories
+        # Generate stories based on mode
+        if mode == "real":
+            # Generate from real codebase analysis
+            generator = RealStoryGenerator(workspace_path)
+            stories = generator.generate_mixed_stories(count=100)
+        else:
+            # Generate from test files (default)
+            # Max ~21 stories available from test_mixed_target.py
+            stories = generate_pilot_stories(count=100)  # Will cap at available stories
 
-        return cls(orchestrator=ncm, stories=stories)
+        return cls(orchestrator=ncm, stories=stories, mode=mode)
 
 
 def generate_pilot_stories(count: int = 10) -> list[Story]:
@@ -204,11 +212,14 @@ class NCMCommand(Command):
         parts = args.strip().split() if args.strip() else []
         subcommand = parts[0] if parts else "help"
 
+        # Check for --real flag
+        mode = "real" if "--real" in parts else "test"
+
         # Get or create NCM service
         repl = context.extras["repl"]
-        if not hasattr(repl, "_ncm_service"):
-            console.print("\n[cyan]Initializing NCM...[/cyan]")
-            repl._ncm_service = NCMService.create(context)
+        if not hasattr(repl, "_ncm_service") or (hasattr(repl, "_ncm_service") and repl._ncm_service.mode != mode):
+            console.print(f"\n[cyan]Initializing NCM (mode: {mode})...[/cyan]")
+            repl._ncm_service = NCMService.create(context, mode=mode)
             console.print("[green]✓[/green] NCM initialized\n")
 
         ncm_service = repl._ncm_service
@@ -252,18 +263,26 @@ class NCMCommand(Command):
 
 [bold]Subcommands:[/bold]
   [cyan]status[/cyan]              - Show NCM orchestrator status
-  [cyan]pilot[/cyan] [--count=N]  - Run pilot with N stories (default: 10)
+  [cyan]pilot[/cyan] [--count=N] [--real]  - Run pilot with N stories (default: 10)
   [cyan]stories[/cyan]             - List available stories
   [cyan]execute[/cyan] --batch=N  - Execute N stories from queue
 
+[bold]Flags:[/bold]
+  [cyan]--real[/cyan]              - Use real codebase analysis instead of test files
+  [cyan]--count=N[/cyan]           - Number of stories to execute
+
 [bold]Examples:[/bold]
   /ncm status
-  /ncm pilot
-  /ncm pilot --count=5
+  /ncm pilot                    # Test mode (test files)
+  /ncm pilot --count=5          # Test mode, 5 stories
+  /ncm pilot --real             # Real mode (analyze codebase)
+  /ncm pilot --real --count=50  # Real mode, 50 stories
   /ncm stories
   /ncm execute --batch=10
 
 [bold]Note:[/bold] NCM is in Phase 1 Pilot. Use with caution!
+[bold]Test mode:[/bold] Uses synthetic test files (safe, for validation)
+[bold]Real mode:[/bold] Analyzes and modifies actual codebase files
 """)
         return CommandResult(
             status=CommandStatus.SUCCESS,
