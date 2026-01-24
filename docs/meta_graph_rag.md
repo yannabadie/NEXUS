@@ -113,6 +113,8 @@ Example query file (JSON):
 
 Output report:
 - `workspace/meta_rag/reports/eval_report.json`
+The report includes a simple availability check for optional evaluators
+(`ragas`, `trulens_eval`, `deepeval`).
 
 ## SSL in Enterprise Networks
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.

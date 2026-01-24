@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+import importlib.util
 import json
 import time
 
@@ -83,6 +84,7 @@ def run_eval(
         "expansion_limit": expansion_limit,
         "results": results,
         "summary": summary,
+        "integrations": _detect_optional_evaluators(),
     }
 
 
@@ -179,6 +181,14 @@ def _summarize_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         "expanded_avg_precision": avg(expanded_precision),
         "expanded_avg_recall": avg(expanded_recall),
         "expanded_avg_mrr": avg(expanded_mrr),
+    }
+
+
+def _detect_optional_evaluators() -> Dict[str, bool]:
+    return {
+        "ragas": importlib.util.find_spec("ragas") is not None,
+        "trulens": importlib.util.find_spec("trulens_eval") is not None,
+        "deepeval": importlib.util.find_spec("deepeval") is not None,
     }
 
 

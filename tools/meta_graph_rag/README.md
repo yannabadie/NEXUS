@@ -102,6 +102,8 @@ Sample template: `tools/meta_graph_rag/eval_queries.example.json`
 
 Output report:
 - `workspace/meta_rag/reports/eval_report.json`
+The report also includes availability flags for optional evaluators
+(`ragas`, `trulens_eval`, `deepeval`).
 
 ## Notes
 - Content is normalized to ASCII for storage consistency.
