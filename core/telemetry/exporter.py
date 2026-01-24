@@ -250,6 +250,12 @@ class TelemetryExporter:
             row["error"] = f"{data.get('error_type', '')}: {data.get('message', '')}"
             row["status"] = "error"
 
+        elif event.event_type == "rag_ingest":
+            row["mode"] = data.get("stage", "")
+            row["duration_seconds"] = data.get("duration_seconds", "")
+            row["status"] = "success" if data.get("success") else "failed"
+            row["error"] = data.get("error", "") or ""
+
         return row
 
     def generate_report(self, days: int = 7) -> dict[str, Any]:
@@ -291,6 +297,9 @@ class TelemetryExporter:
 
         # Tool metrics
         tool_counts: dict[str, int] = {}
+        rag_ingest_events = 0
+        rag_ingest_failures = 0
+        rag_ingest_stages: dict[str, int] = {}
 
         for event in self._iter_events(since=since):
             total_events += 1
@@ -335,6 +344,12 @@ class TelemetryExporter:
 
             elif event.event_type == "error":
                 errors += 1
+            elif event.event_type == "rag_ingest":
+                rag_ingest_events += 1
+                stage = data.get("stage", "unknown")
+                rag_ingest_stages[stage] = rag_ingest_stages.get(stage, 0) + 1
+                if not data.get("success", True):
+                    rag_ingest_failures += 1
 
         # Calculate averages
         avg_latency_by_mode = {}
@@ -380,6 +395,11 @@ class TelemetryExporter:
             "tool_usage": dict(
                 sorted(tool_counts.items(), key=lambda x: x[1], reverse=True)[:10]
             ),
+            "rag_ingest": {
+                "events": rag_ingest_events,
+                "failures": rag_ingest_failures,
+                "stages": rag_ingest_stages,
+            },
         }
 
     def format_report_for_console(self, report: dict[str, Any]) -> str:
@@ -450,6 +470,16 @@ class TelemetryExporter:
             lines.append("--- Top Tools ---")
             for tool, count in list(report["tool_usage"].items())[:5]:
                 lines.append(f"  {tool}: {count}x")
+            lines.append("")
+
+        # RAG ingest
+        rag = report.get("rag_ingest", {})
+        if rag.get("events"):
+            lines.append("--- RAG Ingestion ---")
+            lines.append(f"  Runs: {rag.get('events', 0)} (failures: {rag.get('failures', 0)})")
+            stages = rag.get("stages", {})
+            for stage, count in stages.items():
+                lines.append(f"  {stage}: {count}x")
             lines.append("")
 
         lines.append("=" * 60)

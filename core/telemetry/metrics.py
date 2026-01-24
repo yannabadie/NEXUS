@@ -34,6 +34,7 @@ class MetricType(Enum):
     ERROR = "error"
     SESSION = "session"
     EVOLUTION = "evolution"
+    RAG_INGEST = "rag_ingest"
 
 
 @dataclass
@@ -76,6 +77,21 @@ class SessionMetric:
     swarm_tasks: int
     tool_executions: int
     duration_seconds: float
+
+
+@dataclass
+class RagIngestMetric:
+    """Metrics for a RAG ingestion run."""
+
+    timestamp: str
+    stage: str
+    files_total: int
+    files_indexed: int
+    chunks_total: int
+    vector_entries: int
+    duration_seconds: float
+    success: bool
+    error: Optional[str] = None
 
 
 class TelemetryCollector:
@@ -311,6 +327,43 @@ class TelemetryCollector:
                 "mutations": mutations,
             },
         )
+
+    def record_rag_ingest(
+        self,
+        stage: str,
+        duration_seconds: float,
+        success: bool,
+        files_total: int = 0,
+        files_indexed: int = 0,
+        chunks_total: int = 0,
+        vector_entries: int = 0,
+        error: Optional[str] = None,
+    ) -> None:
+        """
+        Record a RAG ingestion metric.
+
+        Args:
+            stage: Ingestion stage (index, embed, report)
+            duration_seconds: Duration of the stage
+            success: Whether the stage completed successfully
+            files_total: Total files scanned
+            files_indexed: Files indexed or updated
+            chunks_total: Total chunks in the index
+            vector_entries: Total vector entries in the index
+            error: Optional error message
+        """
+        metric = RagIngestMetric(
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            stage=stage,
+            files_total=files_total,
+            files_indexed=files_indexed,
+            chunks_total=chunks_total,
+            vector_entries=vector_entries,
+            duration_seconds=duration_seconds,
+            success=success,
+            error=error,
+        )
+        self._write_event(MetricType.RAG_INGEST, asdict(metric))
 
     def get_session_summary(self) -> SessionMetric:
         """Get summary metrics for the current session"""

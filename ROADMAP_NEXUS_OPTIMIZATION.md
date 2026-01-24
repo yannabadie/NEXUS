@@ -85,12 +85,12 @@ Goal: remove deadlocks and make workflows cancelable.
 ## P2 - Security Signal and Noise Reduction
 Goal: fewer false positives, clearer security hotspots.
 
-1) Refine security patterns in GraphRAG
+1) Refine security patterns in GraphRAG (done 2026-01-23)
 - tools/meta_graph_rag/indexer.py:30
 - Tune SECURITY_PATTERNS to reduce false positives (e.g., SQL and exec_eval).
 - Impact: security_hotspots.md accuracy, audit workflows.
 
-2) Add audit logging for GraphRAG HTTP endpoints
+2) Add audit logging for GraphRAG HTTP endpoints (done 2026-01-23)
 - core/api/cerebro/routes/meta_graphrag.py
 - Record query usage for traceability.
 - Impact: core/audit/audit_logger.py.
@@ -108,8 +108,8 @@ Goal: reduce latency and improve maintainability.
 - Add TTL cache to reduce network overhead per run.
 - Impact: tool discovery latency and stability.
 
-3) Telemetry for RAG ingestion
-- core/memory/project_memory.py and core/telemetry/service.py
+3) Telemetry for RAG ingestion (done 2026-01-23)
+- tools/meta_graph_rag/indexer.py, core/telemetry/metrics.py, core/telemetry/exporter.py
 - Emit ingest metrics and errors for alerting.
 - Impact: monitoring dashboards.
 
@@ -141,6 +141,11 @@ Implemented:
 - Unit: tests/ncm/*, tests/test_mcp_client.py, tests/test_swarm_session_integration.py
 - Smoke: python nexus7.py --verify
 - RAG eval: add RAGAS/TruLens/DeepEval harness and baseline queries.
+
+## Updates
+- 2026-01-23: Meta GraphRAG security tag detection now uses regex patterns to cut false positives.
+- 2026-01-23: Meta GraphRAG HTTP endpoints emit audit logs (query/status/reports/briefing).
+- 2026-01-23: Meta GraphRAG index/embed emits telemetry events (`rag_ingest`).
 
 ## Recommended Execution Order
 1) P0 NCM blockers

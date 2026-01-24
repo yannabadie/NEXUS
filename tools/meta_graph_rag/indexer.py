@@ -5,12 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 import ast
 import hashlib
 import json
 import os
 import re
+import time
 
 from .config import MetaGraphRagConfig
 from .embeddings import (
@@ -28,11 +29,35 @@ from .http_client import HttpConfig
 
 
 SECURITY_PATTERNS = {
-    "exec_eval": ["exec(", "eval("],
-    "subprocess_shell": ["shell=True", "os.system(", "subprocess.Popen(", "subprocess.run("],
-    "pickle": ["pickle.load", "pickle.loads"],
-    "yaml_load": ["yaml.load("],
-    "sql_raw": ["execute(", "cursor.execute(", "text("],
+    "exec_eval": [
+        re.compile(r"\bexec\s*\(", re.IGNORECASE),
+        re.compile(r"\beval\s*\(", re.IGNORECASE),
+    ],
+    "subprocess_shell": [
+        re.compile(r"\bos\.system\s*\(", re.IGNORECASE),
+        re.compile(r"\bshell\s*=\s*true", re.IGNORECASE),
+        re.compile(
+            r"\bsubprocess\.(?:popen|run|call)\s*\([^)]*shell\s*=\s*true",
+            re.IGNORECASE,
+        ),
+    ],
+    "pickle": [
+        re.compile(r"\bpickle\.(?:load|loads)\s*\(", re.IGNORECASE),
+    ],
+    "yaml_load": [
+        re.compile(r"\byaml\.load\s*\(", re.IGNORECASE),
+    ],
+    "sql_raw": [
+        re.compile(
+            r"\bexecute\s*\(\s*[\"']\s*(select|insert|update|delete|alter|drop|create)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\bcursor\.execute\s*\(\s*[\"']\s*(select|insert|update|delete|alter|drop|create)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\btext\s*\(\s*[\"']", re.IGNORECASE),
+    ],
 }
 
 
@@ -148,6 +173,7 @@ class MetaGraphIndexer:
             query_task_type=config.gemini_task_type_query,
             source_weights=config.source_weights,
         )
+        self._telemetry = _init_telemetry(config)
 
     def _select_backend(self) -> EmbeddingBackend:
         backend = self.config.embedding_backend
@@ -193,54 +219,80 @@ class MetaGraphIndexer:
 
     def index(self, full: bool = False) -> None:
         """Index codebase and external sources into graph + vector store."""
-        if full:
-            self.graph_db.reset()
-        progress_path = self.config.data_path / "index_progress.json"
-        files = list(self._scan_files())
-        known_files = set(self.manifest.files.keys())
-        current_files = set(str(path) for path in files)
-
-        removed_files = known_files - current_files
-        for removed in removed_files:
-            entry = self.manifest.files.pop(removed, None)
-            if not entry:
-                continue
-            self._remove_entry(entry)
-
+        start_time = time.time()
         indexed_files = 0
-        for path in files:
-            entry_key = str(path)
-            _write_progress(progress_path, "indexing", entry_key)
-            content_hash = _hash_file(path)
-            entry = self.manifest.files.get(entry_key)
-            if entry and entry.get("hash") == content_hash and not full:
-                continue
-            if entry:
-                self._remove_entry(entry)
-            nodes, edges, chunks = self._index_file(path, content_hash)
-            node_ids = sorted({node.node_id for node in nodes})
-            chunk_ids = sorted({chunk.chunk_id for chunk in chunks})
-            for node in nodes:
-                self.graph.add_node(node)
-            for edge in edges:
-                self.graph.add_edge(edge)
-            for chunk in chunks:
-                self.chunks.add(chunk)
-            self.graph_db.upsert_nodes(nodes)
-            self.graph_db.upsert_edges(edges)
-            self._add_vectors(chunks)
-            self.manifest.files[entry_key] = {
-                "hash": content_hash,
-                "nodes": node_ids,
-                "chunks": chunk_ids,
-            }
-            indexed_files += 1
-            _write_progress(progress_path, "indexed", entry_key)
-            if self.config.persist_every_files > 0 and indexed_files % self.config.persist_every_files == 0:
-                self._persist()
+        files: List[Path] = []
+        try:
+            if full:
+                self.graph_db.reset()
+            progress_path = self.config.data_path / "index_progress.json"
+            files = list(self._scan_files())
+            known_files = set(self.manifest.files.keys())
+            current_files = set(str(path) for path in files)
 
-        self._index_external_sources(full=full)
-        self._persist()
+            removed_files = known_files - current_files
+            for removed in removed_files:
+                entry = self.manifest.files.pop(removed, None)
+                if not entry:
+                    continue
+                self._remove_entry(entry)
+
+            for path in files:
+                entry_key = str(path)
+                _write_progress(progress_path, "indexing", entry_key)
+                content_hash = _hash_file(path)
+                entry = self.manifest.files.get(entry_key)
+                if entry and entry.get("hash") == content_hash and not full:
+                    continue
+                if entry:
+                    self._remove_entry(entry)
+                nodes, edges, chunks = self._index_file(path, content_hash)
+                node_ids = sorted({node.node_id for node in nodes})
+                chunk_ids = sorted({chunk.chunk_id for chunk in chunks})
+                for node in nodes:
+                    self.graph.add_node(node)
+                for edge in edges:
+                    self.graph.add_edge(edge)
+                for chunk in chunks:
+                    self.chunks.add(chunk)
+                self.graph_db.upsert_nodes(nodes)
+                self.graph_db.upsert_edges(edges)
+                self._add_vectors(chunks)
+                self.manifest.files[entry_key] = {
+                    "hash": content_hash,
+                    "nodes": node_ids,
+                    "chunks": chunk_ids,
+                }
+                indexed_files += 1
+                _write_progress(progress_path, "indexed", entry_key)
+                if self.config.persist_every_files > 0 and indexed_files % self.config.persist_every_files == 0:
+                    self._persist()
+
+            self._index_external_sources(full=full)
+            self._persist()
+        except Exception as exc:
+            if self._telemetry is not None:
+                self._telemetry.record_rag_ingest(
+                    stage="index",
+                    duration_seconds=time.time() - start_time,
+                    success=False,
+                    files_total=len(files),
+                    files_indexed=indexed_files,
+                    chunks_total=len(self.chunks.chunks),
+                    vector_entries=len(self.vector_index.entries),
+                    error=_safe_error(str(exc)),
+                )
+            raise
+        if self._telemetry is not None:
+            self._telemetry.record_rag_ingest(
+                stage="index",
+                duration_seconds=time.time() - start_time,
+                success=True,
+                files_total=len(files),
+                files_indexed=indexed_files,
+                chunks_total=len(self.chunks.chunks),
+                vector_entries=len(self.vector_index.entries),
+            )
 
     def query(self, query_text: str) -> GraphRagResult:
         seed_records = self.vector_index.query(query_text, limit=self.config.query_seed_limit)
@@ -406,46 +458,71 @@ class MetaGraphIndexer:
 
     def embed_missing(self, limit: int | None = None) -> int:
         """Embed missing chunks into the vector index."""
+        start_time = time.time()
         records: List[VectorRecord] = []
         embedded = 0
         progress_path = self.config.data_path / "embed_progress.json"
-        for chunk in self.chunks.chunks.values():
-            if chunk.chunk_id in self.vector_index.entries:
-                continue
-            records.append(VectorRecord(
-                chunk_id=chunk.chunk_id,
-                embedding=[],
-                metadata={
-                    "text": chunk.text,
-                    "path": chunk.path,
-                    "node_id": chunk.node_id,
-                    "kind": chunk.kind,
-                    "source_type": chunk.metadata.get("source_type", ""),
-                },
-            ))
-            if limit and (embedded + len(records)) >= limit:
-                remaining = limit - embedded
-                if remaining > 0:
-                    self.vector_index.add_texts(records[:remaining])
-                    embedded += remaining
+        try:
+            for chunk in self.chunks.chunks.values():
+                if chunk.chunk_id in self.vector_index.entries:
+                    continue
+                records.append(VectorRecord(
+                    chunk_id=chunk.chunk_id,
+                    embedding=[],
+                    metadata={
+                        "text": chunk.text,
+                        "path": chunk.path,
+                        "node_id": chunk.node_id,
+                        "kind": chunk.kind,
+                        "source_type": chunk.metadata.get("source_type", ""),
+                    },
+                ))
+                if limit and (embedded + len(records)) >= limit:
+                    remaining = limit - embedded
+                    if remaining > 0:
+                        self.vector_index.add_texts(records[:remaining])
+                        embedded += remaining
+                        _write_progress(progress_path, "embedding", chunk.path)
+                    records = []
+                    break
+                if len(records) >= self.config.embed_batch_limit:
+                    self.vector_index.add_texts(records)
+                    embedded += len(records)
                     _write_progress(progress_path, "embedding", chunk.path)
-                records = []
-                break
-            if len(records) >= self.config.embed_batch_limit:
+                    if self.config.embed_persist_every > 0 and embedded % self.config.embed_persist_every == 0:
+                        self.vector_index.save(self.config.vector_path)
+                    records = []
+
+            if records:
                 self.vector_index.add_texts(records)
                 embedded += len(records)
-                _write_progress(progress_path, "embedding", chunk.path)
-                if self.config.embed_persist_every > 0 and embedded % self.config.embed_persist_every == 0:
-                    self.vector_index.save(self.config.vector_path)
-                records = []
+                _write_progress(progress_path, "embedding", records[-1].metadata.get("path", ""))
 
-        if records:
-            self.vector_index.add_texts(records)
-            embedded += len(records)
-            _write_progress(progress_path, "embedding", records[-1].metadata.get("path", ""))
-
-        if embedded:
-            self.vector_index.save(self.config.vector_path)
+            if embedded:
+                self.vector_index.save(self.config.vector_path)
+        except Exception as exc:
+            if self._telemetry is not None:
+                self._telemetry.record_rag_ingest(
+                    stage="embed",
+                    duration_seconds=time.time() - start_time,
+                    success=False,
+                    files_total=len(self.chunks.chunks),
+                    files_indexed=embedded,
+                    chunks_total=len(self.chunks.chunks),
+                    vector_entries=len(self.vector_index.entries),
+                    error=_safe_error(str(exc)),
+                )
+            raise
+        if self._telemetry is not None:
+            self._telemetry.record_rag_ingest(
+                stage="embed",
+                duration_seconds=time.time() - start_time,
+                success=True,
+                files_total=len(self.chunks.chunks),
+                files_indexed=embedded,
+                chunks_total=len(self.chunks.chunks),
+                vector_entries=len(self.vector_index.entries),
+            )
         return embedded
 
     def _remove_entry(self, entry: Dict[str, object]) -> None:
@@ -537,10 +614,9 @@ def _sanitize_text(text: str) -> str:
 
 
 def _scan_security_tags(text: str) -> List[str]:
-    lowered = text.lower()
     tags = []
     for tag, patterns in SECURITY_PATTERNS.items():
-        if any(pattern in lowered for pattern in patterns):
+        if any(pattern.search(text) for pattern in patterns):
             tags.append(tag)
     return tags
 
@@ -553,6 +629,37 @@ def _write_progress(path: Path, stage: str, file_path: str) -> None:
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
+_TELEMETRY: Optional["TelemetryCollector"] = None
+_TELEMETRY_DISABLED = False
+
+
+def _init_telemetry(config: MetaGraphRagConfig) -> Optional["TelemetryCollector"]:
+    global _TELEMETRY
+    global _TELEMETRY_DISABLED
+    if _TELEMETRY is not None:
+        return _TELEMETRY
+    if _TELEMETRY_DISABLED:
+        return None
+    if os.getenv("TELEMETRY_ENABLED", "True").lower() != "true":
+        _TELEMETRY_DISABLED = True
+        return None
+    try:
+        from core.telemetry.metrics import TelemetryCollector
+    except Exception:
+        _TELEMETRY_DISABLED = True
+        return None
+    output_path = os.getenv("TELEMETRY_FILE")
+    output_file = Path(output_path) if output_path else (config.workspace_path / "telemetry.jsonl")
+    _TELEMETRY = TelemetryCollector(output_file=output_file)
+    return _TELEMETRY
+
+
+def _safe_error(message: str, limit: int = 200) -> str:
+    if len(message) <= limit:
+        return message
+    return message[:limit]
 
 
 def _source_type_for_path(relative_path: str, suffix: str) -> str:

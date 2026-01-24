@@ -48,6 +48,14 @@ Meta GraphRAG is also available via the CEREBRO HTTP API:
 - `POST /api/meta-graphrag/reports` (`fast=true` uses snapshot)
 - `POST /api/meta-graphrag/briefing` (`fast=true` uses snapshot)
 
+## Audit Logging
+Meta GraphRAG HTTP endpoints emit audit logs for traceability:
+- `meta_graphrag:status`
+- `meta_graphrag:query`
+- `meta_graphrag:reports`
+- `meta_graphrag:briefing`
+Audit details include query length/hash, expansion settings, and entrypoint counts.
+
 ## Embeddings
 - Default: Gemini embeddings (`gemini-embedding-001`) when `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set
 - Task-aware embedding for retrieval (document vs query)
@@ -82,6 +90,10 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
 
+## Telemetry
+- Indexing and embedding stages emit telemetry events (`rag_ingest`) when telemetry is enabled.
+- Events include stage, duration, total chunks, and vector counts for monitoring.
+
 ## SSL in Enterprise Networks
 - If `META_RAG_CA_BUNDLE` is not set on Windows, the system attempts to export a CA bundle from the local certificate store into `workspace/meta_rag/corp_ca_bundle.pem`.
 - Use `META_RAG_CA_REFRESH=true` to regenerate the bundle when corporate roots change.
@@ -95,6 +107,7 @@ You can scope or reduce indexing load with environment variables:
 - Content is normalized to ASCII for storage consistency.
 - Security tags are heuristic and require manual validation.
 - Binary files are indexed as stub chunks (path/size/hash) instead of raw content.
+- Security tag matching uses regex patterns to reduce false positives.
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.

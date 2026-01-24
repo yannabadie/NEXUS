@@ -19,7 +19,7 @@ The Telemetry module provides comprehensive file-based telemetry and budget trac
 
 **`TelemetryCollector`**
 - Core telemetry collection engine
-- Tracks all NEXUS operations: API calls, swarm tasks, tools, errors, evolution
+- Tracks all NEXUS operations: API calls, swarm tasks, tools, errors, evolution, RAG ingestion
 - Integrates BudgetTracker for cost tracking and enforcement
 - File-based JSONL output for persistence
 
@@ -29,6 +29,7 @@ The Telemetry module provides comprehensive file-based telemetry and budget trac
 - `record_tool_execution(tool_name, duration_seconds, success, error)`: Track tool usage
 - `record_error(error_type, message, context)`: Track errors with context
 - `record_evolution(generation, child_id, parent_score, child_score, promoted, mutations)`: Track agent evolution
+- `record_rag_ingest(stage, duration_seconds, success, files_total, files_indexed, chunks_total, vector_entries, error)`: Track GraphRAG ingestion
 
 **Session Management:**
 - `get_session_summary() -> SessionMetric`: Get current session summary
@@ -93,6 +94,7 @@ The Telemetry module provides comprehensive file-based telemetry and budget trac
 - Tool executions
 - Top models used
 - Top error types
+- RAG ingest runs by stage + failures
 
 ### RedisLogHandler (V10 CEREBRO)
 

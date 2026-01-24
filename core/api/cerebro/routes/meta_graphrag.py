@@ -9,11 +9,13 @@ Provides standardized HTTP access to the Meta GraphRAG index so agents can:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..deps import AuthenticatedUser
@@ -45,6 +47,44 @@ def _get_meta_graphrag_indexer():
     config = load_config()
     _META_GRAPHRAG_INDEXER = MetaGraphIndexer(config)
     return _META_GRAPHRAG_INDEXER
+
+
+def _hash_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _safe_excerpt(value: Optional[str], limit: int = 200) -> Optional[str]:
+    if not value:
+        return None
+    value = value.strip()
+    if len(value) <= limit:
+        return value
+    return value[:limit]
+
+
+async def _audit_meta_graphrag(
+    user: AuthenticatedUser,
+    action: str,
+    resource_id: str,
+    success: bool,
+    request: Optional[Request],
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    try:
+        from core.audit import AuditLogger, AuditStatus
+
+        await AuditLogger.log(
+            tenant_id=UUID(user.tenant_id),
+            user_id=UUID(user.user_id),
+            action=action,
+            resource_type="meta_graphrag",
+            resource_id=resource_id,
+            status=AuditStatus.SUCCESS if success else AuditStatus.ERROR,
+            details=details,
+            request=request,
+        )
+    except Exception as exc:
+        logger.warning(f"[META_GRAPHRAG] Audit log failed: {exc}")
 
 
 def _format_meta_chunk(chunk, include_text: bool = False) -> Dict[str, Any]:
@@ -208,6 +248,7 @@ class BriefingRequest(BaseModel):
 @router.get("/status")
 async def meta_graphrag_status(
     fast: bool = True,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Return Meta GraphRAG index status."""
@@ -216,7 +257,7 @@ async def meta_graphrag_status(
         from tools.meta_graph_rag.snapshot import load_snapshot
         config = load_config()
         snapshot = load_snapshot(config)
-        return {
+        payload = {
             "nodes": len(snapshot.graph.nodes),
             "edges": len(snapshot.graph.edges),
             "chunks": snapshot.chunks,
@@ -226,50 +267,128 @@ async def meta_graphrag_status(
             "manifest_generated_at": snapshot.manifest_generated_at,
             "status_source": "snapshot",
         }
-    return _get_meta_graphrag_indexer().status()
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:status",
+            resource_id="status:snapshot",
+            success=True,
+            request=request,
+            details={"fast": True},
+        )
+        return payload
+
+    payload = _get_meta_graphrag_indexer().status()
+    await _audit_meta_graphrag(
+        user=user,
+        action="meta_graphrag:status",
+        resource_id="status:live",
+        success=True,
+        request=request,
+        details={"fast": False},
+    )
+    return payload
 
 
 @router.post("/query")
 async def meta_graphrag_query(
     body: GraphRagQueryRequest,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Run a Meta GraphRAG query with optional graph expansion."""
     try:
-        return _build_meta_graphrag_query(
+        payload = _build_meta_graphrag_query(
             query=body.query,
             seed_limit=body.seed_limit,
             expansion_depth=body.expansion_depth,
             expansion_limit=body.expansion_limit,
             include_text=body.include_text,
         )
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:query",
+            resource_id=f"query:{_hash_text(body.query)}",
+            success=True,
+            request=request,
+            details={
+                "query_len": len(body.query),
+                "query_excerpt": _safe_excerpt(body.query),
+                "seed_limit": payload.get("seed_limit"),
+                "expansion_depth": payload.get("expansion_depth"),
+                "expansion_limit": payload.get("expansion_limit"),
+                "seed_count": payload.get("seed_count"),
+                "expanded_count": payload.get("expanded_count"),
+                "include_text": body.include_text,
+            },
+        )
+        return payload
     except ValueError as exc:
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:query",
+            resource_id="query:invalid",
+            success=False,
+            request=request,
+            details={"error": str(exc)},
+        )
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         logger.error(f"[META_GRAPHRAG] Query failed: {exc}")
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:query",
+            resource_id="query:error",
+            success=False,
+            request=request,
+            details={"error": str(exc)},
+        )
         raise HTTPException(500, f"Meta GraphRAG query failed: {exc}") from exc
 
 
 @router.post("/reports")
 async def meta_graphrag_reports(
     body: ReportsRequest,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Generate and return Meta GraphRAG reports."""
     try:
-        return _build_meta_graphrag_reports(
+        payload = _build_meta_graphrag_reports(
             entrypoints=body.entrypoints,
             include_content=body.include_content,
             fast=body.fast,
         )
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:reports",
+            resource_id="reports",
+            success=True,
+            request=request,
+            details={
+                "entrypoints_count": len(body.entrypoints or []),
+                "entrypoints_sample": (body.entrypoints or [])[:5],
+                "include_content": body.include_content,
+                "fast": body.fast,
+            },
+        )
+        return payload
     except Exception as exc:
         logger.error(f"[META_GRAPHRAG] Report generation failed: {exc}")
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:reports",
+            resource_id="reports:error",
+            success=False,
+            request=request,
+            details={"error": str(exc)},
+        )
         raise HTTPException(500, f"Meta GraphRAG report generation failed: {exc}") from exc
 
 
 @router.post("/briefing")
 async def meta_graphrag_briefing(
     body: BriefingRequest,
+    request: Request,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "meta_graphrag")),
 ) -> Dict[str, Any]:
     """Return a briefing pack (top-down, bottom-up, module catalog)."""
@@ -287,7 +406,28 @@ async def meta_graphrag_briefing(
             "overview": reports.get("overview", ""),
             "security": reports.get("security", ""),
         }
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:briefing",
+            resource_id="briefing",
+            success=True,
+            request=request,
+            details={
+                "entrypoints_count": len(body.entrypoints or []),
+                "entrypoints_sample": (body.entrypoints or [])[:5],
+                "include_content": body.include_content,
+                "fast": body.fast,
+            },
+        )
         return payload
     except Exception as exc:
         logger.error(f"[META_GRAPHRAG] Briefing failed: {exc}")
+        await _audit_meta_graphrag(
+            user=user,
+            action="meta_graphrag:briefing",
+            resource_id="briefing:error",
+            success=False,
+            request=request,
+            details={"error": str(exc)},
+        )
         raise HTTPException(500, f"Meta GraphRAG briefing failed: {exc}") from exc
