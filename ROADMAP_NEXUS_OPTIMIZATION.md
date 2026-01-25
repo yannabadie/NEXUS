@@ -289,8 +289,9 @@ Open challenges from the paper to address:
 - Scalable multi-agent training
 - Governance frameworks
 
-## P4.5 - Lean Formalization as Oracle (from docs/analysis/lean_formalization_review.md)
+## P4.5 - Lean Formalization as Oracle (from docs/analysis/lean_formalization_review.md + lean.md)
 Goal: turn Lean into an executable spec and regression oracle for refactors/rewrite.
+Lean is a functional programming language + interactive proof assistant (Microsoft Research), with a strong Lean 4 metaprogramming ecosystem and real-world precedent for differential testing (AWS Cedar).
 Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 modes (incl. LEAD_SUPPORT).
 
 1) Align Lean specs with real system counts (pending)
@@ -309,6 +310,19 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 - Lean = oracle; Python/Rust = implementations.
 - Property-based sequences of events; compare transitions and invariants.
 - Impact: safe refactor and rewrite.
+
+4.1) Lean toolchain + CI gate (pending)
+- Add a `lean/` workspace with `lakefile.lean` + `lean-toolchain`, pin Lean 4 version.
+- CI target: `lake build` + `pytest tests/lean_oracle -v --lean-oracle`.
+- Prefer real Lean execution over mocks (aligns with NEXUS testing guidelines).
+
+4.2) Security invariants (pending)
+- Formalize non-negotiables: tenant isolation, cancellation propagation, workspace isolation, event delivery.
+- Map invariants to concrete Python entry points for diff tests (FSM handlers, Swarm mode selection).
+
+4.3) Lean metaprogramming support (pending)
+- Track tactics/macros needed for FSM/state proofs (Lean 4 metaprogramming book as reference).
+- Keep proof automation minimal; target high-value invariants first.
 
 5) Refactor FSM handlers by state (pending)
 - One module per state (or state family) with pure-ish handlers: (context, event) -> (new_state, actions).
@@ -427,6 +441,7 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-24: Added SSL CA startup logging + docs/SSL_CA_GUIDE.md.
 - 2026-01-24: Fixed scripts/doc_engine.py CodebaseScanner docstring regression.
 - 2026-01-24: ADR-0006 CLI-only constraint added under PRODUCTS/DECISIONS.
+- 2026-01-24: Added lean.md analysis and Lean research addenda (Lean + Cedar differential testing).
 - 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 1 warning (TelemetryBridge.emit not awaited).
 - 2026-01-24: pytest tests/v10/test_synapse_telemetry.py -v => 27 passed, warning cleared.
 - 2026-01-24: Meta GraphRAG query "security hotspots auth files upload path traversal" returned seed hits in core/security/mutation_validator.py, core/security/path_guardian.py, core/execution/tool_manager.py, core/drivers/async_claude_driver.py, core/ncm/multi_ai_executor.py, scripts/verify/verify_users_security.py, tools/meta_graph_rag/reports.py (expanded results: 10).
@@ -434,6 +449,11 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
+Lean research addenda:
+- Microsoft Research Lean project: functional programming language + interactive proof assistant for formal verification.
+- Lean language site: open-source proof assistant enabling formally verified code.
+- AWS Cedar blog: automated reasoning + differential testing used to validate security-critical language.
+- Lean 4 metaprogramming book: tactics/macros and MetaM tooling for proof automation.
 
 DeepSeek highlights:
 - DeepSeek-V3: MoE 671B total params (37B active), 128K context, FP8 training; reasoning distilled from R1 series.
@@ -478,6 +498,10 @@ Planned adaptations:
 - When LLM summary fails, store raw abstract/body to keep sources usable.
 - Add optional Kimi K2 Thinking fallback for summarization.
 Status: done 2026-01-24 (raw content fallback + Kimi optional).
+
+Lean adaptations (new):
+1) Lean oracle + differential tests (Cedar-inspired) for FSM/Swarm invariants.
+2) Minimal Lean toolchain integration (lake build + CI gate).
 
 ## Recommended Execution Order
 1) P0 NCM blockers
