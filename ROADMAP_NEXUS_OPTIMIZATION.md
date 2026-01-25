@@ -69,6 +69,9 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Added dedicated Meta GraphRAG MCP server module `core/mcp/meta_server.py` and registered `meta_graphrag` MCP server in workspace config (local only).
 - MCP tool smoke via ToolManager succeeded for both servers: `mcp_nexus_nexus_meta_graphrag_status` and `mcp_meta_graphrag_nexus_meta_graphrag_status`.
 - Meta GraphRAG MCP snapshot via dedicated server saved to `workspace/meta_rag/meta_server_snapshot` (required `MCP_TIMEOUT=120` to avoid query timeouts).
+- Phase2A dead-import executor now skips missing targets (doc_generator files) instead of failing; P2A-098..P2A-100 re-run succeeded.
+- Phase2A type_error batch (101+) hangs in Orchestrator/HiveMind; manual single-story (P2A-111) stalled. Needs fast-path for type_error or safer fallback to avoid long hangs.
+- Set MCP timeouts in `.env` (MCP_TIMEOUT=120, MCP_INIT_TIMEOUT=60) to stabilize Meta GraphRAG MCP queries.
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`

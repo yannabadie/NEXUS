@@ -475,8 +475,13 @@ class Phase2AExecutor:
         # Execute removal for each target file
         all_success = True
         errors = []
+        skipped = []
 
         for file_path in target_files:
+            if not file_path.exists():
+                skipped.append(str(file_path))
+                continue
+
             success, error = await executor.execute_dead_import_removal(
                 file_path=file_path,
                 imports_to_remove=imports_to_remove
@@ -487,6 +492,8 @@ class Phase2AExecutor:
                 errors.append(f"{file_path.name}: {error}")
 
         if all_success:
+            if skipped:
+                print(f"SKIPPED missing targets: {', '.join(skipped)}")
             return {
                 "status": "success",
                 "syntax_valid": True,

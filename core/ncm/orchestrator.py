@@ -505,7 +505,7 @@ class NCMOrchestrator:
             if not any(pattern in desc_lower for pattern in supported_patterns):
                 return False
 
-            target_files = self._get_existing_target_files(story)
+            target_files = self._get_story_target_files(story)
             if len(target_files) != 1:
                 return False
 
@@ -606,6 +606,15 @@ class NCMOrchestrator:
         desc_lower = story.description.lower()
         target_files = self._get_existing_target_files(story)
         if not target_files:
+            unresolved = self._get_story_target_files(story)
+            if len(unresolved) == 1:
+                missing = unresolved[0]
+                story.metadata["skip_reason"] = f"missing_target:{missing}"
+                self.logger.warning("ncm_simple_executor_skip_missing_target", {
+                    "story_id": story.story_id,
+                    "target": str(missing)
+                })
+                return True, f"Skipped missing target file: {missing}"
             return False, "No resolvable target file for SimpleExecutor"
         if len(target_files) > 1:
             return False, "SimpleExecutor only supports single-file stories"
