@@ -10,7 +10,7 @@ Tests cover:
 import pytest
 import asyncio
 import sys
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, MagicMock
 from datetime import datetime
 
 # Add project root to path

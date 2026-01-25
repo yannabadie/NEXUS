@@ -8,7 +8,7 @@ Verifies all 7 phases work together correctly.
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

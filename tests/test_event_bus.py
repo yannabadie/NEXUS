@@ -6,7 +6,6 @@ Validates lightweight async pub/sub EventBus.
 
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from core.async_primitives.event_bus import (
     EventBus,

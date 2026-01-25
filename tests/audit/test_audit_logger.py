@@ -15,12 +15,11 @@ import asyncio
 import pytest
 from datetime import datetime
 from pathlib import Path
-from uuid import UUID, uuid4
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.db.engine import init_db, get_session, reset_engine
+from core.db.engine import init_db, reset_engine
 
 
 class TestAuditLoggerUnit:

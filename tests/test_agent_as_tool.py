@@ -16,7 +16,7 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from dataclasses import dataclass
 
 # Import modules under test

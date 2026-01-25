@@ -5,7 +5,7 @@ Fast Path bypasses FSM for trivial conversational inputs to achieve <2s response
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from pathlib import Path
 import time
 

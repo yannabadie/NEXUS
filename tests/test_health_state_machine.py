@@ -18,7 +18,7 @@ import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import TestCase, main
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 

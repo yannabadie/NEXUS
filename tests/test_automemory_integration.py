@@ -15,9 +15,9 @@ Boost info is stored in _last_unified_recommendation instead of _last_auto_memor
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-from core.swarm.mode_selector import ModeSelector, AgentAssignment
+from core.swarm.mode_selector import ModeSelector
 from core.swarm.collaboration_modes import CollaborationMode
 from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 from core.swarm.agent_metrics import AgentProfile
