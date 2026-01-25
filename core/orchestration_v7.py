@@ -750,7 +750,8 @@ class OrchestratorV7:
         self.memory.save_to_disk()  # Backup after transition
 
     def _make_result(self, state: str, output: Optional[str], agent: Optional[str],
-                     finished: bool, error: Optional[str] = None, tool: Optional[str] = None) -> Dict:
+                     finished: bool, error: Optional[str] = None, tool: Optional[str] = None,
+                     escalate_reason: Optional[str] = None) -> Dict:
         """Helper pour créer result dict + V7.5 Auto-Memory recording"""
         result = {
             "state": state,
@@ -762,6 +763,8 @@ class OrchestratorV7:
             result["error"] = error
         if tool:
             result["tool"] = tool
+        if escalate_reason:
+            result["escalate_reason"] = escalate_reason
 
         # V7.5 HIVE MIND: Record to Auto-Memory when task finishes
         if finished and state == "FINISHED" and self._current_task_start > 0:

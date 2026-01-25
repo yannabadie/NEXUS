@@ -8,10 +8,23 @@ Extracted from tool_manager.py for Single Responsibility.
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from .base import BaseHandler, ToolResult
+
+
+def _validate_python_syntax(content: str, path: Path) -> Optional[str]:
+    if path.suffix.lower() != ".py":
+        return None
+    try:
+        ast.parse(content, filename=str(path))
+    except SyntaxError as exc:
+        location = f"{exc.lineno}:{exc.offset}" if exc.lineno else "unknown"
+        detail = exc.msg or "invalid syntax"
+        return f"Syntax error in {path} at {location}: {detail}"
+    return None
 
 
 class ReadHandler(BaseHandler):
@@ -164,6 +177,10 @@ class WriteHandler(BaseHandler):
                 error=f"[SECURITY] Write blocked: {path}",
             )
 
+        syntax_error = _validate_python_syntax(content, path)
+        if syntax_error:
+            return self._fail(syntax_error)
+
         try:
             # Create parent directories
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -259,6 +276,10 @@ class EditHandler(BaseHandler):
 
             # Replace (only first occurrence)
             new_content = content.replace(old_string, new_string, 1)
+
+            syntax_error = _validate_python_syntax(new_content, path)
+            if syntax_error:
+                return self._fail(syntax_error)
 
             # Write back
             path.write_text(new_content, encoding="utf-8")
