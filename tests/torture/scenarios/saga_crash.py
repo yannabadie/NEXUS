@@ -21,6 +21,7 @@ from core.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
 from tests.torture.base import TortureBase
 from tests.torture.chaos_injectors import CrashInjector, CorruptionInjector
+from typing import Any
 
 
 # ============================================================================
@@ -28,7 +29,7 @@ from tests.torture.chaos_injectors import CrashInjector, CorruptionInjector
 # ============================================================================
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create saga directory."""
     saga_dir = tmp_path / ".nexus" / "sagas"
     saga_dir.mkdir(parents=True)
@@ -36,13 +37,13 @@ def saga_dir(tmp_path):
 
 
 @pytest.fixture
-def crash_injector():
+def crash_injector() -> Any:
     """Provide CrashInjector."""
     return CrashInjector()
 
 
 @pytest.fixture
-def corruption_injector():
+def corruption_injector() -> Any:
     """Provide CorruptionInjector."""
     return CorruptionInjector()
 
@@ -54,7 +55,7 @@ def corruption_injector():
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cr001_partial_checkpoint_write(saga_dir):
+async def test_cr001_partial_checkpoint_write(saga_dir) -> Any:
     """
     CR-001: Test recovery from partial checkpoint write.
 
@@ -100,7 +101,7 @@ async def test_cr001_partial_checkpoint_write(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cr002_corrupted_saga_json(saga_dir, corruption_injector):
+async def test_cr002_corrupted_saga_json(saga_dir, corruption_injector) -> None:
     """
     CR-002: Test graceful handling of corrupted saga JSON.
 

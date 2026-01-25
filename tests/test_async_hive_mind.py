@@ -18,13 +18,14 @@ sys.path.insert(0, str(__file__).replace("\\tests\\test_async_hive_mind.py", "")
 
 from core.async_primitives import CancellationToken, AsyncBlackboard
 from core.hive_mind.async_adapter import AsyncHiveMindAdapter
+from typing import Any
 
 
 # ============================================================================
 # Mock HiveMind
 # ============================================================================
 
-def create_mock_hive_mind(success: bool = True, duration: float = 0.1):
+def create_mock_hive_mind(success: bool = True, duration: float = 0.1) -> Any:
     """Create a mock TrueHiveMind."""
     mock = MagicMock()
 
@@ -55,17 +56,17 @@ class TestAsyncHiveMindAdapter:
     """Tests for AsyncHiveMindAdapter."""
 
     @pytest.fixture
-    def mock_hive_mind(self):
+    def mock_hive_mind(self) -> Any:
         """Create mock hive mind."""
         return create_mock_hive_mind()
 
     @pytest.fixture
-    def blackboard(self):
+    def blackboard(self) -> Any:
         """Create async blackboard."""
         return AsyncBlackboard()
 
     @pytest.fixture
-    def adapter(self, mock_hive_mind, blackboard):
+    def adapter(self, mock_hive_mind, blackboard) -> Any:
         """Create adapter with mocks."""
         return AsyncHiveMindAdapter(
             hive_mind=mock_hive_mind,
@@ -74,7 +75,7 @@ class TestAsyncHiveMindAdapter:
         )
 
     @pytest.mark.asyncio
-    async def test_process_task_success(self, adapter):
+    async def test_process_task_success(self, adapter) -> None:
         """Should process task and return result."""
         result = await adapter.process_task("Test task")
 

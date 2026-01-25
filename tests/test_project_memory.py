@@ -16,6 +16,7 @@ import pytest
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 from core.memory.project_memory import (
     ProjectMemory,
@@ -32,7 +33,7 @@ from core.memory.project_memory import (
 # =============================================================================
 
 @pytest.fixture
-def temp_nexus_root(tmp_path):
+def temp_nexus_root(tmp_path) -> Any:
     """Create a temporary NEXUS root directory with sample files."""
     nexus_root = tmp_path / "nexus_project"
     nexus_root.mkdir()
@@ -49,6 +50,7 @@ def temp_nexus_root(tmp_path):
 
 import os
 from pathlib import Path
+from typing import Any
 
 
 class Calculator:
@@ -112,7 +114,7 @@ Full API documentation here.
 
 
 @pytest.fixture
-def project_memory(temp_nexus_root):
+def project_memory(temp_nexus_root) -> Any:
     """Create a ProjectMemory instance with temp root."""
     return ProjectMemory(temp_nexus_root)
 
@@ -124,7 +126,7 @@ def project_memory(temp_nexus_root):
 class TestProjectMemoryInit:
     """Test ProjectMemory initialization."""
 
-    def test_init_creates_storage_dir(self, tmp_path):
+    def test_init_creates_storage_dir(self, tmp_path) -> None:
         """Ensure .nexus directory is created if missing."""
         nexus_root = tmp_path / "new_project"
         nexus_root.mkdir()
@@ -134,13 +136,13 @@ class TestProjectMemoryInit:
         assert (nexus_root / ".nexus").exists()
         assert memory.storage_path == nexus_root / ".nexus" / "project_knowledge.json"
 
-    def test_init_empty_index(self, project_memory):
+    def test_init_empty_index(self, project_memory) -> None:
         """New ProjectMemory should have empty index."""
         assert len(project_memory.chunks) == 0
         assert len(project_memory.indexed_files) == 0
         assert len(project_memory.idf) == 0
 
-    def test_init_loads_existing_index(self, temp_nexus_root):
+    def test_init_loads_existing_index(self, temp_nexus_root) -> None:
         """ProjectMemory should load existing index on init."""
         # First, create and save an index
         memory1 = ProjectMemory(temp_nexus_root)

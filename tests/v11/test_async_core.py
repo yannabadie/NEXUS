@@ -22,12 +22,12 @@ import pytest
 class TestConcurrencyLimiter:
     """Test suite for ConcurrencyLimiter."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset singleton before each test."""
         from core.api.concurrency_limiter import reset_concurrency_limiter
         reset_concurrency_limiter()
 
-    def test_singleton_pattern(self):
+    def test_singleton_pattern(self) -> None:
         """Verify ConcurrencyLimiter is a singleton."""
         from core.api.concurrency_limiter import ConcurrencyLimiter
 
@@ -36,7 +36,7 @@ class TestConcurrencyLimiter:
 
         assert limiter1 is limiter2
 
-    def test_get_concurrency_limiter(self):
+    def test_get_concurrency_limiter(self) -> None:
         """Test factory function returns singleton."""
         from core.api.concurrency_limiter import get_concurrency_limiter
 
@@ -45,7 +45,7 @@ class TestConcurrencyLimiter:
 
         assert limiter1 is limiter2
 
-    def test_max_concurrent_from_constants(self):
+    def test_max_concurrent_from_constants(self) -> None:
         """Test that MAX_PARALLEL_AGENTS is read from constants."""
         from core.api.concurrency_limiter import get_concurrency_limiter
 
@@ -54,7 +54,7 @@ class TestConcurrencyLimiter:
         assert limiter.max_concurrent >= 1
         assert limiter.max_concurrent <= 16  # Reasonable upper bound
 
-    def test_sync_acquire_release(self):
+    def test_sync_acquire_release(self) -> None:
         """Test sync acquire and release."""
         from core.api.concurrency_limiter import get_concurrency_limiter
 

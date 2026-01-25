@@ -20,6 +20,7 @@ from core.execution.tool_manager import (
     ToolResult,
 )
 from core.security.execution_policy import ExecutionPolicy
+from typing import Any
 
 
 # ============================================================================
@@ -27,7 +28,7 @@ from core.security.execution_policy import ExecutionPolicy
 # ============================================================================
 
 @pytest.fixture
-def temp_workspace():
+def temp_workspace() -> None:
     """Create a temporary workspace for testing."""
     workspace = Path(tempfile.mkdtemp()).resolve() / "workspace"
     workspace.mkdir(parents=True)
@@ -48,13 +49,13 @@ def temp_workspace():
 
 
 @pytest.fixture
-def tool_manager(temp_workspace):
+def tool_manager(temp_workspace) -> Any:
     """Create a ToolManager instance with temp workspace."""
     return ToolManager(temp_workspace)
 
 
 @pytest.fixture
-def mock_tool_request():
+def mock_tool_request() -> Any:
     """Factory for creating mock tool requests."""
     class MockToolRequest:
         def __init__(self, tool_name: str, arguments: dict):
@@ -70,7 +71,7 @@ def mock_tool_request():
 class TestToolResult:
     """Test ToolResult data class."""
 
-    def test_init_success(self):
+    def test_init_success(self) -> None:
         """Test ToolResult initialization."""
         result = ToolResult(
             tool_name="read",
@@ -84,7 +85,7 @@ class TestToolResult:
         assert result.output == "File content here"
         assert result.error == ""
 
-    def test_init_failure(self):
+    def test_init_failure(self) -> None:
         """Test ToolResult with failure."""
         result = ToolResult(
             tool_name="write",

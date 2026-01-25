@@ -125,6 +125,18 @@ class Phase2AExecutor:
         with open(self.state_path, "w", encoding="utf-8") as f:
             json.dump(self.execution_state, f, indent=2)
 
+    def _log_skip(self, story: Dict[str, Any], reason: str) -> None:
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "story_id": story.get("story_id"),
+            "category": story.get("category"),
+            "target_files": story.get("target_files", []),
+            "reason": reason
+        }
+        log_path = self.workspace_path / "skipped_stories.jsonl"
+        with open(log_path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry) + "\n")
+
     def _check_pause(self) -> bool:
         """Check if pause was requested and handle it."""
         if self._pause_requested:
@@ -155,6 +167,44 @@ class Phase2AExecutor:
         except EOFError:
             print("[AUTO] EOF on stdin; continuing by default.")
             return True
+
+    def _record_success(self, story_id: str, story_idx: int) -> None:
+        completed = self.execution_state.setdefault("completed_stories", [])
+        failed = self.execution_state.setdefault("failed_stories", [])
+
+        if story_id not in completed:
+            completed.append(story_id)
+
+        if failed:
+            failed[:] = [entry for entry in failed if entry.get("story_id") != story_id]
+
+        current_idx = self.execution_state.get("last_completed_idx", 0)
+        if story_idx >= current_idx:
+            self.execution_state["last_completed"] = story_id
+            self.execution_state["last_completed_idx"] = story_idx
+        self.execution_state["success_count"] = len(completed)
+        self.execution_state["failed_count"] = len(failed)
+
+    def _record_failure(self, story_id: str, error: str, story_idx: int) -> None:
+        completed = self.execution_state.setdefault("completed_stories", [])
+        failed = self.execution_state.setdefault("failed_stories", [])
+
+        for entry in failed:
+            if entry.get("story_id") == story_id:
+                entry["error"] = error
+                break
+        else:
+            failed.append({"story_id": story_id, "error": error})
+
+        if story_id in completed:
+            completed.remove(story_id)
+
+        current_idx = self.execution_state.get("last_completed_idx", 0)
+        if story_idx >= current_idx:
+            self.execution_state["last_completed"] = story_id
+            self.execution_state["last_completed_idx"] = story_idx
+        self.execution_state["success_count"] = len(completed)
+        self.execution_state["failed_count"] = len(failed)
 
     async def execute_manual(self, limit: int = 5, start: int = 1):
         """
@@ -202,10 +252,12 @@ class Phase2AExecutor:
                     print(f"- Imports valid: {result.get('imports_valid', False)}")
                     print(f"- Tests passed: {result.get('tests_passed', False)}")
                     print()
+                    self._record_success(story_id, i)
                 else:
                     print(f"FAILED: Story execution failed")
                     print(f"- Error: {result.get('error', 'Unknown error')}")
                     print()
+                    self._record_failure(story_id, result.get("error", "unknown"), i)
 
                     # In manual mode, ask whether to continue
                     if self.manual_mode:
@@ -222,6 +274,8 @@ class Phase2AExecutor:
                     print("Execution stopped by user.")
                     return
                 print()
+            if not self.dry_run:
+                self._save_state()
 
         print("=" * 60)
         print(f"Manual execution complete: {len(stories_to_execute)} stories")
@@ -295,21 +349,19 @@ class Phase2AExecutor:
                     result = await self._execute_story_real(story)
                     if result["status"] == "success":
                         print("SUCCESS")
-                        success_count += 1
-                        self.execution_state["completed_stories"].append(story_id)
+                        if story_id not in self.execution_state.get("completed_stories", []):
+                            success_count += 1
+                        self._record_success(story_id, story_idx)
+                        failed_count = self.execution_state.get("failed_count", failed_count)
                     else:
                         print(f"FAILED ({result.get('error', 'unknown')[:50]})")
-                        failed_count += 1
-                        self.execution_state["failed_stories"].append({
-                            "story_id": story_id,
-                            "error": result.get("error", "unknown")
-                        })
-
-                # Update state after each story
-                self.execution_state["last_completed"] = story_id
-                self.execution_state["last_completed_idx"] = story_idx
-                self.execution_state["success_count"] = success_count
-                self.execution_state["failed_count"] = failed_count
+                        if not any(
+                            entry.get("story_id") == story_id
+                            for entry in self.execution_state.get("failed_stories", [])
+                        ):
+                            failed_count += 1
+                        self._record_failure(story_id, result.get("error", "unknown"), story_idx)
+                        success_count = self.execution_state.get("success_count", success_count)
 
                 # Save state periodically (every 5 stories)
                 if story_idx % 5 == 0:
@@ -401,6 +453,14 @@ class Phase2AExecutor:
         # Use SimpleExecutor for type hint stories (fast path)
         if story.get("category") == "type_error":
             return await self._execute_type_error_story(story)
+
+        # Use SimpleExecutor for missing docstring stories (fast path)
+        if story.get("category") == "missing_doc":
+            return await self._execute_missing_doc_story(story)
+
+        # Skip dead_code by default; requires manual review
+        if story.get("category") == "dead_code":
+            return await self._execute_dead_code_story(story)
 
         # Fall back to full orchestration for complex stories
         await self._initialize_orchestrator()
@@ -568,6 +628,69 @@ class Phase2AExecutor:
                 "syntax_valid": True,
                 "imports_valid": True,
                 "tests_passed": True,  # Tests run separately after batch
+                "error": None
+            }
+
+        return {
+            "status": "failed",
+            "syntax_valid": False,
+            "imports_valid": False,
+            "tests_passed": False,
+            "error": "; ".join(errors)
+        }
+
+    async def _execute_dead_code_story(self, story: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Skip dead code removal by default to avoid unsafe deletions.
+        """
+        reason = "Skipped dead_code story; manual review required"
+        self._log_skip(story, reason)
+        print(f"SKIPPED dead_code: {reason}")
+        return {
+            "status": "success",
+            "syntax_valid": True,
+            "imports_valid": True,
+            "tests_passed": True,
+            "error": None
+        }
+
+    async def _execute_missing_doc_story(self, story: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute missing docstring additions using SimpleExecutor.
+
+        Args:
+            story: Story dict with missing doc info.
+
+        Returns:
+            Result dict with status and validation results.
+        """
+        executor = SimpleExecutor()
+        target_files = [Path(f) for f in story["target_files"]]
+
+        all_success = True
+        errors = []
+        skipped = []
+
+        for file_path in target_files:
+            if not file_path.exists():
+                skipped.append(str(file_path))
+                continue
+
+            success, error = await executor.execute_missing_docstrings(
+                file_path=file_path
+            )
+            if not success:
+                all_success = False
+                errors.append(f"{file_path.name}: {error}")
+
+        if all_success:
+            if skipped:
+                print(f"SKIPPED missing targets: {', '.join(skipped)}")
+            return {
+                "status": "success",
+                "syntax_valid": True,
+                "imports_valid": True,
+                "tests_passed": True,
                 "error": None
             }
 

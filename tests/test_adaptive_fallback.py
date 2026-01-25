@@ -24,7 +24,7 @@ from core.swarm.collaboration_modes import CollaborationMode
 class TestFallbackContext:
     """Tests for FallbackContext dataclass."""
 
-    def test_default_context(self):
+    def test_default_context(self) -> None:
         """Test default context creation."""
         ctx = FallbackContext()
         assert ctx.domains == []
@@ -32,7 +32,7 @@ class TestFallbackContext:
         assert ctx.stagnation_level is None
         assert ctx.current_lead == "gemini"
 
-    def test_context_with_domains(self):
+    def test_context_with_domains(self) -> None:
         """Test context with domain information."""
         ctx = FallbackContext(
             domains=["coding", "security"],
@@ -45,12 +45,12 @@ class TestFallbackContext:
 class TestAdaptiveFallbackSelector:
     """Tests for AdaptiveFallbackSelector."""
 
-    def test_selector_creation(self):
+    def test_selector_creation(self) -> None:
         """Test selector can be created."""
         selector = AdaptiveFallbackSelector()
         assert selector is not None
 
-    def test_terminal_mode_no_fallback(self):
+    def test_terminal_mode_no_fallback(self) -> None:
         """Test SPECIALIST has no fallback."""
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext()
@@ -63,7 +63,7 @@ class TestAdaptiveFallbackSelector:
         assert "terminal" in decision.reason.lower()
         assert decision.confidence == 1.0
 
-    def test_domain_coding_prefers_lead_support(self):
+    def test_domain_coding_prefers_lead_support(self) -> None:
         """Test that coding domain prefers LEAD_SUPPORT from PARALLEL."""
         selector = AdaptiveFallbackSelector()
         ctx = FallbackContext(domains=["coding"])

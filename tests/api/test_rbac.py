@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 class TestPermissionEnum:
     """Tests for Permission enum."""
 
-    def test_all_permissions_exist(self):
+    def test_all_permissions_exist(self) -> None:
         """Verify all expected permissions are defined."""
         from core.api.cerebro.rbac import Permission
 
@@ -38,7 +38,7 @@ class TestPermissionEnum:
         for perm_name in expected:
             assert hasattr(Permission, perm_name), f"Missing permission: {perm_name}"
 
-    def test_permission_values(self):
+    def test_permission_values(self) -> None:
         """Verify permission values follow naming convention."""
         from core.api.cerebro.rbac import Permission
 
@@ -50,7 +50,7 @@ class TestPermissionEnum:
 class TestRolePermissions:
     """Tests for role-to-permission mapping."""
 
-    def test_owner_has_all_permissions(self):
+    def test_owner_has_all_permissions(self) -> None:
         """Verify owner role has all permissions."""
         from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
 
@@ -59,7 +59,7 @@ class TestRolePermissions:
         for perm in Permission:
             assert perm in owner_perms, f"Owner missing permission: {perm}"
 
-    def test_admin_permissions(self):
+    def test_admin_permissions(self) -> None:
         """Verify admin has expected permissions (not owner-only ones)."""
         from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
 
@@ -75,7 +75,7 @@ class TestRolePermissions:
         # Admin should NOT have (owner only)
         assert Permission.USER_CHANGE_ROLE not in admin_perms
 
-    def test_member_permissions(self):
+    def test_member_permissions(self) -> None:
         """Verify member has limited permissions."""
         from core.api.cerebro.rbac import Permission, ROLE_PERMISSIONS
 

@@ -9,6 +9,7 @@ import pytest
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -18,7 +19,7 @@ class TestHiveMindOrchestrator:
     """Test TrueHiveMind orchestrator end-to-end."""
 
     @pytest.fixture
-    def mock_workspace(self, tmp_path):
+    def mock_workspace(self, tmp_path) -> Any:
         """Create a mock workspace with necessary directories."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
@@ -28,7 +29,7 @@ class TestHiveMindOrchestrator:
         return workspace
 
     @pytest.fixture
-    def mock_config(self):
+    def mock_config(self) -> Any:
         """Create mock config with hive_mind settings."""
         config = MagicMock()
         config.hive_mind_enabled = True
@@ -42,7 +43,7 @@ class TestHiveMindOrchestrator:
         return config
 
     @pytest.fixture
-    def mock_drivers(self):
+    def mock_drivers(self) -> dict:
         """Create mock Gemini and Claude drivers."""
         gemini = MagicMock()
         claude = MagicMock()
@@ -63,7 +64,7 @@ class TestHiveMindOrchestrator:
 
         return {"gemini": gemini, "claude": claude}
 
-    def test_hive_mind_components_import(self):
+    def test_hive_mind_components_import(self) -> None:
         """Test all Hive Mind components can be imported."""
         from core.hive_mind import (
             TrueHiveMind,
@@ -82,7 +83,7 @@ class TestHiveMindOrchestrator:
         assert AgentRegistry is not None
         assert CostEstimator is not None
 
-    def test_hive_mind_phases_import(self):
+    def test_hive_mind_phases_import(self) -> None:
         """Test all 7 phases can be imported."""
         from core.hive_mind.phases import (
             IndependentAnalysisPhase,

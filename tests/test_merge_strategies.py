@@ -24,13 +24,13 @@ from core.swarm.mode_executors import AgentResponse
 class TestMergeStrategyType:
     """Test MergeStrategyType enum"""
 
-    def test_all_strategies_have_values(self):
+    def test_all_strategies_have_values(self) -> None:
         """Each strategy type should have a string value"""
         assert MergeStrategyType.NAIVE.value == "naive"
         assert MergeStrategyType.DEDUPLICATE.value == "deduplicate"
         assert MergeStrategyType.WEIGHTED.value == "weighted"
 
-    def test_strategy_count(self):
+    def test_strategy_count(self) -> None:
         """Should have 3 implemented strategies"""
         assert len(list(MergeStrategyType)) == 3
 
@@ -38,7 +38,7 @@ class TestMergeStrategyType:
 class TestMergeContext:
     """Test MergeContext dataclass"""
 
-    def test_create_basic_context(self):
+    def test_create_basic_context(self) -> None:
         """Should create context with required fields"""
         outputs = [AgentResponse(agent_id="test", content="test content")]
         context = MergeContext(task_input="test task", outputs=outputs)
@@ -48,7 +48,7 @@ class TestMergeContext:
         assert context.task_analysis is None
         assert context.agent_assignments is None
 
-    def test_create_full_context(self):
+    def test_create_full_context(self) -> None:
         """Should create context with all fields"""
         outputs = [AgentResponse(agent_id="gemini", content="analysis")]
         task_analysis = {"primary_domain": "CODING", "gemini_fit_score": 0.8}
@@ -66,7 +66,7 @@ class TestMergeContext:
 class TestNaiveMergeStrategy:
     """Test NaiveMergeStrategy (backward compatible merge)"""
 
-    def test_strategy_type(self):
+    def test_strategy_type(self) -> None:
         """Should return NAIVE strategy type"""
         strategy = NaiveMergeStrategy()
         assert strategy.strategy_type == MergeStrategyType.NAIVE

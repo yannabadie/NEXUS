@@ -71,7 +71,7 @@ class TortureChamber:
                 
         return f"Agent {agent_id} processed task successfully."
 
-    def log_result(self, result: TortureResult):
+    def log_result(self, result: TortureResult) -> None:
         with self.lock:
             self.results.append(result)
             with open(LOG_FILE, "a") as f:
@@ -82,7 +82,7 @@ class TortureChamber:
                 print(f"   ERROR: {result.error}")
 
     # SCENARIO 1: The Flooding (Concurrency)
-    def test_flooding(self, num_threads=10):
+    def test_flooding(self, num_threads=10) -> Any:
         print(f"\n🔥 STARTING SCENARIO 1: FLOODING ({num_threads} concurrent tasks)...")
         start_global = time.time()
         
@@ -107,7 +107,7 @@ class TortureChamber:
         print(f"🔥 FLOODING COMPLETE in {time.time() - start_global:.2f}s")
 
     # SCENARIO 2: Context Poisoning (Isolation)
-    def test_context_isolation(self):
+    def test_context_isolation(self) -> Any:
         print("\n🧪 STARTING SCENARIO 2: CONTEXT ISOLATION...")
         
         def run_alice():
@@ -139,7 +139,7 @@ class TortureChamber:
                 self.log_result(future.result())
 
     # SCENARIO 3: Chaos Monkey (Resilience)
-    def test_chaos_monkey(self):
+    def test_chaos_monkey(self) -> Any:
         print("\n🐒 STARTING SCENARIO 3: CHAOS MONKEY...")
         start = time.time()
         try:
@@ -156,7 +156,7 @@ class TortureChamber:
             # If we catch an exception here, the engine let it bubble up -> FAIL
             return TortureResult("Chaos_Monkey", False, time.time() - start, f"Unhandled Exception: {str(e)}")
 
-    def run_all(self):
+    def run_all(self) -> None:
         print("=== 💀 NEXUS V7.8 TORTURE PROTOCOL INITIATED 💀 ===")
         self.test_flooding()
         self.test_context_isolation()

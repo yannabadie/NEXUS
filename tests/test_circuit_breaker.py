@@ -20,13 +20,13 @@ from core.resilience.circuit_breaker import (
 class TestCircuitBreakerStates:
     """Test circuit breaker state transitions."""
 
-    def test_initial_state_is_closed(self):
+    def test_initial_state_is_closed(self) -> None:
         """Circuit should start in CLOSED state."""
         breaker = CircuitBreaker(name="test")
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
 
-    def test_stays_closed_on_success(self):
+    def test_stays_closed_on_success(self) -> None:
         """Successful calls keep circuit CLOSED."""
         breaker = CircuitBreaker(name="test")
 
@@ -36,7 +36,7 @@ class TestCircuitBreakerStates:
         assert breaker.state == CircuitState.CLOSED
         assert breaker.failure_count == 0
 
-    def test_opens_after_threshold_failures(self):
+    def test_opens_after_threshold_failures(self) -> None:
         """Circuit opens after failure_threshold failures."""
         breaker = CircuitBreaker(name="test", failure_threshold=3)
 
@@ -51,7 +51,7 @@ class TestCircuitBreakerStates:
         assert breaker.state == CircuitState.OPEN
         assert breaker.failure_count == 3
 
-    def test_rejects_calls_when_open(self):
+    def test_rejects_calls_when_open(self) -> None:
         """Circuit rejects calls when OPEN."""
         breaker = CircuitBreaker(name="test", failure_threshold=1, recovery_timeout=60)
 
@@ -66,7 +66,7 @@ class TestCircuitBreakerStates:
         assert exc_info.value.name == "test"
         assert exc_info.value.failure_count == 1
 
-    def test_allows_retry_after_recovery_timeout(self):
+    def test_allows_retry_after_recovery_timeout(self) -> None:
         """Circuit allows retry after recovery_timeout."""
         breaker = CircuitBreaker(
             name="test",

@@ -11,10 +11,11 @@ from core.security.execution_policy import (
     CommandAnalysis,
     get_execution_policy,
 )
+from typing import Any
 
 
 @pytest.fixture
-def policy(tmp_path):
+def policy(tmp_path) -> Any:
     """Create ExecutionPolicy with temp workspace."""
     return ExecutionPolicy(tmp_path)
 
@@ -22,24 +23,24 @@ def policy(tmp_path):
 class TestDangerousCommandBlocking:
     """Test that dangerous commands are blocked."""
 
-    def test_blocks_rm_rf_root(self, policy):
+    def test_blocks_rm_rf_root(self, policy) -> None:
         """rm -rf / should be blocked."""
         is_valid, error = policy.validate_command("rm -rf /")
         assert not is_valid
         assert "rm" in error.lower() or "blocked" in error.lower()
 
-    def test_blocks_rm_rf_home(self, policy):
+    def test_blocks_rm_rf_home(self, policy) -> None:
         """rm -rf ~ should be blocked."""
         is_valid, error = policy.validate_command("rm -rf ~")
         assert not is_valid
         assert "blocked" in error.lower()
 
-    def test_blocks_rm_rf_wildcard(self, policy):
+    def test_blocks_rm_rf_wildcard(self, policy) -> None:
         """rm -rf * should be blocked."""
         is_valid, error = policy.validate_command("rm -rf *")
         assert not is_valid
 
-    def test_blocks_rm_parent_traversal(self, policy):
+    def test_blocks_rm_parent_traversal(self, policy) -> None:
         """rm -rf .. should be blocked."""
         is_valid, error = policy.validate_command("rm -rf ..")
         assert not is_valid

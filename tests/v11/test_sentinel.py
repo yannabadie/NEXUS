@@ -24,13 +24,13 @@ import pytest
 class TestHybridTaskAnalyzer:
     """Test suite for 3-stage cost-aware task classification."""
 
-    def test_import_task_analyzer(self):
+    def test_import_task_analyzer(self) -> None:
         """Verify TaskAnalyzer can be imported."""
         from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
         assert TaskAnalyzer is not None
         assert AnalysisStage is not None
 
-    def test_analysis_stage_enum(self):
+    def test_analysis_stage_enum(self) -> None:
         """Verify AnalysisStage enum has correct values."""
         from core.swarm.task_analyzer import AnalysisStage
 
@@ -38,7 +38,7 @@ class TestHybridTaskAnalyzer:
         assert AnalysisStage.STAGE2_HEURISTIC == 2
         assert AnalysisStage.STAGE3_LLM == 3
 
-    def test_stage1_instant_commands_patterns(self):
+    def test_stage1_instant_commands_patterns(self) -> None:
         """Verify Stage 1 regex patterns for instant commands."""
         from core.swarm.task_analyzer import TaskAnalyzer
 
@@ -61,7 +61,7 @@ class TestHybridTaskAnalyzer:
             result = analyzer.is_instant_command(cmd)
             assert result is not None, f"'{cmd}' should be detected as instant command"
 
-    def test_stage1_non_instant_commands(self):
+    def test_stage1_non_instant_commands(self) -> None:
         """Verify Stage 1 does NOT match non-instant commands."""
         from core.swarm.task_analyzer import TaskAnalyzer
 
@@ -87,7 +87,7 @@ class TestHybridTaskAnalyzer:
                 # Unexpected match
                 assert False, f"'{text}' should NOT be instant command, got: {result}"
 
-    def test_stage2_heuristic_analysis(self):
+    def test_stage2_heuristic_analysis(self) -> None:
         """Verify Stage 2 heuristic analysis works."""
         from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
 

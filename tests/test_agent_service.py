@@ -9,13 +9,14 @@ import json
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 
 class TestAgentService:
     """Test AgentService functionality."""
 
     @pytest.fixture
-    def mock_orchestrator(self):
+    def mock_orchestrator(self) -> Any:
         """Create a mock orchestrator."""
         orchestrator = MagicMock()
         orchestrator.telemetry = None
@@ -25,7 +26,7 @@ class TestAgentService:
         return orchestrator
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -33,14 +34,14 @@ class TestAgentService:
         return console
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create a temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             yield workspace
 
     @pytest.fixture
-    def agent_service(self, mock_orchestrator, temp_workspace, mock_console):
+    def agent_service(self, mock_orchestrator, temp_workspace, mock_console) -> Any:
         """Create an AgentService instance."""
         from core.agents.service import AgentService
         return AgentService(
@@ -49,7 +50,7 @@ class TestAgentService:
             console=mock_console
         )
 
-    def test_detect_domains_python(self, agent_service):
+    def test_detect_domains_python(self, agent_service) -> None:
         """Test domain detection for Python role."""
         domains = agent_service._detect_domains_from_role("Python Expert")
         assert "coding" in domains

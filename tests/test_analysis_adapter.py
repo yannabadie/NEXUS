@@ -20,23 +20,23 @@ from core.hive_mind.types import IndependentAnalysis
 class TestAnalysisAdapter:
     """Tests for AnalysisAdapter bidirectional conversion."""
 
-    def test_import(self):
+    def test_import(self) -> None:
         """Test that AnalysisAdapter can be imported."""
         assert AnalysisAdapter is not None
 
-    def test_complexity_to_string(self):
+    def test_complexity_to_string(self) -> None:
         """Test complexity enum to string conversion."""
         result = AnalysisAdapter.complexity_to_string(TaskComplexity.MODERATE)
         assert "moderate" in result.lower()
 
-    def test_string_to_complexity(self):
+    def test_string_to_complexity(self) -> None:
         """Test string to complexity enum conversion."""
         assert AnalysisAdapter.string_to_complexity("simple task") == TaskComplexity.SIMPLE
         assert AnalysisAdapter.string_to_complexity("Complex multi-step") == TaskComplexity.COMPLEX
         assert AnalysisAdapter.string_to_complexity("EXPERT level") == TaskComplexity.EXPERT
         assert AnalysisAdapter.string_to_complexity("unknown") == TaskComplexity.MODERATE  # Default
 
-    def test_to_task_analysis_basic(self):
+    def test_to_task_analysis_basic(self) -> None:
         """Test basic HiveMind -> Swarm conversion."""
         hive = IndependentAnalysis(
             agent_id="gemini_primary",
@@ -58,7 +58,7 @@ class TestAnalysisAdapter:
         assert result.raw_input == "Create a login page"
         assert result.requires_web  # Because "web_search" in capabilities
 
-    def test_to_task_analysis_complexity_mapping(self):
+    def test_to_task_analysis_complexity_mapping(self) -> None:
         """Test different complexity mappings."""
         test_cases = [
             ("trivial one-liner", TaskComplexity.TRIVIAL),

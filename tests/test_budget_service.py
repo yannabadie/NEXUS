@@ -10,13 +10,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 
 class TestBudgetService:
     """Test BudgetService functionality."""
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -26,14 +27,14 @@ class TestBudgetService:
         return console
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create a temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             yield workspace
 
     @pytest.fixture
-    def mock_config(self):
+    def mock_config(self) -> Any:
         """Create a mock config."""
         config = MagicMock()
         config.budget_limit_usd = 10.0
@@ -42,7 +43,7 @@ class TestBudgetService:
         return config
 
     @pytest.fixture
-    def budget_service(self, temp_workspace, mock_console, mock_config):
+    def budget_service(self, temp_workspace, mock_console, mock_config) -> Any:
         """Create a BudgetService instance."""
         from core.telemetry.service import BudgetService
         return BudgetService(
@@ -52,7 +53,7 @@ class TestBudgetService:
         )
 
     @pytest.fixture
-    def workspace_with_budget(self, temp_workspace):
+    def workspace_with_budget(self, temp_workspace) -> Any:
         """Create workspace with budget tracking data."""
         budget_file = temp_workspace / ".nexus" / "budget_state.json"
         budget_file.parent.mkdir(parents=True, exist_ok=True)

@@ -98,24 +98,24 @@ class MockOrchestrator:
 class TestMCPServerModule:
     """Tests for MCP server module structure and imports."""
 
-    def test_server_module_exists(self):
+    def test_server_module_exists(self) -> None:
         """Test that server module can be imported."""
         from core.mcp import server
         assert hasattr(server, 'MCP_AVAILABLE')
 
-    def test_mcp_availability_flag(self):
+    def test_mcp_availability_flag(self) -> None:
         """Test MCP_AVAILABLE flag is set correctly."""
         from core.mcp import server
         # MCP_AVAILABLE depends on mcp package being installed
         assert isinstance(server.MCP_AVAILABLE, bool)
 
-    def test_main_function_exists(self):
+    def test_main_function_exists(self) -> None:
         """Test main entry point exists."""
         from core.mcp import server
         assert hasattr(server, 'main')
         assert callable(server.main)
 
-    def test_lazy_loaders_exist(self):
+    def test_lazy_loaders_exist(self) -> None:
         """Test lazy loader functions exist."""
         from core.mcp import server
         assert hasattr(server, 'get_tool_manager')
@@ -129,7 +129,7 @@ class TestMCPServerModule:
 class TestLazyLoaders:
     """Tests for lazy loading functions."""
 
-    def test_get_tool_manager_returns_instance(self):
+    def test_get_tool_manager_returns_instance(self) -> None:
         """Test get_tool_manager returns ToolManager instance."""
         from core.mcp.server import get_tool_manager
         tm = get_tool_manager()

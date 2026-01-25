@@ -19,10 +19,11 @@ from core.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
 from tests.torture.base import TortureBase
 from tests.torture.chaos_injectors import RaceInjector
+from typing import Any
 
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create saga directory."""
     saga_dir = tmp_path / ".nexus" / "sagas"
     saga_dir.mkdir(parents=True)
@@ -30,7 +31,7 @@ def saga_dir(tmp_path):
 
 
 @pytest.fixture
-def race_injector():
+def race_injector() -> Any:
     """Provide RaceInjector."""
     return RaceInjector()
 
@@ -42,7 +43,7 @@ def race_injector():
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
-async def test_cc001_simultaneous_checkpoints(saga_dir):
+async def test_cc001_simultaneous_checkpoints(saga_dir) -> str:
     """
     CC-001: Test two phases checkpointing at the same time.
 
@@ -83,7 +84,7 @@ async def test_cc001_simultaneous_checkpoints(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
-async def test_cc002_checkpoint_during_rollback(saga_dir):
+async def test_cc002_checkpoint_during_rollback(saga_dir) -> Any:
     """
     CC-002: Test checkpointing while rollback is in progress.
 
@@ -125,7 +126,7 @@ async def test_cc002_checkpoint_during_rollback(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_concurrency
 @pytest.mark.asyncio
-async def test_cc003_resume_during_active_saga(saga_dir):
+async def test_cc003_resume_during_active_saga(saga_dir) -> None:
     """
     CC-003: Test resume_from() while saga is actively checkpointing.
 

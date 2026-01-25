@@ -9,10 +9,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from core.execution.validation_service import ValidationService
+from typing import Any
 
 
 @pytest.fixture
-def workspace_path(tmp_path):
+def workspace_path(tmp_path) -> Any:
     """Create a temporary workspace structure."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -34,7 +35,7 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def validator(workspace_path, tmp_path):
+def validator(workspace_path, tmp_path) -> Any:
     """Create ValidationService with mocked security layers."""
     parent = tmp_path / "parent"
     gen_active = tmp_path / "GENERATION_ACTIVE"
@@ -63,17 +64,17 @@ def validator(workspace_path, tmp_path):
 class TestEvolutionSafeRead:
     """Tests for is_evolution_safe_read."""
 
-    def test_core_directory_allowed(self, validator, tmp_path):
+    def test_core_directory_allowed(self, validator, tmp_path) -> None:
         """core/ should be readable in evolution mode."""
         path = tmp_path / "parent" / "core" / "module.py"
         assert validator.is_evolution_safe_read(path) is True
 
-    def test_prompts_directory_allowed(self, validator, tmp_path):
+    def test_prompts_directory_allowed(self, validator, tmp_path) -> None:
         """prompts/ should be readable in evolution mode."""
         path = tmp_path / "parent" / "prompts" / "system.md"
         assert validator.is_evolution_safe_read(path) is True
 
-    def test_benchmarks_directory_allowed(self, validator, tmp_path):
+    def test_benchmarks_directory_allowed(self, validator, tmp_path) -> None:
         """benchmarks/ should be readable in evolution mode."""
         path = tmp_path / "parent" / "benchmarks" / "test.py"
         assert validator.is_evolution_safe_read(path) is True

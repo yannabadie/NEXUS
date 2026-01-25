@@ -11,14 +11,14 @@ from core.fsm.stagnation_detector import StagnationDetector
 class TestHotSwapLeadAgent:
     """Test Hot-Swap Lead Agent functionality."""
 
-    def test_should_not_swap_on_first_failure(self):
+    def test_should_not_swap_on_first_failure(self) -> None:
         """First failure should not trigger swap."""
         detector = StagnationDetector()
         detector.record_agent_failure("gemini")
 
         assert not detector.should_swap_lead("gemini")
 
-    def test_should_swap_after_multiple_failures_with_stagnation(self):
+    def test_should_swap_after_multiple_failures_with_stagnation(self) -> None:
         """Multiple failures with similar messages should trigger swap."""
         detector = StagnationDetector(
             similarity_threshold=0.5,  # Lower threshold for testing
@@ -37,7 +37,7 @@ class TestHotSwapLeadAgent:
         # Should now recommend swap
         assert detector.should_swap_lead("gemini", failure_count=2)
 
-    def test_get_swap_recommendation_no_stagnation(self):
+    def test_get_swap_recommendation_no_stagnation(self) -> None:
         """No swap recommendation when not stagnating."""
         detector = StagnationDetector()
 
@@ -46,7 +46,7 @@ class TestHotSwapLeadAgent:
         assert recommendation["should_swap"] is False
         assert recommendation["new_lead"] is None
 
-    def test_get_swap_recommendation_with_stagnation(self):
+    def test_get_swap_recommendation_with_stagnation(self) -> None:
         """Swap recommendation when stagnating."""
         detector = StagnationDetector(
             similarity_threshold=0.5,  # Lower threshold for testing
@@ -67,7 +67,7 @@ class TestHotSwapLeadAgent:
         assert "gemini" in recommendation["reason"]
         assert recommendation["stagnation_count"] == 2
 
-    def test_swap_gemini_to_claude(self):
+    def test_swap_gemini_to_claude(self) -> None:
         """Swap should go from Gemini to Claude."""
         detector = StagnationDetector(similarity_threshold=0.7, window_size=3)
 

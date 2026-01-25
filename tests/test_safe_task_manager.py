@@ -16,7 +16,7 @@ from core.async_primitives.safe_task_manager import (
 
 
 @pytest.fixture(autouse=True)
-def reset_manager():
+def reset_manager() -> None:
     """Reset SafeTaskManager before each test."""
     SafeTaskManager.reset()
     yield
@@ -27,7 +27,7 @@ class TestSafeTaskManagerBasics:
     """Basic functionality tests."""
 
     @pytest.mark.asyncio
-    async def test_create_task_returns_task(self):
+    async def test_create_task_returns_task(self) -> int:
         """create_task should return an asyncio.Task."""
         async def dummy():
             return 42
@@ -38,7 +38,7 @@ class TestSafeTaskManagerBasics:
         assert result == 42
 
     @pytest.mark.asyncio
-    async def test_task_with_name(self):
+    async def test_task_with_name(self) -> str:
         """Task should be created with specified name."""
         async def dummy():
             return "hello"
@@ -48,7 +48,7 @@ class TestSafeTaskManagerBasics:
         await task
 
     @pytest.mark.asyncio
-    async def test_create_safe_task_convenience(self):
+    async def test_create_safe_task_convenience(self) -> int:
         """create_safe_task should work as convenience function."""
         async def dummy():
             return 123
@@ -63,7 +63,7 @@ class TestTaskTracking:
     """Task tracking tests."""
 
     @pytest.mark.asyncio
-    async def test_active_tasks_tracked(self):
+    async def test_active_tasks_tracked(self) -> None:
         """Active tasks should be visible in get_active_tasks."""
         event = asyncio.Event()
 

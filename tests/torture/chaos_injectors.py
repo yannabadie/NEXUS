@@ -14,6 +14,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+from typing import Any
 
 
 class CrashInjector:
@@ -38,7 +39,7 @@ class CrashInjector:
         self.crash_at = None
 
     @contextmanager
-    def crash_after_n_checkpoints(self, n: int):
+    def crash_after_n_checkpoints(self, n: int) -> Any:
         """Crash after N successful checkpoints."""
         self.crash_count = 0
         self.crash_at = n
@@ -61,7 +62,7 @@ class CrashInjector:
             self.crash_at = None
 
     @contextmanager
-    def crash_during_persist(self):
+    def crash_during_persist(self) -> None:
         """Crash during _persist() call."""
         async def crashing_persist(*args, **kwargs):
             raise RuntimeError("CrashInjector: Crash during persist")
@@ -70,7 +71,7 @@ class CrashInjector:
             yield
 
     @contextmanager
-    def crash_during_fsync(self):
+    def crash_during_fsync(self) -> None:
         """Crash during os.fsync() call."""
         def crashing_fsync(fd):
             raise OSError("CrashInjector: fsync failed")
@@ -79,7 +80,7 @@ class CrashInjector:
             yield
 
     @contextmanager
-    def crash_during_rename(self):
+    def crash_during_rename(self) -> None:
         """Crash during os.replace() atomic rename."""
         def crashing_replace(src, dst):
             raise OSError("CrashInjector: rename failed")
@@ -88,7 +89,7 @@ class CrashInjector:
             yield
 
     @contextmanager
-    def crash_at_phase(self, phase: str):
+    def crash_at_phase(self, phase: str) -> Any:
         """Crash when specific phase is checkpointed."""
         async def phase_crashing_checkpoint(original_func):
             async def wrapper(self_saga, phase_name, *args, **kwargs):

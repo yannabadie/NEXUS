@@ -32,7 +32,7 @@ from core.workflow import (
 class TestWorkflowStatusEnum:
     """Test WorkflowStatus enum values."""
 
-    def test_status_values(self):
+    def test_status_values(self) -> None:
         """Test all status enum values exist."""
         assert WorkflowStatus.PENDING.value == "pending"
         assert WorkflowStatus.RUNNING.value == "running"
@@ -45,19 +45,19 @@ class TestRedisWorkflowRegistryUnit:
     """Unit tests for RedisWorkflowRegistry (no Redis required)."""
 
     @pytest.fixture(autouse=True)
-    def reset_registry(self):
+    def reset_registry(self) -> None:
         """Reset registry before each test."""
         reset_workflow_registry()
         yield
         reset_workflow_registry()
 
-    def test_singleton_pattern(self):
+    def test_singleton_pattern(self) -> None:
         """Test registry uses singleton pattern."""
         reg1 = RedisWorkflowRegistry()
         reg2 = RedisWorkflowRegistry()
         assert reg1 is reg2
 
-    def test_configure(self):
+    def test_configure(self) -> None:
         """Test registry configuration."""
         registry = RedisWorkflowRegistry()
         registry.configure(
@@ -69,7 +69,7 @@ class TestRedisWorkflowRegistryUnit:
         assert registry._use_redis == False
         assert registry._workflow_ttl == 48 * 3600
 
-    def test_initial_state(self):
+    def test_initial_state(self) -> None:
         """Test registry initial state."""
         registry = RedisWorkflowRegistry()
         assert registry._connected == False

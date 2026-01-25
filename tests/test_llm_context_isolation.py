@@ -23,7 +23,7 @@ import subprocess
 import uuid
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Skip if no LLM access
@@ -130,14 +130,14 @@ class TestRealContextIsolation:
     3. Session resume works correctly
     """
 
-    def test_basic_invocation(self):
+    def test_basic_invocation(self) -> None:
         """Test that basic Gemini CLI invocation works."""
         output, code = invoke_gemini("Say 'NEXUS_TEST_OK' and nothing else.")
 
         assert code == 0, f"Gemini CLI failed with code {code}: {output}"
         assert "NEXUS" in output or "OK" in output or len(output) > 0
 
-    def test_session_context_persistence(self):
+    def test_session_context_persistence(self) -> None:
         """Test that session context persists across calls."""
         session_id = create_session_id()
 
@@ -161,7 +161,7 @@ class TestRealContextIsolation:
         assert unique_value in output2 or "NEXUS_SECRET" in output2, \
             f"Session didn't persist context. Expected '{unique_value}' in: {output2}"
 
-    def test_parallel_sessions_isolated(self):
+    def test_parallel_sessions_isolated(self) -> Any:
         """
         CRITICAL TEST: Verify parallel sessions don't leak context.
 
@@ -221,7 +221,7 @@ class TestRealContextIsolation:
         assert alice_isolated, "ALICE session leaked BOB's context!"
         assert bob_isolated, "BOB session leaked ALICE's context!"
 
-    def test_fresh_session_has_no_history(self):
+    def test_fresh_session_has_no_history(self) -> None:
         """Test that a fresh session has no prior context."""
         # Create a session with some context
         old_session = create_session_id()
@@ -249,7 +249,7 @@ class TestSessionManagerIntegration:
     Tests for SessionManager integration with real LLM calls.
     """
 
-    def test_session_manager_creates_isolated_sessions(self):
+    def test_session_manager_creates_isolated_sessions(self) -> None:
         """Test that SessionManager creates truly isolated sessions."""
         from core.swarm.session_manager import SwarmSessionManager
 

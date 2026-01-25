@@ -14,10 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.hive_mind.saga_manager import SagaManager
+from typing import Any
 
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create saga directory."""
     saga_dir = tmp_path / ".nexus" / "sagas"
     saga_dir.mkdir(parents=True)
@@ -31,7 +32,7 @@ def saga_dir(tmp_path):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cf001_compensation_exception(saga_dir):
+async def test_cf001_compensation_exception(saga_dir) -> None:
     """
     CF-001: Test compensation function that raises exception.
 
@@ -67,7 +68,7 @@ async def test_cf001_compensation_exception(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cf002_partial_compensation_chain(saga_dir):
+async def test_cf002_partial_compensation_chain(saga_dir) -> None:
     """
     CF-002: Test partial compensation chain (2 succeed, 1 fails).
 
@@ -110,7 +111,7 @@ async def test_cf002_partial_compensation_chain(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cf003_file_deletion_race(saga_dir, tmp_path):
+async def test_cf003_file_deletion_race(saga_dir, tmp_path) -> None:
     """
     CF-003: Test file deletion race during compensation.
 
@@ -154,7 +155,7 @@ async def test_cf003_file_deletion_race(saga_dir, tmp_path):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_cf004_compensation_timeout(saga_dir):
+async def test_cf004_compensation_timeout(saga_dir) -> None:
     """
     CF-004: Test compensation that takes too long.
 

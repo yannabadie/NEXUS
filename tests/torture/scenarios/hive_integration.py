@@ -34,6 +34,7 @@ from core.hive_mind.types import (
     KnowledgeConsolidation,
 )
 from core.hive_mind.saga_manager import SagaManager
+from typing import Any
 
 
 # ============================================================================
@@ -104,7 +105,7 @@ class MockHiveMindPhase:
         self._delay_ms = delay_ms
 
 
-def create_mock_analysis_result(needs_debate: bool = False):
+def create_mock_analysis_result(needs_debate: bool = False) -> Any:
     """Create mock analysis result."""
     analysis = IndependentAnalysis(
         agent_id="mock",
@@ -136,7 +137,7 @@ def create_mock_analysis_result(needs_debate: bool = False):
     return AnalysisResult()
 
 
-def create_mock_debate_result():
+def create_mock_debate_result() -> Any:
     """Create mock debate result."""
     debate = DebateResult(
         status="CONSENSUS_REACHED",
@@ -161,7 +162,7 @@ def create_mock_debate_result():
     return DebatePhaseResult()
 
 
-def create_mock_architecture():
+def create_mock_architecture() -> Any:
     """Create mock architecture."""
     return AgentArchitecture(
         status="READY",
@@ -182,7 +183,7 @@ def create_mock_architecture():
     )
 
 
-def create_mock_execution_result(success: bool = True):
+def create_mock_execution_result(success: bool = True) -> Any:
     """Create mock execution result."""
     class ExecutionResult:
         def __init__(self):
@@ -207,7 +208,7 @@ def create_mock_execution_result(success: bool = True):
 
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create saga directory."""
     saga_dir = tmp_path / ".nexus" / "sagas"
     saga_dir.mkdir(parents=True)

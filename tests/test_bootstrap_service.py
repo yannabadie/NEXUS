@@ -8,13 +8,14 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 
 class TestBootstrapService:
     """Test BootstrapService functionality."""
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -24,7 +25,7 @@ class TestBootstrapService:
         return console
 
     @pytest.fixture
-    def temp_project(self):
+    def temp_project(self) -> None:
         """Create a temporary project directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             project = Path(tmpdir)
@@ -34,14 +35,14 @@ class TestBootstrapService:
             yield project
 
     @pytest.fixture
-    def bootstrap_service(self, mock_console):
+    def bootstrap_service(self, mock_console) -> Any:
         """Create a BootstrapService instance."""
         from core.bootstrap.service import BootstrapService
         return BootstrapService(console=mock_console)
 
     # ==================== bootstrap() tests ====================
 
-    def test_bootstrap_path_not_exists(self, bootstrap_service, mock_console):
+    def test_bootstrap_path_not_exists(self, bootstrap_service, mock_console) -> None:
         """Test bootstrap with non-existent path."""
         result = bootstrap_service.bootstrap(Path("/nonexistent/path"))
 
@@ -49,7 +50,7 @@ class TestBootstrapService:
         assert "does not exist" in result.error
         mock_console.print_error.assert_called()
 
-    def test_bootstrap_path_is_file(self, bootstrap_service, mock_console, temp_project):
+    def test_bootstrap_path_is_file(self, bootstrap_service, mock_console, temp_project) -> None:
         """Test bootstrap with file path instead of directory."""
         file_path = temp_project / "main.py"
 

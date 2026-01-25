@@ -26,13 +26,13 @@ from core.db.engine import init_db, reset_engine
 class TestHibernateState:
     """Tests for HIBERNATE FSM state definition."""
 
-    def test_hibernate_state_exists(self):
+    def test_hibernate_state_exists(self) -> None:
         """Verify HIBERNATE state is defined."""
         from core.fsm.states import OrchestratorState
 
         assert hasattr(OrchestratorState, "HIBERNATE")
 
-    def test_hibernate_in_transition_matrix(self):
+    def test_hibernate_in_transition_matrix(self) -> None:
         """Verify HIBERNATE transitions are defined."""
         from core.fsm.states import TRANSITION_MATRIX, OrchestratorState
 
@@ -43,7 +43,7 @@ class TestHibernateState:
         assert "timeout" in hibernate_transitions
         assert "user_cancel" in hibernate_transitions
 
-    def test_hibernate_exit_transitions(self):
+    def test_hibernate_exit_transitions(self) -> None:
         """Verify HIBERNATE exits to correct states."""
         from core.fsm.states import TRANSITION_MATRIX, OrchestratorState
 
@@ -56,7 +56,7 @@ class TestHibernateState:
         # ws_reconnect is dynamic (returns to previous state)
         assert hibernate_transitions["ws_reconnect"] is None
 
-    def test_active_states_can_enter_hibernate(self):
+    def test_active_states_can_enter_hibernate(self) -> None:
         """Verify active states can transition to HIBERNATE."""
         from core.fsm.states import TRANSITION_MATRIX, OrchestratorState, ACTIVE_STATES
 
@@ -70,7 +70,7 @@ class TestHibernationManager:
     """Tests for HibernationManager persistence."""
 
     @pytest.fixture(autouse=True)
-    def setup_db(self, tmp_path):
+    def setup_db(self, tmp_path) -> None:
         """Setup test database."""
         db_path = tmp_path / "test.db"
         reset_engine()

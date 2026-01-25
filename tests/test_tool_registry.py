@@ -12,10 +12,11 @@ from core.execution.tool_registry import (
     reset_tool_registry,
 )
 from core.execution.handlers.base import ToolResult
+from typing import Any
 
 
 @pytest.fixture(autouse=True)
-def reset_registry():
+def reset_registry() -> None:
     """Reset global registry before each test."""
     reset_tool_registry()
     yield
@@ -25,19 +26,19 @@ def reset_registry():
 class TestToolRegistry:
     """Basic ToolRegistry tests."""
 
-    def test_create_registry(self):
+    def test_create_registry(self) -> None:
         """Registry should be created empty."""
         registry = ToolRegistry()
         assert len(registry.list_tools()) == 0
 
-    def test_normalize_name_alias(self):
+    def test_normalize_name_alias(self) -> None:
         """Should normalize Gemini CLI aliases."""
         registry = ToolRegistry()
         assert registry.normalize_name("read_file") == "read"
         assert registry.normalize_name("write_file") == "write"
         assert registry.normalize_name("google_web_search") == "web_search"
 
-    def test_normalize_name_passthrough(self):
+    def test_normalize_name_passthrough(self) -> None:
         """Should pass through unknown names."""
         registry = ToolRegistry()
         assert registry.normalize_name("custom_tool") == "custom_tool"
@@ -47,7 +48,7 @@ class TestToolRegistry:
 class TestToolRegistration:
     """Tool registration tests."""
 
-    def test_register_tool(self):
+    def test_register_tool(self) -> Any:
         """Should register a tool handler."""
         registry = ToolRegistry()
 

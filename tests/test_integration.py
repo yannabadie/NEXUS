@@ -35,30 +35,30 @@ from core.interface.commands import (
 class TestBootstrapCommandIntegration:
     """Test AutoBootstrap integration with commands system."""
 
-    def test_bootstrap_command_registered(self):
+    def test_bootstrap_command_registered(self) -> None:
         """Bootstrap command should be in SLASH_COMMANDS."""
         assert any("/bootstrap" in cmd for cmd in SLASH_COMMANDS.keys())
 
-    def test_bootstrap_command_description(self):
+    def test_bootstrap_command_description(self) -> None:
         """Bootstrap command should have proper description."""
         for cmd, desc in SLASH_COMMANDS.items():
             if "/bootstrap" in cmd:
                 assert "NEXUS.md" in desc or "project" in desc.lower()
                 break
 
-    def test_parse_bootstrap_command(self):
+    def test_parse_bootstrap_command(self) -> None:
         """Should parse /bootstrap command correctly."""
         cmd, args = parse_command("/bootstrap")
         assert cmd == "/bootstrap"
         assert args == ""
 
-    def test_parse_bootstrap_with_path(self):
+    def test_parse_bootstrap_with_path(self) -> None:
         """Should parse /bootstrap with path argument."""
         cmd, args = parse_command("/bootstrap /path/to/project")
         assert cmd == "/bootstrap"
         assert args == "/path/to/project"
 
-    def test_is_slash_command_bootstrap(self):
+    def test_is_slash_command_bootstrap(self) -> None:
         """Bootstrap should be detected as slash command."""
         assert is_slash_command("/bootstrap")
         assert is_slash_command("/bootstrap ./project")

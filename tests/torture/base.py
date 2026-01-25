@@ -64,7 +64,7 @@ class TortureBase:
         """Get saga directory path."""
         return self.workspace / ".nexus" / "sagas"
 
-    def log_result(self, result: TortureResultV8):
+    def log_result(self, result: TortureResultV8) -> None:
         """Thread-safe result logging."""
         with self.lock:
             self.results.append(result)
@@ -162,7 +162,7 @@ class TortureBase:
         self.log_result(result)
         return result
 
-    def generate_report(self):
+    def generate_report(self) -> Any:
         """Generate and print metrics report."""
         rates = self.metrics.calculate_rates()
 
@@ -189,7 +189,7 @@ class TortureBase:
         recovery_target: float = 90.0,
         panic_target: float = 1.0,
         hot_swap_target: float = 80.0
-    ):
+    ) -> None:
         """Assert metrics meet targets."""
         self.metrics.assert_targets(
             success_target=success_target,
@@ -198,7 +198,7 @@ class TortureBase:
             hot_swap_target=hot_swap_target
         )
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up workspace after tests."""
         import shutil
         if self.workspace.exists():
@@ -209,7 +209,7 @@ class TortureBase:
 # Pytest Fixtures
 # ============================================================================
 
-def pytest_configure(config):
+def pytest_configure(config) -> None:
     """Register custom markers."""
     config.addinivalue_line("markers", "torture: marks test as torture test")
     config.addinivalue_line("markers", "torture_saga: marks test as saga-specific torture")

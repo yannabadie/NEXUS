@@ -25,6 +25,7 @@ from core.evolution.mutation_parser import (
     Mutation,
     apply_mutation,
 )
+from typing import Any
 
 
 # =============================================================================
@@ -32,13 +33,13 @@ from core.evolution.mutation_parser import (
 # =============================================================================
 
 @pytest.fixture
-def parser():
+def parser() -> Any:
     """Provide a fresh MutationParser instance."""
     return MutationParser()
 
 
 @pytest.fixture
-def temp_file(tmp_path):
+def temp_file(tmp_path) -> Any:
     """Create a temporary Python file for mutation testing."""
     test_file = tmp_path / "test_module.py"
     test_file.write_text('''def old_function():
@@ -57,7 +58,7 @@ def another_function():
 class TestSearchReplaceParsing:
     """Tests for SEARCH/REPLACE block parsing."""
 
-    def test_parse_single_replace_block(self, parser):
+    def test_parse_single_replace_block(self, parser) -> None:
         """Test parsing a single SEARCH/REPLACE block."""
         text = '''FILE: core/utils.py
 REASON: Optimize calculation
@@ -81,7 +82,7 @@ def calculate_score(x):
         assert mutations[0].reason == "Optimize calculation"
         assert mutations[0].expected_asi_impact == 0.03
 
-    def test_parse_multiple_mutations(self, parser):
+    def test_parse_multiple_mutations(self, parser) -> None:
         """Test parsing multiple mutation blocks."""
         text = '''FILE: core/module_a.py
 <<<<<<< SEARCH
@@ -103,7 +104,7 @@ new_code_b
         assert mutations[0].file == "core/module_a.py"
         assert mutations[1].file == "core/module_b.py"
 
-    def test_parse_append_block(self, parser):
+    def test_parse_append_block(self, parser) -> None:
         """Test parsing an APPEND block."""
         text = '''FILE: core/helpers.py
 REASON: Add new helper

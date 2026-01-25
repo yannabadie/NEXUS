@@ -22,7 +22,7 @@ from core.utils.stream_parser import (
 class TestGeminiStreamParser:
     """Test parsing of Gemini CLI stream-json format."""
 
-    def test_gemini_init_message(self):
+    def test_gemini_init_message(self) -> None:
         """Test parsing Gemini init message."""
         line = '{"type":"init","timestamp":"2025-12-05T09:46:42.998Z","session_id":"8dee5df5-fcc5-4dfe-b8fd-9bf4777d9283","model":"auto"}'
         text, data = parse_stream_chunk(line, "gemini")
@@ -32,7 +32,7 @@ class TestGeminiStreamParser:
         assert data["type"] == "init"
         assert data["session_id"] == "8dee5df5-fcc5-4dfe-b8fd-9bf4777d9283"
 
-    def test_gemini_user_message(self):
+    def test_gemini_user_message(self) -> None:
         """Test parsing Gemini user message echo."""
         line = '{"type":"message","timestamp":"2025-12-05T09:46:42.999Z","role":"user","content":"Hello"}'
         text, data = parse_stream_chunk(line, "gemini")
@@ -40,7 +40,7 @@ class TestGeminiStreamParser:
         assert text is None  # User message, not assistant delta
         assert data["role"] == "user"
 
-    def test_gemini_assistant_delta(self):
+    def test_gemini_assistant_delta(self) -> None:
         """Test parsing Gemini assistant text delta."""
         line = '{"type":"message","timestamp":"2025-12-05T09:46:45.485Z","role":"assistant","content":"Bonjour","delta":true}'
         text, data = parse_stream_chunk(line, "gemini")
@@ -48,7 +48,7 @@ class TestGeminiStreamParser:
         assert text == "Bonjour"
         assert data["delta"] is True
 
-    def test_gemini_assistant_no_delta(self):
+    def test_gemini_assistant_no_delta(self) -> None:
         """Test parsing Gemini assistant message without delta flag."""
         line = '{"type":"message","role":"assistant","content":"Complete message"}'
         text, data = parse_stream_chunk(line, "gemini")
@@ -56,7 +56,7 @@ class TestGeminiStreamParser:
         assert text is None  # No delta flag
         assert data["content"] == "Complete message"
 
-    def test_gemini_tool_use(self):
+    def test_gemini_tool_use(self) -> None:
         """Test parsing Gemini tool_use message."""
         line = '{"type":"tool_use","timestamp":"...","tool_name":"read_file","tool_id":"read_file-xxx","parameters":{"file_path":"test.py"}}'
         text, data = parse_stream_chunk(line, "gemini")

@@ -944,7 +944,7 @@ class ProfessionalBenchmark:
         return report
 
 
-def main():
+def main() -> None:
     """Run the professional benchmark."""
     benchmark = ProfessionalBenchmark()
     report = benchmark.run_all()

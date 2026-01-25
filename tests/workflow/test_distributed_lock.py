@@ -26,13 +26,14 @@ from core.workflow import (
     acquire_workflow_lock,
     try_acquire_workflow_lock,
 )
+from typing import Any
 
 
 class TestDistributedLockNoOp:
     """Tests for no-op mode (when Redis is None)."""
 
     @pytest.mark.asyncio
-    async def test_acquire_without_redis(self):
+    async def test_acquire_without_redis(self) -> None:
         """Test lock acquisition without Redis (no-op)."""
         lock = DistributedLock(redis=None, resource="test:123")
 
@@ -42,7 +43,7 @@ class TestDistributedLockNoOp:
         assert lock.is_acquired == True
 
     @pytest.mark.asyncio
-    async def test_release_without_redis(self):
+    async def test_release_without_redis(self) -> None:
         """Test lock release without Redis."""
         lock = DistributedLock(redis=None, resource="test:456")
         await lock.acquire()
@@ -53,7 +54,7 @@ class TestDistributedLockNoOp:
         assert lock.is_acquired == False
 
     @pytest.mark.asyncio
-    async def test_context_manager_without_redis(self):
+    async def test_context_manager_without_redis(self) -> None:
         """Test async context manager without Redis."""
         async with DistributedLock(redis=None, resource="ctx:test") as lock:
             assert lock.is_acquired == True
@@ -61,7 +62,7 @@ class TestDistributedLockNoOp:
         assert lock.is_acquired == False
 
     @pytest.mark.asyncio
-    async def test_multiple_locks_without_redis(self):
+    async def test_multiple_locks_without_redis(self) -> None:
         """Test multiple locks can be acquired without Redis."""
         lock1 = DistributedLock(redis=None, resource="multi:1")
         lock2 = DistributedLock(redis=None, resource="multi:1")  # Same resource
@@ -74,7 +75,7 @@ class TestDistributedLockWithMockRedis:
     """Tests with mocked Redis."""
 
     @pytest.fixture
-    def mock_redis(self):
+    def mock_redis(self) -> Any:
         """Create a mock Redis client."""
         redis = AsyncMock()
         redis.set = AsyncMock(return_value=True)
@@ -456,4 +457,3 @@ class TestSecurityValidation:
 
         invalid_func = DistributedLock._validate_resource("workflow test")
         assert invalid_func == False
-

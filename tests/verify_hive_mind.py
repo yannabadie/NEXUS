@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from core.config import load_config
 from core.orchestration_v7 import OrchestratorV7
 
-def verify_hive_mind():
+def verify_hive_mind() -> None:
     print("[*] INITIALIZING HIVE MIND VERIFICATION...")
 
     # 1. Load Config

@@ -9,12 +9,13 @@ This is a simulation test - no actual API calls are made.
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def main():
+def main() -> Any:
     print("=" * 60)
     print("V8.0 TRUE HIVE MIND - Routing Verification")
     print("=" * 60)

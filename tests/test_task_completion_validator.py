@@ -20,27 +20,27 @@ from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 class TestAdaptiveMaxRounds:
     """Test adaptive max_rounds based on complexity."""
 
-    def test_trivial_gets_few_rounds(self):
+    def test_trivial_gets_few_rounds(self) -> None:
         """Trivial tasks should have few rounds."""
         rounds = get_adaptive_max_rounds(TaskComplexity.TRIVIAL)
         assert rounds == 3
 
-    def test_moderate_gets_standard_rounds(self):
+    def test_moderate_gets_standard_rounds(self) -> None:
         """Moderate tasks should have standard rounds."""
         rounds = get_adaptive_max_rounds(TaskComplexity.MODERATE)
         assert rounds == 6
 
-    def test_complex_gets_more_rounds(self):
+    def test_complex_gets_more_rounds(self) -> None:
         """Complex tasks should have more rounds."""
         rounds = get_adaptive_max_rounds(TaskComplexity.COMPLEX)
         assert rounds == 10
 
-    def test_expert_gets_most_rounds(self):
+    def test_expert_gets_most_rounds(self) -> None:
         """Expert tasks should have most rounds."""
         rounds = get_adaptive_max_rounds(TaskComplexity.EXPERT)
         assert rounds == 15
 
-    def test_rounds_increase_with_complexity(self):
+    def test_rounds_increase_with_complexity(self) -> None:
         """Rounds should increase with complexity level."""
         complexities = [
             TaskComplexity.TRIVIAL,

@@ -17,27 +17,27 @@ from core.routing.model_router import ModelRouter, TaskType, RoutingDecision
 class TestTaskType:
     """Test TaskType enum"""
 
-    def test_opus_task_types_exist(self):
+    def test_opus_task_types_exist(self) -> None:
         """Verify Opus-routed task types exist"""
         assert TaskType.BRAINSTORM.value == "brainstorm"
         assert TaskType.REDTEAM.value == "redteam"
         assert TaskType.ARCHITECT.value == "architect"
         assert TaskType.EVOLUTION.value == "evolution"
 
-    def test_sonnet_task_types_exist(self):
+    def test_sonnet_task_types_exist(self) -> None:
         """Verify Sonnet-routed task types exist"""
         assert TaskType.TOOL.value == "tool"
         assert TaskType.VALIDATION.value == "validation"
         assert TaskType.SIMPLE.value == "simple"
         assert TaskType.FORMAT.value == "format"
 
-    def test_gemini_task_types_exist(self):
+    def test_gemini_task_types_exist(self) -> None:
         """Verify Gemini-specific task types exist (V7 Sprint 6)"""
         assert TaskType.REASONING.value == "reasoning"
         assert TaskType.RESEARCH.value == "research"
         assert TaskType.ANALYSIS.value == "analysis"
 
-    def test_default_task_type(self):
+    def test_default_task_type(self) -> None:
         """Test default task type"""
         assert TaskType.DEFAULT.value == "default"
 
@@ -45,7 +45,7 @@ class TestTaskType:
 class TestModelRouterInit:
     """Test ModelRouter initialization"""
 
-    def test_default_init_no_config(self):
+    def test_default_init_no_config(self) -> None:
         """Test router initializes with defaults when no config"""
         router = ModelRouter()
 

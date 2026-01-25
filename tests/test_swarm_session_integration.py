@@ -40,18 +40,18 @@ from core.swarm.collaboration_modes import CollaborationMode
 class TestExecutionContextSessionIntegration(TestCase):
     """Tests for ExecutionContext.get_session_uuid integration."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary workspace and session manager."""
         self.temp_dir = tempfile.mkdtemp()
         self.workspace = Path(self.temp_dir) / "workspace"
         self.workspace.mkdir(parents=True)
         self.session_manager = SwarmSessionManager(self.workspace)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary files."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_get_session_uuid_with_manager(self):
+    def test_get_session_uuid_with_manager(self) -> None:
         """Test that get_session_uuid works with session manager."""
         task_id = generate_task_id()
         self.session_manager.create_task(task_id, "PARALLEL")
@@ -70,7 +70,7 @@ class TestExecutionContextSessionIntegration(TestCase):
         assert isinstance(uuid, str)
         assert len(uuid) == 36  # UUID format
 
-    def test_get_session_uuid_without_manager(self):
+    def test_get_session_uuid_without_manager(self) -> None:
         """Test that get_session_uuid returns None without manager."""
         context = ExecutionContext(
             task_input="Test task",
@@ -84,7 +84,7 @@ class TestExecutionContextSessionIntegration(TestCase):
 
         assert uuid is None
 
-    def test_get_session_uuid_without_task_id(self):
+    def test_get_session_uuid_without_task_id(self) -> None:
         """Test that get_session_uuid returns None without task_id."""
         context = ExecutionContext(
             task_input="Test task",

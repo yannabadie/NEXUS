@@ -373,7 +373,7 @@ class TestHealthStateMachineHistory(TestCase):
 # =============================================================================
 
 @pytest.mark.asyncio
-async def test_multiple_strategies_tried_in_order():
+async def test_multiple_strategies_tried_in_order() -> bool:
     """Test that strategies are tried in registration order."""
     hsm = HealthStateMachine(auto_recover=False)
     order = []
@@ -404,7 +404,7 @@ async def test_multiple_strategies_tried_in_order():
 
 
 @pytest.mark.asyncio
-async def test_strategy_exception_handled():
+async def test_strategy_exception_handled() -> None:
     """Test that exceptions in strategies are handled gracefully."""
     hsm = HealthStateMachine(auto_recover=False)
 
@@ -426,7 +426,7 @@ async def test_strategy_exception_handled():
 
 
 @pytest.mark.asyncio
-async def test_callback_on_state_change():
+async def test_callback_on_state_change() -> None:
     """Test that callbacks are called on state change."""
     hsm = HealthStateMachine(auto_recover=False)
     changes = []
@@ -444,7 +444,7 @@ async def test_callback_on_state_change():
 
 
 @pytest.mark.asyncio
-async def test_error_count_accumulates():
+async def test_error_count_accumulates() -> None:
     """Test that error count accumulates correctly."""
     hsm = HealthStateMachine(auto_recover=False)
 
@@ -459,7 +459,7 @@ async def test_error_count_accumulates():
 
 
 @pytest.mark.asyncio
-async def test_success_decrements_error_count():
+async def test_success_decrements_error_count() -> None:
     """Test that success decrements error count (not resets)."""
     hsm = HealthStateMachine(auto_recover=False)
 

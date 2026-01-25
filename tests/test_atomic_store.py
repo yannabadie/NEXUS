@@ -39,23 +39,23 @@ from core.utils.atomic_store import (
 class TestAtomicJsonStoreBasic(TestCase):
     """Basic functionality tests for AtomicJsonStore."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create a temporary directory for test files."""
         self.temp_dir = tempfile.mkdtemp()
         self.test_file = Path(self.temp_dir) / "test.json"
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary files."""
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_init_creates_store(self):
+    def test_init_creates_store(self) -> None:
         """Test that AtomicJsonStore initializes correctly."""
         store = AtomicJsonStore(self.test_file)
         assert store.filepath == self.test_file
         assert not store.exists
 
-    def test_save_creates_file(self):
+    def test_save_creates_file(self) -> None:
         """Test that save() creates the JSON file."""
         store = AtomicJsonStore(self.test_file)
         data = {"key": "value", "number": 42}
@@ -65,7 +65,7 @@ class TestAtomicJsonStoreBasic(TestCase):
         assert store.exists
         assert self.test_file.exists()
 
-    def test_load_returns_saved_data(self):
+    def test_load_returns_saved_data(self) -> None:
         """Test that load() returns the data that was saved."""
         store = AtomicJsonStore(self.test_file)
         original_data = {

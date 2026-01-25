@@ -15,6 +15,7 @@ from core.execution.execution_engine import (
 )
 from core.execution.handlers.base import ToolResult
 from core.execution.tool_registry import reset_tool_registry
+from typing import Any
 
 
 @dataclass
@@ -25,7 +26,7 @@ class MockToolRequest:
 
 
 @pytest.fixture(autouse=True)
-def reset_globals():
+def reset_globals() -> None:
     """Reset global state before each test."""
     reset_execution_engine()
     reset_tool_registry()
@@ -35,7 +36,7 @@ def reset_globals():
 
 
 @pytest.fixture
-def workspace_path(tmp_path):
+def workspace_path(tmp_path) -> Any:
     """Create temporary workspace."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -43,7 +44,7 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def engine(workspace_path):
+def engine(workspace_path) -> Any:
     """Create ExecutionEngine with mocked security."""
     with patch("core.execution.execution_engine.ValidationService") as mock_vs:
         mock_vs_instance = MagicMock()
@@ -58,13 +59,13 @@ def engine(workspace_path):
 class TestExecutionEngineInit:
     """Initialization tests."""
 
-    def test_creates_with_workspace(self, workspace_path):
+    def test_creates_with_workspace(self, workspace_path) -> None:
         """Should create engine with workspace path."""
         with patch("core.execution.execution_engine.ValidationService"):
             engine = ExecutionEngine(workspace_path)
             assert engine.workspace_path == workspace_path
 
-    def test_initializes_core_handlers(self, engine):
+    def test_initializes_core_handlers(self, engine) -> None:
         """Should initialize core tool handlers."""
         tools = engine.list_tools()
         # Core handlers should be registered

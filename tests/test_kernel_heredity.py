@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 class TestComputeRulesHash:
     """Tests for compute_rules_hash()"""
 
-    def test_hash_exists(self):
+    def test_hash_exists(self) -> None:
         """Test that compute_rules_hash returns a valid hash."""
         from KERNEL import compute_rules_hash
 
@@ -26,7 +26,7 @@ class TestComputeRulesHash:
         assert isinstance(result, str)
         assert len(result) == 16  # First 16 chars of SHA-256
 
-    def test_hash_is_deterministic(self):
+    def test_hash_is_deterministic(self) -> None:
         """Test that hash is consistent across calls."""
         from KERNEL import compute_rules_hash
 
@@ -35,7 +35,7 @@ class TestComputeRulesHash:
 
         assert hash1 == hash2
 
-    def test_hash_is_hex(self):
+    def test_hash_is_hex(self) -> None:
         """Test that hash contains only hex characters."""
         from KERNEL import compute_rules_hash
 
@@ -48,7 +48,7 @@ class TestComputeRulesHash:
 class TestValidateLineage:
     """Tests for validate_lineage()"""
 
-    def test_valid_authority_no_hash(self):
+    def test_valid_authority_no_hash(self) -> None:
         """Test validation passes with correct authority and no hash (legacy)."""
         from KERNEL import validate_lineage, CREATOR
 
@@ -58,7 +58,7 @@ class TestValidateLineage:
         assert is_valid is True
         assert "Legacy certificate" in reason
 
-    def test_invalid_authority_rejected(self):
+    def test_invalid_authority_rejected(self) -> None:
         """Test validation fails with wrong authority."""
         from KERNEL import validate_lineage
 

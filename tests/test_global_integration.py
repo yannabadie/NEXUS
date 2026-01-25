@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 from core.interface.repl import InteractiveNexusV7
 from core.memory.auto_memory import AutoMemory
 
-def test_global_integration():
+def test_global_integration() -> None:
     print("\n🚀 GLOBAL INTEGRATION TEST: NEXUS V7.5 HIVE MIND\n")
     
     workspace_path = Path("workspace_test_global")

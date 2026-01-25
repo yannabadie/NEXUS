@@ -10,7 +10,7 @@ sys.path.append(os.getcwd())
 
 from core.interface.repl import InteractiveNexusV7
 
-def test_hive_mind_execution_v2():
+def test_hive_mind_execution_v2() -> list:
     print("\n🚀 STARTING HIVE MIND EXECUTION TEST V2 (MOCKED)\n")
     
     workspace_path = Path("workspace_test_hive_v2")

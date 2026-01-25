@@ -25,6 +25,7 @@ from core.workspace import (
     WorkspaceNotFoundError,
     WorkspaceExistsError,
 )
+from typing import Any
 
 
 # =============================================================================
@@ -32,7 +33,7 @@ from core.workspace import (
 # =============================================================================
 
 @pytest.fixture
-def nexus_root(tmp_path):
+def nexus_root(tmp_path) -> Any:
     """Create a temporary NEXUS root directory."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -41,13 +42,13 @@ def nexus_root(tmp_path):
 
 
 @pytest.fixture
-def manager(nexus_root):
+def manager(nexus_root) -> Any:
     """Create a WorkspaceManager instance."""
     return WorkspaceManager(nexus_root)
 
 
 @pytest.fixture
-def manager_with_workspace(nexus_root):
+def manager_with_workspace(nexus_root) -> Any:
     """Create a manager with an existing workspace."""
     workspace = nexus_root / "workspace"
     workspace.mkdir(exist_ok=True)
@@ -86,13 +87,13 @@ def manager_with_workspace(nexus_root):
 class TestWorkspaceMetrics:
     """Tests for WorkspaceMetrics dataclass."""
 
-    def test_create_default(self):
+    def test_create_default(self) -> None:
         """Create with default values."""
         metrics = WorkspaceMetrics()
         assert metrics.iterations == 0
         assert metrics.files_count == 0
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         """Serialize to dict."""
         metrics = WorkspaceMetrics(iterations=10, files_count=5)
         d = metrics.to_dict()

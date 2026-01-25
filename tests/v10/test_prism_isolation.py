@@ -36,7 +36,7 @@ sys.path.insert(0, str(NEXUS_ROOT))
 class TestSessionContext:
     """Tests for core/context/session.py"""
 
-    def test_context_creation(self):
+    def test_context_creation(self) -> None:
         """SessionContext can be created with required fields."""
         from core.context import SessionContext
 
@@ -45,7 +45,7 @@ class TestSessionContext:
         assert ctx.user_id == "anonymous"
         assert ctx.workspace_id == "default"
 
-    def test_context_immutable(self):
+    def test_context_immutable(self) -> None:
         """SessionContext is immutable (frozen dataclass)."""
         from core.context import SessionContext
 
@@ -54,14 +54,14 @@ class TestSessionContext:
         with pytest.raises(AttributeError):
             ctx.tenant_id = "other"
 
-    def test_context_requires_tenant_id(self):
+    def test_context_requires_tenant_id(self) -> None:
         """SessionContext raises ValueError without tenant_id."""
         from core.context import SessionContext
 
         with pytest.raises(ValueError, match="tenant_id is required"):
             SessionContext(tenant_id="")
 
-    def test_use_context_sets_and_resets(self):
+    def test_use_context_sets_and_resets(self) -> None:
         """use_context properly sets and resets context."""
         from core.context import (
             use_context,
@@ -81,7 +81,7 @@ class TestSessionContext:
         # After context
         assert get_current_session_or_none() is None
 
-    def test_nested_contexts(self):
+    def test_nested_contexts(self) -> None:
         """Nested contexts work correctly."""
         from core.context import use_context, get_current_session
 

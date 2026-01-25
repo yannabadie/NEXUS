@@ -7,7 +7,7 @@ Swarm collaboration modes at any HiveMind phase.
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from dataclasses import dataclass
-from typing import List
+from typing import Any, List
 
 
 # =============================================================================
@@ -45,7 +45,7 @@ class MockCollaborationMode:
         self.value = value
 
     @classmethod
-    def from_string(cls, s):
+    def from_string(cls, s) -> Any:
         mapping = {
             "parallel": cls.PARALLEL,
             "sequential": cls.SEQUENTIAL,
@@ -76,14 +76,14 @@ class MockHivePhase:
 class TestSwarmToolRegistration:
     """Test tool registration in ToolManager."""
 
-    def test_swarm_delegate_in_tools_dict(self, tmp_path):
+    def test_swarm_delegate_in_tools_dict(self, tmp_path) -> None:
         """swarm_delegate should be registered in tools dict."""
         from core.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         assert "swarm_delegate" in tm.tools
 
-    def test_swarm_delegate_handler_has_execute(self, tmp_path):
+    def test_swarm_delegate_handler_has_execute(self, tmp_path) -> None:
         """swarm_delegate handler should have execute method."""
         from core.execution.tool_manager import ToolManager
 
@@ -92,14 +92,14 @@ class TestSwarmToolRegistration:
         assert hasattr(handler, 'execute')
         assert callable(handler.execute)
 
-    def test_swarm_bridge_attribute_exists(self, tmp_path):
+    def test_swarm_bridge_attribute_exists(self, tmp_path) -> None:
         """ToolManager should have swarm_bridge attribute."""
         from core.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         assert hasattr(tm, "swarm_bridge")
 
-    def test_swarm_bridge_initially_none(self, tmp_path):
+    def test_swarm_bridge_initially_none(self, tmp_path) -> None:
         """swarm_bridge should be None initially."""
         from core.execution.tool_manager import ToolManager
 

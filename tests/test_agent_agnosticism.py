@@ -33,7 +33,7 @@ from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 class TestAgentPoolCapabilitySelection(TestCase):
     """Tests for AgentPool.select_agents_by_capability."""
 
-    def test_select_by_capability_direct_match(self):
+    def test_select_by_capability_direct_match(self) -> None:
         """Test that agents with direct capability match are selected first."""
         pool = AgentPool()
 
@@ -64,7 +64,7 @@ class TestAgentPoolCapabilitySelection(TestCase):
         # sql_expert should be first (direct capability match)
         assert selected[0].agent_id == "sql_expert"
 
-    def test_select_by_capability_dylan_score(self):
+    def test_select_by_capability_dylan_score(self) -> None:
         """Test that DyLAN scores influence selection when no capability match."""
         pool = AgentPool()
 
@@ -113,7 +113,7 @@ class TestAgentPoolCapabilitySelection(TestCase):
         assert selected[0].agent_id == "claude_opus"
         assert selected[1].agent_id == "gemini_primary"
 
-    def test_select_by_capability_spawned_included(self):
+    def test_select_by_capability_spawned_included(self) -> None:
         """Test that spawned agents are included by default."""
         pool = AgentPool()
 
@@ -136,7 +136,7 @@ class TestAgentPoolCapabilitySelection(TestCase):
         assert any(a.agent_id == "security_expert" for a in selected)
         assert selected[0].agent_id == "security_expert"
 
-    def test_select_by_capability_exclude_spawned(self):
+    def test_select_by_capability_exclude_spawned(self) -> None:
         """Test that spawned agents can be excluded."""
         pool = AgentPool()
 
@@ -161,7 +161,7 @@ class TestAgentPoolCapabilitySelection(TestCase):
         assert len(selected) == 1
         assert selected[0].agent_id == "gemini_primary"
 
-    def test_get_best_for_role_with_dylan(self):
+    def test_get_best_for_role_with_dylan(self) -> None:
         """Test get_best_for_role with DyLAN scores."""
         pool = AgentPool()
 

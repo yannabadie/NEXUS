@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.orchestration_v7 import OrchestratorV7
 from core.config import Config
 
-def mock_cli_info():
+def mock_cli_info() -> dict:
     return {
         "available": True,
         "model": "mock-model",
@@ -20,7 +20,7 @@ class MockDriver:
         self.name = name
         self.call_count = 0
 
-    def invoke(self, context: str):
+    def invoke(self, context: str) -> dict:
         self.call_count += 1
         print(f"\n[{self.name} Driver invoked]")
         
@@ -75,7 +75,7 @@ class MockDriver:
             "status": "FINISHED"
         }
 
-def test_stability_and_context():
+def test_stability_and_context() -> None:
     print("Testing NEXUS V7 Logic, Stability and Context Injection...")
 
     workspace = Path("workspace")

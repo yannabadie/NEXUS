@@ -50,14 +50,14 @@ from core.mcp.registry import (
 # =============================================================================
 
 @pytest.fixture
-def mock_server_command():
+def mock_server_command() -> list:
     """Command to run the mock MCP server."""
     mock_server_path = Path(__file__).parent / "fixtures" / "mock_mcp_server.py"
     return [sys.executable, str(mock_server_path)]
 
 
 @pytest.fixture
-def mcp_client(mock_server_command):
+def mcp_client(mock_server_command) -> None:
     """Create and cleanup an MCP client."""
     client = MCPClient(command=mock_server_command)
     yield client
@@ -65,7 +65,7 @@ def mcp_client(mock_server_command):
 
 
 @pytest.fixture
-def initialized_client(mock_server_command):
+def initialized_client(mock_server_command) -> None:
     """Create an initialized MCP client."""
     client = MCPClient(command=mock_server_command)
     client.start()
@@ -75,7 +75,7 @@ def initialized_client(mock_server_command):
 
 
 @pytest.fixture
-def registry_workspace(tmp_path):
+def registry_workspace(tmp_path) -> Any:
     """Create a workspace with MCP configuration."""
     # Create config directory
     config_dir = tmp_path / ".nexus"
@@ -111,7 +111,7 @@ def registry_workspace(tmp_path):
 class TestMCPRequest:
     """Tests for MCPRequest."""
 
-    def test_create_request(self):
+    def test_create_request(self) -> None:
         """Can create a request."""
         req = MCPRequest(method="tools/list", id=1)
         assert req.method == "tools/list"

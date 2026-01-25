@@ -64,7 +64,7 @@ class TestResult:
     details: Dict = field(default_factory=dict)
     error: Optional[str] = None
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "category": self.category,
@@ -80,7 +80,7 @@ class TestResult:
 # Helpers
 # =============================================================================
 
-def log_result(result: TestResult):
+def log_result(result: TestResult) -> None:
     """Log result to JSONL file."""
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(result.to_dict(), ensure_ascii=False) + "\n")
@@ -206,7 +206,7 @@ class RealWorldBenchmark:
         self.gemini_available = is_gemini_available()
         self.claude_available = is_claude_available()
 
-    def run_all(self):
+    def run_all(self) -> None:
         print("=" * 70)
         print("NEXUS V7.8 - DUAL-BRAIN REAL-WORLD BENCHMARK")
         print("=" * 70)
@@ -278,7 +278,7 @@ class RealWorldBenchmark:
         total_duration = time.time() - start
         self.print_summary(total_duration)
 
-    def test_gemini_basic(self):
+    def test_gemini_basic(self) -> None:
         """Test basic Gemini CLI connectivity."""
         start = time.time()
 
@@ -297,7 +297,7 @@ class RealWorldBenchmark:
         self.results.append(result)
         log_result(result)
 
-    def test_gemini_json_output(self):
+    def test_gemini_json_output(self) -> None:
         """Test Gemini can output valid JSON."""
         start = time.time()
 

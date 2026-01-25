@@ -37,7 +37,7 @@ class MockConfig:
 class TestGeminiDriverSessionUUID(TestCase):
     """Tests for session_uuid support in GeminiDriverV7."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Create temporary workspace."""
         self.temp_dir = tempfile.mkdtemp()
         self.workspace = Path(self.temp_dir) / "workspace"
@@ -46,11 +46,11 @@ class TestGeminiDriverSessionUUID(TestCase):
 
         self.config = MockConfig()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary files."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_invoke_signature_accepts_session_uuid(self):
+    def test_invoke_signature_accepts_session_uuid(self) -> None:
         """Test that invoke() accepts session_uuid parameter."""
         from core.drivers.gemini_driver_v7 import GeminiDriverV7
 
@@ -66,7 +66,7 @@ class TestGeminiDriverSessionUUID(TestCase):
 
         assert "session_uuid" in params, "invoke() should accept session_uuid parameter"
 
-    def test_invoke_subprocess_signature_accepts_session_uuid(self):
+    def test_invoke_subprocess_signature_accepts_session_uuid(self) -> None:
         """Test that _invoke_subprocess() accepts session_uuid parameter."""
         from core.drivers.gemini_driver_v7 import GeminiDriverV7
 
@@ -82,7 +82,7 @@ class TestGeminiDriverSessionUUID(TestCase):
         assert "session_uuid" in params, "_invoke_subprocess() should accept session_uuid parameter"
 
     @patch('subprocess.Popen')
-    def test_command_includes_session_uuid_when_provided(self, mock_popen):
+    def test_command_includes_session_uuid_when_provided(self, mock_popen) -> None:
         """Test that command uses session_uuid in the context file name."""
         from core.drivers.gemini_driver_v7 import GeminiDriverV7
 

@@ -43,16 +43,17 @@ Code-first plan built from:
 Docs are treated as secondary. Code and tests are the source of truth.
 
 ## Current Meta GraphRAG Index Status
-- nodes: 27831
-- edges: 29033
-- chunks: 22580
-- vector_entries: 22580
+- nodes: 31252
+- edges: 32060
+- chunks: 25318
+- vector_entries: 25318
 - embedding_backend: gemini-embedding-001 (dim 3072)
-- graph_db: nodes 27831 / edges 29033 (sqlite)
+- graph_db: nodes 31252 / edges 32060 (sqlite)
 - manifest_coverage: 1498 files indexed (excludes .git/meta_rag via META_RAG_EXCLUDE)
 - scan_files: 1521 files detected by scanner (os.walk w/ META_RAG_EXCLUDE=.git,meta_rag)
 - rg_files: 845 (gitignore-respecting view)
-- status_source: python -m tools.meta_graph_rag.cli status
+- status_source: MCP snapshot (nexus_meta_graphrag_status)
+- manifest_generated_at: 2026-01-25T16:33:20.509683+00:00
 - last_full_index: 2026-01-24 (gemini-embedding-001; counts above)
 - reindex_in_progress: 2026-01-25 (Gemini embeddings + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag)
 - progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
@@ -74,6 +75,26 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Set MCP timeouts in `.env` (MCP_TIMEOUT=120, MCP_INIT_TIMEOUT=60) to stabilize Meta GraphRAG MCP queries.
 - Phase2A type_error fast-path added (missing return hint inference + no-op handling when already annotated).
 - Phase2A micro-batches: 102-121 executed successfully via fast-path; lingering failures now only from earlier runs (retry as needed).
+- Phase2A micro-batches: 122-136 completed successfully via fast-path.
+- Cleared previous failures for P2A-098..100, P2A-113..116 by re-running manual stories after fast-path fix.
+- `python nexus7.py --verify` successful (Gemini version check timeout persists; defaults to gemini-3-pro-preview).
+- Type-error fast-path now treats "no match" as no-op when file has no missing return hints (fixes stale-story mismatch for test_fsm_transitions).
+- NCM executor now records manual success/failures into execution_state, clears failed stories on re-run, and preserves max last_completed_idx to avoid resume regression.
+- Re-ran P2A-174 successfully (tests/test_fsm_transitions.py no-op); failures now 0.
+- Phase2A batches: 177-196 completed successfully (20 stories, success=171, failed=0, last_completed=P2A-196).
+- Added missing_doc fast-path (SimpleExecutor inserts docstrings for all missing defs in file; skips missing targets).
+- Added dead_code guard: default skip with log `workspace/ncm/skipped_stories.jsonl` to avoid unsafe deletions; manual review required.
+- Resolved batch hang at P2A-345 by routing missing_doc to fast-path and skipping dead_code.
+- Phase2A queue now fully processed (315/315 stories, failed=0); missing targets skipped, dead_code logged for manual review.
+- `python nexus7.py --verify` succeeded after Phase2A completion (Gemini version detection still times out; defaults to gemini-3-pro-preview).
+- pytest `tests/ -v` rerun: 2490 passed, 12 skipped (0 failures).
+- Dead_code manual review (Meta GraphRAG + rg):
+  - All test classes/functions flagged as dead are pytest-discovered (retain).
+  - `core/synapse/protocol_v7.py` ThoughtChain/PostActionReview are protocol types (retain).
+  - `core/telemetry/metrics.py` get_telemetry is a public helper (retain).
+  - `core/utils/atomic_store.py` reset_store_manager is a test helper (retain).
+  - scripts/* classes/functions are used inside their own entrypoints (retain).
+  - Action: update dead_code scanner to ignore pytest patterns or skip tests by default to reduce false positives.
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`
@@ -169,6 +190,12 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - tools/meta_graph_rag/indexer.py
 - Always skip config.data_path (workspace/meta_rag) even if META_RAG_EXCLUDE is overridden.
 - Impact: prevents recursive indexing of Meta GraphRAG output.
+
+12) Incremental index policy (pending)
+- Indexer already skips unchanged files via manifest hash when `--full` is not used.
+- Document best practice: `python -m tools.meta_graph_rag.cli index` (no `--full`) for incremental updates.
+- Add git-diff based fast path (index only changed files since HEAD) to avoid unnecessary embedding churn.
+- Add chunk-level embedding cache to prevent re-embedding unchanged chunks when chunking params are unchanged.
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
@@ -375,10 +402,11 @@ Goal: reduce latency and improve maintainability.
 - Impact: monitoring dashboards.
 
 5) Repo hygiene for analysis artifacts (pending)
-- Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/`.
-- Move transient pilot input/output files to `workspace/` or `logs/`.
+- Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/analysis/`.
+- Move transient pilot input/output files to `workspace/` or `logs/`; tighten `.gitignore` for workspace artifacts.
+- Normalize script headers to current NEXUS version and ownership.
 - Candidates: `docs/bugs/claude_cli/*`, `scripts/debug/claude_cli/*`, `docs/analysis/lean_formalization_review.md`.
-- Impact: cleaner root and fewer accidental commits.
+- Impact: cleaner root, lower merge noise, easier navigation.
 
 6) Fast-path orchestration for trivial tasks (pending)
 - Add lightweight execution path to bypass 7-phase HiveMind when complexity is low.

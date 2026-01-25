@@ -25,30 +25,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.session import SessionWorkspaceManager, get_workspace_manager, reset_workspace_manager
 from core.session.home_isolator import HomeIsolator
+from typing import Any
 
 
 class TestHomeIsolator:
     """Tests for HomeIsolator - V9.7.1 HOME Spoofing."""
 
     @pytest.fixture
-    def workspace(self, tmp_path):
+    def workspace(self, tmp_path) -> Any:
         """Create a temporary workspace directory."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
         return workspace
 
     @pytest.fixture
-    def isolator(self, workspace):
+    def isolator(self, workspace) -> Any:
         """Create a HomeIsolator instance."""
         return HomeIsolator(workspace)
 
-    def test_init_creates_homes_dir(self, workspace):
+    def test_init_creates_homes_dir(self, workspace) -> None:
         """__init__ should create .session_homes directory."""
         isolator = HomeIsolator(workspace)
         assert (workspace / ".session_homes").exists()
         assert (workspace / ".session_homes").is_dir()
 
-    def test_get_isolated_env_returns_dict(self, isolator):
+    def test_get_isolated_env_returns_dict(self, isolator) -> None:
         """get_isolated_env should return environment dict."""
         env = isolator.get_isolated_env("task_001_lead")
 
@@ -56,7 +57,7 @@ class TestHomeIsolator:
         # Should have PATH from original environment
         assert "PATH" in env
 
-    def test_get_isolated_env_has_isolated_home_linux(self, isolator, workspace):
+    def test_get_isolated_env_has_isolated_home_linux(self, isolator, workspace) -> None:
         """get_isolated_env should set HOME on Linux/macOS."""
         env = isolator.get_isolated_env("task_001_lead")
 

@@ -116,7 +116,7 @@ class TortureProtocolV8(TortureBase):
 
         return self.metrics
 
-    def generate_report(self):
+    def generate_report(self) -> None:
         """Generate comprehensive torture report."""
         if not self.end_time:
             self.end_time = time.time()
@@ -184,7 +184,7 @@ class TortureProtocolV8(TortureBase):
 # Pytest Integration
 # ============================================================================
 
-def pytest_configure(config):
+def pytest_configure(config) -> None:
     """Register custom markers."""
     config.addinivalue_line("markers", "torture: mark as torture protocol test")
     config.addinivalue_line("markers", "torture_saga: mark as saga-specific torture test")
@@ -204,7 +204,7 @@ from tests.torture.scenarios.hive_integration import *
 # Standalone Execution
 # ============================================================================
 
-def main():
+def main() -> None:
     """Main entry point for standalone execution."""
     parser = argparse.ArgumentParser(
         description="NEXUS Torture Protocol V8 - Stress Testing Suite"

@@ -35,26 +35,26 @@ from core.async_primitives.rwlock import AsyncRWLockWithTimeout
 class TestCancellationToken:
     """Tests for CancellationToken."""
 
-    def test_initial_state_not_cancelled(self):
+    def test_initial_state_not_cancelled(self) -> None:
         """Token should start as not cancelled."""
         token = CancellationToken()
         assert not token.is_cancelled
         assert token.cancel_reason is None
 
-    def test_cancel_sets_state(self):
+    def test_cancel_sets_state(self) -> None:
         """Cancelling should set is_cancelled to True."""
         token = CancellationToken()
         token.cancel()
         assert token.is_cancelled
 
-    def test_cancel_with_reason(self):
+    def test_cancel_with_reason(self) -> None:
         """Cancel reason should be stored."""
         token = CancellationToken()
         token.cancel(reason="User requested")
         assert token.is_cancelled
         assert token.cancel_reason == "User requested"
 
-    def test_cancel_propagates_to_children(self):
+    def test_cancel_propagates_to_children(self) -> None:
         """Parent cancellation should propagate to all children."""
         parent = CancellationToken()
         child1 = parent.create_child()
@@ -73,7 +73,7 @@ class TestCancellationToken:
         assert child2.is_cancelled
         assert grandchild.is_cancelled
 
-    def test_child_inherits_parent_cancellation(self):
+    def test_child_inherits_parent_cancellation(self) -> None:
         """Child should report cancelled if parent is cancelled."""
         parent = CancellationToken()
         child = parent.create_child()

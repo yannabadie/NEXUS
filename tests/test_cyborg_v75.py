@@ -16,13 +16,13 @@ from unittest.mock import Mock, AsyncMock
 class TestCyborgEntryPoint:
     """Tests for V9 Cyborg entry point in nexus7.py."""
 
-    def test_asyncio_import(self):
+    def test_asyncio_import(self) -> None:
         """Verify asyncio is imported in nexus7."""
         # This would fail if asyncio wasn't imported
         import nexus7
         assert hasattr(nexus7, 'asyncio') or 'asyncio' in dir(nexus7)
 
-    def test_async_main_exists(self):
+    def test_async_main_exists(self) -> None:
         """Verify async_main function exists."""
         import nexus7
         assert hasattr(nexus7, 'async_main')
@@ -32,19 +32,19 @@ class TestCyborgEntryPoint:
 class TestCyborgREPL:
     """Tests for V9 Cyborg REPL methods."""
 
-    def test_run_async_method_exists(self):
+    def test_run_async_method_exists(self) -> None:
         """Verify run_async method exists on REPL class."""
         from core.interface.repl import InteractiveNexusV7
         assert hasattr(InteractiveNexusV7, 'run_async')
         assert asyncio.iscoroutinefunction(InteractiveNexusV7.run_async)
 
-    def test_process_turn_async_helper_exists(self):
+    def test_process_turn_async_helper_exists(self) -> None:
         """Verify _process_turn_async helper exists."""
         from core.interface.repl import InteractiveNexusV7
         assert hasattr(InteractiveNexusV7, '_process_turn_async')
         assert asyncio.iscoroutinefunction(InteractiveNexusV7._process_turn_async)
 
-    def test_patch_stdout_import(self):
+    def test_patch_stdout_import(self) -> None:
         """Verify patch_stdout is imported for streaming."""
         from core.interface import repl
         assert 'patch_stdout' in dir(repl) or hasattr(repl, 'patch_stdout')

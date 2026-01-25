@@ -18,7 +18,7 @@ from unittest.mock import patch
 class TestJWTSecurity:
     """Test suite for JWT secret handling."""
 
-    def test_jwt_secret_from_env(self):
+    def test_jwt_secret_from_env(self) -> None:
         """Verify JWT_SECRET is loaded from environment."""
         # Set environment variable
         test_secret = "test-secret-12345"
@@ -30,7 +30,7 @@ class TestJWTSecurity:
 
             assert middleware.JWT_SECRET == test_secret
 
-    def test_jwt_secret_fallback_warning(self):
+    def test_jwt_secret_fallback_warning(self) -> None:
         """Verify fallback secret is used with warning when env not set."""
         # Clear the env var
         env = os.environ.copy()
@@ -45,7 +45,7 @@ class TestJWTSecurity:
             assert middleware.JWT_SECRET is not None
             assert "dev" in middleware.JWT_SECRET.lower() or "insecure" in middleware.JWT_SECRET.lower()
 
-    def test_jwt_secret_not_hardcoded(self):
+    def test_jwt_secret_not_hardcoded(self) -> None:
         """Verify no hardcoded production secrets in code."""
         import importlib
         from core.api.cerebro import middleware
@@ -61,7 +61,7 @@ class TestJWTSecurity:
 class TestCORSSecurity:
     """Test suite for CORS configuration."""
 
-    def test_cors_origins_from_env(self):
+    def test_cors_origins_from_env(self) -> None:
         """Verify CORS origins loaded from environment."""
         test_origins = "http://localhost:3000,https://example.com"
 
@@ -73,7 +73,7 @@ class TestCORSSecurity:
             assert "http://localhost:3000" in app.CORS_ORIGINS
             assert "https://example.com" in app.CORS_ORIGINS
 
-    def test_cors_default_localhost(self):
+    def test_cors_default_localhost(self) -> None:
         """Verify default CORS allows localhost."""
         env = os.environ.copy()
         env.pop("NEXUS_CORS_ORIGINS", None)

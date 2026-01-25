@@ -21,6 +21,7 @@ from core.swarm.mode_selector import ModeSelector
 from core.swarm.collaboration_modes import CollaborationMode
 from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 from core.swarm.agent_metrics import AgentProfile
+from typing import Any
 
 
 # ============================================================================
@@ -29,7 +30,7 @@ from core.swarm.agent_metrics import AgentProfile
 
 
 @pytest.fixture
-def mock_auto_memory():
+def mock_auto_memory() -> Any:
     """Create a mock AutoMemory with controllable get_recommendation()."""
     mock = Mock()
     mock.get_recommendation = Mock(return_value=None)
@@ -37,7 +38,7 @@ def mock_auto_memory():
 
 
 @pytest.fixture
-def mock_task_analysis():
+def mock_task_analysis() -> Any:
     """Create a mock TaskAnalysis for testing."""
     analysis = Mock(spec=TaskAnalysis)
     analysis.complexity = TaskComplexity.MODERATE
@@ -53,7 +54,7 @@ def mock_task_analysis():
 
 
 @pytest.fixture
-def mock_agents():
+def mock_agents() -> list:
     """Create mock agent profiles for testing."""
     gemini = AgentProfile(
         agent_id="gemini_primary",
@@ -78,7 +79,7 @@ def mock_agents():
 class TestHighConfidenceModeBoost:
     """Test AutoMemory mode boost with very high confidence (>= 0.8)."""
 
-    def test_mode_boost_085_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
+    def test_mode_boost_085_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents) -> None:
         """
         Scenario 1: AutoMemory suggests LEAD_SUPPORT with confidence 0.85.
         Expected: +0.30 boost to LEAD_SUPPORT mode score.
@@ -113,7 +114,7 @@ class TestHighConfidenceModeBoost:
         # Check boost was applied (original_score < new_score)
         assert selector._last_unified_recommendation["new_score"] is not None
 
-    def test_mode_boost_exactly_080_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
+    def test_mode_boost_exactly_080_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents) -> None:
         """
         Boundary test: Confidence exactly 0.80 should get boost.
         V11.2: Uses unified MemoryCoordinator path.

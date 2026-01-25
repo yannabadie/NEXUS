@@ -21,7 +21,7 @@ from datetime import date
 class TestCommandCategories:
     """Test categorized command structure."""
 
-    def test_command_categories_exist(self):
+    def test_command_categories_exist(self) -> None:
         """Verify COMMAND_CATEGORIES structure."""
         from core.interface.commands import COMMAND_CATEGORIES
 
@@ -41,7 +41,7 @@ class TestCommandCategories:
             found = any(expected in cat for cat in COMMAND_CATEGORIES.keys())
             assert found, f"Category '{expected}' not found"
 
-    def test_budget_commands_in_monitoring(self):
+    def test_budget_commands_in_monitoring(self) -> None:
         """Verify /budget commands are in Monitoring category."""
         from core.interface.commands import COMMAND_CATEGORIES
 
@@ -52,7 +52,7 @@ class TestCommandCategories:
         assert "/budget add <amount>" in monitoring
         assert "/budget history" in monitoring
 
-    def test_tutorial_commands_in_system(self):
+    def test_tutorial_commands_in_system(self) -> None:
         """Verify tutorial commands are in System category."""
         from core.interface.commands import COMMAND_CATEGORIES
 
@@ -62,7 +62,7 @@ class TestCommandCategories:
         assert "/quickstart" in system
         assert "/chat" in system
 
-    def test_slash_commands_backwards_compat(self):
+    def test_slash_commands_backwards_compat(self) -> None:
         """Verify flat SLASH_COMMANDS is populated."""
         from core.interface.commands import SLASH_COMMANDS, COMMAND_CATEGORIES
 
@@ -70,7 +70,7 @@ class TestCommandCategories:
         total_commands = sum(len(cmds) for cmds in COMMAND_CATEGORIES.values())
         assert len(SLASH_COMMANDS) == total_commands
 
-    def test_get_help_message_formatted(self):
+    def test_get_help_message_formatted(self) -> None:
         """Verify help message is well-formatted."""
         from core.interface.commands import get_help_message
 

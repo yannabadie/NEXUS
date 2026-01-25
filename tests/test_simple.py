@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_imports():
+def test_imports() -> None:
     """Test that all modules can be imported"""
     from core.config import load_config
     from core.meta.cli_inspector import CLIInspector
@@ -23,7 +23,7 @@ def test_imports():
     assert True  # If we got here, imports worked
 
 
-def test_config():
+def test_config() -> None:
     """Test config loads"""
     from core.config import load_config
 
@@ -33,7 +33,7 @@ def test_config():
     assert config.max_stalemate_count > 0
 
 
-def test_stagnation_detector():
+def test_stagnation_detector() -> None:
     """Test stagnation detection"""
     from core.fsm.stagnation_detector import StagnationDetector
 
@@ -48,7 +48,7 @@ def test_stagnation_detector():
     assert detector.is_stagnant()
 
 
-def test_claude_parser():
+def test_claude_parser() -> None:
     """Test Claude hybrid parser"""
     from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
     from pathlib import Path

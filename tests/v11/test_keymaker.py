@@ -18,7 +18,7 @@ from unittest.mock import patch
 class TestAuthEndpoints:
     """Tests for authentication endpoints."""
 
-    def test_login_success(self):
+    def test_login_success(self) -> None:
         """Valid password should return JWT token."""
         try:
             from fastapi.testclient import TestClient
@@ -52,7 +52,7 @@ class TestAuthEndpoints:
             assert data["user_id"] == "admin"
             assert data["tenant_id"] == "default"
 
-    def test_login_invalid_password(self):
+    def test_login_invalid_password(self) -> None:
         """Invalid password should return 401."""
         try:
             from fastapi.testclient import TestClient
@@ -74,7 +74,7 @@ class TestAuthEndpoints:
         assert response.status_code == 401
         assert "Invalid credentials" in response.json()["detail"]
 
-    def test_me_without_auth(self):
+    def test_me_without_auth(self) -> None:
         """GET /me without auth should return 401."""
         try:
             from fastapi.testclient import TestClient
@@ -92,7 +92,7 @@ class TestAuthEndpoints:
 
         assert response.status_code == 401
 
-    def test_logout_returns_success(self):
+    def test_logout_returns_success(self) -> None:
         """POST /logout should return success."""
         try:
             from fastapi.testclient import TestClient
@@ -115,7 +115,7 @@ class TestAuthEndpoints:
 class TestAuthDependencies:
     """Tests for authentication dependencies."""
 
-    def test_require_auth_no_header(self):
+    def test_require_auth_no_header(self) -> None:
         """require_auth should raise 401 without Authorization header."""
         import asyncio
         from core.api.cerebro.deps import require_auth

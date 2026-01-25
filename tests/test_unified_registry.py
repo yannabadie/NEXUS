@@ -21,7 +21,7 @@ from core.agents.unified_registry import (
 class TestAgentDescriptor:
     """Test AgentDescriptor dataclass"""
 
-    def test_create_builtin_agent(self):
+    def test_create_builtin_agent(self) -> None:
         """Should create a builtin agent descriptor"""
         agent = AgentDescriptor(
             id="gemini",
@@ -34,7 +34,7 @@ class TestAgentDescriptor:
         assert agent.is_builtin is True
         assert agent.is_available is True
 
-    def test_create_spawned_agent(self):
+    def test_create_spawned_agent(self) -> None:
         """Should create a spawned agent descriptor"""
         agent = AgentDescriptor(
             id="security_expert",
@@ -46,7 +46,7 @@ class TestAgentDescriptor:
         assert agent.is_builtin is False
         assert agent.config_path is not None
 
-    def test_dylan_scores_default_empty(self):
+    def test_dylan_scores_default_empty(self) -> None:
         """DyLAN scores should default to empty dict"""
         agent = AgentDescriptor(
             id="test",
@@ -59,7 +59,7 @@ class TestAgentDescriptor:
 class TestUnifiedAgentRegistry:
     """Test UnifiedAgentRegistry class"""
 
-    def test_builtins_pre_registered(self):
+    def test_builtins_pre_registered(self) -> None:
         """Gemini and Claude should be pre-registered"""
         registry = UnifiedAgentRegistry()
 
@@ -74,7 +74,7 @@ class TestUnifiedAgentRegistry:
         assert claude.id == "claude"
         assert claude.provider == AgentProvider.CLAUDE
 
-    def test_case_insensitive_lookup(self):
+    def test_case_insensitive_lookup(self) -> None:
         """Should handle case variations via aliases"""
         registry = UnifiedAgentRegistry()
 

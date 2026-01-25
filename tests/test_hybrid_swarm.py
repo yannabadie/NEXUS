@@ -68,7 +68,7 @@ from core.swarm.agent_metrics import AgentPool, AgentProfile
 class TestCollaborationModes:
     """Test CollaborationMode enum and characteristics"""
 
-    def test_all_six_modes_exist(self):
+    def test_all_six_modes_exist(self) -> None:
         """Verify all 6 collaboration modes exist"""
         modes = list(CollaborationMode)
         assert len(modes) == 6
@@ -79,26 +79,26 @@ class TestCollaborationModes:
         assert CollaborationMode.SPECIALIST in modes
         assert CollaborationMode.RED_BLUE in modes
 
-    def test_mode_from_string(self):
+    def test_mode_from_string(self) -> None:
         """Test mode parsing from string"""
         assert CollaborationMode.from_string("parallel") == CollaborationMode.PARALLEL
         assert CollaborationMode.from_string("LEAD_SUPPORT") == CollaborationMode.LEAD_SUPPORT
         assert CollaborationMode.from_string("red-blue") == CollaborationMode.RED_BLUE
 
-    def test_mode_characteristics_exist(self):
+    def test_mode_characteristics_exist(self) -> None:
         """Each mode should have characteristics defined"""
         for mode in CollaborationMode:
             char = get_mode_characteristics(mode)
             assert isinstance(char, ModeCharacteristics)
             assert char.mode == mode
 
-    def test_adversarial_mode_detection(self):
+    def test_adversarial_mode_detection(self) -> None:
         """Only RED_BLUE should be adversarial"""
         adversarial = get_adversarial_modes()
         assert len(adversarial) == 1
         assert CollaborationMode.RED_BLUE in adversarial
 
-    def test_parallel_mode_detection(self):
+    def test_parallel_mode_detection(self) -> None:
         """PARALLEL should have high parallelism benefit"""
         parallel_modes = get_parallel_modes()
         assert CollaborationMode.PARALLEL in parallel_modes

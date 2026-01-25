@@ -35,12 +35,13 @@ from core.hive_mind.saga_manager import (
     PHASE_ORDER,
     PHASE_GUARDS,
 )
+from typing import Any
 
 
 class TestPhaseCheckpoint(TestCase):
     """Tests for PhaseCheckpoint dataclass."""
 
-    def test_to_dict_serialization(self):
+    def test_to_dict_serialization(self) -> None:
         """Test that to_dict() produces valid JSON-serializable dict."""
         checkpoint = PhaseCheckpoint(
             phase="analysis",
@@ -60,7 +61,7 @@ class TestPhaseCheckpoint(TestCase):
         assert data["context_index"] == 5
         assert data["compensation_name"] == "compensate_analysis"
 
-    def test_from_dict_deserialization(self):
+    def test_from_dict_deserialization(self) -> None:
         """Test that from_dict() reconstructs checkpoint correctly."""
         data = {
             "phase": "debate",
@@ -469,7 +470,7 @@ class TestSagaManagerPersistence(TestCase):
 # =============================================================================
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create temporary saga directory."""
     sagas_dir = tmp_path / "sagas"
     sagas_dir.mkdir()
@@ -477,7 +478,7 @@ def saga_dir(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_context_index_preserved(saga_dir):
+async def test_checkpoint_context_index_preserved(saga_dir) -> None:
     """Test that context_index is preserved through checkpoint cycle."""
     saga = SagaManager(saga_dir, "ctx-test", auto_persist=True)
 
@@ -496,7 +497,7 @@ async def test_checkpoint_context_index_preserved(saga_dir):
 
 
 @pytest.mark.asyncio
-async def test_full_pipeline_checkpoint_cycle(saga_dir):
+async def test_full_pipeline_checkpoint_cycle(saga_dir) -> None:
     """Test checkpointing through full 7-phase pipeline."""
     saga = SagaManager(saga_dir, "full-pipeline", auto_persist=False)
 

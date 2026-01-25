@@ -44,23 +44,23 @@ from core.swarm.mode_selector import AgentAssignment
 class TestFallbackModeProperty(TestCase):
     """Tests for CollaborationMode.fallback_mode property."""
 
-    def test_parallel_falls_back_to_sequential(self):
+    def test_parallel_falls_back_to_sequential(self) -> None:
         """PARALLEL should fall back to SEQUENTIAL."""
         assert CollaborationMode.PARALLEL.fallback_mode == CollaborationMode.SEQUENTIAL
 
-    def test_red_blue_falls_back_to_lead_support(self):
+    def test_red_blue_falls_back_to_lead_support(self) -> None:
         """RED_BLUE should fall back to LEAD_SUPPORT."""
         assert CollaborationMode.RED_BLUE.fallback_mode == CollaborationMode.LEAD_SUPPORT
 
-    def test_lead_support_falls_back_to_specialist(self):
+    def test_lead_support_falls_back_to_specialist(self) -> None:
         """LEAD_SUPPORT should fall back to SPECIALIST."""
         assert CollaborationMode.LEAD_SUPPORT.fallback_mode == CollaborationMode.SPECIALIST
 
-    def test_ping_pong_falls_back_to_sequential(self):
+    def test_ping_pong_falls_back_to_sequential(self) -> None:
         """PING_PONG should fall back to SEQUENTIAL."""
         assert CollaborationMode.PING_PONG.fallback_mode == CollaborationMode.SEQUENTIAL
 
-    def test_sequential_falls_back_to_specialist(self):
+    def test_sequential_falls_back_to_specialist(self) -> None:
         """SEQUENTIAL should fall back to SPECIALIST."""
         assert CollaborationMode.SEQUENTIAL.fallback_mode == CollaborationMode.SPECIALIST
 

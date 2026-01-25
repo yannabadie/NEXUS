@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 import sys
 import os
+from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -23,7 +24,7 @@ from core.security.mutation_validator import MutationValidator
 # ============================================================================
 
 @pytest.fixture
-def temp_structure():
+def temp_structure() -> None:
     """Create a temporary directory structure mimicking NEXUS."""
     base = Path(tempfile.mkdtemp())
 
@@ -69,7 +70,7 @@ def temp_structure():
 
 
 @pytest.fixture
-def path_guardian(temp_structure):
+def path_guardian(temp_structure) -> Any:
     """Create PathGuardian with temp structure."""
     return PathGuardian(
         workspace_path=temp_structure["workspace"],
@@ -79,7 +80,7 @@ def path_guardian(temp_structure):
 
 
 @pytest.fixture
-def mutation_validator(temp_structure):
+def mutation_validator(temp_structure) -> Any:
     """Create MutationValidator with temp workspace."""
     return MutationValidator(workspace_path=temp_structure["workspace"])
 
@@ -91,7 +92,7 @@ def mutation_validator(temp_structure):
 class TestPathGuardianInit:
     """Test PathGuardian initialization."""
 
-    def test_init_resolves_paths(self, temp_structure):
+    def test_init_resolves_paths(self, temp_structure) -> None:
         """Should resolve paths to absolute."""
         guardian = PathGuardian(
             workspace_path=temp_structure["workspace"],
@@ -103,7 +104,7 @@ class TestPathGuardianInit:
         assert guardian.parent.is_absolute()
         assert guardian.generation_active.is_absolute()
 
-    def test_init_without_generation_active(self, temp_structure):
+    def test_init_without_generation_active(self, temp_structure) -> None:
         """Should work without generation_active."""
         guardian = PathGuardian(
             workspace_path=temp_structure["workspace"],
@@ -502,6 +503,7 @@ with open("../core/orchestration_v7.py", "w") as f:
         """Should detect mutation using subprocess."""
         code = '''
 import subprocess
+from typing import Any
 subprocess.run(["rm", "-rf", "../"])
 '''
         warnings, info = mutation_validator.validate(code, "mutation.py")

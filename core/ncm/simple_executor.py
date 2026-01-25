@@ -275,6 +275,123 @@ class SimpleExecutor:
             })
             return False, str(e)
 
+    async def execute_missing_docstrings(
+        self,
+        file_path: Path
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Add missing docstrings for all functions/classes in a file.
+
+        Args:
+            file_path: File to modify.
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+        """
+        self.logger.info("simple_executor_missing_docstrings_start", {
+            "file": str(file_path)
+        })
+
+        try:
+            if not file_path.exists():
+                return False, f"File not found: {file_path}"
+
+            content = file_path.read_text(encoding="utf-8")
+            tree = ast.parse(content, filename=str(file_path))
+            lines = content.splitlines()
+            insertions: List[Tuple[int, List[str]]] = []
+
+            def has_return_value(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Return) and child.value is not None:
+                        return True
+                return False
+
+            def has_raise(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+                return any(isinstance(child, ast.Raise) for child in ast.walk(node))
+
+            def build_function_docstring(
+                node: ast.FunctionDef | ast.AsyncFunctionDef,
+                indent: str
+            ) -> List[str]:
+                args = []
+                for arg in node.args.posonlyargs + node.args.args + node.args.kwonlyargs:
+                    if arg.arg in ("self", "cls"):
+                        continue
+                    args.append(arg.arg)
+                if node.args.vararg:
+                    args.append(node.args.vararg.arg)
+                if node.args.kwarg:
+                    args.append(node.args.kwarg.arg)
+
+                doc_lines = [f'{indent}"""TODO: Add description for {node.name}.']
+
+                sections: List[List[str]] = []
+                if args:
+                    sections.append(
+                        [f"{indent}Args:"] +
+                        [f"{indent}    {arg}: Description." for arg in args]
+                    )
+                if has_return_value(node):
+                    sections.append([f"{indent}Returns:", f"{indent}    Description."])
+                if has_raise(node):
+                    sections.append([f"{indent}Raises:", f"{indent}    Exception: Description."])
+
+                if sections:
+                    doc_lines.append(f"{indent}")
+                    for section in sections:
+                        doc_lines.extend(section)
+                        doc_lines.append(f"{indent}")
+
+                doc_lines.append(f'{indent}"""')
+                return doc_lines
+
+            def build_class_docstring(indent: str) -> List[str]:
+                return [
+                    f'{indent}"""TODO: Add class description."""'
+                ]
+
+            def collect_missing(nodes: List[ast.stmt]) -> None:
+                for node in nodes:
+                    if isinstance(node, ast.ClassDef):
+                        if ast.get_docstring(node) is None and node.body:
+                            insert_at = node.body[0].lineno - 1
+                            indent = " " * node.body[0].col_offset
+                            insertions.append((insert_at, build_class_docstring(indent)))
+                        collect_missing(node.body)
+                    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        if ast.get_docstring(node) is None and node.body:
+                            insert_at = node.body[0].lineno - 1
+                            indent = " " * node.body[0].col_offset
+                            insertions.append(
+                                (insert_at, build_function_docstring(node, indent))
+                            )
+
+            collect_missing(tree.body)
+
+            if not insertions:
+                return True, "No-op: all docstrings already present"
+
+            for insert_at, doc_lines in sorted(insertions, key=lambda item: item[0], reverse=True):
+                lines[insert_at:insert_at] = doc_lines
+
+            new_content = "\n".join(lines)
+            ast.parse(new_content, filename=str(file_path))
+            file_path.write_text(new_content, encoding="utf-8")
+
+            self.logger.info("simple_executor_missing_docstrings_success", {
+                "file": str(file_path),
+                "added": len(insertions)
+            })
+            return True, None
+
+        except Exception as e:
+            self.logger.error("simple_executor_missing_docstrings_failed", {
+                "file": str(file_path),
+                "error": str(e)
+            })
+            return False, str(e)
+
     async def execute_type_hint_addition(
         self,
         file_path: Path,
@@ -392,6 +509,7 @@ class SimpleExecutor:
             updates: List[Tuple[int, str]] = []
             matched = 0
             already_annotated = 0
+            missing_in_file: list[tuple[Optional[str], str]] = []
 
             target_map = {(cls, name) for cls, name in targets}
             target_names = {name for _, name in targets}
@@ -447,6 +565,17 @@ class SimpleExecutor:
                     return f"Optional[{inferred}]"
                 return inferred
 
+            def find_signature_line(def_node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+                start = def_node.lineno - 1
+                if def_node.body:
+                    end = max(start, def_node.body[0].lineno - 2)
+                else:
+                    end = start
+                for idx in range(end, start - 1, -1):
+                    if lines[idx].strip().endswith(":"):
+                        return idx
+                return start
+
             for node in tree.body:
                 if isinstance(node, ast.ClassDef):
                     class_name = node.name
@@ -454,6 +583,8 @@ class SimpleExecutor:
                         if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                             continue
                         fn_name = child.name
+                        if child.returns is None:
+                            missing_in_file.append((class_name, fn_name))
                         if (class_name, fn_name) not in target_map:
                             continue
                         matched += 1
@@ -465,10 +596,7 @@ class SimpleExecutor:
                             needed_typing.add("Any")
                         if return_type.startswith("Optional"):
                             needed_typing.add("Optional")
-                        if child.body and child.body[0].lineno > child.lineno:
-                            sig_end = child.body[0].lineno - 2
-                        else:
-                            sig_end = child.lineno - 1
+                        sig_end = find_signature_line(child)
                         line = lines[sig_end]
                         if "->" in line:
                             continue
@@ -477,6 +605,8 @@ class SimpleExecutor:
                         before, after = line.rsplit(":", 1)
                         updates.append((sig_end, f"{before} -> {return_type}:{after}"))
                 elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.returns is None:
+                        missing_in_file.append((None, node.name))
                     if (None, node.name) not in target_map:
                         continue
                     matched += 1
@@ -488,10 +618,7 @@ class SimpleExecutor:
                         needed_typing.add("Any")
                     if return_type.startswith("Optional"):
                         needed_typing.add("Optional")
-                    if node.body and node.body[0].lineno > node.lineno:
-                        sig_end = node.body[0].lineno - 2
-                    else:
-                        sig_end = node.lineno - 1
+                    sig_end = find_signature_line(node)
                     line = lines[sig_end]
                     if "->" in line:
                         continue
@@ -504,7 +631,16 @@ class SimpleExecutor:
                 if matched > 0 and matched == already_annotated:
                     return True, "No-op: return hints already present"
                 if matched == 0:
-                    return False, "No matching functions found for return hints"
+                    if not missing_in_file:
+                        return True, "No-op: no missing return hints detected"
+                    sample = ", ".join(
+                        f"{cls + '.' if cls else ''}{name}"
+                        for cls, name in missing_in_file[:5]
+                    )
+                    return False, (
+                        "No matching functions found for return hints "
+                        f"(missing hints detected: {sample})"
+                    )
                 return False, "No return hints applied"
 
             for idx, updated in sorted(updates, key=lambda item: item[0]):
@@ -559,9 +695,20 @@ class SimpleExecutor:
                     if line.startswith('"""'):
                         insert_at = idx + 1
                         break
-            for idx, line in enumerate(lines):
-                if line.startswith("import ") or line.startswith("from "):
+            idx = 0
+            while idx < len(lines):
+                line = lines[idx]
+                if line.startswith("from ") and line.rstrip().endswith("("):
+                    end_idx = idx + 1
+                    while end_idx < len(lines):
+                        if lines[end_idx].strip() == ")":
+                            insert_at = end_idx + 1
+                            break
+                        end_idx += 1
+                    idx = end_idx
+                elif line.startswith("import ") or line.startswith("from "):
                     insert_at = idx + 1
+                idx += 1
             lines.insert(insert_at, f"from typing import {', '.join(sorted(needed))}")
 
         return "\n".join(lines)

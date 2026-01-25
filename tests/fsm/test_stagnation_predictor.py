@@ -25,6 +25,7 @@ from core.fsm.stagnation_predictor import (
     PredictionResult,
     MessageMetrics,
 )
+from typing import Any
 
 
 # =============================================================================
@@ -32,13 +33,13 @@ from core.fsm.stagnation_predictor import (
 # =============================================================================
 
 @pytest.fixture
-def predictor():
+def predictor() -> Any:
     """Create a fresh StagnationPredictor instance."""
     return StagnationPredictor()
 
 
 @pytest.fixture
-def stagnation_samples():
+def stagnation_samples() -> Any:
     """Load stagnation test samples from fixtures."""
     fixtures_path = Path(__file__).parent.parent / "fixtures" / "stagnation_samples.json"
     with open(fixtures_path, "r", encoding="utf-8") as f:
@@ -52,7 +53,7 @@ def stagnation_samples():
 class TestLeadingIndicators:
     """Tests for hesitation/indecision pattern detection."""
 
-    def test_indicator_detection_english(self, predictor):
+    def test_indicator_detection_english(self, predictor) -> None:
         """Test English leading indicator detection."""
         predictor.add_message("Let me think about this approach.")
         predictor.add_message("Maybe we should consider alternatives.")
@@ -64,7 +65,7 @@ class TestLeadingIndicators:
         # With these indicators, should trigger some warning
         assert result.probability > 0.05
 
-    def test_indicator_detection_french(self, predictor):
+    def test_indicator_detection_french(self, predictor) -> None:
         """Test French leading indicator detection."""
         predictor.add_message("Réfléchissons à cette approche.")
         predictor.add_message("On pourrait peut-être essayer autrement.")
@@ -75,7 +76,7 @@ class TestLeadingIndicators:
         assert result.factors.get("leading_indicators", 0) > 0.2
         assert result.level != PredictionLevel.CONTINUE
 
-    def test_no_indicators_returns_low_score(self, predictor):
+    def test_no_indicators_returns_low_score(self, predictor) -> None:
         """Test that messages without indicators return low indicator score."""
         predictor.add_message("I'll read the file now.")
         predictor.add_message("Found the issue on line 42.")

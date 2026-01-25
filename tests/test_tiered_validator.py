@@ -24,20 +24,20 @@ from core.evolution.tiered_validator import (
 class TestValidationTier:
     """Test ValidationTier enum"""
 
-    def test_tier_values(self):
+    def test_tier_values(self) -> None:
         """Test tier numeric values"""
         assert ValidationTier.SYNTAX == 1
         assert ValidationTier.SMOKE == 2
         assert ValidationTier.BENCHMARK == 3
         assert ValidationTier.REDTEAM == 4
 
-    def test_tier_ordering(self):
+    def test_tier_ordering(self) -> None:
         """Test tiers are orderable"""
         assert ValidationTier.SYNTAX < ValidationTier.SMOKE
         assert ValidationTier.SMOKE < ValidationTier.BENCHMARK
         assert ValidationTier.BENCHMARK < ValidationTier.REDTEAM
 
-    def test_tier_names(self):
+    def test_tier_names(self) -> None:
         """Test tier names"""
         assert ValidationTier.SYNTAX.name == "SYNTAX"
         assert ValidationTier.SMOKE.name == "SMOKE"
@@ -48,7 +48,7 @@ class TestValidationTier:
 class TestTierResult:
     """Test TierResult dataclass"""
 
-    def test_create_passed_result(self):
+    def test_create_passed_result(self) -> None:
         """Test creating a passed tier result"""
         result = TierResult(
             tier=ValidationTier.SYNTAX,
@@ -62,7 +62,7 @@ class TestTierResult:
         assert result.message == "All files OK"
         assert result.duration_seconds == 0.5
 
-    def test_create_failed_result(self):
+    def test_create_failed_result(self) -> None:
         """Test creating a failed tier result"""
         result = TierResult(
             tier=ValidationTier.SMOKE,

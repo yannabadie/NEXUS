@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock
 class TestCerebroEventTypes:
     """Test CerebroEvent and CerebroEventType."""
 
-    def test_event_type_values(self):
+    def test_event_type_values(self) -> None:
         """CerebroEventType has expected string values."""
         from core.events.types import CerebroEventType
 
@@ -37,7 +37,7 @@ class TestCerebroEventTypes:
         assert CerebroEventType.AGENT_SPEAK.value == "agent.speak"
         assert CerebroEventType.SWARM_MODE_SELECTED.value == "swarm.mode_selected"
 
-    def test_event_creation(self):
+    def test_event_creation(self) -> None:
         """CerebroEvent creates with auto-generated fields."""
         from core.events.types import CerebroEvent, CerebroEventType
 
@@ -56,7 +56,7 @@ class TestCerebroEventTypes:
         assert event.event_id  # Auto-generated
         assert len(event.event_id) == 12
 
-    def test_event_to_json(self):
+    def test_event_to_json(self) -> None:
         """CerebroEvent serializes to JSON correctly."""
         from core.events.types import CerebroEvent, CerebroEventType
 
@@ -79,7 +79,7 @@ class TestCerebroEventTypes:
         assert data["timestamp"] == "2025-12-15T10:00:00Z"
         assert data["event_id"] == "abc123def456"
 
-    def test_event_from_json(self):
+    def test_event_from_json(self) -> None:
         """CerebroEvent deserializes from JSON correctly."""
         from core.events.types import CerebroEvent, CerebroEventType
 
@@ -99,7 +99,7 @@ class TestCerebroEventTypes:
         assert event.workspace_id == "project_1"
         assert event.payload["default"] is False
 
-    def test_event_channel_name(self):
+    def test_event_channel_name(self) -> None:
         """CerebroEvent.channel_name() returns correct format."""
         from core.events.types import CerebroEvent, CerebroEventType
 

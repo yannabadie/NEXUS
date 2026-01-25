@@ -11,7 +11,7 @@ Verifies:
 
 import pytest
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, List, Optional
 from enum import Enum
 
 from core.memory.success_memory import SuccessMemory, SuccessEntry
@@ -66,10 +66,10 @@ class TestTokenization:
     """Tests for internal tokenization."""
 
     @pytest.fixture
-    def memory(self, tmp_path):
+    def memory(self, tmp_path) -> Any:
         return SuccessMemory(workspace_path=tmp_path)
 
-    def test_basic_tokenization(self, memory):
+    def test_basic_tokenization(self, memory) -> None:
         """Basic tokenization removes stop words."""
         tokens = memory._tokenize("Fix the bug in auth.py")
         assert "fix" in tokens
@@ -79,20 +79,20 @@ class TestTokenization:
         assert "the" not in tokens
         assert "in" not in tokens
 
-    def test_case_insensitivity(self, memory):
+    def test_case_insensitivity(self, memory) -> None:
         """Tokenization is case-insensitive."""
         tokens1 = memory._tokenize("Fix Bug")
         tokens2 = memory._tokenize("fix bug")
         assert tokens1 == tokens2
 
-    def test_punctuation_removal(self, memory):
+    def test_punctuation_removal(self, memory) -> None:
         """Punctuation is removed."""
         tokens = memory._tokenize("Fix the bug! auth.python")
         assert "fix" in tokens
         assert "auth" in tokens
         assert "python" in tokens  # "py" would be filtered (<=2 chars)
 
-    def test_short_tokens_filtered(self, memory):
+    def test_short_tokens_filtered(self, memory) -> None:
         """Tokens <= 2 chars are filtered."""
         tokens = memory._tokenize("a an be to fix bug")
         assert "fix" in tokens

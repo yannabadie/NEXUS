@@ -36,6 +36,7 @@ from core.telemetry.budget_tracker import (
     get_budget_tracker,
     reset_budget_tracker,
 )
+from typing import Any
 
 
 # =============================================================================
@@ -51,7 +52,7 @@ class MockConfig:
 
 
 @pytest.fixture
-def temp_workspace(tmp_path):
+def temp_workspace(tmp_path) -> Any:
     """Create temporary workspace."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -61,7 +62,7 @@ def temp_workspace(tmp_path):
 
 
 @pytest.fixture
-def mock_config(temp_workspace):
+def mock_config(temp_workspace) -> Any:
     """Provide mock config with temp workspace."""
     config = MockConfig()
     config.workspace_path = temp_workspace
@@ -69,7 +70,7 @@ def mock_config(temp_workspace):
 
 
 @pytest.fixture
-def budget_tracker(temp_workspace):
+def budget_tracker(temp_workspace) -> Any:
     """Create BudgetTracker with temp workspace."""
     budget_file = temp_workspace / ".nexus" / "budget.json"
     return BudgetTracker(
@@ -86,14 +87,14 @@ def budget_tracker(temp_workspace):
 class TestPricingConstants:
     """Tests for pricing data."""
 
-    def test_claude_opus_pricing_exists(self):
+    def test_claude_opus_pricing_exists(self) -> None:
         """Test Claude Opus pricing is defined."""
         assert "claude-opus-4-5-20251101" in PRICING
         pricing = PRICING["claude-opus-4-5-20251101"]
         assert pricing["input"] == 15.00
         assert pricing["output"] == 75.00
 
-    def test_claude_sonnet_pricing_exists(self):
+    def test_claude_sonnet_pricing_exists(self) -> None:
         """Test Claude Sonnet pricing is defined."""
         assert "claude-sonnet-4-5-20250929" in PRICING
         pricing = PRICING["claude-sonnet-4-5-20250929"]

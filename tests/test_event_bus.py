@@ -6,6 +6,7 @@ Validates lightweight async pub/sub EventBus.
 
 import asyncio
 import pytest
+from unittest.mock import patch
 
 from core.async_primitives.event_bus import (
     EventBus,
@@ -17,7 +18,7 @@ from core.async_primitives.event_bus import (
 
 
 @pytest.fixture(autouse=True)
-def reset_bus():
+def reset_bus() -> None:
     """Reset global EventBus before each test."""
     reset_event_bus()
     yield
@@ -27,7 +28,7 @@ def reset_bus():
 class TestSyncEvent:
     """Test SyncEvent dataclass."""
 
-    def test_create_event(self):
+    def test_create_event(self) -> None:
         """SyncEvent should be created with required fields."""
         event = SyncEvent(
             event_type="checkpoint",
@@ -42,7 +43,7 @@ class TestSyncEvent:
         assert event.payload["phase"] == "EXECUTION"
         assert event.timestamp > 0
 
-    def test_event_with_enum_type(self):
+    def test_event_with_enum_type(self) -> None:
         """SyncEvent should accept EventType enum."""
         event = SyncEvent(
             event_type=EventType.CHECKPOINT_CREATED,
@@ -54,7 +55,7 @@ class TestSyncEvent:
         # Should be converted to string
         assert event.event_type == "checkpoint_created"
 
-    def test_event_with_correlation_id(self):
+    def test_event_with_correlation_id(self) -> None:
         """SyncEvent should support correlation_id."""
         event = SyncEvent(
             event_type="request",
@@ -70,7 +71,7 @@ class TestSyncEvent:
 class TestEventType:
     """Test EventType enum."""
 
-    def test_checkpoint_events_exist(self):
+    def test_checkpoint_events_exist(self) -> None:
         """Checkpoint events should be defined."""
         assert EventType.CHECKPOINT_CREATED
         assert EventType.CHECKPOINT_VALIDATED

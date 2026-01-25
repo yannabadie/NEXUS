@@ -19,13 +19,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.execution.tool_manager import ToolManager
 from core.synapse.protocol_v7 import ToolUse
+from typing import Any
 
 
 class TestPathTraversalSecurity:
     """Test suite for path traversal vulnerability prevention."""
 
     @pytest.fixture
-    def workspace(self, tmp_path):
+    def workspace(self, tmp_path) -> Any:
         """Create a temporary workspace directory."""
         workspace = tmp_path / "workspace"
         workspace.mkdir()
@@ -36,14 +37,14 @@ class TestPathTraversalSecurity:
         return workspace
 
     @pytest.fixture
-    def parent_env(self, tmp_path):
+    def parent_env(self, tmp_path) -> Any:
         """Create a fake .env in parent directory (attack target)."""
         env_file = tmp_path / ".env"
         env_file.write_text("SECRET_KEY=super_secret_value")
         return env_file
 
     @pytest.fixture
-    def tool_manager(self, workspace):
+    def tool_manager(self, workspace) -> Any:
         """Create a ToolManager in normal mode."""
         # V9: ToolManager only takes workspace_path, evolution_mode is set as attribute
         manager = ToolManager(workspace)
@@ -51,7 +52,7 @@ class TestPathTraversalSecurity:
         return manager
 
     @pytest.fixture
-    def evolution_manager(self, workspace):
+    def evolution_manager(self, workspace) -> Any:
         """Create a ToolManager in evolution mode."""
         # V9: ToolManager only takes workspace_path, evolution_mode is set as attribute
         manager = ToolManager(workspace)
@@ -60,7 +61,7 @@ class TestPathTraversalSecurity:
 
     # ==================== NORMAL MODE TESTS ====================
 
-    def test_normal_read_allowed_file(self, tool_manager, workspace):
+    def test_normal_read_allowed_file(self, tool_manager, workspace) -> None:
         """Normal mode: Reading files inside workspace should succeed."""
         result = tool_manager.execute(ToolUse(
             tool_name="read",

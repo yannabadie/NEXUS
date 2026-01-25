@@ -42,7 +42,7 @@ from core.memory.spotlighting import (
 class TestInputGuard:
     """Tests for InputGuard prompt injection detection."""
 
-    def test_safe_input_passes(self):
+    def test_safe_input_passes(self) -> None:
         """Normal user input should pass validation."""
         guard = InputGuard()
 
@@ -52,7 +52,7 @@ class TestInputGuard:
         assert result.threat_level == ThreatLevel.NONE
         assert result.risk_score == 0.0
 
-    def test_ignore_instructions_blocked(self):
+    def test_ignore_instructions_blocked(self) -> None:
         """'Ignore previous instructions' attack should be blocked."""
         guard = InputGuard()
 
@@ -68,7 +68,7 @@ class TestInputGuard:
             assert result.threat_level == ThreatLevel.CRITICAL
             assert result.threat_type == ThreatType.INSTRUCTION_OVERRIDE
 
-    def test_jailbreak_mode_blocked(self):
+    def test_jailbreak_mode_blocked(self) -> None:
         """Jailbreak mode attempts should be blocked."""
         guard = InputGuard()
 
@@ -84,7 +84,7 @@ class TestInputGuard:
             assert not result.is_safe, f"Should block: {attack}"
             assert result.threat_type == ThreatType.ROLE_MANIPULATION
 
-    def test_role_override_blocked(self):
+    def test_role_override_blocked(self) -> None:
         """Role override attempts should be blocked."""
         guard = InputGuard()
 
@@ -105,7 +105,7 @@ class TestInputGuard:
         # At least 2 out of 3 should be blocked
         assert blocked_count >= 2, f"Only {blocked_count}/3 attacks blocked"
 
-    def test_prompt_extraction_detected(self):
+    def test_prompt_extraction_detected(self) -> None:
         """Prompt extraction attempts should be detected."""
         guard = InputGuard()
 

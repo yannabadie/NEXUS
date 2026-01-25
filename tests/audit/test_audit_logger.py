@@ -15,6 +15,7 @@ import asyncio
 import pytest
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -26,7 +27,7 @@ class TestAuditLoggerUnit:
     """Unit tests for AuditLogger (no async)."""
 
     @pytest.fixture(autouse=True)
-    def setup_db(self, tmp_path):
+    def setup_db(self, tmp_path) -> None:
         """Setup test database."""
         db_path = tmp_path / "test.db"
         reset_engine()
@@ -34,7 +35,7 @@ class TestAuditLoggerUnit:
         yield
         reset_engine()
 
-    def test_audit_log_model_fields(self):
+    def test_audit_log_model_fields(self) -> None:
         """Test AuditLog model has required fields."""
         from core.audit.models import AuditLog
 
@@ -52,7 +53,7 @@ class TestAuditLoggerUnit:
         assert log.status == "success"
         assert log.timestamp is not None
 
-    def test_audit_log_defaults(self):
+    def test_audit_log_defaults(self) -> None:
         """Test AuditLog default values."""
         from core.audit.models import AuditLog
 
@@ -67,7 +68,7 @@ class TestAuditLoggerUnit:
         assert log.timestamp is not None
         assert log.details is None
 
-    def test_audit_action_enum(self):
+    def test_audit_action_enum(self) -> None:
         """Test AuditAction enum values."""
         from core.audit.models import AuditAction
 
@@ -82,7 +83,7 @@ class TestAuditLoggerAsync:
     """Async tests for AuditLogger."""
 
     @pytest.fixture(autouse=True)
-    def setup_db(self, tmp_path):
+    def setup_db(self, tmp_path) -> None:
         """Setup test database."""
         db_path = tmp_path / "test.db"
         reset_engine()

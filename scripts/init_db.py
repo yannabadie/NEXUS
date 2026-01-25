@@ -225,7 +225,7 @@ def bootstrap_database() -> dict:
 # CLI Entry Point
 # =============================================================================
 
-def main():
+def main() -> None:
     """CLI entry point with argument parsing."""
     import argparse
 

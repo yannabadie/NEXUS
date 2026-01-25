@@ -19,15 +19,17 @@ sys.path.insert(0, str(__file__).replace("\\tests\\test_async_drivers.py", "").r
 
 from core.drivers.async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from core.drivers.async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
+from core.drivers.async_glm_driver import AsyncGLMDriver
 from core.drivers.async_factory import AsyncDriverFactory
 from core.async_primitives import CancellationToken
+from typing import Any
 
 
 # ============================================================================
 # Mock Process Helper
 # ============================================================================
 
-def create_mock_process(output_lines: list, returncode: int = 0):
+def create_mock_process(output_lines: list, returncode: int = 0) -> Any:
     """Create a mock asyncio.subprocess.Process."""
     mock_proc = MagicMock()
     mock_proc.returncode = None  # Initially running
@@ -66,7 +68,7 @@ class TestAsyncClaudeDriver:
     """Tests for AsyncClaudeDriver."""
 
     @pytest.fixture
-    def driver(self, tmp_path):
+    def driver(self, tmp_path) -> Any:
         """Create driver with temp workspace."""
         config = AsyncClaudeDriverConfig(
             cli_path="claude",
@@ -78,7 +80,7 @@ class TestAsyncClaudeDriver:
         return AsyncClaudeDriver(config)
 
     @pytest.mark.asyncio
-    async def test_invoke_stream_collects_output(self, driver, tmp_path):
+    async def test_invoke_stream_collects_output(self, driver, tmp_path) -> None:
         """invoke_stream should yield output lines."""
         output = ["Hello ", "World!\n"]
         mock_proc = create_mock_process(output)
@@ -92,7 +94,7 @@ class TestAsyncClaudeDriver:
             assert "World!" in "".join(chunks)
 
     @pytest.mark.asyncio
-    async def test_invoke_returns_parsed_response(self, driver):
+    async def test_invoke_returns_parsed_response(self, driver) -> None:
         """invoke should return parsed response dict."""
         output = ["This is a response from Claude.\n"]
         mock_proc = create_mock_process(output)
@@ -106,7 +108,7 @@ class TestAsyncClaudeDriver:
             assert result["action_type"] == "TALK"
 
     @pytest.mark.asyncio
-    async def test_invoke_with_session_uuid(self, driver, tmp_path):
+    async def test_invoke_with_session_uuid(self, driver, tmp_path) -> None:
         """invoke should use session_uuid for file isolation."""
         output = ["Response\n"]
         mock_proc = create_mock_process(output)
@@ -298,6 +300,8 @@ class TestAsyncDriverFactory:
         config.gemini_default_model = "gemini-3-pro-preview"
         config.verbose = False
         config.gemini_persistent_mode = True
+        config.use_glm_for_claude = False
+        config.glm_api_key = None
         return config
 
     @pytest.fixture
@@ -322,6 +326,23 @@ class TestAsyncDriverFactory:
 
         assert isinstance(claude, AsyncClaudeDriver)
         assert isinstance(gemini, AsyncGeminiDriver)
+
+    def test_get_claude_driver_glm_when_enabled(self, tmp_path):
+        """Should return GLM driver when configured to replace Claude."""
+        config = Mock()
+        config.claude_cli_path = "claude"
+        config.gemini_cli_path = "gemini"
+        config.timeout = 60.0
+        config.claude_sonnet_model = "claude-sonnet-4-5-20250929"
+        config.gemini_default_model = "gemini-3-pro-preview"
+        config.verbose = False
+        config.gemini_persistent_mode = True
+        config.use_glm_for_claude = True
+        config.glm_api_key = "test"
+
+        factory = AsyncDriverFactory(config, tmp_path)
+        driver = factory.get_claude_driver()
+        assert isinstance(driver, AsyncGLMDriver)
 
     def test_get_driver_unknown_raises(self, factory):
         """Should raise for unknown agent."""

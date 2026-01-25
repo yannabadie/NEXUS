@@ -21,6 +21,7 @@ import asyncio
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any
 
 # Ensure NEXUS root is in path
 NEXUS_ROOT = Path(__file__).parent.parent.parent
@@ -30,7 +31,7 @@ sys.path.insert(0, str(NEXUS_ROOT))
 os.environ["NEXUS_INTERACTION_MODE"] = "headless"
 
 
-def test_1_interaction_provider_headless():
+def test_1_interaction_provider_headless() -> bool:
     """Test 1: InteractionProvider returns HeadlessProvider in headless mode."""
     print("\n" + "=" * 60)
     print("TEST 1: InteractionProvider Factory")
@@ -51,7 +52,7 @@ def test_1_interaction_provider_headless():
     return True
 
 
-def test_2_headless_confirm_no_block():
+def test_2_headless_confirm_no_block() -> Any:
     """Test 2: HeadlessProvider.confirm() returns immediately without blocking."""
     print("\n" + "=" * 60)
     print("TEST 2: HeadlessProvider.confirm() Non-Blocking")
@@ -80,7 +81,7 @@ def test_2_headless_confirm_no_block():
     return True
 
 
-def test_3_headless_ask_no_block():
+def test_3_headless_ask_no_block() -> Any:
     """Test 3: HeadlessProvider.ask() returns immediately without blocking."""
     print("\n" + "=" * 60)
     print("TEST 3: HeadlessProvider.ask() Non-Blocking")
@@ -108,7 +109,7 @@ def test_3_headless_ask_no_block():
     return True
 
 
-def test_4_headless_strict_raises():
+def test_4_headless_strict_raises() -> Any:
     """Test 4: HeadlessProvider in strict mode raises on missing default."""
     print("\n" + "=" * 60)
     print("TEST 4: HeadlessProvider Strict Mode")
@@ -131,7 +132,7 @@ def test_4_headless_strict_raises():
         return True
 
 
-def test_5_bootstrap_service_headless():
+def test_5_bootstrap_service_headless() -> bool:
     """Test 5: BootstrapService._confirm_overwrite() works in headless mode."""
     print("\n" + "=" * 60)
     print("TEST 5: BootstrapService Headless Compatibility")

@@ -20,7 +20,7 @@ from core.hive_mind.context_scope import (
 class TestContextScope:
     """Test ContextScope enum."""
 
-    def test_all_scope_values_exist(self):
+    def test_all_scope_values_exist(self) -> None:
         """All 6 scope levels should exist."""
         assert ContextScope.FULL
         assert ContextScope.TASK_PLUS_RESULTS
@@ -29,7 +29,7 @@ class TestContextScope:
         assert ContextScope.MINIMAL
         assert ContextScope.FRESH
 
-    def test_scope_string_values(self):
+    def test_scope_string_values(self) -> None:
         """Scopes should have correct string values."""
         assert ContextScope.FULL.value == "full"
         assert ContextScope.TASK_PLUS_RESULTS.value == "task_plus_results"
@@ -38,12 +38,12 @@ class TestContextScope:
         assert ContextScope.MINIMAL.value == "minimal"
         assert ContextScope.FRESH.value == "fresh"
 
-    def test_scope_is_string_enum(self):
+    def test_scope_is_string_enum(self) -> None:
         """ContextScope should inherit from str."""
         assert isinstance(ContextScope.FULL, str)
         assert ContextScope.FULL == "full"
 
-    def test_scope_comparison(self):
+    def test_scope_comparison(self) -> None:
         """Scopes should be comparable by value."""
         assert ContextScope.FULL != ContextScope.FRESH
         assert ContextScope("full") == ContextScope.FULL
@@ -52,7 +52,7 @@ class TestContextScope:
 class TestInheritanceDirection:
     """Test InheritanceDirection enum."""
 
-    def test_all_direction_values_exist(self):
+    def test_all_direction_values_exist(self) -> None:
         """All 4 direction values should exist."""
         assert InheritanceDirection.NONE
         assert InheritanceDirection.PARENT_TO_CHILD

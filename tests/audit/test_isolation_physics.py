@@ -379,7 +379,7 @@ print(home)
 
         return results
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up proof directory."""
         import shutil
         if self.proof_dir.exists():

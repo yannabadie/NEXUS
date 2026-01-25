@@ -61,7 +61,7 @@ class MetricsCollector:
         recovery_succeeded: bool = False,
         panic_occurred: bool = False,
         error: Optional[str] = None
-    ):
+    ) -> None:
         """
         Record a test result.
 
@@ -167,7 +167,7 @@ class MetricsCollector:
         sorted_scenarios = sorted(self.scenarios, key=lambda s: s.duration_ms, reverse=True)
         return sorted_scenarios[:n]
 
-    def to_jsonl(self, filepath: Path):
+    def to_jsonl(self, filepath: Path) -> None:
         """
         Write metrics to JSONL file.
 
@@ -223,7 +223,7 @@ class MetricsCollector:
         recovery_target: float = 90.0,
         panic_target: float = 1.0,
         hot_swap_target: float = 80.0
-    ):
+    ) -> None:
         """
         Assert metrics meet targets.
 

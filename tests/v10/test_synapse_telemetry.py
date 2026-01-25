@@ -28,14 +28,14 @@ class TestTelemetryBridge:
     """Test TelemetryBridge singleton and behavior."""
 
     @pytest.fixture(autouse=True)
-    def reset_singleton(self):
+    def reset_singleton(self) -> None:
         """Reset singleton between tests."""
         from core.events.telemetry_bridge import reset_telemetry_bridge
         reset_telemetry_bridge()
         yield
         reset_telemetry_bridge()
 
-    def test_singleton_pattern(self):
+    def test_singleton_pattern(self) -> None:
         """Multiple calls to get_telemetry_bridge return same instance."""
         from core.events.telemetry_bridge import get_telemetry_bridge
 
@@ -45,7 +45,7 @@ class TestTelemetryBridge:
         assert bridge1 is bridge2
         assert id(bridge1) == id(bridge2)
 
-    def test_start_trace_returns_id(self):
+    def test_start_trace_returns_id(self) -> None:
         """start_trace returns a trace ID."""
         from core.events.telemetry_bridge import get_telemetry_bridge
 
@@ -56,7 +56,7 @@ class TestTelemetryBridge:
         assert isinstance(trace_id, str)
         assert len(trace_id) == 12  # secrets.token_hex(6) = 12 chars
 
-    def test_start_trace_custom_id(self):
+    def test_start_trace_custom_id(self) -> None:
         """start_trace with custom ID uses that ID."""
         from core.events.telemetry_bridge import get_telemetry_bridge
 
@@ -65,7 +65,7 @@ class TestTelemetryBridge:
 
         assert trace_id == "custom123"
 
-    def test_get_correlation_id_before_trace(self):
+    def test_get_correlation_id_before_trace(self) -> None:
         """get_correlation_id returns None when no trace active."""
         from core.events.telemetry_bridge import get_telemetry_bridge
 

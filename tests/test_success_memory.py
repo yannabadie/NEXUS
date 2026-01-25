@@ -12,7 +12,7 @@ Verifies:
 import pytest
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, List, Optional
 from enum import Enum
 
 from core.memory.success_memory import SuccessMemory, SuccessEntry, get_success_memory
@@ -116,7 +116,7 @@ class MockSwarmResult:
 class TestSuccessEntry:
     """Tests for SuccessEntry dataclass."""
 
-    def test_create_entry(self):
+    def test_create_entry(self) -> None:
         """Can create a SuccessEntry with all fields."""
         entry = SuccessEntry(
             task_id="task-001",
@@ -135,7 +135,7 @@ class TestSuccessEntry:
         assert entry.swarm_mode == "ping_pong"
         assert len(entry.agents_used) == 2
 
-    def test_to_dict(self):
+    def test_to_dict(self) -> None:
         """Entry can be serialized to dict."""
         entry = SuccessEntry(
             task_id="task-001",
@@ -155,7 +155,7 @@ class TestSuccessEntry:
         assert d["swarm_mode"] == "parallel"
         assert isinstance(d["duration_seconds"], float)
 
-    def test_from_dict(self):
+    def test_from_dict(self) -> None:
         """Entry can be deserialized from dict."""
         data = {
             "task_id": "task-002",
@@ -174,7 +174,7 @@ class TestSuccessEntry:
         assert entry.task_id == "task-002"
         assert entry.complexity == "COMPLEX"
 
-    def test_roundtrip(self):
+    def test_roundtrip(self) -> None:
         """Dict → Entry → Dict preserves data."""
         original = SuccessEntry(
             task_id="task-003",
@@ -206,7 +206,7 @@ class TestSuccessMemory:
     """Tests for SuccessMemory class."""
 
     @pytest.fixture
-    def memory(self, tmp_path):
+    def memory(self, tmp_path) -> Any:
         """Create a SuccessMemory instance with temp storage."""
         return SuccessMemory(workspace_path=tmp_path)
 

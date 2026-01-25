@@ -26,7 +26,7 @@ from core.synapse.protocol_v7 import LightMessageV7
 class TestAgentAlternationE2E:
     """Tests E2E pour l'alternance agent dans BRAINSTORMING."""
 
-    def test_brainstorming_forces_alternation_without_next_agent(self, orchestrator_with_mocks):
+    def test_brainstorming_forces_alternation_without_next_agent(self, orchestrator_with_mocks) -> None:
         """
         P0-1: BRAINSTORMING doit forcer l'alternance même sans next_agent.
 
@@ -68,7 +68,7 @@ class TestAgentAlternationE2E:
         assert orch.active_agent == "claude", \
             f"Expected claude, got {orch.active_agent}"
 
-    def test_gemini_to_claude_handoff(self, orchestrator_with_mocks):
+    def test_gemini_to_claude_handoff(self, orchestrator_with_mocks) -> None:
         """Gemini doit passer à Claude après sa réponse."""
         orch = orchestrator_with_mocks
 
@@ -96,7 +96,7 @@ class TestAgentAlternationE2E:
         orch.process_turn()
         assert orch.active_agent == "claude", "Should have switched to claude"
 
-    def test_claude_to_gemini_handoff(self, orchestrator_with_mocks):
+    def test_claude_to_gemini_handoff(self, orchestrator_with_mocks) -> None:
         """Claude doit passer à Gemini après sa réponse."""
         orch = orchestrator_with_mocks
 
@@ -126,7 +126,7 @@ class TestAgentAlternationE2E:
         orch.process_turn()
         assert orch.active_agent == "gemini", "Should have switched to gemini"
 
-    def test_multi_turn_alternation(self, orchestrator_with_mocks, run_orchestrator_loop):
+    def test_multi_turn_alternation(self, orchestrator_with_mocks, run_orchestrator_loop) -> None:
         """
         Alternance sur 4+ tours (Gemini→Claude→Gemini→Claude).
 
@@ -157,7 +157,7 @@ class TestAgentAlternationE2E:
         assert orch.drivers["Gemini"].call_count >= 1, "Gemini should have been called"
         assert orch.drivers["Claude"].call_count >= 1, "Claude should have been called"
 
-    def test_evolution_brainstorm_still_alternates(self, orchestrator_with_mocks):
+    def test_evolution_brainstorm_still_alternates(self, orchestrator_with_mocks) -> None:
         """
         EVOLUTION_BRAINSTORM doit toujours alterner (test de non-régression).
 

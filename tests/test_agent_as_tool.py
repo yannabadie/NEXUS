@@ -30,6 +30,7 @@ from core.execution.agent_tools import (
     AGENT_TOOL_PREFIX
 )
 from core.swarm.agent_metrics import AgentPool, AgentProfile
+from typing import Any
 
 
 # =============================================================================
@@ -37,7 +38,7 @@ from core.swarm.agent_metrics import AgentPool, AgentProfile
 # =============================================================================
 
 @pytest.fixture
-def temp_workspace():
+def temp_workspace() -> None:
     """Create a temporary workspace directory."""
     workspace = Path(tempfile.mkdtemp())
     agents_dir = workspace / "agents"
@@ -47,7 +48,7 @@ def temp_workspace():
 
 
 @pytest.fixture
-def mock_agent_pool():
+def mock_agent_pool() -> Any:
     """Create a mock AgentPool with spawned agents."""
     pool = AgentPool()
 
@@ -83,7 +84,7 @@ def mock_agent_pool():
 
 
 @pytest.fixture
-def mock_agent_invoker():
+def mock_agent_invoker() -> Any:
     """Create a mock AgentInvoker."""
     invoker = Mock()
     invoker.invoke_spawned_agent = Mock(return_value="Task completed successfully.")
@@ -91,7 +92,7 @@ def mock_agent_invoker():
 
 
 @pytest.fixture
-def mock_agent_loader(temp_workspace):
+def mock_agent_loader(temp_workspace) -> Any:
     """Create a mock SpawnedAgentLoader."""
     loader = Mock()
 
@@ -117,7 +118,7 @@ def mock_agent_loader(temp_workspace):
 
 
 @pytest.fixture
-def registry(temp_workspace, mock_agent_pool, mock_agent_invoker, mock_agent_loader):
+def registry(temp_workspace, mock_agent_pool, mock_agent_invoker, mock_agent_loader) -> Any:
     """Create an AgentToolRegistry with mocked dependencies."""
     reg = AgentToolRegistry(
         workspace_path=temp_workspace,

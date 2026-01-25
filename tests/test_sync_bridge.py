@@ -23,7 +23,7 @@ from core.orchestration.sync_bridge import (
 class TestSyncEventType:
     """Test SyncEventType enum."""
 
-    def test_all_event_types_defined(self):
+    def test_all_event_types_defined(self) -> None:
         """All required event types exist."""
         assert SyncEventType.TASK_CREATED
         assert SyncEventType.CHECKPOINT_CREATED
@@ -38,7 +38,7 @@ class TestSyncEventType:
 class TestSyncEvent:
     """Test SyncEvent dataclass."""
 
-    def test_create_event(self):
+    def test_create_event(self) -> None:
         """Event created with required fields."""
         event = SyncEvent(
             event_type=SyncEventType.TASK_CREATED,
@@ -53,7 +53,7 @@ class TestSyncEvent:
         assert event.data == {}
         assert event.propagated_to == []
 
-    def test_event_with_data(self):
+    def test_event_with_data(self) -> None:
         """Event can include additional data."""
         event = SyncEvent(
             event_type=SyncEventType.CHECKPOINT_CREATED,
@@ -66,7 +66,7 @@ class TestSyncEvent:
         assert event.data["phase"] == "analysis"
         assert event.propagated_to == ["hivemind"]
 
-    def test_event_to_dict(self):
+    def test_event_to_dict(self) -> None:
         """Event serializes to dict."""
         event = SyncEvent(
             event_type=SyncEventType.ROLLBACK_STARTED,
@@ -85,7 +85,7 @@ class TestSyncEvent:
 class TestOrchestratorSyncBridge:
     """Test OrchestratorSyncBridge class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset global state before each test."""
         reset_sync_bridge()
 

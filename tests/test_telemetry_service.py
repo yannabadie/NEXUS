@@ -10,13 +10,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any
 
 
 class TestTelemetryService:
     """Test TelemetryService functionality."""
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -26,14 +27,14 @@ class TestTelemetryService:
         return console
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create a temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             yield workspace
 
     @pytest.fixture
-    def telemetry_service(self, temp_workspace, mock_console):
+    def telemetry_service(self, temp_workspace, mock_console) -> Any:
         """Create a TelemetryService instance."""
         from core.telemetry.service import TelemetryService
         return TelemetryService(
@@ -42,7 +43,7 @@ class TestTelemetryService:
         )
 
     @pytest.fixture
-    def workspace_with_telemetry(self, temp_workspace):
+    def workspace_with_telemetry(self, temp_workspace) -> Any:
         """Create workspace with sample telemetry data."""
         telemetry_file = temp_workspace / "telemetry.jsonl"
 
@@ -80,7 +81,7 @@ class TestTelemetryService:
 
     # ==================== report() tests ====================
 
-    def test_report_no_data(self, telemetry_service, mock_console):
+    def test_report_no_data(self, telemetry_service, mock_console) -> None:
         """Test report with no telemetry data."""
         result = telemetry_service.report(days=7)
 

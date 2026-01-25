@@ -10,6 +10,7 @@ import shutil
 import json
 from pathlib import Path
 import sys
+from typing import Any
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,7 +23,7 @@ from core.bootstrap.auto_bootstrap import AutoBootstrap, ProjectAnalysis, bootst
 # ============================================================================
 
 @pytest.fixture
-def temp_project():
+def temp_project() -> None:
     """Create a temporary project directory."""
     project = Path(tempfile.mkdtemp()) / "test_project"
     project.mkdir(parents=True)
@@ -31,7 +32,7 @@ def temp_project():
 
 
 @pytest.fixture
-def python_project(temp_project):
+def python_project(temp_project) -> Any:
     """Create a Python project structure."""
     # Create structure
     (temp_project / "src").mkdir()
@@ -52,6 +53,7 @@ def calculate_total(items):
 
     (temp_project / "tests" / "test_main.py").write_text("""
 import pytest
+from typing import Any
 
 def test_calculate():
     assert True
@@ -85,7 +87,7 @@ line-length = 100
 
 
 @pytest.fixture
-def node_project(temp_project):
+def node_project(temp_project) -> Any:
     """Create a Node.js project structure."""
     # Create structure
     (temp_project / "src").mkdir()
@@ -122,7 +124,7 @@ app.get('/', (req, res) => res.send('Hello'));
 
 
 @pytest.fixture
-def makefile_project(temp_project):
+def makefile_project(temp_project) -> Any:
     """Create a project with Makefile."""
     (temp_project / "src").mkdir()
 
@@ -156,7 +158,7 @@ deploy:
 class TestProjectAnalysis:
     """Test ProjectAnalysis dataclass."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Analysis should have sensible defaults."""
         analysis = ProjectAnalysis()
 

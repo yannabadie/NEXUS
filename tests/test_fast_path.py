@@ -11,18 +11,19 @@ import time
 
 from core.config import Config
 from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+from typing import Any
 
 
 class TestFastPathConfig:
     """Test Fast Path configuration."""
 
-    def test_fast_path_enabled_default(self):
+    def test_fast_path_enabled_default(self) -> None:
         """Fast path should be enabled by default."""
         config = Config()
         assert hasattr(config, 'fast_path_enabled')
         assert config.fast_path_enabled is True
 
-    def test_fast_path_can_be_disabled(self, monkeypatch):
+    def test_fast_path_can_be_disabled(self, monkeypatch) -> None:
         """Fast path can be disabled via environment variable."""
         monkeypatch.setenv("FAST_PATH_ENABLED", "False")
         config = Config()
@@ -33,7 +34,7 @@ class TestConversationalTrivialDetection:
     """Test is_conversational_trivial detection patterns."""
 
     @pytest.fixture
-    def analyzer(self):
+    def analyzer(self) -> Any:
         return TaskAnalyzer()
 
     # Greetings
@@ -44,7 +45,7 @@ class TestConversationalTrivialDetection:
         "coucou", "hola", "hallo",
         "good morning", "good evening", "bonsoir"
     ])
-    def test_greetings_are_trivial(self, analyzer, input_text):
+    def test_greetings_are_trivial(self, analyzer, input_text) -> None:
         """Greetings should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 
@@ -53,7 +54,7 @@ class TestConversationalTrivialDetection:
         "bye", "goodbye", "au revoir",
         "ciao", "adieu", "a+"
     ])
-    def test_farewells_are_trivial(self, analyzer, input_text):
+    def test_farewells_are_trivial(self, analyzer, input_text) -> None:
         """Farewells should be detected as trivial."""
         assert analyzer.is_conversational_trivial(input_text) is True
 

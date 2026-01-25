@@ -32,14 +32,14 @@ from core.api.rate_limiter import (
 class TestRateLimitConfig:
     """Tests for RateLimitConfig dataclass."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test default configuration values."""
         config = RateLimitConfig()
         assert config.requests_per_minute == 60
         assert config.burst_size == 10
         assert config.retry_after_seconds == 1.0
 
-    def test_custom_values(self):
+    def test_custom_values(self) -> None:
         """Test custom configuration values."""
         config = RateLimitConfig(
             requests_per_minute=100,
@@ -54,19 +54,19 @@ class TestRateLimitConfig:
 class TestDefaultLimits:
     """Tests for DEFAULT_LIMITS dictionary."""
 
-    def test_gemini_limits_exist(self):
+    def test_gemini_limits_exist(self) -> None:
         """Test Gemini provider has configured limits."""
         assert "gemini" in DEFAULT_LIMITS
         assert DEFAULT_LIMITS["gemini"].requests_per_minute == 60
         assert DEFAULT_LIMITS["gemini"].burst_size == 10
 
-    def test_claude_limits_exist(self):
+    def test_claude_limits_exist(self) -> None:
         """Test Claude provider has configured limits."""
         assert "claude" in DEFAULT_LIMITS
         assert DEFAULT_LIMITS["claude"].requests_per_minute == 50
         assert DEFAULT_LIMITS["claude"].burst_size == 8
 
-    def test_default_limits_exist(self):
+    def test_default_limits_exist(self) -> None:
         """Test default fallback limits exist."""
         assert "default" in DEFAULT_LIMITS
         assert DEFAULT_LIMITS["default"].requests_per_minute == 30

@@ -8,13 +8,14 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 
 class TestMemoryService:
     """Test MemoryService functionality."""
 
     @pytest.fixture
-    def mock_project_memory(self):
+    def mock_project_memory(self) -> Any:
         """Create a mock ProjectMemory."""
         pm = MagicMock()
         pm.nexus_root = Path("/fake/nexus/root")
@@ -29,7 +30,7 @@ class TestMemoryService:
         return pm
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -39,14 +40,14 @@ class TestMemoryService:
         return console
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create a temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
             yield workspace
 
     @pytest.fixture
-    def memory_service(self, mock_project_memory, temp_workspace, mock_console):
+    def memory_service(self, mock_project_memory, temp_workspace, mock_console) -> Any:
         """Create a MemoryService instance."""
         from core.memory.service import MemoryService
         return MemoryService(
@@ -55,7 +56,7 @@ class TestMemoryService:
             console=mock_console
         )
 
-    def test_learn_default_path(self, memory_service, mock_project_memory, mock_console):
+    def test_learn_default_path(self, memory_service, mock_project_memory, mock_console) -> None:
         """Test learn with no path uses default."""
         mock_project_memory.index_directory.return_value = 10
         mock_project_memory.nexus_root = Path("/fake/root")

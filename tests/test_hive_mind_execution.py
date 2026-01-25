@@ -10,7 +10,7 @@ sys.path.append(os.getcwd())
 from core.interface.repl import InteractiveNexusV7
 from core.swarm.collaboration_modes import CollaborationMode
 
-def test_hive_mind_execution():
+def test_hive_mind_execution() -> list:
     print("\n🚀 STARTING HIVE MIND EXECUTION TEST (SIMULATED)\n")
     
     workspace_path = Path("workspace_test_hive")

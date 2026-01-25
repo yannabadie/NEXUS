@@ -18,7 +18,7 @@ from core.resilience.system_health import (
 
 
 @pytest.fixture(autouse=True)
-def reset_health():
+def reset_health() -> None:
     """Reset system health before each test."""
     reset_system_health()
     yield
@@ -28,14 +28,14 @@ def reset_health():
 class TestHealthStatus:
     """Test HealthStatus enum."""
 
-    def test_status_values(self):
+    def test_status_values(self) -> None:
         """All status values should exist."""
         assert HealthStatus.HEALTHY
         assert HealthStatus.DEGRADED
         assert HealthStatus.UNHEALTHY
         assert HealthStatus.UNKNOWN
 
-    def test_status_string_values(self):
+    def test_status_string_values(self) -> None:
         """Status should have correct string values."""
         assert HealthStatus.HEALTHY.value == "healthy"
         assert HealthStatus.UNHEALTHY.value == "unhealthy"
@@ -44,7 +44,7 @@ class TestHealthStatus:
 class TestComponentHealth:
     """Test ComponentHealth dataclass."""
 
-    def test_create_healthy_component(self):
+    def test_create_healthy_component(self) -> None:
         """Should create healthy component."""
         health = ComponentHealth(
             name="TestComponent",
@@ -54,7 +54,7 @@ class TestComponentHealth:
         assert health.name == "TestComponent"
         assert health.status == HealthStatus.HEALTHY
 
-    def test_component_with_details(self):
+    def test_component_with_details(self) -> None:
         """Should store details."""
         health = ComponentHealth(
             name="Test",

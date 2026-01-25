@@ -23,6 +23,7 @@ from core.hive_mind.swarm_bridge import (
     create_bridge_for_phase,
 )
 from core.swarm.collaboration_modes import CollaborationMode
+from typing import Any
 
 
 # =============================================================================
@@ -30,7 +31,7 @@ from core.swarm.collaboration_modes import CollaborationMode
 # =============================================================================
 
 @pytest.fixture
-def mock_swarm_engine():
+def mock_swarm_engine() -> Any:
     """Create a mock Swarm Engine."""
     engine = MagicMock()
     engine.execute_swarm_mode = AsyncMock()
@@ -38,7 +39,7 @@ def mock_swarm_engine():
 
 
 @pytest.fixture
-def mock_context_manager():
+def mock_context_manager() -> Any:
     """Create a mock Context Manager."""
     manager = MagicMock()
     manager.get_context_for = MagicMock(return_value={
@@ -50,7 +51,7 @@ def mock_context_manager():
 
 
 @pytest.fixture
-def bridge(mock_swarm_engine, mock_context_manager):
+def bridge(mock_swarm_engine, mock_context_manager) -> Any:
     """Create a SwarmBridge with mocks."""
     return SwarmBridge(
         swarm_engine=mock_swarm_engine,
@@ -73,14 +74,14 @@ class MockSwarmResult:
 class TestModeValidation:
     """Test mode validation per phase (guardrails)."""
 
-    def test_allowed_modes_structure(self):
+    def test_allowed_modes_structure(self) -> None:
         """ALLOWED_MODES should have entries for all phases."""
         for phase in HivePhase:
             assert phase in SwarmBridge.ALLOWED_MODES
             assert len(SwarmBridge.ALLOWED_MODES[phase]) > 0
 
     @pytest.mark.asyncio
-    async def test_parallel_allowed_in_execution(self, bridge, mock_swarm_engine):
+    async def test_parallel_allowed_in_execution(self, bridge, mock_swarm_engine) -> None:
         """PARALLEL should be allowed in EXECUTION phase."""
         mock_swarm_engine.execute_swarm_mode.return_value = MockSwarmResult()
 

@@ -35,6 +35,7 @@ from core.evolution.evaluator import (
     select_winner,
     get_baseline_fitness,
 )
+from typing import Any
 
 
 # =============================================================================
@@ -114,7 +115,7 @@ class MockRateLimiter:
 
 
 @pytest.fixture
-def temp_workspace(tmp_path):
+def temp_workspace(tmp_path) -> Any:
     """Create temporary workspace with required structure."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -139,25 +140,25 @@ def temp_workspace(tmp_path):
 
 
 @pytest.fixture
-def mock_config():
+def mock_config() -> Any:
     """Provide mock configuration."""
     return MockConfig()
 
 
 @pytest.fixture
-def mock_orchestrator():
+def mock_orchestrator() -> Any:
     """Provide mock orchestrator."""
     return MockOrchestrator()
 
 
 @pytest.fixture
-def mock_rate_limiter():
+def mock_rate_limiter() -> Any:
     """Provide mock rate limiter."""
     return MockRateLimiter()
 
 
 @pytest.fixture
-def evolution_manager(temp_workspace, mock_config, mock_orchestrator, mock_rate_limiter):
+def evolution_manager(temp_workspace, mock_config, mock_orchestrator, mock_rate_limiter) -> Any:
     """Create EvolutionManager with mocked dependencies."""
     nexus_root = temp_workspace.parent / "NEXUS_ROOT"
     nexus_root.mkdir(exist_ok=True)

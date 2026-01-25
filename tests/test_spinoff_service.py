@@ -9,13 +9,14 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from typing import Any
 
 
 class TestSpinoffService:
     """Test SpinoffService functionality."""
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Any:
         """Create a mock console."""
         console = MagicMock()
         console.print = MagicMock()
@@ -26,7 +27,7 @@ class TestSpinoffService:
         return console
 
     @pytest.fixture
-    def mock_orchestrator(self):
+    def mock_orchestrator(self) -> Any:
         """Create a mock orchestrator."""
         orchestrator = MagicMock()
         orchestrator.blackboard = {"recent_history": []}
@@ -41,7 +42,7 @@ class TestSpinoffService:
         return orchestrator
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create a temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
@@ -61,7 +62,7 @@ class TestSpinoffService:
             yield workspace
 
     @pytest.fixture
-    def temp_nexus_root(self):
+    def temp_nexus_root(self) -> None:
         """Create a temporary NEXUS root directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             nexus_root = Path(tmpdir) / "NEXUS_ROOT"
@@ -78,7 +79,7 @@ class TestSpinoffService:
             yield nexus_root
 
     @pytest.fixture
-    def spinoff_service(self, mock_orchestrator, mock_console, temp_workspace, temp_nexus_root):
+    def spinoff_service(self, mock_orchestrator, mock_console, temp_workspace, temp_nexus_root) -> Any:
         """Create a SpinoffService instance."""
         from core.bootstrap.service import SpinoffService
         return SpinoffService(

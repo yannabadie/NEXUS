@@ -44,7 +44,7 @@ from core.swarm.session_manager import (
 class TestAgentSession(TestCase):
     """Tests for AgentSession dataclass."""
 
-    def test_create_agent_session(self):
+    def test_create_agent_session(self) -> None:
         """Test creating an AgentSession."""
         session = AgentSession(
             agent_id="gemini",
@@ -59,7 +59,7 @@ class TestAgentSession(TestCase):
         assert session.mode == SessionMode.FRESH
         assert session.parent_session_uuid is None
 
-    def test_agent_session_to_dict(self):
+    def test_agent_session_to_dict(self) -> None:
         """Test serialization to dictionary."""
         session = AgentSession(
             agent_id="claude",
@@ -79,7 +79,7 @@ class TestAgentSession(TestCase):
         assert data["mode"] == "branch"
         assert data["parent_session_uuid"] == "parent-uuid"
 
-    def test_agent_session_from_dict(self):
+    def test_agent_session_from_dict(self) -> None:
         """Test deserialization from dictionary."""
         data = {
             "agent_id": "gemini",
@@ -103,7 +103,7 @@ class TestAgentSession(TestCase):
 class TestTaskSession(TestCase):
     """Tests for TaskSession dataclass."""
 
-    def test_create_task_session(self):
+    def test_create_task_session(self) -> None:
         """Test creating a TaskSession."""
         task = TaskSession(
             task_id="task_001",
@@ -116,7 +116,7 @@ class TestTaskSession(TestCase):
         assert task.roles == {}
         assert task.metadata == {}
 
-    def test_task_session_with_roles(self):
+    def test_task_session_with_roles(self) -> None:
         """Test TaskSession with agent sessions."""
         session1 = AgentSession(
             agent_id="gemini",

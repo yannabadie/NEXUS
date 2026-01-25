@@ -186,25 +186,25 @@ class MockConfig(Config):
 
 
 @pytest.fixture
-def mock_config():
+def mock_config() -> Any:
     """Provide a mock configuration."""
     return MockConfig()
 
 
 @pytest.fixture
-def mock_gemini_driver():
+def mock_gemini_driver() -> Any:
     """Provide a mock Gemini driver."""
     return MockDriver("Gemini")
 
 
 @pytest.fixture
-def mock_claude_driver():
+def mock_claude_driver() -> Any:
     """Provide a mock Claude driver."""
     return MockDriver("Claude")
 
 
 @pytest.fixture
-def orchestrator_with_mocks(tmp_path):
+def orchestrator_with_mocks(tmp_path) -> Any:
     """
     Create an OrchestratorV7 with mocked drivers.
 
@@ -266,7 +266,7 @@ def orchestrator_with_mocks(tmp_path):
 
 
 @pytest.fixture
-def orchestrator_with_swarm(tmp_path):
+def orchestrator_with_swarm(tmp_path) -> Any:
     """
     Create an OrchestratorV7 with swarm_enabled=True and mocked drivers.
     """

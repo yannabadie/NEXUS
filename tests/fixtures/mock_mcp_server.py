@@ -198,7 +198,7 @@ def handle_request(request: Dict) -> Optional[Dict]:
 # Main Loop
 # =============================================================================
 
-def main():
+def main() -> None:
     """Main server loop."""
     # Disable buffering for stdin/stdout
     sys.stdout.reconfigure(line_buffering=True)

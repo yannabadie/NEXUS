@@ -31,7 +31,7 @@ class TestOrchestratorCoT:
     """Test CoT enforcement in Orchestrator path."""
 
     @pytest.fixture
-    def mock_orchestrator(self):
+    def mock_orchestrator(self) -> None:
         """Create a minimal mock orchestrator for testing _build_context."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # We need to test _build_context behavior based on _current_complexity
@@ -53,7 +53,7 @@ class TestOrchestratorCoT:
 
             yield orchestrator
 
-    def test_expert_complexity_triggers_cot(self):
+    def test_expert_complexity_triggers_cot(self) -> None:
         """Test that EXPERT complexity adds CoT instruction to context."""
         # Import the actual class to test _build_context
         from core.orchestration_v7 import OrchestratorV7
@@ -62,12 +62,12 @@ class TestOrchestratorCoT:
         # by checking that the condition is correct
         assert TaskComplexity.EXPERT.value > TaskComplexity.COMPLEX.value
 
-    def test_simple_complexity_no_cot(self):
+    def test_simple_complexity_no_cot(self) -> None:
         """Test that SIMPLE complexity does NOT add CoT instruction."""
         # Verify SIMPLE < EXPERT
         assert TaskComplexity.SIMPLE.value < TaskComplexity.EXPERT.value
 
-    def test_complexity_stored_on_process_turn(self):
+    def test_complexity_stored_on_process_turn(self) -> None:
         """Test that _current_complexity is set during task analysis."""
         # This verifies the attribute exists and can be set
         from core.swarm.task_analyzer import TaskComplexity
@@ -84,7 +84,7 @@ class TestOrchestratorCoT:
         mock.set_complexity(TaskComplexity.EXPERT)
         assert mock._current_complexity == TaskComplexity.EXPERT
 
-    def test_cot_instruction_format(self):
+    def test_cot_instruction_format(self) -> None:
         """Verify CoT instruction has correct format."""
         assert "<instruction>" in COT_INSTRUCTION
         assert "</instruction>" in COT_INSTRUCTION

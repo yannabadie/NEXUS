@@ -25,6 +25,7 @@ from core.swarm.agent_metrics import (
 )
 from core.swarm.mode_selector import ModeSelector
 from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from typing import Any
 
 
 # =============================================================================
@@ -32,7 +33,7 @@ from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 # =============================================================================
 
 @pytest.fixture
-def workspace_path(tmp_path):
+def workspace_path(tmp_path) -> Any:
     """Create a temporary workspace directory."""
     ws = tmp_path / "workspace"
     ws.mkdir()
@@ -41,19 +42,19 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def success_memory(workspace_path):
+def success_memory(workspace_path) -> Any:
     """Create a SuccessMemory instance."""
     return SuccessMemory(workspace_path)
 
 
 @pytest.fixture
-def agent_pool():
+def agent_pool() -> Any:
     """Create an AgentPool with default agents."""
     return create_default_pool()
 
 
 @pytest.fixture
-def populated_success_memory(workspace_path):
+def populated_success_memory(workspace_path) -> Any:
     """
     Create SuccessMemory with pre-populated session data.
 
@@ -120,7 +121,7 @@ def populated_success_memory(workspace_path):
 class TestGetAgentSuccessRate:
     """Tests for SuccessMemory.get_agent_success_rate()."""
 
-    def test_no_sessions_returns_neutral(self, success_memory):
+    def test_no_sessions_returns_neutral(self, success_memory) -> None:
         """No sessions returns neutral 0.5 score."""
         rate, count = success_memory.get_agent_success_rate("unknown_agent")
         assert rate == 0.5

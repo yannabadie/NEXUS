@@ -11,6 +11,7 @@ Tests verify:
 import pytest
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from core.security.execution_policy import CodeValidator
 from core.execution.dynamic_tools import (
@@ -29,7 +30,7 @@ class TestCodeValidatorSecurity:
     """Test CodeValidator blocks dangerous patterns."""
 
     @pytest.fixture
-    def validator(self):
+    def validator(self) -> Any:
         """Create a fresh CodeValidator."""
         return CodeValidator()
 
@@ -37,28 +38,28 @@ class TestCodeValidatorSecurity:
     # BLOCKED IMPORTS
     # -------------------------------------------------------------------------
 
-    def test_blocks_import_os(self, validator):
+    def test_blocks_import_os(self, validator) -> None:
         """Test that import os is blocked."""
         code = "import os\ndef run(): return os.getcwd()"
         result = validator.validate_code(code)
         assert not result.is_safe
         assert any("import: os" in v for v in result.violations)
 
-    def test_blocks_import_subprocess(self, validator):
+    def test_blocks_import_subprocess(self, validator) -> None:
         """Test that import subprocess is blocked."""
         code = "import subprocess\ndef run(): return subprocess.run(['ls'])"
         result = validator.validate_code(code)
         assert not result.is_safe
         assert any("import: subprocess" in v for v in result.violations)
 
-    def test_blocks_import_socket(self, validator):
+    def test_blocks_import_socket(self, validator) -> None:
         """Test that import socket is blocked."""
         code = "import socket\ndef run(): return socket.socket()"
         result = validator.validate_code(code)
         assert not result.is_safe
         assert any("import: socket" in v for v in result.violations)
 
-    def test_blocks_import_pickle(self, validator):
+    def test_blocks_import_pickle(self, validator) -> None:
         """Test that import pickle is blocked (RCE vector)."""
         code = "import pickle\ndef run(data): return pickle.loads(data)"
         result = validator.validate_code(code)
@@ -347,6 +348,7 @@ def run(n):
         """Test that dangerous code is blocked during creation."""
         code = """
 import subprocess
+from typing import Any
 def run():
     return subprocess.run(['rm', '-rf', '/'])
 """

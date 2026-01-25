@@ -29,12 +29,12 @@ from core.swarm.task_analyzer import TaskComplexity
 class TestSessionModeEphemeral:
     """Test SessionMode.EPHEMERAL enum value."""
 
-    def test_ephemeral_mode_exists(self):
+    def test_ephemeral_mode_exists(self) -> None:
         """SessionMode should have EPHEMERAL value."""
         assert hasattr(SessionMode, "EPHEMERAL")
         assert SessionMode.EPHEMERAL.value == "ephemeral"
 
-    def test_all_modes_exist(self):
+    def test_all_modes_exist(self) -> None:
         """Verify all session modes exist."""
         modes = [SessionMode.FRESH, SessionMode.CONTINUE,
                  SessionMode.BRANCH, SessionMode.EPHEMERAL]
@@ -44,7 +44,7 @@ class TestSessionModeEphemeral:
 class TestTaskSessionEphemeral:
     """Test TaskSession with is_ephemeral flag."""
 
-    def test_task_session_has_ephemeral_flag(self):
+    def test_task_session_has_ephemeral_flag(self) -> None:
         """TaskSession should have is_ephemeral field."""
         session = TaskSession(
             task_id="test_123",
@@ -53,7 +53,7 @@ class TestTaskSessionEphemeral:
         assert hasattr(session, "is_ephemeral")
         assert session.is_ephemeral is False  # Default
 
-    def test_task_session_ephemeral_true(self):
+    def test_task_session_ephemeral_true(self) -> None:
         """TaskSession can be created with is_ephemeral=True."""
         session = TaskSession(
             task_id="test_123",
@@ -67,7 +67,7 @@ class TestSwarmSessionManagerEphemeral:
     """Test SwarmSessionManager EPHEMERAL behavior."""
 
     @pytest.fixture
-    def temp_workspace(self):
+    def temp_workspace(self) -> None:
         """Create temporary workspace directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)

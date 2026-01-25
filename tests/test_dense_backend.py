@@ -28,7 +28,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture
-def temp_storage():
+def temp_storage() -> None:
     """Create a temporary directory for LanceDB storage."""
     temp_dir = tempfile.mkdtemp(prefix="nexus_test_dense_")
     yield Path(temp_dir)
@@ -37,7 +37,7 @@ def temp_storage():
 
 
 @pytest.fixture
-def sample_chunks():
+def sample_chunks() -> list:
     """Create sample chunks for testing."""
     return [
         Chunk(
@@ -82,16 +82,16 @@ def sample_chunks():
 class TestDenseBackendAvailability:
     """Test backend availability detection."""
 
-    def test_is_available_when_deps_installed(self):
+    def test_is_available_when_deps_installed(self) -> None:
         """Test is_available returns True when deps are installed."""
         # If we're running these tests, deps must be installed
         assert DenseBackend.is_available() is True
 
-    def test_lancedb_available(self):
+    def test_lancedb_available(self) -> None:
         """Test LanceDB is importable."""
         assert LANCEDB_AVAILABLE is True
 
-    def test_sentence_transformers_available(self):
+    def test_sentence_transformers_available(self) -> None:
         """Test Sentence-Transformers is importable."""
         assert SENTENCE_TRANSFORMERS_AVAILABLE is True
 

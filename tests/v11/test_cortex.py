@@ -30,7 +30,7 @@ async def _auth_override():
 class TestHeadlessProviderInteractive:
     """Tests for HeadlessProvider V11.5 CORTEX interactive mode."""
 
-    def test_default_non_interactive(self):
+    def test_default_non_interactive(self) -> None:
         """HeadlessProvider should default to non-interactive (backward compat)."""
         from core.interaction.headless_provider import HeadlessProvider
 
@@ -40,7 +40,7 @@ class TestHeadlessProviderInteractive:
         assert provider._pending_futures == {}
         assert provider._pending_interactions == {}
 
-    def test_interactive_mode_enabled(self):
+    def test_interactive_mode_enabled(self) -> None:
         """HeadlessProvider can be created in interactive mode."""
         from core.interaction.headless_provider import HeadlessProvider
 
@@ -49,7 +49,7 @@ class TestHeadlessProviderInteractive:
         assert provider._interactive is True
         assert provider._interaction_timeout == 60.0
 
-    def test_get_pending_requests_empty(self):
+    def test_get_pending_requests_empty(self) -> None:
         """get_pending_requests returns empty list initially."""
         from core.interaction.headless_provider import HeadlessProvider
 
@@ -59,7 +59,7 @@ class TestHeadlessProviderInteractive:
 
         assert pending == []
 
-    def test_resolve_interaction_not_found(self):
+    def test_resolve_interaction_not_found(self) -> None:
         """resolve_interaction returns False for unknown request_id."""
         from core.interaction.headless_provider import HeadlessProvider
 
@@ -73,7 +73,7 @@ class TestHeadlessProviderInteractive:
 class TestFileSizeLimit:
     """Tests for file size limit (OOM protection)."""
 
-    def test_max_file_size_constant(self):
+    def test_max_file_size_constant(self) -> None:
         """MAX_FILE_SIZE should be 1MB."""
         from core.api.cerebro.routes.files import MAX_FILE_SIZE
 

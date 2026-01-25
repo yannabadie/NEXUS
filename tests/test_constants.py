@@ -24,7 +24,7 @@ from core.constants import (
 class TestTimeouts:
     """Test Timeouts constants."""
 
-    def test_timeouts_are_positive(self):
+    def test_timeouts_are_positive(self) -> None:
         """All timeouts should be positive numbers."""
         assert TIMEOUTS.BASH_COMMAND > 0
         assert TIMEOUTS.GIT_COMMAND > 0
@@ -33,7 +33,7 @@ class TestTimeouts:
         assert TIMEOUTS.CFL_VALIDATION > 0
         assert TIMEOUTS.HIVE_MIND_ASYNC > 0
 
-    def test_timeouts_reasonable_values(self):
+    def test_timeouts_reasonable_values(self) -> None:
         """Timeouts should be within reasonable ranges."""
         # Bash commands: 1-600 seconds
         assert 1 <= TIMEOUTS.BASH_COMMAND <= 600
@@ -41,7 +41,7 @@ class TestTimeouts:
         assert 10 <= TIMEOUTS.WEB_SEARCH <= 300
         assert 5 <= TIMEOUTS.WEB_FETCH <= 300
 
-    def test_timeouts_frozen(self):
+    def test_timeouts_frozen(self) -> None:
         """Timeout dataclass should be frozen (immutable)."""
         with pytest.raises(Exception):  # FrozenInstanceError
             TIMEOUTS.BASH_COMMAND = 999
@@ -50,14 +50,14 @@ class TestTimeouts:
 class TestRetryLimits:
     """Test RetryLimits constants."""
 
-    def test_retry_limits_positive(self):
+    def test_retry_limits_positive(self) -> None:
         """All retry limits should be positive integers."""
         assert RETRY_LIMITS.MAX_PARSE_FAILURES > 0
         assert RETRY_LIMITS.MAX_TOOL_ITERATIONS > 0
         assert RETRY_LIMITS.MAX_FSM_ITERATIONS > 0
         assert RETRY_LIMITS.MAX_CFL_ITERATIONS > 0
 
-    def test_retry_limits_reasonable(self):
+    def test_retry_limits_reasonable(self) -> None:
         """Retry limits should prevent infinite loops."""
         assert RETRY_LIMITS.MAX_PARSE_FAILURES <= 10
         assert RETRY_LIMITS.MAX_TOOL_ITERATIONS <= 20

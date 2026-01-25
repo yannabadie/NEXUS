@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.telemetry.exporter import TelemetryExporter, TelemetryEvent
+from typing import Any
 
 
 # =============================================================================
@@ -25,7 +26,7 @@ from core.telemetry.exporter import TelemetryExporter, TelemetryEvent
 # =============================================================================
 
 @pytest.fixture
-def workspace_path(tmp_path):
+def workspace_path(tmp_path) -> Any:
     """Create a temporary workspace directory."""
     ws = tmp_path / "workspace"
     ws.mkdir()
@@ -33,7 +34,7 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def empty_telemetry(workspace_path):
+def empty_telemetry(workspace_path) -> Any:
     """Create an empty telemetry file."""
     telemetry_file = workspace_path / "telemetry.jsonl"
     telemetry_file.touch()
@@ -41,7 +42,7 @@ def empty_telemetry(workspace_path):
 
 
 @pytest.fixture
-def populated_telemetry(workspace_path):
+def populated_telemetry(workspace_path) -> Any:
     """
     Create telemetry file with sample data.
 
@@ -166,7 +167,7 @@ def populated_telemetry(workspace_path):
 class TestTelemetryEvent:
     """Tests for TelemetryEvent parsing."""
 
-    def test_parse_valid_event(self):
+    def test_parse_valid_event(self) -> None:
         """Parses valid JSONL line correctly."""
         line = '{"type": "api_call", "session_id": "abc", "timestamp": "2025-01-01T12:00:00Z", "data": {"provider": "gemini"}}'
         event = TelemetryEvent.from_json(line)
@@ -176,7 +177,7 @@ class TestTelemetryEvent:
         assert event.session_id == "abc"
         assert event.data["provider"] == "gemini"
 
-    def test_parse_invalid_json_returns_none(self):
+    def test_parse_invalid_json_returns_none(self) -> None:
         """Invalid JSON returns None."""
         line = "not valid json"
         event = TelemetryEvent.from_json(line)

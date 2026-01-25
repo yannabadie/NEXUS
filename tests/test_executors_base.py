@@ -23,7 +23,7 @@ from core.swarm.mode_selector import AgentAssignment
 class TestExecutionStatus:
     """Test ExecutionStatus enum."""
 
-    def test_status_values_exist(self):
+    def test_status_values_exist(self) -> None:
         """All expected status values should exist."""
         assert ExecutionStatus.PENDING
         assert ExecutionStatus.IN_PROGRESS
@@ -31,7 +31,7 @@ class TestExecutionStatus:
         assert ExecutionStatus.FAILED
         assert ExecutionStatus.CONVERGED
 
-    def test_status_string_values(self):
+    def test_status_string_values(self) -> None:
         """Status should have correct string values."""
         assert ExecutionStatus.PENDING.value == "pending"
         assert ExecutionStatus.COMPLETED.value == "completed"
@@ -40,7 +40,7 @@ class TestExecutionStatus:
 class TestAgentResponse:
     """Test AgentResponse dataclass."""
 
-    def test_create_response(self):
+    def test_create_response(self) -> None:
         """Should create response with required fields."""
         response = AgentResponse(
             agent_id="gemini",
@@ -50,7 +50,7 @@ class TestAgentResponse:
         assert response.content == "Hello world"
         assert response.status == "success"
 
-    def test_response_with_error(self):
+    def test_response_with_error(self) -> None:
         """Should create error response."""
         response = AgentResponse(
             agent_id="claude",
@@ -61,7 +61,7 @@ class TestAgentResponse:
         assert response.status == "error"
         assert response.error == "Something went wrong"
 
-    def test_is_finished_completion_signal(self):
+    def test_is_finished_completion_signal(self) -> None:
         """Should detect completion signals."""
         response = AgentResponse(
             agent_id="test",

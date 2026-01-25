@@ -26,7 +26,7 @@ from core.db.engine import init_db, reset_engine
 class TestHITLRequestModel:
     """Tests for HITLRequest SQLModel."""
 
-    def test_model_fields(self):
+    def test_model_fields(self) -> None:
         """Test HITLRequest has required fields."""
         from core.audit.models import HITLRequest, HITLRequestStatus
 
@@ -42,7 +42,7 @@ class TestHITLRequestModel:
         assert request.prompt == "Continue with deployment?"
         assert request.status == HITLRequestStatus.PENDING
 
-    def test_status_enum(self):
+    def test_status_enum(self) -> None:
         """Test HITLRequestStatus enum values."""
         from core.audit.models import HITLRequestStatus
 
@@ -51,7 +51,7 @@ class TestHITLRequestModel:
         assert HITLRequestStatus.EXPIRED == "expired"
         assert HITLRequestStatus.CANCELLED == "cancelled"
 
-    def test_default_status_is_pending(self):
+    def test_default_status_is_pending(self) -> None:
         """Test new requests default to pending."""
         from core.audit.models import HITLRequest, HITLRequestStatus
 
@@ -70,7 +70,7 @@ class TestHITLPersistence:
     """Tests for HITLPersistence service."""
 
     @pytest.fixture(autouse=True)
-    def setup_db(self, tmp_path):
+    def setup_db(self, tmp_path) -> None:
         """Setup test database."""
         db_path = tmp_path / "test.db"
         reset_engine()
@@ -79,7 +79,7 @@ class TestHITLPersistence:
         reset_engine()
 
     @pytest.mark.asyncio
-    async def test_create_request(self):
+    async def test_create_request(self) -> None:
         """Test creating a HITL request."""
         from core.interaction.hitl_persistence import HITLPersistence
 

@@ -16,10 +16,11 @@ from dataclasses import dataclass
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.hive_mind.saga_manager import SagaManager
+from typing import Any
 
 
 @pytest.fixture
-def saga_dir(tmp_path):
+def saga_dir(tmp_path) -> Any:
     """Create saga directory."""
     saga_dir = tmp_path / ".nexus" / "sagas"
     saga_dir.mkdir(parents=True)
@@ -80,7 +81,7 @@ class MockNoTokenContextManager:
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_ce001_context_index_out_of_bounds(saga_dir):
+async def test_ce001_context_index_out_of_bounds(saga_dir) -> None:
     """
     CE-001: Test rollback with context_index > len(items).
 
@@ -110,7 +111,7 @@ async def test_ce001_context_index_out_of_bounds(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_ce002_token_recalc_missing_estimates(saga_dir):
+async def test_ce002_token_recalc_missing_estimates(saga_dir) -> None:
     """
     CE-002: Test token recalculation with items missing token_estimate.
 
@@ -146,7 +147,7 @@ async def test_ce002_token_recalc_missing_estimates(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_ce003_context_manager_type_mismatch(saga_dir):
+async def test_ce003_context_manager_type_mismatch(saga_dir) -> None:
     """
     CE-003: Test rollback with wrong context manager type.
 
@@ -175,7 +176,7 @@ async def test_ce003_context_manager_type_mismatch(saga_dir):
 @pytest.mark.torture
 @pytest.mark.torture_saga
 @pytest.mark.asyncio
-async def test_ce004_empty_context_after_rollback(saga_dir):
+async def test_ce004_empty_context_after_rollback(saga_dir) -> None:
     """
     CE-004: Test rollback to index 0 (empty context).
 

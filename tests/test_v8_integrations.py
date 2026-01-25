@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 class TestCostEstimatorBudgetTrackerIntegration:
     """Test CostEstimator -> BudgetTracker chain."""
 
-    def test_tokens_to_usd_conversion(self):
+    def test_tokens_to_usd_conversion(self) -> None:
         """Test token to USD conversion."""
         from core.hive_mind.cost_estimator import CostEstimator
 
@@ -30,7 +30,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
         assert estimator.tokens_to_usd(10_000) == pytest.approx(0.03, rel=0.01)
         assert estimator.tokens_to_usd(0) == 0.0
 
-    def test_can_afford_without_tracker(self):
+    def test_can_afford_without_tracker(self) -> None:
         """Test can_afford works without BudgetTracker (token-only)."""
         from core.hive_mind.cost_estimator import CostEstimator
 
@@ -47,7 +47,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
         estimator.spent = 500
         assert not estimator.can_afford("spawn_agent")  # 500 + 600 = 1100 > 1000
 
-    def test_can_afford_with_budget_tracker(self):
+    def test_can_afford_with_budget_tracker(self) -> None:
         """Test can_afford checks both token AND USD budgets."""
         from core.hive_mind.cost_estimator import CostEstimator
 
@@ -66,7 +66,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
         mock_tracker.get_remaining.return_value = 10.0  # $10 remaining
         assert estimator.can_afford("spawn_agent")
 
-    def test_check_usd_budget_no_tracker(self):
+    def test_check_usd_budget_no_tracker(self) -> None:
         """Test check_usd_budget returns True when no tracker set."""
         from core.hive_mind.cost_estimator import CostEstimator
 
@@ -75,7 +75,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
         # No tracker = always True
         assert estimator.check_usd_budget(1_000_000)
 
-    def test_get_stats_includes_usd_info(self):
+    def test_get_stats_includes_usd_info(self) -> None:
         """Test get_stats includes USD integration info."""
         from core.hive_mind.cost_estimator import CostEstimator
 

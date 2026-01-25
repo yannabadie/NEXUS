@@ -21,7 +21,7 @@ pytest.importorskip("sentence_transformers", reason="sentence-transformers not i
 class TestEmbeddingEngineSingleton:
     """Test EmbeddingEngine singleton pattern."""
 
-    def test_singleton_same_object(self):
+    def test_singleton_same_object(self) -> None:
         """Multiple calls to get_embedding_engine return same instance."""
         from core.memory.embedding_engine import (
             get_embedding_engine,
@@ -43,7 +43,7 @@ class TestEmbeddingEngineSingleton:
         # Cleanup
         reset_embedding_engine()
 
-    def test_singleton_via_class(self):
+    def test_singleton_via_class(self) -> None:
         """EmbeddingEngine() also returns singleton."""
         from core.memory.embedding_engine import (
             EmbeddingEngine,
@@ -60,7 +60,7 @@ class TestEmbeddingEngineSingleton:
 
         reset_embedding_engine()
 
-    def test_properties_before_load(self):
+    def test_properties_before_load(self) -> None:
         """Properties work before model is loaded."""
         from core.memory.embedding_engine import (
             get_embedding_engine,
@@ -82,7 +82,7 @@ class TestEmbeddingEngineEncoding:
     """Test encoding functionality."""
 
     @pytest.fixture
-    def engine(self):
+    def engine(self) -> None:
         """Get a fresh engine instance."""
         from core.memory.embedding_engine import (
             get_embedding_engine,
@@ -92,7 +92,7 @@ class TestEmbeddingEngineEncoding:
         yield get_embedding_engine()
         reset_embedding_engine()
 
-    def test_encode_single_text(self, engine):
+    def test_encode_single_text(self, engine) -> None:
         """Encode a single text."""
         result = engine.encode("hello world")
 

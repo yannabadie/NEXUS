@@ -17,6 +17,7 @@ import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
+from typing import Any
 
 
 # =============================================================================
@@ -26,7 +27,7 @@ from unittest.mock import MagicMock
 class TestDenseIndexFix:
     """Test suite for dense.py .tolist() bug fix."""
 
-    def test_embedding_list_handling(self):
+    def test_embedding_list_handling(self) -> Any:
         """Verify embeddings[i] handles both list and numpy array."""
         # Simulate the fixed code path
         def process_embeddings(embeddings):
@@ -63,7 +64,7 @@ class TestDenseIndexFix:
 class TestMemoryCoordinator:
     """Test suite for MemoryCoordinator."""
 
-    def test_import_coordinator(self):
+    def test_import_coordinator(self) -> None:
         """Verify MemoryCoordinator can be imported."""
         from core.memory.coordinator import (
             MemoryCoordinator, MemorySource, UnifiedRecommendation
@@ -72,7 +73,7 @@ class TestMemoryCoordinator:
         assert MemorySource is not None
         assert UnifiedRecommendation is not None
 
-    def test_memory_source_enum(self):
+    def test_memory_source_enum(self) -> None:
         """Verify MemorySource enum values."""
         from core.memory.coordinator import MemorySource
 
@@ -81,7 +82,7 @@ class TestMemoryCoordinator:
         assert MemorySource.BOTH.value == "both"
         assert MemorySource.NONE.value == "none"
 
-    def test_unified_recommendation_dataclass(self):
+    def test_unified_recommendation_dataclass(self) -> None:
         """Verify UnifiedRecommendation fields."""
         from core.memory.coordinator import UnifiedRecommendation, MemorySource
 
@@ -101,7 +102,7 @@ class TestMemoryCoordinator:
         assert "sequential" in rec.modes_to_avoid
         assert rec.reasoning == "Test reasoning"
 
-    def test_coordinator_cold_start(self):
+    def test_coordinator_cold_start(self) -> None:
         """Verify coordinator handles cold start (no memory data)."""
         from core.memory.coordinator import MemoryCoordinator, MemorySource
 

@@ -327,7 +327,7 @@ class V9ToV10Migration:
             return False
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Migrate NEXUS from V9 to V10 multi-tenant structure"
