@@ -375,6 +375,8 @@ class MetaGraphIndexer:
         filter_by_extension = bool(extensions)
         include_dirs = [self.config.root_path / name for name in self.config.include_dirs]
         exclude = {entry.lower() for entry in self.config.exclude_dirs}
+        # Always skip the active Meta GraphRAG data directory to avoid recursive indexing.
+        exclude.add(self.config.data_path.name.lower())
         seen: set[str] = set()
 
         def _record(path: Path) -> bool:
