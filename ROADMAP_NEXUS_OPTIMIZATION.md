@@ -626,6 +626,8 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: npm audit fix --force => 0 vulnerabilities; vitest upgraded to 4.0.18.
 - 2026-01-25: npm test => 19 passed (vitest).
 - 2026-01-25: Added JWT secret enforcement toggle (NEXUS_ENV/NEXUS_REQUIRE_JWT_SECRET) + default admin password warning.
+- 2026-01-25: pytest tests/v11/test_keymaker.py -v => 21 passed.
+- 2026-01-25: pytest tests/v11/test_hardening.py -v => 8 passed.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
