@@ -220,7 +220,7 @@ class AsyncDriverFactory:
 
             config = AsyncGLMDriverConfig(
                 api_key=api_key,
-                api_base=getattr(self.config, "glm_api_base", "https://open.bigmodel.cn/api/paas/v4"),
+                api_base=getattr(self.config, "glm_api_base", "https://api.z.ai/api/paas/v4"),
                 model=model or getattr(self.config, "glm_model", "glm-4.7"),
                 timeout=getattr(self.config, "glm_timeout", 60.0),
                 max_tokens=getattr(self.config, "glm_max_tokens", 4096),
