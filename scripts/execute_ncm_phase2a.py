@@ -144,6 +144,18 @@ class Phase2AExecutor:
             return True
         return False
 
+    def _prompt_continue(self, message: str) -> bool:
+        """Prompt user to continue; default to yes when stdin is non-interactive."""
+        try:
+            if not sys.stdin.isatty():
+                print("[AUTO] No TTY available; continuing by default.")
+                return True
+            response = input(message).strip().lower()
+            return response in ("", "y", "yes")
+        except EOFError:
+            print("[AUTO] EOF on stdin; continuing by default.")
+            return True
+
     async def execute_manual(self, limit: int = 5, start: int = 1):
         """
         Execute stories in manual mode (one-by-one with review).
@@ -197,8 +209,7 @@ class Phase2AExecutor:
 
                     # In manual mode, ask whether to continue
                     if self.manual_mode:
-                        response = input("Story failed. Continue to next? [Y/n]: ").strip().lower()
-                        if response == 'n':
+                        if not self._prompt_continue("Story failed. Continue to next? [Y/n]: "):
                             print("Execution stopped by user.")
                             return
 
@@ -207,8 +218,7 @@ class Phase2AExecutor:
                 print("-" * 60)
                 print("Review the changes above.")
                 print("-" * 60)
-                response = input("Continue to next story? [Y/n]: ").strip().lower()
-                if response == 'n':
+                if not self._prompt_continue("Continue to next story? [Y/n]: "):
                     print("Execution stopped by user.")
                     return
                 print()
@@ -320,8 +330,7 @@ class Phase2AExecutor:
                 time.sleep(2)
             elif self.manual_mode and (batch_end < total_to_execute):
                 # In manual mode, ask for confirmation
-                response = input("Continue to next batch? [Y/n]: ").strip().lower()
-                if response == 'n':
+                if not self._prompt_continue("Continue to next batch? [Y/n]: "):
                     self._save_state()
                     print("Execution paused by user.")
                     return
