@@ -64,6 +64,7 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Windows Claude CLI hang report: `CLAUDE_CLI_BUG_REPORT.md`
 - NCM runtime workspace docs (ignored): `workspace/ncm/README.md`, `workspace/ncm/IMPACT_ANALYSIS.md`, `workspace/ncm/NCM_EXECUTIVE_SUMMARY.md`, `workspace/ncm/PHASE2A_EXECUTION_GUIDE.md`, `workspace/ncm/pilot/PILOT_REPORT.md`
 - MCP query utilities (ignored): `workspace/tmp_mcp_query.py`, `workspace/tmp_mcp_query_extra.py`, `workspace/tmp_list_p0.py` (candidate to promote into scripts/ for repeatable meta GraphRAG snapshots)
+- MCP snapshot utilities (new): `scripts/meta_graph_rag/mcp_snapshot.py`, `scripts/meta_graph_rag/mcp_smoke.py`
 
 ## P0 - Meta GraphRAG Completeness and Reliability
 Goal: full repo coverage with stable ingestion and repeatable embeddings.
@@ -485,6 +486,8 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Meta GraphRAG CLI now defers indexer init for coverage/health so API keys are not required.
 - 2026-01-25: docs/meta_graph_rag.md updated with coverage/health CLI and health env tuning.
 - 2026-01-25: pytest tests/test_meta_graph_rag.py -v => 3 passed (includes exclude-dir coverage).
+- 2026-01-25: Meta GraphRAG health (strict) failed: 558 missing files, manifest stale vs repo, vector_index.json > 1.5GB (health_report.json).
+- 2026-01-25: Added MCP smoke test script + CI step; added MCP snapshot utility (replaces workspace/tmp_mcp_query*.py).
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.

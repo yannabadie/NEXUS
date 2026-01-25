@@ -85,6 +85,15 @@ jobs:
           python -m tools.meta_graph_rag.cli health --strict --require-index
         timeout-minutes: 10
 
+      - name: MCP Meta GraphRAG smoke test
+        if: matrix.python-version == '3.12'
+        env:
+          NEXUS_MCP_SMOKE_REQUIRE: 1
+        run: |
+          pip install mcp
+          python scripts/meta_graph_rag/mcp_smoke.py
+        timeout-minutes: 5
+
       - name: Run tests with coverage (Python 3.12 only)
         if: matrix.python-version == '3.12'
         run: |

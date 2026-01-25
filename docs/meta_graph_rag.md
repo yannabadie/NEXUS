@@ -44,6 +44,10 @@ Meta GraphRAG is exposed via the NEXUS MCP server:
 - `nexus_meta_graphrag_reports` (supports `fast=true` snapshot mode)
 - `nexus_meta_graphrag_reload`
 
+Utilities:
+- `scripts/meta_graph_rag/mcp_snapshot.py` captures status/reports + queries into `workspace/meta_rag/`.
+- `scripts/meta_graph_rag/mcp_smoke.py` verifies MCP tool availability (CI-friendly).
+
 ## HTTP Access
 Meta GraphRAG is also available via the CEREBRO HTTP API:
 - `GET /api/meta-graphrag/status` (`fast=true` uses snapshot)
