@@ -169,6 +169,9 @@ def load_config(
     deepseek_request_timeout = int(os.getenv("DEEPSEEK_EMBED_TIMEOUT", os.getenv("DEEPSEEK_TIMEOUT", "60")))
     deepseek_embedding_dim = os.getenv("DEEPSEEK_EMBED_DIM")
     embedding_fallback_backend = os.getenv("META_RAG_EMBED_FALLBACK", "").strip().lower() or None
+    if not deepseek_embedding_model:
+        if embedding_backend == "deepseek" or embedding_fallback_backend == "deepseek":
+            deepseek_embedding_model = "auto"
     deepseek_embedding_dim_value: Optional[int] = None
     if deepseek_embedding_dim:
         try:

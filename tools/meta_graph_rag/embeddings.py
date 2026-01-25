@@ -236,6 +236,51 @@ class DeepSeekEmbeddingBackend:
         self._expected_dim = expected_dim
         self._http_config = http_config or HttpConfig.from_env()
         self._timeout = timeout
+        self._resolved_model: Optional[str] = None
+
+    def _is_auto_model(self) -> bool:
+        return self._model_name.lower() in {"auto", "latest", "embedding-latest"}
+
+    def _model_sort_key(self, model_id: str) -> tuple:
+        digits = [int(value) for value in re.findall(r"\d+", model_id)] or [0]
+        return (digits, len(model_id), model_id)
+
+    def _fetch_models(self) -> List[str]:
+        url = f"{self._api_base}/models"
+        request = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            method="GET",
+        )
+        result = self._request_json(request, timeout=self._timeout)
+        data = result.get("data", []) if isinstance(result, dict) else []
+        model_ids = [
+            item.get("id")
+            for item in data
+            if isinstance(item, dict) and item.get("id")
+        ]
+        return [model_id for model_id in model_ids if model_id]
+
+    def _resolve_model(self) -> str:
+        if self._resolved_model:
+            return self._resolved_model
+        if not self._is_auto_model():
+            self._resolved_model = self._model_name
+            return self._resolved_model
+        try:
+            model_ids = self._fetch_models()
+        except Exception:
+            self._resolved_model = self._model_name
+            return self._resolved_model
+        embedding_models = [
+            model_id for model_id in model_ids
+            if "embed" in model_id.lower()
+        ]
+        if not embedding_models:
+            self._resolved_model = self._model_name
+            return self._resolved_model
+        self._resolved_model = max(embedding_models, key=self._model_sort_key)
+        return self._resolved_model
 
     def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
         if not texts:
@@ -252,9 +297,10 @@ class DeepSeekEmbeddingBackend:
         return {"backend": "deepseek", "model": self._model_name}
 
     def _embed_batch(self, texts: List[str]) -> List[List[float]]:
+        model = self._resolve_model()
         url = f"{self._api_base}/embeddings"
         payload = {
-            "model": self._model_name,
+            "model": model,
             "input": texts,
         }
         data = json.dumps(payload).encode("utf-8")

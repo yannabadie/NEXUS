@@ -503,6 +503,7 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Added DeepSeek embedding backend (OpenAI-compatible /embeddings) for Meta GraphRAG (requires DEEPSEEK_EMBED_MODEL).
 - 2026-01-25: Reviewed NCM_META_BOOTSTRAPPING_PLAN.md and folded BMAD adaptation items into P0 NCM blockers.
 - 2026-01-25: Added Gemini->DeepSeek fallback on quota/429 via META_RAG_EMBED_FALLBACK.
+- 2026-01-25: DeepSeek embedding model auto-discovery via /models when DEEPSEEK_EMBED_MODEL=auto.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
