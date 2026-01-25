@@ -208,12 +208,23 @@ def run_health_check(
     if vector_backend:
         backend = vector_backend.get("backend")
         config_backend = config.embedding_backend
-        if backend and backend != config_backend:
-            issues.append(HealthIssue(
-                "error",
-                "Embedding backend mismatch between config and vector index.",
-                {"config": config_backend, "index": backend},
-            ))
+        if backend:
+            fallback_backend = (config.embedding_fallback_backend or "").lower()
+            if backend == "fallback":
+                expected_primary = config_backend == "gemini"
+                expected_fallback = fallback_backend == vector_backend.get("fallback_backend")
+                if not (expected_primary and expected_fallback):
+                    issues.append(HealthIssue(
+                        "error",
+                        "Embedding backend mismatch between config and vector index.",
+                        {"config": config_backend, "index": backend, "fallback": fallback_backend},
+                    ))
+            elif backend != config_backend:
+                issues.append(HealthIssue(
+                    "error",
+                    "Embedding backend mismatch between config and vector index.",
+                    {"config": config_backend, "index": backend},
+                ))
         if backend == "gemini":
             model = vector_backend.get("model")
             if model and model != config.gemini_embedding_model:

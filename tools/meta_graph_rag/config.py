@@ -105,6 +105,8 @@ class MetaGraphRagConfig:
     deepseek_embedding_model: str = ""
     deepseek_batch_size: int = 8
     deepseek_request_timeout: int = 60
+    deepseek_embedding_dim: Optional[int] = None
+    embedding_fallback_backend: Optional[str] = None
     query_cache_path: Path = Path("query_cache.json")
     query_cache_ttl_seconds: int = 3600
     query_cache_max_entries: int = 1000
@@ -165,6 +167,14 @@ def load_config(
     deepseek_embedding_model = os.getenv("DEEPSEEK_EMBED_MODEL", "")
     deepseek_batch_size = int(os.getenv("DEEPSEEK_EMBED_BATCH", "8"))
     deepseek_request_timeout = int(os.getenv("DEEPSEEK_EMBED_TIMEOUT", os.getenv("DEEPSEEK_TIMEOUT", "60")))
+    deepseek_embedding_dim = os.getenv("DEEPSEEK_EMBED_DIM")
+    embedding_fallback_backend = os.getenv("META_RAG_EMBED_FALLBACK", "").strip().lower() or None
+    deepseek_embedding_dim_value: Optional[int] = None
+    if deepseek_embedding_dim:
+        try:
+            deepseek_embedding_dim_value = int(deepseek_embedding_dim)
+        except ValueError:
+            deepseek_embedding_dim_value = None
 
     max_file_size_kb = int(os.getenv("META_RAG_MAX_FILE_KB", "512"))
     chunk_lines = int(os.getenv("META_RAG_CHUNK_LINES", "50"))
@@ -223,6 +233,8 @@ def load_config(
         deepseek_embedding_model=deepseek_embedding_model,
         deepseek_batch_size=deepseek_batch_size,
         deepseek_request_timeout=deepseek_request_timeout,
+        deepseek_embedding_dim=deepseek_embedding_dim_value,
+        embedding_fallback_backend=embedding_fallback_backend,
         query_seed_limit=query_seed_limit,
         query_expansion_depth=query_expansion_depth,
         query_expansion_limit=query_expansion_limit,

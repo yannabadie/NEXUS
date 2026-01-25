@@ -88,8 +88,10 @@ You can scope or reduce indexing load with environment variables:
 - `DEEPSEEK_API_KEY` / `DEEPSEEK` = DeepSeek API key
 - `DEEPSEEK_API_BASE` = DeepSeek API base (default https://api.deepseek.com/v1)
 - `DEEPSEEK_EMBED_MODEL` = DeepSeek embedding model id (required for META_RAG_EMBEDDINGS=deepseek)
+- `DEEPSEEK_EMBED_DIM` = expected DeepSeek embedding dimension (recommended if fallback enabled)
 - `DEEPSEEK_EMBED_BATCH` = DeepSeek batch size (default 8)
 - `DEEPSEEK_EMBED_TIMEOUT` = DeepSeek embedding timeout seconds (default 60)
+- `META_RAG_EMBED_FALLBACK` = fallback backend on Gemini quota/429 (set to `deepseek` to enable)
 - `META_RAG_GRAPH_BACKEND` = sqlite
 - `META_RAG_GRAPH_PATH` = graph db path (default `workspace/meta_rag/graph_db.sqlite`)
 - `META_RAG_RESEARCH_LIMIT` = results per query for deep research

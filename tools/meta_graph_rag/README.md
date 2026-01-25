@@ -69,8 +69,10 @@ Set with `META_RAG_EMBEDDINGS`.
 - `DEEPSEEK_API_KEY` / `DEEPSEEK` = DeepSeek API key
 - `DEEPSEEK_API_BASE` = DeepSeek API base (default https://api.deepseek.com/v1)
 - `DEEPSEEK_EMBED_MODEL` = DeepSeek embedding model id (required for META_RAG_EMBEDDINGS=deepseek)
+- `DEEPSEEK_EMBED_DIM` = expected DeepSeek embedding dimension (recommended if fallback enabled)
 - `DEEPSEEK_EMBED_BATCH` = DeepSeek batch size (default 8)
 - `DEEPSEEK_EMBED_TIMEOUT` = DeepSeek embedding timeout seconds (default 60)
+- `META_RAG_EMBED_FALLBACK` = fallback backend on Gemini quota/429 (set to `deepseek` to enable)
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
 - `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
 - `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)

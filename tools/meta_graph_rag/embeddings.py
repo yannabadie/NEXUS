@@ -221,6 +221,7 @@ class DeepSeekEmbeddingBackend:
         api_base: str,
         model_name: str,
         batch_size: int = 8,
+        expected_dim: Optional[int] = None,
         http_config: Optional[HttpConfig] = None,
         timeout: int = 60,
     ) -> None:
@@ -232,6 +233,7 @@ class DeepSeekEmbeddingBackend:
         self._api_base = api_base.rstrip("/")
         self._model_name = model_name
         self._batch_size = max(1, batch_size)
+        self._expected_dim = expected_dim
         self._http_config = http_config or HttpConfig.from_env()
         self._timeout = timeout
 
@@ -278,6 +280,11 @@ class DeepSeekEmbeddingBackend:
             embedding = item.get("embedding")
             if not embedding:
                 raise RuntimeError("DeepSeek embedding response missing embedding values")
+            if self._expected_dim and len(embedding) != self._expected_dim:
+                raise RuntimeError(
+                    "DeepSeek embedding dimension mismatch: "
+                    f"{len(embedding)} != {self._expected_dim}"
+                )
             embeddings.append(embedding)
         return embeddings
 
@@ -302,6 +309,62 @@ class DeepSeekEmbeddingBackend:
         if last_exc:
             raise last_exc
         raise RuntimeError("DeepSeek request failed")
+
+
+class FallbackEmbeddingBackend:
+    """Fallback embeddings wrapper (Gemini -> DeepSeek on quota/429)."""
+
+    def __init__(
+        self,
+        primary: EmbeddingBackend,
+        fallback: EmbeddingBackend,
+        fallback_statuses: Optional[set[int]] = None,
+        fallback_markers: Optional[set[str]] = None,
+    ) -> None:
+        self._primary = primary
+        self._fallback = fallback
+        self._fallback_statuses = fallback_statuses or {429}
+        self._fallback_markers = fallback_markers or {"quota", "resource_exhausted"}
+
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
+        try:
+            return self._primary.embed_texts(texts, task_type=task_type)
+        except urllib.error.HTTPError as exc:
+            if self._should_fallback_http(exc):
+                return self._fallback.embed_texts(texts, task_type=task_type)
+            raise
+        except RuntimeError as exc:
+            if self._should_fallback_message(str(exc)):
+                return self._fallback.embed_texts(texts, task_type=task_type)
+            raise
+
+    def info(self) -> Dict[str, str]:
+        primary_info = self._primary.info()
+        fallback_info = self._fallback.info()
+        payload = {
+            "backend": "fallback",
+            "primary_backend": primary_info.get("backend", ""),
+            "primary_model": primary_info.get("model", ""),
+            "fallback_backend": fallback_info.get("backend", ""),
+            "fallback_model": fallback_info.get("model", ""),
+            "policy": "quota/429",
+        }
+        return {key: value for key, value in payload.items() if value}
+
+    def _should_fallback_message(self, message: str) -> bool:
+        lowered = message.lower()
+        return any(marker in lowered for marker in self._fallback_markers)
+
+    def _should_fallback_http(self, exc: urllib.error.HTTPError) -> bool:
+        if exc.code in self._fallback_statuses:
+            return True
+        try:
+            body = exc.read().decode("utf-8").lower()
+        except Exception:
+            body = ""
+        if exc.code == 403 and self._should_fallback_message(body):
+            return True
+        return self._should_fallback_message(str(exc))
 
 
 @dataclass

@@ -17,6 +17,7 @@ from .config import MetaGraphRagConfig
 from .embeddings import (
     EmbeddingBackend,
     DeepSeekEmbeddingBackend,
+    FallbackEmbeddingBackend,
     GeminiEmbeddingBackend,
     HashEmbeddingBackend,
     NoopEmbeddingBackend,
@@ -192,7 +193,7 @@ class MetaGraphIndexer:
                 ssl_mode=self.config.ssl_mode,
                 ca_bundle_path=self.config.ca_bundle_path,
             )
-            return GeminiEmbeddingBackend(
+            primary = GeminiEmbeddingBackend(
                 api_key=self.config.gemini_api_key,
                 model_name=self.config.gemini_embedding_model,
                 batch_size=self.config.gemini_batch_size,
@@ -201,6 +202,23 @@ class MetaGraphIndexer:
                 http_config=http_config,
                 timeout=self.config.gemini_request_timeout,
             )
+            fallback_backend = (self.config.embedding_fallback_backend or "").lower()
+            if fallback_backend == "deepseek":
+                if not self.config.deepseek_api_key:
+                    raise RuntimeError("META_RAG_EMBED_FALLBACK=deepseek requires DEEPSEEK_API_KEY")
+                if not self.config.deepseek_embedding_model:
+                    raise RuntimeError("META_RAG_EMBED_FALLBACK=deepseek requires DEEPSEEK_EMBED_MODEL")
+                fallback = DeepSeekEmbeddingBackend(
+                    api_key=self.config.deepseek_api_key,
+                    api_base=self.config.deepseek_api_base,
+                    model_name=self.config.deepseek_embedding_model,
+                    batch_size=self.config.deepseek_batch_size,
+                    expected_dim=self.config.deepseek_embedding_dim or self.config.gemini_embedding_dim,
+                    http_config=http_config,
+                    timeout=self.config.deepseek_request_timeout,
+                )
+                return FallbackEmbeddingBackend(primary, fallback)
+            return primary
         if backend == "deepseek":
             if not self.config.deepseek_api_key:
                 raise RuntimeError("META_RAG_EMBEDDINGS=deepseek requires DEEPSEEK_API_KEY")
@@ -215,6 +233,7 @@ class MetaGraphIndexer:
                 api_base=self.config.deepseek_api_base,
                 model_name=self.config.deepseek_embedding_model,
                 batch_size=self.config.deepseek_batch_size,
+                expected_dim=self.config.deepseek_embedding_dim,
                 http_config=http_config,
                 timeout=self.config.deepseek_request_timeout,
             )
