@@ -2,7 +2,7 @@
 
 Created: 2026-01-23
 Owner: Codex (meta GraphRAG assisted)
-**Updated**: 2026-01-25 (Lean toolchain + oracle tests passing)
+**Updated**: 2026-01-25 (Comprehensive analysis verification + Meta GraphRAG recursion guard)
 
 ## 🚨 CRITICAL: Claude CLI Subprocess Bug (Windows)
 
@@ -52,7 +52,9 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - scan_files: 1521 files detected by scanner (os.walk w/ META_RAG_EXCLUDE=.git,meta_rag)
 - rg_files: 845 (gitignore-respecting view)
 - status_source: python -m tools.meta_graph_rag.cli status
-- last_full_index: 2026-01-24 (gemini-embedding-001)
+- last_full_index: 2026-01-24 (gemini-embedding-001; counts above)
+- reindex_in_progress: 2026-01-25 (Gemini embeddings + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag)
+- progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
 - note: graph.json contains no .git nodes; full reindex completed
 
 ## New Artifacts Discovered (Uncommitted)
@@ -66,6 +68,34 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - MCP query utilities (ignored): `workspace/tmp_mcp_query.py`, `workspace/tmp_mcp_query_extra.py`, `workspace/tmp_list_p0.py` (candidate to promote into scripts/ for repeatable meta GraphRAG snapshots)
 - MCP snapshot utilities (new): `scripts/meta_graph_rag/mcp_snapshot.py`, `scripts/meta_graph_rag/mcp_smoke.py`
 - BMAD adaptation plan (untracked): `NCM_META_BOOTSTRAPPING_PLAN.md`
+- Independent analysis report: `NEXUS_COMPREHENSIVE_ANALYSIS.md`
+
+## NEXUS_COMPREHENSIVE_ANALYSIS.md Verification (2026-01-25)
+Goal: validate claims against current code and audits; mark deltas.
+
+Verified against code:
+- 12 FSM states + negotiation max turns (see `core/fsm/states.py`, `core/swarm/negotiation_protocol.py`).
+- HiveMind 7 phases (see `core/hive_mind/phases/README.md`).
+- 6 collaboration modes + DyLAN mode selection (see `core/swarm/collaboration_modes.py`, `core/swarm/mode_selector.py`).
+- Security layers present: KERNEL, InputGuard, OutputGuard (DialogueAct), ExecutionPolicy, RBAC, AuditLogger, IntegrityMonitor (see `KERNEL.py`, `core/security/input_guard.py`, `core/security/output_guard.py`, `core/security/execution_policy.py`, `core/api/cerebro/rbac.py`, `core/audit/audit_logger.py`, `core/security/integrity_monitor.py`).
+- HybridBackend RRF + all-MiniLM-L6-v2 384d embeddings (see `core/memory/backends/hybrid.py`, `core/memory/embedding_engine.py`).
+- SuccessMemory integration with HiveMind (see `core/hive_mind/orchestrator.py`, `core/hive_mind/success_adapter.py`).
+- OrchestratorV7 _make_result mismatch with escalate_reason call sites (see `core/orchestration_v7.py`, `core/orchestration/fsm_handlers.py`).
+- Write tool lacks pre-write syntax validation (see `core/execution/handlers/file_handlers.py`).
+- Default admin password is "nexus" in init flow (see `scripts/init_db.py`).
+
+Outdated or inaccurate (adjust roadmap):
+- God class line counts are lower: `core/orchestration/fsm_handlers.py` 1570, `core/interface/repl.py` 1128, `core/swarm/mode_selector.py` 943, `core/orchestration_v7.py` 830, `core/bootstrap/auto_bootstrap.py` 949, `core/swarm/task_analyzer.py` 924.
+- Evolution TODOs cited in audits are no longer in `core/evolution/manager.py` (specialist/spinoff flow exists; last_evolution derived from lineage).
+- JWT secret guidance already exists in `.env.example`.
+- Swarm fallback is adaptive, not a fixed PARALLEL->SEQUENTIAL->SPECIALIST chain (see `core/swarm/adaptive_fallback.py`).
+
+Doc-sourced; needs fresh verification:
+- 10,602 issues / 40 HIGH, 2,913 type errors, 398 deprecations (see `audit/ANALYSIS_EXHAUSTIVE_2026-01-21.md`, `audit/AUDIT_SUMMARY.md`).
+- 2,371 tests and 85% coverage (audit) vs 2360 tests in `PRODUCTS/03_BASELINE.md` (re-run needed).
+- NCM pilot 100/100 dry-run and real-mode failures (see `docs/NCM_PHASE1_PREPARATION_SUMMARY.md`, `docs/NCM_PILOT_EXECUTION_STATUS.md`).
+- +15% recall claims for HybridBackend/BM25S are documented, not measured (see `core/memory/backends/README.md`).
+- NPM vulnerability status requires `npm audit` in `interface/ui/cerebro`.
 
 ## P0 - Meta GraphRAG Completeness and Reliability
 Goal: full repo coverage with stable ingestion and repeatable embeddings.
@@ -116,6 +146,11 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 10) Query-time embedding timeout + cache (done 2026-01-24)
 - tools/meta_graph_rag/config.py, tools/meta_graph_rag/embeddings.py, tools/meta_graph_rag/indexer.py
 - Added META_RAG_GEMINI_TIMEOUT and query embedding cache (TTL + max entries).
+
+11) Hard-exclude active Meta GraphRAG data path (done 2026-01-25)
+- tools/meta_graph_rag/indexer.py
+- Always skip config.data_path (workspace/meta_rag) even if META_RAG_EXCLUDE is overridden.
+- Impact: prevents recursive indexing of Meta GraphRAG output.
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
@@ -170,6 +205,35 @@ Goal: NCM should run end-to-end without manual intervention.
 - Add weekly review checklist (token budget, success rate, test status, agent utilization, failure modes).
 - Use Meta GraphRAG for story sharding + evidence pack injection; use Kimi K2 Thinking/DeepSeek for reasoning fallback.
 - Identify the specific issues that blocked BMAD execution attempt and record in roadmap with fixes.
+
+10) Fix OrchestratorV7 _make_result API mismatch (pending)
+- core/orchestration_v7.py, core/orchestration/fsm_handlers.py
+- Add escalate_reason to _make_result or remove caller argument; update call sites and tests.
+- Impact: unblock NCM real-mode story execution paths.
+
+11) Add pre-write Python syntax validation (pending)
+- core/execution/handlers/file_handlers.py
+- Validate Python syntax before write and block invalid content; surface error details.
+- Impact: prevents NCM from writing invalid code before syntax checks run.
+
+12) Add FSM transition tests (pending)
+- tests/test_fsm_transitions.py (new)
+- Cover 12 states, error/panic recovery, and invalid transitions.
+
+## P0.5 - Immediate Security Hygiene
+Goal: remove default credentials and address known high-risk hygiene items.
+
+1) Enforce non-default admin password (pending)
+- scripts/init_db.py (default "nexus")
+- Add startup warning if default is detected; document rotation steps.
+
+2) Ensure JWT secret is set in runtime env (pending)
+- core/api/cerebro/middleware.py, .env.example
+- Fail fast or warn if NEXUS_JWT_SECRET missing in production.
+
+3) UI dependency audit (pending)
+- interface/ui/cerebro
+- Run `npm audit fix` and record results.
 
 ## Meta GraphRAG Task Inventory (Phase 1)
 Source: `workspace/ncm_analysis/ncm_deep_analysis_output.json` (80 tasks, 38 files).
@@ -242,6 +306,33 @@ Goal: fewer false positives, clearer security hotspots.
 3) Security hotspot weighting by source type (pending)
 - De-emphasize archives/workspace/test artifacts; prioritize core code and tests.
 - Keep full coverage but adjust ranking to reduce noise.
+
+## P2.5 - God Class Refactors (Maintainability)
+Goal: reduce monoliths and make unit testing/refactors feasible.
+
+1) Split FSM handlers by state (pending)
+- `core/orchestration/fsm_handlers.py` (1570 lines)
+- Target: `core/orchestration/handlers/*` with one handler per state family.
+
+2) Split REPL responsibilities (pending)
+- `core/interface/repl.py` (1128 lines)
+- Target: separate command parsing, session IO, evolution/spinoff flows.
+
+3) Split swarm mode selector (pending)
+- `core/swarm/mode_selector.py` (943 lines)
+- Target: isolate scoring components (complexity, domain, DyLAN, history).
+
+4) Split OrchestratorV7 responsibilities (pending)
+- `core/orchestration_v7.py` (830 lines)
+- Target: state transitions, telemetry, memory wiring, tool delegation modules.
+
+5) Split auto_bootstrap (pending)
+- `core/bootstrap/auto_bootstrap.py` (949 lines)
+- Target: scanning, prompt generation, registry integration.
+
+6) Split task analyzer (pending)
+- `core/swarm/task_analyzer.py` (924 lines)
+- Target: complexity scoring, domain detection, risk scoring modules.
 
 ## P3 - Performance and DX
 Goal: reduce latency and improve maintainability.
@@ -370,6 +461,27 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 7) Formalize resource scoping (pending)
 - ServiceFactory, EmbeddingEngine, RedisEventBus must be tenant-scoped; eliminate implicit globals.
 - Impact: multi-tenant isolation invariants align with Lean spec.
+
+## P5 - Strategic Direction (Doc-Sourced; Validate)
+Goal: pick a realistic path for 2026 delivery (from `NEXUS_COMPREHENSIVE_ANALYSIS.md`).
+
+Options:
+- Option A: Refactor & complete (8-12 weeks). Keep V12.4, fix blockers, address 10,602 issues.
+- Option B: Clean rewrite (16-24 weeks). Freeze V12.4, rewrite as V13 with smaller modules.
+- Option C: Researcher pivot (12-16 weeks). Simplify FSM to 4-6 states, focus on evidence pack workflow.
+
+Recommended path:
+- Option A + C hybrid: stabilize/refactor, then pivot to autonomous researcher use case.
+- Proposed phases (doc-sourced): Weeks 1-2 stabilization, 3-5 refactor, 6-10 researcher pivot, 11-12 polish.
+
+Resource estimates (doc-sourced):
+- 10 weeks, 400-480 dev hours, $20k-$24k dev cost.
+- Infra $130-$270/month (Claude, Gemini, embeddings).
+
+Success metrics (doc-sourced):
+- HIGH severity issues -> 0; code quality 90%+; test coverage 90%+.
+- Documentation coverage 95%+; god class count -> 0.
+- NCM stories complete 2,000 -> 10,602; research reports with citations.
 
 ## P6 - Strategic Rewrite Track (Optional)
 Goal: de-risk a Rust core without losing behavior.
@@ -504,6 +616,9 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Reviewed NCM_META_BOOTSTRAPPING_PLAN.md and folded BMAD adaptation items into P0 NCM blockers.
 - 2026-01-25: Added Gemini->DeepSeek fallback on quota/429 via META_RAG_EMBED_FALLBACK.
 - 2026-01-25: DeepSeek embedding model auto-discovery via /models when DEEPSEEK_EMBED_MODEL=auto.
+- 2026-01-25: Meta GraphRAG indexer now hard-excludes active data_path to prevent recursive indexing.
+- 2026-01-25: Reviewed NEXUS_COMPREHENSIVE_ANALYSIS.md; verified claims vs code/audits and updated roadmap deltas.
+- 2026-01-25: Reindex in progress (Gemini + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag; last progress at `workspace/meta_rag/index_progress.json`).
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
