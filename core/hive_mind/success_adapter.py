@@ -121,7 +121,7 @@ class HiveMindResultAdapter:
             self.agent_outputs = self.execution_result.agent_outputs
 
     @property
-    def mode(self):
+    def mode(self) -> Any:
         """Alias for selected_mode (SuccessMemory checks both).
 
         Returns:
@@ -205,7 +205,7 @@ class SwarmDelegationResultAdapter:
             self.agent_outputs = self.execution_result.agent_outputs
 
     @property
-    def mode(self):
+    def mode(self) -> Any:
         """Returns the selected mode.
 
         Returns:

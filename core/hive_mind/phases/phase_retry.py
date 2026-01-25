@@ -354,13 +354,13 @@ class AdaptiveRetryPhase:
 
         logger.info(f"Added strategy to blacklist: {strategy_desc[:50]}...")
 
-    def mark_success(self, architecture: AgentArchitecture, diagnosis: Optional[FailureDiagnosis]):
+    def mark_success(self, architecture: AgentArchitecture, diagnosis: Optional[FailureDiagnosis]) -> None:
         """Mark a strategy as successful (remove from blacklist if present)."""
         if diagnosis:
             strategy_desc = self._describe_strategy(architecture, diagnosis)
             self.blacklist.mark_success(strategy_desc)
 
-    def reset_retry_count(self):
+    def reset_retry_count(self) -> None:
         """Reset retry count for new task."""
         self._retry_count = 0
 

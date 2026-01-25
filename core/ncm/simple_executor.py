@@ -360,6 +360,212 @@ class SimpleExecutor:
             })
             return False, str(e)
 
+    async def execute_missing_return_type_hints(
+        self,
+        file_path: Path,
+        targets: List[Tuple[Optional[str], str]]
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Add missing return type hints for functions/methods.
+
+        Args:
+            file_path: File to modify.
+            targets: List of (class_name, function_name) tuples. class_name can be None.
+
+        Returns:
+            (success: bool, error_message: Optional[str])
+        """
+        self.logger.info("simple_executor_return_hint_start", {
+            "file": str(file_path),
+            "targets": targets
+        })
+
+        try:
+            if not file_path.exists():
+                return False, f"File not found: {file_path}"
+
+            content = file_path.read_text(encoding="utf-8")
+            tree = ast.parse(content, filename=str(file_path))
+            lines = content.splitlines()
+
+            needed_typing: set[str] = set()
+            updates: List[Tuple[int, str]] = []
+            matched = 0
+            already_annotated = 0
+
+            target_map = {(cls, name) for cls, name in targets}
+            target_names = {name for _, name in targets}
+
+            def infer_return_type(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+                has_value = False
+                has_none = False
+                types: set[str] = set()
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Return):
+                        if child.value is None:
+                            has_none = True
+                            continue
+                        if isinstance(child.value, ast.Constant):
+                            val = child.value.value
+                            if val is None:
+                                has_none = True
+                                continue
+                            has_value = True
+                            if isinstance(val, bool):
+                                types.add("bool")
+                            elif isinstance(val, int):
+                                types.add("int")
+                            elif isinstance(val, float):
+                                types.add("float")
+                            elif isinstance(val, str):
+                                types.add("str")
+                            else:
+                                types.add("Any")
+                        elif isinstance(child.value, (ast.List, ast.ListComp)):
+                            has_value = True
+                            types.add("list")
+                        elif isinstance(child.value, (ast.Dict, ast.DictComp)):
+                            has_value = True
+                            types.add("dict")
+                        elif isinstance(child.value, (ast.Set, ast.SetComp)):
+                            has_value = True
+                            types.add("set")
+                        elif isinstance(child.value, ast.Tuple):
+                            has_value = True
+                            types.add("tuple")
+                        else:
+                            has_value = True
+                            types.add("Any")
+                if not has_value:
+                    return "None"
+                if len(types) == 1:
+                    inferred = next(iter(types))
+                else:
+                    inferred = "Any"
+                if has_none and inferred != "Any":
+                    needed_typing.add("Optional")
+                    return f"Optional[{inferred}]"
+                return inferred
+
+            for node in tree.body:
+                if isinstance(node, ast.ClassDef):
+                    class_name = node.name
+                    for child in node.body:
+                        if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                            continue
+                        fn_name = child.name
+                        if (class_name, fn_name) not in target_map:
+                            continue
+                        matched += 1
+                        if child.returns is not None:
+                            already_annotated += 1
+                            continue
+                        return_type = infer_return_type(child)
+                        if return_type == "Any":
+                            needed_typing.add("Any")
+                        if return_type.startswith("Optional"):
+                            needed_typing.add("Optional")
+                        if child.body and child.body[0].lineno > child.lineno:
+                            sig_end = child.body[0].lineno - 2
+                        else:
+                            sig_end = child.lineno - 1
+                        line = lines[sig_end]
+                        if "->" in line:
+                            continue
+                        if ":" not in line:
+                            return False, f"Signature not found for {fn_name}"
+                        before, after = line.rsplit(":", 1)
+                        updates.append((sig_end, f"{before} -> {return_type}:{after}"))
+                elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if (None, node.name) not in target_map:
+                        continue
+                    matched += 1
+                    if node.returns is not None:
+                        already_annotated += 1
+                        continue
+                    return_type = infer_return_type(node)
+                    if return_type == "Any":
+                        needed_typing.add("Any")
+                    if return_type.startswith("Optional"):
+                        needed_typing.add("Optional")
+                    if node.body and node.body[0].lineno > node.lineno:
+                        sig_end = node.body[0].lineno - 2
+                    else:
+                        sig_end = node.lineno - 1
+                    line = lines[sig_end]
+                    if "->" in line:
+                        continue
+                    if ":" not in line:
+                        return False, f"Signature not found for {node.name}"
+                    before, after = line.rsplit(":", 1)
+                    updates.append((sig_end, f"{before} -> {return_type}:{after}"))
+
+            if not updates:
+                if matched > 0 and matched == already_annotated:
+                    return True, "No-op: return hints already present"
+                if matched == 0:
+                    return False, "No matching functions found for return hints"
+                return False, "No return hints applied"
+
+            for idx, updated in sorted(updates, key=lambda item: item[0]):
+                lines[idx] = updated
+
+            new_content = "\n".join(lines)
+            new_content = self._ensure_typing_imports(new_content, needed_typing)
+
+            ast.parse(new_content, filename=str(file_path))
+            file_path.write_text(new_content, encoding="utf-8")
+
+            self.logger.info("simple_executor_return_hint_success", {
+                "file": str(file_path),
+                "updated": len(updates)
+            })
+            return True, None
+
+        except Exception as e:
+            self.logger.error("simple_executor_return_hint_failed", {
+                "file": str(file_path),
+                "error": str(e)
+            })
+            return False, str(e)
+
+    def _ensure_typing_imports(self, content: str, needed: set[str]) -> str:
+        if not needed:
+            return content
+
+        lines = content.splitlines()
+        import_idx = None
+        existing = set()
+
+        for idx, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith("from typing import"):
+                import_idx = idx
+                parts = stripped.split("import", 1)[1]
+                existing = {p.strip() for p in parts.split(",") if p.strip()}
+                break
+
+        missing = sorted(needed - existing)
+        if not missing:
+            return content
+
+        if import_idx is not None:
+            merged = sorted(existing | needed)
+            lines[import_idx] = f"from typing import {', '.join(merged)}"
+        else:
+            insert_at = 0
+            if lines and lines[0].startswith('"""'):
+                for idx, line in enumerate(lines[1:], start=1):
+                    if line.startswith('"""'):
+                        insert_at = idx + 1
+                        break
+            for idx, line in enumerate(lines):
+                if line.startswith("import ") or line.startswith("from "):
+                    insert_at = idx + 1
+            lines.insert(insert_at, f"from typing import {', '.join(sorted(needed))}")
+
+        return "\n".join(lines)
+
     async def execute_deprecation_fix(
         self,
         file_path: Path,

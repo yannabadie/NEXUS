@@ -608,7 +608,7 @@ class UserInteractionHandler:
         """Get breakpoint response history."""
         return self._history.copy()
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear breakpoint history."""
         self._history.clear()
 

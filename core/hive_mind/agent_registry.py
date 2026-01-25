@@ -228,7 +228,7 @@ class AgentRegistry:
             logger.info(f"Registered new agent: {agent_id}")
             return True
 
-    def record_usage(self, agent_id: str, success: bool = True):
+    def record_usage(self, agent_id: str, success: bool = True) -> None:
         """
         Record that an agent was used.
 
@@ -250,7 +250,7 @@ class AgentRegistry:
 
             self._save_registry()
 
-    def deactivate_agent(self, agent_id: str, reason: str = ""):
+    def deactivate_agent(self, agent_id: str, reason: str = "") -> None:
         """
         Deactivate an agent (soft delete).
 

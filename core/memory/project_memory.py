@@ -768,7 +768,7 @@ class ProjectMemory:
         self._logger.info(f"Forgot {rel_path}: {removed} chunks removed")
         return removed
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all indexed data."""
         self.chunks = []
         self.idf = {}  # Legacy
@@ -796,7 +796,7 @@ class ProjectMemory:
     # Persistence
     # =========================================================================
 
-    def save(self):
+    def save(self) -> None:
         """Save index to disk."""
         data = {
             "version": "1.1",  # V7.9: Bump version for backend abstraction

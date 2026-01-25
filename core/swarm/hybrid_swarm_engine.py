@@ -807,7 +807,7 @@ class HybridSwarmEngine:
         executor = get_executor(mode)
         return executor.execute(context)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset engine state"""
         self.current_phase = SwarmPhase.IDLE
         self._current_analysis = None

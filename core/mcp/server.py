@@ -60,7 +60,7 @@ _ORCHESTRATOR = None
 _META_GRAPHRAG_INDEXER = None
 
 
-def get_tool_manager():
+def get_tool_manager() -> Any:
     """Lazy load ToolManager to avoid circular imports."""
     global _TOOL_MANAGER
     if _TOOL_MANAGER is not None:
@@ -85,7 +85,7 @@ def execute_tool(tool_name: str, params: Dict[str, Any]) -> Any:
     return tm.execute(tool_request)
 
 
-def get_orchestrator():
+def get_orchestrator() -> Any:
     """Lazy load Orchestrator for complex tasks."""
     global _ORCHESTRATOR
     if _ORCHESTRATOR is not None:
@@ -972,7 +972,7 @@ class MCPNotAvailableError(RuntimeError):
     pass
 
 
-def main():
+def main() -> None:
     """
     Run NEXUS MCP server.
 

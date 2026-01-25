@@ -129,7 +129,7 @@ class AgentProfile:
             return self.average_importance
         return sum(r.importance_score for r in relevant) / len(relevant)
 
-    def record_invocation(self, result: AgentInvocationResult):
+    def record_invocation(self, result: AgentInvocationResult) -> None:
         """Record an invocation result, maintaining window size"""
         self.invocation_history.append(result)
         # Trim to window size
@@ -178,7 +178,7 @@ class AgentPool:
     _save_counter: int = field(default=0, repr=False)
     _save_interval: int = field(default=5, repr=False)  # Save every N invocations
 
-    def enable_persistence(self, path: str, auto_save: bool = True, save_interval: int = 5):
+    def enable_persistence(self, path: str, auto_save: bool = True, save_interval: int = 5) -> None:
         """
         Enable auto-persistence of DyLAN scores.
 
@@ -197,11 +197,11 @@ class AgentPool:
         except (FileNotFoundError, json.JSONDecodeError):
             pass  # No existing file, start fresh
 
-    def register(self, profile: AgentProfile):
+    def register(self, profile: AgentProfile) -> None:
         """Register an agent in the pool"""
         self.agents[profile.agent_id] = profile
 
-    def unregister(self, agent_id: str):
+    def unregister(self, agent_id: str) -> None:
         """Remove an agent from the pool"""
         if agent_id in self.agents:
             del self.agents[agent_id]
@@ -360,7 +360,7 @@ class AgentPool:
 
         return None
 
-    def record_invocation(self, result: AgentInvocationResult):
+    def record_invocation(self, result: AgentInvocationResult) -> None:
         """Record invocation result to appropriate agent with auto-persistence"""
         if result.agent_id in self.agents:
             self.agents[result.agent_id].record_invocation(result)

@@ -165,7 +165,7 @@ class HelpCommand(Command):
         """
         self._registry = registry
 
-    def set_registry(self, registry: "CommandRegistry"):
+    def set_registry(self, registry: "CommandRegistry") -> None:
         """
         Set registry reference (for circular dependency).
 

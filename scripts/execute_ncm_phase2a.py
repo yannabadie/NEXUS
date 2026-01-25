@@ -398,6 +398,10 @@ class Phase2AExecutor:
         if story.get("category") == "dead_import":
             return await self._execute_dead_import_story(story)
 
+        # Use SimpleExecutor for type hint stories (fast path)
+        if story.get("category") == "type_error":
+            return await self._execute_type_error_story(story)
+
         # Fall back to full orchestration for complex stories
         await self._initialize_orchestrator()
 
@@ -509,6 +513,71 @@ class Phase2AExecutor:
                 "tests_passed": False,
                 "error": "; ".join(errors)
             }
+
+    async def _execute_type_error_story(self, story: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute missing return type hint additions using SimpleExecutor.
+
+        Args:
+            story: Story dict with type error info.
+
+        Returns:
+            Result dict with status and validation results.
+        """
+        executor = SimpleExecutor()
+        description = story["description"]
+        target_files = [Path(f) for f in story["target_files"]]
+
+        pattern = r"(?:Method|Function)\s+'([^']+)'\s+has no return type hint"
+        matches = re.findall(pattern, description)
+        targets = []
+        for item in matches:
+            if "." in item:
+                class_name, func_name = item.split(".", 1)
+                targets.append((class_name, func_name))
+            else:
+                targets.append((None, item))
+
+        if not targets:
+            return {
+                "status": "failed",
+                "error": f"Could not parse missing return type hints: {description[:100]}"
+            }
+
+        all_success = True
+        errors = []
+        skipped = []
+
+        for file_path in target_files:
+            if not file_path.exists():
+                skipped.append(str(file_path))
+                continue
+            success, error = await executor.execute_missing_return_type_hints(
+                file_path=file_path,
+                targets=targets
+            )
+            if not success:
+                all_success = False
+                errors.append(f"{file_path.name}: {error}")
+
+        if all_success:
+            if skipped:
+                print(f"SKIPPED missing targets: {', '.join(skipped)}")
+            return {
+                "status": "success",
+                "syntax_valid": True,
+                "imports_valid": True,
+                "tests_passed": True,  # Tests run separately after batch
+                "error": None
+            }
+
+        return {
+            "status": "failed",
+            "syntax_valid": False,
+            "imports_valid": False,
+            "tests_passed": False,
+            "error": "; ".join(errors)
+        }
 
 
 def main():

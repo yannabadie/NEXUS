@@ -72,6 +72,8 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Phase2A dead-import executor now skips missing targets (doc_generator files) instead of failing; P2A-098..P2A-100 re-run succeeded.
 - Phase2A type_error batch (101+) hangs in Orchestrator/HiveMind; manual single-story (P2A-111) stalled. Needs fast-path for type_error or safer fallback to avoid long hangs.
 - Set MCP timeouts in `.env` (MCP_TIMEOUT=120, MCP_INIT_TIMEOUT=60) to stabilize Meta GraphRAG MCP queries.
+- Phase2A type_error fast-path added (missing return hint inference + no-op handling when already annotated).
+- Phase2A micro-batches: 102-121 executed successfully via fast-path; lingering failures now only from earlier runs (retry as needed).
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`

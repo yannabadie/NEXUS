@@ -76,7 +76,7 @@ class StagnationDetector:
         # V8.0: StrategyBlacklist integration
         self._strategy_blacklist: Optional["StrategyBlacklist"] = strategy_blacklist
 
-    def set_strategy_blacklist(self, blacklist: "StrategyBlacklist"):
+    def set_strategy_blacklist(self, blacklist: "StrategyBlacklist") -> None:
         """
         V8.0: Set the StrategyBlacklist for stagnation reporting.
 

@@ -152,7 +152,7 @@ class HiveMindSessionIntegration:
         # Track previous phase for inheritance
         self._previous_phase: Optional[str] = None
 
-    def set_previous_phase(self, phase_name: str):
+    def set_previous_phase(self, phase_name: str) -> None:
         """Set the previous phase for context inheritance."""
         self._previous_phase = phase_name
 

@@ -174,7 +174,7 @@ class MisalignmentDetector:
         """Check if misalignment level requires escalation."""
         return self.get_high_severity_count() >= threshold
 
-    def reset(self):
+    def reset(self) -> None:
         """Clear all flags."""
         self._flags.clear()
 

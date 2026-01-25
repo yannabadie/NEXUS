@@ -193,7 +193,7 @@ class AdaptiveDebateConfig:
         gemini_satisfaction: float,
         claude_satisfaction: float,
         task_success: bool
-    ):
+    ) -> None:
         """
         Record a debate outcome for learning.
 
@@ -235,7 +235,7 @@ class AdaptiveDebateConfig:
         made_concession: bool = False,
         defended_position: bool = True,
         changed_position: bool = False
-    ):
+    ) -> None:
         """
         Record an agent's debate behavior.
 
@@ -262,7 +262,7 @@ class AdaptiveDebateConfig:
         agent_id: str,
         satisfaction: float,
         won_debate: bool
-    ):
+    ) -> None:
         """
         Update agent's satisfaction and win rate.
 

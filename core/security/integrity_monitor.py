@@ -175,7 +175,7 @@ class IntegrityMonitor:
 
         return modified
 
-    def save_baseline(self, path: Path):
+    def save_baseline(self, path: Path) -> None:
         """
         Save current hashes as baseline for future verification.
 
@@ -257,7 +257,7 @@ class IntegrityMonitor:
 
 
 # CLI Interface
-def main():
+def main() -> int:
     """Command-line interface for IntegrityMonitor"""
     import argparse
 

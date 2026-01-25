@@ -89,7 +89,7 @@ def get_or_create_event_loop() -> asyncio.AbstractEventLoop:
         return loop
 
 
-async def run_in_thread(func, *args, **kwargs):
+async def run_in_thread(func, *args, **kwargs) -> Any:
     """
     Run a synchronous function in a thread pool.
 
