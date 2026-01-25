@@ -69,6 +69,7 @@ Audit details include query length/hash, expansion settings, and entrypoint coun
 - Recommended task types: `RETRIEVAL_DOCUMENT` for code chunks and `CODE_RETRIEVAL_QUERY` for queries
 - Matryoshka embeddings are supported via `META_RAG_GEMINI_EMBED_DIM` (smaller dims reduce storage and latency)
 - Hashing fallback for offline or quick runs
+- DeepSeek embeddings are supported via `META_RAG_EMBEDDINGS=deepseek` (OpenAI-compatible /embeddings)
 - `none` for graph-only indexing (fast, no semantic search)
 
 ## Tuning
@@ -84,6 +85,11 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research (default gemini-3-pro-preview)
+- `DEEPSEEK_API_KEY` / `DEEPSEEK` = DeepSeek API key
+- `DEEPSEEK_API_BASE` = DeepSeek API base (default https://api.deepseek.com/v1)
+- `DEEPSEEK_EMBED_MODEL` = DeepSeek embedding model id (required for META_RAG_EMBEDDINGS=deepseek)
+- `DEEPSEEK_EMBED_BATCH` = DeepSeek batch size (default 8)
+- `DEEPSEEK_EMBED_TIMEOUT` = DeepSeek embedding timeout seconds (default 60)
 - `META_RAG_GRAPH_BACKEND` = sqlite
 - `META_RAG_GRAPH_PATH` = graph db path (default `workspace/meta_rag/graph_db.sqlite`)
 - `META_RAG_RESEARCH_LIMIT` = results per query for deep research

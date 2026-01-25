@@ -46,6 +46,7 @@ Meta GraphRAG is also exposed via the CEREBRO HTTP API:
 ## Embedding Backends
 - `gemini` (default): Gemini embeddings via API key
 - `auto`: sentence-transformers -> gemini -> hash
+- `deepseek`: DeepSeek OpenAI-compatible embeddings (requires model name)
 - `sentence`: local sentence-transformers
 - `gemini`: Gemini embeddings via API key
 - `hash`: deterministic local fallback
@@ -56,15 +57,20 @@ Set with `META_RAG_EMBEDDINGS`.
 ## Environment Variables
 - `META_RAG_GRAPH_BACKEND` = sqlite
 - `META_RAG_GRAPH_PATH` = graph db path (default `workspace/meta_rag/graph_db.sqlite`)
-- `META_RAG_EMBEDDINGS` = gemini|auto|sentence|hash
+- `META_RAG_EMBEDDINGS` = gemini|auto|deepseek|sentence|hash
 - `META_RAG_EMBEDDING_MODEL` = sentence-transformers model name
 - `META_RAG_GEMINI_EMBED_MODEL` = Gemini embedding model name
-- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 1536)
+- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 3072)
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents (default RETRIEVAL_DOCUMENT)
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
 - `META_RAG_GEMINI_TIMEOUT` = Gemini request timeout in seconds (default 30)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research (default gemini-3-pro-preview)
+- `DEEPSEEK_API_KEY` / `DEEPSEEK` = DeepSeek API key
+- `DEEPSEEK_API_BASE` = DeepSeek API base (default https://api.deepseek.com/v1)
+- `DEEPSEEK_EMBED_MODEL` = DeepSeek embedding model id (required for META_RAG_EMBEDDINGS=deepseek)
+- `DEEPSEEK_EMBED_BATCH` = DeepSeek batch size (default 8)
+- `DEEPSEEK_EMBED_TIMEOUT` = DeepSeek embedding timeout seconds (default 60)
 - `META_RAG_INCLUDE` = comma-separated include dirs (relative to repo root, default `.`)
 - `META_RAG_EXCLUDE` = comma-separated exclude dir names (default empty; recommended: __pycache__, .git, .nexus, .venv, venv, archive, archives, logs, workspace, workspace_archive, .pytest_cache, node_modules, dist, build)
 - `META_RAG_EXTENSIONS` = comma-separated file extensions (empty = all file types)

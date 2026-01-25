@@ -100,6 +100,11 @@ class MetaGraphRagConfig:
     query_seed_limit: int = 8
     query_expansion_depth: int = 1
     query_expansion_limit: int = 20
+    deepseek_api_key: Optional[str] = None
+    deepseek_api_base: str = "https://api.deepseek.com/v1"
+    deepseek_embedding_model: str = ""
+    deepseek_batch_size: int = 8
+    deepseek_request_timeout: int = 60
     query_cache_path: Path = Path("query_cache.json")
     query_cache_ttl_seconds: int = 3600
     query_cache_max_entries: int = 1000
@@ -155,6 +160,11 @@ def load_config(
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     gemini_batch_size = int(os.getenv("META_RAG_GEMINI_BATCH", "8"))
     gemini_request_timeout = int(os.getenv("META_RAG_GEMINI_TIMEOUT", "30"))
+    deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK")
+    deepseek_api_base = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
+    deepseek_embedding_model = os.getenv("DEEPSEEK_EMBED_MODEL", "")
+    deepseek_batch_size = int(os.getenv("DEEPSEEK_EMBED_BATCH", "8"))
+    deepseek_request_timeout = int(os.getenv("DEEPSEEK_EMBED_TIMEOUT", os.getenv("DEEPSEEK_TIMEOUT", "60")))
 
     max_file_size_kb = int(os.getenv("META_RAG_MAX_FILE_KB", "512"))
     chunk_lines = int(os.getenv("META_RAG_CHUNK_LINES", "50"))
@@ -208,6 +218,11 @@ def load_config(
         gemini_request_timeout=gemini_request_timeout,
         gemini_generation_model=gemini_generation_model,
         gemini_api_key=gemini_api_key,
+        deepseek_api_key=deepseek_api_key,
+        deepseek_api_base=deepseek_api_base,
+        deepseek_embedding_model=deepseek_embedding_model,
+        deepseek_batch_size=deepseek_batch_size,
+        deepseek_request_timeout=deepseek_request_timeout,
         query_seed_limit=query_seed_limit,
         query_expansion_depth=query_expansion_depth,
         query_expansion_limit=query_expansion_limit,

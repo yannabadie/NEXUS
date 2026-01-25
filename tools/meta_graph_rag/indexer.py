@@ -16,6 +16,7 @@ import time
 from .config import MetaGraphRagConfig
 from .embeddings import (
     EmbeddingBackend,
+    DeepSeekEmbeddingBackend,
     GeminiEmbeddingBackend,
     HashEmbeddingBackend,
     NoopEmbeddingBackend,
@@ -199,6 +200,23 @@ class MetaGraphIndexer:
                 default_task_type=self.config.gemini_task_type_document,
                 http_config=http_config,
                 timeout=self.config.gemini_request_timeout,
+            )
+        if backend == "deepseek":
+            if not self.config.deepseek_api_key:
+                raise RuntimeError("META_RAG_EMBEDDINGS=deepseek requires DEEPSEEK_API_KEY")
+            if not self.config.deepseek_embedding_model:
+                raise RuntimeError("META_RAG_EMBEDDINGS=deepseek requires DEEPSEEK_EMBED_MODEL")
+            http_config = HttpConfig(
+                ssl_mode=self.config.ssl_mode,
+                ca_bundle_path=self.config.ca_bundle_path,
+            )
+            return DeepSeekEmbeddingBackend(
+                api_key=self.config.deepseek_api_key,
+                api_base=self.config.deepseek_api_base,
+                model_name=self.config.deepseek_embedding_model,
+                batch_size=self.config.deepseek_batch_size,
+                http_config=http_config,
+                timeout=self.config.deepseek_request_timeout,
             )
         if backend == "sentence" or backend == "sentence-transformers":
             return SentenceTransformerBackend(self.config.embedding_model)

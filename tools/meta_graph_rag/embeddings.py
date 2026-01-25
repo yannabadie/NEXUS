@@ -212,6 +212,98 @@ class GeminiEmbeddingBackend:
         raise RuntimeError("Gemini request failed")
 
 
+class DeepSeekEmbeddingBackend:
+    """DeepSeek OpenAI-compatible embeddings backend."""
+
+    def __init__(
+        self,
+        api_key: str,
+        api_base: str,
+        model_name: str,
+        batch_size: int = 8,
+        http_config: Optional[HttpConfig] = None,
+        timeout: int = 60,
+    ) -> None:
+        if not api_key:
+            raise ValueError("DeepSeek API key is required")
+        if not model_name:
+            raise ValueError("DeepSeek embedding model is required")
+        self._api_key = api_key
+        self._api_base = api_base.rstrip("/")
+        self._model_name = model_name
+        self._batch_size = max(1, batch_size)
+        self._http_config = http_config or HttpConfig.from_env()
+        self._timeout = timeout
+
+    def embed_texts(self, texts: List[str], task_type: Optional[str] = None) -> List[List[float]]:
+        if not texts:
+            return []
+        if len(texts) <= self._batch_size:
+            return self._embed_batch(texts)
+        embeddings: List[List[float]] = []
+        for start in range(0, len(texts), self._batch_size):
+            batch = texts[start:start + self._batch_size]
+            embeddings.extend(self._embed_batch(batch))
+        return embeddings
+
+    def info(self) -> Dict[str, str]:
+        return {"backend": "deepseek", "model": self._model_name}
+
+    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
+        url = f"{self._api_base}/embeddings"
+        payload = {
+            "model": self._model_name,
+            "input": texts,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        result = self._request_json(request, timeout=self._timeout)
+        data_items = result.get("data", []) if isinstance(result, dict) else []
+        if not data_items:
+            raise RuntimeError("DeepSeek embedding response missing data")
+        ordered = sorted(
+            [item for item in data_items if isinstance(item, dict)],
+            key=lambda item: item.get("index", 0),
+        )
+        embeddings: List[List[float]] = []
+        for item in ordered:
+            embedding = item.get("embedding")
+            if not embedding:
+                raise RuntimeError("DeepSeek embedding response missing embedding values")
+            embeddings.append(embedding)
+        return embeddings
+
+    def _request_json(self, request: urllib.request.Request, timeout: int) -> Dict[str, object]:
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, 4):
+            try:
+                with urlopen(request, timeout=timeout, http_config=self._http_config) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                last_exc = exc
+                if exc.code in {429, 500, 502, 503, 504} and attempt < 3:
+                    _sleep_backoff(attempt, exc.code)
+                    continue
+                raise
+            except urllib.error.URLError as exc:
+                last_exc = exc
+                if attempt < 3:
+                    _sleep_backoff(attempt, None)
+                    continue
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("DeepSeek request failed")
+
+
 @dataclass
 class VectorRecord:
     chunk_id: str
