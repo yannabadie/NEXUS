@@ -1,0 +1,46 @@
+{
+  "servers": {
+    "nexus": {
+      "env": {
+        "WORKSPACE_PATH": "<WORKSPACE_PATH>",
+        "NEXUS_ROOT": "<NEXUS_ROOT>",
+        "PYTHONPATH": "<NEXUS_ROOT>",
+        "META_RAG_GEMINI_TIMEOUT": "120",
+        "META_RAG_SSL_MODE": "auto",
+        "META_RAG_QUERY_CACHE_TTL": "3600",
+        "META_RAG_QUERY_CACHE_MAX": "1000",
+        "META_RAG_QUERY_SEEDS": "8",
+        "META_RAG_QUERY_DEPTH": "1",
+        "META_RAG_QUERY_EXPANSION": "20"
+      },
+      "command": [
+        "python",
+        "-m",
+        "core.mcp.server"
+      ],
+      "description": "NEXUS MCP server (full tool surface)",
+      "enabled": true
+    },
+    "meta_graphrag": {
+      "env": {
+        "WORKSPACE_PATH": "<WORKSPACE_PATH>",
+        "NEXUS_ROOT": "<NEXUS_ROOT>",
+        "PYTHONPATH": "<NEXUS_ROOT>",
+        "META_RAG_GEMINI_TIMEOUT": "120",
+        "META_RAG_SSL_MODE": "auto",
+        "META_RAG_QUERY_CACHE_TTL": "3600",
+        "META_RAG_QUERY_CACHE_MAX": "1000",
+        "META_RAG_QUERY_SEEDS": "8",
+        "META_RAG_QUERY_DEPTH": "1",
+        "META_RAG_QUERY_EXPANSION": "20"
+      },
+      "command": [
+        "python",
+        "-m",
+        "core.mcp.meta_server"
+      ],
+      "description": "Meta GraphRAG MCP server (dedicated)",
+      "enabled": true
+    }
+  }
+}

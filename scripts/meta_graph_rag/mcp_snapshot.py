@@ -111,12 +111,22 @@ def main() -> int:
     parser.add_argument("--skip-queries", action="store_true", help="Skip meta GraphRAG queries")
     parser.add_argument("--top-k", type=int, default=8, help="Top-k seed results per query")
     parser.add_argument("--fast", action="store_true", help="Use snapshot mode for status/reports")
+    parser.add_argument(
+        "--server",
+        choices=("nexus", "meta"),
+        default="nexus",
+        help="MCP server to query (nexus = full server, meta = meta-only server)",
+    )
 
     args = parser.parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    client = MCPClient(command=["python", "-m", "core.mcp.server"], cwd=Path(os.getcwd()))
+    command = ["python", "-m", "core.mcp.server"]
+    if args.server == "meta":
+        command = ["python", "-m", "core.mcp.meta_server"]
+
+    client = MCPClient(command=command, cwd=Path(os.getcwd()))
     client.start()
     client.initialize()
     try:

@@ -65,8 +65,10 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - NCM Phase 2A manual pilot run: `scripts/execute_ncm_phase2a.py --manual --limit 1 --start 1` completed P2A-001 successfully; tests run by executor passed.
 - NCM Phase 2A manual run: `scripts/execute_ncm_phase2a.py --manual --limit 4 --start 2` executed P2A-002..P2A-005; executor reported tests passed (no net code changes).
 - NCM Phase 2A batch run: `scripts/execute_ncm_phase2a.py --batch 10 --limit 45 --start 6` executed P2A-006..P2A-050; executor reported success for all 45 stories (dead import cleanup in tests + mode selector).
+- NCM Phase 2A batch run: `scripts/execute_ncm_phase2a.py --batch 50 --limit 50 --start 51` executed P2A-051..P2A-100; 97 success, 3 failed (P2A-098..100 missing `tools/doc_generator` dependency).
 - Added dedicated Meta GraphRAG MCP server module `core/mcp/meta_server.py` and registered `meta_graphrag` MCP server in workspace config (local only).
 - MCP tool smoke via ToolManager succeeded for both servers: `mcp_nexus_nexus_meta_graphrag_status` and `mcp_meta_graphrag_nexus_meta_graphrag_status`.
+- Meta GraphRAG MCP snapshot via dedicated server saved to `workspace/meta_rag/meta_server_snapshot` (required `MCP_TIMEOUT=120` to avoid query timeouts).
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`

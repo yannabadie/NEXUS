@@ -40,6 +40,7 @@ Dedicated server (meta-only, optional):
 - Command: `python -m core.mcp.meta_server`
 - Tools: same as above
 - ToolManager names: `mcp_meta_graphrag_<tool>` when registered via `workspace/.nexus/mcp_servers.json`
+- Example MCP config template: `docs/mcp_servers.example.json`
 
 ## HTTP Access
 Meta GraphRAG is also exposed via the CEREBRO HTTP API:
