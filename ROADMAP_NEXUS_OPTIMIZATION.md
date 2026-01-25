@@ -62,6 +62,8 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Reports and verification loop: `docs/NCM_DEEP_ANALYSIS_REPORT.md`, `workspace/ncm_analysis/*`
 - Lean formalization: `LEAN_FORMALIZATION.md`, `ADVANCED_SYSTEMS_FORMALIZATION.md`, `nexus_formalization.lean`, `nexus_advanced_systems.lean`
 - Windows Claude CLI hang report: `CLAUDE_CLI_BUG_REPORT.md`
+- NCM runtime workspace docs (ignored): `workspace/ncm/README.md`, `workspace/ncm/IMPACT_ANALYSIS.md`, `workspace/ncm/NCM_EXECUTIVE_SUMMARY.md`, `workspace/ncm/PHASE2A_EXECUTION_GUIDE.md`, `workspace/ncm/pilot/PILOT_REPORT.md`
+- MCP query utilities (ignored): `workspace/tmp_mcp_query.py`, `workspace/tmp_mcp_query_extra.py`, `workspace/tmp_list_p0.py` (candidate to promote into scripts/ for repeatable meta GraphRAG snapshots)
 
 ## P0 - Meta GraphRAG Completeness and Reliability
 Goal: full repo coverage with stable ingestion and repeatable embeddings.
@@ -91,22 +93,23 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - tools/meta_graph_rag/research.py, tools/meta_graph_rag/deep_research.py, tools/meta_graph_rag/embeddings.py
 - Eliminates 429/5xx holes in sources and embeddings.
 
-6) Remove hash embeddings from production scripts (pending)
+6) Remove hash embeddings from production scripts (done 2026-01-25)
 - analyze_project.py, deep_analysis.py, explore_advanced_systems.py, lean_exploration.py
-- Use gemini embeddings by default, keep hash only for offline/debug.
+- Enforce gemini by default; allow hash only when `META_RAG_ALLOW_HASH=1`.
 
-7) Index health checks (pending)
-- Detect mismatched counts (chunks < files), embedding backend/dim changes, and stale manifests.
+7) Index health checks (done 2026-01-25)
+- Detect mismatched counts (chunks < files), embedding backend drift, and stale manifests.
 - Fail CI when GraphRAG coverage drops below threshold or .git nodes are detected.
 - Warn when sources.json is older than newest source file (partial deep-research run).
+- CLI: `python -m tools.meta_graph_rag.cli health` (writes `health_report.json`).
 
 8) Fix static research sources (done 2026-01-24)
 - Update Deep GraphRAG source URL to correct arXiv id; prefer arXiv API abstracts over HTML pages.
 - Impact: better deep-research coverage and fewer raw HTML sources.
 
-9) Enforce exclude filters in scanner (pending)
-- Ensure `META_RAG_EXCLUDE` from `.env` is honored consistently; add tests asserting excluded dirs are absent.
-- Add a coverage report section that prints the active exclude list at index time.
+9) Enforce exclude filters in scanner (done 2026-01-25)
+- Ensure `META_RAG_EXCLUDE` is honored consistently (case-insensitive dir filtering).
+- Added tests asserting excluded dirs are absent in manifest and graph.
 
 10) Query-time embedding timeout + cache (done 2026-01-24)
 - tools/meta_graph_rag/config.py, tools/meta_graph_rag/embeddings.py, tools/meta_graph_rag/indexer.py
@@ -150,6 +153,11 @@ Goal: NCM should run end-to-end without manual intervention.
 - Option A: remove from active pipelines and keep as deprecated artifact.
 - Option B: route "nexus" provider to NCMOrchestrator directly.
 - Impact: scripts/execute_ncm_phase2b_multi_ai.py, tests/test_multi_ai_executor_security.py.
+
+8) Re-run NCM pilot in real execution mode (pending)
+- Workspace pilot report indicates a dry-run simulation only (no real file edits/tests).
+- Use Gemini/DeepSeek reasoning in SIMPLE mode to avoid Claude CLI hang on Windows.
+- Require real pytest validation (no mocked pass) for the first 5 stories before scaling.
 
 ## Meta GraphRAG Task Inventory (Phase 1)
 Source: `workspace/ncm_analysis/ncm_deep_analysis_output.json` (80 tasks, 38 files).
@@ -471,6 +479,12 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Coverage audit report added (Meta GraphRAG CLI `coverage`).
 - 2026-01-25: python nexus7.py --verify => success (Gemini version detection timeout, defaulted to gemini-3-pro-preview).
 - 2026-01-25: MCP meta GraphRAG query validated (seed hits in core/factory.py for ServiceFactory tenant isolation query).
+- 2026-01-25: Meta GraphRAG health checks + coverage CLI added; CI runs index (no embeddings) + health gate.
+- 2026-01-25: Exclude filtering made case-insensitive; tests assert .git/meta_rag excluded.
+- 2026-01-25: Analysis scripts now block hash embeddings unless `META_RAG_ALLOW_HASH=1`.
+- 2026-01-25: Meta GraphRAG CLI now defers indexer init for coverage/health so API keys are not required.
+- 2026-01-25: docs/meta_graph_rag.md updated with coverage/health CLI and health env tuning.
+- 2026-01-25: pytest tests/test_meta_graph_rag.py -v => 3 passed (includes exclude-dir coverage).
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.

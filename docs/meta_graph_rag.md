@@ -31,6 +31,8 @@ python -m tools.meta_graph_rag.cli deep-research
 python -m tools.meta_graph_rag.cli index
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
+python -m tools.meta_graph_rag.cli coverage
+python -m tools.meta_graph_rag.cli health
 python -m tools.meta_graph_rag.cli eval --queries workspace/meta_rag/eval/queries.json
 python -m tools.meta_graph_rag.cli query "memory coordinator"
 ```
@@ -73,7 +75,7 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_MAX_FILE_KB` = max file size per file (0 = no limit)
 - `META_RAG_CHUNK_LINES` / `META_RAG_CHUNK_OVERLAP` = chunk sizing
 - `META_RAG_GEMINI_EMBED_MODEL` = Gemini embedding model name
-- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 1536)
+- `META_RAG_GEMINI_EMBED_DIM` = Gemini embedding dimension (default 3072)
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
@@ -90,6 +92,14 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
+- `META_RAG_HEALTH_STRICT` = fail on warnings in health check (default false)
+- `META_RAG_HEALTH_REQUIRE_INDEX` = require index artifacts for health check (default true)
+- `META_RAG_HEALTH_MAX_MISSING_RATIO` = max missing ratio before failure
+- `META_RAG_HEALTH_MAX_MISSING_COUNT` = max missing files before failure
+- `META_RAG_HEALTH_MAX_STALE_SECONDS` = max allowed manifest staleness
+- `META_RAG_HEALTH_MAX_SOURCES_STALE_SECONDS` = max allowed sources.json staleness
+- `META_RAG_HEALTH_VECTOR_MAX_MB` = warn above vector index size
+- `META_RAG_HEALTH_ALLOW_GIT` = allow .git paths in health check (default false)
 
 ## Telemetry
 - Indexing and embedding stages emit telemetry events (`rag_ingest`) when telemetry is enabled.
@@ -135,6 +145,10 @@ The report includes a simple availability check for optional evaluators
 
 ## Incremental Updates
 `index_manifest.json` tracks file hashes and chunk ids. Unchanged files are skipped, deleted files are removed, and changed files are reindexed.
+
+## Health and Coverage
+- `coverage` reports indexing completeness to `workspace/meta_rag/reports/coverage_report.md`.
+- `health` emits `workspace/meta_rag/reports/health_report.json` with guardrails for missing files, stale manifests, oversized vector indexes, and .git contamination.
 
 ## Curator Agent
 A dedicated `meta_graph_rag_curator` agent profile lives in `workspace/agents/` with instructions to refresh the index, ingest sources, and publish summaries.

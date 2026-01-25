@@ -81,6 +81,7 @@ def build_coverage_report(config: MetaGraphRagConfig, manifest: IndexManifest) -
         "excluded_dir": 0,
         "excluded_extension": 0,
         "excluded_size": 0,
+        "latest_included_mtime": None,
         "include_dirs": list(config.include_dirs),
         "exclude_dirs": list(config.exclude_dirs),
         "extensions": extensions,
@@ -107,6 +108,14 @@ def build_coverage_report(config: MetaGraphRagConfig, manifest: IndexManifest) -
             continue
 
         summary["included_files"] += 1
+        try:
+            mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        except OSError:
+            mtime = None
+        if mtime:
+            current = summary.get("latest_included_mtime")
+            if not current or mtime > datetime.fromisoformat(current):
+                summary["latest_included_mtime"] = mtime.isoformat()
         resolved = str(path.resolve())
         if resolved in manifest_files:
             summary["indexed_files"] += 1

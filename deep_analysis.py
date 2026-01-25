@@ -7,7 +7,16 @@ import json
 import os
 
 # Charger l'index existant (override via env vars)
-os.environ.setdefault('META_RAG_EMBEDDINGS', 'gemini')
+allow_hash = os.getenv("META_RAG_ALLOW_HASH", "false").lower() == "true"
+embedding_env = os.getenv("META_RAG_EMBEDDINGS")
+if allow_hash:
+    os.environ.setdefault("META_RAG_EMBEDDINGS", embedding_env or "hash")
+else:
+    if embedding_env and embedding_env.lower() == "hash":
+        print("[WARN] META_RAG_EMBEDDINGS=hash ignored (set META_RAG_ALLOW_HASH=1 to allow).")
+        os.environ["META_RAG_EMBEDDINGS"] = "gemini"
+    else:
+        os.environ.setdefault("META_RAG_EMBEDDINGS", "gemini")
 os.environ.setdefault('META_RAG_INCLUDE', 'core,tools,interface,prompts')
 
 config = load_config()

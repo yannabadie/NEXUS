@@ -50,6 +50,12 @@ def main() -> int:
     deep_parser.add_argument("--query", action="append", help="Override research query (repeatable)")
     deep_parser.add_argument("--limit", type=int, help="Override results per query")
 
+    health_parser = subparsers.add_parser("health", help="Run health checks against the index")
+    health_parser.add_argument("--strict", action="store_true", help="Treat warnings as failures")
+    health_parser.add_argument("--require-index", action="store_true", help="Fail if index data is missing")
+    health_parser.add_argument("--max-missing-ratio", type=float, default=None)
+    health_parser.add_argument("--max-missing-count", type=int, default=None)
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -74,15 +80,15 @@ def main() -> int:
         print(f"Deep research saved to {config.sources_path} ({len(paths)} files)")
         return 0
 
-    indexer = MetaGraphIndexer(config)
-
     if args.command == "index":
+        indexer = MetaGraphIndexer(config)
         indexer.index(full=args.full)
         status = indexer.status()
         print(f"Indexed nodes: {status['nodes']}, chunks: {status['chunks']}")
         return 0
 
     if args.command == "status":
+        indexer = MetaGraphIndexer(config)
         status = indexer.status()
         print(status)
         return 0
@@ -90,7 +96,7 @@ def main() -> int:
     if args.command == "query":
         if args.limit:
             config = replace(config, query_seed_limit=args.limit)
-            indexer = MetaGraphIndexer(config)
+        indexer = MetaGraphIndexer(config)
         result = indexer.query(args.query)
         print(f"Seed results: {len(result.seed_chunks)}")
         for chunk in result.seed_chunks:
@@ -101,11 +107,13 @@ def main() -> int:
         return 0
 
     if args.command == "embed":
+        indexer = MetaGraphIndexer(config)
         embedded = indexer.embed_missing(limit=args.limit)
         print(f"Embedded {embedded} chunks")
         return 0
 
     if args.command == "report":
+        indexer = MetaGraphIndexer(config)
         entrypoints = None
         if args.entrypoints:
             entrypoints = [entry.strip() for entry in args.entrypoints.split(",") if entry.strip()]
@@ -122,13 +130,52 @@ def main() -> int:
 
     if args.command == "coverage":
         from .coverage import build_coverage_report, write_coverage_report
-        manifest = indexer.manifest
+        from .indexer import IndexManifest
+        manifest = IndexManifest.load(config.manifest_path)
         report = build_coverage_report(config, manifest)
         paths = write_coverage_report(report, config.reports_path)
         print(f"Coverage report written to {paths.summary}")
         return 0
 
+    if args.command == "health":
+        from .health import run_health_check, write_health_report, _env_bool, _env_float, _env_int
+
+        strict = args.strict or _env_bool("META_RAG_HEALTH_STRICT", False)
+        require_index = args.require_index or _env_bool("META_RAG_HEALTH_REQUIRE_INDEX", True)
+        max_missing_ratio = (
+            args.max_missing_ratio
+            if args.max_missing_ratio is not None
+            else _env_float("META_RAG_HEALTH_MAX_MISSING_RATIO", 0.0)
+        )
+        max_missing_count = (
+            args.max_missing_count
+            if args.max_missing_count is not None
+            else _env_int("META_RAG_HEALTH_MAX_MISSING_COUNT", 0)
+        )
+        max_stale_seconds = _env_float("META_RAG_HEALTH_MAX_STALE_SECONDS", 0.0)
+        max_sources_stale_seconds = _env_float("META_RAG_HEALTH_MAX_SOURCES_STALE_SECONDS", 0.0)
+        vector_max_mb = _env_float("META_RAG_HEALTH_VECTOR_MAX_MB", 128.0)
+        allow_git = _env_bool("META_RAG_HEALTH_ALLOW_GIT", False)
+
+        report = run_health_check(
+            config,
+            strict=strict,
+            require_index=require_index,
+            max_missing_ratio=max_missing_ratio,
+            max_missing_count=max_missing_count,
+            max_stale_seconds=max_stale_seconds,
+            max_sources_stale_seconds=max_sources_stale_seconds,
+            vector_max_mb=vector_max_mb,
+            allow_git=allow_git,
+        )
+        output = write_health_report(report, config.reports_path)
+        print(f"Health report written to {output}")
+        if not report.ok:
+            return 2
+        return 0
+
     if args.command == "eval":
+        indexer = MetaGraphIndexer(config)
         from .eval import DEFAULT_EVAL_QUERIES, load_queries, run_eval, write_report
 
         queries_path = Path(args.queries) if args.queries else (config.data_path / DEFAULT_EVAL_QUERIES)

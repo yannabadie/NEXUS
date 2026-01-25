@@ -24,6 +24,7 @@ python -m tools.meta_graph_rag.cli index
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
 python -m tools.meta_graph_rag.cli coverage
+python -m tools.meta_graph_rag.cli health
 python -m tools.meta_graph_rag.cli eval --queries workspace/meta_rag/eval/queries.json
 python -m tools.meta_graph_rag.cli query "orchestrator state transitions"
 ```
@@ -83,6 +84,14 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_SKIP_EMBEDDINGS` = true to build graph/chunks without embeddings
 - `META_RAG_EMBED_BATCH` = chunks per embed flush (default 64)
 - `META_RAG_EMBED_PERSIST` = persist embeddings every N chunks (default 250)
+- `META_RAG_HEALTH_STRICT` = fail on warnings in health check (default false)
+- `META_RAG_HEALTH_REQUIRE_INDEX` = require index artifacts for health check (default true)
+- `META_RAG_HEALTH_MAX_MISSING_RATIO` = max missing file ratio (default 0.0)
+- `META_RAG_HEALTH_MAX_MISSING_COUNT` = max missing file count (default 0)
+- `META_RAG_HEALTH_MAX_STALE_SECONDS` = max allowed manifest staleness vs files (default 0)
+- `META_RAG_HEALTH_MAX_SOURCES_STALE_SECONDS` = max allowed sources.json staleness (default 0)
+- `META_RAG_HEALTH_VECTOR_MAX_MB` = max vector index size to parse (default 128)
+- `META_RAG_HEALTH_ALLOW_GIT` = allow .git paths in health check (default false)
 - `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store
@@ -109,6 +118,9 @@ Output report:
 - `workspace/meta_rag/reports/eval_report.json`
 The report also includes availability flags for optional evaluators
 (`ragas`, `trulens_eval`, `deepeval`).
+
+Health report:
+- `workspace/meta_rag/reports/health_report.json`
 
 ## Notes
 - Content is normalized to ASCII for storage consistency.

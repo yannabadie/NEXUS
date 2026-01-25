@@ -66,6 +66,25 @@ jobs:
           python -m pytest tests/ -v --tb=short -x --ignore=tests/benchmark_professional.py
         timeout-minutes: 30
 
+      - name: Build Meta GraphRAG index (no embeddings)
+        if: matrix.python-version == '3.12'
+        env:
+          META_RAG_EMBEDDINGS: none
+          META_RAG_SKIP_EMBEDDINGS: true
+          META_RAG_EXCLUDE: ".git,meta_rag,workspace,.nexus,venv,.venv,archive,archives,logs,.pytest_cache,node_modules,dist,build"
+        run: |
+          python -m tools.meta_graph_rag.cli index --full
+        timeout-minutes: 15
+
+      - name: Meta GraphRAG health check
+        if: matrix.python-version == '3.12'
+        env:
+          META_RAG_HEALTH_STRICT: 1
+          META_RAG_HEALTH_REQUIRE_INDEX: 1
+        run: |
+          python -m tools.meta_graph_rag.cli health --strict --require-index
+        timeout-minutes: 10
+
       - name: Run tests with coverage (Python 3.12 only)
         if: matrix.python-version == '3.12'
         run: |

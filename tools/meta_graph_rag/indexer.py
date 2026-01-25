@@ -337,7 +337,7 @@ class MetaGraphIndexer:
         extensions = set(ext.lower() for ext in self.config.extensions)
         filter_by_extension = bool(extensions)
         include_dirs = [self.config.root_path / name for name in self.config.include_dirs]
-        exclude = set(self.config.exclude_dirs)
+        exclude = {entry.lower() for entry in self.config.exclude_dirs}
         seen: set[str] = set()
 
         def _record(path: Path) -> bool:
@@ -363,8 +363,10 @@ class MetaGraphIndexer:
         for base in include_dirs:
             if not base.exists():
                 continue
+            if base.name.lower() in exclude:
+                continue
             for root, dirs, files in os.walk(base):
-                dirs[:] = [d for d in dirs if d not in exclude]
+                dirs[:] = [d for d in dirs if d.lower() not in exclude]
                 for name in files:
                     path = Path(root) / name
                     if filter_by_extension and path.suffix.lower() not in extensions:

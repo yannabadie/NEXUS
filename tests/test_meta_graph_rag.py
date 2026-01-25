@@ -69,3 +69,38 @@ def test_meta_graph_rag_reports(tmp_path, monkeypatch):
     assert paths.bottom_up.exists()
     assert paths.security.exists()
     assert paths.module_catalog.exists()
+
+
+def test_meta_graph_rag_excludes_dirs(tmp_path, monkeypatch):
+    root = tmp_path / "repo"
+    workspace = tmp_path / "workspace"
+    root.mkdir()
+    workspace.mkdir()
+
+    keep_dir = root / "core"
+    keep_dir.mkdir()
+    (keep_dir / "keep.py").write_text("def keep():\n    return 1\n", encoding="utf-8")
+
+    git_dir = root / ".git" / "objects"
+    git_dir.mkdir(parents=True)
+    (git_dir / "ignored.py").write_text("def ignore():\n    return 0\n", encoding="utf-8")
+
+    meta_dir = root / "meta_rag"
+    meta_dir.mkdir()
+    (meta_dir / "ignored.md").write_text("# Ignore\n", encoding="utf-8")
+
+    monkeypatch.setenv("META_RAG_EMBEDDINGS", "hash")
+    monkeypatch.setenv("META_RAG_EXCLUDE", ".git,meta_rag")
+    config = load_config(root_path=root, workspace_path=workspace)
+    indexer = MetaGraphIndexer(config)
+    indexer.index(full=True)
+
+    for path in indexer.manifest.files.keys():
+        normalized = path.replace("\\", "/")
+        assert "/.git/" not in normalized
+        assert "/meta_rag/" not in normalized
+
+    for node in indexer.graph.nodes.values():
+        normalized = node.path.replace("\\", "/")
+        assert "/.git/" not in normalized
+        assert "/meta_rag/" not in normalized

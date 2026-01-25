@@ -6,7 +6,16 @@ import os
 import json
 
 # Configuration optimisee pour une indexation rapide (override via env vars)
-os.environ.setdefault('META_RAG_EMBEDDINGS', 'gemini')
+allow_hash = os.getenv("META_RAG_ALLOW_HASH", "false").lower() == "true"
+embedding_env = os.getenv("META_RAG_EMBEDDINGS")
+if allow_hash:
+    os.environ.setdefault("META_RAG_EMBEDDINGS", embedding_env or "hash")
+else:
+    if embedding_env and embedding_env.lower() == "hash":
+        print("[WARN] META_RAG_EMBEDDINGS=hash ignored (set META_RAG_ALLOW_HASH=1 to allow).")
+        os.environ["META_RAG_EMBEDDINGS"] = "gemini"
+    else:
+        os.environ.setdefault("META_RAG_EMBEDDINGS", "gemini")
 os.environ.setdefault('META_RAG_INCLUDE', 'core/api,core/agents,core/memory,core/execution')
 os.environ.setdefault('META_RAG_EXCLUDE', '__pycache__,.git,.nexus,.venv,venv,logs,archive,workspace,test_workspace')
 os.environ.setdefault('META_RAG_CHUNK_LINES', '30')
