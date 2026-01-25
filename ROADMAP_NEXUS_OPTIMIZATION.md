@@ -61,8 +61,9 @@ Docs are treated as secondary. Code and tests are the source of truth.
 ## Recent Updates (2026-01-25)
 - GLM tool_use parsing bug fixed (regex pattern). Files: `core/drivers/async_glm_driver.py`, `core/drivers/glm_driver_hybrid.py`.
 - GLM tool-use smoke test (direct driver + ToolManager) succeeded reading `workspace/tooluse_smoke.txt`.
-- MCP server `nexus` timed out during ToolManager init (30s). Needs follow-up to restore MCP availability.
+- MCP server `nexus` timeout traced to env override; MCP now merges server env with host env so stdio server initializes correctly. File: `core/mcp/registry.py`.
 - NCM Phase 2A manual pilot run: `scripts/execute_ncm_phase2a.py --manual --limit 1 --start 1` completed P2A-001 successfully; tests run by executor passed.
+- NCM Phase 2A manual run: `scripts/execute_ncm_phase2a.py --manual --limit 4 --start 2` executed P2A-002..P2A-005; executor reported tests passed (no net code changes).
 
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`

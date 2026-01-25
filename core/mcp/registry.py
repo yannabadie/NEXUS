@@ -223,9 +223,14 @@ class MCPRegistry:
             self._logger.warning(f"MCP server disabled: {name}")
             return None
 
+        env = None
+        if config.env:
+            env = os.environ.copy()
+            env.update(config.env)
+
         client = MCPClient(
             command=config.full_command,
-            env=config.env or None,
+            env=env,
             cwd=self.workspace_path,
         )
 
