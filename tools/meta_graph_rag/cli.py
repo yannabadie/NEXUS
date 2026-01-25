@@ -31,6 +31,8 @@ def main() -> int:
     report_parser = subparsers.add_parser("report", help="Generate analysis reports")
     report_parser.add_argument("--entrypoints", help="Comma-separated entrypoint paths")
 
+    subparsers.add_parser("coverage", help="Generate coverage audit report")
+
     eval_parser = subparsers.add_parser("eval", help="Evaluate retrieval quality")
     eval_parser.add_argument("--queries", help="Path to eval queries JSON")
     eval_parser.add_argument("--seed-limit", type=int, default=None, help="Override seed limit")
@@ -116,6 +118,14 @@ def main() -> int:
             entrypoints=entrypoints,
         )
         print(f"Reports written to {paths.overview.parent}")
+        return 0
+
+    if args.command == "coverage":
+        from .coverage import build_coverage_report, write_coverage_report
+        manifest = indexer.manifest
+        report = build_coverage_report(config, manifest)
+        paths = write_coverage_report(report, config.reports_path)
+        print(f"Coverage report written to {paths.summary}")
         return 0
 
     if args.command == "eval":

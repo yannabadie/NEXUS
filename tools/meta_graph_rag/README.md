@@ -23,6 +23,7 @@ python -m tools.meta_graph_rag.cli deep-research
 python -m tools.meta_graph_rag.cli index
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
+python -m tools.meta_graph_rag.cli coverage
 python -m tools.meta_graph_rag.cli eval --queries workspace/meta_rag/eval/queries.json
 python -m tools.meta_graph_rag.cli query "orchestrator state transitions"
 ```

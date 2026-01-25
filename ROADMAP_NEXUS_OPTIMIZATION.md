@@ -78,8 +78,9 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - Rebuild after purging .git artifacts to remove noisy blobs.
 - Impact: Meta GraphRAG completeness and agent onboarding accuracy.
 
-3) Coverage audit report (pending)
+3) Coverage audit report (done 2026-01-25)
 - Add report of skipped/oversized/binary files + include/exclude settings.
+- Output: `workspace/meta_rag/reports/coverage_report.md` + `coverage_report.json`.
 - Impact: visibility into blind spots.
 
 4) Purge .git nodes from existing index artifacts (done 2026-01-24)
@@ -467,6 +468,9 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: tests/lean_oracle now detect lake via WinGet Links fallback on Windows.
 - 2026-01-25: pytest tests/lean_oracle -v => 12 passed.
 - 2026-01-25: pytest tests/v10/test_cerebro.py -v => 26 passed.
+- 2026-01-25: Coverage audit report added (Meta GraphRAG CLI `coverage`).
+- 2026-01-25: python nexus7.py --verify => success (Gemini version detection timeout, defaulted to gemini-3-pro-preview).
+- 2026-01-25: MCP meta GraphRAG query validated (seed hits in core/factory.py for ServiceFactory tenant isolation query).
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
