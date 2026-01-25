@@ -311,10 +311,10 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 - Property-based sequences of events; compare transitions and invariants.
 - Impact: safe refactor and rewrite.
 
-4.1) Lean toolchain + CI gate (pending)
-- Add a `lean/` workspace with `lakefile.lean` + `lean-toolchain`, pin Lean 4 version.
+4.1) Lean toolchain + CI gate (done 2026-01-24)
+- Added `lean/` workspace with `lakefile.lean` + `lean-toolchain`.
+- Oracle export via `lake exe nexus_oracle` (FSM + Swarm + HiveMind + Evolution).
 - CI target: `lake build` + `pytest tests/lean_oracle -v --lean-oracle`.
-- Prefer real Lean execution over mocks (aligns with NEXUS testing guidelines).
 
 4.2) Security invariants (pending)
 - Formalize non-negotiables: tenant isolation, cancellation propagation, workspace isolation, event delivery.
@@ -323,6 +323,10 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 4.3) Lean metaprogramming support (pending)
 - Track tactics/macros needed for FSM/state proofs (Lean 4 metaprogramming book as reference).
 - Keep proof automation minimal; target high-value invariants first.
+
+4.4) HiveMind + Evolution oracle coverage (done 2026-01-24)
+- HiveMind states, phase order, and breakpoints exported via Lean oracle.
+- Evolution phase status exported via Lean oracle.
 
 5) Refactor FSM handlers by state (pending)
 - One module per state (or state family) with pure-ish handlers: (context, event) -> (new_state, actions).
@@ -442,6 +446,7 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-24: Fixed scripts/doc_engine.py CodebaseScanner docstring regression.
 - 2026-01-24: ADR-0006 CLI-only constraint added under PRODUCTS/DECISIONS.
 - 2026-01-24: Added lean.md analysis and Lean research addenda (Lean + Cedar differential testing).
+- 2026-01-24: Added Lean oracle toolchain + HiveMind/Evolution exports + differential tests (lean_oracle).
 - 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 1 warning (TelemetryBridge.emit not awaited).
 - 2026-01-24: pytest tests/v10/test_synapse_telemetry.py -v => 27 passed, warning cleared.
 - 2026-01-24: Meta GraphRAG query "security hotspots auth files upload path traversal" returned seed hits in core/security/mutation_validator.py, core/security/path_guardian.py, core/execution/tool_manager.py, core/drivers/async_claude_driver.py, core/ncm/multi_ai_executor.py, scripts/verify/verify_users_security.py, tools/meta_graph_rag/reports.py (expanded results: 10).
@@ -454,6 +459,7 @@ Lean research addenda:
 - Lean language site: open-source proof assistant enabling formally verified code.
 - AWS Cedar blog: automated reasoning + differential testing used to validate security-critical language.
 - Lean 4 metaprogramming book: tactics/macros and MetaM tooling for proof automation.
+- MA-LoT (arXiv 2503.03205): multi-agent Lean-based formal theorem proving (supports agentic proof workflows).
 
 DeepSeek highlights:
 - DeepSeek-V3: MoE 671B total params (37B active), 128K context, FP8 training; reasoning distilled from R1 series.
