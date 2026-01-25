@@ -152,7 +152,7 @@ class AsyncGLMDriver:
 
     def _parse_hybrid_response(self, raw_text: str) -> Dict[str, Any]:
         """Parse natural language response with XML tool_use blocks."""
-        tool_pattern = r'<tool_use\\s+name="(\\w+)">(.*?)</tool_use>'
+        tool_pattern = r'<tool_use\s+name="([\w-]+)">(.*?)</tool_use>'
         tool_matches = list(re.finditer(tool_pattern, raw_text, re.DOTALL))
 
         content = raw_text

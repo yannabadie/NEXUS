@@ -58,6 +58,12 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
 - note: graph.json contains no .git nodes; full reindex completed
 
+## Recent Updates (2026-01-25)
+- GLM tool_use parsing bug fixed (regex pattern). Files: `core/drivers/async_glm_driver.py`, `core/drivers/glm_driver_hybrid.py`.
+- GLM tool-use smoke test (direct driver + ToolManager) succeeded reading `workspace/tooluse_smoke.txt`.
+- MCP server `nexus` timed out during ToolManager init (30s). Needs follow-up to restore MCP availability.
+- NCM Phase 2A manual pilot run: `scripts/execute_ncm_phase2a.py --manual --limit 1 --start 1` completed P2A-001 successfully; tests run by executor passed.
+
 ## New Artifacts Discovered (Uncommitted)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`
 - P0/P1 story generator: `core/ncm/p0_p1_story_generator.py`
