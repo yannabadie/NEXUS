@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -13,6 +14,15 @@ LEAN_ROOT = Path(__file__).resolve().parents[2] / "lean"
 @pytest.fixture(scope="session")
 def lean_oracle_lines() -> List[str]:
     lake = shutil.which("lake")
+    if not lake:
+        candidates = [
+            Path(os.getenv("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Links" / "lake.exe",
+            Path(os.getenv("USERPROFILE", "")) / ".elan" / "bin" / "lake.exe",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                lake = str(candidate)
+                break
     if not lake:
         pytest.skip("lake not found; install Lean 4 toolchain to run lean_oracle tests")
     if not (LEAN_ROOT / "lakefile.lean").exists():

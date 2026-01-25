@@ -1,5 +1,3 @@
-import Std
-
 namespace Nexus
 
 inductive CollaborationMode
@@ -19,7 +17,9 @@ def modeToString : CollaborationMode -> String
   | .specialist => "SPECIALIST"
   | .red_blue => "RED_BLUE"
 
-def fallbackMap : List (CollaborationMode × Option CollaborationMode) :=
+abbrev FallbackEntry := Prod CollaborationMode (Option CollaborationMode)
+
+def fallbackMap : List FallbackEntry :=
   [
     (.parallel, some .sequential),
     (.red_blue, some .lead_support),
@@ -30,7 +30,7 @@ def fallbackMap : List (CollaborationMode × Option CollaborationMode) :=
   ]
 
 def swarmLines : List String :=
-  fallbackMap.map fun (entry : CollaborationMode × Option CollaborationMode) =>
+  fallbackMap.map fun (entry : FallbackEntry) =>
     let nextStr := match entry.2 with
       | some mode => modeToString mode
       | none => "none"

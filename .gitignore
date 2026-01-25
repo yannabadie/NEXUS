@@ -32,6 +32,7 @@ workspace_archive.tar.gz
 .nexus/
 data/
 workspace_registry.json
+.lake/
 
 # Node.js (for Playwright/UI tests)
 node_modules/

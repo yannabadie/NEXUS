@@ -1,5 +1,3 @@
-import Std
-
 namespace Nexus
 
 inductive OrchestratorState
@@ -76,7 +74,9 @@ def eventToString : Event -> String
   | .ws_reconnect => "ws_reconnect"
   | .user_cancel => "user_cancel"
 
-def transitionTable : List (OrchestratorState × Event × Option OrchestratorState) :=
+abbrev Transition := Prod OrchestratorState (Prod Event (Option OrchestratorState))
+
+def transitionTable : List Transition :=
   [
     (.idle, .user_input, some .brainstorming),
     (.brainstorming, .tool_use, some .executing_tool),
@@ -130,7 +130,7 @@ def formatFSM (fromState : OrchestratorState) (event : Event)
   "FSM|" ++ stateToString fromState ++ "|" ++ eventToString event ++ "|" ++ nextStr
 
 def fsmLines : List String :=
-  transitionTable.map fun (entry : OrchestratorState × Event × Option OrchestratorState) =>
+  transitionTable.map fun (entry : Transition) =>
     formatFSM entry.1 entry.2.1 entry.2.2
 
 def activeLines : List String :=

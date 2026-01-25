@@ -1,5 +1,3 @@
-import Std
-
 namespace Nexus
 
 structure Invariant where
