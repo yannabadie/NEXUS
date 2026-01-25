@@ -44,6 +44,13 @@ if FALLBACK_ADMIN_PASSWORD is None:
         "NEXUS_ADMIN_PASSWORD not set! Fallback authentication is disabled. "
         "Set NEXUS_ADMIN_PASSWORD environment variable if backward compatibility needed."
     )
+elif FALLBACK_ADMIN_PASSWORD == "nexus":
+    logger.warning(
+        "NEXUS_ADMIN_PASSWORD is set to the default 'nexus' (INSECURE). "
+        "Rotate immediately or disable fallback auth. "
+        "Suggested: set NEXUS_ADMIN_PASSWORD in .env and run "
+        "`python scripts/init_db.py --reset-admin`."
+    )
 
 
 # =============================================================================

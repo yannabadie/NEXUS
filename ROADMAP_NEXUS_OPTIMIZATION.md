@@ -223,17 +223,17 @@ Goal: NCM should run end-to-end without manual intervention.
 ## P0.5 - Immediate Security Hygiene
 Goal: remove default credentials and address known high-risk hygiene items.
 
-1) Enforce non-default admin password (pending)
+1) Enforce non-default admin password (done 2026-01-25)
 - scripts/init_db.py (default "nexus")
-- Add startup warning if default is detected; document rotation steps.
+- Added startup warning in auth fallback when default is detected; documented rotation steps.
 
-2) Ensure JWT secret is set in runtime env (pending)
+2) Ensure JWT secret is set in runtime env (done 2026-01-25)
 - core/api/cerebro/middleware.py, .env.example
-- Fail fast or warn if NEXUS_JWT_SECRET missing in production.
+- Fail fast when NEXUS_ENV=production or NEXUS_REQUIRE_JWT_SECRET=true; warn otherwise.
 
-3) UI dependency audit (in progress)
+3) UI dependency audit (done 2026-01-25)
 - interface/ui/cerebro
-- `npm audit fix` completed; 5 moderate vulnerabilities remain (esbuild/vite/vitest). Requires `npm audit fix --force` (breaking change to vitest).
+- `npm audit fix --force` completed; 0 vulnerabilities remain; vitest upgraded to 4.0.18.
 
 ## Meta GraphRAG Task Inventory (Phase 1)
 Source: `workspace/ncm_analysis/ncm_deep_analysis_output.json` (80 tasks, 38 files).
@@ -623,7 +623,9 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Added pre-write Python syntax validation for write/edit tools.
 - 2026-01-25: Moved NEXUS_COMPREHENSIVE_ANALYSIS.md into docs/ for tracking.
 - 2026-01-25: pytest tests/ -v => 2507 passed, 12 skipped in 0:07:51 (warning: invalid -W option for urllib3.exceptions).
-- 2026-01-25: npm audit fix => 5 moderate vulnerabilities remain (esbuild/vite/vitest); requires --force.
+- 2026-01-25: npm audit fix --force => 0 vulnerabilities; vitest upgraded to 4.0.18.
+- 2026-01-25: npm test => 19 passed (vitest).
+- 2026-01-25: Added JWT secret enforcement toggle (NEXUS_ENV/NEXUS_REQUIRE_JWT_SECRET) + default admin password warning.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.

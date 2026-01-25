@@ -29,9 +29,16 @@ logger = logging.getLogger(__name__)
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 JWT_SECRET = os.environ.get("NEXUS_JWT_SECRET")
 JWT_ALGORITHM = "HS256"
+NEXUS_ENV = os.environ.get("NEXUS_ENV", "").lower()
+REQUIRE_JWT_SECRET = os.environ.get("NEXUS_REQUIRE_JWT_SECRET", "").lower() == "true"
 
 # Fail-fast pattern: warn in dev, would fail in production without secret
 if not JWT_SECRET:
+    if NEXUS_ENV == "production" or REQUIRE_JWT_SECRET:
+        raise RuntimeError(
+            "NEXUS_JWT_SECRET is required in production. "
+            "Set NEXUS_JWT_SECRET environment variable."
+        )
     # Development fallback - REMOVE IN PRODUCTION
     JWT_SECRET = "nexus-dev-insecure-secret-CHANGE-ME"
     logger.warning(
