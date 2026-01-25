@@ -77,6 +77,11 @@ nexus7> Hello! Analyze this project and help me understand it.
 
 ---
 
+## Windows CLI Note
+
+Claude CLI `-p` can hang on Windows in non-interactive mode.
+Set `NEXUS_PREFER_GEMINI_WINDOWS=1` (or `NEXUS_SIMPLE_AGENT=gemini`) to force Gemini for SIMPLE tasks.
+
 ## V12.4 Features
 
 ### COGNITIVE BOOST (Current)

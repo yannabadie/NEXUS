@@ -159,11 +159,11 @@ $ ps aux | grep claude
 **Risk**: May cause issues with MCP subprocess tools
 **Viable**: Fragile, not production-ready
 
-### 3. Direct API Calls ✅
+### 3. Direct API Calls ❌
 **Method**: Bypass CLI, use Anthropic API directly
-**Pro**: Works reliably, no subprocess issues
-**Con**: Loses CLI features (MCP integration, session persistence)
-**Viable**: **Best current workaround**
+**Status**: **NOT APPLICABLE for NEXUS**
+**Reason**: NEXUS architecture restricts Claude/Gemini to CLI-only (subscription-based: Claude Max Plan + Google AI Ultra)
+**Viable**: No - violates architecture constraint
 
 ### 4. Alternative Agent (Gemini) ✅
 **Method**: `NEXUS_SIMPLE_AGENT=gemini`
@@ -187,28 +187,21 @@ $ ps aux | grep claude
 3. ⏳ **File GitHub issue** with comprehensive test results
 
 ### Short-term (1-2 weeks)
-1. **Implement API fallback** in `claude_driver_hybrid.py`:
-   ```python
-   def invoke(self, context: str) -> str:
-       if os.name == 'nt' and self.use_cli:
-           try:
-               return self._invoke_cli(context, timeout=10)
-           except TimeoutError:
-               logger.warning("CLI timeout, falling back to API")
-               return self._invoke_api(context)
-       # ...
-   ```
+1. **~~Implement API fallback~~ NOT APPLICABLE**:
+   - NEXUS uses CLI-only for Claude/Gemini (architecture constraint)
+   - Workaround: Use `NEXUS_SIMPLE_AGENT=gemini` to bypass Claude CLI
+   - Alternative providers: Kimi K2 Thinking, DeepSeek R1 (API-based)
 
 2. **Add telemetry tracking**:
-   - CLI timeout rate
-   - Fallback invocation count
-   - Performance comparison (CLI vs API)
+   - CLI timeout rate (Claude vs Gemini)
+   - Agent selection distribution
+   - Performance comparison per agent
 
 3. **Environment variable control**:
    ```bash
-   NEXUS_CLAUDE_MODE=api     # Skip CLI entirely
-   NEXUS_CLAUDE_TIMEOUT=10   # Custom timeout
-   NEXUS_CLI_FALLBACK=true   # Auto-fallback to API
+   NEXUS_SIMPLE_AGENT=gemini       # Force Gemini for SIMPLE mode
+   NEXUS_CLAUDE_TIMEOUT=10         # Custom timeout (before kill)
+   NEXUS_PREFER_GEMINI_WINDOWS=1   # Auto-select Gemini on Windows
    ```
 
 ### Long-term (1-3 months)
@@ -217,26 +210,27 @@ $ ps aux | grep claude
    - Propose patch for `-p` mode lifecycle
    - Test on Windows/macOS/Linux
 
-2. **Alternative architecture**:
-   - Native Anthropic SDK integration
-   - Remove CLI dependency for core workflows
-   - CLI becomes optional (for MCP features only)
+2. **~~Alternative architecture~~ NOT APPLICABLE**:
+   - ~~Native Anthropic SDK integration~~ (violates NEXUS CLI-only constraint)
+   - Keep Claude/Gemini CLI-based
+   - Use Kimi/DeepSeek APIs for additional model diversity
 
 3. **Platform-specific optimization**:
-   - Windows: ConPTY bridge for pseudo-TTY
-   - macOS: `script` command wrapper
-   - Linux: Direct subprocess (if working)
+   - Windows: ConPTY bridge for pseudo-TTY (experimental)
+   - macOS: `script` command wrapper (if needed)
+   - Linux: Direct subprocess (test if working)
+   - Fallback strategy: Auto-select Gemini on Windows when Claude CLI hangs
 
 ---
 
 ## 📋 Action Items
 
 ### For NEXUS Development
-- [ ] Update `core/drivers/claude_driver_hybrid.py` with API fallback
-- [ ] Add `NEXUS_CLAUDE_MODE` environment variable
-- [ ] Document Windows limitation in README
-- [ ] Add telemetry for CLI timeout tracking
-- [ ] Create ADR for driver architecture decision
+- [ ] ~~Update `core/drivers/claude_driver_hybrid.py` with API fallback~~ (NOT APPLICABLE - CLI-only constraint)
+- [x] Add `NEXUS_PREFER_GEMINI_WINDOWS` environment variable for auto-fallback
+- [ ] Document Windows limitation in README (Claude CLI subprocess hang)
+- [ ] Add telemetry for CLI timeout tracking (Claude vs Gemini)
+- [x] Create ADR documenting CLI-only constraint for Claude/Gemini
 
 ### For Anthropic/Community
 - [ ] File detailed GitHub issue with test suite

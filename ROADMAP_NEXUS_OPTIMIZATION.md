@@ -17,17 +17,18 @@ Owner: Codex (meta GraphRAG assisted)
 - Related issues: #9026, #13287, #18552, #771
 
 ### Workarounds Deployed
-- ✅ `NEXUS_SIMPLE_AGENT=gemini` - NCM pilot uses Gemini instead
-- ✅ Kimi K2 Thinking fallback - Deep research in Meta GraphRAG
-- ⏳ API direct fallback - To be implemented in claude_driver_hybrid.py
+- ✅ `NEXUS_SIMPLE_AGENT=gemini` - NCM pilot uses Gemini CLI instead
+- ✅ Kimi K2 Thinking API - Deep research in Meta GraphRAG
+- ✅ DeepSeek R1 API - Alternative reasoning provider (optional)
+- ❌ API direct fallback - **NOT APPLICABLE** (NEXUS uses CLI-only for Claude/Gemini per architecture constraint)
 
 ### Action Items
-- [ ] **P0**: Implement API fallback in `core/drivers/claude_driver_hybrid.py`
-- [ ] **P0**: Add `NEXUS_CLAUDE_MODE=api` env var
+- [ ] **P0**: ~~Implement API fallback~~ NOT APPLICABLE (CLI-only constraint for Claude/Gemini)
+- [x] **P0**: Add `NEXUS_PREFER_GEMINI_WINDOWS=1` for auto-selection on Windows (done 2026-01-24)
 - [ ] **P1**: File GitHub issue with test suite results
-- [ ] **P1**: Add telemetry for CLI timeout tracking
-- [ ] **P2**: Document Windows limitation in README
-- [ ] **P3**: Explore ConPTY/WSL bridge for pseudo-TTY
+- [ ] **P1**: Add telemetry for CLI timeout tracking (Claude vs Gemini)
+- [x] **P2**: Document Windows limitation in README (done 2026-01-24)
+- [ ] **P3**: Explore ConPTY/WSL bridge for pseudo-TTY (experimental)
 
 **See**: `docs/bugs/claude_cli/CLAUDE_CLI_SUBPROCESS_BUG_ANALYSIS.md` for full report
 
@@ -196,11 +197,11 @@ Goal: avoid SSL errors for API calls in enterprise networks without disabling ve
 - Supports NEXUS_CA_BUNDLE + standard *_CA_BUNDLE envs; auto-export on Windows.
 - Propagated to Kimi + DeepSeek API drivers.
 
-2) Document CA extraction on Windows (pending)
+2) Document CA extraction on Windows (done 2026-01-24)
 - Provide steps to export corporate root CA and set env vars.
 - Prefer CA bundle over `*_SSL_VERIFY=False`.
 
-3) Add sanity check on startup (pending)
+3) Add sanity check on startup (done 2026-01-24)
 - Log active CA path and verify file exists; warn if missing.
 
 ## P2 - Security Signal and Noise Reduction
@@ -380,6 +381,7 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - Route summaries to DeepSeek-V3.2, complex reasoning to R1-series; keep Gemini/Kimi fallback.
 - Add model allowlist + per-task policy controls.
 - Add explicit model constants for V3.2 and R1-0528 to avoid string drift.
+ - Auto-select latest reasoning model per session when `DEEPSEEK_REASONING_MODEL=auto` or `DEEPSEEK_MODEL=auto` (done 2026-01-24).
 
 3) Evaluation (pending)
 - Add eval suite to compare DeepSeek vs Gemini/Kimi on reasoning/code tasks (MMLU, GSM8K, HumanEval).
@@ -414,12 +416,19 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 10 warnings (pre-fix).
 - 2026-01-24: Added pytest stress mark, switched NCM test mocks to sync, fixed hybrid security tests returning bool, fixed Windows path string to avoid SyntaxWarning; targeted retest passed (10 passed, 1 skipped).
 - 2026-01-24: Stress test stability fix: mocked validation + disabled prompt refresh during stress loop.
-- 2026-01-24: Remaining warning to investigate: TelemetryBridge.emit coroutine not awaited in tests/v11/test_keymaker.py.
+- 2026-01-24: Resolved TelemetryBridge.emit unawaited warning by guarding invalid loops and closing unscheduled coroutines.
 - 2026-01-24: Meta GraphRAG query CLI hung on embedding call; add query timeout/backoff + SSL CA support.
 - 2026-01-24: Added query embedding cache + Gemini timeout config for Meta GraphRAG.
 - 2026-01-24: Added core SSL utilities + CA auto-export; propagated to Kimi/DeepSeek API drivers.
 - 2026-01-24: Added AsyncDeepSeek driver + NCM optional routing.
+- 2026-01-24: Auto-select latest DeepSeek reasoning model when DEEPSEEK_MODEL/DEEPSEEK_REASONING_MODEL=auto (fallback to deepseek-reasoner).
+- 2026-01-24: Added NEXUS_PREFER_GEMINI_WINDOWS auto-select in SIMPLE mode.
+- 2026-01-24: TelemetryBridge.emit_sync coroutine leak fixed (prevents unawaited warning).
+- 2026-01-24: Added SSL CA startup logging + docs/SSL_CA_GUIDE.md.
+- 2026-01-24: Fixed scripts/doc_engine.py CodebaseScanner docstring regression.
+- 2026-01-24: ADR-0006 CLI-only constraint added under PRODUCTS/DECISIONS.
 - 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 1 warning (TelemetryBridge.emit not awaited).
+- 2026-01-24: pytest tests/v10/test_synapse_telemetry.py -v => 27 passed, warning cleared.
 - 2026-01-24: Meta GraphRAG query "security hotspots auth files upload path traversal" returned seed hits in core/security/mutation_validator.py, core/security/path_guardian.py, core/execution/tool_manager.py, core/drivers/async_claude_driver.py, core/ncm/multi_ai_executor.py, scripts/verify/verify_users_security.py, tools/meta_graph_rag/reports.py (expanded results: 10).
 - 2026-01-24: Extracted Agentic Reasoning survey text to workspace/meta_rag/tmp/2601.12538v1.txt for roadmap alignment.
 
