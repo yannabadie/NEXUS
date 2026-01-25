@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, Union
 import os
+import logging
 import ssl
 import sys
 import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional, Union
+
+logger = logging.getLogger("nexus.ssl")
 
 
 @dataclass(frozen=True)
@@ -102,3 +105,22 @@ def auto_windows_ca_bundle() -> Optional[Path]:
     unique = list(dict.fromkeys(pem_certs))
     bundle_path.write_text("".join(unique), encoding="utf-8")
     return bundle_path
+
+
+def log_ssl_config(config: SslConfig) -> None:
+    """Log SSL configuration and CA bundle presence."""
+    if config.ssl_mode in {"insecure", "skip_verify", "disabled"}:
+        logger.warning("SSL verification disabled (mode=%s).", config.ssl_mode)
+
+    if config.ca_bundle_path:
+        exists = config.ca_bundle_path.exists()
+        level = logging.INFO if exists else logging.WARNING
+        logger.log(
+            level,
+            "SSL CA bundle: %s (exists=%s, mode=%s)",
+            config.ca_bundle_path,
+            exists,
+            config.ssl_mode,
+        )
+    else:
+        logger.info("SSL CA bundle: system default (mode=%s)", config.ssl_mode)

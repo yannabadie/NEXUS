@@ -195,6 +195,12 @@ class DocEngine:
     }
 
     def __init__(self, project_root: Path) -> None:
+        """
+        Initialize the documentation engine.
+
+        Args:
+            project_root: Path to the project root directory.
+        """
         self.root = project_root
         self.version = self._read_env_value("NEXUS_VERSION", "0.0.0")
         self.codename = self._read_env_value("NEXUS_CODENAME", "UNKNOWN")
@@ -217,7 +223,15 @@ class DocEngine:
         return default
 
     def _format_pattern(self, pattern: str) -> str:
-        """Format a pattern with version variables."""
+        """
+        Format a pattern with version variables.
+
+        Args:
+            pattern: A format string containing {version}, {codename}, or {major_minor} placeholders.
+
+        Returns:
+            The pattern with placeholders replaced by actual version values.
+        """
         return pattern.format(
             version=self.version,
             codename=self.codename,
@@ -266,7 +280,12 @@ class DocEngine:
         return self.issues
 
     def _check_module_readmes(self) -> None:
-        """Check that each core/* module has a README."""
+        """
+        Check that each core/* module has a README.
+
+        Scans core/ subdirectories and reports missing or outdated README.md files.
+        A README is considered outdated if it references V7 but not V8.
+        """
         core_path: Path = self.root / "core"
         if not core_path.exists():
             return
@@ -290,7 +309,11 @@ class DocEngine:
                     ))
 
     def _print_check_results(self) -> None:
-        """Print check results."""
+        """
+        Print check results to stdout.
+
+        Displays errors, warnings, and a summary of all issues found during the check.
+        """
         errors: List[Issue] = [i for i in self.issues if i.severity == "ERROR"]
         warnings: List[Issue] = [i for i in self.issues if i.severity == "WARNING"]
         if errors:
@@ -474,6 +497,12 @@ class CodebaseScanner:
     """Scans the codebase and extracts structural information."""
 
     def __init__(self, root: Path) -> None:
+        """
+        Initialize the codebase scanner.
+
+        Args:
+            root: Path to the project root directory.
+        """
         self.root = root
 
     def scan(self) -> List[ComponentInfo]:
@@ -491,7 +520,15 @@ class CodebaseScanner:
         return components
 
     def _scan_component(self, path: Path) -> ComponentInfo:
-        """Scan a single component directory."""
+        """
+        Scan a single component directory.
+
+        Args:
+            path: Path to the component directory to scan.
+
+        Returns:
+            ComponentInfo containing module details, LOC, class and function counts.
+        """
         component = ComponentInfo(name=path.name, path=str(path.relative_to(self.root)))
         for py_file in path.rglob("*.py"):
             if py_file.name.startswith("_"):
@@ -504,7 +541,17 @@ class CodebaseScanner:
         return component
 
     def _scan_module(self, path: Path) -> ModuleInfo:
-        """Scan a single Python module."""
+        """
+        Scan a single Python module.
+
+        Parses the module using AST to extract classes, functions, and line count.
+
+        Args:
+            path: Path to the Python file to scan.
+
+        Returns:
+            ModuleInfo containing extracted classes, functions, and lines of code.
+        """
         module = ModuleInfo(path=str(path.relative_to(self.root)))
         try:
             content = path.read_text(encoding="utf-8")
@@ -523,11 +570,26 @@ class CodeAnalyzer(ast.NodeVisitor):
     """AST visitor to extract code structure."""
 
     def __init__(self, file_path: str) -> None:
+        """
+        Initialize the AST analyzer.
+
+        Args:
+            file_path: Relative path to the file being analyzed (for reporting).
+        """
         self.file_path = file_path
         self.classes: List[ClassInfo] = []
         self.functions: List[FunctionInfo] = []
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        """
+        Visit a class definition node and extract class information.
+
+        Extracts class name, bases, docstring, methods, fields, and detects
+        if the class is a dataclass or enum.
+
+        Args:
+            node: The AST ClassDef node to process.
+        """
         bases: List[str] = [self._get_name(b) for b in node.bases]
         is_dataclass: bool = any(self._get_name(d) == "dataclass" for d in node.decorator_list)
         is_enum: bool = "Enum" in bases or "IntEnum" in bases or "StrEnum" in bases
@@ -551,6 +613,14 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """
+        Visit a function definition node and extract function information.
+
+        Only captures module-level functions, not methods inside classes.
+
+        Args:
+            node: The AST FunctionDef node to process.
+        """
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
                 name=node.name, file_path=self.file_path, line_number=node.lineno,
@@ -559,6 +629,14 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """
+        Visit an async function definition node and extract function information.
+
+        Only captures module-level async functions, not methods inside classes.
+
+        Args:
+            node: The AST AsyncFunctionDef node to process.
+        """
         if not hasattr(self, '_in_class'):
             self.functions.append(FunctionInfo(
                 name=node.name, file_path=self.file_path, line_number=node.lineno,
@@ -567,6 +645,17 @@ class CodeAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _get_name(self, node: ast.AST) -> str:
+        """
+        Extract the name from an AST node.
+
+        Handles Name, Attribute, and Call nodes recursively.
+
+        Args:
+            node: The AST node to extract the name from.
+
+        Returns:
+            The extracted name as a string, or empty string if not extractable.
+        """
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
@@ -576,7 +665,17 @@ class CodeAnalyzer(ast.NodeVisitor):
         return ""
 
     def _get_annotation(self, node: ast.AST) -> str:
-        """Get type annotation as string."""
+        """
+        Get type annotation as a string representation.
+
+        Handles Name, Constant, Subscript, and Attribute nodes recursively.
+
+        Args:
+            node: The AST annotation node to process.
+
+        Returns:
+            The annotation as a readable string (e.g., "List[str]").
+        """
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Constant):
@@ -601,6 +700,12 @@ class StructureExtractor:
     """Extracts high-level structures from the codebase."""
 
     def __init__(self, root: Path) -> None:
+        """
+        Initialize the structure extractor.
+
+        Args:
+            root: Path to the project root directory.
+        """
         self.root = root
 
     def extract(self) -> Dict[str, Any]:
@@ -633,7 +738,16 @@ class StructureExtractor:
         }
 
     def _extract_enum_values(self, file_path: Path, enum_name: str) -> List[str]:
-        """Extract values from an enum class."""
+        """
+        Extract values from an enum class.
+
+        Args:
+            file_path: Path to the Python file containing the enum.
+            enum_name: Name of the enum class to extract values from.
+
+        Returns:
+            List of enum member names, or empty list if not found.
+        """
         if not file_path.exists():
             return []
         try:
@@ -653,7 +767,14 @@ class StructureExtractor:
         return []
 
     def _extract_commands_detailed(self) -> Dict[str, List[CommandInfo]]:
-        """Extract slash commands with categories."""
+        """
+        Extract slash commands with categories from the REPL.
+
+        Scans core/interface/repl.py for command patterns and categorizes them.
+
+        Returns:
+            Dictionary mapping category names to lists of CommandInfo objects.
+        """
         categories: Dict[str, List[CommandInfo]] = {
             "Collaboration": [],
             "Evolution": [],
@@ -714,7 +835,14 @@ class StructureExtractor:
         return categories
 
     def _extract_all_enums(self) -> List[Tuple[str, str]]:
-        """Extract all enum names with their files."""
+        """
+        Extract all enum names with their source files.
+
+        Scans all Python files in core/ for classes inheriting from Enum, IntEnum, or StrEnum.
+
+        Returns:
+            Sorted list of (enum_name, file_path) tuples.
+        """
         enums: List[Tuple[str, str]] = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
@@ -731,7 +859,15 @@ class StructureExtractor:
         return sorted(set(enums), key=lambda x: x[0])
 
     def _extract_all_dataclasses_detailed(self) -> List[DataclassInfo]:
-        """Extract all dataclasses with their fields."""
+        """
+        Extract all dataclasses with their fields.
+
+        Scans all Python files in core/ for classes decorated with @dataclass
+        and extracts their field names, types, and default values.
+
+        Returns:
+            Sorted list of DataclassInfo objects.
+        """
         dataclasses_list: List[DataclassInfo] = []
         for py_file in (self.root / "core").rglob("*.py"):
             try:
@@ -767,7 +903,14 @@ class StructureExtractor:
         return sorted(dataclasses_list, key=lambda x: x.name)
 
     def _get_test_stats(self) -> Dict[str, int]:
-        """Get test statistics."""
+        """
+        Get test statistics by counting test functions.
+
+        Scans tests/ directory for test_*.py files and counts functions starting with 'def test_'.
+
+        Returns:
+            Dictionary with 'total', 'passed', 'failed', 'skipped' keys (only 'total' is populated).
+        """
         stats: Dict[str, int] = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
         tests_dir: Path = self.root / "tests"
         if tests_dir.exists():
@@ -786,7 +929,11 @@ class StructureExtractor:
         """
         Extract model routing configuration dynamically from ModelRouter.
 
-        V2.1: Dynamic extraction - adapts automatically to routing changes.
+        Attempts to import and query ModelRouter for task-to-model mappings.
+        Falls back to static defaults if import fails.
+
+        Returns:
+            Dictionary with 'claude' and 'gemini' keys containing model names and task lists.
         """
         routing: Dict[str, Dict[str, Any]] = {
             "claude": {"model": "", "opus_tasks": [], "sonnet_tasks": []},
@@ -821,7 +968,11 @@ class StructureExtractor:
         """
         Extract fallback chains dynamically from CollaborationMode.fallback_mode.
 
-        V2.1: Dynamic extraction - adapts automatically to mode changes.
+        Maps each collaboration mode to its fallback mode for the Swarm Engine.
+        Falls back to static defaults if import fails.
+
+        Returns:
+            Dictionary mapping mode names to their fallback mode names (or None if terminal).
         """
         fallbacks: Dict[str, Optional[str]] = {}
 
@@ -850,7 +1001,11 @@ class StructureExtractor:
         """
         Extract mode characteristics dynamically from MODE_CHARACTERISTICS.
 
-        V2.1: Dynamic extraction - adapts automatically to new modes.
+        Retrieves description, when_to_use, complexity_affinity, and other
+        attributes for each collaboration mode.
+
+        Returns:
+            Dictionary mapping mode names to their characteristic dictionaries.
         """
         characteristics: Dict[str, Dict[str, Any]] = {}
 
@@ -873,6 +1028,17 @@ class StructureExtractor:
         return characteristics
 
     def _get_base_name(self, node: ast.AST) -> str:
+        """
+        Get the base name from an AST node.
+
+        Unlike _get_name in CodeAnalyzer, this returns only the final attribute name.
+
+        Args:
+            node: The AST node to extract the base name from.
+
+        Returns:
+            The base name as a string, or empty string if not extractable.
+        """
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
@@ -882,6 +1048,17 @@ class StructureExtractor:
         return ""
 
     def _get_annotation(self, node: ast.AST) -> str:
+        """
+        Get type annotation as a string representation.
+
+        Handles Name, Constant, Subscript, and Attribute nodes recursively.
+
+        Args:
+            node: The AST annotation node to process.
+
+        Returns:
+            The annotation as a readable string (e.g., "List[str]").
+        """
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Constant):
@@ -902,7 +1079,14 @@ class StructureExtractor:
     # =========================================================================
 
     def _extract_async_primitives(self) -> Dict[str, List[str]]:
-        """Extract async primitives from core/async_primitives/."""
+        """
+        Extract async primitives from core/async_primitives/.
+
+        Scans the async_primitives module for class definitions.
+
+        Returns:
+            Dictionary with 'classes' and 'files' keys listing found items.
+        """
         primitives: Dict[str, List[str]] = {
             "classes": [],
             "files": []
@@ -926,7 +1110,14 @@ class StructureExtractor:
         return primitives
 
     def _extract_async_handlers(self) -> List[str]:
-        """Extract async handler methods from fsm_handlers.py."""
+        """
+        Extract async handler methods from fsm_handlers.py.
+
+        Finds all methods matching the pattern 'async def handle_*_async'.
+
+        Returns:
+            List of async handler method names.
+        """
         handlers: List[str] = []
         handler_file: Path = self.root / "core" / "orchestration" / "fsm_handlers.py"
         if not handler_file.exists():
@@ -942,7 +1133,14 @@ class StructureExtractor:
         return handlers
 
     def _extract_saga_phases(self) -> List[str]:
-        """Extract PHASE_ORDER from saga_manager.py."""
+        """
+        Extract PHASE_ORDER from saga_manager.py.
+
+        Parses the PHASE_ORDER list to get the ordered phases for saga execution.
+
+        Returns:
+            List of phase names in execution order.
+        """
         phases: List[str] = []
         saga_file: Path = self.root / "core" / "hive_mind" / "saga_manager.py"
         if not saga_file.exists():
@@ -960,7 +1158,14 @@ class StructureExtractor:
         return phases
 
     def _extract_recovery_strategies(self) -> List[str]:
-        """Extract recovery strategies from health_state_machine.py."""
+        """
+        Extract recovery strategies from health_state_machine.py.
+
+        Finds all RecoveryStrategy instantiations and extracts their names.
+
+        Returns:
+            List of recovery strategy names.
+        """
         strategies: List[str] = []
         health_file: Path = self.root / "core" / "fsm" / "health_state_machine.py"
         if not health_file.exists():
@@ -976,7 +1181,15 @@ class StructureExtractor:
         return strategies
 
     def _extract_torture_tests(self) -> Dict[str, Any]:
-        """Extract Torture Protocol V8 test statistics."""
+        """
+        Extract Torture Protocol V8 test statistics.
+
+        Scans tests/torture/ directory for scenario files and counts tests per category.
+        Also extracts pytest markers from torture_v8.py.
+
+        Returns:
+            Dictionary with 'total_tests', 'categories', 'files', and 'markers' keys.
+        """
         torture_stats: Dict[str, Any] = {
             "total_tests": 0,
             "categories": {},
@@ -1033,6 +1246,16 @@ class MapGeneratorV2:
 
     def __init__(self, version: str, codename: str, components: List[ComponentInfo],
                  structures: Dict[str, Any], root: Path) -> None:
+        """
+        Initialize the architecture map generator.
+
+        Args:
+            version: Current project version.
+            codename: Current project codename.
+            components: List of component information from CodebaseScanner.
+            structures: Dictionary of extracted structures from StructureExtractor.
+            root: Path to the project root directory.
+        """
         self.version = version
         self.codename = codename
         self.components = components
@@ -1042,6 +1265,12 @@ class MapGeneratorV2:
         self.git_commit = self._get_git_commit()
 
     def _get_git_commit(self) -> str:
+        """
+        Get the current git commit short hash.
+
+        Returns:
+            The short commit hash, or 'unknown' if git command fails.
+        """
         try:
             result = subprocess.run(
                 ["git", "rev-parse", "--short", "HEAD"],
@@ -1052,7 +1281,15 @@ class MapGeneratorV2:
             return "unknown"
 
     def generate(self) -> str:
-        """Generate the complete architecture map."""
+        """
+        Generate the complete architecture map document.
+
+        Assembles all sections (header, TOC, overview, component details,
+        statistics, and anti-hallucination reference) into a single Markdown document.
+
+        Returns:
+            Complete architecture map as a Markdown string.
+        """
         sections = [
             self._generate_header(),
             self._generate_toc(),
@@ -1077,6 +1314,7 @@ class MapGeneratorV2:
         return "\n".join(sections)
 
     def _generate_header(self) -> str:
+        """Generate the document header with metadata."""
         return f"""# NEXUS V{self.version} Architecture Map
 
 **Auto-Generated**: {self.timestamp}
@@ -1093,6 +1331,7 @@ class MapGeneratorV2:
 """
 
     def _generate_toc(self) -> str:
+        """Generate the table of contents section."""
         return """## Table of Contents
 
 1. [High-Level Overview](#1-high-level-overview)
@@ -1115,6 +1354,7 @@ class MapGeneratorV2:
 """
 
     def _generate_overview(self) -> str:
+        """Generate the high-level overview section with Mermaid diagrams."""
         return """## 1. HIGH-LEVEL OVERVIEW
 
 ```mermaid
@@ -1168,6 +1408,7 @@ graph TD
 """
 
     def _generate_component_summary(self) -> str:
+        """Generate the component summary table sorted by LOC."""
         lines = ["### Component Summary", "",
                  "| Component | Files | LOC | Classes | Functions |",
                  "|-----------|-------|-----|---------|-----------|"]
@@ -1178,6 +1419,7 @@ graph TD
         return "\n".join(lines) + "\n"
 
     def _generate_orchestration_zoom(self) -> str:
+        """Generate the Orchestration Core zoom section with FSM state diagrams."""
         states = self.structures.get("fsm_states", [])
         states_list = "\n".join(f"| `{s}` | - |" for s in states)
 
@@ -1239,6 +1481,7 @@ graph TD
 """
 
     def _generate_llm_drivers_zoom(self) -> str:
+        """Generate the LLM Drivers & Routing zoom section."""
         routing: Dict[str, Dict[str, Any]] = self.structures.get("model_routing", {})
 
         # Build dynamic routing table from extracted data
@@ -1326,6 +1569,7 @@ graph TD
 """
 
     def _generate_swarm_zoom(self) -> str:
+        """Generate the Swarm Engine zoom section with collaboration modes."""
         modes: List[str] = self.structures.get("swarm_modes", [])
         fallbacks: Dict[str, Optional[str]] = self.structures.get("fallback_chains", {})
         characteristics: Dict[str, Dict[str, Any]] = self.structures.get("mode_characteristics", {})
@@ -1417,6 +1661,7 @@ graph TD
 """
 
     def _generate_hive_mind_zoom(self) -> str:
+        """Generate the Hive Mind Pipeline zoom section with 7-phase diagram."""
         states: List[str] = self.structures.get("hive_states", [])
         phases: List[str] = self.structures.get("hive_phases", [])
 
@@ -1521,7 +1766,11 @@ graph TD
 """
 
     def _generate_async_primitives_zoom(self) -> str:
-        """Generate V8.4.4 Async Primitives section."""
+        """
+        Generate V8.4.4 Async Primitives section.
+
+        Documents CancellationToken, AsyncProcessHandle, AsyncRWLock, and AsyncBlackboard.
+        """
         primitives: Dict[str, List[str]] = self.structures.get("async_primitives", {})
         classes: List[str] = primitives.get("classes", [])
         files: List[str] = primitives.get("files", [])
@@ -1586,7 +1835,11 @@ graph TD
 """
 
     def _generate_blind_spot_remediations_zoom(self) -> str:
-        """Generate V8.4.4 Blind Spot Remediations section."""
+        """
+        Generate V8.4.4 Blind Spot Remediations section.
+
+        Documents HealthStateMachine, SagaManager, StagnationPredictor, and async handlers.
+        """
         health_states: List[str] = self.structures.get("health_states", [])
         prediction_levels: List[str] = self.structures.get("prediction_levels", [])
         saga_phases: List[str] = self.structures.get("saga_phases", [])
@@ -1689,6 +1942,7 @@ graph TD
 """
 
     def _generate_evolution_zoom(self) -> str:
+        """Generate the Evolution & Spawning zoom section with /spawn flow diagram."""
         return """## 8. ZOOM: Evolution & Spawning
 
 ### /spawn Flow
@@ -1757,6 +2011,7 @@ graph TD
 """
 
     def _generate_memory_zoom(self) -> str:
+        """Generate the Memory Systems zoom section with RAG and Success Memory diagrams."""
         return """## 9. ZOOM: Memory Systems
 
 ### Memory Architecture
@@ -1824,6 +2079,7 @@ graph TD
 """
 
     def _generate_security_zoom(self) -> str:
+        """Generate the Security & Governance zoom section with KERNEL and sandbox diagrams."""
         return """## 10. ZOOM: Security & Governance
 
 ### Security Architecture
@@ -1887,6 +2143,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 """
 
     def _generate_functional_inventory(self) -> str:
+        """Generate the Functional Inventory section listing all slash commands."""
         commands: Dict[str, List[CommandInfo]] = self.structures.get("commands", {})
 
         cmd_sections: List[str] = []
@@ -1910,6 +2167,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 """
 
     def _generate_key_dataclasses(self) -> str:
+        """Generate the Key Dataclasses section with field summaries and enum list."""
         dataclasses_structs: List[DataclassInfo] = self.structures.get("dataclasses", [])
 
         # Select key dataclasses
@@ -1952,6 +2210,7 @@ The KERNEL.py file is the **immutable alignment core** that:
 """
 
     def _generate_statistics(self) -> str:
+        """Generate the Statistics section with codebase metrics and LOC charts."""
         total_files: int = sum(len(c.modules) for c in self.components)
         total_loc: int = sum(c.total_loc for c in self.components)
         total_classes: int = sum(c.total_classes for c in self.components)
@@ -2004,7 +2263,11 @@ The KERNEL.py file is the **immutable alignment core** that:
         ) + "\n"
 
     def _generate_torture_protocol_zoom(self) -> str:
-        """Generate Torture Protocol V8.2.0d section."""
+        """
+        Generate Torture Protocol V8.2.0d section.
+
+        Documents stress testing categories, chaos injectors, and target metrics.
+        """
         torture: Dict[str, Any] = self.structures.get("torture_tests", {})
         total_tests: int = torture.get("total_tests", 0)
         categories: Dict[str, int] = torture.get("categories", {})
@@ -2098,6 +2361,7 @@ pytest tests/torture_v8.py -m torture_slow -v   # Slow tests
 """
 
     def _generate_anti_hallucination(self) -> str:
+        """Generate the Anti-Hallucination Reference section with verified structures."""
         fsm_states: List[str] = self.structures.get("fsm_states", [])
         hive_states: List[str] = self.structures.get("hive_states", [])
         swarm_modes: List[str] = self.structures.get("swarm_modes", [])
@@ -2152,6 +2416,7 @@ class CollaborationMode(Enum):
 """
 
     def _generate_footer(self) -> str:
+        """Generate the document footer with regeneration instructions."""
         return f"""---
 
 ## Regeneration
@@ -2181,6 +2446,11 @@ python scripts/doc_engine.py --full --apply
 # =============================================================================
 
 def main() -> None:  # noqa: C901
+    """
+    CLI entry point for the NEXUS Documentation Engine.
+
+    Parses command-line arguments and runs the requested modes (check, sync, gen-map, audit, full).
+    """
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="NEXUS Documentation Engine V2",
         formatter_class=argparse.RawDescriptionHelpFormatter,

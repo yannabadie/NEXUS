@@ -472,22 +472,34 @@ class TelemetryBridge:
             bus = get_redis_bus()
             main_loop = bus._main_loop
 
-            if main_loop and main_loop.is_running():
+            if isinstance(main_loop, asyncio.AbstractEventLoop) and main_loop.is_running():
                 # Schedule in main loop (thread-safe)
-                future = asyncio.run_coroutine_threadsafe(
-                    self.emit(event_type, payload, tenant_id, workspace_id),
-                    main_loop
-                )
-                return future.result(timeout=EMIT_SYNC_TIMEOUT)
+                coro = self.emit(event_type, payload, tenant_id, workspace_id)
+                try:
+                    future = asyncio.run_coroutine_threadsafe(coro, main_loop)
+                except Exception:
+                    coro.close()
+                    raise
+                try:
+                    return future.result(timeout=EMIT_SYNC_TIMEOUT)
+                except Exception:
+                    future.cancel()
+                    raise
             else:
                 # Fallback: try to get current running loop (same-thread case)
                 try:
                     loop = asyncio.get_running_loop()
-                    future = asyncio.run_coroutine_threadsafe(
-                        self.emit(event_type, payload, tenant_id, workspace_id),
-                        loop
-                    )
-                    return future.result(timeout=EMIT_SYNC_TIMEOUT)
+                    coro = self.emit(event_type, payload, tenant_id, workspace_id)
+                    try:
+                        future = asyncio.run_coroutine_threadsafe(coro, loop)
+                    except Exception:
+                        coro.close()
+                        raise
+                    try:
+                        return future.result(timeout=EMIT_SYNC_TIMEOUT)
+                    except Exception:
+                        future.cancel()
+                        raise
                 except RuntimeError:
                     # No loop available at all - log and skip
                     logger.debug("No event loop available for emit_sync")

@@ -61,7 +61,8 @@ class Config:
         )
         self.deepseek_api_key: Optional[str] = os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK")
         self.deepseek_api_base: str = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
-        self.deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-reasoner")
+        deepseek_model_env = os.getenv("DEEPSEEK_REASONING_MODEL") or os.getenv("DEEPSEEK_MODEL")
+        self.deepseek_model: str = deepseek_model_env or "auto"
         self.deepseek_timeout: float = float(os.getenv("DEEPSEEK_TIMEOUT", "60"))
         self.deepseek_max_tokens: int = int(os.getenv("DEEPSEEK_MAX_TOKENS", "4096"))
         self.deepseek_temperature: float = float(os.getenv("DEEPSEEK_TEMPERATURE", "0.2"))

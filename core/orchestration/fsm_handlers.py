@@ -1051,8 +1051,15 @@ class FSMHandlers:
         import os
 
         forced_agent = os.getenv("NEXUS_SIMPLE_AGENT", "").strip().lower()
+        prefer_gemini_windows = os.getenv("NEXUS_PREFER_GEMINI_WINDOWS", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
         if forced_agent in {"gemini", "claude"}:
             agent = "Gemini" if forced_agent == "gemini" else "Claude"
+        elif prefer_gemini_windows and os.name == "nt":
+            agent = "Gemini"
         else:
             if task_analysis.recommended_lead == "gemini":
                 agent = "Gemini"

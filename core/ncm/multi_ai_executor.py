@@ -169,7 +169,7 @@ class MultiAIExecutorConfig:
     # DeepSeek API (OpenAI-compatible)
     deepseek_api_key: Optional[str] = None
     deepseek_api_base: str = "https://api.deepseek.com/v1"
-    deepseek_model: str = "deepseek-reasoner"
+    deepseek_model: str = "auto"
     deepseek_timeout: float = 60.0
     deepseek_max_tokens: int = 4096
     deepseek_temperature: float = 0.2
@@ -262,7 +262,9 @@ class MultiAIExecutorConfig:
         if self.deepseek_api_key is None:
             self.deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK")
         self.deepseek_api_base = os.environ.get("DEEPSEEK_API_BASE", self.deepseek_api_base)
-        self.deepseek_model = os.environ.get("DEEPSEEK_MODEL", self.deepseek_model)
+        deepseek_model_env = os.environ.get("DEEPSEEK_REASONING_MODEL") or os.environ.get("DEEPSEEK_MODEL")
+        if deepseek_model_env:
+            self.deepseek_model = deepseek_model_env
         self.deepseek_timeout = float(os.environ.get("DEEPSEEK_TIMEOUT", str(self.deepseek_timeout)))
         self.deepseek_max_tokens = int(os.environ.get("DEEPSEEK_MAX_TOKENS", str(self.deepseek_max_tokens)))
         self.deepseek_temperature = float(os.environ.get("DEEPSEEK_TEMPERATURE", str(self.deepseek_temperature)))

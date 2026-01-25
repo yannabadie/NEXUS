@@ -443,6 +443,15 @@ Documentation: https://github.com/nexus-ai/nexus-v7
 
         # CHECK FOR PENDING REVIEW (Evolution notification system)
         config = load_config()
+        try:
+            from core.utils.ssl_utils import SslConfig, log_ssl_config
+            ssl_config = SslConfig(
+                ssl_mode=getattr(config, "ssl_mode", "strict"),
+                ca_bundle_path=Path(config.ssl_ca_bundle) if config.ssl_ca_bundle else None,
+            )
+            log_ssl_config(ssl_config)
+        except Exception:
+            pass
         pending_metadata = check_pending_review(workspace_path)
 
         # V9 CYBORG: Launch via asyncio.run()

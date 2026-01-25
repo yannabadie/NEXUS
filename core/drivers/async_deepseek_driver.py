@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +19,10 @@ from urllib import request, error
 
 from core.async_primitives import CancellationToken
 from core.utils.ssl_utils import SslConfig, urlopen_ssl
+
+logger = logging.getLogger("nexus.driver.deepseek")
+
+_AUTO_MODEL_TOKENS = {"auto", "latest", "latest-reasoning", "reasoning-latest"}
 
 
 @dataclass
@@ -39,6 +45,68 @@ class AsyncDeepSeekDriver:
 
     def __init__(self, config: AsyncDeepSeekDriverConfig) -> None:
         self.config = config
+        self._resolved_model: Optional[str] = None
+
+    def _build_ssl_config(self) -> SslConfig:
+        ssl_mode = self.config.ssl_mode
+        if not self.config.verify_ssl:
+            ssl_mode = "insecure"
+        return SslConfig(
+            ssl_mode=ssl_mode,
+            ca_bundle_path=Path(self.config.ca_bundle) if self.config.ca_bundle else None,
+        )
+
+    def _is_reasoning_model(self, model_id: str) -> bool:
+        lower = model_id.lower()
+        return "reason" in lower or lower.startswith("deepseek-r1") or "r1" in lower
+
+    def _model_sort_key(self, model_id: str) -> tuple:
+        digits = [int(value) for value in re.findall(r"\d+", model_id)] or [0]
+        return (digits, len(model_id), model_id)
+
+    def _fetch_models(self, ssl_config: SslConfig) -> list[str]:
+        endpoint = self.config.api_base.rstrip("/") + "/models"
+        headers = {"Authorization": f"Bearer {self.config.api_key}"}
+        req = request.Request(endpoint, headers=headers, method="GET")
+        with urlopen_ssl(req, timeout=self.config.timeout, ssl_config=ssl_config) as response:
+            raw = response.read().decode("utf-8")
+        parsed = json.loads(raw)
+        data = parsed.get("data", [])
+        model_ids = [
+            item.get("id")
+            for item in data
+            if isinstance(item, dict) and item.get("id")
+        ]
+        return model_ids
+
+    def _discover_latest_reasoning_model(self, ssl_config: SslConfig) -> Optional[str]:
+        try:
+            model_ids = self._fetch_models(ssl_config)
+        except Exception as exc:
+            logger.debug("DeepSeek model discovery failed: %s", exc)
+            return None
+
+        reasoning_models = [model_id for model_id in model_ids if self._is_reasoning_model(model_id)]
+        if not reasoning_models:
+            return None
+        return max(reasoning_models, key=self._model_sort_key)
+
+    def _resolve_model(self, ssl_config: SslConfig) -> str:
+        if self._resolved_model:
+            return self._resolved_model
+
+        model = (self.config.model or "").strip()
+        if model and model.lower() not in _AUTO_MODEL_TOKENS:
+            self._resolved_model = model
+            return model
+
+        resolved = self._discover_latest_reasoning_model(ssl_config)
+        if resolved:
+            self._resolved_model = resolved
+            return resolved
+
+        self._resolved_model = "deepseek-reasoner"
+        return self._resolved_model
 
     async def invoke(
         self,
@@ -78,9 +146,11 @@ class AsyncDeepSeekDriver:
         if token:
             token.check()
 
+        ssl_config = self._build_ssl_config()
+        model = self._resolve_model(ssl_config)
         endpoint = self.config.api_base.rstrip("/") + "/chat/completions"
         payload = {
-            "model": self.config.model,
+            "model": model,
             "messages": [{"role": "user", "content": context}],
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
@@ -92,14 +162,6 @@ class AsyncDeepSeekDriver:
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
         }
-
-        ssl_mode = self.config.ssl_mode
-        if not self.config.verify_ssl:
-            ssl_mode = "insecure"
-        ssl_config = SslConfig(
-            ssl_mode=ssl_mode,
-            ca_bundle_path=Path(self.config.ca_bundle) if self.config.ca_bundle else None,
-        )
 
         last_error: Optional[Exception] = None
         for attempt in range(self.config.max_retries + 1):
