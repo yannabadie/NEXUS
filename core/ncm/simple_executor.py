@@ -35,6 +35,11 @@ class SimpleExecutor:
 
     def __init__(self):
         self.logger = get_logger()
+        if self.logger is None:
+            from core.config import Config
+            from core.logging import init_logger
+            config = Config()
+            self.logger = init_logger(config.workspace_path, config.log_level)
 
     async def execute_dead_import_removal(
         self,
@@ -116,6 +121,12 @@ class SimpleExecutor:
                     "file": str(file_path),
                     "imports": imports_to_remove
                 })
+                missing = [
+                    name for name in imports_to_remove
+                    if not re.search(rf"\\b{re.escape(name)}\\b", content)
+                ]
+                if missing and len(missing) == len(imports_to_remove):
+                    return True, "No-op: imports already absent"
                 return False, f"No imports removed (imports not found: {imports_to_remove})"
 
             # 3. Validate syntax
