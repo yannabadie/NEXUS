@@ -13,6 +13,7 @@ def _parse_oracle(lines: Iterable[str]) -> Dict[str, object]:
     hive_phases: List[str] = []
     hive_breakpoints: List[str] = []
     evolution_phases: List[str] = []
+    invariants: Dict[str, str] = {}
 
     for line in lines:
         parts = line.split("|")
@@ -35,6 +36,10 @@ def _parse_oracle(lines: Iterable[str]) -> Dict[str, object]:
             hive_breakpoints.append(parts[1])
         elif tag == "EVOLUTION_PHASE" and len(parts) == 2:
             evolution_phases.append(parts[1])
+        elif tag == "INVARIANT" and len(parts) >= 3:
+            name = parts[1]
+            description = "|".join(parts[2:]).strip()
+            invariants[name] = description
 
     return {
         "fsm": fsm,
@@ -44,6 +49,7 @@ def _parse_oracle(lines: Iterable[str]) -> Dict[str, object]:
         "hive_phases": hive_phases,
         "hive_breakpoints": hive_breakpoints,
         "evolution_phases": evolution_phases,
+        "invariants": invariants,
     }
 
 

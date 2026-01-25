@@ -106,6 +106,8 @@ repeated `tools/list` calls on every ToolManager initialization.
 
 Environment:
 - `MCP_TOOLS_CACHE_TTL` (seconds, default 30). Set to 0 to disable caching.
+- `MCP_TIMEOUT` (seconds, default 30). Default request timeout for MCPClient.
+- `MCP_INIT_TIMEOUT` (seconds, default 30). Initialization handshake timeout.
 
 ## Client Usage
 

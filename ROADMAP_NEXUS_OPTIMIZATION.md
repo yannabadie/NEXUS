@@ -2,7 +2,7 @@
 
 Created: 2026-01-23
 Owner: Codex (meta GraphRAG assisted)
-**Updated**: 2026-01-24 (index refresh + DeepSeek research)
+**Updated**: 2026-01-25 (Lean invariants + MCP timeouts)
 
 ## 🚨 CRITICAL: Claude CLI Subprocess Bug (Windows)
 
@@ -44,11 +44,12 @@ Docs are treated as secondary. Code and tests are the source of truth.
 ## Current Meta GraphRAG Index Status
 - nodes: 27831
 - edges: 29033
-- chunks: 22722
-- vector_entries: 22722
+- chunks: 22580
+- vector_entries: 22580
 - embedding_backend: gemini-embedding-001 (dim 3072)
 - graph_db: nodes 27831 / edges 29033 (sqlite)
 - manifest_coverage: 1498 files indexed (excludes .git/meta_rag via META_RAG_EXCLUDE)
+- scan_files: 1521 files detected by scanner (os.walk w/ META_RAG_EXCLUDE=.git,meta_rag)
 - rg_files: 845 (gitignore-respecting view)
 - status_source: python -m tools.meta_graph_rag.cli status
 - last_full_index: 2026-01-24 (gemini-embedding-001)
@@ -229,43 +230,51 @@ Goal: reduce latency and improve maintainability.
 - Move more logic into core/orchestration/fsm_handlers.py and ContextBuilder.
 - Impact: regression risk across CLI and API workflows.
 
-2) Cache MCP tool registry
 2) Cache MCP tool registry (done 2026-01-23)
 - core/mcp/registry.py, core/execution/tool_manager.py
 - Add TTL cache to reduce network overhead per run.
 - Impact: tool discovery latency and stability.
 
-3) Telemetry for RAG ingestion (done 2026-01-23)
+3) MCP timeout env overrides (done 2026-01-25)
+- core/mcp/client.py
+- Add `MCP_TIMEOUT` + `MCP_INIT_TIMEOUT` env overrides to handle long GraphRAG queries.
+
+4) Telemetry for RAG ingestion (done 2026-01-23)
 - tools/meta_graph_rag/indexer.py, core/telemetry/metrics.py, core/telemetry/exporter.py
 - Emit ingest metrics and errors for alerting.
 - Impact: monitoring dashboards.
 
-4) Repo hygiene for analysis artifacts (pending)
+5) Repo hygiene for analysis artifacts (pending)
 - Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/`.
 - Move transient pilot input/output files to `workspace/` or `logs/`.
 - Candidates: `docs/bugs/claude_cli/*`, `scripts/debug/claude_cli/*`, `docs/analysis/lean_formalization_review.md`.
 - Impact: cleaner root and fewer accidental commits.
 
-5) Fast-path orchestration for trivial tasks (pending)
+6) Fast-path orchestration for trivial tasks (pending)
 - Add lightweight execution path to bypass 7-phase HiveMind when complexity is low.
 - Guardrails: skip only when risk score is low and tests unchanged.
 
 ## P3.5 - Meta GraphRAG Access Surface (MCP + HTTP)
 Goal: standardized access for any agent (top-k + graph expansion + briefing).
 
-1) MCP tool exposure + docs (pending)
+1) MCP tool exposure + docs (done 2026-01-25)
 - Ensure `core/mcp/server.py` exports nexus_meta_graphrag_* tools; add usage docs in `core/mcp/README.md`.
+- Validated MCP access to meta GraphRAG status + reports (snapshot mode).
 - Provide client config snippet (mcp.json) for quick onboarding.
 
-2) HTTP API hardening (pending)
+2) MCP query defaults + timeout guidance (pending)
+- Document `seed_limit`/`expansion_limit` and note queries invoke Gemini embeddings.
+- Add MCP server env guidance for `META_RAG_GEMINI_TIMEOUT` + `META_RAG_SSL_MODE` + query cache.
+
+3) HTTP API hardening (pending)
 - Validate request schema (top_k, expand_nodes, expansion_depth) and add tests.
 - Add caching for reports/briefing payloads to avoid regen per request.
 
-3) Briefing pack generation (pending)
+4) Briefing pack generation (pending)
 - Auto-generate top-down, bottom-up, module catalog as agent bootstrap.
 - Expose via `/api/meta-graphrag/briefing` with version stamp.
 
-4) GraphRAG query expansions (pending)
+5) GraphRAG query expansions (pending)
 - Confirm expansion strategy parameters are plumbed end-to-end (CLI + HTTP + MCP).
 - Add sample queries to `workspace/meta_rag/analysis_queries.json`.
 
@@ -319,6 +328,7 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 4.2) Security invariants (pending)
 - Formalize non-negotiables: tenant isolation, cancellation propagation, workspace isolation, event delivery.
 - Map invariants to concrete Python entry points for diff tests (FSM handlers, Swarm mode selection).
+- Added Lean invariant declarations + runtime checks for tenant/workspace isolation, cancellation, and event delivery (done 2026-01-25).
 
 4.3) Lean metaprogramming support (pending)
 - Track tactics/macros needed for FSM/state proofs (Lean 4 metaprogramming book as reference).
@@ -451,6 +461,9 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-24: pytest tests/v10/test_synapse_telemetry.py -v => 27 passed, warning cleared.
 - 2026-01-24: Meta GraphRAG query "security hotspots auth files upload path traversal" returned seed hits in core/security/mutation_validator.py, core/security/path_guardian.py, core/execution/tool_manager.py, core/drivers/async_claude_driver.py, core/ncm/multi_ai_executor.py, scripts/verify/verify_users_security.py, tools/meta_graph_rag/reports.py (expanded results: 10).
 - 2026-01-24: Extracted Agentic Reasoning survey text to workspace/meta_rag/tmp/2601.12538v1.txt for roadmap alignment.
+- 2026-01-25: Lean invariant declarations added + runtime invariant tests for tenant/workspace isolation, cancellation propagation, and event delivery.
+- 2026-01-25: MCP client supports `MCP_TIMEOUT` and `MCP_INIT_TIMEOUT` for long-running Meta GraphRAG tools.
+- 2026-01-25: pytest tests/lean_oracle -v => 4 passed, 8 skipped (Lean toolchain not installed).
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.

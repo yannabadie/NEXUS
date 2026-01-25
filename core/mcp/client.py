@@ -5,6 +5,7 @@ Zero-dependency implementation using JSON-RPC 2.0 over stdio.
 Manages server subprocess lifecycle and message exchange.
 """
 
+import os
 import subprocess
 import json
 import threading
@@ -72,6 +73,20 @@ class MCPClientState:
 
 
 # =============================================================================
+# Helpers
+# =============================================================================
+
+def _read_timeout_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+# =============================================================================
 # MCP Client
 # =============================================================================
 
@@ -99,8 +114,8 @@ class MCPClient:
     PROTOCOL_VERSION = "2024-11-05"
 
     # Timeouts
-    DEFAULT_TIMEOUT = 30.0  # seconds
-    INIT_TIMEOUT = 30.0  # seconds
+    DEFAULT_TIMEOUT = _read_timeout_env("MCP_TIMEOUT", 30.0)  # seconds
+    INIT_TIMEOUT = _read_timeout_env("MCP_INIT_TIMEOUT", 30.0)  # seconds
 
     def __init__(
         self,
