@@ -49,6 +49,7 @@ import json
 import logging
 import time
 import re
+import os
 from pathlib import Path
 from typing import AsyncIterator, Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -63,6 +64,7 @@ from .protocol import (
 )
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
+from .async_glm_driver import AsyncGLMDriver, AsyncGLMDriverConfig
 
 logger = logging.getLogger(__name__)
 
@@ -489,6 +491,150 @@ class ClaudeCLIAdapter(BaseAsyncDriver):
 
 
 # =============================================================================
+# GLM API Adapter (Claude Replacement)
+# =============================================================================
+
+class GLMAPIAdapter(BaseAsyncDriver):
+    """
+    Adapter wrapping AsyncGLMDriver to implement DriverProtocol.
+
+    Used when NEXUS_USE_GLM_FOR_CLAUDE=true to replace Claude CLI.
+    """
+
+    def __init__(
+        self,
+        config: Optional[AsyncGLMDriverConfig] = None,
+        workspace_path: Optional[Path] = None,
+    ):
+        if config is None:
+            api_key = os.getenv("GLM_API_KEY")
+            if not api_key:
+                raise ValueError("GLM_API_KEY is not configured")
+            config = AsyncGLMDriverConfig(
+                api_key=api_key,
+                api_base=os.getenv("GLM_API_BASE", "https://api.z.ai/api/paas/v4"),
+                model=os.getenv("GLM_MODEL", "glm-4.7"),
+            )
+
+        super().__init__(
+            provider="claude",
+            model=config.model,
+            timeout=config.timeout,
+        )
+
+        self._driver = AsyncGLMDriver(config)
+        self._config = config
+
+    async def invoke(
+        self,
+        prompt: str,
+        *,
+        session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> DriverResponse:
+        start_time = time.time()
+        effective_timeout = timeout or self._timeout
+
+        try:
+            context = prompt
+            if system_prompt:
+                context = f"System: {system_prompt}\n\nUser: {prompt}"
+
+            result = await asyncio.wait_for(
+                self._driver.invoke(context, session_uuid=session_id),
+                timeout=effective_timeout,
+            )
+
+            latency_ms = (time.time() - start_time) * 1000
+            content = result.get("content", "")
+            tool_calls: List[ToolCall] = []
+            tool_use = result.get("tool_use")
+            if tool_use:
+                tool_calls.append(ToolCall(
+                    name=tool_use.get("tool_name", "unknown"),
+                    arguments=tool_use.get("arguments", {}),
+                ))
+            else:
+                tool_calls = extract_tool_calls_from_claude(content)
+
+            return DriverResponse(
+                content=content,
+                status=DriverResponseStatus.SUCCESS,
+                model=self._model,
+                provider=self._provider,
+                session_id=session_id,
+                tool_calls=tool_calls,
+                latency_ms=latency_ms,
+                raw=result,
+            )
+
+        except asyncio.TimeoutError:
+            return self._create_error_response(
+                f"GLM timeout after {effective_timeout}s",
+                error_code="TIMEOUT",
+                status=DriverResponseStatus.TIMEOUT,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.exception(f"GLMAPIAdapter.invoke error: {e}")
+            return self._create_error_response(
+                str(e),
+                error_code="API_ERROR",
+            )
+
+    async def invoke_stream(
+        self,
+        prompt: str,
+        *,
+        session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+        start_time = time.time()
+
+        try:
+            context = prompt
+            if system_prompt:
+                context = f"System: {system_prompt}\n\nUser: {prompt}"
+
+            full_content = ""
+            async for chunk in self._driver.invoke_stream(
+                context,
+                session_uuid=session_id,
+            ):
+                full_content += chunk
+                yield StreamChunk(content=chunk)
+
+            latency_ms = (time.time() - start_time) * 1000
+            tool_calls = extract_tool_calls_from_claude(full_content)
+            final_tool = tool_calls[0] if tool_calls else None
+
+            yield StreamChunk(
+                content="",
+                is_final=True,
+                tool_call=final_tool,
+                latency_ms=latency_ms,
+            )
+
+        except asyncio.CancelledError:
+            raise
+
+    async def cancel(self, session_id: Optional[str] = None) -> bool:
+        return False
+
+    async def health_check(self) -> bool:
+        return True
+
+
+# =============================================================================
 # Unified Factory for CLI Adapters
 # =============================================================================
 
@@ -519,6 +665,17 @@ def create_cli_adapter(
         return GeminiCLIAdapter(config)
 
     elif provider.lower() == "claude":
+        use_glm = os.getenv("NEXUS_USE_GLM_FOR_CLAUDE", "False").lower() == "true"
+        if use_glm:
+            config = AsyncGLMDriverConfig(
+                api_key=os.getenv("GLM_API_KEY", ""),
+                api_base=os.getenv("GLM_API_BASE", "https://api.z.ai/api/paas/v4"),
+                model=os.getenv("GLM_MODEL", "glm-4.7"),
+            )
+            if not config.api_key:
+                raise ValueError("GLM_API_KEY is not configured")
+            return GLMAPIAdapter(config)
+
         config = AsyncClaudeDriverConfig(**config_kwargs)
         if workspace_path:
             config.workspace_path = workspace_path
@@ -535,6 +692,7 @@ def create_cli_adapter(
 __all__ = [
     "GeminiCLIAdapter",
     "ClaudeCLIAdapter",
+    "GLMAPIAdapter",
     "create_cli_adapter",
     "extract_tool_calls_from_gemini",
     "extract_tool_calls_from_claude",

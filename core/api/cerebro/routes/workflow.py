@@ -71,7 +71,11 @@ def _get_orchestrator():
 
         config = Config()
         gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
-        claude_info = {"model": config.claude_opus_model, "provider": "claude"}
+        use_glm = bool(getattr(config, "use_glm_for_claude", False) and getattr(config, "glm_api_key", None))
+        if use_glm:
+            claude_info = {"model": config.glm_model, "provider": "glm"}
+        else:
+            claude_info = {"model": config.claude_opus_model, "provider": "claude"}
         return OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
     except Exception as e:
         logger.error(f"Failed to create orchestrator: {e}")

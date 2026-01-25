@@ -26,6 +26,7 @@ import tiktoken
 
 from core.agents.unified_registry import get_registry
 from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+from core.drivers.glm_driver_hybrid import GLMDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult
@@ -109,7 +110,7 @@ class AgentInvoker:
         self,
         task_type: TaskType,
         timeout_override: Optional[int] = None
-    ) -> ClaudeDriverHybrid:
+    ) -> ClaudeDriverHybrid | GLMDriverHybrid:
         """
         Get Claude driver with appropriate model for task type.
 
@@ -122,11 +123,25 @@ class AgentInvoker:
             timeout_override: Optional timeout override (e.g., shorter for CFL)
 
         Returns:
-            Configured ClaudeDriverHybrid instance
+            Configured ClaudeDriverHybrid or GLMDriverHybrid instance
         """
+        use_glm = getattr(self._orch.config, "use_glm_for_claude", False)
+        if use_glm:
+            if not getattr(self._orch.config, "glm_api_key", None):
+                self._logger.warning("GLM replacement requested but GLM_API_KEY missing; using Claude CLI")
+            else:
+                driver = GLMDriverHybrid(
+                    self._orch.config,
+                    self._orch.workspace_path,
+                    model=getattr(self._orch.config, "glm_model", "glm-4.7"),
+                    agent_id=f"claude_{task_type.value}"
+                )
+                if timeout_override:
+                    driver.timeout = timeout_override
+                return driver
+
         model = self._orch.model_router.select_claude_model(task_type)
 
-        # Create driver with optional timeout override
         driver = ClaudeDriverHybrid(
             self._orch.config,
             self._orch.workspace_path,

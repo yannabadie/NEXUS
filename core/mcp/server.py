@@ -95,7 +95,11 @@ def get_orchestrator():
     config = Config()
     # V8.5.0: OrchestratorV7 requires workspace_path, config, and model info
     gemini_info = {"model": config.gemini_pro_model, "provider": "gemini"}
-    claude_info = {"model": config.claude_opus_model, "provider": "claude"}
+    use_glm = bool(getattr(config, "use_glm_for_claude", False) and getattr(config, "glm_api_key", None))
+    if use_glm:
+        claude_info = {"model": config.glm_model, "provider": "glm"}
+    else:
+        claude_info = {"model": config.claude_opus_model, "provider": "claude"}
     _ORCHESTRATOR = OrchestratorV7(config.workspace_path, config, gemini_info, claude_info)
     return _ORCHESTRATOR
 

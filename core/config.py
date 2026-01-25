@@ -69,6 +69,18 @@ class Config:
         self.deepseek_verify_ssl: bool = os.getenv("DEEPSEEK_SSL_VERIFY", "True").lower() == "true"
         self.deepseek_ssl_mode: str = os.getenv("DEEPSEEK_SSL_MODE", self.ssl_mode)
         self.deepseek_ca_bundle: Optional[str] = os.getenv("DEEPSEEK_CA_BUNDLE") or self.ssl_ca_bundle
+        self.glm_api_key: Optional[str] = os.getenv("GLM_API_KEY")
+        self.glm_api_base: str = os.getenv("GLM_API_BASE", "https://api.z.ai/api/paas/v4")
+        self.glm_model: str = os.getenv("GLM_MODEL", "glm-4.7")
+        self.glm_timeout: float = float(os.getenv("GLM_TIMEOUT", "60"))
+        self.glm_max_tokens: int = int(os.getenv("GLM_MAX_TOKENS", "4096"))
+        self.glm_temperature: float = float(os.getenv("GLM_TEMPERATURE", "0.2"))
+        self.glm_max_retries: int = int(os.getenv("GLM_MAX_RETRIES", "2"))
+        self.glm_verify_ssl: bool = os.getenv("GLM_SSL_VERIFY", "True").lower() == "true"
+        self.glm_ssl_mode: str = os.getenv("GLM_SSL_MODE", self.ssl_mode)
+        self.glm_ca_bundle: Optional[str] = os.getenv("GLM_CA_BUNDLE") or self.ssl_ca_bundle
+        glm_prefer_env = os.getenv("NEXUS_USE_GLM_FOR_CLAUDE", "False")
+        self.use_glm_for_claude = glm_prefer_env.lower() == "true"
 
         # Orchestration
         self.max_stalemate_count: int = int(os.getenv("MAX_STALEMATE_COUNT", "5"))

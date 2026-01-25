@@ -20,6 +20,7 @@ Owner: Codex (meta GraphRAG assisted)
 - ✅ `NEXUS_SIMPLE_AGENT=gemini` - NCM pilot uses Gemini CLI instead
 - ✅ Kimi K2 Thinking API - Deep research in Meta GraphRAG
 - ✅ DeepSeek R1 API - Alternative reasoning provider (optional)
+- ✅ GLM 4.7 API - Temporary replacement for Claude CLI when `GLM_API_KEY` is set
 - ❌ API direct fallback - **NOT APPLICABLE** (NEXUS uses CLI-only for Claude/Gemini per architecture constraint)
 
 ### Action Items
@@ -622,6 +623,8 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: OrchestratorV7 _make_result now accepts escalate_reason for NCM compatibility.
 - 2026-01-25: Added pre-write Python syntax validation for write/edit tools.
 - 2026-01-25: Moved NEXUS_COMPREHENSIVE_ANALYSIS.md into docs/ for tracking.
+- 2026-01-25: Added GLM 4.7 API driver and optional Claude CLI replacement (configurable via GLM_API_KEY + NEXUS_USE_GLM_FOR_CLAUDE).
+- 2026-01-25: Aligned GLM API base with docs.z.ai (`https://api.z.ai/api/paas/v4`) and added `NEXUS_USE_GLM_FOR_CLAUDE` toggle to fully replace Claude CLI.
 - 2026-01-25: pytest tests/ -v => 2507 passed, 12 skipped in 0:07:51 (warning: invalid -W option for urllib3.exceptions).
 - 2026-01-25: npm audit fix --force => 0 vulnerabilities; vitest upgraded to 4.0.18.
 - 2026-01-25: npm test => 19 passed (vitest).

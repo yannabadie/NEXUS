@@ -10,6 +10,7 @@ Ce module détecte automatiquement:
 Utilisé par bootstrap() pour vérifier l'environnement au démarrage.
 """
 import subprocess
+import os
 import re
 import platform
 from typing import Dict, List
@@ -155,6 +156,23 @@ class CLIInspector:
                 "error": str            # if not available
             }
         """
+        if os.getenv("NEXUS_USE_GLM_FOR_CLAUDE", "False").lower() == "true":
+            api_key = os.getenv("GLM_API_KEY")
+            if not api_key:
+                return {
+                    "available": False,
+                    "error": "GLM_API_KEY missing while NEXUS_USE_GLM_FOR_CLAUDE=true"
+                }
+            model = os.getenv("GLM_MODEL", "glm-4.7")
+            # Default to 128k context window for GLM 4.7 (docs.z.ai quick-start)
+            return {
+                "available": True,
+                "model": model,
+                "context_window": 128000,
+                "version": "z.ai api",
+                "provider": "glm"
+            }
+
         try:
             # Try claude --version (using platform-aware helper)
             # Increased timeout to 15s for Windows PowerShell overhead

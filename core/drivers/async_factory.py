@@ -36,6 +36,7 @@ from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
 from .async_deepseek_driver import AsyncDeepSeekDriver, AsyncDeepSeekDriverConfig
+from .async_glm_driver import AsyncGLMDriver, AsyncGLMDriverConfig
 from core.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class AsyncDriverFactory:
         self._gemini_driver: Optional[AsyncGeminiDriver] = None
         self._kimi_driver: Optional[AsyncKimiDriver] = None
         self._deepseek_driver: Optional[AsyncDeepSeekDriver] = None
+        self._glm_driver: Optional[AsyncGLMDriver] = None
 
     def get_claude_driver(
         self,
@@ -81,6 +83,10 @@ class AsyncDriverFactory:
         Returns:
             AsyncClaudeDriver instance
         """
+        use_glm = getattr(self.config, "use_glm_for_claude", False)
+        if use_glm and getattr(self.config, "glm_api_key", None):
+            return self.get_glm_driver()
+
         if self._claude_driver is None:
             config = AsyncClaudeDriverConfig(
                 cli_path=getattr(self.config, 'claude_cli_path', 'claude'),
@@ -194,6 +200,43 @@ class AsyncDriverFactory:
 
         return self._deepseek_driver
 
+    def get_glm_driver(
+        self,
+        model: Optional[str] = None
+    ) -> AsyncGLMDriver:
+        """
+        Get or create the GLM driver.
+
+        Args:
+            model: Optional model override
+
+        Returns:
+            AsyncGLMDriver instance
+        """
+        if self._glm_driver is None:
+            api_key = getattr(self.config, "glm_api_key", None)
+            if not api_key:
+                raise ValueError("GLM_API_KEY is not configured")
+
+            config = AsyncGLMDriverConfig(
+                api_key=api_key,
+                api_base=getattr(self.config, "glm_api_base", "https://open.bigmodel.cn/api/paas/v4"),
+                model=model or getattr(self.config, "glm_model", "glm-4.7"),
+                timeout=getattr(self.config, "glm_timeout", 60.0),
+                max_tokens=getattr(self.config, "glm_max_tokens", 4096),
+                temperature=getattr(self.config, "glm_temperature", 0.2),
+                max_retries=getattr(self.config, "glm_max_retries", 2),
+                verify_ssl=getattr(self.config, "glm_verify_ssl", True),
+                ca_bundle=getattr(self.config, "glm_ca_bundle", None),
+                ssl_mode=getattr(self.config, "glm_ssl_mode", "strict"),
+            )
+            self._glm_driver = AsyncGLMDriver(config)
+        elif model:
+            # Only update if model is a GLM model override.
+            self._glm_driver.config.model = model
+
+        return self._glm_driver
+
     def get_driver(
         self,
         agent_id: str,
@@ -215,6 +258,8 @@ class AsyncDriverFactory:
         agent_lower = agent_id.lower()
 
         if agent_lower == "claude":
+            if getattr(self.config, "use_glm_for_claude", False) and getattr(self.config, "glm_api_key", None):
+                return self.get_glm_driver()
             return self.get_claude_driver(model)
         elif agent_lower == "gemini":
             return self.get_gemini_driver(model)
@@ -222,8 +267,12 @@ class AsyncDriverFactory:
             return self.get_kimi_driver(model)
         elif agent_lower == "deepseek":
             return self.get_deepseek_driver(model)
+        elif agent_lower == "glm":
+            return self.get_glm_driver(model)
         else:
-            raise ValueError(f"Unknown agent: {agent_id}. Use 'claude', 'gemini', 'kimi', or 'deepseek'.")
+            raise ValueError(
+                f"Unknown agent: {agent_id}. Use 'claude', 'gemini', 'kimi', 'deepseek', or 'glm'."
+            )
 
     async def cancel_by_uuid(self, session_uuid: str) -> bool:
         """
@@ -280,6 +329,8 @@ class AsyncDriverFactory:
             count += self._claude_driver.active_process_count
         if self._gemini_driver:
             count += self._gemini_driver.active_process_count
+        if self._glm_driver:
+            count += self._glm_driver.active_process_count
         return count
 
 

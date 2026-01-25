@@ -327,11 +327,15 @@ def create_async_hive_mind(
     # Import here to avoid circular imports
     from .orchestrator import TrueHiveMind
     from core.drivers import GeminiDriverV7, ClaudeDriverHybrid
+    from core.drivers.glm_driver_hybrid import GLMDriverHybrid
 
     # Create sync drivers for backwards compatibility
     # TODO: Update phases to use async drivers directly
-    gemini_sync = GeminiDriverV7(workspace_path, config)
-    claude_sync = ClaudeDriverHybrid(workspace_path, config)
+    gemini_sync = GeminiDriverV7(config, workspace_path)
+    if getattr(config, "use_glm_for_claude", False) and getattr(config, "glm_api_key", None):
+        claude_sync = GLMDriverHybrid(config, workspace_path)
+    else:
+        claude_sync = ClaudeDriverHybrid(config, workspace_path)
 
     # Create HiveMind with sync drivers
     hive_mind = TrueHiveMind(

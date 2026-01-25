@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-The **drivers** module provides the abstraction layer for communicating with LLM providers (Gemini and Claude). It implements a unified `DriverProtocol` interface that enables both synchronous CLI-based drivers and async API-based drivers, with automatic session management and tool execution capabilities.
+The **drivers** module provides the abstraction layer for communicating with LLM providers (Gemini, Claude, and GLM). It implements a unified `DriverProtocol` interface that enables both synchronous CLI-based drivers and async API-based drivers, with automatic session management and tool execution capabilities.
 
 ## Architecture
 
@@ -46,8 +46,10 @@ The **drivers** module provides the abstraction layer for communicating with LLM
 | `protocol.py` | Core abstractions | `DriverProtocol`, `DriverResponse`, `ToolCall` |
 | `async_claude_driver.py` | Claude async driver | `AsyncClaudeDriver`, `AsyncClaudeDriverConfig` |
 | `async_gemini_driver.py` | Gemini async driver | `AsyncGeminiDriver`, `AsyncGeminiDriverConfig` |
+| `async_glm_driver.py` | GLM async driver | `AsyncGLMDriver`, `AsyncGLMDriverConfig` |
 | `claude_driver_hybrid.py` | Legacy sync Claude | `ClaudeDriverHybrid` |
 | `gemini_driver_v7.py` | Legacy sync Gemini | `GeminiDriverV7` |
+| `glm_driver_hybrid.py` | Sync GLM (Claude-compatible) | `GLMDriverHybrid` |
 | `cli_adapter.py` | CLI wrapper adapters | `GeminiCLIAdapter`, `ClaudeCLIAdapter` |
 | `session_abstraction.py` | Session management | `SessionManager`, `SessionRegistry` |
 | `tool_executor.py` | Tool execution layer | `ToolExecutor`, `LocalToolExecutor` |
@@ -104,6 +106,18 @@ gemini = await factory.get_gemini_driver()
 | **Tool Response** | JSON in response | `<tool_use>` XML blocks |
 | **Streaming** | Server-sent events | Server-sent events |
 | **Session** | API-managed | CLI subprocess |
+
+## GLM Temporary Replacement (Claude CLI)
+
+When `GLM_API_KEY` is configured, NEXUS can temporarily route Claude tasks to GLM 4.7
+without changing orchestration code. This uses the same hybrid tool format
+(`<tool_use>` XML blocks) so existing parsing logic still applies.
+
+Recommended env flags:
+- `GLM_API_KEY`
+- `GLM_MODEL` (default: `glm-4.7`)
+- `GLM_API_BASE` (default: `https://api.z.ai/api/paas/v4`)
+- `NEXUS_USE_GLM_FOR_CLAUDE` (set to true to replace Claude CLI)
 
 ## V11 Abstraction Layer (F31-F33)
 

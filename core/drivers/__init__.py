@@ -28,6 +28,7 @@ from .protocol import (
 from .cli_adapter import (
     GeminiCLIAdapter,
     ClaudeCLIAdapter,
+    GLMAPIAdapter,
     create_cli_adapter,
 )
 from .session_abstraction import (
@@ -54,11 +55,13 @@ from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig, cre
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig, create_async_gemini_driver
 from .async_kimi_driver import AsyncKimiDriver, AsyncKimiDriverConfig
 from .async_deepseek_driver import AsyncDeepSeekDriver, AsyncDeepSeekDriverConfig
+from .async_glm_driver import AsyncGLMDriver, AsyncGLMDriverConfig
 from .async_factory import AsyncDriverFactory, get_driver_factory, set_driver_factory, create_driver_factory
 
 # Legacy sync drivers (backwards compatibility)
 from .gemini_driver_v7 import GeminiDriverV7
 from .claude_driver_hybrid import ClaudeDriverHybrid
+from .glm_driver_hybrid import GLMDriverHybrid
 
 __all__ = [
     # V11 Abstraction Layer (F31)
@@ -72,6 +75,7 @@ __all__ = [
     "BaseAsyncDriver",
     "GeminiCLIAdapter",
     "ClaudeCLIAdapter",
+    "GLMAPIAdapter",
     "create_cli_adapter",
     # V11 Session Abstraction (F32)
     "SessionMode",
@@ -100,6 +104,8 @@ __all__ = [
     "AsyncKimiDriverConfig",
     "AsyncDeepSeekDriver",
     "AsyncDeepSeekDriverConfig",
+    "AsyncGLMDriver",
+    "AsyncGLMDriverConfig",
     "AsyncDriverFactory",
     "get_driver_factory",
     "set_driver_factory",
@@ -107,4 +113,5 @@ __all__ = [
     # Legacy sync
     "GeminiDriverV7",
     "ClaudeDriverHybrid",
+    "GLMDriverHybrid",
 ]
