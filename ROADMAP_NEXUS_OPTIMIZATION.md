@@ -68,9 +68,9 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - MCP query utilities (ignored): `workspace/tmp_mcp_query.py`, `workspace/tmp_mcp_query_extra.py`, `workspace/tmp_list_p0.py` (candidate to promote into scripts/ for repeatable meta GraphRAG snapshots)
 - MCP snapshot utilities (new): `scripts/meta_graph_rag/mcp_snapshot.py`, `scripts/meta_graph_rag/mcp_smoke.py`
 - BMAD adaptation plan (untracked): `NCM_META_BOOTSTRAPPING_PLAN.md`
-- Independent analysis report: `NEXUS_COMPREHENSIVE_ANALYSIS.md`
+- Independent analysis report: `docs/NEXUS_COMPREHENSIVE_ANALYSIS.md`
 
-## NEXUS_COMPREHENSIVE_ANALYSIS.md Verification (2026-01-25)
+## docs/NEXUS_COMPREHENSIVE_ANALYSIS.md Verification (2026-01-25)
 Goal: validate claims against current code and audits; mark deltas.
 
 Verified against code:
@@ -206,14 +206,14 @@ Goal: NCM should run end-to-end without manual intervention.
 - Use Meta GraphRAG for story sharding + evidence pack injection; use Kimi K2 Thinking/DeepSeek for reasoning fallback.
 - Identify the specific issues that blocked BMAD execution attempt and record in roadmap with fixes.
 
-10) Fix OrchestratorV7 _make_result API mismatch (pending)
+10) Fix OrchestratorV7 _make_result API mismatch (done 2026-01-25)
 - core/orchestration_v7.py, core/orchestration/fsm_handlers.py
-- Add escalate_reason to _make_result or remove caller argument; update call sites and tests.
+- Added escalate_reason to _make_result to match caller usage.
 - Impact: unblock NCM real-mode story execution paths.
 
-11) Add pre-write Python syntax validation (pending)
+11) Add pre-write Python syntax validation (done 2026-01-25)
 - core/execution/handlers/file_handlers.py
-- Validate Python syntax before write and block invalid content; surface error details.
+- Validate Python syntax before write/edit and block invalid content; surface error details.
 - Impact: prevents NCM from writing invalid code before syntax checks run.
 
 12) Add FSM transition tests (pending)
@@ -231,9 +231,9 @@ Goal: remove default credentials and address known high-risk hygiene items.
 - core/api/cerebro/middleware.py, .env.example
 - Fail fast or warn if NEXUS_JWT_SECRET missing in production.
 
-3) UI dependency audit (pending)
+3) UI dependency audit (in progress)
 - interface/ui/cerebro
-- Run `npm audit fix` and record results.
+- `npm audit fix` completed; 5 moderate vulnerabilities remain (esbuild/vite/vitest). Requires `npm audit fix --force` (breaking change to vitest).
 
 ## Meta GraphRAG Task Inventory (Phase 1)
 Source: `workspace/ncm_analysis/ncm_deep_analysis_output.json` (80 tasks, 38 files).
@@ -463,7 +463,7 @@ Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 
 - Impact: multi-tenant isolation invariants align with Lean spec.
 
 ## P5 - Strategic Direction (Doc-Sourced; Validate)
-Goal: pick a realistic path for 2026 delivery (from `NEXUS_COMPREHENSIVE_ANALYSIS.md`).
+Goal: pick a realistic path for 2026 delivery (from `docs/NEXUS_COMPREHENSIVE_ANALYSIS.md`).
 
 Options:
 - Option A: Refactor & complete (8-12 weeks). Keep V12.4, fix blockers, address 10,602 issues.
@@ -617,8 +617,13 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-25: Added Gemini->DeepSeek fallback on quota/429 via META_RAG_EMBED_FALLBACK.
 - 2026-01-25: DeepSeek embedding model auto-discovery via /models when DEEPSEEK_EMBED_MODEL=auto.
 - 2026-01-25: Meta GraphRAG indexer now hard-excludes active data_path to prevent recursive indexing.
-- 2026-01-25: Reviewed NEXUS_COMPREHENSIVE_ANALYSIS.md; verified claims vs code/audits and updated roadmap deltas.
+- 2026-01-25: Reviewed docs/NEXUS_COMPREHENSIVE_ANALYSIS.md; verified claims vs code/audits and updated roadmap deltas.
 - 2026-01-25: Reindex in progress (Gemini + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag; last progress at `workspace/meta_rag/index_progress.json`).
+- 2026-01-25: OrchestratorV7 _make_result now accepts escalate_reason for NCM compatibility.
+- 2026-01-25: Added pre-write Python syntax validation for write/edit tools.
+- 2026-01-25: Moved NEXUS_COMPREHENSIVE_ANALYSIS.md into docs/ for tracking.
+- 2026-01-25: pytest tests/ -v => 2507 passed, 12 skipped in 0:07:51 (warning: invalid -W option for urllib3.exceptions).
+- 2026-01-25: npm audit fix => 5 moderate vulnerabilities remain (esbuild/vite/vitest); requires --force.
 
 ## Web Research Addenda (24/01/2026)
 Sources pulled (ArXiv/GitHub/Docs): GraphSearch (arXiv 2509.22009), GraphRAG under Fire (arXiv 2501.14050), When to Use Graphs in RAG / GraphRAG-Bench (arXiv 2506.05690 + github.com/GraphRAG-Bench/GraphRAG-Benchmark), DRIFT Search, Dynamic Community Selection, LazyGraphRAG, RAGAS/TruLens/Phoenix/DeepEval, OWASP LLM Top 10, Agentic Reasoning for LLMs (arXiv 2601.12538), DeepSeek V3 README, DeepSeek API docs, Awesome DeepSeek Integration.
