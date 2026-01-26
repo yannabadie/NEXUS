@@ -109,6 +109,18 @@ Environment:
 - `MCP_TIMEOUT` (seconds, default 30). Default request timeout for MCPClient.
 - `MCP_INIT_TIMEOUT` (seconds, default 30). Initialization handshake timeout.
 
+#### Meta GraphRAG Defaults
+Meta GraphRAG uses config defaults when callers omit parameters.
+
+Environment (query defaults):
+- `META_RAG_QUERY_SEEDS` (default 8). Top-k seed limit for queries.
+- `META_RAG_QUERY_DEPTH` (default 1). Graph expansion depth.
+- `META_RAG_QUERY_EXPANSION` (default 20). Expansion chunk limit.
+
+Environment (briefing/report cache):
+- `META_GRAPHRAG_REPORT_CACHE_TTL` (seconds, default 300). HTTP report cache TTL.
+- `META_GRAPHRAG_REPORT_CACHE_MAX` (default 16). Max cached report entries.
+
 ## Client Usage
 
 ```python

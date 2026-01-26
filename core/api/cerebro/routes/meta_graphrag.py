@@ -9,14 +9,18 @@ Provides standardized HTTP access to the Meta GraphRAG index so agents can:
 
 from __future__ import annotations
 
+import copy
 import hashlib
+import json
 import logging
+import os
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..deps import AuthenticatedUser
 from ..rbac import Permission, require_permission
@@ -26,6 +30,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _META_GRAPHRAG_INDEXER = None
+_REPORT_CACHE: Dict[str, Dict[str, Any]] = {}
+
+MAX_QUERY_LENGTH = 4000
+MAX_SEED_LIMIT = 50
+MAX_EXPANSION_DEPTH = 4
+MAX_EXPANSION_LIMIT = 200
+MAX_ENTRYPOINTS = 25
+MAX_ENTRYPOINT_LENGTH = 256
+
+REPORT_CACHE_TTL_SECONDS = int(os.getenv("META_GRAPHRAG_REPORT_CACHE_TTL", "300"))
+REPORT_CACHE_MAX_ENTRIES = int(os.getenv("META_GRAPHRAG_REPORT_CACHE_MAX", "16"))
 
 
 def _utc_now() -> datetime:
@@ -51,6 +66,24 @@ def _get_meta_graphrag_indexer():
 
 def _hash_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _normalize_entrypoints(entrypoints: Optional[List[str]]) -> Optional[List[str]]:
+    if entrypoints is None:
+        return None
+    if len(entrypoints) > MAX_ENTRYPOINTS:
+        raise ValueError(f"entrypoints cannot exceed {MAX_ENTRYPOINTS} items")
+    normalized: List[str] = []
+    for entry in entrypoints:
+        if entry is None:
+            raise ValueError("entrypoints cannot include null values")
+        value = entry.strip()
+        if not value:
+            raise ValueError("entrypoints cannot include empty values")
+        if len(value) > MAX_ENTRYPOINT_LENGTH:
+            raise ValueError(f"entrypoint exceeds {MAX_ENTRYPOINT_LENGTH} characters")
+        normalized.append(value)
+    return normalized
 
 
 def _safe_excerpt(value: Optional[str], limit: int = 200) -> Optional[str]:
@@ -113,6 +146,8 @@ def _build_meta_graphrag_query(
 ) -> Dict[str, Any]:
     if not query or not query.strip():
         raise ValueError("Query cannot be empty.")
+    if len(query) > MAX_QUERY_LENGTH:
+        raise ValueError(f"Query cannot exceed {MAX_QUERY_LENGTH} characters.")
 
     indexer = _get_meta_graphrag_indexer()
     seed_limit = seed_limit if seed_limit is not None else indexer.config.query_seed_limit
@@ -122,6 +157,10 @@ def _build_meta_graphrag_query(
     expansion_limit = (
         expansion_limit if expansion_limit is not None else indexer.config.query_expansion_limit
     )
+
+    seed_limit = min(seed_limit, MAX_SEED_LIMIT)
+    expansion_depth = min(expansion_depth, MAX_EXPANSION_DEPTH)
+    expansion_limit = min(expansion_limit, MAX_EXPANSION_LIMIT)
 
     if seed_limit < 0:
         seed_limit = 0
@@ -170,11 +209,68 @@ def _build_meta_graphrag_query(
     }
 
 
+def _report_cache_key(
+    entrypoints: Optional[List[str]],
+    include_content: bool,
+    fast: bool,
+) -> str:
+    payload = {
+        "entrypoints": entrypoints or [],
+        "include_content": include_content,
+        "fast": fast,
+    }
+    return _hash_text(json.dumps(payload, sort_keys=True))
+
+
+def _get_report_cache(key: str) -> Optional[Dict[str, Any]]:
+    cached = _REPORT_CACHE.get(key)
+    if not cached:
+        return None
+    now = time.time()
+    expires_at = cached.get("expires_at", 0.0)
+    if expires_at <= now:
+        _REPORT_CACHE.pop(key, None)
+        return None
+    return copy.deepcopy(cached)
+
+
+def _store_report_cache(key: str, payload: Dict[str, Any]) -> None:
+    if REPORT_CACHE_TTL_SECONDS <= 0 or REPORT_CACHE_MAX_ENTRIES <= 0:
+        return
+    now = time.time()
+    _REPORT_CACHE[key] = {
+        "created_at": now,
+        "expires_at": now + REPORT_CACHE_TTL_SECONDS,
+        "payload": copy.deepcopy(payload),
+    }
+    if len(_REPORT_CACHE) <= REPORT_CACHE_MAX_ENTRIES:
+        return
+    sorted_entries = sorted(
+        _REPORT_CACHE.items(),
+        key=lambda item: item[1].get("created_at", 0.0),
+    )
+    for key_to_remove, _ in sorted_entries[: len(_REPORT_CACHE) - REPORT_CACHE_MAX_ENTRIES]:
+        _REPORT_CACHE.pop(key_to_remove, None)
+
+
 def _build_meta_graphrag_reports(
     entrypoints: Optional[List[str]],
     include_content: bool,
     fast: bool,
 ) -> Dict[str, Any]:
+    entrypoints = _normalize_entrypoints(entrypoints)
+    cache_key = _report_cache_key(entrypoints, include_content, fast)
+    cached = _get_report_cache(cache_key)
+    if cached:
+        payload = cached["payload"]
+        payload["cache"] = {
+            "hit": True,
+            "age_seconds": round(time.time() - cached.get("created_at", time.time()), 2),
+            "ttl_seconds": REPORT_CACHE_TTL_SECONDS,
+            "max_entries": REPORT_CACHE_MAX_ENTRIES,
+        }
+        return payload
+
     from tools.meta_graph_rag.reports import generate_reports
     if fast:
         from tools.meta_graph_rag.config import load_config
@@ -207,6 +303,11 @@ def _build_meta_graphrag_reports(
             "security": str(paths.security),
             "module_catalog": str(paths.module_catalog),
         },
+        "cache": {
+            "hit": False,
+            "ttl_seconds": REPORT_CACHE_TTL_SECONDS,
+            "max_entries": REPORT_CACHE_MAX_ENTRIES,
+        },
     }
     if include_content:
         payload["reports"] = {
@@ -216,17 +317,66 @@ def _build_meta_graphrag_reports(
             "security": paths.security.read_text(encoding="utf-8", errors="ignore"),
             "module_catalog": paths.module_catalog.read_text(encoding="utf-8", errors="ignore"),
         }
+    _store_report_cache(cache_key, payload)
     return payload
 
 
 class GraphRagQueryRequest(BaseModel):
     """Request body for Meta GraphRAG query."""
 
-    query: str = Field(..., min_length=1, description="Query text")
-    seed_limit: Optional[int] = Field(default=None, ge=0, description="Seed top-k limit")
-    expansion_depth: Optional[int] = Field(default=None, ge=0, description="Graph expansion depth")
-    expansion_limit: Optional[int] = Field(default=None, ge=0, description="Expanded chunk limit")
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_QUERY_LENGTH,
+        description="Query text",
+    )
+    seed_limit: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=MAX_SEED_LIMIT,
+        description="Seed top-k limit",
+    )
+    expansion_depth: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=MAX_EXPANSION_DEPTH,
+        description="Graph expansion depth",
+    )
+    expansion_limit: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=MAX_EXPANSION_LIMIT,
+        description="Expanded chunk limit",
+    )
     include_text: bool = Field(default=False, description="Include full chunk text")
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, value: str) -> str:
+        if len(value) > MAX_QUERY_LENGTH:
+            raise ValueError(f"query cannot exceed {MAX_QUERY_LENGTH} characters")
+        return value
+
+    @field_validator("seed_limit")
+    @classmethod
+    def validate_seed_limit(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value > MAX_SEED_LIMIT:
+            raise ValueError(f"seed_limit cannot exceed {MAX_SEED_LIMIT}")
+        return value
+
+    @field_validator("expansion_depth")
+    @classmethod
+    def validate_expansion_depth(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value > MAX_EXPANSION_DEPTH:
+            raise ValueError(f"expansion_depth cannot exceed {MAX_EXPANSION_DEPTH}")
+        return value
+
+    @field_validator("expansion_limit")
+    @classmethod
+    def validate_expansion_limit(cls, value: Optional[int]) -> Optional[int]:
+        if value is not None and value > MAX_EXPANSION_LIMIT:
+            raise ValueError(f"expansion_limit cannot exceed {MAX_EXPANSION_LIMIT}")
+        return value
 
 
 class ReportsRequest(BaseModel):
@@ -236,6 +386,11 @@ class ReportsRequest(BaseModel):
     include_content: bool = Field(default=False, description="Include report contents")
     fast: bool = Field(default=True, description="Use snapshot status (avoid loading vector index)")
 
+    @field_validator("entrypoints")
+    @classmethod
+    def validate_entrypoints(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _normalize_entrypoints(value)
+
 
 class BriefingRequest(BaseModel):
     """Request body for briefing pack."""
@@ -243,6 +398,11 @@ class BriefingRequest(BaseModel):
     entrypoints: Optional[List[str]] = Field(default=None, description="Top-down entrypoints")
     include_content: bool = Field(default=True, description="Include report contents")
     fast: bool = Field(default=True, description="Use snapshot status (avoid loading vector index)")
+
+    @field_validator("entrypoints")
+    @classmethod
+    def validate_entrypoints(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        return _normalize_entrypoints(value)
 
 
 @router.get("/status")
@@ -395,7 +555,7 @@ async def meta_graphrag_briefing(
     try:
         payload = _build_meta_graphrag_reports(
             entrypoints=body.entrypoints,
-            include_content=body.include_content,
+            include_content=True,
             fast=body.fast,
         )
         reports = payload.get("reports", {})
@@ -415,7 +575,7 @@ async def meta_graphrag_briefing(
             details={
                 "entrypoints_count": len(body.entrypoints or []),
                 "entrypoints_sample": (body.entrypoints or [])[:5],
-                "include_content": body.include_content,
+                "include_content": True,
                 "fast": body.fast,
             },
         )

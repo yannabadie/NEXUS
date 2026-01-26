@@ -55,6 +55,10 @@ Meta GraphRAG is also available via the CEREBRO HTTP API:
 - `POST /api/meta-graphrag/reports` (`fast=true` uses snapshot)
 - `POST /api/meta-graphrag/briefing` (`fast=true` uses snapshot)
 
+Notes:
+- Briefing responses always include report contents (`include_content` is forced to true).
+- Reports/briefings are cached in memory for `META_GRAPHRAG_REPORT_CACHE_TTL` seconds.
+
 ## Audit Logging
 Meta GraphRAG HTTP endpoints emit audit logs for traceability:
 - `meta_graphrag:status`
@@ -84,6 +88,7 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_GEMINI_TASK_DOC` = Gemini task type for documents
 - `META_RAG_GEMINI_TASK_QUERY` = Gemini task type for queries (default CODE_RETRIEVAL_QUERY)
 - `META_RAG_GEMINI_BATCH` = Gemini batch size (default 8)
+- `META_RAG_GEMINI_TIMEOUT` = Gemini request timeout seconds (default 30)
 - `META_RAG_GEMINI_MODEL` = Gemini generation model for deep research (default gemini-3-pro-preview)
 - `DEEPSEEK_API_KEY` / `DEEPSEEK` = DeepSeek API key
 - `DEEPSEEK_API_BASE` = DeepSeek API base (default https://api.deepseek.com/v1)
@@ -101,6 +106,11 @@ You can scope or reduce indexing load with environment variables:
 - `META_RAG_SKIP_EMBEDDINGS` = true to build graph/chunks without embeddings
 - `META_RAG_EMBED_BATCH` = chunks per embed flush (default 64)
 - `META_RAG_EMBED_PERSIST` = persist embeddings every N chunks (default 250)
+- `META_RAG_QUERY_SEEDS` = default top-k seed limit for queries (default 8)
+- `META_RAG_QUERY_DEPTH` = default graph expansion depth (default 1)
+- `META_RAG_QUERY_EXPANSION` = default graph expansion limit (default 20)
+- `META_GRAPHRAG_REPORT_CACHE_TTL` = HTTP reports cache TTL (default 300)
+- `META_GRAPHRAG_REPORT_CACHE_MAX` = max cached report entries (default 16)
 - `META_RAG_SSL_MODE` = strict | auto | insecure (default strict)
 - `META_RAG_CA_BUNDLE` = path to corporate CA bundle (PEM)
 - `META_RAG_CA_REFRESH` = true to regenerate CA bundle from Windows store

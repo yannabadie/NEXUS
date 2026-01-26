@@ -2,7 +2,7 @@
 
 Created: 2026-01-23
 Owner: Codex (meta GraphRAG assisted)
-**Updated**: 2026-01-25 (Comprehensive analysis verification + Meta GraphRAG recursion guard)
+**Updated**: 2026-01-27 (Meta GraphRAG HTTP hardening + report cache)
 
 ## 🚨 CRITICAL: Claude CLI Subprocess Bug (Windows)
 
@@ -58,6 +58,12 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - reindex_in_progress: 2026-01-25 (Gemini embeddings + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag)
 - progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
 - note: graph.json contains no .git nodes; full reindex completed
+
+## Recent Updates (2026-01-27)
+- Meta GraphRAG HTTP: added request validation caps (query length, seed/expansion, entrypoints).
+- Meta GraphRAG HTTP: added briefing/report cache (TTL + max entries) and forced include_content for briefings.
+- Documented query defaults + report cache envs in `core/mcp/README.md`, `docs/meta_graph_rag.md`, `.env.example`.
+- Added API tests for Meta GraphRAG validation + report cache (`tests/api/test_meta_graphrag_api.py`).
 
 ## Recent Updates (2026-01-26)
 - Added git-diff incremental indexing and content-hash embedding reuse in Meta GraphRAG.
@@ -427,17 +433,17 @@ Goal: standardized access for any agent (top-k + graph expansion + briefing).
 - Validated MCP access to meta GraphRAG status + reports (snapshot mode).
 - Provide client config snippet (mcp.json) for quick onboarding.
 
-2) MCP query defaults + timeout guidance (pending)
+2) MCP query defaults + timeout guidance (done 2026-01-27)
 - Document `seed_limit`/`expansion_limit` and note queries invoke Gemini embeddings.
 - Add MCP server env guidance for `META_RAG_GEMINI_TIMEOUT` + `META_RAG_SSL_MODE` + query cache.
 
-3) HTTP API hardening (pending)
-- Validate request schema (top_k, expand_nodes, expansion_depth) and add tests.
+3) HTTP API hardening (done 2026-01-27)
+- Validate request schema (query length + seed/expansion caps + entrypoint limits) and add tests.
 - Add caching for reports/briefing payloads to avoid regen per request.
 
-4) Briefing pack generation (pending)
+4) Briefing pack generation (done 2026-01-27)
 - Auto-generate top-down, bottom-up, module catalog as agent bootstrap.
-- Expose via `/api/meta-graphrag/briefing` with version stamp.
+- Expose via `/api/meta-graphrag/briefing` with generated_at stamp (briefing forces include_content).
 
 5) GraphRAG query expansions (pending)
 - Confirm expansion strategy parameters are plumbed end-to-end (CLI + HTTP + MCP).
