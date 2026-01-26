@@ -64,6 +64,7 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Meta GraphRAG HTTP: added briefing/report cache (TTL + max entries) and forced include_content for briefings.
 - Documented query defaults + report cache envs in `core/mcp/README.md`, `docs/meta_graph_rag.md`, `.env.example`.
 - Added API tests for Meta GraphRAG validation + report cache (`tests/api/test_meta_graphrag_api.py`).
+- pytest `tests/api/test_meta_graphrag_api.py -v` => 3 passed (warning: invalid -W option for urllib3.exceptions).
 
 ## Recent Updates (2026-01-26)
 - Added git-diff incremental indexing and content-hash embedding reuse in Meta GraphRAG.
