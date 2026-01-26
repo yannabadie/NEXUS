@@ -526,6 +526,7 @@ class VectorIndex:
         query_task_type: Optional[str] = None,
         source_weights: Optional[Dict[str, float]] = None,
         query_cache: Optional[QueryEmbeddingCache] = None,
+        chunk_cache_enabled: bool = True,
     ) -> None:
         self.backend = backend
         self.entries: Dict[str, VectorRecord] = {}
@@ -533,16 +534,32 @@ class VectorIndex:
         self.query_task_type = query_task_type
         self.source_weights = source_weights or {}
         self.query_cache = query_cache
+        self._chunk_cache_enabled = chunk_cache_enabled
+        self._chunk_embedding_cache: Dict[str, List[float]] = {}
 
     def add_texts(self, records: List[VectorRecord]) -> None:
-        texts = [record.metadata.get("text", "") for record in records]
-        embeddings = self.backend.embed_texts(texts, task_type=self.document_task_type)
-        for record, embedding in zip(records, embeddings):
+        to_embed: List[VectorRecord] = []
+        for record in records:
+            cached = self._get_cached_embedding(record.metadata)
+            if cached is None:
+                to_embed.append(record)
+                continue
             self.entries[record.chunk_id] = VectorRecord(
                 chunk_id=record.chunk_id,
-                embedding=embedding,
+                embedding=cached,
                 metadata=record.metadata,
             )
+            self._cache_embedding(record.metadata, cached)
+        if to_embed:
+            texts = [record.metadata.get("text", "") for record in to_embed]
+            embeddings = self.backend.embed_texts(texts, task_type=self.document_task_type)
+            for record, embedding in zip(to_embed, embeddings):
+                self.entries[record.chunk_id] = VectorRecord(
+                    chunk_id=record.chunk_id,
+                    embedding=embedding,
+                    metadata=record.metadata,
+                )
+                self._cache_embedding(record.metadata, embedding)
 
     def remove(self, chunk_ids: List[str]) -> None:
         for chunk_id in chunk_ids:
@@ -601,6 +618,7 @@ class VectorIndex:
         query_task_type: Optional[str] = None,
         source_weights: Optional[Dict[str, float]] = None,
         query_cache: Optional[QueryEmbeddingCache] = None,
+        chunk_cache_enabled: bool = True,
     ) -> "VectorIndex":
         index = cls(
             backend,
@@ -608,6 +626,7 @@ class VectorIndex:
             query_task_type=query_task_type,
             source_weights=source_weights,
             query_cache=query_cache,
+            chunk_cache_enabled=chunk_cache_enabled,
         )
         if not path.exists():
             return index
@@ -624,7 +643,56 @@ class VectorIndex:
                 embedding=entry["embedding"],
                 metadata=entry["metadata"],
             )
+        index._build_chunk_cache()
         return index
+
+    def _build_chunk_cache(self) -> None:
+        if not self._chunk_cache_enabled:
+            return
+        for record in self.entries.values():
+            content_hash = self._content_hash_from_metadata(record.metadata)
+            if not content_hash:
+                continue
+            key = self._make_chunk_cache_key(content_hash)
+            self._chunk_embedding_cache.setdefault(key, record.embedding)
+
+    def _get_cached_embedding(self, metadata: Dict[str, str]) -> Optional[List[float]]:
+        if not self._chunk_cache_enabled:
+            return None
+        content_hash = self._content_hash_from_metadata(metadata)
+        if not content_hash:
+            return None
+        key = self._make_chunk_cache_key(content_hash)
+        return self._chunk_embedding_cache.get(key)
+
+    def _cache_embedding(self, metadata: Dict[str, str], embedding: List[float]) -> None:
+        if not self._chunk_cache_enabled:
+            return
+        content_hash = self._content_hash_from_metadata(metadata)
+        if not content_hash:
+            return
+        key = self._make_chunk_cache_key(content_hash)
+        self._chunk_embedding_cache[key] = embedding
+
+    def _content_hash_from_metadata(self, metadata: Dict[str, str]) -> Optional[str]:
+        content_hash = metadata.get("content_hash")
+        if content_hash:
+            return content_hash
+        text = metadata.get("text")
+        if not text:
+            return None
+        content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        metadata["content_hash"] = content_hash
+        return content_hash
+
+    def _make_chunk_cache_key(self, content_hash: str) -> str:
+        payload = {
+            "backend": self.backend.info(),
+            "task_type": self.document_task_type or "",
+            "content_hash": content_hash,
+        }
+        encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def _cosine_similarity(left: List[float], right: List[float]) -> float:

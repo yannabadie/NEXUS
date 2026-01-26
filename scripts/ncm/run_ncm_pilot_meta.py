@@ -5,7 +5,7 @@ Run NCM Pilot with Meta GraphRAG stories - Direct execution.
 This bypasses the REPL and runs NCM directly with Meta GraphRAG stories.
 
 Usage:
-    python run_ncm_pilot_meta.py
+    python scripts/ncm/run_ncm_pilot_meta.py
 """
 
 import asyncio
@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 # Add NEXUS root to path
-NEXUS_ROOT = Path(__file__).parent
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(NEXUS_ROOT))
 
 from core.ncm.models import Story, StoryPriority, IssueDomain, StoryStatus
@@ -57,7 +57,7 @@ async def run_pilot():
 
     if not stories_file.exists():
         print(f"[ERROR] Stories file not found: {stories_file}")
-        print("Run: python ncm_pilot_meta_graphrag.py --priority=p2 --count=10")
+        print("Run: python scripts/ncm/ncm_pilot_meta_graphrag.py --priority=p2 --count=10")
         return 1
 
     print(f"[LOAD] Loading stories from {stories_file.name}...")

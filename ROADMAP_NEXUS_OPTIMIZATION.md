@@ -59,6 +59,14 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
 - note: graph.json contains no .git nodes; full reindex completed
 
+## Recent Updates (2026-01-26)
+- Added git-diff incremental indexing and content-hash embedding reuse in Meta GraphRAG.
+- Added dead_code story generator guard to skip test paths (reduces false positives).
+- Moved analysis/NCM helper scripts and Lean artifacts out of repo root (see P3 hygiene).
+- Updated NCM pilot helper scripts to resolve repo root correctly after move.
+- Documented new locations and cache toggle in README/roadmap.
+- Tests: `pytest tests/test_meta_graph_rag.py -v` (3 passed; warning about invalid -W option for urllib3.exceptions).
+
 ## Recent Updates (2026-01-25)
 - GLM tool_use parsing bug fixed (regex pattern). Files: `core/drivers/async_glm_driver.py`, `core/drivers/glm_driver_hybrid.py`.
 - GLM tool-use smoke test (direct driver + ToolManager) succeeded reading `workspace/tooluse_smoke.txt`.
@@ -93,16 +101,17 @@ Docs are treated as secondary. Code and tests are the source of truth.
   - `core/synapse/protocol_v7.py` ThoughtChain/PostActionReview are protocol types (retain).
   - `core/telemetry/metrics.py` get_telemetry is a public helper (retain).
   - `core/utils/atomic_store.py` reset_store_manager is a test helper (retain).
-  - scripts/* classes/functions are used inside their own entrypoints (retain).
-  - Action: update dead_code scanner to ignore pytest patterns or skip tests by default to reduce false positives.
+- scripts/* classes/functions are used inside their own entrypoints (retain).
+- Action: update dead_code scanner to ignore pytest patterns or skip tests by default to reduce false positives.
+- Implemented skip for test paths in dead_code story generators (scripts/generate_phase2a_queue.py, scripts/generate_pilot_queue.py).
 
-## New Artifacts Discovered (Uncommitted)
+## New Artifacts Discovered (Cataloged)
 - NCM real-mode generator: `core/ncm/real_story_generator.py`
 - P0/P1 story generator: `core/ncm/p0_p1_story_generator.py`
-- NCM + Meta GraphRAG automation: `ncm_deep_analysis.py`, `ncm_pilot_meta_graphrag.py`, `run_ncm_pilot_meta.py`
+- NCM + Meta GraphRAG automation: `scripts/ncm/ncm_deep_analysis.py`, `scripts/ncm/ncm_pilot_meta_graphrag.py`, `scripts/ncm/run_ncm_pilot_meta.py`
 - Reports and verification loop: `docs/NCM_DEEP_ANALYSIS_REPORT.md`, `workspace/ncm_analysis/*`
-- Lean formalization: `LEAN_FORMALIZATION.md`, `ADVANCED_SYSTEMS_FORMALIZATION.md`, `nexus_formalization.lean`, `nexus_advanced_systems.lean`
-- Windows Claude CLI hang report: `CLAUDE_CLI_BUG_REPORT.md`
+- Lean formalization: `docs/analysis/LEAN_FORMALIZATION.md`, `docs/analysis/ADVANCED_SYSTEMS_FORMALIZATION.md`, `docs/analysis/nexus_formalization.lean`, `docs/analysis/nexus_advanced_systems.lean`
+- Windows Claude CLI hang report: `docs/bugs/claude_cli/CLAUDE_CLI_BUG_REPORT.md`
 - NCM runtime workspace docs (ignored): `workspace/ncm/README.md`, `workspace/ncm/IMPACT_ANALYSIS.md`, `workspace/ncm/NCM_EXECUTIVE_SUMMARY.md`, `workspace/ncm/PHASE2A_EXECUTION_GUIDE.md`, `workspace/ncm/pilot/PILOT_REPORT.md`
 - MCP query utilities (ignored): `workspace/tmp_mcp_query.py`, `workspace/tmp_mcp_query_extra.py`, `workspace/tmp_list_p0.py` (candidate to promote into scripts/ for repeatable meta GraphRAG snapshots)
 - MCP snapshot utilities (new): `scripts/meta_graph_rag/mcp_snapshot.py`, `scripts/meta_graph_rag/mcp_smoke.py`
@@ -165,7 +174,7 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - Eliminates 429/5xx holes in sources and embeddings.
 
 6) Remove hash embeddings from production scripts (done 2026-01-25)
-- analyze_project.py, deep_analysis.py, explore_advanced_systems.py, lean_exploration.py
+- scripts/analysis/analyze_project.py, scripts/analysis/deep_analysis.py, scripts/analysis/explore_advanced_systems.py, scripts/analysis/lean_exploration.py
 - Enforce gemini by default; allow hash only when `META_RAG_ALLOW_HASH=1`.
 
 7) Index health checks (done 2026-01-25)
@@ -191,11 +200,10 @@ Goal: full repo coverage with stable ingestion and repeatable embeddings.
 - Always skip config.data_path (workspace/meta_rag) even if META_RAG_EXCLUDE is overridden.
 - Impact: prevents recursive indexing of Meta GraphRAG output.
 
-12) Incremental index policy (pending)
-- Indexer already skips unchanged files via manifest hash when `--full` is not used.
-- Document best practice: `python -m tools.meta_graph_rag.cli index` (no `--full`) for incremental updates.
-- Add git-diff based fast path (index only changed files since HEAD) to avoid unnecessary embedding churn.
-- Add chunk-level embedding cache to prevent re-embedding unchanged chunks when chunking params are unchanged.
+12) Incremental index policy (done 2026-01-26)
+- Indexer skips unchanged files via manifest hash when `--full` is not used.
+- Added `--git-diff`/`--git-base` to index only changed files (plus deletions) since a git base.
+- Added content-hash embedding reuse from existing vector index (`META_RAG_EMBED_CACHE=true`).
 
 ## P0 - Make NCM Executable (Blockers)
 Goal: NCM should run end-to-end without manual intervention.
@@ -401,11 +409,10 @@ Goal: reduce latency and improve maintainability.
 - Emit ingest metrics and errors for alerting.
 - Impact: monitoring dashboards.
 
-5) Repo hygiene for analysis artifacts (pending)
-- Decide which analysis scripts/docs to keep in repo vs move to `scripts/analysis/` or `docs/analysis/`.
-- Move transient pilot input/output files to `workspace/` or `logs/`; tighten `.gitignore` for workspace artifacts.
-- Normalize script headers to current NEXUS version and ownership.
-- Candidates: `docs/bugs/claude_cli/*`, `scripts/debug/claude_cli/*`, `docs/analysis/lean_formalization_review.md`.
+5) Repo hygiene for analysis artifacts (done 2026-01-26)
+- Moved analysis scripts to `scripts/analysis/` and NCM pilot helpers to `scripts/ncm/`.
+- Moved Lean formalization artifacts to `docs/analysis/` and CLI bug report to `docs/bugs/claude_cli/`.
+- Moved pilot input lists to `scripts/ncm/inputs/` and removed generated `ncm_commands.txt` (now ignored).
 - Impact: cleaner root, lower merge noise, easier navigation.
 
 6) Fast-path orchestration for trivial tasks (pending)
@@ -456,14 +463,14 @@ Open challenges from the paper to address:
 - Scalable multi-agent training
 - Governance frameworks
 
-## P4.5 - Lean Formalization as Oracle (from docs/analysis/lean_formalization_review.md + lean.md)
+## P4.5 - Lean Formalization as Oracle (from docs/analysis/lean_formalization_review.md + docs/analysis/lean.md)
 Goal: turn Lean into an executable spec and regression oracle for refactors/rewrite.
 Lean is a functional programming language + interactive proof assistant (Microsoft Research), with a strong Lean 4 metaprogramming ecosystem and real-world precedent for differential testing (AWS Cedar).
 Note: current Lean draft models 5 states / 5 modes, but code uses 12 states / 6 modes (incl. LEAD_SUPPORT).
 
 1) Align Lean specs with real system counts (pending)
 - Update Lean FSM to match actual orchestrator states (12) and Swarm modes (6 incl. LEAD_SUPPORT).
-- Impact: `LEAN_FORMALIZATION.md`, `nexus_formalization.lean`, `nexus_advanced_systems.lean`.
+- Impact: `docs/analysis/LEAN_FORMALIZATION.md`, `docs/analysis/nexus_formalization.lean`, `docs/analysis/nexus_advanced_systems.lean`.
 
 2) Replace tautologies with real invariants (pending)
 - Target invariants: valid transitions, cancellation propagation, tenant isolation.
@@ -634,7 +641,7 @@ Goal: add DeepSeek V3.2/R1 reasoning models as an OpenAI-compatible provider.
 - 2026-01-24: Added SSL CA startup logging + docs/SSL_CA_GUIDE.md.
 - 2026-01-24: Fixed scripts/doc_engine.py CodebaseScanner docstring regression.
 - 2026-01-24: ADR-0006 CLI-only constraint added under PRODUCTS/DECISIONS.
-- 2026-01-24: Added lean.md analysis and Lean research addenda (Lean + Cedar differential testing).
+- 2026-01-24: Added docs/analysis/lean.md analysis and Lean research addenda (Lean + Cedar differential testing).
 - 2026-01-24: Added Lean oracle toolchain + HiveMind/Evolution exports + differential tests (lean_oracle).
 - 2026-01-24: pytest tests/ -v => 2494 passed, 12 skipped, 1 warning (TelemetryBridge.emit not awaited).
 - 2026-01-24: pytest tests/v10/test_synapse_telemetry.py -v => 27 passed, warning cleared.

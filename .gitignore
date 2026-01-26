@@ -33,6 +33,7 @@ workspace_archive.tar.gz
 data/
 workspace_registry.json
 .lake/
+ncm_commands.txt
 
 # Node.js (for Playwright/UI tests)
 node_modules/

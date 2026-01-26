@@ -1,9 +1,15 @@
 """Script d'indexation optimisé et analyse du projet avec Meta GraphRAG."""
 
+from pathlib import Path
+import json
+import os
+import sys
+
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(NEXUS_ROOT))
+
 from tools.meta_graph_rag import load_config, MetaGraphIndexer
 from tools.meta_graph_rag.reports import generate_reports
-import os
-import json
 
 # Configuration optimisee pour une indexation rapide (override via env vars)
 allow_hash = os.getenv("META_RAG_ALLOW_HASH", "false").lower() == "true"

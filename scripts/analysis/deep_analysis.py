@@ -1,10 +1,15 @@
 """Analyse approfondie du projet NEXUS basée sur Meta GraphRAG."""
 
-from tools.meta_graph_rag import load_config, MetaGraphIndexer
-from tools.meta_graph_rag.graph import GraphStore
-from pathlib import Path
 import json
 import os
+import sys
+from pathlib import Path
+
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(NEXUS_ROOT))
+
+from tools.meta_graph_rag import load_config, MetaGraphIndexer
+from tools.meta_graph_rag.graph import GraphStore
 
 # Charger l'index existant (override via env vars)
 allow_hash = os.getenv("META_RAG_ALLOW_HASH", "false").lower() == "true"

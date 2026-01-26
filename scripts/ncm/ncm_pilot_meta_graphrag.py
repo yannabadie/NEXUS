@@ -5,8 +5,8 @@ NCM Pilot with Meta GraphRAG Tasks - Use the 80 tasks from deep analysis.
 This script converts Meta GraphRAG tasks to NCM Story objects and executes them.
 
 Usage:
-    python ncm_pilot_meta_graphrag.py --priority=p2 --count=10
-    python ncm_pilot_meta_graphrag.py --priority=p0 --count=5
+    python scripts/ncm/ncm_pilot_meta_graphrag.py --priority=p2 --count=10
+    python scripts/ncm/ncm_pilot_meta_graphrag.py --priority=p0 --count=5
 """
 
 import sys
@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import List
 
 # Add NEXUS root to path
-NEXUS_ROOT = Path(__file__).parent
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(NEXUS_ROOT))
 
 from core.ncm.models import Story, StoryPriority, IssueDomain
@@ -95,7 +95,7 @@ def main():
 
     if not json_file.exists():
         print(f"[ERROR] Meta GraphRAG analysis file not found: {json_file}")
-        print("Run: python ncm_deep_analysis.py")
+        print("Run: python scripts/ncm/ncm_deep_analysis.py")
         return 1
 
     print(f"[META_GRAPHRAG] Loading tasks from {json_file}")

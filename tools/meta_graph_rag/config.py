@@ -110,6 +110,7 @@ class MetaGraphRagConfig:
     query_cache_path: Path = Path("query_cache.json")
     query_cache_ttl_seconds: int = 3600
     query_cache_max_entries: int = 1000
+    chunk_cache_enabled: bool = True
     research_limit: int = 5
     research_queries: List[str] = field(default_factory=lambda: DEFAULT_RESEARCH_QUERIES.copy())
     persist_every_files: int = 25
@@ -189,6 +190,7 @@ def load_config(
     query_cache_path = Path(os.getenv("META_RAG_QUERY_CACHE", data_path / "query_cache.json"))
     query_cache_ttl_seconds = int(os.getenv("META_RAG_QUERY_CACHE_TTL", "3600"))
     query_cache_max_entries = int(os.getenv("META_RAG_QUERY_CACHE_MAX", "1000"))
+    chunk_cache_enabled = os.getenv("META_RAG_EMBED_CACHE", "true").lower() == "true"
     research_limit = int(os.getenv("META_RAG_RESEARCH_LIMIT", "5"))
     research_queries = _parse_env_list("META_RAG_RESEARCH_QUERIES", DEFAULT_RESEARCH_QUERIES)
     persist_every_files = int(os.getenv("META_RAG_PERSIST_EVERY", "25"))
@@ -244,6 +246,7 @@ def load_config(
         query_cache_path=query_cache_path,
         query_cache_ttl_seconds=query_cache_ttl_seconds,
         query_cache_max_entries=query_cache_max_entries,
+        chunk_cache_enabled=chunk_cache_enabled,
         research_limit=research_limit,
         research_queries=research_queries,
         persist_every_files=persist_every_files,

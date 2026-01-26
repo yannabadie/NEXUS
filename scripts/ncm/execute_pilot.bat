@@ -10,18 +10,21 @@ echo.
 echo Starting NEXUS and executing pilot...
 echo.
 
-cd /d "%~dp0"
+set "ROOT=%~dp0..\.."
+set "CMD_FILE=%~dp0ncm_commands.txt"
+pushd "%ROOT%"
 
 REM Create command file
-echo /ncm pilot --count=2 > ncm_commands.txt
-echo exit >> ncm_commands.txt
+echo /ncm pilot --count=2 > "%CMD_FILE%"
+echo exit >> "%CMD_FILE%"
 
 REM Execute NEXUS with piped commands
 echo [1/2] Starting NEXUS...
-python nexus7.py < ncm_commands.txt
+python nexus7.py < "%CMD_FILE%"
 
 REM Cleanup
-del ncm_commands.txt
+del "%CMD_FILE%"
+popd
 
 echo.
 echo ==================================================

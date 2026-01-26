@@ -21,6 +21,7 @@ The system is code-first: docs are helpful but treated as secondary.
 python -m tools.meta_graph_rag.cli research
 python -m tools.meta_graph_rag.cli deep-research
 python -m tools.meta_graph_rag.cli index
+python -m tools.meta_graph_rag.cli index --git-diff --git-base origin/main
 python -m tools.meta_graph_rag.cli embed
 python -m tools.meta_graph_rag.cli report
 python -m tools.meta_graph_rag.cli coverage
@@ -91,6 +92,7 @@ Set with `META_RAG_EMBEDDINGS`.
 - `META_RAG_QUERY_CACHE` = path to query embedding cache (default `workspace/meta_rag/query_cache.json`)
 - `META_RAG_QUERY_CACHE_TTL` = query cache TTL seconds (default 3600; <=0 disables cache)
 - `META_RAG_QUERY_CACHE_MAX` = max cached query entries (default 1000; <=0 disables cache)
+- `META_RAG_EMBED_CACHE` = reuse embeddings by content hash (default true; uses existing vector index)
 - `META_RAG_RESEARCH_LIMIT` = results per query for deep research
 - `META_RAG_RESEARCH_QUERIES` = comma-separated research queries
 - `META_RAG_PERSIST_EVERY` = checkpoint index every N files

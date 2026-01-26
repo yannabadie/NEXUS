@@ -36,6 +36,14 @@ def group_issues_by_file(issues: List[Dict], category: str) -> Dict[str, List[Di
     return dict(grouped)
 
 
+def _is_test_path(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    if normalized.startswith("tests/") or "/tests/" in normalized:
+        return True
+    name = Path(normalized).name
+    return name.startswith("test_") or name.endswith("_test.py")
+
+
 def create_dead_import_stories(issues: List[Dict], limit: int = 40) -> List[Dict]:
     """
     Create stories for dead import removal.
@@ -187,6 +195,8 @@ def create_dead_code_stories(issues: List[Dict], limit: int = 30) -> List[Dict]:
         story_id = f"PILOT-{71 + story_count:03d}"  # Start after missing_doc stories
 
         target_file = file_path.replace("\\", "/")
+        if _is_test_path(target_file):
+            continue
 
         if target_file.startswith("core/"):
             test_file = f"tests/{target_file.replace('core/', '')}"

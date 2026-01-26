@@ -9,7 +9,7 @@ Objectif: Utiliser meta GraphRAG pour produire une analyse profonde avec:
 - Boucle de vérification agentique
 
 Usage:
-    python ncm_deep_analysis.py
+    python scripts/ncm/ncm_deep_analysis.py
 """
 
 import sys
@@ -19,7 +19,7 @@ from typing import List, Dict, Any
 from dataclasses import dataclass, asdict
 
 # Add NEXUS root to path
-NEXUS_ROOT = Path(__file__).parent
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(NEXUS_ROOT))
 
 from core.mcp.server import (

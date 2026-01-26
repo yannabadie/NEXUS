@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 from pathlib import Path
+import subprocess
 
 from .config import load_config
 from .indexer import MetaGraphIndexer
@@ -14,6 +15,59 @@ from .research import fetch_sources
 from .http_client import HttpConfig
 
 
+def _run_git(args: list[str], cwd: Path) -> str:
+    result = subprocess.run(
+        args,
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "git command failed")
+    return result.stdout
+
+
+def _git_changed_paths(base: str, root: Path) -> tuple[list[Path], list[Path]]:
+    changed: set[str] = set()
+    removed: set[str] = set()
+
+    diff_output = _run_git(
+        ["git", "diff", "--name-status", "--no-renames", f"{base}...HEAD"],
+        cwd=root,
+    )
+    for line in diff_output.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("\t", 1)
+        if len(parts) != 2:
+            continue
+        status, path = parts
+        if status.startswith("D"):
+            removed.add(path)
+        else:
+            changed.add(path)
+
+    status_output = _run_git(["git", "status", "--porcelain"], cwd=root)
+    for line in status_output.splitlines():
+        if not line.strip():
+            continue
+        status = line[:2]
+        path = line[3:].strip()
+        if "->" in path:
+            path = path.split("->", 1)[1].strip()
+        if "D" in status:
+            removed.add(path)
+        elif status.strip():
+            changed.add(path)
+
+    changed -= removed
+
+    changed_paths = [root / Path(path) for path in sorted(changed)]
+    removed_paths = [root / Path(path) for path in sorted(removed)]
+    return changed_paths, removed_paths
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Meta GraphRAG for NEXUS development")
     subparsers = parser.add_subparsers(dest="command")
@@ -21,6 +75,16 @@ def main() -> int:
     index_parser = subparsers.add_parser("index", help="Index the codebase and sources")
     index_parser.add_argument("--full", action="store_true", help="Rebuild the index from scratch")
     index_parser.add_argument("--backend", help="Embedding backend override (auto|sentence|gemini|hash|none)")
+    index_parser.add_argument(
+        "--git-diff",
+        action="store_true",
+        help="Index only files changed since --git-base (plus working tree)",
+    )
+    index_parser.add_argument(
+        "--git-base",
+        default="HEAD",
+        help="Git base ref for --git-diff (default: HEAD)",
+    )
 
     query_parser = subparsers.add_parser("query", help="Query the GraphRAG index")
     query_parser.add_argument("query", help="Query text")
@@ -82,7 +146,23 @@ def main() -> int:
 
     if args.command == "index":
         indexer = MetaGraphIndexer(config)
-        indexer.index(full=args.full)
+        if args.git_diff and args.full:
+            print("WARNING: --full ignores --git-diff")
+        if args.git_diff and not args.full:
+            try:
+                changed_paths, removed_paths = _git_changed_paths(args.git_base, config.root_path)
+            except Exception as exc:
+                print(f"WARNING: git diff failed ({exc}); falling back to full scan")
+                indexer.index(full=args.full)
+            else:
+                if not changed_paths and not removed_paths:
+                    print("No git changes detected. Index unchanged.")
+                    status = indexer.status()
+                    print(f"Indexed nodes: {status['nodes']}, chunks: {status['chunks']}")
+                    return 0
+                indexer.index(full=False, only_paths=changed_paths, removed_paths=removed_paths)
+        else:
+            indexer.index(full=args.full)
         status = indexer.status()
         print(f"Indexed nodes: {status['nodes']}, chunks: {status['chunks']}")
         return 0

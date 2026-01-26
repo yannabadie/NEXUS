@@ -12,6 +12,12 @@ Utility scripts for NEXUS maintenance, documentation generation, database initia
 | `init_db.py` | Database initialization and schema creation | `python scripts/init_db.py` |
 | `migrate_v9_to_v10.py` | V9 to V10 migration (PRISM multi-tenancy) | `python scripts/migrate_v9_to_v10.py` |
 
+## Additional Helpers
+
+- `scripts/analysis/` - Meta GraphRAG analysis helpers (manual investigation).
+- `scripts/ncm/` - NCM pilot helpers and automation scripts.
+- `scripts/ncm/inputs/` - Pilot story input lists used by NCM helpers.
+
 ## doc_engine.py
 
 **NEXUS Documentation Engine V2.2** - Unified documentation synchronization system.

@@ -1,2 +1,0 @@
-/ncm pilot --count=2
-exit

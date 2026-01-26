@@ -11,8 +11,9 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add project to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path
+NEXUS_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(NEXUS_ROOT))
 
 # Suppress warnings
 import warnings
@@ -43,7 +44,7 @@ async def run_ncm_pilot():
         # Initialize settings
         print("[2/8] Loading NEXUS configuration...")
         settings = Settings()
-        workspace_path = Path.cwd() / "workspace"
+        workspace_path = NEXUS_ROOT / "workspace"
 
         if not workspace_path.exists():
             print(f"[ERROR] Workspace not found at {workspace_path}")

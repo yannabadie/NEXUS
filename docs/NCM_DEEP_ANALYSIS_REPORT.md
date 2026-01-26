@@ -1,4 +1,4 @@
-# NCM Deep Analysis Report - Meta GraphRAG Powered
+﻿# NCM Deep Analysis Report - Meta GraphRAG Powered
 
 **Date**: 2026-01-22
 **Branch**: NX-BM
@@ -10,46 +10,46 @@
 
 Cette analyse utilise le **Meta GraphRAG de NEXUS** pour produire une analyse profonde du codebase avec :
 
-✅ **80 tâches générées** (fichier par fichier, ligne par ligne)
-✅ **Raisons détaillées** pour chaque tâche
-✅ **Impacts croisés** identifiés
-✅ **Boucle de vérification agentique** complète
-✅ **5 rapports Meta GraphRAG** générés
+âœ… **80 tÃ¢ches gÃ©nÃ©rÃ©es** (fichier par fichier, ligne par ligne)
+âœ… **Raisons dÃ©taillÃ©es** pour chaque tÃ¢che
+âœ… **Impacts croisÃ©s** identifiÃ©s
+âœ… **Boucle de vÃ©rification agentique** complÃ¨te
+âœ… **5 rapports Meta GraphRAG** gÃ©nÃ©rÃ©s
 
 ---
 
-## 🎯 Objectifs Accomplis
+## ðŸŽ¯ Objectifs Accomplis
 
-### 1. Bug Report Claude CLI ✅
+### 1. Bug Report Claude CLI âœ…
 - **Issue GitHub**: [#20084](https://github.com/anthropics/claude-code/issues/20084)
-- **Problème**: Subprocess hang en mode `-p` sur Windows (120s timeout)
-- **Workaround**: SimpleExecutor contourne le problème pour P2 stories
+- **ProblÃ¨me**: Subprocess hang en mode `-p` sur Windows (120s timeout)
+- **Workaround**: SimpleExecutor contourne le problÃ¨me pour P2 stories
 
-### 2. Serveur MCP NEXUS ✅
-- **Configuration**: `~/.claude/mcp_servers.json` créé
-- **Module**: `core.mcp.server` opérationnel
+### 2. Serveur MCP NEXUS âœ…
+- **Configuration**: `~/.claude/mcp_servers.json` crÃ©Ã©
+- **Module**: `core.mcp.server` opÃ©rationnel
 - **Tools disponibles**: 13 outils dont `nexus_meta_graphrag_query`
 
-### 3. Phase 1 Real Codebase ⏳ (En cours)
-- **Pilot réel**: Task b071513 en cours d'exécution
-- **Stories**: 10 stories réelles du codebase
-- **Mode**: `--real` flag activé
-- **Statut**: 3/10 complétées au dernier check
+### 3. Phase 1 Real Codebase â³ (En cours)
+- **Pilot rÃ©el**: Task b071513 en cours d'exÃ©cution
+- **Stories**: 10 stories rÃ©elles du codebase
+- **Mode**: `--real` flag activÃ©
+- **Statut**: 3/10 complÃ©tÃ©es au dernier check
 
-### 4. Analyse Profonde Meta GraphRAG ✅
-- **Script**: `ncm_deep_analysis.py` créé
-- **Queries**: 5 requêtes Meta GraphRAG ciblées
-- **Tasks générées**: 80 tâches détaillées
-- **Rapports**: 5 rapports générés
+### 4. Analyse Profonde Meta GraphRAG âœ…
+- **Script**: `scripts/ncm/ncm_deep_analysis.py` crÃ©Ã©
+- **Queries**: 5 requÃªtes Meta GraphRAG ciblÃ©es
+- **Tasks gÃ©nÃ©rÃ©es**: 80 tÃ¢ches dÃ©taillÃ©es
+- **Rapports**: 5 rapports gÃ©nÃ©rÃ©s
 
-### 5. Stories P0/P1 ✅
-- **Générateur**: `core/ncm/p0_p1_story_generator.py` créé
-- **Catégories**: Security (P0), God Class Refactoring (P1), Critical Bugs (P1)
-- **Intégration**: Prêt pour NCM command
+### 5. Stories P0/P1 âœ…
+- **GÃ©nÃ©rateur**: `core/ncm/p0_p1_story_generator.py` crÃ©Ã©
+- **CatÃ©gories**: Security (P0), God Class Refactoring (P1), Critical Bugs (P1)
+- **IntÃ©gration**: PrÃªt pour NCM command
 
 ---
 
-## 📊 Résultats de l'Analyse Meta GraphRAG
+## ðŸ“Š RÃ©sultats de l'Analyse Meta GraphRAG
 
 ### Index Status
 
@@ -70,27 +70,27 @@ Cette analyse utilise le **Meta GraphRAG de NEXUS** pour produire une analyse pr
 
 ### Node Types Distribution
 
-- **Python Functions**: 6311 nœuds
-- **Doc Sections**: 5914 nœuds
-- **Modules**: 3474 nœuds
-- **Files**: 1762 nœuds
-- **Python Classes**: 1316 nœuds
-- **File Chunks**: 1305 nœuds
-- **External Sources**: 21 nœuds
+- **Python Functions**: 6311 nÅ“uds
+- **Doc Sections**: 5914 nÅ“uds
+- **Modules**: 3474 nÅ“uds
+- **Files**: 1762 nÅ“uds
+- **Python Classes**: 1316 nÅ“uds
+- **File Chunks**: 1305 nÅ“uds
+- **External Sources**: 21 nÅ“uds
 
 ### Edge Types
 
-- **contains**: 14846 edges (hiérarchie structurelle)
-- **imports**: 3474 edges (dépendances)
+- **contains**: 14846 edges (hiÃ©rarchie structurelle)
+- **imports**: 3474 edges (dÃ©pendances)
 - **calls**: 2779 edges (relations d'appel)
 
 ---
 
-## 🎯 80 Tâches Générées - Breakdown
+## ðŸŽ¯ 80 TÃ¢ches GÃ©nÃ©rÃ©es - Breakdown
 
-### Par Priorité
+### Par PrioritÃ©
 
-| Priorité | Tâches | % |
+| PrioritÃ© | TÃ¢ches | % |
 |----------|--------|---|
 | **P0** (Critical - Security) | 15 | 19% |
 | **P1** (High - Complexity + Tests) | 25 | 31% |
@@ -98,7 +98,7 @@ Cette analyse utilise le **Meta GraphRAG de NEXUS** pour produire une analyse pr
 
 ### Par Type
 
-| Type de Tâche | Tâches | Fichiers | Vérification |
+| Type de TÃ¢che | TÃ¢ches | Fichiers | VÃ©rification |
 |---------------|--------|----------|--------------|
 | **Missing Docstrings** | 20 | 11 | AST analysis + pytest --docstring-coverage |
 | **Missing Type Hints** | 20 | 9 | mypy --strict |
@@ -106,20 +106,20 @@ Cette analyse utilise le **Meta GraphRAG de NEXUS** pour produire une analyse pr
 | **High Complexity** | 10 | 7 | radon cc |
 | **Test Coverage Gaps** | 15 | 11 | pytest --cov |
 
-### Fichiers Analysés
+### Fichiers AnalysÃ©s
 
-**38 fichiers uniques** identifiés avec des issues prioritaires :
+**38 fichiers uniques** identifiÃ©s avec des issues prioritaires :
 
-**Top 5 Fichiers avec le Plus de Tâches** :
-1. `scripts/doc_engine.py` - 12 tâches (P2 docstrings + type hints)
-2. `core/api/cerebro/routes/auth.py` - 4 tâches (P0 security)
-3. `core/api/cerebro/deps.py` - 3 tâches (P0 security + P2 docs)
-4. `core/swarm/task_completion_validator.py` - 3 tâches (P1 complexity)
-5. `core/orchestration/fsm_handlers.py` - 2 tâches (P1 complexity)
+**Top 5 Fichiers avec le Plus de TÃ¢ches** :
+1. `scripts/doc_engine.py` - 12 tÃ¢ches (P2 docstrings + type hints)
+2. `core/api/cerebro/routes/auth.py` - 4 tÃ¢ches (P0 security)
+3. `core/api/cerebro/deps.py` - 3 tÃ¢ches (P0 security + P2 docs)
+4. `core/swarm/task_completion_validator.py` - 3 tÃ¢ches (P1 complexity)
+5. `core/orchestration/fsm_handlers.py` - 2 tÃ¢ches (P1 complexity)
 
 ---
 
-## 🔍 Queries Meta GraphRAG Executées
+## ðŸ” Queries Meta GraphRAG ExecutÃ©es
 
 ### Query 1: Missing Docstrings
 ```
@@ -127,7 +127,7 @@ functions and classes without docstrings
 ```
 - **Seed chunks**: 20
 - **Expanded chunks**: 5
-- **Tasks générées**: 20 (P2)
+- **Tasks gÃ©nÃ©rÃ©es**: 20 (P2)
 
 ### Query 2: Missing Type Hints
 ```
@@ -135,7 +135,7 @@ function parameters without type annotations
 ```
 - **Seed chunks**: 20
 - **Expanded chunks**: 2
-- **Tasks générées**: 20 (P2)
+- **Tasks gÃ©nÃ©rÃ©es**: 20 (P2)
 
 ### Query 3: Security Issues
 ```
@@ -143,7 +143,7 @@ security vulnerabilities hardcoded secrets authentication authorization
 ```
 - **Seed chunks**: 15
 - **Expanded chunks**: 2
-- **Tasks générées**: 15 (P0)
+- **Tasks gÃ©nÃ©rÃ©es**: 15 (P0)
 
 ### Query 4: High Complexity Functions
 ```
@@ -151,7 +151,7 @@ large functions high complexity cyclomatic
 ```
 - **Seed chunks**: 10
 - **Expanded chunks**: 11
-- **Tasks générées**: 10 (P1)
+- **Tasks gÃ©nÃ©rÃ©es**: 10 (P1)
 
 ### Query 5: Test Coverage Gaps
 ```
@@ -159,27 +159,27 @@ functions without test coverage untested code
 ```
 - **Seed chunks**: 15
 - **Expanded chunks**: 4
-- **Tasks générées**: 15 (P1)
+- **Tasks gÃ©nÃ©rÃ©es**: 15 (P1)
 
 ---
 
-## 📁 Fichiers Générés
+## ðŸ“ Fichiers GÃ©nÃ©rÃ©s
 
-### 1. Analyse Détaillée (JSON)
+### 1. Analyse DÃ©taillÃ©e (JSON)
 **Fichier**: `workspace/ncm_analysis/ncm_deep_analysis_output.json`
 
 **Contenu**:
 - Meta GraphRAG status complet
-- 5 queries executées avec résultats
-- **80 tâches détaillées** avec :
+- 5 queries executÃ©es avec rÃ©sultats
+- **80 tÃ¢ches dÃ©taillÃ©es** avec :
   - `task_id` unique
-  - `file_path` et `line_numbers` précis
+  - `file_path` et `line_numbers` prÃ©cis
   - `issue_type` et `priority`
   - `description` et `reason`
-  - `cross_impacts` (modules affectés)
+  - `cross_impacts` (modules affectÃ©s)
   - `verification_method`
 
-**Exemple de Tâche P0 Security**:
+**Exemple de TÃ¢che P0 Security**:
 ```json
 {
   "task_id": "DEEP-SECURITY_ISSUE-001",
@@ -187,212 +187,212 @@ functions without test coverage untested code
   "line_numbers": "L114-L136",
   "issue_type": "security_issue",
   "description": "Security Issue in python_function at core/api/cerebro/routes/auth.py:L114-L136",
-  "reason": "Problème de sécurité détecté dans python_function. CRITIQUE pour production.",
+  "reason": "ProblÃ¨me de sÃ©curitÃ© dÃ©tectÃ© dans python_function. CRITIQUE pour production.",
   "cross_impacts": [],
   "priority": "P0",
   "verification_method": "Run bandit security scan + manual security review"
 }
 ```
 
-### 2. Boucle de Vérification Agentique (Markdown)
+### 2. Boucle de VÃ©rification Agentique (Markdown)
 **Fichier**: `workspace/ncm_analysis/ncm_verification_loop.md`
 
 **Contenu**:
-- **Principe de vérification** (3 étapes : Syntaxique, Sémantique, Impact)
-- **Méthodes par type de tâche** :
-  - Missing Docstrings → AST analysis + pytest
-  - Missing Type Hints → mypy --strict
-  - Security Issues → bandit + manual review
-  - Complexity → radon cc
-  - Test Coverage → pytest --cov
-- **Exemples de tâches** (3 premières de chaque type)
-- **Vérification des impacts croisés**
-- **Vérification globale finale**
+- **Principe de vÃ©rification** (3 Ã©tapes : Syntaxique, SÃ©mantique, Impact)
+- **MÃ©thodes par type de tÃ¢che** :
+  - Missing Docstrings â†’ AST analysis + pytest
+  - Missing Type Hints â†’ mypy --strict
+  - Security Issues â†’ bandit + manual review
+  - Complexity â†’ radon cc
+  - Test Coverage â†’ pytest --cov
+- **Exemples de tÃ¢ches** (3 premiÃ¨res de chaque type)
+- **VÃ©rification des impacts croisÃ©s**
+- **VÃ©rification globale finale**
 
 **Extrait** :
 ```markdown
 ### Security Issue
 
-**Tâches concernées:** 15
+**TÃ¢ches concernÃ©es:** 15
 
-**Méthode de vérification:** Run bandit security scan + manual security review
+**MÃ©thode de vÃ©rification:** Run bandit security scan + manual security review
 
-**Étapes de vérification:**
+**Ã‰tapes de vÃ©rification:**
 
-1. Exécuter `bandit -r FILE` pour scan de sécurité
-2. Revue manuelle du code par un expert sécurité
-3. Vérifier que les secrets ne sont plus hardcodés
-4. Exécuter tous les tests de sécurité: `pytest tests/test_security.py -v`
-5. Vérifier les impacts croisés (voir section ci-dessous)
+1. ExÃ©cuter `bandit -r FILE` pour scan de sÃ©curitÃ©
+2. Revue manuelle du code par un expert sÃ©curitÃ©
+3. VÃ©rifier que les secrets ne sont plus hardcodÃ©s
+4. ExÃ©cuter tous les tests de sÃ©curitÃ©: `pytest tests/test_security.py -v`
+5. VÃ©rifier les impacts croisÃ©s (voir section ci-dessous)
 ```
 
 ### 3. Rapports Meta GraphRAG (5 fichiers)
-**Répertoire**: `workspace/meta_rag/reports/`
+**RÃ©pertoire**: `workspace/meta_rag/reports/`
 
 #### a. Overview Report
 **Fichier**: `overview.md`
-- Distribution des types de nœuds
+- Distribution des types de nÅ“uds
 - Distribution des types d'edges
 - Volume de l'index
 
 #### b. Top-Down Report
 **Fichier**: `top_down.md`
 - Architecture depuis les entrypoints (`core/orchestration_v7.py`, `core/hive_mind/pipeline.py`)
-- Hiérarchie des modules
+- HiÃ©rarchie des modules
 
 #### c. Bottom-Up Report
 **Fichier**: `bottom_up.md`
-- Fonctions leaf (sans dépendances sortantes)
-- Analyse de dépendances inversées
+- Fonctions leaf (sans dÃ©pendances sortantes)
+- Analyse de dÃ©pendances inversÃ©es
 
 #### d. Security Hotspots Report
 **Fichier**: `security_hotspots.md`
-- Nœuds avec tags de sécurité
-- Zones critiques identifiées
+- NÅ“uds avec tags de sÃ©curitÃ©
+- Zones critiques identifiÃ©es
 
 #### e. Module Catalog
 **Fichier**: `module_catalog.md`
 - Catalogue complet des modules Python
-- Imports et dépendances
+- Imports et dÃ©pendances
 
 ---
 
-## 🔄 Boucle de Vérification Agentique - Principe
+## ðŸ”„ Boucle de VÃ©rification Agentique - Principe
 
-### Étape 1: Vérification Syntaxique
+### Ã‰tape 1: VÃ©rification Syntaxique
 **Objectif**: Le code est syntaxiquement correct
 
-**Méthodes**:
+**MÃ©thodes**:
 - Python parse: `python -c "import ast; ast.parse(open('FILE').read())"`
 - Linters: `pylint`, `flake8`
 - Type checker: `mypy --strict`
 
-### Étape 2: Vérification Sémantique
-**Objectif**: Le code fait ce qu'il est censé faire
+### Ã‰tape 2: VÃ©rification SÃ©mantique
+**Objectif**: Le code fait ce qu'il est censÃ© faire
 
-**Méthodes**:
+**MÃ©thodes**:
 - Tests unitaires: `pytest tests/test_MODULE.py -v`
-- Tests d'intégration: `pytest tests/ -v`
-- Analyse de complexité: `radon cc FILE`
+- Tests d'intÃ©gration: `pytest tests/ -v`
+- Analyse de complexitÃ©: `radon cc FILE`
 - Couverture de code: `pytest --cov=MODULE`
 
-### Étape 3: Vérification d'Impact
-**Objectif**: Les changements n'ont pas cassé d'autres parties
+### Ã‰tape 3: VÃ©rification d'Impact
+**Objectif**: Les changements n'ont pas cassÃ© d'autres parties
 
-**Méthodes**:
-- Suite de tests complète: `pytest tests/ -v`
-- Analyse d'imports: Vérifier que les modules dépendants ne sont pas cassés
-- Tests de régression: Comparer avec baseline
-- Revue de code: Vérifier la cohérence architecturale
+**MÃ©thodes**:
+- Suite de tests complÃ¨te: `pytest tests/ -v`
+- Analyse d'imports: VÃ©rifier que les modules dÃ©pendants ne sont pas cassÃ©s
+- Tests de rÃ©gression: Comparer avec baseline
+- Revue de code: VÃ©rifier la cohÃ©rence architecturale
 
-### Application par Type de Tâche
+### Application par Type de TÃ¢che
 
 #### Missing Docstrings (P2)
-1. ✅ Parse AST → docstring existe
-2. ✅ Suit Google Style → Args, Returns, Raises
-3. ✅ Tests passent → `pytest tests/test_MODULE.py -v`
+1. âœ… Parse AST â†’ docstring existe
+2. âœ… Suit Google Style â†’ Args, Returns, Raises
+3. âœ… Tests passent â†’ `pytest tests/test_MODULE.py -v`
 
 #### Missing Type Hints (P2)
-1. ✅ Mypy strict → 0 erreurs
-2. ✅ IDE warnings → 0 avertissements
-3. ✅ Tests passent → `pytest tests/test_MODULE.py -v`
+1. âœ… Mypy strict â†’ 0 erreurs
+2. âœ… IDE warnings â†’ 0 avertissements
+3. âœ… Tests passent â†’ `pytest tests/test_MODULE.py -v`
 
 #### Security Issues (P0)
-1. ✅ Bandit scan → 0 HIGH issues
-2. ✅ Manual review → Expert valide
-3. ✅ Secrets check → Aucun secret hardcodé
-4. ✅ Security tests → `pytest tests/test_security.py -v`
-5. ✅ Impact check → Modules dépendants testés
+1. âœ… Bandit scan â†’ 0 HIGH issues
+2. âœ… Manual review â†’ Expert valide
+3. âœ… Secrets check â†’ Aucun secret hardcodÃ©
+4. âœ… Security tests â†’ `pytest tests/test_security.py -v`
+5. âœ… Impact check â†’ Modules dÃ©pendants testÃ©s
 
 #### High Complexity (P1)
-1. ✅ Radon CC → Complexité < 10
-2. ✅ Tests passent → `pytest tests/test_MODULE.py -v`
-3. ✅ Code review → Lisibilité améliorée
+1. âœ… Radon CC â†’ ComplexitÃ© < 10
+2. âœ… Tests passent â†’ `pytest tests/test_MODULE.py -v`
+3. âœ… Code review â†’ LisibilitÃ© amÃ©liorÃ©e
 
 #### Test Coverage Gaps (P1)
-1. ✅ Coverage increased → Baseline +X%
-2. ✅ New tests pass → `pytest tests/test_MODULE.py -v`
-3. ✅ Full suite passes → `pytest tests/ -v`
+1. âœ… Coverage increased â†’ Baseline +X%
+2. âœ… New tests pass â†’ `pytest tests/test_MODULE.py -v`
+3. âœ… Full suite passes â†’ `pytest tests/ -v`
 
 ---
 
-## 🚀 Prochaines Étapes
+## ðŸš€ Prochaines Ã‰tapes
 
-### Immédiat
+### ImmÃ©diat
 
-1. **Attendre fin du Pilot Réel** (task b071513)
-   - Vérifier 10/10 stories complétées
-   - Analyser les logs d'exécution
-   - Commit des changements si succès
+1. **Attendre fin du Pilot RÃ©el** (task b071513)
+   - VÃ©rifier 10/10 stories complÃ©tÃ©es
+   - Analyser les logs d'exÃ©cution
+   - Commit des changements si succÃ¨s
 
-2. **Prioriser les P0 Security Tasks** (15 tâches)
+2. **Prioriser les P0 Security Tasks** (15 tÃ¢ches)
    - Utiliser NCM avec mode collaborative (Gemini + Claude)
-   - Exécuter les 15 tâches de sécurité en priorité
-   - Vérifier avec bandit + manual review
+   - ExÃ©cuter les 15 tÃ¢ches de sÃ©curitÃ© en prioritÃ©
+   - VÃ©rifier avec bandit + manual review
 
-3. **Intégrer P0P1StoryGenerator**
+3. **IntÃ©grer P0P1StoryGenerator**
    - Ajouter flag `--priority=p0` au NCM command
-   - Tester avec les 15 tâches P0 identifiées
+   - Tester avec les 15 tÃ¢ches P0 identifiÃ©es
 
-### Phase 2A - P2 Tasks (40 tâches)
+### Phase 2A - P2 Tasks (40 tÃ¢ches)
 
 **Objectif**: Cleanup et documentation
 
-1. **Docstrings** (20 tâches)
-   - Exécuter avec SimpleExecutor (pas de subprocess hang)
-   - Batch de 10 tâches à la fois
-   - Vérifier avec AST analysis
+1. **Docstrings** (20 tÃ¢ches)
+   - ExÃ©cuter avec SimpleExecutor (pas de subprocess hang)
+   - Batch de 10 tÃ¢ches Ã  la fois
+   - VÃ©rifier avec AST analysis
 
-2. **Type Hints** (20 tâches)
-   - Exécuter avec SimpleExecutor
-   - Batch de 10 tâches à la fois
-   - Vérifier avec mypy --strict
+2. **Type Hints** (20 tÃ¢ches)
+   - ExÃ©cuter avec SimpleExecutor
+   - Batch de 10 tÃ¢ches Ã  la fois
+   - VÃ©rifier avec mypy --strict
 
-**Durée estimée**: 2-3 heures (avec SimpleExecutor)
+**DurÃ©e estimÃ©e**: 2-3 heures (avec SimpleExecutor)
 
-### Phase 2B - P1 Tasks (25 tâches)
+### Phase 2B - P1 Tasks (25 tÃ¢ches)
 
-**Objectif**: Complexité et tests
+**Objectif**: ComplexitÃ© et tests
 
-1. **Complexity Reduction** (10 tâches)
+1. **Complexity Reduction** (10 tÃ¢ches)
    - Mode collaborative (Gemini + Claude)
-   - Refactoring nécessaire
-   - Vérifier avec radon cc
+   - Refactoring nÃ©cessaire
+   - VÃ©rifier avec radon cc
 
-2. **Test Coverage** (15 tâches)
+2. **Test Coverage** (15 tÃ¢ches)
    - Mode collaborative
-   - Écrire tests manquants
-   - Vérifier avec pytest --cov
+   - Ã‰crire tests manquants
+   - VÃ©rifier avec pytest --cov
 
-**Durée estimée**: 1-2 jours (refactoring complexe)
+**DurÃ©e estimÃ©e**: 1-2 jours (refactoring complexe)
 
-### Phase 3 - P0 Tasks (15 tâches)
+### Phase 3 - P0 Tasks (15 tÃ¢ches)
 
-**Objectif**: Sécurité critique
+**Objectif**: SÃ©curitÃ© critique
 
-1. **Security Fixes** (15 tâches)
+1. **Security Fixes** (15 tÃ¢ches)
    - Mode collaborative + manual review
-   - Bandit scan après chaque fix
-   - Tests de sécurité complets
+   - Bandit scan aprÃ¨s chaque fix
+   - Tests de sÃ©curitÃ© complets
 
-**Durée estimée**: 1-2 jours (revue manuelle requise)
+**DurÃ©e estimÃ©e**: 1-2 jours (revue manuelle requise)
 
 ---
 
-## 📈 Métriques de Succès
+## ðŸ“ˆ MÃ©triques de SuccÃ¨s
 
-### Critères de Complétion
+### CritÃ¨res de ComplÃ©tion
 
-- ✅ **80/80 tâches complétées** (100% target, 95% acceptable)
-- ✅ **Suite de tests complète passe** (2371 tests, 0 failures)
-- ✅ **Mypy strict passe** (0 type errors)
-- ✅ **Bandit security scan** (0 HIGH issues)
-- ✅ **Coverage augmentée** (baseline → target)
-- ✅ **Radon CC** (complexité réduite)
+- âœ… **80/80 tÃ¢ches complÃ©tÃ©es** (100% target, 95% acceptable)
+- âœ… **Suite de tests complÃ¨te passe** (2371 tests, 0 failures)
+- âœ… **Mypy strict passe** (0 type errors)
+- âœ… **Bandit security scan** (0 HIGH issues)
+- âœ… **Coverage augmentÃ©e** (baseline â†’ target)
+- âœ… **Radon CC** (complexitÃ© rÃ©duite)
 
 ### Tracking
 
-**Fichier**: `workspace/ncm_analysis/ncm_progress.json` (à créer)
+**Fichier**: `workspace/ncm_analysis/ncm_progress.json` (Ã  crÃ©er)
 
 **Format**:
 ```json
@@ -418,50 +418,51 @@ functions without test coverage untested code
 
 ---
 
-## 🔗 Références
+## ðŸ”— RÃ©fÃ©rences
 
-### Fichiers Clés
+### Fichiers ClÃ©s
 
 - **Analyse JSON**: `workspace/ncm_analysis/ncm_deep_analysis_output.json`
 - **Verification Loop**: `workspace/ncm_analysis/ncm_verification_loop.md`
 - **Meta GraphRAG Reports**: `workspace/meta_rag/reports/*.md`
-- **Script d'analyse**: `ncm_deep_analysis.py`
+- **Script d'analyse**: `scripts/ncm/ncm_deep_analysis.py`
 - **P0/P1 Generator**: `core/ncm/p0_p1_story_generator.py`
 - **Real Story Generator**: `core/ncm/real_story_generator.py`
 
 ### Documentation
 
 - **Plan Mode**: `~/.claude/plans/misty-juggling-glacier.md`
-- **Bug Report**: `CLAUDE_CLI_BUG_REPORT.md`
+- **Bug Report**: `docs/bugs/claude_cli/CLAUDE_CLI_BUG_REPORT.md`
 - **MCP Config**: `~/.claude/mcp_servers.json`
 
 ### Git
 
 - **Branch**: NX-BM
-- **Commits récents**:
+- **Commits rÃ©cents**:
   - `feat(ncm): Add docstrings to 80+ core modules via OpenCode automation`
   - `fix(ncm): Handle Windows encoding errors in Kimi CLI`
   - `fix(ncm): Correct Kimi CLI flags for automation mode`
 
 ---
 
-## 🎉 Conclusion
+## ðŸŽ‰ Conclusion
 
-L'analyse profonde Meta GraphRAG a été exécutée avec succès :
+L'analyse profonde Meta GraphRAG a Ã©tÃ© exÃ©cutÃ©e avec succÃ¨s :
 
-✅ **80 tâches détaillées** générées (fichier par fichier, ligne par ligne)
-✅ **Boucle de vérification agentique** complète avec méthodes par type
-✅ **5 rapports Meta GraphRAG** pour analyse architecturale
-✅ **15 tâches P0 Security** identifiées et priorisées
-✅ **Impacts croisés** analysés pour chaque tâche
+âœ… **80 tÃ¢ches dÃ©taillÃ©es** gÃ©nÃ©rÃ©es (fichier par fichier, ligne par ligne)
+âœ… **Boucle de vÃ©rification agentique** complÃ¨te avec mÃ©thodes par type
+âœ… **5 rapports Meta GraphRAG** pour analyse architecturale
+âœ… **15 tÃ¢ches P0 Security** identifiÃ©es et priorisÃ©es
+âœ… **Impacts croisÃ©s** analysÃ©s pour chaque tÃ¢che
 
-**Prêt pour exécution** : Le framework NCM dispose maintenant d'une roadmap détaillée avec vérifications systématiques pour chaque tâche.
+**PrÃªt pour exÃ©cution** : Le framework NCM dispose maintenant d'une roadmap dÃ©taillÃ©e avec vÃ©rifications systÃ©matiques pour chaque tÃ¢che.
 
-**Meta-Bootstrapping NEXUS** : Utiliser NEXUS pour compléter NEXUS → 95%+ production-ready.
+**Meta-Bootstrapping NEXUS** : Utiliser NEXUS pour complÃ©ter NEXUS â†’ 95%+ production-ready.
 
 ---
 
-**Généré le**: 2026-01-22
+**GÃ©nÃ©rÃ© le**: 2026-01-22
 **Par**: NCM Deep Analysis (Meta GraphRAG)
-**Script**: `ncm_deep_analysis.py`
+**Script**: `scripts/ncm/ncm_deep_analysis.py`
 **Branch**: NX-BM
+

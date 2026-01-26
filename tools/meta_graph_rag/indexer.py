@@ -181,6 +181,7 @@ class MetaGraphIndexer:
             query_task_type=config.gemini_task_type_query,
             source_weights=config.source_weights,
             query_cache=self._query_cache,
+            chunk_cache_enabled=config.chunk_cache_enabled,
         )
         self._telemetry = _init_telemetry(config)
 
@@ -263,7 +264,12 @@ class MetaGraphIndexer:
                 )
             return HashEmbeddingBackend()
 
-    def index(self, full: bool = False) -> None:
+    def index(
+        self,
+        full: bool = False,
+        only_paths: Optional[List[Path]] = None,
+        removed_paths: Optional[List[Path]] = None,
+    ) -> None:
         """Index codebase and external sources into graph + vector store."""
         start_time = time.time()
         indexed_files = 0
@@ -272,11 +278,24 @@ class MetaGraphIndexer:
             if full:
                 self.graph_db.reset()
             progress_path = self.config.data_path / "index_progress.json"
-            files = list(self._scan_files())
+            if full:
+                only_paths = None
+            if only_paths:
+                files = self._filter_paths(only_paths)
+            else:
+                files = list(self._scan_files())
             known_files = set(self.manifest.files.keys())
             current_files = set(str(path) for path in files)
 
-            removed_files = known_files - current_files
+            removed_files: set[str] = set()
+            if only_paths is None:
+                removed_files |= known_files - current_files
+            if removed_paths:
+                for removed in removed_paths:
+                    resolved = removed
+                    if not resolved.is_absolute():
+                        resolved = self.config.root_path / resolved
+                    removed_files.add(str(resolved.resolve()))
             for removed in removed_files:
                 entry = self.manifest.files.pop(removed, None)
                 if not entry:
@@ -415,6 +434,43 @@ class MetaGraphIndexer:
                     if _record(path):
                         yield path
 
+    def _filter_paths(self, paths: Iterable[Path]) -> List[Path]:
+        max_bytes = self.config.max_file_size_kb * 1024
+        if self.config.max_file_size_kb <= 0:
+            max_bytes = 0
+        extensions = set(ext.lower() for ext in self.config.extensions)
+        filter_by_extension = bool(extensions)
+        include_dirs = [self.config.root_path / name for name in self.config.include_dirs]
+        exclude = {entry.lower() for entry in self.config.exclude_dirs}
+        exclude.add(self.config.data_path.name.lower())
+        seen: set[str] = set()
+        filtered: List[Path] = []
+
+        for raw_path in paths:
+            path = raw_path
+            if not path.is_absolute():
+                path = self.config.root_path / path
+            try:
+                resolved = path.resolve()
+            except FileNotFoundError:
+                continue
+            if not resolved.exists() or not resolved.is_file():
+                continue
+            if include_dirs and not any(resolved.is_relative_to(base.resolve()) for base in include_dirs):
+                continue
+            if any(part.lower() in exclude for part in resolved.parts):
+                continue
+            if filter_by_extension and resolved.suffix.lower() not in extensions:
+                continue
+            if max_bytes and resolved.stat().st_size > max_bytes:
+                continue
+            key = str(resolved)
+            if key in seen:
+                continue
+            seen.add(key)
+            filtered.append(resolved)
+        return filtered
+
     def _index_file(self, path: Path, content_hash: str) -> Tuple[List[GraphNode], List[GraphEdge], List[Chunk]]:
         relative_path = _relative_path(path, self.config.root_path)
         file_suffix = path.suffix.lower()
@@ -501,6 +557,7 @@ class MetaGraphIndexer:
                     "node_id": chunk.node_id,
                     "kind": chunk.kind,
                     "source_type": source_type,
+                    "content_hash": chunk.content_hash,
                 },
             ))
         if records:
@@ -525,6 +582,7 @@ class MetaGraphIndexer:
                         "node_id": chunk.node_id,
                         "kind": chunk.kind,
                         "source_type": chunk.metadata.get("source_type", ""),
+                        "content_hash": chunk.content_hash,
                     },
                 ))
                 if limit and (embedded + len(records)) >= limit:
