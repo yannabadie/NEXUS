@@ -43,21 +43,21 @@ Code-first plan built from:
 Docs are treated as secondary. Code and tests are the source of truth.
 
 ## Current Meta GraphRAG Index Status
-- nodes: 31252
-- edges: 32060
-- chunks: 25318
-- vector_entries: 25318
+- nodes: 31296
+- edges: 32115
+- chunks: 25488
+- vector_entries: 25488
 - embedding_backend: gemini-embedding-001 (dim 3072)
 - graph_db: nodes 31252 / edges 32060 (sqlite)
 - manifest_coverage: 1498 files indexed (excludes .git/meta_rag via META_RAG_EXCLUDE)
 - scan_files: 1521 files detected by scanner (os.walk w/ META_RAG_EXCLUDE=.git,meta_rag)
 - rg_files: 845 (gitignore-respecting view)
 - status_source: MCP snapshot (nexus_meta_graphrag_status)
-- manifest_generated_at: 2026-01-25T16:33:20.509683+00:00
+- manifest_generated_at: 2026-01-26T12:45:49.089238+00:00
 - last_full_index: 2026-01-24 (gemini-embedding-001; counts above)
-- reindex_in_progress: 2026-01-25 (Gemini embeddings + DeepSeek fallback; META_RAG_EXCLUDE=.git,meta_rag)
-- progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-25T13:51:50Z, last file `core/hive_mind/__pycache__/saga_manager.cpython-313.pyc`)
-- note: graph.json contains no .git nodes; full reindex completed
+- last_incremental_index: 2026-01-26 (git-diff; META_RAG_EXCLUDE=.git,meta_rag)
+- progress: `workspace/meta_rag/index_progress.json` (last update 2026-01-26T10:26:48Z, last file `tests/api/test_meta_graphrag_api.py`)
+- note: graph.json contains no .git nodes; incremental index updated counts
 
 ## Recent Updates (2026-01-27)
 - Meta GraphRAG HTTP: added request validation caps (query length, seed/expansion, entrypoints).
@@ -65,6 +65,7 @@ Docs are treated as secondary. Code and tests are the source of truth.
 - Documented query defaults + report cache envs in `core/mcp/README.md`, `docs/meta_graph_rag.md`, `.env.example`.
 - Added API tests for Meta GraphRAG validation + report cache (`tests/api/test_meta_graphrag_api.py`).
 - pytest `tests/api/test_meta_graphrag_api.py -v` => 3 passed (warning: invalid -W option for urllib3.exceptions).
+- Incremental Meta GraphRAG index completed (`--git-diff --git-base HEAD~2`), counts refreshed.
 
 ## Recent Updates (2026-01-26)
 - Added git-diff incremental indexing and content-hash embedding reuse in Meta GraphRAG.
