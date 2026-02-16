@@ -22,6 +22,7 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ from dataclasses import dataclass
 if TYPE_CHECKING:
     from core.memory.project_memory import ProjectMemory
     from core.interface.console_v7 import ConsoleV7
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -253,6 +256,15 @@ class MemoryService:
             self.console.print("[yellow]No results found[/yellow]")
             self.console.print("[dim]Try /rag init first, or use different keywords[/dim]")
             return QueryResult(success=True, chunks=[])
+
+        # V12.4: Record access patterns for Ebbinghaus decay scoring
+        try:
+            from core.memory.decay_scorer import get_decay_scorer
+            scorer = get_decay_scorer()
+            for chunk in chunks:
+                scorer.record_access(chunk.chunk_id)
+        except Exception as e:
+            _logger.debug(f"Decay scorer recording failed: {e}")
 
         self.console.print(f"\n[bold]RAG Results for:[/bold] {query_str}")
         self.console.print(f"[dim]Found {len(chunks)} chunks[/dim]\n")

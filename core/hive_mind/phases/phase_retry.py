@@ -68,6 +68,8 @@ class AdaptiveRetryPhase:
         FailureType.TOOL_ERROR: FailureCategory.TOOL_ERROR,
         FailureType.CONTEXT_LOST: FailureCategory.RESOURCE_EXCEEDED,
         FailureType.BUDGET_EXCEEDED: FailureCategory.RESOURCE_EXCEEDED,
+        FailureType.MEMORY_ERROR: FailureCategory.RESOURCE_EXCEEDED,
+        FailureType.PLANNING_ERROR: FailureCategory.WRONG_APPROACH,
         FailureType.UNKNOWN: FailureCategory.UNKNOWN,
     }
 
@@ -308,6 +310,20 @@ class AdaptiveRetryPhase:
                 modified.rag_config.depth = "standard"
             elif modified.rag_config.depth == "standard":
                 modified.rag_config.depth = "shallow"
+
+        # V12.4: CONTEXT_LOST / MEMORY_ERROR recovery via ContextCompressor
+        if arch_changes.get("compress_context") or arch_changes.get("fresh_session"):
+            try:
+                from core.memory.context_compressor import get_compressor
+                compressor = get_compressor()
+                if compressor.should_compress():
+                    result = compressor.compress()
+                    logger.info(
+                        f"Context compressed: {result.turns_pruned} turns pruned, "
+                        f"{result.compression_ratio:.0%} reduction"
+                    )
+            except Exception as e:
+                logger.debug(f"Context compression failed: {e}")
 
         # Update reasoning
         changes_desc = ", ".join(diagnosis.recommended_changes[:3])

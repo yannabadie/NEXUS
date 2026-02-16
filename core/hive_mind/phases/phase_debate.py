@@ -457,6 +457,38 @@ class StrategicDebatePhase:
                 changed_position=argument.position == "CONCEDE"
             )
 
+            # V12.4: Quorum-based early termination (Aegean-inspired, arxiv:2512.20184)
+            # If both agents agree (CONCEDE or SUPPORT) in consecutive turns,
+            # that's a natural quorum - skip the expensive LLM consensus check
+            if len(debate_history) >= 2 and turn_number >= params.min_turns:
+                last_two = debate_history[-2:]
+                agreeing_positions = {"SUPPORT", "CONCEDE"}
+                if (last_two[0].position in agreeing_positions and
+                        last_two[1].position in agreeing_positions and
+                        last_two[0].agent_id != last_two[1].agent_id):
+                    # Both agents agreed - quorum reached
+                    quorum_approach = argument.proposed_modification or argument.argument
+                    logger.info(
+                        f"Phase 2: Quorum reached at turn {turn_number} "
+                        f"({last_two[0].agent_id}={last_two[0].position}, "
+                        f"{last_two[1].agent_id}={last_two[1].position})"
+                    )
+                    return self._create_result(
+                        debate_history=debate_history,
+                        consensus={
+                            "consensus_reached": True,
+                            "consensus_score": 0.95,
+                            "resolved_points": [primary_disagreement.topic],
+                            "unresolved_points": [],
+                            "final_approach": quorum_approach,
+                            "final_capabilities": [],
+                            "gemini_satisfaction": 0.85,
+                            "claude_satisfaction": 0.85,
+                            "reasoning": "Quorum: both agents agreed in consecutive turns"
+                        },
+                        status="QUORUM_CONSENSUS"
+                    )
+
             # Check for consensus after minimum turns
             if turn_number >= params.min_turns:
                 consensus = await self._check_consensus(

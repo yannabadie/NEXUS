@@ -412,6 +412,15 @@ Execute efficiently. You are the sole agent for this task.
                 logger.info("[RAG] No chunks matched (score < 0.05)")
                 return ""
 
+            # V12.4: Record access patterns for Ebbinghaus decay scoring
+            try:
+                from core.memory.decay_scorer import get_decay_scorer
+                scorer = get_decay_scorer()
+                for chunk in chunks:
+                    scorer.record_access(chunk.chunk_id)
+            except Exception as e:
+                _logger.debug(f"Decay scorer recording failed: {e}")
+
             # V11 DIAGNOSTIC: Log retrieved chunks
             logger.info(f"[RAG] Retrieved {len(chunks)} chunks:")
             for i, chunk in enumerate(chunks):

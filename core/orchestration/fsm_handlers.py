@@ -1008,6 +1008,13 @@ class FSMHandlers:
             try:
                 chunks = self._orch.project_memory.retrieve(user_input, limit=2, min_score=0.1)
                 if chunks:
+                    # V12.4: Record access for decay scoring
+                    try:
+                        from core.memory.decay_scorer import get_decay_scorer
+                        for chunk in chunks:
+                            get_decay_scorer().record_access(chunk.chunk_id)
+                    except Exception:
+                        pass  # Non-critical telemetry
                     rag_context = self._orch.project_memory.format_chunks_for_context(
                         chunks, max_chars=1000
                     )
