@@ -113,10 +113,13 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 timeout = 30
+# Limit pytest workers to prevent OOM on large test suites (6348 tests)
+addopts = "--maxfail=10 --tb=short"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks integration tests requiring external services",
     "rust: marks tests requiring compiled Rust extension",
+    "memory_heavy: marks tests that load large models or datasets",
 ]
 
 [tool.coverage.run]

@@ -40,14 +40,23 @@ install-rust:  ## Install Rust toolchain for native extensions
 # Testing
 # =============================================================================
 
-test:  ## Run full test suite
+test:  ## Run full test suite (CAUTION: 6348 tests, may use 2-3GB RAM)
+	@echo "⚠️  Warning: Full test suite uses significant memory (2-3GB)"
+	@echo "   Consider 'make test-fast' or 'make test-unit' for development"
 	$(PYTHON) -m pytest tests/ $(PYTEST_ARGS) --ignore=tests/benchmark_professional.py
 
-test-fast:  ## Run tests excluding slow E2E tests
+test-fast:  ## Run tests excluding slow E2E tests (recommended for development)
 	$(PYTHON) -m pytest tests/ $(PYTEST_ARGS) \
 		--ignore=tests/benchmark_professional.py \
 		--ignore=tests/test_headless_e2e.py \
+		-m "not slow and not integration" \
 		-x
+
+test-unit:  ## Run unit tests by domain (memory-safe, sequential)
+	@echo "Running tests by domain to limit memory usage..."
+	$(PYTHON) -m pytest tests/fsm/ tests/memory/ tests/utils/ -q --tb=short
+	$(PYTHON) -m pytest tests/drivers/ tests/execution/ -q --tb=short
+	$(PYTHON) -m pytest tests/swarm/ tests/hive_mind/ -q --tb=short
 
 test-cov:  ## Run tests with coverage report
 	$(PYTHON) -m pytest tests/ \
