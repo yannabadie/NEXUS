@@ -17,7 +17,7 @@ Fichiers créés:
 import json
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Any
 from enum import Enum
 import sys
@@ -106,7 +106,7 @@ class NexusLogger:
         self.summary_file = self.log_dir / f"summary_{self.current_date}.json"
 
         # Session metadata
-        self.session_start = datetime.utcnow()
+        self.session_start = datetime.now(timezone.utc)
         self.session_id = self.session_start.strftime("%Y%m%d_%H%M%S")
 
         # Metrics
@@ -152,7 +152,7 @@ class NexusLogger:
         # Check log level
         if self._should_log(level):
             event = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "session_id": self.session_id,
                 "event_type": event_type.value,
                 "level": level.value,
@@ -360,7 +360,7 @@ class NexusLogger:
         """
         if self.log_level == LogLevel.DEBUG:
             try:
-                timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                 with open(self.trace_file, 'a', encoding='utf-8') as f:
                     f.write(f"[{timestamp}] {message}\n")
             except Exception:
@@ -372,13 +372,13 @@ class NexusLogger:
         """Termine session et écrit summary"""
         self.log_event(EventType.SESSION_END, {
             "session_id": self.session_id,
-            "duration_seconds": (datetime.utcnow() - self.session_start).total_seconds()
+            "duration_seconds": (datetime.now(timezone.utc) - self.session_start).total_seconds()
         })
 
         # Write summary
-        self.metrics["end_time"] = datetime.utcnow().isoformat()
+        self.metrics["end_time"] = datetime.now(timezone.utc).isoformat()
         self.metrics["duration_seconds"] = \
-            (datetime.utcnow() - self.session_start).total_seconds()
+            (datetime.now(timezone.utc) - self.session_start).total_seconds()
 
         try:
             with open(self.summary_file, 'w', encoding='utf-8') as f:
@@ -390,7 +390,7 @@ class NexusLogger:
     def _log_error(self, event_type: EventType, data: Dict, level: LogLevel):
         """Log erreur dans error file (human-readable)"""
         try:
-            timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             with open(self.errors_file, 'a', encoding='utf-8') as f:
                 f.write(f"[{timestamp}] [{level.value}] {event_type.value}\n")
                 f.write(f"  {json.dumps(data, indent=2, ensure_ascii=False)}\n")
@@ -415,7 +415,7 @@ class NexusLogger:
         return {
             **self.metrics,
             "current_duration_seconds":
-                (datetime.utcnow() - self.session_start).total_seconds()
+                (datetime.now(timezone.utc) - self.session_start).total_seconds()
         }
 
 

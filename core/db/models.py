@@ -23,7 +23,7 @@ Author: Claude (NEXUS PRISM V10)
 Date: 2025-12-15
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 from uuid import UUID, uuid4
@@ -70,8 +70,8 @@ class Tenant(SQLModel, table=True):
     status: TenantStatus = Field(default=TenantStatus.ACTIVE)
 
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Contact
     email: Optional[str] = Field(default=None, max_length=255)
@@ -124,7 +124,7 @@ class User(SQLModel, table=True):
     last_login: Optional[datetime] = Field(default=None)
 
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     tenant: Optional[Tenant] = Relationship(back_populates="users")
@@ -170,8 +170,8 @@ class Workspace(SQLModel, table=True):
 
     # Metadata
     description: Optional[str] = Field(default=None, max_length=500)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Status
     is_active: bool = Field(default=True)
@@ -226,8 +226,8 @@ class Quota(SQLModel, table=True):
     monthly_spend_usd: float = Field(default=0.0)
 
     # Reset tracking
-    daily_reset_at: datetime = Field(default_factory=datetime.utcnow)
-    monthly_reset_at: datetime = Field(default_factory=datetime.utcnow)
+    daily_reset_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    monthly_reset_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Relationships
     tenant: Optional[Tenant] = Relationship(back_populates="quota")

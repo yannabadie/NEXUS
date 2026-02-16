@@ -23,7 +23,7 @@ Date: 2025-12-16
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from threading import RLock
 from typing import Any, Dict, List, Optional
@@ -211,8 +211,8 @@ class RedisWorkflowRegistry:
             "status": WorkflowStatus.PENDING.value,
             "result": None,
             "error": None,
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         if self._connected and self._redis:
@@ -268,7 +268,7 @@ class RedisWorkflowRegistry:
             return None
 
         workflow["status"] = status
-        workflow["updated_at"] = datetime.utcnow().isoformat()
+        workflow["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         if result is not None:
             workflow["result"] = result
@@ -429,10 +429,10 @@ class RedisWorkflowRegistry:
             Number of workflows cleaned up
         """
         cleaned = 0
-        cutoff = datetime.utcnow().isoformat()
+        cutoff = datetime.now(timezone.utc).isoformat()
         # Calculate cutoff time (simplified - just check age in hours)
         from datetime import timedelta
-        cutoff_dt = datetime.utcnow() - timedelta(hours=max_age_hours)
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
         cutoff = cutoff_dt.isoformat()
 
         # Clean in-memory store

@@ -13,7 +13,7 @@ Date: 2025-12-16
 
 import asyncio
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -239,7 +239,7 @@ class TestHibernationStateModel:
             tenant_id=uuid4(),
             workspace_id="test",
             previous_state="IDLE",
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1),
         )
 
         assert state.is_expired() == True
@@ -252,7 +252,7 @@ class TestHibernationStateModel:
             tenant_id=uuid4(),
             workspace_id="test",
             previous_state="IDLE",
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
         )
 
         assert state.is_expired() == False

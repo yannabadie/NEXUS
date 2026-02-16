@@ -13,7 +13,7 @@ Date: 2025-12-16
 
 import asyncio
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -35,7 +35,7 @@ class TestHITLRequestModel:
             workspace_id="default",
             request_type="ask",
             prompt="Continue with deployment?",
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
         )
 
         assert request.request_type == "ask"
@@ -60,7 +60,7 @@ class TestHITLRequestModel:
             workspace_id="default",
             request_type="confirm",
             prompt="Test?",
-            expires_at=datetime.utcnow() + timedelta(hours=1),
+            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
         )
 
         assert request.status == HITLRequestStatus.PENDING

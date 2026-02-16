@@ -4,7 +4,7 @@ Panic System - Gestion des erreurs critiques et panic states
 Architecture V7: Improved panic handling with detailed logging.
 """
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 import json
 
@@ -83,7 +83,7 @@ class PanicSystem:
             "error_type": error_type,
             "message": error_message,
             "consecutive_errors": self.consecutive_errors,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         })
 
         # Trigger panic après 3 erreurs consécutives
@@ -119,7 +119,7 @@ class PanicSystem:
         self.panic_reason = reason
 
         panic_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "reason": reason,
             "details": details,
             "stalemate_counter": self.stalemate_counter,
@@ -171,7 +171,7 @@ class PanicSystem:
         # Log recovery
         self._log_to_history({
             "type": "RECOVERY",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "message": "Panic cleared, system recovered"
         })
 

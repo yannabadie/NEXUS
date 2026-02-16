@@ -7,7 +7,7 @@ These tests verify the BudgetService extracted from repl.py works correctly.
 import json
 import pytest
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -61,7 +61,7 @@ class TestBudgetService:
             "spent_today_usd": 2.5,
             "limit_usd": 10.0,
             "api_calls_today": 15,
-            "last_reset": datetime.utcnow().strftime("%Y-%m-%d")
+            "last_reset": datetime.now(timezone.utc).strftime("%Y-%m-%d")
         }
 
         budget_file.write_text(json.dumps(state), encoding="utf-8")
@@ -169,7 +169,7 @@ class TestBudgetService:
             {
                 "type": "api_call",
                 "session_id": "test",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": {
                     "provider": "anthropic",
                     "model": "claude-3",

@@ -30,7 +30,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, List
 from uuid import UUID
 
@@ -164,7 +164,7 @@ def _cleanup_old_logs(retention_days: int) -> int:
     from sqlalchemy import delete
     from core.db import get_session, get_engine
 
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).replace(tzinfo=None)
 
     engine = get_engine()
     with engine.connect() as conn:

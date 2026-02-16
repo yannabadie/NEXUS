@@ -7,7 +7,7 @@ These tests verify the TelemetryService extracted from repl.py works correctly.
 import json
 import pytest
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -51,7 +51,7 @@ class TestTelemetryService:
             {
                 "type": "api_call",
                 "session_id": "test-session",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": {
                     "provider": "anthropic",
                     "model": "claude-3",
@@ -63,7 +63,7 @@ class TestTelemetryService:
             {
                 "type": "swarm_task",
                 "session_id": "test-session",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": {
                     "mode": "parallel",
                     "duration_seconds": 5.5,

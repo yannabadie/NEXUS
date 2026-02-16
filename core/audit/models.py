@@ -14,7 +14,7 @@ Author: Claude (NEXUS V12.2 IRONCLAD)
 Date: 2025-12-16
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
@@ -128,7 +128,7 @@ class AuditLog(SQLModel, table=True):
     user_agent: Optional[str] = Field(default=None, max_length=500)
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
 
     def __repr__(self) -> str:
         return f"AuditLog({self.action}, user={self.user_id}, status={self.status})"
@@ -176,13 +176,13 @@ class HITLRequest(SQLModel, table=True):
     answer: Optional[str] = Field(default=None, max_length=2000)
 
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     answered_at: Optional[datetime] = Field(default=None)
-    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
+    expires_at: datetime = Field(default_factory=lambda: (datetime.now(timezone.utc) + timedelta(hours=24)).replace(tzinfo=None))
 
     def is_expired(self) -> bool:
         """Check if request has expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
 
     def is_pending(self) -> bool:
         """Check if request is still pending."""

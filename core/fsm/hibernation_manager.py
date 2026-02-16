@@ -21,7 +21,7 @@ Date: 2025-12-16
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
@@ -190,15 +190,15 @@ class HibernationState(SQLModel, table=True):
     message_history: Optional[str] = Field(default=None, max_length=100000)  # JSON
 
     # Timestamps
-    entered_at: datetime = Field(default_factory=datetime.utcnow)
-    expires_at: datetime = Field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
+    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    expires_at: datetime = Field(default_factory=lambda: (datetime.now(timezone.utc) + timedelta(hours=24)).replace(tzinfo=None))
 
     # Status
     is_active: bool = Field(default=True, index=True)
 
     def is_expired(self) -> bool:
         """Check if hibernation has expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
 
 
 # =============================================================================
@@ -239,7 +239,7 @@ def _save_hibernation(
             active_agent=active_agent,
             turn_count=turn_count,
             message_history=json.dumps(message_history) if message_history else None,
-            expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+            expires_at=(datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).replace(tzinfo=None),
         )
 
         session.add(state)
@@ -265,7 +265,7 @@ def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict
             HibernationState.tenant_id == tenant_id,
             HibernationState.workspace_id == workspace_id,
             HibernationState.is_active == True,
-            HibernationState.expires_at > datetime.utcnow(),
+            HibernationState.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
         )
         state = session.exec(statement).first()
 
@@ -335,7 +335,7 @@ def _cleanup_expired() -> int:
             update(HibernationState)
             .where(
                 HibernationState.is_active == True,
-                HibernationState.expires_at < datetime.utcnow(),
+                HibernationState.expires_at < datetime.now(timezone.utc).replace(tzinfo=None),
             )
             .values(is_active=False)
         )

@@ -15,7 +15,7 @@ Usage:
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass, asdict
@@ -135,7 +135,7 @@ class TelemetryCollector:
         event = {
             "type": event_type.value,
             "session_id": self.session_id,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": data
         }
 
@@ -195,7 +195,7 @@ class TelemetryCollector:
                 print(f"[Telemetry] Cost tracking error: {e}")
 
         metric = APICallMetric(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat(),
             provider=provider,
             model=model,
             tokens_in=tokens_in,
@@ -237,7 +237,7 @@ class TelemetryCollector:
             self._errors += 1
 
         metric = SwarmTaskMetric(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat(),
             mode=mode,
             rounds=rounds,
             duration_seconds=duration_seconds,
