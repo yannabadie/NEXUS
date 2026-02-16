@@ -250,7 +250,22 @@ class MemoryService:
             self.console.print_error("Project memory not initialized")
             return QueryResult(success=False, error="Project memory not initialized")
 
-        chunks = self.project_memory.retrieve(query_str, limit=limit)
+        # V12.4: Check cache before running retrieval
+        cache_key = f"rag:{query_str}:{limit}"
+        try:
+            from core.memory.cache_manager import get_cache_manager
+            cache = get_cache_manager()
+            cached = cache.get(cache_key)
+            if cached is not None:
+                _logger.debug(f"RAG cache hit for: {query_str[:40]}")
+                chunks = cached
+            else:
+                chunks = self.project_memory.retrieve(query_str, limit=limit)
+                if chunks:
+                    cache.put(cache_key, chunks, ttl=120)  # Cache for 2 minutes
+        except Exception as e:
+            _logger.debug(f"Cache manager unavailable: {e}")
+            chunks = self.project_memory.retrieve(query_str, limit=limit)
 
         if not chunks:
             self.console.print("[yellow]No results found[/yellow]")

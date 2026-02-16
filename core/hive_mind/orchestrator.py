@@ -46,6 +46,9 @@ from .phases import (
 # V8.4.4b: SagaManager for checkpoint/rollback
 from .saga_manager import SagaManager
 
+# V12.4: Stepwise confidence monitoring (arxiv:2511.07364)
+from .confidence_monitor import StepwiseConfidenceMonitor
+
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
@@ -184,6 +187,9 @@ class TrueHiveMind:
         # Wire up swarm session manager if available
         if self.swarm_engine and hasattr(self.swarm_engine, 'session_manager'):
             self._sync_bridge.set_session_manager(self.swarm_engine.session_manager)
+
+        # V12.4: Stepwise confidence monitor
+        self.confidence_monitor = StepwiseConfidenceMonitor()
 
         # Initialize phases
         self._init_phases()
@@ -337,6 +343,7 @@ class TrueHiveMind:
             self.cost_estimator.start_task()
             self.phase_retry.reset_retry_count()
             self.context_manager.clear(keep_critical=False)
+            self.confidence_monitor.reset()
 
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
@@ -393,6 +400,13 @@ class TrueHiveMind:
 
             analysis_result = await self.phase_analysis.execute(task)
             phases_completed.append("analysis")
+
+            # V12.4: Record analysis confidence
+            self.confidence_monitor.record(
+                "analysis",
+                analysis_result.comparison.agreement_score,
+                needs_debate=analysis_result.needs_debate,
+            )
 
             # V12.0 RETINA: Update nodes - analysis complete
             await _telemetry_bridge.emit(
@@ -452,6 +466,18 @@ class TrueHiveMind:
                 )
                 phases_completed.append("debate_skipped")
 
+            # V12.4: Record debate confidence
+            debate_confidence = (
+                debate_result.debate_result.consensus_confidence
+                if not debate_result.was_skipped
+                else analysis_result.comparison.agreement_score
+            )
+            self.confidence_monitor.record(
+                "debate",
+                debate_confidence,
+                was_skipped=debate_result.was_skipped,
+            )
+
             # V8.4.4b: Checkpoint after debate
             if self._saga:
                 await self._saga.checkpoint_phase(
@@ -480,6 +506,23 @@ class TrueHiveMind:
             phases_completed.append("architecture")
             agents_spawned = arch_result.agents_spawned
             self._spawned_agents = agents_spawned  # V8.4.4b: Track for compensation
+
+            # V12.4: Record architecture confidence (based on status)
+            arch_confidence = 0.80 if arch_result.architecture.status == "READY" else 0.60
+            self.confidence_monitor.record(
+                "architecture",
+                arch_confidence,
+                agents_spawned=len(agents_spawned),
+            )
+
+            # V12.4: Check confidence trajectory before expensive execution
+            abort_rec = self.confidence_monitor.should_abort()
+            if abort_rec.should_abort:
+                logger.warning(f"[HiveMind] Confidence abort: {abort_rec.reason}")
+                return self._create_cancelled_result(
+                    phases_completed, start_time,
+                    f"Low confidence: {abort_rec.reason}"
+                )
 
             # V8.4.4b: Checkpoint after architecture
             if self._saga:
@@ -511,6 +554,15 @@ class TrueHiveMind:
                 execution_result = await self.phase_execution.execute(
                     task=task,
                     architecture=arch_result.architecture
+                )
+
+                # V12.4: Record execution confidence
+                exec_confidence = 0.90 if execution_result.success else 0.30
+                self.confidence_monitor.record(
+                    "execution",
+                    exec_confidence,
+                    success=execution_result.success,
+                    attempt=attempt + 1,
                 )
 
                 if execution_result.success:
@@ -552,6 +604,13 @@ class TrueHiveMind:
                     failure_step=execution_result.failure_step
                 )
                 phases_completed.append("diagnosis")
+
+                # V12.4: Record diagnosis confidence
+                self.confidence_monitor.record(
+                    "diagnosis",
+                    diagnosis_result.diagnosis.confidence,
+                    user_decision=diagnosis_result.user_decision,
+                )
 
                 # V8.4.4b: Checkpoint after diagnosis
                 if self._saga:
@@ -635,6 +694,18 @@ class TrueHiveMind:
                 agents_spawned=agents_spawned
             )
             phases_completed.append("consolidation")
+
+            # V12.4: Record consolidation confidence and log trajectory
+            self.confidence_monitor.record(
+                "consolidation",
+                consolidation_result.consolidation.confidence_in_decisions,
+                success=execution_success,
+            )
+            trajectory = self.confidence_monitor.get_trajectory()
+            logger.info(
+                f"[HiveMind] Confidence trajectory: trend={trajectory.trend}, "
+                f"avg={trajectory.average:.2f}, min={trajectory.minimum:.2f}"
+            )
 
             # Mark success in retry system
             if execution_success:

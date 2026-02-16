@@ -498,6 +498,35 @@ class OrchestratorV7:
                     error="KERNEL_INTEGRITY_VIOLATION"
                 )
 
+        # V12.4: Memory pressure monitoring (periodic, every 25 iterations)
+        if self.iteration % 25 == 0:
+            try:
+                from core.memory.memory_pressure_monitor import get_pressure_monitor
+                monitor = get_pressure_monitor()
+                history_len = len(self.blackboard.get("recent_history", []))
+                bb_bytes = len(json.dumps(self.blackboard, default=str))
+                monitor.record_snapshot(
+                    cache_items=0,
+                    cache_bytes=0,
+                    blackboard_bytes=bb_bytes,
+                    conversation_turns=history_len,
+                    total_bytes=bb_bytes,
+                    max_bytes=4_000_000,  # ~4MB soft limit
+                )
+                level = monitor.get_pressure_level()
+                if level.level == "critical":
+                    self.logger.warning(
+                        "Memory pressure critical",
+                        {"utilization": level.utilization, "recommendation": level.recommendation}
+                    )
+                elif level.level == "warning":
+                    self.logger.info(
+                        "Memory pressure elevated",
+                        {"utilization": level.utilization}
+                    )
+            except Exception:
+                pass  # Non-blocking advisory check
+
         # V8.8: INPUT GUARD - Prompt Injection Prevention (OWASP LLM01:2025)
         # Validates user input before processing to detect injection attempts
         if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
