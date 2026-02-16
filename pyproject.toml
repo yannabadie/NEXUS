@@ -131,3 +131,12 @@ omit = [
 show_missing = true
 skip_covered = true
 fail_under = 60
+
+[tool.maturin]
+# Rust native extension configuration
+module-name = "nexus_core"
+manifest-path = "rust/nexus_core/Cargo.toml"
+python-source = "."
+features = []
+# Optional: compile with --release for performance
+profile = "release"

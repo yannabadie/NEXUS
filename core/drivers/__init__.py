@@ -104,9 +104,9 @@ from .inference_latency_analyzer import (
     reset_latency_analyzer,
 )
 
-# Legacy sync drivers (backwards compatibility)
-from .gemini_driver_v7 import GeminiDriverV7
-from .claude_driver_hybrid import ClaudeDriverHybrid
+# Legacy sync drivers moved to core/drivers/legacy/
+# from .gemini_driver_v7 import GeminiDriverV7
+# from .claude_driver_hybrid import ClaudeDriverHybrid
 
 __all__ = [
     # V11 Abstraction Layer (F31)
@@ -184,7 +184,4 @@ __all__ = [
     "AnalyzerStats",
     "get_latency_analyzer",
     "reset_latency_analyzer",
-    # Legacy sync
-    "GeminiDriverV7",
-    "ClaudeDriverHybrid",
 ]
