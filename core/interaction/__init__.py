@@ -146,6 +146,16 @@ def reset_interaction_provider() -> None:
         pass
 
 
+# V12.4 COGNITIVE BOOST: Interaction Quality Tracker
+from .interaction_quality_tracker import (
+    InteractionQualityTracker,
+    InteractionRecord,
+    InteractionTypeProfile,
+    InteractionQualityStats,
+    get_interaction_tracker,
+    reset_interaction_tracker,
+)
+
 __all__ = [
     # Base classes
     "InteractionProvider",
@@ -161,4 +171,12 @@ __all__ = [
     "get_interaction_provider",
     "set_interaction_provider",
     "reset_interaction_provider",
+
+    # V12.4 COGNITIVE BOOST: Interaction Quality Tracker
+    "InteractionQualityTracker",
+    "InteractionRecord",
+    "InteractionTypeProfile",
+    "InteractionQualityStats",
+    "get_interaction_tracker",
+    "reset_interaction_tracker",
 ]

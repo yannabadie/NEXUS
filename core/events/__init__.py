@@ -21,6 +21,16 @@ from .types import CerebroEvent, CerebroEventType
 from .redis_bus import RedisEventBus, get_redis_bus, reset_redis_bus
 from .telemetry_bridge import TelemetryBridge, get_telemetry_bridge, reset_telemetry_bridge
 
+# V12.4 COGNITIVE BOOST: Event Analytics
+from .event_analytics import (
+    EventAnalytics,
+    EventRecord,
+    EventTypeMetrics,
+    EventAnalyticsStats,
+    get_event_analytics,
+    reset_event_analytics,
+)
+
 __all__ = [
     "CerebroEvent",
     "CerebroEventType",
@@ -31,4 +41,11 @@ __all__ = [
     "TelemetryBridge",
     "get_telemetry_bridge",
     "reset_telemetry_bridge",
+    # V12.4 COGNITIVE BOOST: Event Analytics
+    "EventAnalytics",
+    "EventRecord",
+    "EventTypeMetrics",
+    "EventAnalyticsStats",
+    "get_event_analytics",
+    "reset_event_analytics",
 ]

@@ -14,4 +14,23 @@ Usage:
 
 from .app import create_cerebro_app
 
-__all__ = ["create_cerebro_app"]
+# V12.4 COGNITIVE BOOST: Endpoint Analytics
+from .endpoint_analytics import (
+    EndpointAnalytics,
+    EndpointRequestRecord,
+    EndpointProfile,
+    EndpointAnalyticsStats,
+    get_endpoint_analytics,
+    reset_endpoint_analytics,
+)
+
+__all__ = [
+    "create_cerebro_app",
+    # V12.4 COGNITIVE BOOST: Endpoint Analytics
+    "EndpointAnalytics",
+    "EndpointRequestRecord",
+    "EndpointProfile",
+    "EndpointAnalyticsStats",
+    "get_endpoint_analytics",
+    "reset_endpoint_analytics",
+]

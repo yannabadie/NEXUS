@@ -59,6 +59,16 @@ from .engine import (
     DEFAULT_DB_PATH,
 )
 
+# V12.4 COGNITIVE BOOST: Query Performance Tracker
+from .query_performance_tracker import (
+    QueryPerformanceTracker,
+    QueryRecord,
+    TableProfile,
+    QueryPerformanceStats,
+    get_query_tracker,
+    reset_query_tracker,
+)
+
 __all__ = [
     # Enums
     "PlanTier",
@@ -90,4 +100,12 @@ __all__ = [
 
     # Constants
     "DEFAULT_DB_PATH",
+
+    # V12.4 COGNITIVE BOOST: Query Performance Tracker
+    "QueryPerformanceTracker",
+    "QueryRecord",
+    "TableProfile",
+    "QueryPerformanceStats",
+    "get_query_tracker",
+    "reset_query_tracker",
 ]

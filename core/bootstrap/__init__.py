@@ -24,6 +24,16 @@ from .service import (
 )
 # ServiceResult comes from core.telemetry.service (single source of truth)
 
+# V12.4 COGNITIVE BOOST: Startup Analytics
+from .startup_analytics import (
+    StartupAnalytics,
+    BootStepRecord,
+    ComponentProfile,
+    StartupStats,
+    get_startup_analytics,
+    reset_startup_analytics,
+)
+
 __all__ = [
     'AutoBootstrap',
     'ProjectAnalysis',
@@ -35,4 +45,11 @@ __all__ = [
     'SpinoffService',
     '_get_bootstrap_service',
     '_get_spinoff_service',
+    # V12.4 COGNITIVE BOOST: Startup Analytics
+    'StartupAnalytics',
+    'BootStepRecord',
+    'ComponentProfile',
+    'StartupStats',
+    'get_startup_analytics',
+    'reset_startup_analytics',
 ]
