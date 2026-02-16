@@ -194,6 +194,15 @@ if needs_rehash(hashed):
 - `ast` - Python AST analysis
 - Standard library (re, pathlib)
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `security_event_journal.py` | Immutable audit journal for all security-relevant events (authentication, authorization, policy violations, encryption operations) with append-only JSONL persistence and tamper-evident checksums | `SecurityEventJournal`, `SecurityEvent` |
+| `access_control.py` | Role-Based Access Control (RBAC) system with role definitions, permission grants/denials, agent registration, and effective permission calculation for fine-grained security policies | `AccessControl`, `Role`, `AgentAccess` |
+| `encryption.py` | Data encryption utilities using industry-standard algorithms (AES-256, RSA) for at-rest and in-transit data protection with key management and secure random generation | `encrypt_data`, `decrypt_data`, `generate_key` |
+| `rate_limiter.py` | Security-focused rate limiting for API endpoints, LLM calls, and tool executions to prevent abuse, DoS attacks, and runaway costs with token bucket algorithm | `RateLimiter`, `RateLimitExceeded` |
+
 ## Version History
 
 - **V7.0** - PathGuardian, basic execution policy
@@ -201,3 +210,4 @@ if needs_rehash(hashed):
 - **V8.8** - InputGuard, OutputGuard, Spotlighter (OWASP LLM01:2025)
 - **Phase 12.5** - CodeValidator (dynamic tool validation)
 - **V12.2** - IRONCLAD: Password hashing with argon2
+- **V12.4** - COGNITIVE BOOST: Security event journal, RBAC, encryption, rate limiting
