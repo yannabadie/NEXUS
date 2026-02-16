@@ -26,6 +26,27 @@ from .distributed_lock import (
     try_acquire_workflow_lock,
 )
 
+# V12.4: Dependency Graph
+from .dependency_graph import (
+    WorkflowDependencyGraph,
+    WorkflowNode,
+    WorkflowEdge,
+    ExecutionOrder,
+    GraphStats,
+    get_dependency_graph,
+    reset_dependency_graph,
+)
+
+# V12.4 COGNITIVE BOOST: Workflow Performance Analyzer
+from .workflow_performance_analyzer import (
+    WorkflowPerformanceAnalyzer,
+    WorkflowRunRecord,
+    WorkflowProfile,
+    PerformanceStats as WorkflowPerformanceStats,
+    get_workflow_analyzer,
+    reset_workflow_analyzer,
+)
+
 __all__ = [
     # Registry
     "RedisWorkflowRegistry",
@@ -37,4 +58,19 @@ __all__ = [
     "LockAcquisitionError",
     "acquire_workflow_lock",
     "try_acquire_workflow_lock",
+    # V12.4: Dependency Graph
+    "WorkflowDependencyGraph",
+    "WorkflowNode",
+    "WorkflowEdge",
+    "ExecutionOrder",
+    "GraphStats",
+    "get_dependency_graph",
+    "reset_dependency_graph",
+    # V12.4 COGNITIVE BOOST: Workflow Performance Analyzer
+    "WorkflowPerformanceAnalyzer",
+    "WorkflowRunRecord",
+    "WorkflowProfile",
+    "WorkflowPerformanceStats",
+    "get_workflow_analyzer",
+    "reset_workflow_analyzer",
 ]

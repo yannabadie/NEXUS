@@ -20,6 +20,71 @@ from .tool_registry import ToolRegistry, get_tool_registry, reset_tool_registry
 from .validation_service import ValidationService
 from .execution_engine import ExecutionEngine, get_execution_engine, reset_execution_engine
 
+from .task_scheduler import TaskScheduler, ScheduledTask, Priority, TaskStatus
+
+# V12.4 Workflow Engine
+from .workflow_engine import (
+    WorkflowEngine,
+    Workflow,
+    WorkflowStep,
+    WorkflowStatus,
+    StepStatus,
+    ExecutionResult,
+)
+
+# V12.4: Retry Handler
+from .retry_handler import (
+    RetryHandler,
+    RetryPolicy,
+    RetryResult,
+    RetryAttempt,
+    RetryStats,
+    get_retry_handler,
+    reset_retry_handler,
+)
+
+# V12.4: Timeout Manager
+from .timeout_manager import (
+    TimeoutManager,
+    TimeoutConfig,
+    Deadline,
+    TimeoutEvent,
+    TimeoutStats,
+    get_timeout_manager,
+    reset_timeout_manager,
+)
+
+# V12.4 COGNITIVE BOOST: Tool Observer
+from .tool_observer import (
+    ToolObserver,
+    ToolSpan,
+    ToolMetric,
+    ObservationReport,
+    ToolObserverStats,
+    get_tool_observer,
+    reset_tool_observer,
+)
+
+# V12.4 COGNITIVE BOOST: Handler Performance Tracker
+from .handler_performance_tracker import (
+    HandlerPerformanceTracker,
+    HandlerExecution,
+    HandlerTypeMetrics,
+    TrackerStats as HandlerTrackerStats,
+    get_handler_tracker,
+    reset_handler_tracker,
+)
+
+# V12.4 COGNITIVE BOOST: Reliability Pattern Tracker
+from .reliability_pattern_tracker import (
+    ReliabilityPatternTracker,
+    RetryAttempt as ReliabilityRetryAttempt,
+    ToolReliabilityProfile,
+    ReliabilityStats,
+    get_reliability_tracker,
+    reset_reliability_tracker,
+)
+
 __all__ = [
     # Core classes
     "ToolResult",
@@ -32,6 +97,56 @@ __all__ = [
     "reset_tool_registry",
     "get_execution_engine",
     "reset_execution_engine",
+    # V12.4: Task Scheduler
+    "TaskScheduler",
+    "ScheduledTask",
+    "Priority",
+    "TaskStatus",
+    # V12.4: Workflow Engine
+    "WorkflowEngine",
+    "Workflow",
+    "WorkflowStep",
+    "WorkflowStatus",
+    "StepStatus",
+    "ExecutionResult",
+    # V12.4: Retry Handler
+    "RetryHandler",
+    "RetryPolicy",
+    "RetryResult",
+    "RetryAttempt",
+    "RetryStats",
+    "get_retry_handler",
+    "reset_retry_handler",
+    # V12.4: Timeout Manager
+    "TimeoutManager",
+    "TimeoutConfig",
+    "Deadline",
+    "TimeoutEvent",
+    "TimeoutStats",
+    "get_timeout_manager",
+    "reset_timeout_manager",
+    # V12.4 COGNITIVE BOOST: Tool Observer
+    "ToolObserver",
+    "ToolSpan",
+    "ToolMetric",
+    "ObservationReport",
+    "ToolObserverStats",
+    "get_tool_observer",
+    "reset_tool_observer",
+    # V12.4 COGNITIVE BOOST: Handler Performance Tracker
+    "HandlerPerformanceTracker",
+    "HandlerExecution",
+    "HandlerTypeMetrics",
+    "HandlerTrackerStats",
+    "get_handler_tracker",
+    "reset_handler_tracker",
+    # V12.4 COGNITIVE BOOST: Reliability Pattern Tracker
+    "ReliabilityPatternTracker",
+    "ReliabilityRetryAttempt",
+    "ToolReliabilityProfile",
+    "ReliabilityStats",
+    "get_reliability_tracker",
+    "reset_reliability_tracker",
 ]
 
-__version__ = "9.5.0"
+__version__ = "12.4.0"
