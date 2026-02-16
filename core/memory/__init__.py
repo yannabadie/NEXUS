@@ -84,6 +84,15 @@ from .memory_pressure_monitor import (
     reset_pressure_monitor,
 )
 
+# V12.4 COGNITIVE BOOST: Memory Decay Scorer (Ebbinghaus forgetting curve)
+from .decay_scorer import (
+    MemoryDecayScorer,
+    AccessRecord,
+    DecayScorerStats,
+    get_decay_scorer,
+    reset_decay_scorer,
+)
+
 # V12.4 COGNITIVE BOOST: Context Window Tracker
 from .context_window_tracker import (
     ContextWindowTracker,
@@ -164,4 +173,10 @@ __all__ = [
     "ContextTrackerStats",
     "get_context_tracker",
     "reset_context_tracker",
+    # V12.4 COGNITIVE BOOST: Memory Decay Scorer (Ebbinghaus curve)
+    "MemoryDecayScorer",
+    "AccessRecord",
+    "DecayScorerStats",
+    "get_decay_scorer",
+    "reset_decay_scorer",
 ]

@@ -290,6 +290,26 @@ class ModeSelector:
 
         return proposal
 
+    # V12.4: Task-adaptive decision protocol bias (arxiv:2502.19130, ACL 2025)
+    # REASONING domains benefit from independent voting (PARALLEL): +13.2%
+    # KNOWLEDGE domains benefit from consensus (PING_PONG): +2.8%
+    DOMAIN_PROTOCOL_BIAS: Dict[str, Dict[CollaborationMode, float]] = {
+        # Reasoning-heavy: independent work + voting → PARALLEL
+        "coding": {CollaborationMode.PARALLEL: 0.08, CollaborationMode.LEAD_SUPPORT: 0.03},
+        "debugging": {CollaborationMode.PARALLEL: 0.08, CollaborationMode.RED_BLUE: 0.04},
+        "analysis": {CollaborationMode.PARALLEL: 0.06, CollaborationMode.LEAD_SUPPORT: 0.03},
+        "architecture": {CollaborationMode.PARALLEL: 0.06, CollaborationMode.RED_BLUE: 0.04},
+        "testing": {CollaborationMode.PARALLEL: 0.06},
+        # Knowledge-heavy: consensus building → PING_PONG
+        "research": {CollaborationMode.PING_PONG: 0.06, CollaborationMode.SEQUENTIAL: 0.03},
+        "documentation": {CollaborationMode.PING_PONG: 0.04, CollaborationMode.SEQUENTIAL: 0.03},
+        "web_interaction": {CollaborationMode.PARALLEL: 0.05, CollaborationMode.PING_PONG: 0.03},
+        # Creative: iterative refinement → PING_PONG
+        "creative": {CollaborationMode.PING_PONG: 0.08, CollaborationMode.LEAD_SUPPORT: 0.03},
+        # Security: adversarial review → RED_BLUE
+        "security": {CollaborationMode.RED_BLUE: 0.10, CollaborationMode.LEAD_SUPPORT: 0.03},
+    }
+
     def _score_mode(
         self,
         mode: CollaborationMode,
@@ -300,10 +320,11 @@ class ModeSelector:
         Score a mode for the given task and agents.
 
         Combines:
-        - Complexity fit
-        - Domain fit
-        - Agent importance scores (DyLAN)
-        - Historical performance
+        - Complexity fit (30%)
+        - Domain fit (25%)
+        - Agent importance scores / DyLAN (25%)
+        - Requirements fit (20%)
+        - V12.4: Task-adaptive domain-protocol bias (post-hoc adjustment)
         """
         char = get_mode_characteristics(mode)
         score = 0.0
@@ -324,7 +345,13 @@ class ModeSelector:
         requirements_fit = self._score_requirements_fit(char, analysis)
         score += requirements_fit * 0.20
 
-        return score
+        # 5. V12.4: Task-adaptive domain-protocol bias (arxiv:2502.19130)
+        # Applies research-backed preference: REASONING→voting, KNOWLEDGE→consensus
+        domain_key = analysis.primary_domain.value.lower()
+        bias_map = self.DOMAIN_PROTOCOL_BIAS.get(domain_key, {})
+        score += bias_map.get(mode, 0.0)
+
+        return min(1.0, score)
 
     def _score_complexity_fit(
         self,

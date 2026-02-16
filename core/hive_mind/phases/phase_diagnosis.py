@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from ..types import (
     FailureDiagnosis,
     FailureType,
+    RecoveryStrategy,
+    FAILURE_RECOVERY_MAP,
     ExecutionIssue,
     IssueSeverity,
     MonitoredStepResult,
@@ -411,6 +413,9 @@ class FailureDiagnosisPhase:
         """
         Get recommendations for retry phase.
 
+        Uses PALADIN-inspired recovery strategy mapping (V12.4):
+        each FailureType maps to a specific RecoveryStrategy.
+
         Args:
             result: Diagnosis result
 
@@ -419,12 +424,18 @@ class FailureDiagnosisPhase:
         """
         diagnosis = result.diagnosis
 
+        # V12.4: Look up recovery strategy from structured mapping
+        recovery = FAILURE_RECOVERY_MAP.get(
+            diagnosis.failure_type, RecoveryStrategy.ESCALATE_USER
+        )
+
         # Build recommendations based on failure type
         recommendations = {
             "should_retry": result.user_decision == "retry",
             "failure_type": diagnosis.failure_type.value,
+            "recovery_strategy": recovery.value,
             "changes": diagnosis.recommended_changes,
-            "confidence": diagnosis.confidence
+            "confidence": diagnosis.confidence,
         }
 
         # Add specific recommendations by failure type
@@ -475,6 +486,20 @@ class FailureDiagnosisPhase:
                 "increase_budget": True,
                 "simplify_task": True,
                 "skip_optional": True
+            }
+
+        elif diagnosis.failure_type == FailureType.MEMORY_ERROR:
+            recommendations["architecture_changes"] = {
+                "compress_context": True,
+                "reload_key_facts": True,
+                "fresh_session": True
+            }
+
+        elif diagnosis.failure_type == FailureType.PLANNING_ERROR:
+            recommendations["architecture_changes"] = {
+                "decompose_task": True,
+                "re_analyze": True,
+                "switch_lead_agent": diagnosis.confidence < 0.5
             }
 
         # Apply user modifications if any

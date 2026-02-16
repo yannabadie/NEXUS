@@ -85,7 +85,11 @@ class IssueSeverity(Enum):
 
 
 class FailureType(Enum):
-    """Types of failures for diagnosis."""
+    """Types of failures for diagnosis.
+
+    Taxonomy inspired by PALADIN (arxiv:2509.25238) and AgentDebug
+    (arxiv:2509.25370). Each type maps to a specific RecoveryStrategy.
+    """
     TIMEOUT = "timeout"
     CAPABILITY_MISSING = "capability_missing"
     HALLUCINATION = "hallucination"
@@ -93,7 +97,41 @@ class FailureType(Enum):
     TOOL_ERROR = "tool_error"
     CONTEXT_LOST = "context_lost"
     BUDGET_EXCEEDED = "budget_exceeded"
+    # V12.4: PALADIN-inspired additions
+    MEMORY_ERROR = "memory_error"        # Lost track of prior context/decisions
+    PLANNING_ERROR = "planning_error"    # Plan was infeasible or incomplete
     UNKNOWN = "unknown"
+
+
+class RecoveryStrategy(Enum):
+    """Recovery strategy mapped from FailureType.
+
+    Based on PALADIN (arxiv:2509.25238): each failure type has a
+    specific recovery action rather than generic retry.
+    """
+    RETRY_SAME = "retry_same"                # Transient failure, retry as-is
+    RETRY_MODIFIED = "retry_modified"        # Same approach, modified parameters
+    FALLBACK_MODEL = "fallback_model"        # Try cheaper/different model
+    SIMPLIFY_TASK = "simplify_task"          # Break into smaller subtasks
+    SPAWN_SPECIALIST = "spawn_specialist"    # Need domain-specific agent
+    CONTEXT_RESET = "context_reset"          # Compress/reset context window
+    ESCALATE_USER = "escalate_user"          # Needs human intervention
+    ABORT = "abort"                          # Unrecoverable, stop
+
+
+# Maps each failure type to its default recovery strategy
+FAILURE_RECOVERY_MAP: dict = {
+    FailureType.TIMEOUT: RecoveryStrategy.RETRY_MODIFIED,
+    FailureType.CAPABILITY_MISSING: RecoveryStrategy.SPAWN_SPECIALIST,
+    FailureType.HALLUCINATION: RecoveryStrategy.RETRY_MODIFIED,
+    FailureType.STRATEGY_WRONG: RecoveryStrategy.SIMPLIFY_TASK,
+    FailureType.TOOL_ERROR: RecoveryStrategy.RETRY_SAME,
+    FailureType.CONTEXT_LOST: RecoveryStrategy.CONTEXT_RESET,
+    FailureType.BUDGET_EXCEEDED: RecoveryStrategy.ABORT,
+    FailureType.MEMORY_ERROR: RecoveryStrategy.CONTEXT_RESET,
+    FailureType.PLANNING_ERROR: RecoveryStrategy.SIMPLIFY_TASK,
+    FailureType.UNKNOWN: RecoveryStrategy.ESCALATE_USER,
+}
 
 
 # =============================================================================
