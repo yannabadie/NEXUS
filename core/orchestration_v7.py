@@ -757,9 +757,21 @@ class OrchestratorV7:
         return self.context_builder.build_simple_context(user_input, task_analysis)
 
     def _transition_to(self, new_state: OrchestratorState):
-        """Transition FSM"""
+        """Transition FSM with event sourcing (V12.4)."""
         if self.config.ui_verbose:
             print(f"[FSM] {self.state.name} -> {new_state.name}")
+
+        # V12.4: Record transition for crash recovery
+        try:
+            from core.fsm.event_sourcing import record_transition
+            record_transition(
+                from_state=self.state.name,
+                to_state=new_state.name,
+                trigger="fsm_transition",
+                session_id=getattr(self, '_session_uuid', None),
+            )
+        except Exception:
+            pass  # Never block FSM for telemetry
 
         # Create backup before critical transitions
         if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:

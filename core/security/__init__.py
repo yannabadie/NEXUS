@@ -46,6 +46,30 @@ from .output_guard import (
 # V12.2 IRONCLAD: Password hashing
 from .password import hash_password, verify_password, needs_rehash
 
+# V12.4: Encryption at Rest
+from .encryption import FileEncryptor, EncryptionConfig, derive_key
+
+# V12.4: Rate Limiter
+from .rate_limiter import (
+    RateLimiter,
+    RateLimitConfig,
+    RateLimitResult,
+    LimiterStats,
+    get_rate_limiter,
+    reset_rate_limiter,
+)
+
+# V12.4: Access Control
+from .access_control import (
+    AccessControlManager,
+    Role,
+    AgentAccess,
+    AccessCheckResult,
+    AccessStats,
+    get_access_controller,
+    reset_access_controller,
+)
+
 # V8.8: Spotlighter for RAG content datamarking (from memory module)
 try:
     from core.memory.spotlighting import Spotlighter, get_spotlighter, SpotlightTechnique
@@ -55,6 +79,16 @@ except ImportError:
     Spotlighter = None
     get_spotlighter = None
     SpotlightTechnique = None
+
+# V12.4 COGNITIVE BOOST: Security Event Journal
+from .security_event_journal import (
+    SecurityEventJournal,
+    SecurityEvent,
+    ThreatPattern,
+    SecurityJournalStats,
+    get_security_journal,
+    reset_security_journal,
+)
 
 __all__ = [
     # Path & Mutation
@@ -85,5 +119,31 @@ __all__ = [
     'hash_password',
     'verify_password',
     'needs_rehash',
+    # V12.4: Encryption at Rest
+    'FileEncryptor',
+    'EncryptionConfig',
+    'derive_key',
+    # V12.4: Rate Limiter
+    'RateLimiter',
+    'RateLimitConfig',
+    'RateLimitResult',
+    'LimiterStats',
+    'get_rate_limiter',
+    'reset_rate_limiter',
+    # V12.4: Access Control
+    'AccessControlManager',
+    'Role',
+    'AgentAccess',
+    'AccessCheckResult',
+    'AccessStats',
+    'get_access_controller',
+    'reset_access_controller',
+    # V12.4 COGNITIVE BOOST: Security Event Journal
+    'SecurityEventJournal',
+    'SecurityEvent',
+    'ThreatPattern',
+    'SecurityJournalStats',
+    'get_security_journal',
+    'reset_security_journal',
 ]
 

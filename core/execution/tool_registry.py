@@ -208,12 +208,14 @@ class ToolRegistry:
         handler: Callable,
         server_name: str,
         description: str = "",
+        schema: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Register an MCP tool."""
+        """Register an MCP tool with optional input schema."""
         self.register(
             name=name,
             handler=handler,
             description=description,
+            schema=schema,
             category="mcp",
         )
         self._mcp_tools[name] = server_name

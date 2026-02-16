@@ -26,7 +26,7 @@ from dataclasses import dataclass, asdict
 
 
 # =============================================================================
-# PRICING CONSTANTS (Dec 2025)
+# PRICING CONSTANTS (Feb 2026)
 # =============================================================================
 
 # Cost per 1 MILLION tokens (USD)
@@ -36,13 +36,16 @@ PRICING = {
     "claude-opus": {"input": 15.00, "output": 75.00},  # Alias
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
     "claude-sonnet": {"input": 3.00, "output": 15.00},  # Alias
+    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
+    "claude-haiku": {"input": 1.00, "output": 5.00},  # Alias
 
     # Gemini models
     "gemini-3-pro-preview": {"input": 1.25, "output": 5.00},
     "gemini-3-pro": {"input": 1.25, "output": 5.00},  # Alias
     "gemini-pro": {"input": 1.25, "output": 5.00},  # Alias
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     "gemini-3-flash": {"input": 0.075, "output": 0.30},
-    "gemini-flash": {"input": 0.075, "output": 0.30},  # Alias
+    "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (default to 2.5)
 
     # Default fallback (conservative estimate)
     "default": {"input": 5.00, "output": 20.00},

@@ -2,8 +2,40 @@
 NEXUS V7.5 HIVE MIND - Prompt Loader Module
 
 Handles loading and assembling prompts with include directives.
+V12.4: Added versioned prompt registry for version tracking, diff, and rollback.
 """
 
 from .prompt_loader import load_prompt, resolve_includes
 
-__all__ = ["load_prompt", "resolve_includes"]
+# V12.4: Versioned Prompt Registry
+from .versioned_registry import PromptRegistry, PromptVersion, PromptEntry
+
+# V12.4: Prompt Template Optimizer
+from .template_optimizer import (
+    PromptOptimizer,
+    PromptAnalysis,
+    PromptIssue,
+    PromptStats,
+    PromptOutcome,
+    ConflictResult,
+    get_optimizer,
+    reset_optimizer,
+)
+
+__all__ = [
+    "load_prompt",
+    "resolve_includes",
+    # V12.4: Versioned Registry
+    "PromptRegistry",
+    "PromptVersion",
+    "PromptEntry",
+    # V12.4: Prompt Template Optimizer
+    "PromptOptimizer",
+    "PromptAnalysis",
+    "PromptIssue",
+    "PromptStats",
+    "PromptOutcome",
+    "ConflictResult",
+    "get_optimizer",
+    "reset_optimizer",
+]

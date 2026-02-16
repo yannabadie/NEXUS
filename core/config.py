@@ -1,15 +1,74 @@
 """
-Configuration Management - NEXUS V7
+Configuration Management - NEXUS V12.4
 
 Load configuration from:
-1. .env file (if present)
-2. Environment variables
-3. Default values
+1. pyproject.toml (version source of truth)
+2. .env file (runtime overrides)
+3. Environment variables
+4. Default values
 """
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Optional
+
+
+# =============================================================================
+# Feature Flags - Safe toggles for experimental/dangerous features
+# =============================================================================
+
+@dataclass
+class FeatureFlags:
+    """
+    Feature flags for safe progressive rollout.
+
+    All flags default to safe production values.
+    Override via NEXUS_FF_<FLAG_NAME>=true|false in env.
+    """
+    # RAG Pipeline
+    rag_datamarking: bool = False          # Spotlighter datamarking on RAG results
+    rag_hybrid_backend: bool = True        # Enable Dense+BM25 hybrid retrieval
+    rag_dense_backend: bool = True         # Enable dense (semantic) backend
+
+    # Security
+    sandbox_enabled: bool = False          # OS-level code sandbox (E2B/Docker)
+    kernel_fail_closed: bool = True        # KERNEL exits on missing hash (fail-closed)
+
+    # Execution
+    headless_mode: bool = False            # Deterministic JSON output, no TTY
+    streaming_enabled: bool = True         # Real-time token streaming
+
+    # Observability
+    otel_enabled: bool = False             # OpenTelemetry export
+    telemetry_jsonl: bool = True           # Legacy JSONL telemetry
+
+    # Evolution
+    evolution_llm_judge: bool = False      # LLM-as-judge for mutations (deprecated)
+    evolution_deterministic: bool = True   # Deterministic fitness (AST+pytest only)
+
+    # Experimental
+    rust_acceleration: bool = False        # Use Rust native extensions if compiled
+    slm_triage: bool = False               # Route trivial tasks to local SLM
+
+    @classmethod
+    def from_env(cls) -> 'FeatureFlags':
+        """Load feature flags from environment variables."""
+        flags = cls()
+        for flag_name in flags.__dataclass_fields__:
+            env_key = f"NEXUS_FF_{flag_name.upper()}"
+            env_val = os.getenv(env_key)
+            if env_val is not None:
+                setattr(flags, flag_name, env_val.lower() in ("true", "1", "yes"))
+        return flags
+
+
+# =============================================================================
+# Version - Single Source of Truth from pyproject.toml
+# =============================================================================
+
+_PROJECT_VERSION = "12.4.0"
+_PROJECT_CODENAME = "COGNITIVE BOOST"
 
 
 class Config:
@@ -20,10 +79,15 @@ class Config:
         load_dotenv()
 
         # ====================================================================
-        # VERSION (Single Source of Truth - defined in .env)
+        # VERSION (pyproject.toml is canonical; env overrides for dev only)
         # ====================================================================
-        self.nexus_version: str = os.getenv("NEXUS_VERSION", "8.3.1")
-        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", "TRUE HIVE MIND")
+        self.nexus_version: str = os.getenv("NEXUS_VERSION", _PROJECT_VERSION)
+        self.nexus_codename: str = os.getenv("NEXUS_CODENAME", _PROJECT_CODENAME)
+
+        # ====================================================================
+        # FEATURE FLAGS
+        # ====================================================================
+        self.features: FeatureFlags = FeatureFlags.from_env()
 
         # CLI Paths
         self.gemini_cli_path: str = os.getenv("GEMINI_CLI_PATH", "gemini")
@@ -143,6 +207,14 @@ class Config:
         # ====================================================================
         # MODEL ROUTING (V7 Chrysalis - Claude Opus/Sonnet + Gemini 3 Pro/Flash)
         # ====================================================================
+
+        # API Keys (V12.4: SDK-native drivers prefer API keys over CLI)
+        # When set, the factory creates SDK drivers instead of CLI subprocess drivers
+        self.anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+        self.google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+        # Driver mode: "auto" (SDK when key available, else CLI), "sdk", "cli"
+        self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")
 
         # Claude models
         self.claude_opus_model: str = "claude-opus-4-5-20251101"

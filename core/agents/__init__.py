@@ -20,6 +20,26 @@ from .service import (
     PoolStats,
 )
 
+# V12.4 Capability Profiler
+from .capability_profiler import (
+    CapabilityProfiler,
+    AgentProfile,
+    CapabilityRecord,
+    MatchResult,
+    KNOWN_CAPABILITIES,
+)
+
+# V12.4 Agent Lifecycle
+from .agent_lifecycle import (
+    AgentLifecycleManager,
+    RetirementPolicy,
+    AgentHealthSnapshot,
+    LifecycleEvent,
+    LifecycleStats,
+    get_lifecycle_manager,
+    reset_lifecycle_manager,
+)
+
 __all__ = [
     # Registry
     "UnifiedAgentRegistry",
@@ -33,4 +53,18 @@ __all__ = [
     "SpawnResult",
     "AgentInfo",
     "PoolStats",
+    # V12.4 Capability Profiler
+    "CapabilityProfiler",
+    "AgentProfile",
+    "CapabilityRecord",
+    "MatchResult",
+    "KNOWN_CAPABILITIES",
+    # V12.4 Agent Lifecycle
+    "AgentLifecycleManager",
+    "RetirementPolicy",
+    "AgentHealthSnapshot",
+    "LifecycleEvent",
+    "LifecycleStats",
+    "get_lifecycle_manager",
+    "reset_lifecycle_manager",
 ]

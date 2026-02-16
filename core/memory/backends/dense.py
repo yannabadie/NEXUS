@@ -157,6 +157,13 @@ class DenseBackend(MemoryBackend):
             self._logger.error(f"Failed to load embedding model: {e}")
             return False
 
+    def _get_table_names(self) -> list:
+        """Get table names from LanceDB, handling API changes."""
+        result = self._db.list_tables()
+        if isinstance(result, list):
+            return result
+        return getattr(result, 'tables', [])
+
     def _ensure_db(self) -> bool:
         """
         Lazy-connect to LanceDB.
@@ -180,7 +187,7 @@ class DenseBackend(MemoryBackend):
             self._logger.debug(f"LanceDB connected: {self._storage_path}")
 
             # Check for existing table
-            if TABLE_NAME in self._db.table_names():
+            if TABLE_NAME in self._get_table_names():
                 self._table = self._db.open_table(TABLE_NAME)
                 self._chunk_count = self._table.count_rows()
                 self._index_built = self._chunk_count > 0
@@ -222,7 +229,7 @@ class DenseBackend(MemoryBackend):
 
         if not chunks:
             # Clear existing table
-            if TABLE_NAME in self._db.table_names():
+            if TABLE_NAME in self._get_table_names():
                 self._db.drop_table(TABLE_NAME)
             self._table = None
             self._index_built = False
@@ -257,7 +264,7 @@ class DenseBackend(MemoryBackend):
                 })
 
             # Drop existing table and create new
-            if TABLE_NAME in self._db.table_names():
+            if TABLE_NAME in self._get_table_names():
                 self._db.drop_table(TABLE_NAME)
 
             self._table = self._db.create_table(TABLE_NAME, data)
@@ -335,7 +342,7 @@ class DenseBackend(MemoryBackend):
 
     def clear(self) -> None:
         """Clear the dense index."""
-        if self._db is not None and TABLE_NAME in self._db.table_names():
+        if self._db is not None and TABLE_NAME in self._get_table_names():
             try:
                 self._db.drop_table(TABLE_NAME)
             except Exception as e:

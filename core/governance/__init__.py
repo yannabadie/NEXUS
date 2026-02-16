@@ -37,5 +37,58 @@ results = validator.run_alignment_tests()
 ```
 """
 
-# Imports will be added as modules are migrated/implemented
-__all__ = []
+# V12.4: Ethics & Alignment Verification
+from .ethics import (
+    AlignmentVerifier,
+    AlignmentConfig,
+    AlignmentResult,
+    AlignmentViolation,
+    AlignmentPrinciple,
+    ViolationSeverity,
+)
+
+# V12.4 COGNITIVE BOOST: Decision Logger
+from .decision_logger import (
+    GovernanceDecisionLog,
+    GovernanceDecision,
+    DecisionPattern,
+    DecisionLogStats,
+    get_decision_logger,
+    reset_decision_logger,
+)
+
+# V12.4 COGNITIVE BOOST: Alignment Journal
+from .alignment_journal import (
+    AlignmentJournal,
+    VerificationEntry,
+    ViolationEntry,
+    TrustScore,
+    JournalStats,
+    get_alignment_journal,
+    reset_alignment_journal,
+)
+
+__all__ = [
+    # V12.4: Ethics & Alignment
+    "AlignmentVerifier",
+    "AlignmentConfig",
+    "AlignmentResult",
+    "AlignmentViolation",
+    "AlignmentPrinciple",
+    "ViolationSeverity",
+    # V12.4 COGNITIVE BOOST: Decision Logger
+    "GovernanceDecisionLog",
+    "GovernanceDecision",
+    "DecisionPattern",
+    "DecisionLogStats",
+    "get_decision_logger",
+    "reset_decision_logger",
+    # V12.4 COGNITIVE BOOST: Alignment Journal
+    "AlignmentJournal",
+    "VerificationEntry",
+    "ViolationEntry",
+    "TrustScore",
+    "JournalStats",
+    "get_alignment_journal",
+    "reset_alignment_journal",
+]

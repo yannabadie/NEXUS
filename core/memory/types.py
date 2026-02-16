@@ -1,24 +1,50 @@
 """
-NEXUS V7.9 - Memory Types (Phase 10f)
+NEXUS V12.4 - Memory Types
 
 Shared type definitions for the memory subsystem.
-Extracted from project_memory.py for backend abstraction.
+
+V12.4 COGNITIVE BOOST:
+- Chunk is now frozen (immutable, hashable) for safe use as dict keys in RRF
+- Set[str] replaced with frozenset[str] for hashability
+- New ScoredChunk wraps Chunk with retrieval metadata (score, backend, etc.)
+- chunk_id provides stable identity for deduplication across backends
 """
 
 from dataclasses import dataclass, asdict, field
-from typing import Dict, Set, Optional
+from typing import Any, Dict, FrozenSet, Optional
+import hashlib
 
 
-@dataclass
+@dataclass(frozen=True)
 class Chunk:
-    """A single indexed chunk of code or documentation."""
+    """
+    A single indexed chunk of code or documentation.
+
+    IMMUTABLE: This dataclass is frozen so it can be used as a dict key
+    (required by HybridBackend RRF scoring). All fields are hashable.
+    """
     file_path: str
     start_line: int
     end_line: int
     content: str
-    terms: Set[str] = field(default_factory=set)
+    terms: FrozenSet[str] = frozenset()
     chunk_type: str = "lines"  # "function", "class", "section", "lines"
     name: Optional[str] = None  # Function/class/section name if applicable
+
+    def __post_init__(self):
+        # Coerce mutable set to frozenset for hashability safety
+        if isinstance(self.terms, set):
+            object.__setattr__(self, 'terms', frozenset(self.terms))
+
+    @property
+    def chunk_id(self) -> str:
+        """Stable unique identifier based on file path and line range."""
+        return f"{self.file_path}:{self.start_line}-{self.end_line}"
+
+    @property
+    def content_hash(self) -> str:
+        """SHA-256 hash of the content (first 16 chars)."""
+        return hashlib.sha256(self.content.encode("utf-8")).hexdigest()[:16]
 
     def to_dict(self) -> Dict:
         """Convert to JSON-serializable dict."""
@@ -27,9 +53,9 @@ class Chunk:
             "start_line": self.start_line,
             "end_line": self.end_line,
             "content": self.content,
-            "terms": list(self.terms),
+            "terms": sorted(self.terms),
             "chunk_type": self.chunk_type,
-            "name": self.name
+            "name": self.name,
         }
 
     @classmethod
@@ -40,10 +66,59 @@ class Chunk:
             start_line=data["start_line"],
             end_line=data["end_line"],
             content=data["content"],
-            terms=set(data.get("terms", [])),
+            terms=frozenset(data.get("terms", [])),
             chunk_type=data.get("chunk_type", "lines"),
-            name=data.get("name")
+            name=data.get("name"),
         )
+
+
+@dataclass
+class ScoredChunk:
+    """
+    A retrieval result wrapping a Chunk with scoring metadata.
+
+    Used by backends to return ranked results. NOT frozen because
+    scores and metadata can be adjusted during post-processing (e.g., RRF).
+
+    The underlying Chunk remains immutable.
+    """
+    chunk: Chunk
+    score: float = 0.0
+    backend: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def chunk_id(self) -> str:
+        """Delegate to underlying chunk."""
+        return self.chunk.chunk_id
+
+    @property
+    def file_path(self) -> str:
+        return self.chunk.file_path
+
+    @property
+    def start_line(self) -> int:
+        return self.chunk.start_line
+
+    @property
+    def end_line(self) -> int:
+        return self.chunk.end_line
+
+    @property
+    def content(self) -> str:
+        return self.chunk.content
+
+    @property
+    def terms(self) -> FrozenSet[str]:
+        return self.chunk.terms
+
+    @property
+    def chunk_type(self) -> str:
+        return self.chunk.chunk_type
+
+    @property
+    def name(self) -> Optional[str]:
+        return self.chunk.name
 
 
 @dataclass

@@ -43,6 +43,12 @@ from .protocol import (
 )
 from .client import MCPClient
 from .registry import MCPRegistry
+from .discovery import (
+    MCPToolDiscovery,
+    DiscoveredTool,
+    ToolDiscoveryResult,
+    validate_input_schema,
+)
 
 # V9.0: Server exports (optional - only if MCP SDK installed)
 try:
@@ -61,6 +67,11 @@ __all__ = [
     # Client
     "MCPClient",
     "MCPRegistry",
+    # Discovery (V12.4)
+    "MCPToolDiscovery",
+    "DiscoveredTool",
+    "ToolDiscoveryResult",
+    "validate_input_schema",
     # Server (V9.0)
     "MCP_SERVER_AVAILABLE",
 ]

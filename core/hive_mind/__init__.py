@@ -86,6 +86,36 @@ from .saga_manager import (
     PHASE_GUARDS,
 )
 
+# V12.4: Phase Coordinator
+from .phase_coordinator import (
+    PhaseCoordinator,
+    PhaseState,
+    PhaseTransition,
+    TransitionResult,
+    get_phase_coordinator,
+    reset_phase_coordinator,
+)
+
+# V12.4: Consensus Tracker
+from .consensus_tracker import (
+    ConsensusTracker,
+    TopicConsensus,
+    ConsensusReport,
+    get_consensus_tracker,
+    reset_consensus_tracker,
+)
+
+# V12.4 COGNITIVE BOOST: Phase Audit Logger
+from .phase_audit_logger import (
+    PhaseAuditLogger,
+    DecisionAudit,
+    PhaseAuditReport,
+    AuditPattern,
+    AuditStats,
+    get_phase_audit_logger,
+    reset_phase_audit_logger,
+)
+
 __all__ = [
     # Enums
     "HiveMindState",
@@ -137,4 +167,28 @@ __all__ = [
     "SagaContext",
     "PHASE_ORDER",
     "PHASE_GUARDS",
+
+    # V12.4: Phase Coordinator
+    "PhaseCoordinator",
+    "PhaseState",
+    "PhaseTransition",
+    "TransitionResult",
+    "get_phase_coordinator",
+    "reset_phase_coordinator",
+
+    # V12.4: Consensus Tracker
+    "ConsensusTracker",
+    "TopicConsensus",
+    "ConsensusReport",
+    "get_consensus_tracker",
+    "reset_consensus_tracker",
+
+    # V12.4 COGNITIVE BOOST: Phase Audit Logger
+    "PhaseAuditLogger",
+    "DecisionAudit",
+    "PhaseAuditReport",
+    "AuditPattern",
+    "AuditStats",
+    "get_phase_audit_logger",
+    "reset_phase_audit_logger",
 ]

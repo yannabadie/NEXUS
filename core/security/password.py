@@ -1,38 +1,46 @@
 """
-NEXUS V12.2 IRONCLAD - Password Hashing Utilities
+NEXUS V12.4 COGNITIVE BOOST - Password Hashing Utilities
 
-Provides secure password hashing using bcrypt via passlib.
+Provides secure password hashing using Argon2id via argon2-cffi.
+Migrated from passlib/bcrypt (deprecated in Python 3.13+).
+
+Follows OWASP recommendations and RFC 9106:
+- Algorithm: Argon2id (hybrid, resistant to side-channel + GPU attacks)
+- Time cost: 2 iterations minimum
+- Memory cost: 19456 KiB (~19 MiB)
+- Parallelism: 1
 
 Usage:
     from core.security.password import hash_password, verify_password
 
-    # Hash a password
     hashed = hash_password("mypassword")
-
-    # Verify a password
     if verify_password("mypassword", hashed):
         print("Valid!")
 
 Security Notes:
-    - Uses bcrypt with default work factor (12 rounds)
-    - Automatically handles salt generation
-    - Safe for timing attacks (constant-time comparison)
+    - Argon2id is the OWASP-recommended algorithm (2024+)
+    - Automatically generates random salt (16 bytes)
+    - Constant-time comparison (safe against timing attacks)
+    - Falls back to bcrypt verification for legacy hashes
 
-Author: Claude (NEXUS V12.2 IRONCLAD)
-Date: 2025-12-16
+Author: Claude (NEXUS V12.4 COGNITIVE BOOST)
+Date: 2026-02-15
 """
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 
 # =============================================================================
-# Password Context Configuration
+# Argon2id Configuration (OWASP / RFC 9106 compliant)
 # =============================================================================
 
-# Use bcrypt with default settings (12 rounds)
-# "deprecated=auto" allows automatic scheme migration
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
+_hasher = PasswordHasher(
+    time_cost=2,           # 2 iterations (OWASP minimum)
+    memory_cost=19456,     # ~19 MiB (OWASP first recommendation)
+    parallelism=1,         # Single-threaded (safe default)
+    hash_len=32,           # 32-byte output hash
+    salt_len=16,           # 16-byte random salt
+    type=Type.ID,          # Argon2id
 )
 
 
@@ -42,70 +50,83 @@ pwd_context = CryptContext(
 
 def hash_password(plain_password: str) -> str:
     """
-    Hash a plaintext password using bcrypt.
+    Hash a plaintext password using Argon2id.
 
     Args:
         plain_password: The plaintext password to hash
 
     Returns:
-        Bcrypt hash string (60 characters)
+        Argon2id hash string (starts with $argon2id$)
 
     Example:
         >>> hashed = hash_password("nexus123")
-        >>> len(hashed) == 60
-        True
-        >>> hashed.startswith("$2b$")
+        >>> hashed.startswith("$argon2id$")
         True
     """
-    return pwd_context.hash(plain_password)
+    return _hasher.hash(plain_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Verify a plaintext password against a bcrypt hash.
+    Verify a plaintext password against a hash.
+
+    Supports both Argon2id (new) and bcrypt (legacy) hashes.
 
     Args:
         plain_password: The plaintext password to verify
-        hashed_password: The bcrypt hash to check against
+        hashed_password: The hash to check against
 
     Returns:
         True if password matches, False otherwise
 
     Note:
-        This function is safe against timing attacks as passlib
+        This function is safe against timing attacks as argon2-cffi
         uses constant-time comparison internally.
-
-    Example:
-        >>> hashed = hash_password("nexus123")
-        >>> verify_password("nexus123", hashed)
-        True
-        >>> verify_password("wrong", hashed)
-        False
     """
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception:
-        # Handle invalid hash format gracefully
-        return False
+    # Argon2id hash
+    if hashed_password.startswith("$argon2"):
+        try:
+            return _hasher.verify(hashed_password, plain_password)
+        except VerifyMismatchError:
+            return False
+        except (VerificationError, InvalidHashError):
+            return False
+
+    # Legacy bcrypt hash ($2b$ prefix) - graceful migration
+    if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8"),
+            )
+        except ImportError:
+            # bcrypt not installed - can't verify legacy hashes
+            return False
+        except Exception:
+            return False
+
+    # Unknown hash format
+    return False
 
 
 def needs_rehash(hashed_password: str) -> bool:
     """
     Check if a password hash needs to be rehashed.
 
-    This can happen when:
-    - The hash was created with an older/weaker algorithm
-    - The work factor has been increased
+    Returns True for:
+    - Legacy bcrypt hashes (should migrate to Argon2id)
+    - Argon2id hashes with outdated parameters
 
     Args:
         hashed_password: The current hash to check
 
     Returns:
         True if the password should be rehashed
-
-    Example:
-        >>> hashed = hash_password("nexus")
-        >>> needs_rehash(hashed)
-        False
     """
-    return pwd_context.needs_update(hashed_password)
+    # Any non-argon2 hash needs rehashing
+    if not hashed_password.startswith("$argon2"):
+        return True
+
+    # Check if Argon2 parameters are current
+    return _hasher.check_needs_rehash(hashed_password)

@@ -37,7 +37,7 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Set, Optional, Any, TYPE_CHECKING
+from typing import Dict, FrozenSet, List, Set, Optional, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .embedding_engine import EmbeddingEngine
@@ -50,7 +50,7 @@ except ImportError:
     SPOTLIGHTER_AVAILABLE = False
 
 # V7.9 Phase 10f/10g: Import from modular types and backends
-from .types import Chunk, IndexStats
+from .types import Chunk, ScoredChunk, IndexStats
 from .backends import (
     MemoryBackend, TfidfBackend, Bm25Backend, DenseBackend,
     BM25S_AVAILABLE, STEMMER_AVAILABLE, LANCEDB_AVAILABLE, SENTENCE_TRANSFORMERS_AVAILABLE
@@ -524,10 +524,11 @@ class ProjectMemory:
             name=name
         )
 
-    def _extract_terms(self, text: str) -> Set[str]:
+    def _extract_terms(self, text: str) -> FrozenSet[str]:
         """
         Extract searchable terms from text.
 
+        Returns a frozenset for Chunk immutability.
         Lowercase, alphanumeric only, remove common stopwords.
         """
         # Tokenize: lowercase, split on non-alphanumeric
@@ -544,7 +545,7 @@ class ProjectMemory:
             'def', 'class', 'return', 'import', 'from', 'pass', 'raise'
         }
 
-        return {w for w in words if len(w) > 2 and w not in stopwords}
+        return frozenset(w for w in words if len(w) > 2 and w not in stopwords)
 
     # =========================================================================
     # Retrieval (V7.9 Phase 10f: Backend Abstraction)
@@ -628,20 +629,17 @@ class ProjectMemory:
                         list(query_terms), self.chunks, limit, min_score, raw_query=query
                     )
 
-            # V8.8: Apply Spotlighter datamarking if requested
+            # V8.8 / V12.4: Apply Spotlighter datamarking if requested
+            # Uses dataclasses.replace on frozen Chunk for immutable copy
             if apply_datamarking and results and SPOTLIGHTER_AVAILABLE:
+                from dataclasses import replace as dc_replace
                 spotlighter = get_spotlighter()
                 marked_results = []
                 for chunk in results:
-                    # Create a copy with datamarked content
-                    marked_content = spotlighter.spotlight(chunk.content, source=chunk.source)
-                    marked_chunk = Chunk(
-                        source=chunk.source,
-                        content=marked_content,
-                        chunk_id=chunk.chunk_id,
-                        score=chunk.score,
-                        metadata=chunk.metadata
+                    marked_content = spotlighter.spotlight(
+                        chunk.content, source=chunk.file_path
                     )
+                    marked_chunk = dc_replace(chunk, content=marked_content)
                     marked_results.append(marked_chunk)
                 return marked_results
 

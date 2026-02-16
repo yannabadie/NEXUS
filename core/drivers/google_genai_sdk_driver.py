@@ -1,0 +1,393 @@
+"""
+NEXUS V12.4 COGNITIVE BOOST - Google GenAI SDK Driver
+
+Direct API driver using the official Google GenAI Python SDK.
+Replaces subprocess CLI execution with native SDK calls.
+
+Features:
+- Streaming responses (SSE-compatible for CEREBRO UI)
+- Native function calling (tool_config)
+- Token counting via usage_metadata
+- Thinking/reasoning support (Gemini 3 Pro)
+- Proper error classification
+
+Usage:
+    from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
+
+    driver = GoogleGenAISDKDriver(model="gemini-3-pro-preview")
+    response = await driver.invoke("Analyze this code...")
+
+Requirements:
+    pip install google-genai>=1.0.0
+
+Author: Claude (NEXUS V12.4 COGNITIVE BOOST)
+Date: 2026-02-15
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import time
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator, Dict, List, Optional
+
+from .protocol import (
+    BaseAsyncDriver,
+    DriverResponse,
+    DriverResponseStatus,
+    StreamChunk,
+    ToolCall,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class GoogleGenAISDKDriver(BaseAsyncDriver):
+    """
+    Google GenAI SDK driver implementing DriverProtocol.
+
+    Uses the official `google-genai` Python SDK for direct API communication.
+    Supports both synchronous and streaming modes, plus function calling.
+    """
+
+    def __init__(
+        self,
+        model: str = "gemini-3-pro-preview",
+        api_key: Optional[str] = None,
+        timeout: float = 300.0,
+        enable_thinking: bool = False,
+        thinking_budget: Optional[int] = None,
+    ):
+        super().__init__(provider="gemini", model=model, timeout=timeout)
+        self._enable_thinking = enable_thinking
+        self._thinking_budget = thinking_budget
+
+        try:
+            from google import genai
+            self._genai = genai
+        except ImportError:
+            raise ImportError(
+                "google-genai package required. Install with: pip install google-genai"
+            )
+
+        resolved_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not resolved_key:
+            raise ValueError(
+                "GEMINI_API_KEY not found. Set it in environment or pass api_key."
+            )
+
+        self._client = genai.Client(api_key=resolved_key)
+
+    async def invoke(
+        self,
+        prompt: str,
+        *,
+        session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> DriverResponse:
+        """
+        Invoke Gemini via the Google GenAI SDK.
+
+        Args:
+            prompt: User message content
+            session_id: Unused for API driver
+            system_prompt: Optional system instruction
+            tools: Optional tool/function definitions
+            timeout: Override default timeout
+        """
+        start_time = time.monotonic()
+        effective_timeout = timeout or self._timeout
+
+        try:
+            config = self._build_config(system_prompt, tools, **kwargs)
+
+            # Run in executor since google-genai may not have full async support
+            response = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self._client.models.generate_content(
+                        model=self._model,
+                        contents=prompt,
+                        config=config,
+                    ),
+                ),
+                timeout=effective_timeout,
+            )
+
+            latency_ms = (time.monotonic() - start_time) * 1000
+            return self._parse_response(response, latency_ms)
+
+        except asyncio.TimeoutError:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            return DriverResponse(
+                content="",
+                status=DriverResponseStatus.TIMEOUT,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=f"Request timed out after {effective_timeout}s",
+                error_code="TIMEOUT",
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            status, error_code = self._classify_error(e)
+            return DriverResponse(
+                content="",
+                status=status,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=str(e),
+                error_code=error_code,
+            )
+
+    async def invoke_stream(
+        self,
+        prompt: str,
+        *,
+        session_id: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        isolated_env: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+        """
+        Stream Gemini's response chunk-by-chunk.
+
+        Yields StreamChunk objects as content arrives.
+        The final chunk has is_final=True with usage metadata.
+        """
+        start_time = time.monotonic()
+        config = self._build_config(system_prompt, tools, **kwargs)
+
+        try:
+            # google-genai streaming
+            stream = self._client.models.generate_content_stream(
+                model=self._model,
+                contents=prompt,
+                config=config,
+            )
+
+            total_input_tokens = 0
+            total_output_tokens = 0
+            last_chunk_response = None
+
+            for chunk in stream:
+                last_chunk_response = chunk
+                text = ""
+                if chunk.text:
+                    text = chunk.text
+
+                # Track token usage from metadata
+                if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                    meta = chunk.usage_metadata
+                    total_input_tokens = getattr(meta, "prompt_token_count", 0) or 0
+                    total_output_tokens = getattr(meta, "candidates_token_count", 0) or 0
+
+                if text:
+                    yield StreamChunk(content=text)
+
+                # Yield control to event loop
+                await asyncio.sleep(0)
+
+            latency_ms = (time.monotonic() - start_time) * 1000
+
+            # Extract function calls from final response
+            tool_call = None
+            if last_chunk_response:
+                tool_calls = self._extract_tool_calls(last_chunk_response)
+                tool_call = tool_calls[0] if tool_calls else None
+
+            yield StreamChunk(
+                content="",
+                is_final=True,
+                tool_call=tool_call,
+                latency_ms=latency_ms,
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+            )
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            yield StreamChunk(
+                content=f"[ERROR: {e}]",
+                is_final=True,
+                latency_ms=latency_ms,
+            )
+
+    async def cancel(self, session_id: Optional[str] = None) -> bool:
+        """Cancel is a no-op for API drivers."""
+        return True
+
+    async def health_check(self) -> bool:
+        """Check if the Google GenAI API is reachable."""
+        try:
+            response = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self._client.models.generate_content(
+                        model=self._model,
+                        contents="ping",
+                        config=self._genai.types.GenerateContentConfig(
+                            max_output_tokens=1,
+                        ),
+                    ),
+                ),
+                timeout=10.0,
+            )
+            return response is not None
+        except Exception:
+            return False
+
+    # =========================================================================
+    # Private helpers
+    # =========================================================================
+
+    def _build_config(
+        self,
+        system_prompt: Optional[str],
+        tools: Optional[List[Dict[str, Any]]],
+        **kwargs: Any,
+    ) -> Any:
+        """Build GenerateContentConfig for the request."""
+        types = self._genai.types
+
+        config_params: Dict[str, Any] = {}
+
+        if system_prompt:
+            config_params["system_instruction"] = system_prompt
+
+        if "temperature" in kwargs:
+            config_params["temperature"] = kwargs["temperature"]
+        if "top_p" in kwargs:
+            config_params["top_p"] = kwargs["top_p"]
+        if "top_k" in kwargs:
+            config_params["top_k"] = kwargs["top_k"]
+        if "max_tokens" in kwargs:
+            config_params["max_output_tokens"] = kwargs["max_tokens"]
+
+        # Response format
+        if kwargs.get("json_mode"):
+            config_params["response_mime_type"] = "application/json"
+
+        # Thinking/reasoning (Gemini 3 Pro feature)
+        if self._enable_thinking:
+            thinking_config = {"thinking_budget": self._thinking_budget or 8192}
+            config_params["thinking_config"] = thinking_config
+
+        # Function calling
+        if tools:
+            config_params["tools"] = self._format_tools(tools)
+
+        return types.GenerateContentConfig(**config_params)
+
+    def _format_tools(self, tools: List[Dict[str, Any]]) -> List[Any]:
+        """Format tools for Google GenAI function calling."""
+        types = self._genai.types
+
+        function_declarations = []
+        for tool in tools:
+            name = tool.get("name", tool.get("function", {}).get("name", ""))
+            description = tool.get(
+                "description",
+                tool.get("function", {}).get("description", ""),
+            )
+            parameters = tool.get(
+                "parameters",
+                tool.get("input_schema", tool.get("function", {}).get("parameters", {})),
+            )
+
+            decl = types.FunctionDeclaration(
+                name=name,
+                description=description,
+                parameters=parameters if parameters else None,
+            )
+            function_declarations.append(decl)
+
+        return [types.Tool(function_declarations=function_declarations)]
+
+    def _parse_response(self, response: Any, latency_ms: float) -> DriverResponse:
+        """Parse a Google GenAI response into a DriverResponse."""
+        # Extract text content
+        content = ""
+        try:
+            content = response.text or ""
+        except (AttributeError, ValueError):
+            # May not have text if only function calls
+            if response.candidates:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, "text") and part.text:
+                        content += part.text
+
+        # Extract tool calls
+        tool_calls = self._extract_tool_calls(response)
+
+        # Token usage
+        input_tokens = 0
+        output_tokens = 0
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            meta = response.usage_metadata
+            input_tokens = getattr(meta, "prompt_token_count", 0) or 0
+            output_tokens = getattr(meta, "candidates_token_count", 0) or 0
+
+        return DriverResponse(
+            content=content,
+            status=DriverResponseStatus.SUCCESS,
+            model=self._model,
+            provider=self._provider,
+            tool_calls=tool_calls,
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            raw={"candidates_count": len(response.candidates) if response.candidates else 0},
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    def _extract_tool_calls(self, response: Any) -> List[ToolCall]:
+        """Extract function calls from a Google GenAI response."""
+        tool_calls = []
+        try:
+            if not response.candidates:
+                return tool_calls
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "function_call") and part.function_call:
+                    fc = part.function_call
+                    args = dict(fc.args) if fc.args else {}
+                    tool_calls.append(
+                        ToolCall(
+                            name=fc.name,
+                            arguments=args,
+                        )
+                    )
+        except (AttributeError, IndexError):
+            pass
+        return tool_calls
+
+    def _classify_error(self, error: Exception) -> tuple:
+        """Classify an exception into DriverResponseStatus and error code."""
+        error_str = str(error).lower()
+        error_type = type(error).__name__
+
+        if "rate" in error_str and "limit" in error_str:
+            return DriverResponseStatus.RATE_LIMITED, "RATE_LIMITED"
+        if "quota" in error_str:
+            return DriverResponseStatus.RATE_LIMITED, "QUOTA_EXCEEDED"
+        if "auth" in error_str or "permission" in error_str or "403" in error_str:
+            return DriverResponseStatus.ERROR, "AUTH_ERROR"
+        if "not found" in error_str or "404" in error_str:
+            return DriverResponseStatus.ERROR, "MODEL_NOT_FOUND"
+        if "invalid" in error_str or "400" in error_str:
+            return DriverResponseStatus.ERROR, "BAD_REQUEST"
+
+        return DriverResponseStatus.ERROR, "UNKNOWN_ERROR"

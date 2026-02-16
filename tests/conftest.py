@@ -82,6 +82,10 @@ class MockConfig(Config):
 
     def __init__(self, **overrides):
         # Don't call super().__init__() to avoid loading .env
+        # Feature flags with safe test defaults
+        from core.config import FeatureFlags
+        self.features = FeatureFlags()
+
         # Set minimal required attributes
         self.gemini_cli_path = "gemini"
         self.claude_cli_path = "claude"

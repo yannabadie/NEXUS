@@ -53,6 +53,21 @@ class BashHandler(BaseHandler):
         self.execution_policy = execution_policy or ExecutionPolicy(workspace_path)
         self.timeout = timeout or TIMEOUTS.BASH_COMMAND
 
+        # V12.4: Sandbox delegation (feature-flagged)
+        self._sandbox = None
+        try:
+            import os
+            if os.getenv("NEXUS_FF_SANDBOX_ENABLED", "false").lower() in ("true", "1"):
+                from .sandbox_handler import SandboxHandler
+                self._sandbox = SandboxHandler(workspace_path)
+                if self._sandbox.is_available():
+                    logger.info("BashHandler: sandbox mode ENABLED (Docker)")
+                else:
+                    logger.warning("BashHandler: sandbox requested but Docker not available, using host execution")
+                    self._sandbox = None
+        except Exception:
+            pass
+
     @property
     def tool_name(self) -> str:
         return "bash"
@@ -71,6 +86,11 @@ class BashHandler(BaseHandler):
 
         if not command or not command.strip():
             return self._error("Empty command")
+
+        # V12.4: Delegate to sandbox if enabled
+        if self._sandbox is not None:
+            logger.debug(f"Sandbox executing: {command[:80]}...")
+            return self._sandbox.execute(args)
 
         # SECURITY LAYER 1: ExecutionPolicy validation
         is_valid, error = self.execution_policy.validate_command(command)

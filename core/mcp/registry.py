@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 import logging
 
 from .client import MCPClient, MCPClientError
+from .discovery import MCPToolDiscovery, DiscoveredTool, ToolDiscoveryResult
 
 
 # =============================================================================
@@ -276,6 +277,44 @@ class MCPRegistry:
         """Close all active clients."""
         for name in list(self._clients.keys()):
             self.close_client(name)
+
+    # =========================================================================
+    # Tool Discovery
+    # =========================================================================
+
+    def discover_all_tools(
+        self, validate_schemas: bool = True
+    ) -> ToolDiscoveryResult:
+        """
+        Discover tools from all enabled MCP servers.
+
+        Queries each enabled server for its tools, validates schemas,
+        and returns a unified result with all discovered tools.
+
+        Args:
+            validate_schemas: Whether to validate tool input schemas
+
+        Returns:
+            ToolDiscoveryResult with all discovered tools and server statuses
+        """
+        discovery = MCPToolDiscovery(self)
+        return discovery.discover_all(validate_schemas=validate_schemas)
+
+    def discover_server_tools(
+        self, server_name: str, validate_schemas: bool = True
+    ) -> list:
+        """
+        Discover tools from a specific server.
+
+        Args:
+            server_name: Server name to query
+            validate_schemas: Whether to validate tool input schemas
+
+        Returns:
+            List of DiscoveredTool instances
+        """
+        discovery = MCPToolDiscovery(self)
+        return discovery.discover_server(server_name, validate_schemas)
 
     # =========================================================================
     # Internal Methods

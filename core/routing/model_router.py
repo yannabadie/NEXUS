@@ -4,27 +4,54 @@ Model Router - Intelligent Model Selection for NEXUS V7 Chrysalis
 Routes tasks to the most appropriate model based on task type and complexity.
 Implements routing strategies for both Claude (Opus/Sonnet) and Gemini (Pro/Flash).
 
+V12.4 COGNITIVE BOOST additions:
+- RoutingPolicy: COST_OPTIMIZED, QUALITY_OPTIMIZED, BALANCED
+- SLM triage: route simple tasks to Haiku/Flash before upgrading
+- OTel tracing for routing decisions
+
 Usage:
-    from core.routing import ModelRouter
+    from core.routing import ModelRouter, RoutingPolicy
 
-    router = ModelRouter(config)
+    router = ModelRouter(config, policy=RoutingPolicy.BALANCED)
 
-    # Claude routing
-    model = router.select_claude_model(TaskType.BRAINSTORM)
-    # Returns: "claude-opus-4-5-20251101"
-
-    # Gemini routing (V7 Sprint 6)
-    model = router.select_gemini_model(TaskType.REASONING)
-    # Returns: "gemini-3-pro-preview"
+    # Claude routing with SLM triage
+    model = router.select_claude_model(TaskType.SIMPLE)
+    # Returns: "claude-haiku-4-5-20251001" (cost-optimized)
 """
 
 from enum import Enum
-from typing import Optional, List, TYPE_CHECKING
-from dataclasses import dataclass
+from typing import Optional, List, Dict, TYPE_CHECKING
+from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from core.config import Config
     from core.swarm import AgentPool, AgentProfile
+
+
+class RoutingPolicy(Enum):
+    """
+    Routing policy for model selection (V12.4).
+
+    Controls the cost/quality tradeoff:
+    - COST_OPTIMIZED: Prefer cheapest model that can handle the task (SLM first)
+    - QUALITY_OPTIMIZED: Always use the most capable model
+    - BALANCED: Use task complexity to select tier (default, same as V7 behavior)
+    """
+    COST_OPTIMIZED = "cost_optimized"
+    QUALITY_OPTIMIZED = "quality_optimized"
+    BALANCED = "balanced"
+
+
+class ModelTier(Enum):
+    """
+    Model capability tiers for SLM triage (V12.4).
+
+    Ordered from cheapest/fastest to most capable:
+    LIGHT → MEDIUM → HEAVY
+    """
+    LIGHT = "light"     # Haiku / Flash (cheapest, fastest)
+    MEDIUM = "medium"   # Sonnet / Pro (balanced)
+    HEAVY = "heavy"     # Opus / Pro-exp (most capable)
 
 
 class TaskType(Enum):
@@ -60,6 +87,8 @@ class RoutingDecision:
     task_type: TaskType
     reason: str
     is_opus: bool = False
+    tier: ModelTier = ModelTier.MEDIUM
+    policy: RoutingPolicy = RoutingPolicy.BALANCED
 
 
 class ModelRouter:
@@ -75,21 +104,32 @@ class ModelRouter:
         Flash (gemini-2.5-flash): Simple tasks, validation, formatting
     """
 
-    def __init__(self, config: Optional["Config"] = None):
+    def __init__(
+        self,
+        config: Optional["Config"] = None,
+        policy: Optional[RoutingPolicy] = None,
+    ):
         """
-        Initialize router with config.
+        Initialize router with config and routing policy.
 
         Args:
             config: NEXUS config with model IDs and task type mappings
+            policy: Routing policy (default: BALANCED)
         """
+        # V12.4: Routing policy
+        self.policy = policy or RoutingPolicy.BALANCED
+
         # Default Claude model IDs
         self.opus_model = "claude-opus-4-5-20251101"
         self.sonnet_model = "claude-sonnet-4-5-20250929"
 
+        # V12.4: SLM triage - Haiku for light tasks
+        self.haiku_model = "claude-haiku-4-5-20251001"
+
         # Default Gemini model IDs (V7 Sprint 6)
         self.gemini_model = "gemini-3-pro-preview"
         self.gemini_pro_model = "gemini-3-pro-preview"
-        self.gemini_flash_model = "gemini-3-pro-preview"  # Use Pro for all tasks
+        self.gemini_flash_model = "gemini-2.5-flash"
 
         # Default Claude task type mappings
         self.opus_tasks = {TaskType.BRAINSTORM, TaskType.REDTEAM,
@@ -103,11 +143,39 @@ class ModelRouter:
         self.gemini_flash_tasks = {TaskType.SIMPLE, TaskType.FORMAT,
                                    TaskType.VALIDATION, TaskType.TOOL}
 
+        # V12.4: Task type → tier mapping (for SLM triage)
+        self._task_tiers: Dict[TaskType, ModelTier] = {
+            # Heavy tier (complex reasoning, creativity, security)
+            TaskType.BRAINSTORM: ModelTier.HEAVY,
+            TaskType.REDTEAM: ModelTier.HEAVY,
+            TaskType.ARCHITECT: ModelTier.HEAVY,
+            TaskType.EVOLUTION: ModelTier.HEAVY,
+            # Medium tier (reasoning, research, analysis)
+            TaskType.REASONING: ModelTier.MEDIUM,
+            TaskType.RESEARCH: ModelTier.MEDIUM,
+            TaskType.ANALYSIS: ModelTier.MEDIUM,
+            TaskType.DEFAULT: ModelTier.MEDIUM,
+            # Light tier (simple, fast, cheap)
+            TaskType.TOOL: ModelTier.LIGHT,
+            TaskType.VALIDATION: ModelTier.LIGHT,
+            TaskType.SIMPLE: ModelTier.LIGHT,
+            TaskType.FORMAT: ModelTier.LIGHT,
+        }
+
         # Override with config if provided
         if config:
+            # Routing policy from config/env
+            policy_str = getattr(config, 'routing_policy', None)
+            if policy_str and not policy:
+                try:
+                    self.policy = RoutingPolicy(policy_str)
+                except ValueError:
+                    pass
+
             # Claude models
             self.opus_model = getattr(config, 'claude_opus_model', self.opus_model)
             self.sonnet_model = getattr(config, 'claude_sonnet_model', self.sonnet_model)
+            self.haiku_model = getattr(config, 'claude_haiku_model', self.haiku_model)
 
             # Gemini models (V7 Sprint 6)
             self.gemini_model = getattr(config, 'gemini_default_model', self.gemini_model)
@@ -136,15 +204,73 @@ class ModelRouter:
         """
         Select appropriate Claude model for task type.
 
+        V12.4: Now policy-aware. BALANCED uses original logic,
+        COST_OPTIMIZED adds Haiku tier, QUALITY_OPTIMIZED always uses Opus.
+
         Args:
             task_type: Type of task to perform
 
         Returns:
-            Model ID string (opus or sonnet)
+            Model ID string (opus, sonnet, or haiku)
         """
+        if self.policy == RoutingPolicy.QUALITY_OPTIMIZED:
+            return self.opus_model
+
+        if self.policy == RoutingPolicy.COST_OPTIMIZED:
+            tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
+            if tier == ModelTier.LIGHT:
+                return self.haiku_model
+            elif tier == ModelTier.MEDIUM:
+                return self.sonnet_model
+            else:
+                return self.opus_model
+
+        # BALANCED (default): original V7 behavior
         if task_type in self.opus_tasks:
             return self.opus_model
         return self.sonnet_model
+
+    def get_task_tier(self, task_type: TaskType) -> ModelTier:
+        """
+        Get the model tier for a task type.
+
+        Args:
+            task_type: Type of task
+
+        Returns:
+            ModelTier (LIGHT, MEDIUM, or HEAVY)
+        """
+        return self._task_tiers.get(task_type, ModelTier.MEDIUM)
+
+    def select_claude_by_tier(self, tier: ModelTier) -> str:
+        """
+        Select Claude model directly by tier (V12.4).
+
+        Args:
+            tier: Model capability tier
+
+        Returns:
+            Model ID string
+        """
+        if tier == ModelTier.LIGHT:
+            return self.haiku_model
+        elif tier == ModelTier.HEAVY:
+            return self.opus_model
+        return self.sonnet_model
+
+    def select_gemini_by_tier(self, tier: ModelTier) -> str:
+        """
+        Select Gemini model directly by tier (V12.4).
+
+        Args:
+            tier: Model capability tier
+
+        Returns:
+            Model ID string
+        """
+        if tier == ModelTier.LIGHT:
+            return self.gemini_flash_model
+        return self.gemini_pro_model
 
     def select_claude_model_str(self, task_type_str: str) -> str:
         """
@@ -166,25 +292,37 @@ class ModelRouter:
         """
         Make a full routing decision with explanation.
 
+        V12.4: Now includes tier and policy in decision.
+
         Args:
             task_type: Type of task
 
         Returns:
-            RoutingDecision with model and reasoning
+            RoutingDecision with model, tier, policy, and reasoning
         """
         model = self.select_claude_model(task_type)
         is_opus = model == self.opus_model
+        tier = self.get_task_tier(task_type)
 
-        if is_opus:
-            reason = f"Task type '{task_type.value}' requires complex reasoning - routing to Opus"
+        if model == self.haiku_model:
+            tier_label = "Haiku (light)"
+        elif is_opus:
+            tier_label = "Opus (heavy)"
         else:
-            reason = f"Task type '{task_type.value}' is routine - routing to Sonnet for speed"
+            tier_label = "Sonnet (medium)"
+
+        reason = (
+            f"[{self.policy.value}] Task '{task_type.value}' "
+            f"(tier={tier.value}) → {tier_label}"
+        )
 
         return RoutingDecision(
             model_id=model,
             task_type=task_type,
             reason=reason,
-            is_opus=is_opus
+            is_opus=is_opus,
+            tier=tier,
+            policy=self.policy,
         )
 
     def get_gemini_model(self) -> str:
@@ -195,15 +333,27 @@ class ModelRouter:
         """
         Select appropriate Gemini model for task type (V7 Sprint 6).
 
-        Complex tasks (reasoning, research, analysis) → Gemini 3 Pro
-        Simple tasks (tool, validation, format) → Gemini Flash
+        V12.4: Now policy-aware.
+        QUALITY_OPTIMIZED → always Pro
+        COST_OPTIMIZED → Flash for LIGHT/MEDIUM tasks
+        BALANCED → original behavior (Pro for complex, Flash for simple)
 
         Args:
             task_type: Type of task to perform
 
         Returns:
-            Model ID string (gemini-3-pro-preview or gemini-2.5-flash)
+            Model ID string
         """
+        if self.policy == RoutingPolicy.QUALITY_OPTIMIZED:
+            return self.gemini_pro_model
+
+        if self.policy == RoutingPolicy.COST_OPTIMIZED:
+            tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
+            if tier == ModelTier.HEAVY:
+                return self.gemini_pro_model
+            return self.gemini_flash_model
+
+        # BALANCED (default): original behavior
         if task_type in self.gemini_pro_tasks:
             return self.gemini_pro_model
         return self.gemini_flash_model
@@ -305,6 +455,27 @@ class ModelRouter:
             is_opus=selected_is_opus
         )
 
+    def route_for_sdk(
+        self,
+        agent_id: str,
+        task_type: TaskType,
+    ) -> str:
+        """
+        Select the best model ID for SDK driver invocation (V12.4).
+
+        Args:
+            agent_id: "claude" or "gemini"
+            task_type: Type of task
+
+        Returns:
+            Model ID string for the SDK driver
+        """
+        if agent_id.lower() == "claude":
+            return self.select_claude_model(task_type)
+        elif agent_id.lower() == "gemini":
+            return self.select_gemini_model(task_type)
+        raise ValueError(f"Unknown agent: {agent_id}")
+
     def get_routing_stats(
         self,
         agent_pool: Optional["AgentPool"] = None
@@ -319,12 +490,17 @@ class ModelRouter:
             Dict with routing configuration and pool stats
         """
         stats = {
+            "policy": self.policy.value,
             "opus_model": self.opus_model,
             "sonnet_model": self.sonnet_model,
+            "haiku_model": self.haiku_model,
+            "gemini_pro_model": self.gemini_pro_model,
+            "gemini_flash_model": self.gemini_flash_model,
             "gemini_model": self.gemini_model,
             "opus_tasks": [t.value for t in self.opus_tasks],
             "sonnet_tasks": [t.value for t in self.sonnet_tasks],
-            "pool_available": agent_pool is not None
+            "task_tiers": {t.value: tier.value for t, tier in self._task_tiers.items()},
+            "pool_available": agent_pool is not None,
         }
 
         if agent_pool:

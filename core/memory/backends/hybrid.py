@@ -241,18 +241,18 @@ class HybridBackend(MemoryBackend):
             return dense_results[:limit]
 
         # Apply RRF to combine results
-        rrf_scores = self._compute_rrf_scores(dense_results, sparse_results)
+        rrf_results = self._compute_rrf_scores(dense_results, sparse_results)
 
         # Sort by RRF score descending
-        sorted_chunks = sorted(
-            rrf_scores.items(),
-            key=lambda x: x[1],
+        sorted_entries = sorted(
+            rrf_results.values(),
+            key=lambda entry: entry[1],
             reverse=True
         )
 
         # Return top-k chunks above min_score
         results = []
-        for chunk, score in sorted_chunks[:limit]:
+        for chunk, score in sorted_entries[:limit]:
             if score >= min_score:
                 results.append(chunk)
 
@@ -267,9 +267,12 @@ class HybridBackend(MemoryBackend):
         self,
         dense_results: List['Chunk'],
         sparse_results: List['Chunk']
-    ) -> Dict['Chunk', float]:
+    ) -> Dict[str, tuple]:
         """
         Compute Reciprocal Rank Fusion scores.
+
+        V12.4: Uses chunk_id (str) as dict key instead of Chunk objects.
+        Chunk is frozen+hashable now, but string keys are more explicit.
 
         RRF combines multiple ranked lists without needing score calibration.
         Formula: score(d) = sum(w_i / (k + rank_i(d))) for each list i
@@ -279,19 +282,26 @@ class HybridBackend(MemoryBackend):
             sparse_results: Ranked results from sparse backend
 
         Returns:
-            Dict mapping chunks to their RRF scores
+            Dict mapping chunk_id to (chunk, rrf_score) tuples
         """
-        rrf_scores: Dict['Chunk', float] = defaultdict(float)
+        rrf_scores: Dict[str, float] = defaultdict(float)
+        chunk_lookup: Dict[str, 'Chunk'] = {}
 
         # Process dense results
         for rank, chunk in enumerate(dense_results, start=1):
-            rrf_scores[chunk] += self._dense_weight / (RRF_K + rank)
+            cid = chunk.chunk_id
+            rrf_scores[cid] += self._dense_weight / (RRF_K + rank)
+            chunk_lookup[cid] = chunk
 
         # Process sparse results
         for rank, chunk in enumerate(sparse_results, start=1):
-            rrf_scores[chunk] += self._sparse_weight / (RRF_K + rank)
+            cid = chunk.chunk_id
+            rrf_scores[cid] += self._sparse_weight / (RRF_K + rank)
+            if cid not in chunk_lookup:
+                chunk_lookup[cid] = chunk
 
-        return dict(rrf_scores)
+        # Return as (chunk, score) tuples keyed by chunk_id
+        return {cid: (chunk_lookup[cid], score) for cid, score in rrf_scores.items()}
 
     def clear(self) -> None:
         """Clear both sub-backend indices."""

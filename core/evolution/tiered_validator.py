@@ -401,44 +401,96 @@ except Exception as e:
 
     def _run_tier3_parallel_benchmark(self) -> TierResult:
         """
-        TIER 3: Fitness Benchmarks
+        TIER 3: Deterministic Fitness Pipeline (V12.4)
 
-        V7.5 HIVE MIND: Simplified to use heuristic benchmarks.
-        Real fitness comes from Auto-Memory task history.
+        Replaces heuristic baselines with real executable validation:
+        1. Ruff lint check (code quality)
+        2. Pytest execution (functional correctness)
+        3. Content hash verification (integrity)
+
+        A mutation is fit ONLY if all gates pass.
         """
         start = time.time()
+        gate_results = {}
+        all_passed = True
 
-        # V7.5: Use heuristic benchmarks (real benchmarks removed)
-        return self._run_heuristic_benchmarks(start)
+        # Gate 1: Ruff lint check
+        try:
+            lint_result = subprocess.run(
+                [sys.executable, "-m", "ruff", "check", str(self.child_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.child_path),
+            )
+            lint_passed = lint_result.returncode == 0
+            gate_results["lint"] = {
+                "passed": lint_passed,
+                "tool": "ruff",
+                "errors": lint_result.stdout[:500] if not lint_passed else None,
+            }
+            if not lint_passed:
+                all_passed = False
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            # Ruff not installed - skip gate (non-blocking)
+            gate_results["lint"] = {"passed": True, "tool": "ruff", "skipped": True}
 
-    def _run_benchmark_dimension(self, dimension: str) -> Dict:
-        """
-        Run a single benchmark dimension using heuristics.
+        # Gate 2: Pytest execution (THE critical gate)
+        try:
+            test_dir = self.child_path / "tests"
+            if test_dir.exists():
+                pytest_result = subprocess.run(
+                    [sys.executable, "-m", "pytest", str(test_dir), "-q",
+                     "--tb=no", "-x", "--timeout=120"],
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    cwd=str(self.child_path),
+                    env={**dict(__import__("os").environ), "PYTHONPATH": str(self.child_path)},
+                )
+                test_passed = pytest_result.returncode == 0
+                # Extract pass/fail counts from output
+                test_output = pytest_result.stdout.strip().split("\n")[-1] if pytest_result.stdout else ""
+                gate_results["pytest"] = {
+                    "passed": test_passed,
+                    "exit_code": pytest_result.returncode,
+                    "summary": test_output[:200],
+                }
+                if not test_passed:
+                    all_passed = False
+            else:
+                gate_results["pytest"] = {"passed": True, "skipped": True, "reason": "no tests/ dir"}
+        except subprocess.TimeoutExpired:
+            gate_results["pytest"] = {"passed": False, "error": "Test suite timed out (300s)"}
+            all_passed = False
 
-        V7.5 HIVE MIND: Returns baseline score.
-        Real performance data comes from Auto-Memory.
-        """
-        # Baseline score for all dimensions
-        baseline = 0.70
-        return {
-            "score": baseline,
-            "method": "baseline",
-            "note": "V7.5: Real fitness from Auto-Memory task history"
-        }
+        # Gate 3: Content hash for integrity tracking
+        import hashlib
+        content_hash = hashlib.sha256()
+        py_files = sorted(self.child_path.rglob("*.py"))
+        for py_file in py_files[:100]:  # Cap to prevent huge scans
+            try:
+                content_hash.update(py_file.read_bytes())
+            except OSError:
+                pass
+        gate_results["content_hash"] = content_hash.hexdigest()[:16]
 
-    def _run_heuristic_benchmarks(self, start_time: float) -> TierResult:
-        """
-        V7.5 HIVE MIND: Return baseline fitness score.
+        # Compute fitness score from gates
+        fitness_score = 1.0 if all_passed else 0.0
+        if gate_results.get("lint", {}).get("passed") and not gate_results.get("pytest", {}).get("passed"):
+            fitness_score = 0.3  # Lint passes but tests fail
 
-        Real performance data comes from Auto-Memory task history.
-        """
-        baseline_score = 0.70
+        duration = time.time() - start
         return TierResult(
             tier=ValidationTier.BENCHMARK,
-            passed=True,
-            message=f"Baseline fitness: {baseline_score:.2f} (real data from Auto-Memory)",
-            duration_seconds=time.time() - start_time,
-            details={"fitness_score": baseline_score, "method": "baseline"}
+            passed=all_passed,
+            message=f"Deterministic fitness: {fitness_score:.2f} ({'PASS' if all_passed else 'FAIL'})",
+            duration_seconds=duration,
+            details={
+                "fitness_score": fitness_score,
+                "method": "deterministic_v12.4",
+                "gates": gate_results,
+            }
         )
 
     def _run_tier4_redteam(self) -> TierResult:

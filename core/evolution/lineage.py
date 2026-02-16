@@ -189,6 +189,16 @@ def promote_child_to_parent(
         lineage["lineage_tree"][old_parent_id]["children"].append(child_id)
         lineage["lineage_tree"][old_parent_id]["status"] = "archived"
 
+    # V12.4: Compute SHA-256 content hash for integrity tracking
+    import hashlib
+    content_hash = hashlib.sha256()
+    try:
+        for py_file in sorted(child_path.rglob("*.py")):
+            content_hash.update(py_file.read_bytes())
+    except OSError:
+        pass
+    child_content_hash = content_hash.hexdigest()
+
     # Add new parent to lineage_tree
     lineage["lineage_tree"][child_id] = {
         "generation": generation,
@@ -199,7 +209,11 @@ def promote_child_to_parent(
         "fitness_score": fitness_score,
         "notable_features": notable_features,
         "birth_certificate": birth_cert_path,
-        "stagnation_counter": 0
+        "stagnation_counter": 0,
+        "content_hash_sha256": child_content_hash,
+        "parent_content_hash": lineage["lineage_tree"].get(
+            old_parent_id, {}
+        ).get("content_hash_sha256"),
     }
 
     # Update current_parent

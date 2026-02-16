@@ -56,6 +56,15 @@ from .session import (
     DEFAULT_WORKSPACE_ID,
 )
 
+# V12.4 COGNITIVE BOOST: Context Audit Trail
+from .audit_trail import (
+    ContextAuditTrail,
+    AuditEntry,
+    AuditStats,
+    get_audit_trail,
+    reset_audit_trail,
+)
+
 __all__ = [
     # Core types
     "SessionContext",
@@ -82,4 +91,10 @@ __all__ = [
     "DEFAULT_TENANT_ID",
     "DEFAULT_USER_ID",
     "DEFAULT_WORKSPACE_ID",
+    # V12.4 COGNITIVE BOOST: Context Audit Trail
+    "ContextAuditTrail",
+    "AuditEntry",
+    "AuditStats",
+    "get_audit_trail",
+    "reset_audit_trail",
 ]

@@ -175,12 +175,10 @@ class MutationValidator:
         """Extract the first string argument from a call (for open() analysis)."""
         if node.args:
             first_arg = node.args[0]
-            # Python 3.8+ uses ast.Constant
+            # ast.Constant is the canonical way since Python 3.8+
+            # ast.Str was removed in Python 3.14
             if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
                 return first_arg.value
-            # Older Python uses ast.Str
-            elif hasattr(ast, 'Str') and isinstance(first_arg, ast.Str):
-                return first_arg.s
         return ""
 
     def _is_parent_or_absolute_path(self, path: str) -> bool:
