@@ -17,21 +17,21 @@ import tempfile
 # Python 3.12+ uses _wmi for platform.uname() / platform.machine().
 # If the WMI service is unresponsive, these calls hang indefinitely,
 # blocking argon2-cffi import (which calls platform.machine() in _is_wasm()).
-# Pre-cache the result with a timeout so the rest of the suite is unaffected.
+# Pre-cache the uname result with a timeout so the rest of the suite works.
 # ---------------------------------------------------------------------------
 if sys.platform == "win32":
     import platform as _platform
-    if not hasattr(_platform, "_uname_cache_nexus"):
+    if _platform._uname_cache is None:
         import concurrent.futures as _cf
         try:
             with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
-                _fut = _ex.submit(_platform.machine)
-                _machine = _fut.result(timeout=5)
-                _platform._uname_cache_nexus = True  # marker
+                _fut = _ex.submit(_platform.uname)
+                _fut.result(timeout=5)
         except (_cf.TimeoutError, Exception):
-            # WMI is hung — monkey-patch platform.machine to return a safe default
-            _platform.machine = lambda: "AMD64"
-            _platform._uname_cache_nexus = True
+            # WMI is hung — inject a safe cached result to unblock all callers
+            _platform._uname_cache = _platform.uname_result(
+                "Windows", "", "", "", "AMD64"
+            )
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from unittest.mock import Mock, MagicMock, patch
