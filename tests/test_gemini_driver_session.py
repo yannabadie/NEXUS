@@ -10,6 +10,8 @@ Tests verify that:
 
 Author: Claude (NEXUS V7.5)
 Date: 2025-12-04
+
+Note: GeminiDriverV7 moved to core.drivers.legacy in V12.4.
 """
 
 import tempfile
@@ -23,6 +25,17 @@ import pytest
 # Add parent to path for imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# V12.4: GeminiDriverV7 was moved to core.drivers.legacy
+# Redirect imports so the test works with both old and new paths
+try:
+    from core.drivers.gemini_driver_v7 import GeminiDriverV7  # noqa: F401
+except ModuleNotFoundError:
+    from core.drivers.legacy.gemini_driver_v7 import GeminiDriverV7  # noqa: F401
+    # Patch the module path so per-test imports also work
+    import core.drivers
+    import core.drivers.legacy.gemini_driver_v7 as _legacy_mod
+    sys.modules["core.drivers.gemini_driver_v7"] = _legacy_mod
 
 
 class MockConfig:

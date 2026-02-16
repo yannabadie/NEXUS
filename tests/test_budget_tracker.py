@@ -90,8 +90,8 @@ class TestPricingConstants:
 
     def test_claude_opus_pricing_exists(self):
         """Test Claude Opus pricing is defined."""
-        assert "claude-opus-4-5-20251101" in PRICING
-        pricing = PRICING["claude-opus-4-5-20251101"]
+        assert "claude-opus-4-6-20250116" in PRICING
+        pricing = PRICING["claude-opus-4-6-20250116"]
         assert pricing["input"] == 15.00
         assert pricing["output"] == 75.00
 
@@ -165,7 +165,7 @@ class TestCostCalculation:
         """Test Claude Opus cost calculation."""
         # 1M input + 100k output
         cost = budget_tracker.calculate_cost(
-            model="claude-opus-4-5-20251101",
+            model="claude-opus-4-6-20250116",
             input_tokens=1_000_000,
             output_tokens=100_000,
         )
@@ -494,7 +494,7 @@ class TestModelPricingResolution:
 
     def test_exact_match(self, budget_tracker):
         """Test exact model name match."""
-        pricing = budget_tracker.get_model_pricing("claude-opus-4-5-20251101")
+        pricing = budget_tracker.get_model_pricing("claude-opus-4-6-20250116")
         assert pricing["input"] == 15.00
 
     def test_alias_match(self, budget_tracker):

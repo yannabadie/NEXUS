@@ -120,7 +120,7 @@ class ModelRouter:
         self.policy = policy or RoutingPolicy.BALANCED
 
         # Default Claude model IDs
-        self.opus_model = "claude-opus-4-5-20251101"
+        self.opus_model = "claude-opus-4-6-20250116"
         self.sonnet_model = "claude-sonnet-4-5-20250929"
 
         # V12.4: SLM triage - Haiku for light tasks
@@ -475,6 +475,88 @@ class ModelRouter:
         elif agent_id.lower() == "gemini":
             return self.select_gemini_model(task_type)
         raise ValueError(f"Unknown agent: {agent_id}")
+
+    # =========================================================================
+    # Budget-Aware Routing (V12.4 COGNITIVE BOOST)
+    # =========================================================================
+
+    def apply_budget_pressure(self, warning_level: Optional[str]) -> Optional[RoutingPolicy]:
+        """
+        Adjust routing policy based on budget pressure.
+
+        Saves the original policy on first downgrade, restores it when
+        pressure is relieved (warning_level=None).
+
+        Args:
+            warning_level: None (OK), "warning" (80%+), "critical" (90%+)
+
+        Returns:
+            The applied policy, or None if no change needed
+        """
+        if warning_level is None:
+            # Budget OK — restore original policy if it was saved
+            if hasattr(self, '_original_policy'):
+                self.policy = self._original_policy
+                del self._original_policy
+            return None
+
+        # Save original policy on first downgrade
+        if not hasattr(self, '_original_policy'):
+            self._original_policy = self.policy
+
+        if warning_level == "critical":
+            # 90%+ budget: force everything to cheapest tier
+            self.policy = RoutingPolicy.COST_OPTIMIZED
+        elif warning_level == "warning":
+            # 80%+ budget: switch to cost-optimized if not already
+            if self.policy == RoutingPolicy.QUALITY_OPTIMIZED:
+                self.policy = RoutingPolicy.BALANCED
+            elif self.policy == RoutingPolicy.BALANCED:
+                self.policy = RoutingPolicy.COST_OPTIMIZED
+
+        return self.policy
+
+    def select_with_budget(
+        self,
+        agent_id: str,
+        task_type: TaskType,
+        budget_pct: float = 0.0,
+    ) -> str:
+        """
+        Select model with budget awareness.
+
+        At >=100% budget, returns "ollama" to signal local fallback.
+        At >=90%, forces LIGHT tier. Otherwise delegates to normal routing.
+
+        Args:
+            agent_id: "claude" or "gemini"
+            task_type: Type of task
+            budget_pct: Current budget usage as percentage (0-100+)
+
+        Returns:
+            Model ID string (may be "ollama" at budget limit)
+        """
+        # Hard stop: over budget → local model only
+        if budget_pct >= 100.0:
+            return "ollama"
+
+        # Critical: force cheapest cloud model
+        if budget_pct >= 90.0:
+            if agent_id.lower() == "claude":
+                return self.haiku_model
+            return self.gemini_flash_model
+
+        # Warning: downgrade heavy → medium
+        if budget_pct >= 80.0:
+            tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
+            if tier == ModelTier.HEAVY:
+                tier = ModelTier.MEDIUM
+            if agent_id.lower() == "claude":
+                return self.select_claude_by_tier(tier)
+            return self.select_gemini_by_tier(tier)
+
+        # Normal routing
+        return self.route_for_sdk(agent_id, task_type)
 
     def get_routing_stats(
         self,

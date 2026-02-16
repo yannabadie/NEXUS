@@ -15,7 +15,7 @@ Usage:
     # Record usage
     record = tracker.record_usage(
         session_id="sess_001",
-        model_id="claude-opus-4-5-20251101",
+        model_id="claude-opus-4-6-20250116",
         input_tokens=12000,
         output_tokens=4000,
         max_tokens=200000,

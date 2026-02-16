@@ -72,6 +72,8 @@ otel = [
 
 [project.scripts]
 nexus = "nexus7:main"
+nexus-research = "nexus_research:main"
+nexus-mcp = "core.mcp.server:main"
 
 # =============================================================================
 # Tool Configuration

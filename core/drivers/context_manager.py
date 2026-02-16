@@ -16,7 +16,7 @@ Model Context Windows:
 Usage:
     from core.drivers.context_manager import ContextManager
 
-    ctx = ContextManager(model="claude-opus-4-5-20251101")
+    ctx = ContextManager(model="claude-opus-4-6-20250116")
     ctx.add_message("system", system_prompt)     # ~2000 tokens
     ctx.add_message("user", user_input)          # ~500 tokens
     ctx.add_message("assistant", response)       # ~1000 tokens
@@ -45,7 +45,7 @@ _logger = logging.getLogger(__name__)
 # Known model context window sizes (tokens)
 MODEL_CONTEXT_WINDOWS: Dict[str, int] = {
     # Claude models
-    "claude-opus-4-5-20251101": 200_000,
+    "claude-opus-4-6-20250116": 200_000,
     "claude-opus-4-6": 200_000,
     "claude-sonnet-4-5-20250929": 200_000,
     "claude-haiku-4-5-20251001": 200_000,

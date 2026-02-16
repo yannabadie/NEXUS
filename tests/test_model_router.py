@@ -49,7 +49,7 @@ class TestModelRouterInit:
         """Test router initializes with defaults when no config"""
         router = ModelRouter()
 
-        assert router.opus_model == "claude-opus-4-5-20251101"
+        assert router.opus_model == "claude-opus-4-6-20250116"
         assert router.sonnet_model == "claude-sonnet-4-5-20250929"
         assert router.gemini_pro_model == "gemini-3-pro-preview"
         assert router.gemini_flash_model == "gemini-2.5-flash"

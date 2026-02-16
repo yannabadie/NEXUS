@@ -32,7 +32,7 @@ def base_config():
     config.gemini_cli_path = "gemini"
     config.timeout = 60.0
     config.claude_sonnet_model = "claude-sonnet-4-5-20250929"
-    config.claude_opus_model = "claude-opus-4-5-20251101"
+    config.claude_opus_model = "claude-opus-4-6-20250116"
     config.gemini_default_model = "gemini-3-pro-preview"
     config.verbose = False
     config.gemini_persistent_mode = True
@@ -258,7 +258,7 @@ class TestModelRouterSDK:
         """Brainstorm tasks route to Opus for SDK."""
         router = ModelRouter()
         model = router.route_for_sdk("claude", TaskType.BRAINSTORM)
-        assert model == "claude-opus-4-5-20251101"
+        assert model == "claude-opus-4-6-20250116"
 
     def test_route_claude_tool_to_sonnet(self):
         """Tool tasks route to Sonnet for SDK."""

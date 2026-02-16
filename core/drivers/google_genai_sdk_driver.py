@@ -27,6 +27,7 @@ Date: 2026-02-15
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -59,10 +60,20 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         timeout: float = 300.0,
         enable_thinking: bool = False,
         thinking_budget: Optional[int] = None,
+        enable_caching: bool = True,
+        cache_ttl: int = 3600,
+        response_cache: Optional[Any] = None,
     ):
         super().__init__(provider="gemini", model=model, timeout=timeout)
         self._enable_thinking = enable_thinking
         self._thinking_budget = thinking_budget
+        self._enable_caching = enable_caching
+        self._cache_ttl = cache_ttl
+        self._response_cache = response_cache
+
+        # Context caching state
+        self._cached_content_name: Optional[str] = None
+        self._cached_content_hash: Optional[str] = None
 
         try:
             from google import genai
@@ -104,6 +115,26 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         start_time = time.monotonic()
         effective_timeout = timeout or self._timeout
 
+        # Response cache check (skip if tools present — non-deterministic)
+        if self._response_cache and not tools:
+            temperature = kwargs.get("temperature", 0.7)
+            cached = self._response_cache.get(
+                self._model, prompt,
+                temperature=temperature,
+                system_prompt=system_prompt or "",
+            )
+            if cached is not None:
+                latency_ms = (time.monotonic() - start_time) * 1000
+                logger.debug("Response cache HIT (%.1fms)", latency_ms)
+                return DriverResponse(
+                    content=cached,
+                    status=DriverResponseStatus.SUCCESS,
+                    provider=self._provider,
+                    model=self._model,
+                    latency_ms=latency_ms,
+                    raw={"cached": True},
+                )
+
         try:
             config = self._build_config(system_prompt, tools, **kwargs)
 
@@ -121,7 +152,25 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             )
 
             latency_ms = (time.monotonic() - start_time) * 1000
-            return self._parse_response(response, latency_ms)
+            result = self._parse_response(response, latency_ms)
+
+            # Store in response cache on success (no tool calls)
+            if (
+                self._response_cache
+                and not tools
+                and result.status == DriverResponseStatus.SUCCESS
+                and not result.tool_calls
+                and result.content
+            ):
+                total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
+                self._response_cache.put(
+                    self._model, prompt, result.content,
+                    temperature=kwargs.get("temperature", 0.7),
+                    system_prompt=system_prompt or "",
+                    tokens_used=total_tokens,
+                )
+
+            return result
 
         except asyncio.TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -254,6 +303,62 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
     # Private helpers
     # =========================================================================
 
+    def _ensure_cache(
+        self,
+        system_prompt: Optional[str],
+        tools: Optional[List[Dict[str, Any]]],
+    ) -> Optional[str]:
+        """Create or reuse a Gemini context cache for the given system+tools.
+
+        Returns the cache name if caching is active, None otherwise.
+        """
+        if not self._enable_caching or not system_prompt:
+            return self._cached_content_name
+
+        # Compute hash of cacheable content to detect changes
+        cache_key = hashlib.sha256(
+            f"{system_prompt}|{str(tools or [])}".encode()
+        ).hexdigest()[:16]
+
+        # Reuse existing cache if content unchanged
+        if self._cached_content_name and self._cached_content_hash == cache_key:
+            return self._cached_content_name
+
+        # Invalidate old cache
+        if self._cached_content_name:
+            try:
+                self._client.caches.delete(self._cached_content_name)
+                logger.debug("Deleted stale Gemini cache: %s", self._cached_content_name)
+            except Exception:
+                pass  # Cache may have expired already
+
+        # Create new cache
+        try:
+            types = self._genai.types
+            cache_config_params: Dict[str, Any] = {
+                "display_name": f"nexus_ctx_{cache_key}",
+                "system_instruction": system_prompt,
+                "ttl": f"{self._cache_ttl}s",
+            }
+
+            cache = self._client.caches.create(
+                model=self._model,
+                config=types.CreateCachedContentConfig(**cache_config_params),
+            )
+            self._cached_content_name = cache.name
+            self._cached_content_hash = cache_key
+            logger.info(
+                "Created Gemini context cache: %s (TTL=%ds)",
+                cache.name,
+                self._cache_ttl,
+            )
+            return cache.name
+        except Exception as e:
+            logger.warning("Gemini context caching unavailable: %s", e)
+            self._cached_content_name = None
+            self._cached_content_hash = None
+            return None
+
     def _build_config(
         self,
         system_prompt: Optional[str],
@@ -265,7 +370,12 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
 
         config_params: Dict[str, Any] = {}
 
-        if system_prompt:
+        # Try context caching first (system prompt cached server-side)
+        cache_name = self._ensure_cache(system_prompt, tools)
+        if cache_name:
+            config_params["cached_content"] = cache_name
+            # When using cached content, system_instruction is already in the cache
+        elif system_prompt:
             config_params["system_instruction"] = system_prompt
 
         if "temperature" in kwargs:
@@ -286,7 +396,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             thinking_config = {"thinking_budget": self._thinking_budget or 8192}
             config_params["thinking_config"] = thinking_config
 
-        # Function calling
+        # Function calling (tools included even with cache for dynamic tool lists)
         if tools:
             config_params["tools"] = self._format_tools(tools)
 
@@ -336,10 +446,18 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         # Token usage
         input_tokens = 0
         output_tokens = 0
+        cached_tokens = 0
         if hasattr(response, "usage_metadata") and response.usage_metadata:
             meta = response.usage_metadata
             input_tokens = getattr(meta, "prompt_token_count", 0) or 0
             output_tokens = getattr(meta, "candidates_token_count", 0) or 0
+            cached_tokens = getattr(meta, "cached_content_token_count", 0) or 0
+
+        if cached_tokens > 0:
+            logger.debug(
+                "Gemini context cache HIT: %d tokens served from cache (90%% discount)",
+                cached_tokens,
+            )
 
         return DriverResponse(
             content=content,
@@ -350,7 +468,10 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             latency_ms=latency_ms,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            raw={"candidates_count": len(response.candidates) if response.candidates else 0},
+            raw={
+                "candidates_count": len(response.candidates) if response.candidates else 0,
+                "cached_content_token_count": cached_tokens,
+            },
             timestamp=datetime.now(timezone.utc),
         )
 

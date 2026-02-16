@@ -1079,7 +1079,7 @@ class ModeSelector:
             AgentProfile(
                 agent_id="claude_opus",
                 provider="claude",
-                model="claude-opus-4-5-20251101"
+                model="claude-opus-4-6-20250116"
             )
         ]
 

@@ -15,7 +15,7 @@ Usage:
     pool.register(AgentProfile(
         agent_id="claude_opus",
         provider="claude",
-        model="claude-opus-4-5-20251101"
+        model="claude-opus-4-6-20250116"
     ))
 
     # After invocation, record result
@@ -614,7 +614,7 @@ def create_default_pool(config=None) -> AgentPool:
     ))
 
     # Claude agent
-    claude_model = "claude-opus-4-5-20251101"
+    claude_model = "claude-opus-4-6-20250116"
     if config:
         claude_model = getattr(config, 'claude_opus_model', claude_model)
 

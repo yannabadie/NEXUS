@@ -172,12 +172,12 @@ class Config:
         # NOTIFICATION SYSTEM
         # ====================================================================
 
-        # Email (Outlook SMTP - DEFAULT ENABLED)
-        self.email_enabled: bool = os.getenv("EMAIL_ENABLED", "True").lower() == "true"
-        self.smtp_server: str = os.getenv("SMTP_SERVER", "smtp-mail.outlook.com")
+        # Email (SMTP - disabled by default, requires configuration)
+        self.email_enabled: bool = os.getenv("EMAIL_ENABLED", "False").lower() == "true"
+        self.smtp_server: str = os.getenv("SMTP_SERVER", "")
         self.smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
-        self.email_from: str = os.getenv("EMAIL_FROM", "yann.abadie@outlook.com")
-        self.email_to: str = os.getenv("EMAIL_TO", "yann.abadie@outlook.com")
+        self.email_from: str = os.getenv("EMAIL_FROM", "")
+        self.email_to: str = os.getenv("EMAIL_TO", "")
         self.email_password: Optional[str] = os.getenv("NEXUS_EMAIL_PASSWORD")
 
         # Other Notifications
@@ -217,7 +217,7 @@ class Config:
         self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")
 
         # Claude models
-        self.claude_opus_model: str = "claude-opus-4-5-20251101"
+        self.claude_opus_model: str = "claude-opus-4-6-20250116"
         self.claude_sonnet_model: str = "claude-sonnet-4-5-20250929"
 
         # Gemini models (V7 Sprint 6: Gemini 3 Pro with task routing)

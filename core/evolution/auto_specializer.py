@@ -145,9 +145,9 @@ class AutoSpecializer:
     MODEL_SUGGESTIONS: Dict[str, str] = {
         "coding": "claude-sonnet-4-5-20250929",
         "research": "gemini-3-pro-preview",
-        "creative": "claude-opus-4-5-20251101",
+        "creative": "claude-opus-4-6-20250116",
         "analysis": "gemini-3-pro-preview",
-        "security": "claude-opus-4-5-20251101",
+        "security": "claude-opus-4-6-20250116",
         "database": "claude-sonnet-4-5-20250929",
         "devops": "claude-sonnet-4-5-20250929",
     }

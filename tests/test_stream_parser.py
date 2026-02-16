@@ -96,7 +96,7 @@ class TestClaudeStreamParser:
 
     def test_claude_init_message(self):
         """Test parsing Claude system init message."""
-        line = '{"type":"system","subtype":"init","session_id":"6c996e64-3353-4527-87f6-fec5e5a0a3f1","model":"claude-opus-4-5-20251101"}'
+        line = '{"type":"system","subtype":"init","session_id":"6c996e64-3353-4527-87f6-fec5e5a0a3f1","model":"claude-opus-4-6-20250116"}'
         text, data = parse_stream_chunk(line, "claude")
 
         assert text is None
@@ -248,7 +248,7 @@ class TestRealFormatSamples:
     def test_claude_full_conversation(self):
         """Test parsing a full Claude conversation stream."""
         lines = [
-            '{"type":"system","subtype":"init","session_id":"6c996e64","model":"claude-opus-4-5-20251101"}',
+            '{"type":"system","subtype":"init","session_id":"6c996e64","model":"claude-opus-4-6-20250116"}',
             '{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}}',
             '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}}',
             '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}}',

@@ -38,6 +38,7 @@ from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
+from .response_cache import ResponseCache
 from core.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
@@ -74,6 +75,13 @@ class AsyncDriverFactory:
         # API keys for SDK drivers
         self._anthropic_api_key: Optional[str] = getattr(config, 'anthropic_api_key', None)
         self._google_api_key: Optional[str] = getattr(config, 'google_api_key', None)
+
+        # Shared response cache for SDK drivers (deduplication)
+        self._response_cache = ResponseCache(
+            max_size=getattr(config, 'response_cache_size', 500),
+            ttl_seconds=getattr(config, 'response_cache_ttl', 300.0),
+            enabled=self._driver_mode != "cli",
+        )
 
         # Lazy-initialized CLI drivers
         self._claude_driver: Optional[AsyncClaudeDriver] = None
@@ -176,6 +184,7 @@ class AsyncDriverFactory:
                 max_tokens=getattr(self.config, 'max_tokens', 8192),
                 timeout=float(getattr(self.config, 'timeout', 300)),
                 enable_caching=True,
+                response_cache=self._response_cache,
             )
             logger.info(f"Created AnthropicSDKDriver (model={getattr(self._claude_sdk, '_model', 'unknown')})")
         elif model and hasattr(self._claude_sdk, '_model'):
@@ -211,6 +220,7 @@ class AsyncDriverFactory:
                 model=model or getattr(self.config, 'gemini_default_model', 'gemini-3-pro-preview'),
                 api_key=self._google_api_key,
                 timeout=float(getattr(self.config, 'timeout', 300)),
+                response_cache=self._response_cache,
             )
             logger.info(f"Created GoogleGenAISDKDriver (model={getattr(self._gemini_sdk, '_model', 'unknown')})")
         elif model and hasattr(self._gemini_sdk, '_model'):
@@ -324,6 +334,7 @@ class AsyncDriverFactory:
             "gemini_sdk_active": self._gemini_sdk is not None,
             "anthropic_api_key_set": bool(self._anthropic_api_key),
             "google_api_key_set": bool(self._google_api_key),
+            "response_cache": self._response_cache.to_dict(),
         }
 
     # =========================================================================

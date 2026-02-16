@@ -1,5 +1,5 @@
 """
-NEXUS Budget Tracker - Phase 14d
+NEXUS Budget Tracker - V12.4 COGNITIVE BOOST
 
 Financial circuit breaker to prevent runaway API costs.
 Tracks token usage and enforces daily spending limits.
@@ -9,11 +9,12 @@ Usage:
     tracker.track_cost("claude-opus", input_tokens=1000, output_tokens=500)
     tracker.check_budget()  # Raises BudgetExceededError if over limit
 
-Pricing (Dec 2025 - Approximate):
-    Claude Opus 4.5:  $15/1M input, $75/1M output
-    Claude Sonnet 4.5: $3/1M input, $15/1M output
-    Gemini 3 Pro:     $1.25/1M input, $5/1M output
-    Gemini 3 Flash:   $0.075/1M input, $0.30/1M output
+Pricing (Feb 2026):
+    Claude Opus 4.6:   $15/1M input, $75/1M output
+    Claude Sonnet 4.5:  $3/1M input, $15/1M output
+    Claude Haiku 4.5:   $1/1M input, $5/1M output
+    Gemini 3 Pro:      $1.25/1M input, $5/1M output
+    Gemini 3 Flash:    $0.075/1M input, $0.30/1M output
 """
 
 import json
@@ -31,8 +32,10 @@ from dataclasses import dataclass, asdict
 
 # Cost per 1 MILLION tokens (USD)
 PRICING = {
-    # Claude models
-    "claude-opus-4-5-20251101": {"input": 15.00, "output": 75.00},
+    # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5)
+    "claude-opus-4-6-20250116": {"input": 15.00, "output": 75.00},
+    "claude-opus-4-6": {"input": 15.00, "output": 75.00},  # Alias
+    "claude-opus-4-5-20251101": {"input": 15.00, "output": 75.00},  # Legacy
     "claude-opus": {"input": 15.00, "output": 75.00},  # Alias
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
     "claude-sonnet": {"input": 3.00, "output": 15.00},  # Alias
@@ -46,6 +49,10 @@ PRICING = {
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     "gemini-3-flash": {"input": 0.075, "output": 0.30},
     "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (default to 2.5)
+
+    # Local models (zero cost)
+    "ollama": {"input": 0.0, "output": 0.0},
+    "llama3.1": {"input": 0.0, "output": 0.0},
 
     # Default fallback (conservative estimate)
     "default": {"input": 5.00, "output": 20.00},

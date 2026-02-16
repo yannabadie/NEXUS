@@ -56,7 +56,7 @@ class TestGetContextWindow:
     """Test model context window lookup."""
 
     def test_claude_opus(self):
-        assert get_context_window("claude-opus-4-5-20251101") == 200_000
+        assert get_context_window("claude-opus-4-6-20250116") == 200_000
 
     def test_claude_sonnet(self):
         assert get_context_window("claude-sonnet-4-5-20250929") == 200_000

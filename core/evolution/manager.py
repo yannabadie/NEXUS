@@ -49,6 +49,10 @@ from core.evolution.phases.promote import PromotePhase
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float], None]
 
+# Type alias for approval callback
+# Receives (child_id, fitness_score, improvement_pct, metrics) → bool
+ApprovalCallback = Callable[[str, float, float, Dict], bool]
+
 
 class EvolutionManager:
     """
@@ -58,6 +62,10 @@ class EvolutionManager:
     - Scriptable evolution (no REPL required)
     - Independent testing
     - Clear separation of concerns
+
+    V12.4 COGNITIVE BOOST additions:
+    - approval_callback: HITL gate before promotion (mandatory by default)
+    - Red Team validation configurable via config.red_team_mandatory
     """
 
     def __init__(
@@ -68,6 +76,7 @@ class EvolutionManager:
         orchestrator: Any,
         rate_limiter: Optional[EvolutionRateLimiter] = None,
         progress_callback: Optional[ProgressCallback] = None,
+        approval_callback: Optional[ApprovalCallback] = None,
     ):
         """
         Initialize EvolutionManager.
@@ -79,6 +88,10 @@ class EvolutionManager:
             orchestrator: OrchestratorV7 instance for AI interactions
             rate_limiter: Optional rate limiter (creates default if None)
             progress_callback: Optional callback for progress updates
+            approval_callback: Optional HITL callback for promotion approval.
+                Receives (child_id, fitness_score, improvement_pct, metrics).
+                Returns True to approve, False to reject.
+                If None and auto_promotion is disabled, promotion is skipped.
         """
         self.workspace_path = workspace_path
         self.nexus_root = nexus_root
@@ -86,6 +99,11 @@ class EvolutionManager:
         self.orchestrator = orchestrator
         self.rate_limiter = rate_limiter or EvolutionRateLimiter(workspace_path, config)
         self.progress_callback = progress_callback
+        self.approval_callback = approval_callback
+
+        # V12.4: HITL gate configuration
+        self._auto_promotion = getattr(config, 'auto_promotion', False)
+        self._red_team_mandatory = getattr(config, 'red_team_mandatory', False)
 
         # Paths
         self.children_path = workspace_path / "children"
@@ -377,6 +395,66 @@ class EvolutionManager:
         )
 
     # =========================================================================
+    # HITL Approval Gate (V12.4 COGNITIVE BOOST)
+    # =========================================================================
+
+    def _request_approval(self, winner: Any) -> bool:
+        """
+        Request human approval before promoting a child.
+
+        Decision logic:
+        1. If approval_callback is set → call it and return its result
+        2. If auto_promotion is enabled → approve automatically
+        3. Otherwise → reject (safe default: no silent auto-promotion)
+
+        Args:
+            winner: EvaluationResult of the winning child
+
+        Returns:
+            True if promotion is approved, False otherwise
+        """
+        child_id = winner.child_id
+        fitness = winner.fitness_score
+        improvement = winner.improvement_pct
+        metrics = winner.metrics if hasattr(winner, 'metrics') else {}
+
+        # Path 1: Explicit approval callback (HITL via REPL, API, or WebSocket)
+        if self.approval_callback is not None:
+            try:
+                self._report_progress(
+                    f"Awaiting approval for {child_id} "
+                    f"(score={fitness:.3f}, +{improvement:.1f}%)",
+                    0.85,
+                )
+                return self.approval_callback(child_id, fitness, improvement, metrics)
+            except Exception as e:
+                self._report_progress(f"Approval callback error: {e}", 0.85)
+                return False  # Fail closed
+
+        # Path 2: Auto-promotion enabled in config
+        if self._auto_promotion:
+            auto_threshold = getattr(self.config, 'auto_promote_pct', 3.0)
+            if improvement >= auto_threshold:
+                self._report_progress(
+                    f"Auto-promoting {child_id} (+{improvement:.1f}% >= {auto_threshold}% threshold)",
+                    0.85,
+                )
+                return True
+            self._report_progress(
+                f"Auto-promotion skipped: +{improvement:.1f}% < {auto_threshold}% threshold",
+                0.85,
+            )
+            return False
+
+        # Path 3: No callback, no auto-promotion → safe default = reject
+        self._report_progress(
+            f"Promotion blocked: no approval_callback and auto_promotion=False. "
+            f"Winner {child_id} (+{improvement:.1f}%) archived.",
+            0.85,
+        )
+        return False
+
+    # =========================================================================
     # Orchestration
     # =========================================================================
 
@@ -392,9 +470,10 @@ class EvolutionManager:
         1. Rate limiting check
         2. Brainstorming (AI debate for mutations)
         3. Child creation (apply mutations)
-        4. Validation (tiered fast-fail)
+        4. Validation (tiered fast-fail, Red Team if mandatory)
         5. Evaluation (fitness scoring)
-        6. Promotion (winner becomes parent)
+        6. HITL Approval Gate (callback or auto_promotion threshold)
+        7. Promotion (winner becomes parent)
 
         Args:
             child_count: Number of children to create
@@ -439,7 +518,9 @@ class EvolutionManager:
 
             # Phase 3: Validation
             result.phase_reached = "validate"
-            validation_results = self.validate_children(creation_result.children_created)
+            # V12.4: Red Team tier is mandatory when config says so
+            validation_tier = ValidationTier.REDTEAM if self._red_team_mandatory else ValidationTier.BENCHMARK
+            validation_results = self.validate_children(creation_result.children_created, tier=validation_tier)
             passed_children = [v.child_id for v in validation_results if v.passed]
             result.children_validated = len(passed_children)
 
@@ -460,7 +541,25 @@ class EvolutionManager:
             result.winner_id = winner.child_id
             result.winner_score = winner.fitness_score
 
-            # Phase 5: Promotion
+            # Phase 5: HITL Approval Gate (V12.4)
+            result.phase_reached = "approval"
+            approved = self._request_approval(winner)
+            if not approved:
+                result.errors.append(
+                    f"Promotion rejected: {winner.child_id} "
+                    f"(score={winner.fitness_score:.3f}, +{winner.improvement_pct:.1f}%) "
+                    "awaiting human approval or auto_promotion is disabled"
+                )
+                # Archive all children — none promoted
+                for eval_result in evaluation_results:
+                    self.archive_child(
+                        eval_result.child_id,
+                        "Promotion not approved" if eval_result.child_id == winner.child_id
+                        else "Not selected as winner",
+                    )
+                return result
+
+            # Phase 6: Promotion
             result.phase_reached = "promote"
             promotion_result = self.promote_child(winner.child_id, winner.fitness_score)
             result.promoted = promotion_result.success

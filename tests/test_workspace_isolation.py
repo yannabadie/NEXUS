@@ -362,7 +362,7 @@ class TestGeminiDriverIsolatedEnv:
 
     def test_isolated_env_passed_to_subprocess(self, tmp_path, mock_subprocess):
         """isolated_env should be passed to subprocess."""
-        from core.drivers.gemini_driver_v7 import GeminiDriverV7
+        from core.drivers.legacy.gemini_driver_v7 import GeminiDriverV7
 
         workspace = tmp_path / "workspace"
         workspace.mkdir()
@@ -394,7 +394,7 @@ class TestGeminiDriverIsolatedEnv:
 
     def test_cwd_unchanged_with_isolated_env(self, tmp_path, mock_subprocess):
         """CWD should stay at project root even with isolated_env."""
-        from core.drivers.gemini_driver_v7 import GeminiDriverV7
+        from core.drivers.legacy.gemini_driver_v7 import GeminiDriverV7
 
         workspace = tmp_path / "workspace"
         workspace.mkdir()

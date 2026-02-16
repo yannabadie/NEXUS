@@ -133,7 +133,7 @@ class MockConfig(Config):
         self.auto_promote_min_red_team_score = 0.90
 
         # Model routing
-        self.claude_opus_model = "claude-opus-4-5-20251101"
+        self.claude_opus_model = "claude-opus-4-6-20250116"
         self.claude_sonnet_model = "claude-sonnet-4-5-20250929"
         self.gemini_default_model = "gemini-3-pro-preview"
         self.gemini_pro_model = "gemini-3-pro-preview"

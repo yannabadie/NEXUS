@@ -17,7 +17,7 @@ def test_imports():
     from core.fsm.states import OrchestratorState
     from core.fsm.stagnation_detector import StagnationDetector
     from core.synapse.protocol_v7 import LightMessageV7
-    from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+    from core.drivers.legacy.claude_driver_hybrid import ClaudeDriverHybrid
     from core.orchestration_v7 import OrchestratorV7
 
     assert True  # If we got here, imports worked
@@ -50,7 +50,7 @@ def test_stagnation_detector():
 
 def test_claude_parser():
     """Test Claude hybrid parser"""
-    from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+    from core.drivers.legacy.claude_driver_hybrid import ClaudeDriverHybrid
     from pathlib import Path
     from core.config import Config
 

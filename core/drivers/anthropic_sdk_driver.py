@@ -70,10 +70,12 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         max_tokens: int = 8192,
         timeout: float = 300.0,
         enable_caching: bool = True,
+        response_cache: Optional[Any] = None,
     ):
         super().__init__(provider="claude", model=model, timeout=timeout)
         self._max_tokens = max_tokens
         self._enable_caching = enable_caching
+        self._response_cache = response_cache
 
         # Lazy import to avoid hard dependency at module level
         try:
@@ -117,6 +119,26 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         start_time = time.monotonic()
         effective_timeout = timeout or self._timeout
 
+        # Response cache check (skip if tools present — non-deterministic)
+        if self._response_cache and not tools:
+            temperature = kwargs.get("temperature", 0.7)
+            cached = self._response_cache.get(
+                self._model, prompt,
+                temperature=temperature,
+                system_prompt=system_prompt or "",
+            )
+            if cached is not None:
+                latency_ms = (time.monotonic() - start_time) * 1000
+                logger.debug("Response cache HIT (%.1fms)", latency_ms)
+                return DriverResponse(
+                    content=cached,
+                    status=DriverResponseStatus.SUCCESS,
+                    provider=self._provider,
+                    model=self._model,
+                    latency_ms=latency_ms,
+                    raw={"cached": True},
+                )
+
         try:
             # Build request parameters
             request_params = self._build_request(
@@ -131,7 +153,25 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
             latency_ms = (time.monotonic() - start_time) * 1000
 
-            return self._parse_response(response, latency_ms)
+            result = self._parse_response(response, latency_ms)
+
+            # Store in response cache on success (no tool calls)
+            if (
+                self._response_cache
+                and not tools
+                and result.status == DriverResponseStatus.SUCCESS
+                and not result.tool_calls
+                and result.content
+            ):
+                total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
+                self._response_cache.put(
+                    self._model, prompt, result.content,
+                    temperature=kwargs.get("temperature", 0.7),
+                    system_prompt=system_prompt or "",
+                    tokens_used=total_tokens,
+                )
+
+            return result
 
         except asyncio.TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -474,9 +514,13 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         return params
 
     def _format_tools(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Format tools to Anthropic's expected schema."""
+        """Format tools to Anthropic's expected schema.
+
+        When caching is enabled, marks the LAST tool with cache_control
+        so the entire tool definition prefix is cached (breakpoint 1).
+        """
         formatted = []
-        for tool in tools:
+        for i, tool in enumerate(tools):
             formatted_tool = {
                 "name": tool.get("name", tool.get("function", {}).get("name", "")),
                 "description": tool.get(
@@ -488,6 +532,9 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                     tool.get("parameters", tool.get("function", {}).get("parameters", {})),
                 ),
             }
+            # Cache breakpoint 1: mark the last tool for prefix caching
+            if self._enable_caching and i == len(tools) - 1:
+                formatted_tool["cache_control"] = {"type": "ephemeral"}
             formatted.append(formatted_tool)
         return formatted
 
@@ -504,6 +551,24 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         # Extract tool calls
         tool_calls = self._extract_tool_calls(response)
 
+        # Extract cache metrics from usage (prompt caching)
+        usage = response.usage
+        cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+        input_tokens = getattr(usage, "input_tokens", 0) or 0
+        output_tokens = getattr(usage, "output_tokens", 0) or 0
+
+        if cache_read > 0:
+            logger.debug(
+                "Prompt cache HIT: %d tokens read from cache (saved ~90%% input cost)",
+                cache_read,
+            )
+        if cache_creation > 0:
+            logger.debug(
+                "Prompt cache WRITE: %d tokens written to cache",
+                cache_creation,
+            )
+
         return DriverResponse(
             content=content,
             status=DriverResponseStatus.SUCCESS,
@@ -511,12 +576,14 @@ class AnthropicSDKDriver(BaseAsyncDriver):
             provider=self._provider,
             tool_calls=tool_calls,
             latency_ms=latency_ms,
-            input_tokens=getattr(response.usage, "input_tokens", 0),
-            output_tokens=getattr(response.usage, "output_tokens", 0),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             raw={
                 "id": response.id,
                 "stop_reason": response.stop_reason,
                 "model": response.model,
+                "cache_creation_input_tokens": cache_creation,
+                "cache_read_input_tokens": cache_read,
             },
             timestamp=datetime.now(timezone.utc),
         )
