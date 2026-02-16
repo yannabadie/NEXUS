@@ -514,7 +514,8 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 timeout=10.0,
             )
             return response.stop_reason is not None
-        except Exception:
+        except Exception as e:
+            logger.debug("Health check failed: %s", e)
             return False
 
     # =========================================================================

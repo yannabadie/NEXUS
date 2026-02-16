@@ -245,7 +245,8 @@ class ConcurrencyLimiter:
                 self._stats.total_acquisitions += 1
                 self._stats.current_active = self._active_count
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug("Async semaphore acquire failed: %s", e)
             return False
 
     def release_async(self):

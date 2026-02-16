@@ -15,8 +15,11 @@ Usage:
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional, Any
+
+_logger = logging.getLogger(__name__)
 
 from core.agents.unified_registry import get_registry
 from core.prompts import load_prompt
@@ -72,7 +75,8 @@ class ContextBuilder:
         prompt_name = "system_gemini_v7" if self._registry.is_gemini(self._orch.active_agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
-        except Exception:
+        except Exception as e:
+            _logger.debug("Failed to load prompt %s: %s", prompt_name, e)
             system_prompt = f"You are {self._registry.get_display_name(self._orch.active_agent)}."
 
         # Get available tools from manager dynamically
@@ -230,7 +234,8 @@ User objective: {objective}
         prompt_name = "system_gemini_v7" if self._registry.is_gemini(agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
-        except Exception:
+        except Exception as e:
+            _logger.debug("Failed to load prompt %s: %s", prompt_name, e)
             system_prompt = f"You are {self._registry.get_display_name(agent)}, a collaborative AI agent."
 
         # Get available tools
@@ -306,7 +311,8 @@ Path: {self._orch.workspace_path}
         prompt_name = "system_gemini_v7" if self._registry.is_gemini(agent) else "system_claude_v7"
         try:
             system_prompt = load_prompt(prompt_name)
-        except Exception:
+        except Exception as e:
+            _logger.debug("Failed to load prompt %s: %s", prompt_name, e)
             system_prompt = f"You are {self._registry.get_display_name(agent)}."
 
         tools_list = list(self._orch.tool_manager.tools.keys())

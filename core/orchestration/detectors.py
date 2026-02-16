@@ -23,6 +23,8 @@ import json
 import logging
 from typing import Optional
 
+_logger = logging.getLogger(__name__)
+
 
 class MutationDetector:
     """
@@ -157,8 +159,8 @@ class MutationDetector:
                             except json.JSONDecodeError:
                                 pass
                             break
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.debug("Mutation detection failed: %s", e)
 
         return False
 

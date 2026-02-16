@@ -342,6 +342,10 @@ class Config:
         # V12.4: Routing policy (balanced | cost_optimized | quality_optimized)
         self.routing_policy: str = os.getenv("ROUTING_POLICY", "balanced")
 
+        # V12.4: Memory backend (auto | dense | bm25 | tfidf)
+        self.project_memory_backend: str = os.getenv("PROJECT_MEMORY_BACKEND", "auto")
+        self.project_memory_max_chunks: int = int(os.getenv("PROJECT_MEMORY_MAX_CHUNKS", "5000"))
+
         # ====================================================================
         # GEMINI SESSION PERSISTENCE (V7 Sprint 12)
         # ====================================================================

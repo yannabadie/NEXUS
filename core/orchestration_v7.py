@@ -769,8 +769,8 @@ class OrchestratorV7:
                 trigger="fsm_transition",
                 session_id=getattr(self, '_session_uuid', None),
             )
-        except Exception:
-            pass  # Never block FSM for telemetry
+        except Exception as e:
+            self.logger.debug("Telemetry record_transition failed: %s", e)
 
         # Create backup before critical transitions
         if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:
@@ -944,8 +944,9 @@ class OrchestratorV7:
             try:
                 encoding = tiktoken.get_encoding("cl100k_base")
                 estimated_tokens = len(encoding.encode(response_text))
-            except Exception:
+            except Exception as e:
                 # Fallback: rough estimate (1 token ≈ 4 chars)
+                self.logger.debug("tiktoken encoding failed, using estimate: %s", e)
                 estimated_tokens = len(response_text) // 4
 
         invocation = AgentInvocationResult(

@@ -154,8 +154,8 @@ class RedisWorkflowRegistry:
         if self._redis:
             try:
                 await self._redis.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Redis close error: %s", e)
             self._redis = None
             self._connected = False
             logger.info("[WORKFLOW] Disconnected from Redis")
@@ -498,9 +498,8 @@ def get_workflow_registry() -> RedisWorkflowRegistry:
             use_redis = getattr(config, "use_redis_workflows", True)
             ttl_hours = getattr(config, "workflow_ttl_hours", 24)
             _registry.configure(redis_url, use_redis, ttl_hours)
-        except Exception:
-            # Use defaults
-            pass
+        except Exception as e:
+            logger.debug("Workflow registry config load failed, using defaults: %s", e)
 
     return _registry
 

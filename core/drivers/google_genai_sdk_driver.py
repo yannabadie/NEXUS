@@ -343,7 +343,8 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 timeout=10.0,
             )
             return response is not None
-        except Exception:
+        except Exception as e:
+            logger.debug("Health check failed: %s", e)
             return False
 
     # =========================================================================
@@ -376,8 +377,8 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             try:
                 self._client.caches.delete(self._cached_content_name)
                 logger.debug("Deleted stale Gemini cache: %s", self._cached_content_name)
-            except Exception:
-                pass  # Cache may have expired already
+            except Exception as e:
+                logger.debug("Cache delete failed (may be expired): %s", e)
 
         # Create new cache
         try:

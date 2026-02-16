@@ -514,7 +514,12 @@ class IndependentAnalysisPhase:
         return intersection / union
 
     def _needs_debate(self, comparison: AnalysisComparison) -> bool:
-        """Determine if debate is needed based on comparison."""
+        """Determine if debate is needed based on comparison.
+
+        Uses DyLAN-style confidence-weighted scoring: agents with poor
+        calibration or detected cognitive degradation trigger debate
+        even at moderate agreement levels (V12.4).
+        """
         # Already calculated in comparison, but add extra checks
 
         # Always debate if agreement is low
@@ -536,6 +541,23 @@ class IndependentAnalysisPhase:
         )
         if confidence_gap > 0.4:
             return True
+
+        # V12.4: Check quality profiles - poorly calibrated agents
+        # should trigger debate even at moderate agreement
+        try:
+            from core.reasoning.reasoning_quality_scorer import get_quality_scorer
+            from core.reasoning.cognitive_degradation import get_degradation_detector
+            scorer = get_quality_scorer()
+            detector = get_degradation_detector()
+            for agent_id in ("claude", "gemini"):
+                profile = scorer.get_agent_profile(agent_id)
+                if profile and profile.avg_calibration < 0.5 and comparison.agreement_score < 0.9:
+                    return True  # Low calibration + moderate agreement = debate
+                signal = detector.check_agent(agent_id)
+                if signal.degraded and comparison.agreement_score < 0.9:
+                    return True  # Degraded agent + moderate agreement = debate
+        except Exception:
+            pass  # Quality checks are advisory
 
         # High agreement, no severe issues = skip debate
         return comparison.needs_debate
