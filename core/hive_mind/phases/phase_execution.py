@@ -294,11 +294,29 @@ class MonitoredExecutionPhase:
             step_results, all_issues, architecture, error_count,
         )
 
+        # V12.4: Check for cognitive degradation
+        degradation_detected = False
+        try:
+            from core.reasoning.cognitive_degradation import get_degradation_detector
+            detector = get_degradation_detector()
+            for agent_id in {s.agent_id for s in architecture.execution_steps if hasattr(s, 'agent_id')}:
+                signal = detector.check_agent(agent_id)
+                if signal.degraded:
+                    degradation_detected = True
+                    all_issues.append(ExecutionIssue(
+                        step_name="degradation_check",
+                        description=f"Cognitive degradation: {signal.details}",
+                        severity=IssueSeverity.WARNING,
+                    ))
+        except Exception:
+            pass  # Degradation detection is advisory, not critical
+
         # Determine if diagnosis needed (quality-aware)
         needs_diagnosis = (
             not success
             or any(i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL) for i in all_issues)
             or quality_score < 0.4
+            or degradation_detected
         )
 
         total_duration = time.time() - start_time

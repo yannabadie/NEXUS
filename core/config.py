@@ -335,6 +335,13 @@ class Config:
         self.budget_warning_threshold: float = float(os.getenv("BUDGET_WARNING_PCT", "0.80"))
         self.budget_critical_threshold: float = float(os.getenv("BUDGET_CRITICAL_PCT", "0.90"))
 
+        # V12.4: Response cache (shared across SDK drivers)
+        self.response_cache_size: int = int(os.getenv("RESPONSE_CACHE_SIZE", "500"))
+        self.response_cache_ttl: float = float(os.getenv("RESPONSE_CACHE_TTL", "300"))
+
+        # V12.4: Routing policy (balanced | cost_optimized | quality_optimized)
+        self.routing_policy: str = os.getenv("ROUTING_POLICY", "balanced")
+
         # ====================================================================
         # GEMINI SESSION PERSISTENCE (V7 Sprint 12)
         # ====================================================================

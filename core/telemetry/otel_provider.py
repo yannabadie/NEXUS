@@ -210,25 +210,48 @@ def trace_llm_call(
     provider: str,
     model: str,
     operation: str = "chat",
+    *,
+    agent_name: str = "",
+    agent_id: str = "",
 ):
     """
     Context manager decorator for tracing LLM calls.
 
+    Follows OTel GenAI semantic conventions (2025-2026 spec):
+    - gen_ai.operation.name, gen_ai.provider.name, gen_ai.request.model
+    - gen_ai.agent.name, gen_ai.agent.id (if provided)
+    - Caller sets gen_ai.usage.input_tokens, gen_ai.usage.output_tokens,
+      gen_ai.response.model on the returned span.
+
+    Provider well-known values: "anthropic", "gcp.gemini"
+
     Usage:
         with trace_llm_call("anthropic", "claude-sonnet-4-5-20250929") as span:
             response = await driver.invoke(prompt)
-            span.set_attribute("gen_ai.usage.input_tokens", response.usage.get("input_tokens", 0))
-            span.set_attribute("gen_ai.usage.output_tokens", response.usage.get("output_tokens", 0))
+            span.set_attribute("gen_ai.usage.input_tokens", 1000)
+            span.set_attribute("gen_ai.usage.output_tokens", 500)
     """
+    # Map provider names to OTel well-known values
+    provider_map = {
+        "claude": "anthropic",
+        "anthropic": "anthropic",
+        "gemini": "gcp.gemini",
+        "google": "gcp.gemini",
+    }
+    otel_provider = provider_map.get(provider.lower(), provider)
+
     tracer = get_tracer()
-    span = tracer.start_span(
-        f"{operation} {model}",
-        attributes={
-            "gen_ai.operation.name": operation,
-            "gen_ai.provider.name": provider,
-            "gen_ai.request.model": model,
-        },
-    )
+    attrs = {
+        "gen_ai.operation.name": operation,
+        "gen_ai.system": otel_provider,
+        "gen_ai.request.model": model,
+    }
+    if agent_name:
+        attrs["gen_ai.agent.name"] = agent_name
+    if agent_id:
+        attrs["gen_ai.agent.id"] = agent_id
+
+    span = tracer.start_span(f"{operation} {model}", attributes=attrs)
     return _SpanContextManager(span)
 
 

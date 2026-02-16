@@ -86,3 +86,24 @@ __all__ += [
     'get_quality_scorer',
     'reset_quality_scorer',
 ]
+
+# V12.4 COGNITIVE BOOST: Cognitive Degradation Detector
+from .cognitive_degradation import (
+    CognitiveDegradationDetector,
+    DegradationSignal,
+    DegradationReason,
+    Mitigation,
+    DetectorStats,
+    get_degradation_detector,
+    reset_degradation_detector,
+)
+
+__all__ += [
+    'CognitiveDegradationDetector',
+    'DegradationSignal',
+    'DegradationReason',
+    'Mitigation',
+    'DetectorStats',
+    'get_degradation_detector',
+    'reset_degradation_detector',
+]

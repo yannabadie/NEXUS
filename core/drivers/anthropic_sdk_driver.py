@@ -149,7 +149,12 @@ class AnthropicSDKDriver(BaseAsyncDriver):
             )
 
             # OTel span wraps the API call
-            with trace_llm_call(self._provider, self._model, "chat") as span:
+            agent_name = kwargs.pop("agent_name", "")
+            agent_id = kwargs.pop("agent_id", "")
+            with trace_llm_call(
+                self._provider, self._model, "chat",
+                agent_name=agent_name, agent_id=agent_id,
+            ) as span:
                 # Make the API call with timeout
                 response = await asyncio.wait_for(
                     self._client.messages.create(**request_params),

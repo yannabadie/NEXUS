@@ -142,7 +142,12 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
             config = self._build_config(system_prompt, tools, **kwargs)
 
             # OTel span wraps the API call
-            with trace_llm_call(self._provider, self._model, "chat") as span:
+            agent_name = kwargs.pop("agent_name", "")
+            agent_id = kwargs.pop("agent_id", "")
+            with trace_llm_call(
+                self._provider, self._model, "chat",
+                agent_name=agent_name, agent_id=agent_id,
+            ) as span:
                 # Run in executor since google-genai may not have full async support
                 response = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
