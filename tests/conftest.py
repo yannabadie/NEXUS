@@ -1,5 +1,5 @@
 """
-Pytest Configuration and Fixtures for NEXUS V7.5 Tests
+Pytest Configuration and Fixtures for NEXUS V12.4 Tests
 
 Provides:
 - MockDriver: Reusable mock for GeminiDriverV7 and ClaudeDriverHybrid
@@ -11,6 +11,27 @@ Provides:
 import pytest
 import sys
 import tempfile
+
+# ---------------------------------------------------------------------------
+# V12.4: Guard against WMI hangs on Windows.
+# Python 3.12+ uses _wmi for platform.uname() / platform.machine().
+# If the WMI service is unresponsive, these calls hang indefinitely,
+# blocking argon2-cffi import (which calls platform.machine() in _is_wasm()).
+# Pre-cache the result with a timeout so the rest of the suite is unaffected.
+# ---------------------------------------------------------------------------
+if sys.platform == "win32":
+    import platform as _platform
+    if not hasattr(_platform, "_uname_cache_nexus"):
+        import concurrent.futures as _cf
+        try:
+            with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                _fut = _ex.submit(_platform.machine)
+                _machine = _fut.result(timeout=5)
+                _platform._uname_cache_nexus = True  # marker
+        except (_cf.TimeoutError, Exception):
+            # WMI is hung — monkey-patch platform.machine to return a safe default
+            _platform.machine = lambda: "AMD64"
+            _platform._uname_cache_nexus = True
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from unittest.mock import Mock, MagicMock, patch

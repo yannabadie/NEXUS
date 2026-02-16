@@ -92,12 +92,21 @@ def verify_kernel_integrity():
     with open(kernel_path, 'rb') as f:
         current_hash = hashlib.sha256(f.read()).hexdigest()
 
-    # Load expected hash
+    # FAIL-CLOSED: Missing hash file is a security violation in production.
+    # The hash MUST be committed alongside KERNEL.py.
     if not kernel_hash_path.exists():
-        print(f"[SECURITY] KERNEL_HASH.txt not found! Creating initial hash...")
-        with open(kernel_hash_path, 'w') as f:
-            f.write(f"sha256:{current_hash}")
-        return True
+        import os
+        # Allow auto-creation ONLY if explicitly opted-in via env var (dev mode)
+        if os.getenv("NEXUS_KERNEL_INIT_HASH", "").lower() in ("true", "1"):
+            print(f"[SECURITY] KERNEL_HASH.txt not found. Creating initial hash (dev mode)...")
+            with open(kernel_hash_path, 'w') as f:
+                f.write(f"sha256:{current_hash}")
+            return True
+        else:
+            print(f"[SECURITY] FATAL: KERNEL_HASH.txt not found!")
+            print(f"   This file is REQUIRED for integrity verification.")
+            print(f"   Set NEXUS_KERNEL_INIT_HASH=true to initialize (first-time setup only).")
+            return False
 
     with open(kernel_hash_path, 'r') as f:
         expected_hash = f.read().strip().replace("sha256:", "")
@@ -253,13 +262,13 @@ def get_heredity_stamp() -> dict:
             - human_authority: Creator name
             - stamped_at: ISO timestamp
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     return {
         "kernel_rules_hash": compute_rules_hash(),
         "kernel_version": VERSION,
         "human_authority": CREATOR,
-        "stamped_at": datetime.now().isoformat()
+        "stamped_at": datetime.now(timezone.utc).isoformat()
     }
 
 # ============================================================================

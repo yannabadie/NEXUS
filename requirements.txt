@@ -1,4 +1,4 @@
-# NEXUS V8.0 TRUE HIVE MIND Dependencies
+# NEXUS V12.4 COGNITIVE BOOST Dependencies
 # Philosophy: Minimal dependencies, maximum value
 
 # =============================================================================
@@ -76,13 +76,20 @@ websockets>=13.0
 # Python-Jose: JWT encoding/decoding for API auth
 python-jose[cryptography]>=3.3.0
 
-# Passlib: Password hashing (bcrypt backend)
-# Note: Requires passlib>=1.7.5 for bcrypt 4.x compatibility
-passlib[bcrypt]>=1.7.4
+# Argon2-cffi: Password hashing (RFC 9106, OWASP recommended)
+# V12.4: Replaced passlib[bcrypt] with argon2-cffi for modern security
+argon2-cffi>=23.1.0
 
 # SlowAPI: Rate limiting for FastAPI (Redis or in-memory backend)
 # V12.1 RETINA: Brute-force and DoS protection
 slowapi>=0.1.9
+
+# =============================================================================
+# V12.4 SDK Drivers (OPTIONAL - for API-first mode)
+# =============================================================================
+# Install these to use SDK drivers instead of CLI subprocess drivers:
+# anthropic>=0.70.0       # Claude API driver
+# google-genai>=1.0.0     # Gemini API driver
 
 # =============================================================================
 # Development Dependencies (REQUIRED for tests)

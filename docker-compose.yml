@@ -1,14 +1,21 @@
-# NEXUS V10 CEREBRO - Docker Compose
-# Redis 7 for event bus pub/sub
+# NEXUS V12.4 COGNITIVE BOOST - Docker Compose
+#
+# Services:
+#   redis      - Event bus, FSM event store, workflow registry
+#   nexus      - NEXUS backend (headless mode, SDK drivers)
+#   cerebro    - CEREBRO WebSocket API (optional)
 #
 # Usage:
-#   docker-compose up -d redis    # Start Redis only
-#   docker-compose down           # Stop all services
-#   docker-compose logs redis     # View Redis logs
-
-version: "3.9"
+#   docker compose up -d redis           # Redis only (local dev)
+#   docker compose up -d                 # Full stack
+#   docker compose --profile api up -d   # Include CEREBRO API
+#   docker compose logs -f nexus         # Watch NEXUS logs
+#   docker compose down                  # Stop all
 
 services:
+  # ===========================================================================
+  # Redis: Event Bus + State Store
+  # ===========================================================================
   redis:
     image: redis:7-alpine
     container_name: nexus-redis
@@ -33,6 +40,73 @@ services:
     networks:
       - nexus-network
 
+  # ===========================================================================
+  # NEXUS Backend: Headless Orchestrator
+  # ===========================================================================
+  nexus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        RUST_EXTENSIONS: "false"
+    container_name: nexus-backend
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NEXUS_DRIVER_MODE=auto
+      - LOG_LEVEL=INFO
+      - WORKSPACE_PATH=/app/workspace
+      # API keys - set in .env file or docker compose override
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Feature flags
+      - NEXUS_FF_HEADLESS_MODE=true
+      - NEXUS_FF_TELEMETRY_JSONL=true
+    volumes:
+      - nexus_workspace:/app/workspace
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
+  # ===========================================================================
+  # CEREBRO API: WebSocket + REST API (optional profile)
+  # ===========================================================================
+  cerebro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-cerebro
+    profiles:
+      - api
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      uvicorn core.api.cerebro.app:create_app
+      --factory
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
 networks:
   nexus-network:
     driver: bridge
@@ -40,3 +114,5 @@ networks:
 volumes:
   redis_data:
     name: nexus-redis-data
+  nexus_workspace:
+    name: nexus-workspace
