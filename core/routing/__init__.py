@@ -11,6 +11,7 @@ from .model_router import (
     RoutingDecision,
     RoutingPolicy,
     ModelTier,
+    CascadeRoute,
 )
 
 # V12.4: Resource Optimizer
@@ -50,6 +51,7 @@ __all__ = [
     "RoutingDecision",
     "RoutingPolicy",
     "ModelTier",
+    "CascadeRoute",
     # V12.4: Resource Optimizer
     "ResourceOptimizer",
     "ModelSpec",

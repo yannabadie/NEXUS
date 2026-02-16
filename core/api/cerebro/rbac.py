@@ -234,7 +234,8 @@ def require_permission(permission: Permission, resource_type: str = "api"):
         if not role:
             try:
                 role = get_user_role(UUID(user.user_id), UUID(user.tenant_id))
-            except Exception:
+            except Exception as e:
+                logger.error("[RBAC] Failed to get user role: %s", e, exc_info=True)
                 role = None
 
         # Default to viewer if no role found (most restrictive)

@@ -91,6 +91,21 @@ class RoutingDecision:
     policy: RoutingPolicy = RoutingPolicy.BALANCED
 
 
+@dataclass
+class CascadeRoute:
+    """
+    Cascade routing plan (arxiv:2410.10347).
+
+    Defines an ordered list of models to try, cheapest first.
+    The caller attempts each model in order, escalating only if the
+    previous result's quality is below the confidence threshold.
+    """
+    models: list  # Ordered list of model IDs (cheapest first)
+    agent_id: str  # "claude" or "gemini"
+    task_type: TaskType
+    confidence_threshold: float = 0.7  # Escalate if quality < this
+
+
 class ModelRouter:
     """
     Routes tasks to appropriate models based on complexity.
@@ -557,6 +572,97 @@ class ModelRouter:
 
         # Normal routing
         return self.route_for_sdk(agent_id, task_type)
+
+    # =========================================================================
+    # Cascade Routing (arxiv:2410.10347 - ICML 2025)
+    # =========================================================================
+
+    def route_cascade(
+        self,
+        agent_id: str,
+        task_type: TaskType,
+        *,
+        confidence_threshold: float = 0.7,
+        budget_pct: float = 0.0,
+    ) -> CascadeRoute:
+        """
+        Generate a cascade routing plan: try cheap model first, escalate on low quality.
+
+        Based on arxiv:2410.10347 (Cascade Routing, ICML 2025):
+        - Try the cheapest model that could handle the task
+        - If quality/confidence is below threshold, escalate to next tier
+        - Stops at the most capable model or budget limit
+
+        The caller is responsible for executing the cascade:
+            route = router.route_cascade("claude", TaskType.ANALYSIS)
+            for model in route.models:
+                result = await driver.invoke(prompt, model=model)
+                if result.quality >= route.confidence_threshold:
+                    break  # Good enough
+
+        Args:
+            agent_id: "claude" or "gemini"
+            task_type: Type of task
+            confidence_threshold: Escalate if output quality < this (0.0-1.0)
+            budget_pct: Current budget usage percentage
+
+        Returns:
+            CascadeRoute with ordered model list (cheapest first)
+        """
+        tier = self._task_tiers.get(task_type, ModelTier.MEDIUM)
+        is_claude = agent_id.lower() == "claude"
+
+        # Build full cascade (LIGHT → MEDIUM → HEAVY)
+        if is_claude:
+            full_cascade = [self.haiku_model, self.sonnet_model, self.opus_model]
+        else:
+            full_cascade = [self.gemini_flash_model, self.gemini_pro_model]
+
+        # Budget constraints: cap the cascade
+        if budget_pct >= 100.0:
+            return CascadeRoute(
+                models=["ollama"],
+                agent_id=agent_id,
+                task_type=task_type,
+                confidence_threshold=confidence_threshold,
+            )
+        if budget_pct >= 90.0:
+            # Only allow cheapest model
+            return CascadeRoute(
+                models=[full_cascade[0]],
+                agent_id=agent_id,
+                task_type=task_type,
+                confidence_threshold=confidence_threshold,
+            )
+
+        # Policy constraints
+        if self.policy == RoutingPolicy.QUALITY_OPTIMIZED:
+            # Skip cascade, go straight to best
+            return CascadeRoute(
+                models=[full_cascade[-1]],
+                agent_id=agent_id,
+                task_type=task_type,
+                confidence_threshold=confidence_threshold,
+            )
+
+        # Normal cascade: start from the tier appropriate to the task
+        if tier == ModelTier.HEAVY:
+            # Heavy tasks: start from medium, can escalate to heavy
+            start_idx = 1 if len(full_cascade) > 2 else 0
+        elif tier == ModelTier.LIGHT:
+            # Light tasks: start from light, can escalate to medium
+            start_idx = 0
+        else:
+            # Medium tasks: start from light, can escalate to medium then heavy
+            start_idx = 0
+
+        cascade = full_cascade[start_idx:]
+        return CascadeRoute(
+            models=cascade,
+            agent_id=agent_id,
+            task_type=task_type,
+            confidence_threshold=confidence_threshold,
+        )
 
     def get_routing_stats(
         self,

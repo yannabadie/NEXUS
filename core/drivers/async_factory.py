@@ -39,7 +39,10 @@ from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .response_cache import ResponseCache
+from .driver_health_monitor import get_health_monitor
+from .failover_manager import get_failover_manager
 from core.async_primitives.process_handle import get_process_registry
+from core.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
 from core.telemetry.budget_tracker import get_budget_tracker
 
 if TYPE_CHECKING:
@@ -86,6 +89,11 @@ class AsyncDriverFactory:
 
         # Shared budget tracker for automatic cost tracking
         self._budget_tracker = get_budget_tracker(config, Path(workspace_path))
+
+        # Shared health monitor, failover manager, and circuit breaker
+        self._health_monitor = get_health_monitor()
+        self._failover = get_failover_manager()
+        self._circuit_breaker = get_hierarchical_breaker()
 
         # Lazy-initialized CLI drivers
         self._claude_driver: Optional[AsyncClaudeDriver] = None
@@ -191,7 +199,10 @@ class AsyncDriverFactory:
                 response_cache=self._response_cache,
             )
             self._claude_sdk._budget_tracker = self._budget_tracker
-            logger.info(f"Created AnthropicSDKDriver (model={getattr(self._claude_sdk, '_model', 'unknown')})")
+            self._claude_sdk._health_monitor = self._health_monitor
+            sdk_model = getattr(self._claude_sdk, '_model', 'unknown')
+            self._failover.register_driver(f"claude/{sdk_model}", priority=0)
+            logger.info(f"Created AnthropicSDKDriver (model={sdk_model})")
         elif model and hasattr(self._claude_sdk, '_model'):
             self._claude_sdk._model = model
 
@@ -228,7 +239,10 @@ class AsyncDriverFactory:
                 response_cache=self._response_cache,
             )
             self._gemini_sdk._budget_tracker = self._budget_tracker
-            logger.info(f"Created GoogleGenAISDKDriver (model={getattr(self._gemini_sdk, '_model', 'unknown')})")
+            self._gemini_sdk._health_monitor = self._health_monitor
+            sdk_model = getattr(self._gemini_sdk, '_model', 'unknown')
+            self._failover.register_driver(f"gemini/{sdk_model}", priority=1)
+            logger.info(f"Created GoogleGenAISDKDriver (model={sdk_model})")
         elif model and hasattr(self._gemini_sdk, '_model'):
             self._gemini_sdk._model = model
 
@@ -254,11 +268,17 @@ class AsyncDriverFactory:
 
         Returns SDK driver if API key available and mode allows,
         otherwise falls back to CLI driver.
+        Circuit breaker: if provider circuit is open, skip SDK entirely.
         """
         if self._driver_mode == "sdk":
             return self.get_claude_sdk(model)
 
         if self._driver_mode == "auto" and self._anthropic_api_key:
+            # Skip SDK if circuit breaker is open for claude
+            from core.resilience.circuit_breaker import CircuitState
+            if self._circuit_breaker.get_provider_state("claude") == CircuitState.OPEN:
+                logger.warning("Claude SDK circuit open, using CLI fallback")
+                return self.get_claude_driver(model)
             try:
                 return self.get_claude_sdk(model)
             except Exception as e:
@@ -272,11 +292,17 @@ class AsyncDriverFactory:
 
         Returns SDK driver if API key available and mode allows,
         otherwise falls back to CLI driver.
+        Circuit breaker: if provider circuit is open, skip SDK entirely.
         """
         if self._driver_mode == "sdk":
             return self.get_gemini_sdk(model)
 
         if self._driver_mode == "auto" and self._google_api_key:
+            # Skip SDK if circuit breaker is open for gemini
+            from core.resilience.circuit_breaker import CircuitState
+            if self._circuit_breaker.get_provider_state("gemini") == CircuitState.OPEN:
+                logger.warning("Gemini SDK circuit open, using CLI fallback")
+                return self.get_gemini_driver(model)
             try:
                 return self.get_gemini_sdk(model)
             except Exception as e:
@@ -341,6 +367,9 @@ class AsyncDriverFactory:
             "anthropic_api_key_set": bool(self._anthropic_api_key),
             "google_api_key_set": bool(self._google_api_key),
             "response_cache": self._response_cache.to_dict(),
+            "health_monitor": self._health_monitor.to_dict(),
+            "failover": self._failover.to_dict(),
+            "circuit_breaker": self._circuit_breaker.get_status(),
         }
 
     # =========================================================================

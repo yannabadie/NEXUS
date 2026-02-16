@@ -78,6 +78,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         self._enable_caching = enable_caching
         self._response_cache = response_cache
         self._budget_tracker = None
+        self._health_monitor = None  # Injected by factory
 
         # Lazy import to avoid hard dependency at module level
         try:
@@ -171,6 +172,20 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                     output_tokens=result.output_tokens,
                 )
 
+            # Record health event
+            driver_id = f"{self._provider}/{self._model}"
+            if self._health_monitor:
+                total_tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
+                if result.is_success:
+                    self._health_monitor.record_success(
+                        driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                    )
+                else:
+                    self._health_monitor.record_failure(
+                        driver_id, error=result.error_message or "unknown",
+                        latency_ms=latency_ms,
+                    )
+
             # Store in response cache on success (no tool calls)
             if (
                 self._response_cache
@@ -191,6 +206,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
 
         except asyncio.TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
+            if self._health_monitor:
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error="TIMEOUT", latency_ms=latency_ms,
+                )
             return DriverResponse(
                 content="",
                 status=DriverResponseStatus.TIMEOUT,
@@ -205,6 +225,11 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         except Exception as e:
             latency_ms = (time.monotonic() - start_time) * 1000
             status, error_code = self._classify_error(e)
+            if self._health_monitor:
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error=error_code, latency_ms=latency_ms,
+                )
             return DriverResponse(
                 content="",
                 status=status,

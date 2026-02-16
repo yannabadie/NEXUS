@@ -96,6 +96,7 @@ class ExecutionPhaseResult:
     artifacts_created: List[str]
     needs_diagnosis: bool
     failure_step: Optional[str] = None
+    quality_score: float = 0.0  # V12.4: composite reasoning quality (0.0-1.0)
 
 
 class MonitoredExecutionPhase:
@@ -288,16 +289,22 @@ class MonitoredExecutionPhase:
         )
         success = error_count == 0
 
-        # Determine if diagnosis needed
+        # V12.4: Score reasoning quality via ReasoningQualityScorer
+        quality_score = self._score_execution_quality(
+            step_results, all_issues, architecture, error_count,
+        )
+
+        # Determine if diagnosis needed (quality-aware)
         needs_diagnosis = (
-            not success or
-            any(i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL) for i in all_issues)
+            not success
+            or any(i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL) for i in all_issues)
+            or quality_score < 0.4
         )
 
         total_duration = time.time() - start_time
         logger.info(
             f"Phase 4 Complete: {len(step_results)} steps, "
-            f"{error_count} errors, {total_duration:.1f}s"
+            f"{error_count} errors, quality={quality_score:.2f}, {total_duration:.1f}s"
         )
 
         return ExecutionPhaseResult(
@@ -308,8 +315,83 @@ class MonitoredExecutionPhase:
             issues=all_issues,
             artifacts_created=all_artifacts,
             needs_diagnosis=needs_diagnosis,
-            failure_step=step_results[-1].step_name if not success and step_results else None
+            failure_step=step_results[-1].step_name if not success and step_results else None,
+            quality_score=quality_score,
         )
+
+    def _score_execution_quality(
+        self,
+        step_results: List[MonitoredStepResult],
+        issues: List[ExecutionIssue],
+        architecture: AgentArchitecture,
+        error_count: int,
+    ) -> float:
+        """
+        Score execution quality using ReasoningQualityScorer (V12.4).
+
+        Evaluates:
+        - Depth: fraction of planned steps completed successfully
+        - Coherence: absence of contradictory/hallucination issues
+        - Completeness: fraction of artifacts verified
+        - Confidence calibration: low error rate = high calibration
+
+        Records evaluation per agent for DyLAN routing feedback.
+
+        Returns:
+            Composite quality score (0.0-1.0)
+        """
+        if not step_results:
+            return 0.0
+
+        planned_steps = len(architecture.execution_plan.steps)
+        completed = sum(1 for r in step_results if r.status == "success")
+        total = len(step_results)
+
+        # Depth: fraction of planned steps completed
+        depth = completed / max(planned_steps, 1)
+
+        # Coherence: penalize hallucination and error issues
+        hallucination_count = sum(
+            1 for i in issues if i.issue_type == "hallucination"
+        )
+        error_issues = sum(
+            1 for i in issues
+            if i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL)
+        )
+        coherence = max(0.0, 1.0 - (hallucination_count * 0.3) - (error_issues * 0.15))
+
+        # Completeness: fraction of artifacts verified
+        verified = sum(1 for r in step_results if r.artifacts_verified)
+        completeness = verified / max(total, 1)
+
+        # Composite
+        quality = (depth + coherence + completeness) / 3
+
+        # Record per-agent evaluations via ReasoningQualityScorer
+        try:
+            from core.reasoning.reasoning_quality_scorer import get_quality_scorer
+            scorer = get_quality_scorer()
+            agents_seen = set()
+            for r in step_results:
+                if r.agent_id not in agents_seen:
+                    agents_seen.add(r.agent_id)
+                    agent_success_rate = sum(
+                        1 for sr in step_results
+                        if sr.agent_id == r.agent_id and sr.status == "success"
+                    ) / max(sum(1 for sr in step_results if sr.agent_id == r.agent_id), 1)
+                    scorer.record_evaluation(
+                        agent_id=r.agent_id,
+                        task_domain="execution",
+                        depth_score=depth,
+                        coherence_score=coherence,
+                        completeness_score=completeness,
+                        confidence=agent_success_rate,
+                        actual_outcome_quality=quality,
+                    )
+        except Exception as e:
+            logger.debug("Quality scorer unavailable: %s", e)
+
+        return round(quality, 4)
 
     def _is_step_complete(
         self,

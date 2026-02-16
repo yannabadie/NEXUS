@@ -14,6 +14,7 @@ Usage:
 """
 
 import json
+import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,8 @@ from enum import Enum
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Any
 from threading import Lock
+
+_logger = logging.getLogger(__name__)
 
 from core.telemetry.budget_tracker import (
     BudgetTracker,
@@ -121,7 +124,7 @@ class TelemetryCollector:
             try:
                 self._budget_tracker = BudgetTracker(config, workspace_path)
             except Exception as e:
-                print(f"[Telemetry] Budget tracker init error: {e}")
+                _logger.error("Budget tracker init error: %s", e, exc_info=True)
 
         # Ensure output directory exists
         if self.enabled:
@@ -144,7 +147,7 @@ class TelemetryCollector:
                 with open(self.output_file, 'a', encoding='utf-8') as f:
                     f.write(json.dumps(event, ensure_ascii=False) + '\n')
             except Exception as e:
-                print(f"[Telemetry] Write error: {e}")
+                _logger.warning("Telemetry write error: %s", e)
 
     def record_api_call(
         self,
@@ -192,7 +195,7 @@ class TelemetryCollector:
                 )
                 self._total_cost_usd += cost_usd
             except Exception as e:
-                print(f"[Telemetry] Cost tracking error: {e}")
+                _logger.error("Cost tracking error: %s", e, exc_info=True)
 
         metric = APICallMetric(
             timestamp=datetime.now(timezone.utc).isoformat(),

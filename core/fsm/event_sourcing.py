@@ -126,11 +126,16 @@ class FSMEventStore:
                 import asyncio
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    asyncio.ensure_future(self._append_redis(event))
+                    task = asyncio.ensure_future(self._append_redis(event))
+                    task.add_done_callback(
+                        lambda t: logger.warning(
+                            "Redis FSM event write failed: %s", t.exception()
+                        ) if t.exception() else None
+                    )
                 else:
                     loop.run_until_complete(self._append_redis(event))
-            except Exception:
-                pass  # Fire-and-forget
+            except Exception as e:
+                logger.warning("Redis FSM append failed: %s", e)
 
         # Publish to CEREBRO event bus (fire-and-forget)
         self._publish_to_cerebro(event)

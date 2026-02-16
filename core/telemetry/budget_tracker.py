@@ -18,11 +18,14 @@ Pricing (Feb 2026):
 """
 
 import json
+import logging
 import time
 from datetime import datetime, date
 from pathlib import Path
 from threading import Lock
 from typing import Dict, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 from dataclasses import dataclass, asdict
 
 
@@ -189,7 +192,7 @@ class BudgetTracker:
                 encoding='utf-8'
             )
         except Exception as e:
-            print(f"[BudgetTracker] Save error: {e}")
+            _logger.warning("BudgetTracker save error: %s", e)
 
     def _check_daily_reset(self):
         """Reset counters if it's a new day."""
