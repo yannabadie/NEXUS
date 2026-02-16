@@ -56,6 +56,33 @@ from .service import (
     _get_evolution_service,
 )
 
+# V12.4: Agent Reaper (DyLAN-based lifecycle management)
+from .agent_reaper import AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate
+
+# V12.4: Auto-Specializer (data-driven agent spawning)
+from .auto_specializer import AutoSpecializer, SpecializationConfig, SpecializationProposal, DomainProfile
+
+# V12.4: Mutation Tracker
+from .mutation_tracker import (
+    MutationTracker,
+    MutationRecord,
+    AgentPerformance,
+    LineageNode,
+    get_mutation_tracker,
+    reset_mutation_tracker,
+)
+
+# V12.4 COGNITIVE BOOST: Strategy Performance Tracker
+from .strategy_performance_tracker import (
+    StrategyPerformanceTracker,
+    StrategyApplication,
+    StrategyMetrics,
+    StrategyRecommendation,
+    TrackerStats,
+    get_strategy_tracker,
+    reset_strategy_tracker,
+)
+
 # V7: mutator.py removed - evolution uses emergent JSON patches from AI debate
 
 __all__ = [
@@ -98,4 +125,29 @@ __all__ = [
     "ValidationTier",
     "TieredValidationResult",
     "TierResult",
+    # V12.4: Agent Reaper
+    "AgentReaper",
+    "ReaperConfig",
+    "ReaperReport",
+    "ArchivalCandidate",
+    # V12.4: Auto-Specializer
+    "AutoSpecializer",
+    "SpecializationConfig",
+    "SpecializationProposal",
+    "DomainProfile",
+    # V12.4: Mutation Tracker
+    "MutationTracker",
+    "MutationRecord",
+    "AgentPerformance",
+    "LineageNode",
+    "get_mutation_tracker",
+    "reset_mutation_tracker",
+    # V12.4 COGNITIVE BOOST: Strategy Performance Tracker
+    "StrategyPerformanceTracker",
+    "StrategyApplication",
+    "StrategyMetrics",
+    "StrategyRecommendation",
+    "TrackerStats",
+    "get_strategy_tracker",
+    "reset_strategy_tracker",
 ]

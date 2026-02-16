@@ -11,6 +11,37 @@ from core.fsm.stagnation_predictor import (
     PredictionResult,
 )
 
+# V12.4: State Validator
+from .state_validator import (
+    StateValidator,
+    ValidationResult as StateValidationResult,
+    ValidatorStats,
+    get_state_validator,
+    reset_state_validator,
+)
+
+# V12.4: Transition Logger
+from .transition_logger import (
+    TransitionLogger,
+    TransitionEntry,
+    StateDurationStats,
+    TransitionFrequency,
+    LoggerStats,
+    get_transition_logger,
+    reset_transition_logger,
+)
+
+# V12.4 COGNITIVE BOOST: Guard Logger
+from .guard_logger import (
+    GuardLogger,
+    GuardEvaluation,
+    GuardMetrics,
+    BlockedTransition,
+    GuardLoggerStats,
+    get_guard_logger,
+    reset_guard_logger,
+)
+
 __all__ = [
     "TaskExecutionContext",
     # V8.4.4 Health FSM
@@ -21,4 +52,26 @@ __all__ = [
     "StagnationPredictor",
     "PredictionLevel",
     "PredictionResult",
+    # V12.4: State Validator
+    "StateValidator",
+    "StateValidationResult",
+    "ValidatorStats",
+    "get_state_validator",
+    "reset_state_validator",
+    # V12.4: Transition Logger
+    "TransitionLogger",
+    "TransitionEntry",
+    "StateDurationStats",
+    "TransitionFrequency",
+    "LoggerStats",
+    "get_transition_logger",
+    "reset_transition_logger",
+    # V12.4 COGNITIVE BOOST: Guard Logger
+    "GuardLogger",
+    "GuardEvaluation",
+    "GuardMetrics",
+    "BlockedTransition",
+    "GuardLoggerStats",
+    "get_guard_logger",
+    "reset_guard_logger",
 ]

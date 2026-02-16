@@ -15,7 +15,7 @@ Memory systems for NEXUS:
 from .auto_memory import AutoMemory, get_auto_memory, MemoryEntry
 from .success_memory import SuccessMemory, SuccessEntry, get_success_memory
 from .project_memory import ProjectMemory
-from .types import Chunk, IndexStats
+from .types import Chunk, ScoredChunk, IndexStats
 
 # V7.9 Phase 10f + 10g: Backend exports
 from .backends import (
@@ -42,6 +42,58 @@ except ImportError:
 # V13.0 MEMORIA UNIVERSALIS: Multi-namespace RAG
 from .namespace_manager import RAGNamespaceManager, NamespaceInfo
 
+# V12.4 OPERATION PRISM: Multi-tenant memory isolation
+from .tenant_memory import TenantMemoryService, DEFAULT_TENANT
+
+# V12.4 COGNITIVE BOOST: Conversation history
+from .conversation_store import (
+    ConversationStore,
+    ConversationSession,
+    ConversationTurn,
+    ConversationSummary,
+    SearchResult as ConversationSearchResult,
+)
+
+# V12.4 COGNITIVE BOOST: Context Compressor
+from .context_compressor import (
+    ContextCompressor,
+    CompressTurn,
+    CompressionResult,
+    ContextShift,
+    get_compressor,
+    reset_compressor,
+)
+
+# V12.4 COGNITIVE BOOST: Cache Manager
+from .cache_manager import (
+    CacheManager,
+    CacheEntry,
+    CacheStats,
+    get_cache_manager,
+    reset_cache_manager,
+)
+
+# V12.4 COGNITIVE BOOST: Memory Pressure Monitor
+from .memory_pressure_monitor import (
+    MemoryPressureMonitor,
+    MemorySnapshot,
+    EvictionEvent,
+    PressureLevel,
+    PressureStats,
+    get_pressure_monitor,
+    reset_pressure_monitor,
+)
+
+# V12.4 COGNITIVE BOOST: Context Window Tracker
+from .context_window_tracker import (
+    ContextWindowTracker,
+    ContextUsageRecord,
+    CompressionEvent,
+    ContextTrackerStats,
+    get_context_tracker,
+    reset_context_tracker,
+)
+
 __all__ = [
     # Auto-Memory (V7.5)
     "AutoMemory",
@@ -54,6 +106,7 @@ __all__ = [
     # Project Memory RAG (V7.8 Phase 10c)
     "ProjectMemory",
     "Chunk",
+    "ScoredChunk",
     "IndexStats",
     # Backend Abstraction (V7.9 Phase 10f + 10g)
     "MemoryBackend",
@@ -74,4 +127,41 @@ __all__ = [
     "DOCLING_AVAILABLE",
     "RAGNamespaceManager",
     "NamespaceInfo",
+    # V12.4 OPERATION PRISM: Multi-tenant
+    "TenantMemoryService",
+    "DEFAULT_TENANT",
+    # V12.4 COGNITIVE BOOST: Conversation history
+    "ConversationStore",
+    "ConversationSession",
+    "ConversationTurn",
+    "ConversationSummary",
+    "ConversationSearchResult",
+    # V12.4 COGNITIVE BOOST: Context Compressor
+    "ContextCompressor",
+    "CompressTurn",
+    "CompressionResult",
+    "ContextShift",
+    "get_compressor",
+    "reset_compressor",
+    # V12.4 COGNITIVE BOOST: Cache Manager
+    "CacheManager",
+    "CacheEntry",
+    "CacheStats",
+    "get_cache_manager",
+    "reset_cache_manager",
+    # V12.4 COGNITIVE BOOST: Memory Pressure Monitor
+    "MemoryPressureMonitor",
+    "MemorySnapshot",
+    "EvictionEvent",
+    "PressureLevel",
+    "PressureStats",
+    "get_pressure_monitor",
+    "reset_pressure_monitor",
+    # V12.4 COGNITIVE BOOST: Context Window Tracker
+    "ContextWindowTracker",
+    "ContextUsageRecord",
+    "CompressionEvent",
+    "ContextTrackerStats",
+    "get_context_tracker",
+    "reset_context_tracker",
 ]

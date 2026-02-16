@@ -33,6 +33,16 @@ from .blackboard import AsyncBlackboard
 from .safe_task_manager import SafeTaskManager, create_safe_task
 from .event_bus import EventBus, SyncEvent, EventType, get_event_bus
 
+# V12.4 COGNITIVE BOOST: Task Metrics Collector
+from .task_metrics_collector import (
+    TaskMetricsCollector,
+    TaskRecord,
+    TaskTypeMetrics,
+    CollectorStats,
+    get_task_metrics_collector,
+    reset_task_metrics_collector,
+)
+
 __all__ = [
     # Original V9.0
     'CancellationToken',
@@ -46,6 +56,13 @@ __all__ = [
     'SyncEvent',
     'EventType',
     'get_event_bus',
+    # V12.4 COGNITIVE BOOST: Task Metrics Collector
+    'TaskMetricsCollector',
+    'TaskRecord',
+    'TaskTypeMetrics',
+    'CollectorStats',
+    'get_task_metrics_collector',
+    'reset_task_metrics_collector',
 ]
 
 __version__ = "9.5.0"

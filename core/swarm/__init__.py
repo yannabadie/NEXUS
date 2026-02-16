@@ -120,6 +120,67 @@ from .service import (
     SwarmStatus,
 )
 
+# V12.4: Task Queue
+from .task_queue import (
+    SwarmTaskQueue,
+    SwarmTask,
+    TaskStatus as SwarmTaskStatus,
+    QueueStats,
+    get_task_queue,
+    reset_task_queue,
+)
+
+# V12.4: Result Aggregator
+from .result_aggregator import (
+    ResultAggregator,
+    MergeStrategy,
+    MergeResult,
+    AggregatorStats,
+    get_aggregator,
+    reset_aggregator,
+)
+
+# V12.4: Strategy Memory
+from .strategy_memory import (
+    StrategyMemory,
+    StrategyRecord,
+    ModeEffectiveness,
+    ModeSuggestion,
+    StrategyStats,
+    get_strategy_memory,
+    reset_strategy_memory,
+)
+
+# V12.4: Negotiation Tracker
+from .negotiation_tracker import (
+    NegotiationTracker,
+    NegotiationTurn,
+    NegotiationRecord,
+    NegotiationStats,
+    get_negotiation_tracker,
+    reset_negotiation_tracker,
+)
+
+# V12.4: Mode Effectiveness Evaluator
+from .mode_effectiveness_evaluator import (
+    ModeEffectivenessEvaluator,
+    ModeEvaluation,
+    ModeEffectivenessSummary,
+    EvaluatorStats,
+    get_mode_evaluator,
+    reset_mode_evaluator,
+)
+
+# V12.4: Agent Role Tracker
+from .agent_role_tracker import (
+    AgentRoleTracker,
+    RoleAssignment,
+    AgentRoleProfile,
+    RoleTrackerStats,
+    get_role_tracker,
+    reset_role_tracker,
+)
+
 __all__ = [
     # Agent Metrics
     "AgentInvocationResult",
@@ -194,4 +255,53 @@ __all__ = [
     "SwarmService",
     "SwarmServiceResult",
     "SwarmStatus",
+
+    # V12.4: Task Queue
+    "SwarmTaskQueue",
+    "SwarmTask",
+    "SwarmTaskStatus",
+    "QueueStats",
+    "get_task_queue",
+    "reset_task_queue",
+
+    # V12.4: Result Aggregator
+    "ResultAggregator",
+    "MergeStrategy",
+    "MergeResult",
+    "AggregatorStats",
+    "get_aggregator",
+    "reset_aggregator",
+
+    # V12.4: Strategy Memory
+    "StrategyMemory",
+    "StrategyRecord",
+    "ModeEffectiveness",
+    "ModeSuggestion",
+    "StrategyStats",
+    "get_strategy_memory",
+    "reset_strategy_memory",
+
+    # V12.4: Negotiation Tracker
+    "NegotiationTracker",
+    "NegotiationTurn",
+    "NegotiationRecord",
+    "NegotiationStats",
+    "get_negotiation_tracker",
+    "reset_negotiation_tracker",
+
+    # V12.4: Mode Effectiveness Evaluator
+    "ModeEffectivenessEvaluator",
+    "ModeEvaluation",
+    "ModeEffectivenessSummary",
+    "EvaluatorStats",
+    "get_mode_evaluator",
+    "reset_mode_evaluator",
+
+    # V12.4: Agent Role Tracker
+    "AgentRoleTracker",
+    "RoleAssignment",
+    "AgentRoleProfile",
+    "RoleTrackerStats",
+    "get_role_tracker",
+    "reset_role_tracker",
 ]
