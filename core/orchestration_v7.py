@@ -17,8 +17,7 @@ from core.fsm.stagnation_detector import StagnationDetector
 from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
 from core.fsm.context import TaskExecutionContext
-from core.drivers.gemini_driver_v7 import GeminiDriverV7
-from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+from core.drivers.legacy import GeminiDriverV7, ClaudeDriverHybrid
 from core.routing.model_router import ModelRouter, TaskType
 from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
 from core.synapse.memory_v7 import MemoryManagerV7

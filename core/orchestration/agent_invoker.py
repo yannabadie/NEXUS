@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Callable
 import tiktoken
 
 from core.agents.unified_registry import get_registry
-from core.drivers.claude_driver_hybrid import ClaudeDriverHybrid
+from core.drivers.legacy import ClaudeDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult

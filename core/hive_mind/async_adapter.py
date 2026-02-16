@@ -344,7 +344,7 @@ def create_async_hive_mind(
     """
     # Import here to avoid circular imports
     from .orchestrator import TrueHiveMind
-    from core.drivers import GeminiDriverV7, ClaudeDriverHybrid
+    from core.drivers.legacy import GeminiDriverV7, ClaudeDriverHybrid
 
     # Create sync drivers for backwards compatibility
     # TODO: Update phases to use async drivers directly

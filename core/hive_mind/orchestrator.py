@@ -57,8 +57,8 @@ from core.events.types import CerebroEventType
 from core.fsm.stagnation_detector import StagnationDetector
 
 if TYPE_CHECKING:
-    from core.drivers.gemini_driver_v7 import GeminiDriverV7
-    from core.drivers.claude_driver_v7 import ClaudeDriverV7
+    from core.drivers.legacy import GeminiDriverV7
+    from core.drivers.legacy import ClaudeDriverV7
     from core.swarm import AgentPool
     from core.telemetry import BudgetTracker
     from core.memory import ProjectMemory

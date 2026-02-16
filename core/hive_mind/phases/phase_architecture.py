@@ -69,7 +69,7 @@ from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
-    from core.drivers.gemini_driver_v7 import GeminiDriverV7
+    from core.drivers.legacy import GeminiDriverV7
     from core.drivers.claude_driver_v7 import ClaudeDriverV7
 
 logger = logging.getLogger(__name__)
