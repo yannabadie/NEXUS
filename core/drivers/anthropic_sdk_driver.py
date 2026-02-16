@@ -51,6 +51,7 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
+from core.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class AnthropicSDKDriver(BaseAsyncDriver):
         self._max_tokens = max_tokens
         self._enable_caching = enable_caching
         self._response_cache = response_cache
+        self._budget_tracker = None
 
         # Lazy import to avoid hard dependency at module level
         try:
@@ -145,15 +147,29 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 prompt, system_prompt, tools, **kwargs
             )
 
-            # Make the API call with timeout
-            response = await asyncio.wait_for(
-                self._client.messages.create(**request_params),
-                timeout=effective_timeout,
-            )
+            # OTel span wraps the API call
+            with trace_llm_call(self._provider, self._model, "chat") as span:
+                # Make the API call with timeout
+                response = await asyncio.wait_for(
+                    self._client.messages.create(**request_params),
+                    timeout=effective_timeout,
+                )
 
-            latency_ms = (time.monotonic() - start_time) * 1000
+                latency_ms = (time.monotonic() - start_time) * 1000
+                result = self._parse_response(response, latency_ms)
 
-            result = self._parse_response(response, latency_ms)
+                # OTel: record token usage on span
+                span.set_attribute("gen_ai.usage.input_tokens", result.input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", result.output_tokens)
+                span.set_attribute("gen_ai.response.model", result.model or self._model)
+
+            # Auto-track cost via BudgetTracker
+            if self._budget_tracker and result.is_success:
+                self._budget_tracker.track_cost(
+                    self._model,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                )
 
             # Store in response cache on success (no tool calls)
             if (

@@ -41,6 +41,7 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
+from core.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         self._enable_caching = enable_caching
         self._cache_ttl = cache_ttl
         self._response_cache = response_cache
+        self._budget_tracker = None
 
         # Context caching state
         self._cached_content_name: Optional[str] = None
@@ -138,21 +140,36 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
         try:
             config = self._build_config(system_prompt, tools, **kwargs)
 
-            # Run in executor since google-genai may not have full async support
-            response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._client.models.generate_content(
-                        model=self._model,
-                        contents=prompt,
-                        config=config,
+            # OTel span wraps the API call
+            with trace_llm_call(self._provider, self._model, "chat") as span:
+                # Run in executor since google-genai may not have full async support
+                response = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self._client.models.generate_content(
+                            model=self._model,
+                            contents=prompt,
+                            config=config,
+                        ),
                     ),
-                ),
-                timeout=effective_timeout,
-            )
+                    timeout=effective_timeout,
+                )
 
-            latency_ms = (time.monotonic() - start_time) * 1000
-            result = self._parse_response(response, latency_ms)
+                latency_ms = (time.monotonic() - start_time) * 1000
+                result = self._parse_response(response, latency_ms)
+
+                # OTel: record token usage on span
+                span.set_attribute("gen_ai.usage.input_tokens", result.input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", result.output_tokens)
+                span.set_attribute("gen_ai.response.model", result.model or self._model)
+
+            # Auto-track cost via BudgetTracker
+            if self._budget_tracker and result.is_success:
+                self._budget_tracker.track_cost(
+                    self._model,
+                    input_tokens=result.input_tokens,
+                    output_tokens=result.output_tokens,
+                )
 
             # Store in response cache on success (no tool calls)
             if (

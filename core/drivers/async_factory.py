@@ -40,6 +40,7 @@ from .async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .response_cache import ResponseCache
 from core.async_primitives.process_handle import get_process_registry
+from core.telemetry.budget_tracker import get_budget_tracker
 
 if TYPE_CHECKING:
     from .anthropic_sdk_driver import AnthropicSDKDriver
@@ -82,6 +83,9 @@ class AsyncDriverFactory:
             ttl_seconds=getattr(config, 'response_cache_ttl', 300.0),
             enabled=self._driver_mode != "cli",
         )
+
+        # Shared budget tracker for automatic cost tracking
+        self._budget_tracker = get_budget_tracker(config, Path(workspace_path))
 
         # Lazy-initialized CLI drivers
         self._claude_driver: Optional[AsyncClaudeDriver] = None
@@ -186,6 +190,7 @@ class AsyncDriverFactory:
                 enable_caching=True,
                 response_cache=self._response_cache,
             )
+            self._claude_sdk._budget_tracker = self._budget_tracker
             logger.info(f"Created AnthropicSDKDriver (model={getattr(self._claude_sdk, '_model', 'unknown')})")
         elif model and hasattr(self._claude_sdk, '_model'):
             self._claude_sdk._model = model
@@ -222,6 +227,7 @@ class AsyncDriverFactory:
                 timeout=float(getattr(self.config, 'timeout', 300)),
                 response_cache=self._response_cache,
             )
+            self._gemini_sdk._budget_tracker = self._budget_tracker
             logger.info(f"Created GoogleGenAISDKDriver (model={getattr(self._gemini_sdk, '_model', 'unknown')})")
         elif model and hasattr(self._gemini_sdk, '_model'):
             self._gemini_sdk._model = model
