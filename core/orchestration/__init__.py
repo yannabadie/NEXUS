@@ -45,6 +45,28 @@ from core.orchestration.sync_bridge import (
     reset_sync_bridge,
 )
 
+# V12.4: Dependency Injector
+from core.orchestration.dependency_injector import (
+    DependencyInjector,
+    Capability,
+    AgentRequirements,
+    ValidationResult as DependencyValidationResult,
+    Conflict,
+    DependencyManifest,
+    get_injector,
+    reset_injector,
+)
+
+# V12.4: Call Graph Tracer
+from core.orchestration.call_graph_tracer import (
+    CallGraphTracer,
+    CallRecord,
+    EdgeMetrics,
+    TracerStats,
+    get_call_tracer,
+    reset_call_tracer,
+)
+
 __all__ = [
     # Extracted modules (new in V7.8)
     'ContextBuilder',
@@ -60,4 +82,20 @@ __all__ = [
     'SyncEventType',
     'get_sync_bridge',
     'reset_sync_bridge',
+    # V12.4: Dependency Injector
+    'DependencyInjector',
+    'Capability',
+    'AgentRequirements',
+    'DependencyValidationResult',
+    'Conflict',
+    'DependencyManifest',
+    'get_injector',
+    'reset_injector',
+    # V12.4: Call Graph Tracer
+    'CallGraphTracer',
+    'CallRecord',
+    'EdgeMetrics',
+    'TracerStats',
+    'get_call_tracer',
+    'reset_call_tracer',
 ]

@@ -48,3 +48,41 @@ except ImportError:
     ThoughtStatus = None
     ThoughtType = None
     __all__ = ['GOT_AVAILABLE']
+
+# V12.4 COGNITIVE BOOST: Thought Evaluator
+from .thought_evaluator import (
+    ThoughtEvaluator,
+    ThoughtScore,
+    EvaluationResult,
+    EvaluatorStats,
+    get_thought_evaluator,
+    reset_thought_evaluator,
+)
+
+__all__ += [
+    'ThoughtEvaluator',
+    'ThoughtScore',
+    'EvaluationResult',
+    'EvaluatorStats',
+    'get_thought_evaluator',
+    'reset_thought_evaluator',
+]
+
+# V12.4 COGNITIVE BOOST: Reasoning Quality Scorer
+from .reasoning_quality_scorer import (
+    ReasoningQualityScorer,
+    ReasoningEvaluation,
+    AgentReasoningProfile,
+    ScorerStats,
+    get_quality_scorer,
+    reset_quality_scorer,
+)
+
+__all__ += [
+    'ReasoningQualityScorer',
+    'ReasoningEvaluation',
+    'AgentReasoningProfile',
+    'ScorerStats',
+    'get_quality_scorer',
+    'reset_quality_scorer',
+]

@@ -39,9 +39,66 @@ from .workspace_manager import (
 )
 from .home_isolator import HomeIsolator
 
+# V12.4: State Recovery Manager
+from .state_recovery import (
+    StateRecoveryManager,
+    StateSnapshot,
+    RecoveryResult,
+    RecoveryStats,
+    SnapshotReason,
+    get_recovery_manager,
+    reset_recovery_manager,
+)
+
+# V12.4 COGNITIVE BOOST: Session Analytics
+from .session_analytics import (
+    SessionAnalytics,
+    PhaseMetric,
+    AgentAction,
+    SessionMetrics,
+    AnalyticsStats,
+    get_session_analytics,
+    reset_session_analytics,
+)
+
+# V12.4 COGNITIVE BOOST: Session Efficiency Scorecard
+from .session_efficiency_scorecard import (
+    MAX_SESSION_RECORDS,
+    ScorecardStats,
+    SessionEfficiencyScorecard,
+    SessionProfile,
+    SessionRecord,
+    get_session_scorecard,
+    reset_session_scorecard,
+)
+
 __all__ = [
     "SessionWorkspaceManager",
     "get_workspace_manager",
     "reset_workspace_manager",
     "HomeIsolator",
+    # V12.4: State Recovery
+    "StateRecoveryManager",
+    "StateSnapshot",
+    "RecoveryResult",
+    "RecoveryStats",
+    "SnapshotReason",
+    "get_recovery_manager",
+    "reset_recovery_manager",
+    # V12.4 COGNITIVE BOOST: Session Analytics
+    "SessionAnalytics",
+    "PhaseMetric",
+    "AgentAction",
+    "SessionMetrics",
+    "AnalyticsStats",
+    "get_session_analytics",
+    "reset_session_analytics",
+    # V12.4 COGNITIVE BOOST: Session Efficiency Scorecard
+    "SessionRecord",
+    "SessionProfile",
+    "ScorecardStats",
+    "SessionEfficiencyScorecard",
+    "get_session_scorecard",
+    "reset_session_scorecard",
+    "MAX_SESSION_RECORDS",
 ]

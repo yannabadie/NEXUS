@@ -36,6 +36,46 @@ from .service import (
 # V10 CEREBRO: Redis Log Bridge
 from .redis_bridge import RedisLogHandler, create_redis_log_handler
 
+# V12.4: OpenTelemetry Provider
+from .otel_provider import (
+    init_otel,
+    get_tracer,
+    get_meter,
+    trace_llm_call,
+    trace_fsm_transition,
+)
+
+# V12.4: Health Aggregator
+from .health_aggregator import (
+    HealthAggregator,
+    HealthCheck,
+    HealthReport,
+    TelemetrySummary,
+    AggregateStatus,
+)
+
+# V12.4: Performance Profiler
+from .performance_profiler import (
+    PerformanceProfiler,
+    TimingRecord,
+    TimingStats,
+    Bottleneck,
+    ProfileReport,
+    get_profiler,
+    reset_profiler,
+)
+
+# V12.4 COGNITIVE BOOST: Error Pattern Analyzer
+from .error_pattern_analyzer import (
+    ErrorPatternAnalyzer,
+    ErrorRecord,
+    ErrorCategoryMetrics,
+    ErrorPattern,
+    AnalyzerStats as ErrorAnalyzerStats,
+    get_error_analyzer,
+    reset_error_analyzer,
+)
+
 __all__ = [
     "TelemetryCollector",
     "MetricType",
@@ -53,4 +93,32 @@ __all__ = [
     # V10 CEREBRO: Redis Log Bridge
     "RedisLogHandler",
     "create_redis_log_handler",
+    # V12.4: OpenTelemetry
+    "init_otel",
+    "get_tracer",
+    "get_meter",
+    "trace_llm_call",
+    "trace_fsm_transition",
+    # V12.4: Health Aggregator
+    "HealthAggregator",
+    "HealthCheck",
+    "HealthReport",
+    "TelemetrySummary",
+    "AggregateStatus",
+    # V12.4: Performance Profiler
+    "PerformanceProfiler",
+    "TimingRecord",
+    "TimingStats",
+    "Bottleneck",
+    "ProfileReport",
+    "get_profiler",
+    "reset_profiler",
+    # V12.4 COGNITIVE BOOST: Error Pattern Analyzer
+    "ErrorPatternAnalyzer",
+    "ErrorRecord",
+    "ErrorCategoryMetrics",
+    "ErrorPattern",
+    "ErrorAnalyzerStats",
+    "get_error_analyzer",
+    "reset_error_analyzer",
 ]

@@ -25,6 +25,42 @@ from core.resilience.system_health import (
     reset_system_health,
 )
 
+from core.resilience.rate_limiter import (
+    RateLimiter,
+    ProviderLimits,
+    TokenBucket,
+)
+
+# V12.4: Checkpoint Manager
+from core.resilience.checkpoint_manager import (
+    CheckpointManager,
+    Checkpoint,
+    CheckpointInfo,
+    RestoreResult,
+    get_checkpoint_manager,
+    reset_checkpoint_manager,
+)
+
+# V12.4: Request Deduplicator
+from core.resilience.request_deduplicator import (
+    RequestDeduplicator,
+    DeduplicationEntry,
+    CheckResult,
+    DeduplicationStats,
+    get_deduplicator,
+    reset_deduplicator,
+)
+
+# V12.4 COGNITIVE BOOST: Resilience Event Tracker
+from core.resilience.resilience_event_tracker import (
+    ResilienceEventTracker,
+    ResilienceEvent,
+    EventTypeMetrics,
+    TrackerStats as ResilienceTrackerStats,
+    get_resilience_tracker,
+    reset_resilience_tracker,
+)
+
 __all__ = [
     # Circuit Breaker
     "CircuitBreaker",
@@ -38,6 +74,31 @@ __all__ = [
     "HealthReport",
     "get_system_health",
     "reset_system_health",
+    # V12.4: Rate Limiter
+    "RateLimiter",
+    "ProviderLimits",
+    "TokenBucket",
+    # V12.4: Checkpoint Manager
+    "CheckpointManager",
+    "Checkpoint",
+    "CheckpointInfo",
+    "RestoreResult",
+    "get_checkpoint_manager",
+    "reset_checkpoint_manager",
+    # V12.4: Request Deduplicator
+    "RequestDeduplicator",
+    "DeduplicationEntry",
+    "CheckResult",
+    "DeduplicationStats",
+    "get_deduplicator",
+    "reset_deduplicator",
+    # V12.4 COGNITIVE BOOST: Resilience Event Tracker
+    "ResilienceEventTracker",
+    "ResilienceEvent",
+    "EventTypeMetrics",
+    "ResilienceTrackerStats",
+    "get_resilience_tracker",
+    "reset_resilience_tracker",
 ]
 
-__version__ = "9.5.0"
+__version__ = "12.4.0"
