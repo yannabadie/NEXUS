@@ -49,6 +49,9 @@ from .saga_manager import SagaManager
 # V12.4: Stepwise confidence monitoring (arxiv:2511.07364)
 from .confidence_monitor import StepwiseConfidenceMonitor
 
+# V12.4: Phase audit logging for decision tracking
+from .phase_audit_logger import get_phase_audit_logger
+
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
@@ -408,6 +411,18 @@ class TrueHiveMind:
                 needs_debate=analysis_result.needs_debate,
             )
 
+            # V12.4: Audit log analysis decision
+            _audit = get_phase_audit_logger()
+            _audit.record_decision(
+                session_id=task_id or "unknown",
+                phase="ANALYSIS",
+                decision="debate_needed" if analysis_result.needs_debate else "skip_debate",
+                options_considered=["debate", "skip_debate"],
+                reasoning=analysis_result.skip_reason or "Disagreement requires debate",
+                agent_id="both",
+                agreement_score=analysis_result.comparison.agreement_score,
+            )
+
             # V12.0 RETINA: Update nodes - analysis complete
             await _telemetry_bridge.emit(
                 CerebroEventType.GRAPH_NODE_UPDATE,
@@ -478,6 +493,17 @@ class TrueHiveMind:
                 was_skipped=debate_result.was_skipped,
             )
 
+            # V12.4: Audit log debate decision
+            _audit.record_decision(
+                session_id=task_id or "unknown",
+                phase="DEBATE",
+                decision="skipped" if debate_result.was_skipped else "completed",
+                options_considered=["debate", "skip"],
+                reasoning=debate_result.skip_reason or f"Consensus: {debate_confidence:.0%}",
+                agent_id="both",
+                consensus_confidence=debate_confidence,
+            )
+
             # V8.4.4b: Checkpoint after debate
             if self._saga:
                 await self._saga.checkpoint_phase(
@@ -512,6 +538,17 @@ class TrueHiveMind:
             self.confidence_monitor.record(
                 "architecture",
                 arch_confidence,
+                agents_spawned=len(agents_spawned),
+            )
+
+            # V12.4: Audit log architecture decision
+            _audit.record_decision(
+                session_id=task_id or "unknown",
+                phase="ARCHITECTURE",
+                decision=arch_result.architecture.status,
+                options_considered=["READY", "SPAWN_REQUIRED"],
+                reasoning=arch_result.architecture.reasoning or "Architecture generated",
+                agent_id="both",
                 agents_spawned=len(agents_spawned),
             )
 
@@ -706,6 +743,20 @@ class TrueHiveMind:
                 f"[HiveMind] Confidence trajectory: trend={trajectory.trend}, "
                 f"avg={trajectory.average:.2f}, min={trajectory.minimum:.2f}"
             )
+
+            # V12.4: Audit log consolidation and detect patterns
+            _audit.record_decision(
+                session_id=task_id or "unknown",
+                phase="CONSOLIDATION",
+                decision="success" if execution_success else "failure",
+                options_considered=["success", "failure"],
+                reasoning=f"Trajectory: {trajectory.trend}, avg confidence: {trajectory.average:.2f}",
+                agent_id="both",
+                confidence_trend=trajectory.trend,
+            )
+            patterns = _audit.detect_patterns()
+            if patterns:
+                logger.info(f"[HiveMind] Audit patterns: {[p.pattern_type for p in patterns[:3]]}")
 
             # Mark success in retry system
             if execution_success:

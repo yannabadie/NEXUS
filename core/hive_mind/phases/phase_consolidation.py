@@ -321,6 +321,20 @@ class KnowledgeConsolidationPhase:
         self.cost_estimator.record_cost("decide_retention", 500)
         self.cost_estimator.record_cost("consolidate", 300)
 
+        # V12.4: Detect patterns and crystallize skills from execution history
+        try:
+            from core.skills.crystallizer import get_crystallizer
+            crystallizer = get_crystallizer()
+            patterns = crystallizer.detect_patterns()
+            if patterns:
+                skills = crystallizer.crystallize()
+                logger.info(
+                    f"Phase 7: Crystallized {len(skills)} skills from "
+                    f"{len(patterns)} patterns"
+                )
+        except Exception as e:
+            logger.debug(f"Skill crystallization failed: {e}")
+
         return ConsolidationPhaseResult(
             consolidation=consolidation,
             gemini_reflection=gemini_result,

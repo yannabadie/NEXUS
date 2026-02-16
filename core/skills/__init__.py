@@ -12,6 +12,8 @@ from .crystallizer import (
     ToolCallRecord,
     ToolSequencePattern,
     CrystallizedSkill,
+    get_crystallizer,
+    reset_crystallizer,
 )
 
 __all__ = [
@@ -19,4 +21,6 @@ __all__ = [
     "ToolCallRecord",
     "ToolSequencePattern",
     "CrystallizedSkill",
+    "get_crystallizer",
+    "reset_crystallizer",
 ]

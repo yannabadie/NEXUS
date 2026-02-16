@@ -217,6 +217,57 @@ class IndependentAnalysisPhase:
             exchange_type="analysis"
         )
 
+        # V12.4: Evaluate analysis quality via ThoughtEvaluator
+        try:
+            from core.reasoning.thought_evaluator import get_thought_evaluator
+            evaluator = get_thought_evaluator()
+            for agent_id, analysis in [("gemini", gemini_analysis), ("claude", claude_analysis)]:
+                # Novelty: higher if approach is specific (more words = more detail)
+                approach_len = len(analysis.proposed_approach.split())
+                novelty = min(1.0, approach_len / 30.0)  # ~30 words = full novelty
+                evaluator.score_thought(
+                    f"{self._task_id}_{agent_id}_analysis",
+                    content=analysis.proposed_approach[:200],
+                    novelty=novelty,
+                    relevance=0.8,  # Analyses are inherently relevant
+                    confidence=analysis.confidence,
+                    tags=[agent_id, "analysis"],
+                )
+        except Exception as e:
+            logger.debug(f"ThoughtEvaluator scoring failed: {e}")
+
+        # V12.4: Record agent positions in ConsensusTracker
+        try:
+            from ..consensus_tracker import get_consensus_tracker
+            tracker = get_consensus_tracker()
+            session_id = self._task_id
+            tracker.record(
+                session_id, "analysis", "gemini",
+                gemini_analysis.proposed_approach[:100],
+                topic="approach",
+                confidence=gemini_analysis.confidence,
+            )
+            tracker.record(
+                session_id, "analysis", "claude",
+                claude_analysis.proposed_approach[:100],
+                topic="approach",
+                confidence=claude_analysis.confidence,
+            )
+            tracker.record(
+                session_id, "analysis", "gemini",
+                gemini_analysis.complexity_assessment,
+                topic="complexity",
+                confidence=gemini_analysis.confidence,
+            )
+            tracker.record(
+                session_id, "analysis", "claude",
+                claude_analysis.complexity_assessment,
+                topic="complexity",
+                confidence=claude_analysis.confidence,
+            )
+        except Exception as e:
+            logger.debug(f"ConsensusTracker recording failed: {e}")
+
         # Compare analyses
         comparison = self._compare_analyses(gemini_analysis, claude_analysis)
 

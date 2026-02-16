@@ -761,3 +761,29 @@ class SkillCrystallizer:
                 "max_history": self.max_history,
             },
         }
+
+
+# =============================================================================
+# Global Instance
+# =============================================================================
+
+import threading as _threading
+
+_crystallizer: Optional[SkillCrystallizer] = None
+_crystallizer_lock = _threading.Lock()
+
+
+def get_crystallizer() -> SkillCrystallizer:
+    """Get or create the global SkillCrystallizer instance."""
+    global _crystallizer
+    if _crystallizer is None:
+        with _crystallizer_lock:
+            if _crystallizer is None:
+                _crystallizer = SkillCrystallizer()
+    return _crystallizer
+
+
+def reset_crystallizer() -> None:
+    """Reset the global SkillCrystallizer (for testing)."""
+    global _crystallizer
+    _crystallizer = None

@@ -245,6 +245,20 @@ class MonitoredExecutionPhase:
             all_artifacts.extend(result.artifacts_created)
             total_tokens += result.tokens_used
 
+            # V12.4: Record tool call for SkillCrystallizer
+            try:
+                from core.skills.crystallizer import get_crystallizer, ToolCallRecord
+                crystallizer = get_crystallizer()
+                crystallizer.record(ToolCallRecord(
+                    tool_name=step.name,
+                    arguments={"agent": step.agent_id, "task": task[:100]},
+                    success=result.status == "success",
+                    output=result.output[:200] if result.output else "",
+                    duration_seconds=result.duration,
+                ))
+            except Exception:
+                pass  # Non-blocking
+
             # Add to context
             self.context_manager.add_execution_result(
                 step.name,

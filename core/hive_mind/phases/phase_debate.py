@@ -406,6 +406,19 @@ class StrategicDebatePhase:
                 argument.argument
             )
 
+            # V12.4: Record position in ConsensusTracker
+            try:
+                from ..consensus_tracker import get_consensus_tracker
+                tracker = get_consensus_tracker()
+                tracker.record(
+                    self._task_id, "debate", current_speaker,
+                    argument.position,
+                    topic=argument.target_point or "approach",
+                    confidence=1.0 if argument.position == "OPPOSE" else 0.7,
+                )
+            except Exception:
+                pass  # Non-blocking
+
             # V13.0 CEREBRO LIVE: Emit debate exchange
             next_speaker = registry.get_alternate(current_speaker) or "user"
             emit_agent_speak(
