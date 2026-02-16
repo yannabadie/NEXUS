@@ -210,10 +210,34 @@ NEXUS/                           # Root (V12.4 COGNITIVE BOOST)
 │   ├── security/                # KERNEL, ExecutionPolicy
 │   ├── evolution/               # Agent spawning & mutation
 │   ├── interface/               # REPL & commands
-│   └── utils/                   # Shared utilities
+│   ├── utils/                   # Shared utilities
+│   ├── synapse/                 # Message protocol & reliability
+│   ├── session/                 # Session management & analytics
+│   ├── resilience/              # Resilience & recovery patterns
+│   ├── reasoning/               # Reasoning quality & evaluation
+│   ├── governance/              # Ethics & alignment tracking
+│   ├── routing/                 # Model routing & optimization
+│   ├── telemetry/               # Metrics, OTel, profiling
+│   ├── bootstrap/               # Bootstrap & startup analytics
+│   ├── events/                  # Event bus & analytics
+│   ├── db/                      # Database & query tracking
+│   ├── interaction/             # HITL & quality tracking
+│   ├── mcp/                     # MCP client & discovery
+│   ├── context/                 # Tenant context & audit
+│   ├── meta/                    # System introspection
+│   ├── skills/                  # Skill crystallization
+│   ├── agents/                  # Agent lifecycle & profiling
+│   ├── logging/                 # Structured logging
+│   ├── workspace/               # Workspace management
+│   ├── notifications/           # Notification system
+│   ├── native/                  # Rust acceleration (optional)
+│   ├── async_primitives/        # Async task metrics
+│   ├── prompts/                 # Template optimization
+│   ├── audit/                   # Audit logging
+│   └── adapters/                # Protocol adapters
 ├── prompts/                     # System prompts (for NEXUS internal use)
 ├── workspace/                   # Runtime data (agents, logs, sessions)
-├── tests/                       # Test suite (1000+ tests)
+├── tests/                       # Test suite (2500+ tests, 200 test files)
 ├── docs/                        # Documentation
 ├── audit/                       # Audit reports
 ├── nexus7.py                    # Main entry point (interactive REPL)
@@ -230,7 +254,7 @@ NEXUS/                           # Root (V12.4 COGNITIVE BOOST)
 
 **AI Models (Intelligent Routing)**:
 - **Claude**:
-  - **Opus 4.5** (`claude-opus-4-5-20251101`): Complex reasoning, creativity, security, evolution
+  - **Opus 4.6** (`claude-opus-4-6`): Complex reasoning, creativity, security, evolution
   - **Sonnet 4.5** (`claude-sonnet-4-5-20250929`): Speed, tool execution, simple tasks
 - **Gemini**:
   - **Gemini 3 Pro** (`gemini-3-pro-preview`): All tasks (currently unified model)
@@ -239,7 +263,7 @@ NEXUS/                           # Root (V12.4 COGNITIVE BOOST)
 **Model Routing** (automatic):
 | Task Type | Claude Model | Gemini Model |
 |-----------|--------------|--------------|
-| Brainstorm, Evolution, Architect | Opus | 3-Pro |
+| Brainstorm, Evolution, Architect | Opus 4.6 | 3-Pro |
 | Reasoning, Research, Analysis | Sonnet | 3-Pro |
 | Tool execution, Validation | Sonnet | 3-Pro |
 | Simple queries, Formatting | Sonnet | 3-Pro |
@@ -465,6 +489,7 @@ Agents build performance history used for intelligent routing:
 | [ROADMAP.md](ROADMAP.md) | Development roadmap (V8.x phases) |
 | [README.md](README.md) | Quick start & architecture overview |
 | [docs/HYBRID_SWARM.md](docs/HYBRID_SWARM.md) | Swarm Engine documentation |
+| [todo3.md](todo3.md) | Plan Directeur - all 14 epics verified DONE |
 
 ### Module Documentation
 
@@ -488,6 +513,8 @@ Agents build performance history used for intelligent routing:
 | `docs/ASYNC_MAP.md` | Async vs sync function mapping |
 | `docs/ARCHITECTURE_DECISIONS.md` | ADRs documenting design choices |
 | `ROADMAP.md` | Current roadmap with implementation status |
+
+**Note**: V12.4 COGNITIVE BOOST added 125+ modules across 30+ domains. Always verify field names and method signatures against source code before referencing them.
 
 **Common Hallucinations to Avoid**:
 - `TaskAnalysis.reasoning` → Does NOT exist (use `ModeProposal.reasoning`)

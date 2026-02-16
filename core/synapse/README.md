@@ -146,9 +146,18 @@ tool_msg = HeavyMessageV7(
 ### External
 - `pydantic` - Schema validation and auto-repair
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `message_protocol.py` | Lightweight dataclass-based inter-agent messaging with typed categories (REQUEST, RESPONSE, BROADCAST, NOTIFY), routing headers, and conversation threading | `Message`, `MessageType`, `create_message` |
+| `message_deduplicator.py` | Idempotent message processing via SHA-256 content fingerprinting, TTL-based expiration, and correlation-ID tracing for end-to-end observability | `get_deduplicator`, `MessageDeduplicator` |
+| `message_router.py` | Intelligent message routing with per-agent queues, delivery tracking, dead letter handling, and routing statistics | `get_message_router`, `MessageRouter` |
+| `message_reliability_tracker.py` | Inter-agent message delivery monitoring with per-channel success rates, latency patterns, dead letter analysis, and agent responsiveness metrics | `get_message_tracker`, `MessageReliabilityTracker` |
+
 ## Version History
 
 - **V7.0** - Protocol V7 with Pydantic BaseModel schemas
 - **V7.5** - Auto-repair validators for typos
 - **V8.0** - ThoughtChain for explicit reasoning
-- **V12.4** - Enhanced defaults, strategic_plan_update
+- **V12.4** - Enhanced defaults, strategic_plan_update, message protocol, deduplication, routing, and reliability tracking

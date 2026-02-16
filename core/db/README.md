@@ -174,6 +174,13 @@ DEFAULT_QUOTAS = {
 - Default: `.nexus/master.db` (SQLite)
 - Environment: `NEXUS_DB_PATH`
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `query_performance_tracker.py` | Centralized tracking of database query performance including execution times, row counts, query type distribution (SELECT/INSERT/UPDATE/DELETE), table-level aggregate profiles, and bottleneck identification | `get_query_tracker`, `QueryPerformanceTracker` |
+
 ## Version History
 - V10 PRISM: Initial implementation (Claude, 2025-12-15)
+- V12.4: Query performance tracking
 - Problem Solved: No multi-tenant data model

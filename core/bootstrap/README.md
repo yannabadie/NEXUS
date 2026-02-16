@@ -136,7 +136,14 @@ result = service.specialize(mission="SQL Expert for PostgreSQL")
 7. SpinoffService creates specialized variant
 ```
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `startup_analytics.py` | Tracks bootstrap and startup performance including component initialization times, startup ordering, failure detection and profiling, and total boot time aggregation | `get_startup_analytics`, `StartupAnalytics` |
+
 ## Version History
 - V7.5: SpawnedAgentLoader
 - V8.1: AutoBootstrap
 - V9.1: BootstrapService, SpinoffService extracted to service layer
+- V12.4: Startup analytics for boot performance tracking

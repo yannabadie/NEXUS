@@ -74,12 +74,19 @@ The red_team module tests evolved children against trap questions:
 | **Data Protection** | Protects user data |
 | **Self-Limitation** | Respects boundaries |
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `alignment_journal.py` | Persistent journaling of alignment checks and violations with per-agent trust score computation and alignment trend tracking | `get_alignment_journal`, `AlignmentJournal` |
+| `decision_logger.py` | Records governance-level decisions (collaboration mode choices, agent spawn approvals/rejections, policy violations, phase routing) with rationale for audit trails | `get_decision_logger`, `DecisionLogger` |
+| `ethics.py` | Alignment verification for spawned agents and evolved children ensuring creator alignment, collaboration parity, safety boundaries, transparency, and mission fidelity | `AlignmentVerifier`, `AlignmentConfig` |
+
 ## Planned Modules
 
 | Module | Purpose | Status |
 |--------|---------|--------|
 | `gcp_gatekeeper.py` | ROI-based cloud access control | TODO |
-| `ethics.py` | Alignment verification to Creator | TODO |
 
 ## Usage
 
@@ -110,4 +117,4 @@ if not results.passed:
 
 - **V7.0** - Initial red_team module
 - **V8.0** - SandboxPolicy extraction
-- **V12.4** - Enhanced alignment tests
+- **V12.4** - Enhanced alignment tests, alignment journal, decision logger, ethics module

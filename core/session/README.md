@@ -186,3 +186,11 @@ if quota_check["status"] == "exceeded":
 - Tenant-scoped workspace managers via ServiceFactory
 - Automatic tenant context detection
 - Graceful fallback to global singleton if no context active
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `session_efficiency_scorecard.py` | Per-session performance tracking with task completion rates, time-to-first-result, tool success rates, agent switch counts, and overall session quality scoring | `get_session_scorecard`, `SessionEfficiencyScorecard` |
+| `session_analytics.py` | Per-session analytics tracking phase timings (duration, tokens, cost), agent action success rates, session-level aggregates, and cross-session pattern detection | `get_session_analytics`, `SessionAnalytics` |
+| `state_recovery.py` | Session state capture and recovery with automatic snapshots, manual savepoints, and rollback capability for fault-tolerant session management | `get_recovery_manager`, `StateRecoveryManager` |

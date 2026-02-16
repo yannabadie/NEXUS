@@ -189,10 +189,19 @@ COOLDOWN_AFTER_FAILURE = 3600  # 1 hour
 - `json` - JSON patch parsing
 - Standard library
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `mutation_tracker.py` | Records and queries agent mutation genealogy including parent-child relationships, mutation strategies used, and performance comparisons between variants | `get_mutation_tracker`, `MutationTracker` |
+| `auto_specializer.py` | Data-driven agent spawning based on domain performance; monitors success rates and proposes specialized agent creation when thresholds are met (85% success triggers specialization) | `AutoSpecializer`, `SpecializationConfig` |
+| `agent_reaper.py` | DyLAN-based lifecycle management archiving low-performing or inactive spawned agents based on importance scores, inactivity duration, and success rate thresholds | `AgentReaper`, `ReaperConfig` |
+| `strategy_performance_tracker.py` | Tracks mutation strategy effectiveness per domain to determine which strategies (e.g. "code_specialist", "reasoning_enhancer") produce the best fitness improvements for each domain | `get_strategy_tracker`, `StrategyPerformanceTracker` |
+
 ## Version History
 
 - **V7.0** - Emergent mutations from AI debate (replaces ASI)
 - **V7.5** - Phase 0a: EvolutionManager extraction
 - **V7 Sprint 2** - TieredValidator with parallel benchmarks
 - **V9.1** - EvolutionService service layer
-- **V12.4** - Enhanced safety gates, improved rate limiting
+- **V12.4** - Enhanced safety gates, improved rate limiting, mutation tracking, auto-specialization, agent reaping, strategy performance

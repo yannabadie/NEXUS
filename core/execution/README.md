@@ -187,3 +187,15 @@ ExecutionEngine tracks execution metrics:
 - `blocked` - Security-blocked executions
 
 Access via `engine.get_stats()`.
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `handler_performance_tracker.py` | Per-handler-type execution metrics tracking success/failure rates, duration statistics, error categorization, and bottleneck identification across all handler types (bash, file, web, MCP) | `get_handler_tracker`, `HandlerPerformanceTracker` |
+| `reliability_pattern_tracker.py` | Combined retry+timeout pattern analysis tracking which retry policies work best per tool, timeout prediction accuracy, and overall execution reliability metrics | `get_reliability_tracker`, `ReliabilityPatternTracker` |
+| `retry_handler.py` | Configurable exponential backoff retry logic with jitter and retry predicates for determining which errors are retryable | `get_retry_handler`, `RetryHandler` |
+| `timeout_manager.py` | Per-tool timeout configuration with deadline tracking, timeout history, and remaining-time queries | `get_timeout_manager`, `TimeoutManager` |
+| `task_scheduler.py` | Priority-based task queue with urgency scoring using base priority, deadline proximity bonuses, age bonuses, and dependency blocking | `TaskScheduler`, `ScheduledTask`, `Priority` |
+| `workflow_engine.py` | Reusable multi-step workflow pipelines with DAG-based step dependencies, conditional branching, shared context, and execution history | `WorkflowEngine`, `WorkflowStep` |
+| `tool_observer.py` | Tool execution observability with span tracking, timing, status, error categorization, and per-tool aggregated metrics and reporting | `get_tool_observer`, `ToolObserver` |

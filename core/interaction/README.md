@@ -147,8 +147,15 @@ else:
 ### External
 - Standard library (os, threading)
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `interaction_quality_tracker.py` | Tracks HITL interaction quality metrics including per-type profiles (ask/confirm/choose/announce), user response latency distribution, satisfaction signals, and session engagement patterns for data-driven interaction improvements | `get_interaction_tracker`, `InteractionQualityTracker` |
+
 ## Version History
 
 - **V9.8** - DETOX: Headless refactoring
 - **V10.0** - PRISM: Multi-tenant provider access
 - **V12.2** - IRONCLAD: HITL persistence
+- **V12.4** - Interaction quality tracking

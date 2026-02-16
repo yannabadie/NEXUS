@@ -72,6 +72,12 @@ fetch('http://localhost:8080/api/state/snapshot', {
 - DB queries filtered by tenant_id
 - Redis channels namespaced by tenant
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `endpoint_analytics.py` | Per-endpoint performance tracking with request counts, throughput, latency distribution, error rates, error-prone endpoint detection, and slowest endpoint identification | `get_endpoint_analytics`, `EndpointAnalytics` |
+
 ## Version History
 - V10: Initial CEREBRO API
 - V11.3 HARDENING: CORS from environment
@@ -79,4 +85,5 @@ fetch('http://localhost:8080/api/state/snapshot', {
 - V11.6 KEYMAKER: JWT auth
 - V12.1 RETINA: Rate limiting
 - V12.2 IRONCLAD: User management, RBAC
+- V12.4 COGNITIVE BOOST: Endpoint analytics
 - V13.0 MEMORIA: Memory API

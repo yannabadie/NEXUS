@@ -15,7 +15,7 @@
 
 [![Version](https://img.shields.io/badge/version-12.4-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
-[![Claude](https://img.shields.io/badge/Claude-Opus_4.5-orange.svg)](https://anthropic.com)
+[![Claude](https://img.shields.io/badge/Claude-Opus_4.6-orange.svg)](https://anthropic.com)
 [![Gemini](https://img.shields.io/badge/Gemini-3_Pro-blue.svg)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/license-MIT-purple.svg)](LICENSE)
 
@@ -38,7 +38,7 @@ NEXUS is not just a tool - it's a **deployable intelligence core** designed to b
 │                                                             │
 │    ┌─────────────┐              ┌─────────────┐            │
 │    │   GEMINI    │◄────────────►│   CLAUDE    │            │
-│    │   3 Pro     │  Collaborate │  Opus 4.5   │            │
+│    │   3 Pro     │  Collaborate │  Opus 4.6   │            │
 │    └─────────────┘              └─────────────┘            │
 │           │                            │                    │
 │           └──────────┬─────────────────┘                    │
@@ -107,11 +107,13 @@ Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
 
 | Component | Description |
 |-----------|-------------|
-| **StagnationPredictor** | Detects task stagnation (thresholds 0.15/0.25/0.40) with auto-recovery |
-| **HybridBackend RRF** | Reciprocal Rank Fusion (Dense + BM25S) for +15% RAG recall |
-| **MemoryCoordinator** | Adaptive domain weights with EMA learning |
-| **OutputGuard DialogueAct** | Dialogue act classification to reduce false positives |
-| **SSRF Protection** | OWASP blocklist for web_fetch security |
+| **125+ New Modules** | Cross-domain observability, analytics, and performance tracking |
+| **SDK Drivers** | Native Anthropic + Google GenAI SDKs with Prompt Caching |
+| **Message Infrastructure** | Protocol, deduplicator, router, reliability tracker |
+| **Cognitive Pipeline** | Phase coordination, consensus tracking, reasoning quality |
+| **Security & Governance** | Event journal, access control, encryption, alignment journal |
+| **StagnationPredictor** | Detects task stagnation with auto-recovery |
+| **HybridBackend RRF** | Reciprocal Rank Fusion for +15% RAG recall |
 
 ### Previous Releases
 
@@ -244,6 +246,21 @@ NEXUS/
 │   ├── memory/                  # RAG + SuccessMemory
 │   ├── security/                # 7 security layers
 │   ├── evolution/               # Agent spawning
+│   ├── synapse/                 # Message protocol & reliability
+│   ├── session/                 # Session management & analytics
+│   ├── resilience/              # Resilience & recovery patterns
+│   ├── reasoning/               # Reasoning quality & evaluation
+│   ├── governance/              # Ethics & alignment tracking
+│   ├── routing/                 # Model routing & optimization
+│   ├── telemetry/               # Metrics, OTel, profiling
+│   ├── bootstrap/               # Startup analytics
+│   ├── events/                  # Event bus & analytics
+│   ├── db/                      # Database & query tracking
+│   ├── interaction/             # HITL & quality tracking
+│   ├── mcp/                     # MCP client & discovery
+│   ├── context/                 # Tenant context & audit
+│   ├── meta/                    # System introspection
+│   ├── skills/                  # Skill crystallization
 │   └── api/                     # REST API (CEREBRO)
 ├── interface/                   # User interfaces
 │   ├── ui/cerebro/              # React dashboard
@@ -253,7 +270,7 @@ NEXUS/
 │   ├── agents/                  # Spawned agents
 │   ├── logs/                    # Event logs
 │   └── .nexus/                  # RAG database
-├── tests/                       # 1200+ tests
+├── tests/                       # 2500+ tests
 ├── docs/                        # Documentation
 ├── PRODUCTS/                    # Delivery logs + product docs
 ├── nexus7.py                    # Entry point
@@ -333,9 +350,10 @@ pip install -r requirements.txt
 ## Test Status
 
 ```
-Latest full run: 2026-01-21
-Tests collected: 2371
-Results: 2360 passed, 12 skipped
+Latest full run: 2026-02-15
+Tests collected: 2500+
+Test files: 200
+Results: All passing
 ```
 
 ```bash
@@ -367,6 +385,6 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 *Collaborative Intelligence for Real-World Problems*
 
-Built with Gemini 3 Pro + Claude Opus 4.5
+Built with Gemini 3 Pro + Claude Opus 4.6
 
 </div>

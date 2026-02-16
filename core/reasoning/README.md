@@ -67,5 +67,14 @@ else:
 - **Lazy Loading**: Prevents system blocking if GoT not implemented
 - **Optional Enhancement**: GoT is a future enhancement, not required for core functionality
 - **Graceful Degradation**: Import errors caught and handled with `None` assignments
-- **Status**: Placeholder module - implementations pending
 - **Export Pattern**: `__all__` changes based on successful imports
+
+## V12.4 COGNITIVE BOOST Additions
+
+V12.4 implements the previously-planned reasoning components and adds quality scoring:
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `graph_of_thought.py` | Graph-based reasoning with DAG thought exploration supporting sequential chains, parallel exploration, decision trees, and custom DAG structures; decomposes problems, executes thoughts, and aggregates results | `GraphOfThought`, `ThoughtNode`, `ThoughtGraph` |
+| `reasoning_quality_scorer.py` | Scores and tracks agent reasoning quality across depth, coherence, completeness, and confidence calibration dimensions; builds per-agent profiles for routing and evolution decisions | `get_quality_scorer`, `ReasoningQualityScorer` |
+| `thought_evaluator.py` | Evaluates individual thoughts and reasoning paths for quality scoring, redundancy detection between thoughts, path comparison/ranking, and confidence calibration | `get_thought_evaluator`, `ThoughtEvaluator` |

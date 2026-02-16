@@ -148,10 +148,18 @@ print(stats)
 ```
 
 ### Design Notes
-- **Static Routing**: Task type → Model mapping (fast, predictable)
-- **Dynamic Routing**: DyLAN metrics → Agent selection (adaptive, performance-based)
+- **Static Routing**: Task type -> Model mapping (fast, predictable)
+- **Dynamic Routing**: DyLAN metrics -> Agent selection (adaptive, performance-based)
 - **Fallback Strategy**: Dynamic routing falls back to static if no metrics available
 - **Importance Threshold**: Filters agents by minimum importance score (default 0.5)
 - **Transparency**: All routing decisions include reasoning
 - **Configurability**: Model IDs and task mappings fully configurable
 - **V7 Gemini**: Currently uses Pro for all tasks (Flash routing ready but not active)
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `routing_effectiveness_analyzer.py` | Tracks routing decision outcomes to determine optimality, analyzes policy effectiveness, and monitors cost-quality tradeoffs across models and task types | `get_routing_analyzer`, `RoutingEffectivenessAnalyzer` |
+| `decision_cache.py` | Caches model routing decisions to avoid re-computation for repeated task patterns and learns from execution outcomes to improve future routing | `get_decision_cache`, `DecisionCache` |
+| `resource_optimizer.py` | Token budget and cost optimization across models with actual-vs-estimated usage tracking and pattern-based learning | `get_resource_optimizer`, `ResourceOptimizer` |

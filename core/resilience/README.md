@@ -141,3 +141,12 @@ print(report.summary())
 - **Health Check Components**: Constants, SafeTaskManager, EventBus, ToolRegistry, CircuitBreaker
 - **V10 Integration**: Seamless tenant scoping when context module available
 - **Testing Utilities**: `reset_all_circuits()`, `reset_system_health()`, `reset_hierarchical_breaker()`
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `resilience_event_tracker.py` | Tracks resilience events (circuit breaker trips, rate limiter activations, checkpoint restorations, retries, failovers, recovery actions) with aggregate metrics per event type and component | `get_resilience_tracker`, `ResilienceEventTracker` |
+| `request_deduplicator.py` | Prevents duplicate execution during retries via hash-based fingerprinting with TTL expiration, tracking in-flight and completed requests with cached result return | `get_deduplicator`, `RequestDeduplicator` |
+| `checkpoint_manager.py` | Deterministic checkpoints at phase boundaries for long-running tasks enabling pause/resume, rewind-to-checkpoint, and replay for debugging | `get_checkpoint_manager`, `CheckpointManager` |
+| `rate_limiter.py` | Per-provider token bucket rate limiting for API calls with configurable RPM and TPM limits, preventing upstream rate limit errors before calls are made | `RateLimiter`, `ProviderLimits` |

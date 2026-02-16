@@ -122,8 +122,14 @@ async for event in get_redis_bus().subscribe([CerebroEventType.AGENT_RESPONSE]):
 - `redis` - Redis client
 - `aioredis` - Async Redis client
 
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `event_analytics.py` | Event stream analytics tracking event counts by type, processing latency per event type, throughput metrics, and event flow patterns (source/type distribution) | `get_event_analytics`, `EventAnalytics` |
+
 ## Version History
 
 - **V10.0** - CEREBRO: Redis-based event bus for external UI
 - **V10.5** - SYNAPSE: TelemetryBridge for metrics sync
-- **V12.4** - Multi-tenant event streams
+- **V12.4** - Multi-tenant event streams, event analytics

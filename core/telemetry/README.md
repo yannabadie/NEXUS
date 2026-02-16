@@ -250,3 +250,12 @@ print(formatted)
 - `ServiceResult` pattern for consistent error handling
 - High-level API for UI commands (report, status, export)
 - Console integration for formatted output
+
+## V12.4 COGNITIVE BOOST Additions
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `error_pattern_analyzer.py` | Detects recurring error patterns across subsystems, aggregates per-category metrics, and identifies cascading errors and agent-specific failure trends for DIAGNOSIS phase and CEREBRO dashboards | `get_error_analyzer`, `ErrorPatternAnalyzer` |
+| `performance_profiler.py` | Execution timing and bottleneck detection for FSM state transitions, swarm negotiation latency, LLM driver calls, and arbitrary spans with timing reports | `get_profiler`, `PerformanceProfiler` |
+| `health_aggregator.py` | Unified health dashboard aggregator collecting data from all subsystems (SystemHealth, TelemetryCollector, BudgetTracker, drivers) into a single-pane-of-glass health report for CEREBRO UI | `HealthAggregator` |
+| `otel_provider.py` | OpenTelemetry integration with auto-instrumentation for Anthropic/Google GenAI, manual spans for FSM/Swarm/evolution, and token/latency/error metrics; feature-flagged via `NEXUS_FF_OTEL_ENABLED` | `init_otel`, `get_tracer` |
