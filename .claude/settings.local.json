@@ -177,7 +177,8 @@
       "Bash(core/swarm/negotiation_protocol.py )",
       "Bash(requirements.txt)",
       "Bash(timeout 30 python:*)",
-      "Bash(PYTHONIOENCODING=utf-8 timeout 60 python:*)"
+      "Bash(PYTHONIOENCODING=utf-8 timeout 60 python:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []

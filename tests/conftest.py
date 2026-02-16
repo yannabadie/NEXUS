@@ -11,27 +11,6 @@ Provides:
 import pytest
 import sys
 import tempfile
-
-# ---------------------------------------------------------------------------
-# V12.4: Guard against WMI hangs on Windows.
-# Python 3.12+ uses _wmi for platform.uname() / platform.machine().
-# If the WMI service is unresponsive, these calls hang indefinitely,
-# blocking argon2-cffi import (which calls platform.machine() in _is_wasm()).
-# Pre-cache the uname result with a timeout so the rest of the suite works.
-# ---------------------------------------------------------------------------
-if sys.platform == "win32":
-    import platform as _platform
-    if _platform._uname_cache is None:
-        import concurrent.futures as _cf
-        try:
-            with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
-                _fut = _ex.submit(_platform.uname)
-                _fut.result(timeout=5)
-        except (_cf.TimeoutError, Exception):
-            # WMI is hung — inject a safe cached result to unblock all callers
-            _platform._uname_cache = _platform.uname_result(
-                "Windows", "", "", "", "AMD64"
-            )
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from unittest.mock import Mock, MagicMock, patch

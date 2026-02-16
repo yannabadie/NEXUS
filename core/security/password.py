@@ -27,21 +27,27 @@ Author: Claude (NEXUS V12.4 COGNITIVE BOOST)
 Date: 2026-02-15
 """
 
-from argon2 import PasswordHasher, Type
-from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+# Lazy import: argon2-cffi calls platform.machine() at import time,
+# which uses _wmi on Python 3.12+ Windows. If WMI is unresponsive
+# this hangs indefinitely. Deferring the import to first use avoids
+# blocking the entire module tree at import time.
+_hasher = None
 
-# =============================================================================
-# Argon2id Configuration (OWASP / RFC 9106 compliant)
-# =============================================================================
 
-_hasher = PasswordHasher(
-    time_cost=2,           # 2 iterations (OWASP minimum)
-    memory_cost=19456,     # ~19 MiB (OWASP first recommendation)
-    parallelism=1,         # Single-threaded (safe default)
-    hash_len=32,           # 32-byte output hash
-    salt_len=16,           # 16-byte random salt
-    type=Type.ID,          # Argon2id
-)
+def _get_hasher():
+    """Lazily initialize the Argon2id hasher on first use."""
+    global _hasher
+    if _hasher is None:
+        from argon2 import PasswordHasher, Type
+        _hasher = PasswordHasher(
+            time_cost=2,           # 2 iterations (OWASP minimum)
+            memory_cost=19456,     # ~19 MiB (OWASP first recommendation)
+            parallelism=1,         # Single-threaded (safe default)
+            hash_len=32,           # 32-byte output hash
+            salt_len=16,           # 16-byte random salt
+            type=Type.ID,          # Argon2id
+        )
+    return _hasher
 
 
 # =============================================================================
@@ -63,7 +69,7 @@ def hash_password(plain_password: str) -> str:
         >>> hashed.startswith("$argon2id$")
         True
     """
-    return _hasher.hash(plain_password)
+    return _get_hasher().hash(plain_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -86,7 +92,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Argon2id hash
     if hashed_password.startswith("$argon2"):
         try:
-            return _hasher.verify(hashed_password, plain_password)
+            from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+            return _get_hasher().verify(hashed_password, plain_password)
         except VerifyMismatchError:
             return False
         except (VerificationError, InvalidHashError):
@@ -129,4 +136,4 @@ def needs_rehash(hashed_password: str) -> bool:
         return True
 
     # Check if Argon2 parameters are current
-    return _hasher.check_needs_rehash(hashed_password)
+    return _get_hasher().check_needs_rehash(hashed_password)
