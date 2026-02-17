@@ -179,3 +179,45 @@ __all__ += [
     'get_metacognitive_monitor',
     'reset_metacognitive_monitor',
 ]
+
+# V12.4 COGNITIVE BOOST: Inspector Guard (arxiv:2408.00989)
+from .inspector_guard import (
+    InspectorGuard,
+    InspectionResult,
+    RiskLevel,
+    IssuePattern,
+    GuardStats,
+    get_inspector_guard,
+    reset_inspector_guard,
+)
+
+__all__ += [
+    'InspectorGuard',
+    'InspectionResult',
+    'RiskLevel',
+    'IssuePattern',
+    'GuardStats',
+    'get_inspector_guard',
+    'reset_inspector_guard',
+]
+
+# V12.4 COGNITIVE BOOST: Confidence Calibrator (arxiv:2404.09127)
+from .confidence_calibrator import (
+    ConfidenceCalibrator,
+    CalibratedConfidence,
+    ConfidenceBias,
+    AgentCalibrationProfile,
+    CalibratorStats,
+    get_confidence_calibrator,
+    reset_confidence_calibrator,
+)
+
+__all__ += [
+    'ConfidenceCalibrator',
+    'CalibratedConfidence',
+    'ConfidenceBias',
+    'AgentCalibrationProfile',
+    'CalibratorStats',
+    'get_confidence_calibrator',
+    'reset_confidence_calibrator',
+]

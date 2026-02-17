@@ -103,6 +103,15 @@ from .context_window_tracker import (
     reset_context_tracker,
 )
 
+# V12.4 COGNITIVE BOOST: Pointer Memory (arxiv:2511.22729)
+from .pointer_memory import (
+    PointerMemory,
+    Pointer,
+    PointerStats,
+    get_pointer_memory,
+    reset_pointer_memory,
+)
+
 __all__ = [
     # Auto-Memory (V7.5)
     "AutoMemory",
@@ -179,4 +188,10 @@ __all__ = [
     "DecayScorerStats",
     "get_decay_scorer",
     "reset_decay_scorer",
+    # V12.4 COGNITIVE BOOST: Pointer Memory (arxiv:2511.22729)
+    "PointerMemory",
+    "Pointer",
+    "PointerStats",
+    "get_pointer_memory",
+    "reset_pointer_memory",
 ]

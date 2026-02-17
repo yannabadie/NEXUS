@@ -326,6 +326,29 @@ class MonitoredExecutionPhase:
             except Exception:
                 pass
 
+            # V12.4: InspectorGuard - post-step verification (arxiv:2408.00989)
+            try:
+                from core.reasoning.inspector_guard import get_inspector_guard
+                _inspector = get_inspector_guard()
+                _inspection = _inspector.inspect_step(
+                    step_name=step.name,
+                    step_output=result.output[:500] if result.output else "",
+                    step_status=result.status,
+                    step_issues=[
+                        {"issue_type": i.issue_type, "severity": getattr(i.severity, "value", str(i.severity))}
+                        for i in result.issues
+                    ],
+                )
+                if _inspection.requires_diagnosis:
+                    all_issues.append(ExecutionIssue(
+                        issue_type="inspector_guard_flag",
+                        severity=IssueSeverity.WARNING,
+                        details=f"InspectorGuard risk={_inspection.risk_score:.2f}: {_inspection.issue_summary[:200]}",
+                        step_name=step.name,
+                    ))
+            except Exception:
+                pass
+
             # V12.4: Cache successful step results for deduplication
             try:
                 if dedup_check is not None and not dedup_check.is_duplicate and result.status == "success":
@@ -354,10 +377,21 @@ class MonitoredExecutionPhase:
             except Exception:
                 pass  # Non-blocking
 
-            # Add to context
+            # V12.4: PointerMemory - store large outputs externally (arxiv:2511.22729)
+            _output_for_context = result.output
+            try:
+                from core.memory.pointer_memory import get_pointer_memory
+                _pmem = get_pointer_memory()
+                if result.output and _pmem.should_store(result.output):
+                    _pointer = _pmem.store(result.output, source=f"step:{step.name}")
+                    _output_for_context = _pointer.context_representation
+            except Exception:
+                pass
+
+            # Add to context (uses pointer summary if output was large)
             self.context_manager.add_execution_result(
                 step.name,
-                result.output,
+                _output_for_context,
                 result.status == "success"
             )
 
@@ -443,6 +477,20 @@ class MonitoredExecutionPhase:
                     ))
         except Exception:
             pass  # Degradation detection is advisory, not critical
+
+        # V12.4: ConfidenceCalibrator - record agent confidence vs outcome (arxiv:2404.09127)
+        try:
+            from core.reasoning.confidence_calibrator import get_confidence_calibrator
+            _calibrator = get_confidence_calibrator()
+            for agent_id in {s.agent_id for s in architecture.execution_steps if hasattr(s, 'agent_id')}:
+                _calibrator.record(
+                    agent_id=agent_id,
+                    stated_confidence=quality_score,
+                    actual_success=success,
+                    task_type="execution",
+                )
+        except Exception:
+            pass
 
         # Determine if diagnosis needed (quality-aware)
         needs_diagnosis = (
