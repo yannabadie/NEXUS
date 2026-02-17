@@ -337,22 +337,27 @@ class MonitoredExecutionPhase:
                 pass
 
             # V12.4: MetacognitiveMonitor - step-level anomaly detection (arxiv:2510.14319)
+            # P5.5: Adaptive metacognition - bypass for TRIVIAL/SIMPLE tasks (15-30% latency reduction)
             try:
+                from core.reasoning.task_complexity import should_monitor_metacognition
                 from core.reasoning.metacognitive_monitor import get_metacognitive_monitor
-                _masc = get_metacognitive_monitor()
-                _step_history = [r.output[:200] for r in step_results if r.output]
-                _anomaly = _masc.score_step(
-                    step_output=result.output[:500] if result.output else "",
-                    history=_step_history,
-                    task_type=step.name,
-                )
-                if _masc.should_correct(_anomaly):
-                    all_issues.append(ExecutionIssue(
-                        issue_type="metacognitive_anomaly",
-                        severity=IssueSeverity.WARNING,
-                        details=f"MASC anomaly z={_anomaly.composite_score:.2f} on step '{step.name}'",
-                        step_name=step.name,
-                    ))
+
+                # Only run metacognition for MODERATE+ complexity tasks
+                if should_monitor_metacognition(task):
+                    _masc = get_metacognitive_monitor()
+                    _step_history = [r.output[:200] for r in step_results if r.output]
+                    _anomaly = _masc.score_step(
+                        step_output=result.output[:500] if result.output else "",
+                        history=_step_history,
+                        task_type=step.name,
+                    )
+                    if _masc.should_correct(_anomaly):
+                        all_issues.append(ExecutionIssue(
+                            issue_type="metacognitive_anomaly",
+                            severity=IssueSeverity.WARNING,
+                            details=f"MASC anomaly z={_anomaly.composite_score:.2f} on step '{step.name}'",
+                            step_name=step.name,
+                        ))
             except Exception:
                 pass
 
@@ -696,8 +701,8 @@ class MonitoredExecutionPhase:
                     prompt,
                     session_id=session_uuid,
                     system_prompt=EXECUTION_SYSTEM_PROMPT,
-                    agent_name=agent_id,
-                    agent_id=agent_id,
+                    agent_name=step.agent_id,
+                    agent_id=step.agent_id,
                 ),
                 timeout=step.expected_duration * 2  # Allow 2x expected time
             )

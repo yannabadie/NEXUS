@@ -297,3 +297,16 @@ __all__ += [
     'get_fault_detector',
     'reset_fault_detector',
 ]
+
+# V12.4 P5.5: Task Complexity (Adaptive Metacognition)
+from .task_complexity import (
+    TaskComplexity,
+    estimate_complexity,
+    should_monitor_metacognition,
+)
+
+__all__ += [
+    'TaskComplexity',
+    'estimate_complexity',
+    'should_monitor_metacognition',
+]
