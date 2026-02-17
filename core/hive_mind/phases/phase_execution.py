@@ -201,6 +201,21 @@ class MonitoredExecutionPhase:
         total_tokens = 0
         start_time = time.time()
 
+        # V12.4: MetaPolicyMemory soft retrieval - inject learned rules into context (arxiv:2509.03990)
+        try:
+            from core.reasoning.meta_policy_memory import get_meta_policy_memory
+            _mpm_retrieval = get_meta_policy_memory().retrieve_applicable(
+                context=task[:300],
+            )
+            if _mpm_retrieval.rules:
+                self.context_manager.add_to_context(
+                    "meta_policy_rules",
+                    _mpm_retrieval.prompt_injection,
+                )
+                logger.debug(f"Phase 4: Injected {len(_mpm_retrieval.rules)} learned policy rules")
+        except Exception:
+            pass
+
         # Execute each step
         for step in architecture.execution_plan.steps:
             # Check dependencies
@@ -248,6 +263,22 @@ class MonitoredExecutionPhase:
             except Exception:
                 dedup_check = None
 
+            # V12.4: MetaPolicyMemory HAC - hard admissibility check before execution (arxiv:2509.03990)
+            try:
+                from core.reasoning.meta_policy_memory import get_meta_policy_memory
+                _mpm = get_meta_policy_memory()
+                _hac = _mpm.check_admissibility(step.action[:300] if step.action else step.name)
+                if _hac.is_blocked:
+                    logger.warning(f"Phase 4: HAC blocked step '{step.name}': {_hac.reason[:120]}")
+                    all_issues.append(ExecutionIssue(
+                        issue_type="hac_blocked",
+                        severity=IssueSeverity.WARNING,
+                        details=f"HAC blocked: {_hac.reason[:200]}. Alternative: {_hac.suggested_alternative[:200]}",
+                        step_name=step.name,
+                    ))
+            except Exception:
+                pass
+
             # V12.4: ToolObserver - start execution span
             _span = None
             try:
@@ -274,6 +305,26 @@ class MonitoredExecutionPhase:
                     )
                 except Exception:
                     pass
+
+            # V12.4: MetacognitiveMonitor - step-level anomaly detection (arxiv:2510.14319)
+            try:
+                from core.reasoning.metacognitive_monitor import get_metacognitive_monitor
+                _masc = get_metacognitive_monitor()
+                _step_history = [r.output[:200] for r in step_results if r.output]
+                _anomaly = _masc.score_step(
+                    step_output=result.output[:500] if result.output else "",
+                    history=_step_history,
+                    task_type=step.name,
+                )
+                if _masc.should_correct(_anomaly):
+                    all_issues.append(ExecutionIssue(
+                        issue_type="metacognitive_anomaly",
+                        severity=IssueSeverity.WARNING,
+                        details=f"MASC anomaly z={_anomaly.composite_score:.2f} on step '{step.name}'",
+                        step_name=step.name,
+                    ))
+            except Exception:
+                pass
 
             # V12.4: Cache successful step results for deduplication
             try:

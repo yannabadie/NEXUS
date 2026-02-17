@@ -145,3 +145,37 @@ __all__ += [
     'get_consensus_verifier',
     'reset_consensus_verifier',
 ]
+
+# V12.4 COGNITIVE BOOST: Meta-Policy Memory (MPR, arxiv:2509.03990)
+from .meta_policy_memory import (
+    MetaPolicyMemory,
+    PolicyRule,
+    RuleCategory,
+    AdmissibilityResult,
+    get_meta_policy_memory,
+    reset_meta_policy_memory,
+)
+
+__all__ += [
+    'MetaPolicyMemory',
+    'PolicyRule',
+    'RuleCategory',
+    'AdmissibilityResult',
+    'get_meta_policy_memory',
+    'reset_meta_policy_memory',
+]
+
+# V12.4 COGNITIVE BOOST: Metacognitive Monitor (MASC, arxiv:2510.14319)
+from .metacognitive_monitor import (
+    MetacognitiveMonitor,
+    AnomalyScore,
+    get_metacognitive_monitor,
+    reset_metacognitive_monitor,
+)
+
+__all__ += [
+    'MetacognitiveMonitor',
+    'AnomalyScore',
+    'get_metacognitive_monitor',
+    'reset_metacognitive_monitor',
+]

@@ -302,6 +302,18 @@ class FailureDiagnosisPhase:
                 f"Phase 5: MAST classified {len(mast_result.codes)} codes, "
                 f"MARS generated reflection (type: {failure_type_str})"
             )
+            # V12.4: MetaPolicyMemory - consolidate MARS reflection into reusable rule (arxiv:2509.03990)
+            try:
+                from core.reasoning.meta_policy_memory import get_meta_policy_memory
+                mpm = get_meta_policy_memory()
+                mpm.consolidate(
+                    mars_result=reflection,
+                    mast_codes=[c.value for c in mast_result.codes],
+                    source_task=task[:200],
+                )
+            except Exception as mpm_err:
+                logger.debug(f"MetaPolicyMemory consolidation failed: {mpm_err}")
+
         except Exception as e:
             logger.debug(f"MAST/MARS analysis failed: {e}")
 

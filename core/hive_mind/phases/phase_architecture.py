@@ -524,6 +524,18 @@ class ArchitectureGenerationPhase:
             available_agents=available_agents
         )
 
+        # V12.4: TechniqueSelector - enhance prompt with adaptive techniques (arxiv:2510.18162)
+        _selected_techniques = []
+        try:
+            from core.prompts.technique_selector import get_technique_selector
+            _tech_selector = get_technique_selector()
+            _selection = _tech_selector.select(task, domains=capabilities[:3])
+            _selected_techniques = _selection.techniques
+            prompt = _tech_selector.compose_prompt(prompt, _selected_techniques)
+            logger.debug(f"Phase 3a: TechniqueSelector applied {[t.value for t in _selected_techniques]} ({_selection.cluster_name})")
+        except Exception:
+            pass
+
         # Get session for Claude
         session_uuid = None
         if self._session_integration:
