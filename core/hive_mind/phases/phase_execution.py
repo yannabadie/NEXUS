@@ -233,12 +233,36 @@ class MonitoredExecutionPhase:
                 all_issues.append(issue)
                 break
 
+            # V12.4: Request deduplication - skip if identical step already completed
+            try:
+                from core.resilience.request_deduplicator import get_deduplicator
+                _dedup = get_deduplicator()
+                dedup_check = _dedup.check("execution_step", {
+                    "step_name": step.name, "agent": step.agent_id, "action": step.action[:200],
+                })
+                if dedup_check.is_duplicate and dedup_check.cached_result is not None:
+                    logger.info(f"Phase 4: Skipping duplicate step '{step.name}' (cached)")
+                    result = dedup_check.cached_result
+                    step_results.append(result)
+                    continue
+            except Exception:
+                dedup_check = None
+
             # Execute step with monitoring
             result = await self._execute_step(
                 task=task,
                 step=step,
                 previous_results=step_results
             )
+
+            # V12.4: Cache successful step results for deduplication
+            try:
+                if dedup_check is not None and not dedup_check.is_duplicate and result.status == "success":
+                    _dedup.complete("execution_step", {
+                        "step_name": step.name, "agent": step.agent_id, "action": step.action[:200],
+                    }, result=result)
+            except Exception:
+                pass
 
             step_results.append(result)
             all_issues.extend(result.issues)

@@ -384,6 +384,33 @@ class TrueHiveMind:
             )
             logger.info(f"[HiveMind] Phase budgets allocated: execution={phase_budgets.get('execution', 0)}")
 
+            # V12.4: Phase coordinator - start session and track transitions
+            _phase_coord = None
+            try:
+                from .phase_coordinator import get_phase_coordinator
+                _phase_coord = get_phase_coordinator()
+                _phase_coord.start_session(task_id or f"hive_{int(start_time)}")
+            except Exception:
+                pass
+
+            # V12.4: Checkpoint manager - lightweight checkpoints per phase
+            _ckpt_mgr = None
+            try:
+                from core.resilience.checkpoint_manager import get_checkpoint_manager
+                _ckpt_mgr = get_checkpoint_manager()
+            except Exception:
+                pass
+
+            # V12.4: Resilience event tracker for retry/failure observability
+            _resilience = None
+            try:
+                from core.resilience.resilience_event_tracker import get_resilience_tracker
+                _resilience = get_resilience_tracker()
+            except Exception:
+                pass
+
+            _coord_session = task_id or f"hive_{int(start_time)}"
+
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
                 from core.swarm import generate_task_id
@@ -421,6 +448,8 @@ class TrueHiveMind:
             # =========================================================
             # PHASE 1: Independent Analysis
             # =========================================================
+            if _phase_coord:
+                _phase_coord.transition(_coord_session, "analysis", reason="task_start")
             self._set_state(HiveMindState.HIVE_ANALYZING_GEMINI)
 
             # V12.0 RETINA: Update nodes - agents analyzing
@@ -489,10 +518,22 @@ class TrueHiveMind:
                     checkpoint_data={"context_index": len(self.context_manager._items)}
                 )
 
+            # V12.4: Checkpoint after analysis
+            if _ckpt_mgr:
+                try:
+                    _ckpt_mgr.create(_coord_session, "analysis_complete", state={
+                        "needs_debate": analysis_result.needs_debate,
+                        "agreement": analysis_result.comparison.agreement_score,
+                    })
+                except Exception:
+                    pass
+
             # =========================================================
             # PHASE 2: Strategic Debate (if needed)
             # =========================================================
             if analysis_result.needs_debate:
+                if _phase_coord:
+                    _phase_coord.transition(_coord_session, "debate", reason="disagreement")
                 self._set_state(HiveMindState.HIVE_DEBATING)
                 debate_result = await self.phase_debate.execute(
                     task=task,
@@ -563,9 +604,21 @@ class TrueHiveMind:
                     checkpoint_data={"context_index": len(self.context_manager._items)}
                 )
 
+            # V12.4: Checkpoint after debate
+            if _ckpt_mgr:
+                try:
+                    _ckpt_mgr.create(_coord_session, "debate_complete", state={
+                        "was_skipped": debate_result.was_skipped,
+                        "consensus": debate_confidence,
+                    })
+                except Exception:
+                    pass
+
             # =========================================================
             # PHASE 3: Architecture Generation
             # =========================================================
+            if _phase_coord:
+                _phase_coord.transition(_coord_session, "architecture", reason="debate_resolved")
             self._set_state(HiveMindState.HIVE_ARCHITECTING)
             arch_result = await self.phase_architecture.execute(
                 task=task,
@@ -623,6 +676,16 @@ class TrueHiveMind:
                     checkpoint_data={"context_index": len(self.context_manager._items)}
                 )
 
+            # V12.4: Checkpoint after architecture
+            if _ckpt_mgr:
+                try:
+                    _ckpt_mgr.create(_coord_session, "architecture_complete", state={
+                        "agents_spawned": agents_spawned,
+                        "status": arch_result.architecture.status,
+                    })
+                except Exception:
+                    pass
+
             # =========================================================
             # PHASE 4-6: Execution Loop (with retry)
             # =========================================================
@@ -632,6 +695,8 @@ class TrueHiveMind:
 
             for attempt in range(max_attempts):
                 # PHASE 4: Monitored Execution
+                if _phase_coord:
+                    _phase_coord.transition(_coord_session, "execution", reason=f"attempt_{attempt + 1}")
                 self._set_state(HiveMindState.HIVE_EXECUTING)
                 execution_result = await self.phase_execution.execute(
                     task=task,
@@ -677,7 +742,21 @@ class TrueHiveMind:
                 if not execution_result.needs_diagnosis:
                     break
 
+                # V12.4: Record execution failure as resilience event
+                if _resilience:
+                    try:
+                        _resilience.record_event(
+                            event_type="retry",
+                            component="hive_mind_execution",
+                            description=f"Execution failed attempt {attempt + 1}: {execution_result.failure_step or 'unknown step'}",
+                            severity="warning" if attempt < 2 else "critical",
+                        )
+                    except Exception:
+                        pass
+
                 # PHASE 5: Failure Diagnosis
+                if _phase_coord:
+                    _phase_coord.transition(_coord_session, "diagnosis", reason="execution_failed")
                 self._set_state(HiveMindState.HIVE_DIAGNOSING)
                 diagnosis_result = await self.phase_diagnosis.execute(
                     task=task,
@@ -720,7 +799,20 @@ class TrueHiveMind:
                         execution_result=execution_result
                     )
 
+                # V12.4: Checkpoint after diagnosis
+                if _ckpt_mgr:
+                    try:
+                        _ckpt_mgr.create(_coord_session, f"diagnosis_attempt_{attempt + 1}", state={
+                            "failure_type": diagnosis_result.diagnosis.failure_type.value,
+                            "user_decision": diagnosis_result.user_decision,
+                            "confidence": diagnosis_result.diagnosis.confidence,
+                        })
+                    except Exception:
+                        pass
+
                 # PHASE 6: Adaptive Retry
+                if _phase_coord:
+                    _phase_coord.transition(_coord_session, "retry", reason=f"retry_attempt_{attempt + 1}")
                 self._set_state(HiveMindState.HIVE_APPLYING_CHANGES)
                 retry_recommendations = self.phase_diagnosis.get_retry_recommendations(
                     diagnosis_result
@@ -764,6 +856,8 @@ class TrueHiveMind:
             # =========================================================
             # PHASE 7: Knowledge Consolidation
             # =========================================================
+            if _phase_coord:
+                _phase_coord.transition(_coord_session, "consolidation", reason="execution_complete")
             self._set_state(HiveMindState.HIVE_REFLECTING)
             consolidation_result = await self.phase_consolidation.execute(
                 task=task,
@@ -842,6 +936,20 @@ class TrueHiveMind:
                     session_id=f"hive_mind_{int(start_time)}"
                 )
                 logger.info(f"Archived {archived} insights to RAG")
+
+            # V12.4: Final checkpoint and end coordinator session
+            if _ckpt_mgr:
+                try:
+                    _ckpt_mgr.create(_coord_session, "task_complete", state={
+                        "success": execution_success,
+                        "phases": phases_completed,
+                        "tokens": self.cost_estimator.spent,
+                    })
+                except Exception:
+                    pass
+            if _phase_coord:
+                _phase_coord.transition(_coord_session, "idle", reason="task_complete")
+                _phase_coord.end_session(_coord_session)
 
             # =========================================================
             # SUCCESS
