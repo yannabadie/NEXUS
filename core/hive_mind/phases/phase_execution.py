@@ -216,6 +216,15 @@ class MonitoredExecutionPhase:
         except Exception:
             pass
 
+        # V12.4: PlanContextFilter - pre-compute step relevance for context optimization (arxiv:2512.16970)
+        try:
+            from core.memory.plan_context_filter import get_plan_context_filter
+            _pcfilter = get_plan_context_filter()
+            _upcoming = [s.name for s in architecture.execution_plan.steps]
+            logger.debug(f"Phase 4: PlanContextFilter initialized with {len(_upcoming)} upcoming steps")
+        except Exception:
+            _pcfilter = None
+
         # Execute each step
         for step in architecture.execution_plan.steps:
             # Check dependencies
@@ -508,6 +517,19 @@ class MonitoredExecutionPhase:
                     stated_confidence=quality_score,
                     actual_success=success,
                     task_type="execution",
+                )
+        except Exception:
+            pass
+
+        # V12.4: FaultDetector - record per-agent reliability for Byzantine detection (arxiv:2511.10400)
+        try:
+            from core.reasoning.fault_detector import get_fault_detector
+            _fdetector = get_fault_detector()
+            for sr in step_results:
+                _fdetector.record_output(
+                    agent_id=sr.agent_id,
+                    confidence=0.8 if sr.status == "success" else 0.3,
+                    was_correct=sr.status == "success",
                 )
         except Exception:
             pass

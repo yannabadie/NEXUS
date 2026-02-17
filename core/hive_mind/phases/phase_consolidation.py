@@ -392,6 +392,13 @@ class KnowledgeConsolidationPhase:
         except Exception as e:
             logger.debug(f"AutoMemory recording failed: {e}")
 
+        # V12.4: UncertaintyPropagator - reset chain for next task (arxiv:2601.15703)
+        try:
+            from core.reasoning.uncertainty_propagator import get_uncertainty_propagator
+            get_uncertainty_propagator().reset_chain()
+        except Exception:
+            pass
+
         return ConsolidationPhaseResult(
             consolidation=consolidation,
             gemini_reflection=gemini_result,

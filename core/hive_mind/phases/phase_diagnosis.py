@@ -339,6 +339,20 @@ class FailureDiagnosisPhase:
         except Exception:
             pass
 
+        # V12.4: FaultDetector - check if failure is due to Byzantine agent behavior (arxiv:2511.10400)
+        try:
+            from core.reasoning.fault_detector import get_fault_detector
+            _fdetector = get_fault_detector()
+            for agent_id in {r.agent_id for r in results if hasattr(r, 'agent_id')}:
+                _fstatus = _fdetector.check_agent(agent_id)
+                if _fstatus.is_faulty:
+                    diagnosis.contributing_factors.append(
+                        f"Byzantine fault: agent '{agent_id}' flagged as faulty "
+                        f"(fault_rate={_fstatus.fault_rate:.0%}, trust={_fstatus.trust_score:.2f})"
+                    )
+        except Exception:
+            pass
+
         # V12.4: SystemHealth check - enrich diagnosis with system-level context
         try:
             from core.resilience.system_health import get_system_health
