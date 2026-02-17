@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [12.4.1] - 2026-02-17 - "Production Readiness Sprint" 🚀
+
+**Micro-release**: Applied all improvement plans from architectural analysis. Focus: SDK wiring, event sourcing, security hardening.
+
+### 🎯 Completed Phases
+
+#### PHASE 0: Stabilization
+- Removed dead passlib logging suppression from Cerebro API
+- Verified KERNEL fail-closed enforcement (already working)
+- Verified Python 3.14 ast.Str compatibility (already fixed)
+
+#### PHASE 1: SDK Driver Wiring (Critical)
+- **Problem**: SDK drivers existed but were NOT used (dead code)
+- **Solution**: Wired SDK drivers into entire pipeline
+- **Files**: 13 files modified (orchestrator, invoker, HiveMind)
+- **Result**: 0 legacy CLI imports in critical path
+- **Impact**: NEXUS now Cloud/Docker deployable with native APIs
+
+#### PHASE 2: Event Sourcing Crash Recovery
+- All FSM transitions now event-sourced (3 bypassed transitions fixed)
+- Boot-time interrupted session detection
+- User-prompted resume or fresh start
+- FSMEventStore with get_interrupted_sessions()
+
+#### PHASE 3: Security & Observability
+- Production sandbox enforcement (NEXUS_FF_SANDBOX_REQUIRED)
+- Fails fast if Docker unavailable in production
+- FSM transitions instrumented with OTel spans
+- SDK drivers auto-traced with trace_llm_call
+
+### 📦 New Tests
+- `tests/test_sdk_e2e_pipeline.py` (6 tests, 4 passing)
+- Validates SDK-first architecture end-to-end
+
+### 🗑️ Cleanup
+- Removed todo5.md, todo6.md, todo7.md, todo8.md (all applied)
+
+### 📊 Metrics
+- Commits: 6 feature commits
+- Files: 15+ modified
+- Lines: 200+ insertions
+
+---
+
 ## [12.4.0] - 2026-02-16 - "COGNITIVE BOOST" 🧠
 
 **Major Release**: Massive expansion with 125+ new modules across 30+ domains, achieving all 14 epics from the Master Plan (Plan Directeur d'Industrialisation). Focus on observability, hardening, and production-readiness.
