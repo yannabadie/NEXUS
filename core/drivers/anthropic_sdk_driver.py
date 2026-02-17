@@ -169,12 +169,18 @@ class AnthropicSDKDriver(BaseAsyncDriver):
                 span.set_attribute("gen_ai.usage.output_tokens", result.output_tokens)
                 span.set_attribute("gen_ai.response.model", result.model or self._model)
 
-            # Auto-track cost via BudgetTracker
+            # Auto-track cost via BudgetTracker (with cache metrics)
             if self._budget_tracker and result.is_success:
+                # Extract cache metrics from raw response
+                cache_creation = result.raw.get("cache_creation_input_tokens", 0) or 0
+                cache_read = result.raw.get("cache_read_input_tokens", 0) or 0
+
                 self._budget_tracker.track_cost(
                     self._model,
                     input_tokens=result.input_tokens,
                     output_tokens=result.output_tokens,
+                    cache_creation_tokens=cache_creation,
+                    cache_read_tokens=cache_read,
                 )
 
             # Record health event

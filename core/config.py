@@ -38,6 +38,7 @@ class FeatureFlags:
     # Execution
     headless_mode: bool = False            # Deterministic JSON output, no TTY
     streaming_enabled: bool = True         # Real-time token streaming
+    prompt_caching: bool = True            # Anthropic prompt caching (90% savings on cache hits)
 
     # Observability
     otel_enabled: bool = False             # OpenTelemetry export
