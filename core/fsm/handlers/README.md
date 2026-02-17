@@ -32,14 +32,19 @@ core/fsm/handlers/
 | `validating_cfl.py` | VALIDATING_CFL | 108 | ✅ Extracted & tested |
 | `evolution.py` | EVOLUTION_BRAINSTORM | 153 | ✅ Extracted & tested |
 | `swarm.py` | SWARM_ANALYZING, SWARM_NEGOTIATING, SWARM_EXECUTING | 107 | ✅ Extracted & tested |
+| `idle_waiting.py` | IDLE, WAITING_USER | 391 | ✅ Extracted & tested |
 
-### 🚧 In Progress
+**Total:** 8/8 handler groups (100% coverage), 1,181 lines extracted
 
-| Module | States | Complexity | Reason |
-|--------|--------|------------|--------|
-| `idle_waiting.py` | IDLE, WAITING_USER | High | Complex routing logic with 13 helper methods (~730 lines total) |
+### 📋 Remaining in Legacy File (Optional)
 
-**Note**: IDLE/WAITING handlers temporarily use `LegacyFSMHandlers` from `core/orchestration/fsm_handlers.py` until extraction is complete.
+| Helper Methods | Lines | Usage |
+|----------------|-------|-------|
+| `_execute_simple_task` + fast path | ~357 | Delegated from idle_waiting.py |
+| Lightweight CFL validation | ~244 | Used by simple execution |
+| Delegated methods + async | ~63 | Infrastructure |
+
+**Note**: These helpers remain in `core/orchestration/fsm_handlers.py` and are called via delegation. System is fully functional.
 
 ## Usage
 
