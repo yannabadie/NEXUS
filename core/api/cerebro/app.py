@@ -26,12 +26,6 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List
 
-# V13.0: Passlib 1.7.4 + bcrypt 4.x compatibility
-# passlib logs "error reading bcrypt version" at WARNING level due to bcrypt 4.x API change
-# This is a known issue: https://github.com/pyca/bcrypt/issues/684
-# Fix: Set logger level to ERROR to suppress this specific warning
-logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
