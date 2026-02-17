@@ -362,6 +362,36 @@ class KnowledgeConsolidationPhase:
         except Exception as e:
             logger.debug(f"Principle extraction failed: {e}")
 
+        # V12.4: AutoMemory - record task outcome for future mode/lead suggestions
+        try:
+            from core.memory.auto_memory import get_auto_memory
+            auto_mem = get_auto_memory()
+            # Determine swarm mode from approach text
+            swarm_mode = approach.split()[0] if approach else "UNKNOWN"
+            # Determine lead agent (first in list)
+            lead = agents_used[0] if agents_used else "unknown"
+            if success:
+                auto_mem.record_success(
+                    task_type="hive_mind",
+                    task_description=task[:200],
+                    swarm_mode=swarm_mode,
+                    lead_agent=lead,
+                    duration_seconds=duration,
+                    score=consolidation.confidence_in_decisions,
+                )
+            else:
+                auto_mem.record_failure(
+                    task_type="hive_mind",
+                    task_description=task[:200],
+                    swarm_mode=swarm_mode,
+                    lead_agent=lead,
+                    duration_seconds=duration,
+                    reason="task_failed",
+                )
+            logger.info(f"Phase 7: AutoMemory recorded {'success' if success else 'failure'} for {swarm_mode}/{lead}")
+        except Exception as e:
+            logger.debug(f"AutoMemory recording failed: {e}")
+
         return ConsolidationPhaseResult(
             consolidation=consolidation,
             gemini_reflection=gemini_result,

@@ -216,6 +216,38 @@ class TrueHiveMind:
         except Exception:
             self._introspector = None
 
+        # V12.4: FailoverManager - register drivers for resilient routing
+        self._failover = None
+        try:
+            from core.drivers.failover_manager import get_failover_manager
+            self._failover = get_failover_manager()
+            if not self._failover._configs:  # Only register once
+                self._failover.register_driver("gemini", priority=0)
+                self._failover.register_driver("claude", priority=1)
+        except Exception:
+            pass
+
+        # V12.4: ResourceOptimizer - register models for cost-aware routing
+        self._resource_optimizer = None
+        try:
+            from core.routing.resource_optimizer import get_resource_optimizer
+            self._resource_optimizer = get_resource_optimizer()
+            if not self._resource_optimizer._models:
+                self._resource_optimizer.register_model(
+                    "gemini-3-pro", cost_per_1k_input=0.00125, cost_per_1k_output=0.005,
+                    avg_latency_ms=800, quality_score=0.85,
+                )
+                self._resource_optimizer.register_model(
+                    "claude-opus-4", cost_per_1k_input=0.015, cost_per_1k_output=0.075,
+                    avg_latency_ms=1200, quality_score=0.95,
+                )
+                self._resource_optimizer.register_model(
+                    "claude-sonnet-4", cost_per_1k_input=0.003, cost_per_1k_output=0.015,
+                    avg_latency_ms=600, quality_score=0.88,
+                )
+        except Exception:
+            pass
+
         # Initialize phases
         self._init_phases()
 
@@ -1008,6 +1040,18 @@ class TrueHiveMind:
                             success=execution_success,
                             quality=quality,
                         )
+                except Exception:
+                    pass
+
+            # V12.4: FailoverManager - record driver outcomes for circuit breaker learning
+            if self._failover:
+                try:
+                    agents_used = arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"]
+                    for agent_id in agents_used:
+                        if execution_success:
+                            self._failover.record_success(agent_id)
+                        else:
+                            self._failover.record_failure(agent_id)
                 except Exception:
                     pass
 

@@ -248,12 +248,32 @@ class MonitoredExecutionPhase:
             except Exception:
                 dedup_check = None
 
+            # V12.4: ToolObserver - start execution span
+            _span = None
+            try:
+                from core.execution.tool_observer import get_tool_observer
+                _observer = get_tool_observer()
+                _span = _observer.start_span(step.name, agent_id=step.agent_id)
+            except Exception:
+                pass
+
             # Execute step with monitoring
             result = await self._execute_step(
                 task=task,
                 step=step,
                 previous_results=step_results
             )
+
+            # V12.4: ToolObserver - end execution span
+            if _span is not None:
+                try:
+                    _observer.end_span(
+                        _span,
+                        status="success" if result.status == "success" else "error",
+                        output_preview=result.output[:100] if result.output else "",
+                    )
+                except Exception:
+                    pass
 
             # V12.4: Cache successful step results for deduplication
             try:

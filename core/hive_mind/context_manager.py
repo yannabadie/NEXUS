@@ -518,6 +518,27 @@ Timestamp: {insight['timestamp']}
             logger.debug(f"AFM compression failed: {e}")
             return {"error": str(e)}
 
+    def spotlight_external_content(self, content: str, source: str = "") -> str:
+        """
+        Apply spotlighting to external/RAG content before adding to context.
+
+        Protects against indirect prompt injection by marking untrusted
+        content with delimiters (arxiv:2403.14720).
+
+        Args:
+            content: External content to spotlight
+            source: Content source identifier
+
+        Returns:
+            Spotlighted content string
+        """
+        try:
+            from core.memory.spotlighting import get_spotlighter
+            spotlighter = get_spotlighter()
+            return spotlighter.spotlight(content, source=source)
+        except Exception:
+            return content
+
     def clear(self, keep_critical: bool = True):
         """
         Clear context.

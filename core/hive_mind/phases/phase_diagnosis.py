@@ -305,6 +305,20 @@ class FailureDiagnosisPhase:
         except Exception as e:
             logger.debug(f"MAST/MARS analysis failed: {e}")
 
+        # V12.4: SystemHealth check - enrich diagnosis with system-level context
+        try:
+            from core.resilience.system_health import get_system_health
+            health = get_system_health()
+            report = await health.check_all()
+            if report.overall_status.value != "healthy":
+                diagnosis.contributing_factors.append(
+                    f"System health: {report.overall_status.value} "
+                    f"({sum(1 for c in report.components if c.status.value != 'healthy')} degraded components)"
+                )
+                logger.info(f"Phase 5: System health {report.overall_status.value} — may contribute to failure")
+        except Exception:
+            pass
+
         # Add to context
         self.context_manager.add_diagnosis("gemini", gemini_result)
         self.context_manager.add_diagnosis("claude", claude_result)
