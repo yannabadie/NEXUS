@@ -27,7 +27,7 @@ class FeatureFlags:
     Override via NEXUS_FF_<FLAG_NAME>=true|false in env.
     """
     # RAG Pipeline
-    rag_datamarking: bool = False          # Spotlighter datamarking on RAG results
+    rag_datamarking: bool = True           # Spotlighter datamarking on RAG results (OWASP LLM01 defense)
     rag_hybrid_backend: bool = True        # Enable Dense+BM25 hybrid retrieval
     rag_dense_backend: bool = True         # Enable dense (semantic) backend
 

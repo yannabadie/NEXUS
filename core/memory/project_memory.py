@@ -49,6 +49,9 @@ try:
 except ImportError:
     SPOTLIGHTER_AVAILABLE = False
 
+# V12.4 P3.2: Load feature flag for default datamarking behavior
+from core.config import Config
+
 # V7.9 Phase 10f/10g: Import from modular types and backends
 from .types import Chunk, ScoredChunk, IndexStats
 from .backends import (
@@ -571,7 +574,7 @@ class ProjectMemory:
         query: str,
         limit: int = 5,
         min_score: float = 0.05,
-        apply_datamarking: bool = False
+        apply_datamarking: Optional[bool] = None
     ) -> List[Chunk]:
         """
         Retrieve relevant chunks using the active backend.
@@ -584,17 +587,25 @@ class ProjectMemory:
         markers that help detect if the LLM is regurgitating RAG content
         verbatim (potential data exfiltration or injection exploit).
 
+        V12.4 P3.2: Datamarking now enabled by default via NEXUS_FF_RAG_DATAMARKING.
+        Explicit apply_datamarking parameter overrides the feature flag.
+
         Args:
             query: Search query (raw string)
             limit: Maximum chunks to return
             min_score: Minimum similarity score threshold
-            apply_datamarking: Whether to apply Spotlighter datamarks (default False)
+            apply_datamarking: Whether to apply Spotlighter datamarks (None = use feature flag)
 
         Returns:
             List of relevant chunks, sorted by score descending
         """
         if not self.chunks:
             return []
+
+        # V12.4 P3.2: Use feature flag as default if apply_datamarking not specified
+        if apply_datamarking is None:
+            config = Config()
+            apply_datamarking = config.features.rag_datamarking
 
         # Lazy rebuild backend index if needed
         if self._backend_dirty:
