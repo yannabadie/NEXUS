@@ -411,6 +411,24 @@ class TrueHiveMind:
 
             _coord_session = task_id or f"hive_{int(start_time)}"
 
+            # V12.4: CapabilityProfiler - register agents for data-driven routing (arxiv:2505.16303)
+            try:
+                from core.agents.capability_profiler import get_capability_profiler
+                _cap_profiler = get_capability_profiler()
+                if _cap_profiler.agent_count == 0:
+                    _cap_profiler.register_agent(
+                        "gemini",
+                        capabilities=["research", "web_search", "brainstorming", "analysis", "coding"],
+                        initial_proficiency={"research": 0.85, "web_search": 0.9, "brainstorming": 0.8, "analysis": 0.8, "coding": 0.7},
+                    )
+                    _cap_profiler.register_agent(
+                        "claude",
+                        capabilities=["coding", "debugging", "architecture", "security_analysis", "documentation"],
+                        initial_proficiency={"coding": 0.9, "debugging": 0.85, "architecture": 0.85, "security_analysis": 0.8, "documentation": 0.8},
+                    )
+            except Exception:
+                _cap_profiler = None
+
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
                 from core.swarm import generate_task_id
@@ -978,6 +996,20 @@ class TrueHiveMind:
                     logger.debug("Recorded HiveMind success to memory")
                 except Exception as mem_err:
                     logger.warning(f"Failed to record HiveMind success: {mem_err}")
+
+            # V12.4: Record task outcome to CapabilityProfiler for routing learning
+            if _cap_profiler is not None:
+                try:
+                    agents_used = arch_result.architecture.agents_to_use if arch_result else ["gemini", "claude"]
+                    quality = execution_result.quality_score if execution_result and hasattr(execution_result, 'quality_score') else 0.5
+                    for agent_id in agents_used:
+                        _cap_profiler.record_outcome(
+                            agent_id, "general",
+                            success=execution_success,
+                            quality=quality,
+                        )
+                except Exception:
+                    pass
 
             # V8.4.4b: Cleanup saga on success (remove checkpoint files)
             if self._saga and execution_success:

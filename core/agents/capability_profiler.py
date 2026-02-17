@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -606,3 +607,27 @@ class CapabilityProfiler:
                 for agent_id, profile in sorted(self._profiles.items())
             },
         }
+
+
+# =============================================================================
+# Singleton
+# =============================================================================
+
+_profiler: Optional[CapabilityProfiler] = None
+_profiler_lock = threading.Lock()
+
+
+def get_capability_profiler() -> CapabilityProfiler:
+    """Get or create the global CapabilityProfiler."""
+    global _profiler
+    if _profiler is None:
+        with _profiler_lock:
+            if _profiler is None:
+                _profiler = CapabilityProfiler()
+    return _profiler
+
+
+def reset_capability_profiler() -> None:
+    """Reset the global CapabilityProfiler."""
+    global _profiler
+    _profiler = None

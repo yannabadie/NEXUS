@@ -332,6 +332,30 @@ class MonitoredExecutionPhase:
             step_results, all_issues, architecture, error_count,
         )
 
+        # V12.4: Consensus verification on step outputs (arxiv:2601.22290)
+        consensus_failed = False
+        try:
+            from core.reasoning.consensus_verifier import get_consensus_verifier
+            verifier = get_consensus_verifier()
+            successful_outputs = [
+                r.output for r in step_results
+                if r.status == "success" and r.output
+            ]
+            if successful_outputs:
+                combined = " ".join(o[:200] for o in successful_outputs)
+                vresult = verifier.verify(combined, context=task[:200], n_samples=3)
+                if vresult.outcome.value == "rejected":
+                    consensus_failed = True
+                    all_issues.append(ExecutionIssue(
+                        issue_type="consensus_verification_failed",
+                        severity=IssueSeverity.WARNING,
+                        details=f"Consensus rejected: cpk={vresult.cpk:.2f}, consensus={vresult.consensus_score:.2f}",
+                        step_name="consensus_check",
+                    ))
+                    logger.warning(f"Phase 4: Consensus verification REJECTED (cpk={vresult.cpk:.2f})")
+        except Exception:
+            pass  # Consensus verification is advisory
+
         # V12.4: Check for cognitive degradation
         degradation_detected = False
         try:
@@ -355,6 +379,7 @@ class MonitoredExecutionPhase:
             or any(i.severity in (IssueSeverity.ERROR, IssueSeverity.CRITICAL) for i in all_issues)
             or quality_score < 0.4
             or degradation_detected
+            or consensus_failed
         )
 
         total_duration = time.time() - start_time

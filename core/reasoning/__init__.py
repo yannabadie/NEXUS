@@ -107,3 +107,41 @@ __all__ += [
     'get_degradation_detector',
     'reset_degradation_detector',
 ]
+
+# V12.4 COGNITIVE BOOST: Evaluation Panel (CRM-inspired)
+from .evaluation_panel import (
+    EvaluationPanel,
+    EvalDimension,
+    DimensionScore,
+    PanelResult,
+    get_evaluation_panel,
+    reset_evaluation_panel,
+)
+
+__all__ += [
+    'EvaluationPanel',
+    'EvalDimension',
+    'DimensionScore',
+    'PanelResult',
+    'get_evaluation_panel',
+    'reset_evaluation_panel',
+]
+
+# V12.4 COGNITIVE BOOST: Consensus Verifier (Six Sigma-inspired)
+from .consensus_verifier import (
+    ConsensusVerifier,
+    VerificationOutcome,
+    VerificationResult,
+    QualityGate,
+    get_consensus_verifier,
+    reset_consensus_verifier,
+)
+
+__all__ += [
+    'ConsensusVerifier',
+    'VerificationOutcome',
+    'VerificationResult',
+    'QualityGate',
+    'get_consensus_verifier',
+    'reset_consensus_verifier',
+]

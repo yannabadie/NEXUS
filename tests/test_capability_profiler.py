@@ -28,6 +28,8 @@ from core.agents.capability_profiler import (
     DEFAULT_PROFICIENCY,
     LEARNING_RATE,
     MIN_OBSERVATIONS,
+    get_capability_profiler,
+    reset_capability_profiler,
 )
 
 
@@ -664,3 +666,24 @@ class TestModuleExports:
         assert all([CapabilityProfiler, AgentProfile, CapabilityRecord,
                      MatchResult])
         assert len(KNOWN_CAPABILITIES) >= 20
+
+
+# =============================================================================
+# Singleton Tests
+# =============================================================================
+
+class TestSingleton:
+    """Test singleton pattern."""
+
+    def test_get_returns_same(self):
+        reset_capability_profiler()
+        p1 = get_capability_profiler()
+        p2 = get_capability_profiler()
+        assert p1 is p2
+
+    def test_reset_creates_new(self):
+        reset_capability_profiler()
+        p1 = get_capability_profiler()
+        reset_capability_profiler()
+        p2 = get_capability_profiler()
+        assert p1 is not p2
