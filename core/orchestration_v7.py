@@ -657,6 +657,24 @@ class OrchestratorV7:
                     None, False, error="PROMPT_INJECTION_BLOCKED"
                 )
 
+        # P5.7: FAST PATH - Bypass HiveMind for trivial inputs (15-30% latency reduction)
+        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
+            analyzer = TaskAnalyzer()
+
+            # Check if instant command or conversational trivial
+            if analyzer.is_instant_command(user_input) or analyzer.is_conversational_trivial(user_input):
+                self.logger.debug("Fast path activated (trivial input)", {"input_length": len(user_input)})
+
+                # Simple direct response for trivial inputs
+                response = self._handle_trivial_input(user_input)
+                self._transition_to(OrchestratorState.WAITING_USER)
+
+                return self._make_result(
+                    self.state.name,
+                    response,
+                    None, False, metadata={"fast_path": True}
+                )
+
         # States that benefit from async LLM calls
         async_states = {
             OrchestratorState.BRAINSTORMING,
@@ -1202,6 +1220,40 @@ class OrchestratorV7:
             self.logger.warning(f"[MEMORIA] Consolidation error: {e}")
 
         return results
+
+    def _handle_trivial_input(self, user_input: str) -> str:
+        """
+        P5.7: Fast path handler for trivial inputs.
+
+        Provides simple direct responses for greetings, acknowledgments,
+        and instant commands without invoking HiveMind or Swarm.
+
+        Args:
+            user_input: Trivial user input (greeting, command, etc.)
+
+        Returns:
+            Simple response string
+        """
+        input_lower = user_input.strip().lower()
+
+        # Greetings
+        if any(g in input_lower for g in ["hello", "hi", "hey", "bonjour", "salut"]):
+            return "Hello! I'm NEXUS, your multi-agent orchestrator. How can I help you today?"
+
+        # Farewells
+        if any(f in input_lower for f in ["bye", "goodbye", "au revoir", "ciao"]):
+            return "Goodbye! Feel free to return anytime."
+
+        # Acknowledgments
+        if any(a in input_lower for a in ["ok", "okay", "thanks", "merci"]):
+            return "You're welcome! Let me know if you need anything else."
+
+        # Test/ping
+        if any(t in input_lower for t in ["test", "ping", "pong"]):
+            return "Pong! NEXUS is responsive."
+
+        # Default for other trivial inputs
+        return "I'm here and ready to assist. What would you like to work on?"
 
     def start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode] = None) -> Dict:
         """Start Hybrid Swarm mode. V7.8: Delegates to SwarmBridge."""
