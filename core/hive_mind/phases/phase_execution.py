@@ -44,6 +44,7 @@ from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..swarm_bridge import SwarmBridge, HivePhase
 from core.agents.unified_registry import get_registry  # V8.4.0
+from ..prompts import EXECUTION_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -689,15 +690,36 @@ class MonitoredExecutionPhase:
         issues: List[ExecutionIssue] = []
 
         try:
+            # V12.4.1: Use invoke() with system prompt (cached)
             response = await asyncio.wait_for(
-                driver.send_message_async(prompt, session_uuid=session_uuid),
+                driver.invoke(
+                    prompt,
+                    session_id=session_uuid,
+                    system_prompt=EXECUTION_SYSTEM_PROMPT,
+                    agent_name=agent_id,
+                    agent_id=agent_id,
+                ),
                 timeout=step.expected_duration * 2  # Allow 2x expected time
             )
 
             duration = time.time() - start_time
 
-            # Parse response
-            result_data = self._parse_execution_response(response)
+            if not response.is_success:
+                raise RuntimeError(f"Step execution failed: {response.error_message}")
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "execute_step",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("execute_step", total_tokens)
+
+            # Parse response from DriverResponse.content
+            result_data = self._parse_execution_response(response.content)
 
             # Check for timeout warning
             if duration > step.expected_duration:
@@ -710,7 +732,7 @@ class MonitoredExecutionPhase:
 
             # Detect hallucinations
             hallucination_issues = self._detect_hallucinations(
-                response,
+                response.content,
                 step.name
             )
             issues.extend(hallucination_issues)
