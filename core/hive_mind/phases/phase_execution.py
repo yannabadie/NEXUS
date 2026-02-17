@@ -306,6 +306,26 @@ class MonitoredExecutionPhase:
                 except Exception:
                     pass
 
+            # V12.4: UncertaintyPropagator - forward uncertainty propagation (arxiv:2601.15703)
+            try:
+                from core.reasoning.uncertainty_propagator import get_uncertainty_propagator
+                _uprop = get_uncertainty_propagator()
+                _step_confidence = 0.8 if result.status == "success" else 0.3
+                _usignal = _uprop.propagate(
+                    step_name=step.name,
+                    confidence=_step_confidence,
+                    output_preview=result.output[:100] if result.output else "",
+                )
+                if _usignal.needs_reflection:
+                    all_issues.append(ExecutionIssue(
+                        issue_type="uncertainty_reflection",
+                        severity=IssueSeverity.WARNING,
+                        details=f"Uncertainty propagation: conf={_usignal.propagated_confidence:.2f}, cascade_risk={_usignal.cascade_risk:.2f}",
+                        step_name=step.name,
+                    ))
+            except Exception:
+                pass
+
             # V12.4: MetacognitiveMonitor - step-level anomaly detection (arxiv:2510.14319)
             try:
                 from core.reasoning.metacognitive_monitor import get_metacognitive_monitor

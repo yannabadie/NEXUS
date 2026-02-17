@@ -897,6 +897,30 @@ class StrategicDebatePhase:
             claude_satisfaction=consensus.get("claude_satisfaction", 0.5)
         )
 
+        # V12.4: TrajectoryScorer - evaluate debate trajectory quality (arxiv:2509.11035)
+        try:
+            from core.reasoning.trajectory_scorer import get_trajectory_scorer
+            _tscorer = get_trajectory_scorer()
+            _trajectory_dicts = [
+                {
+                    "agent_id": arg.agent_id,
+                    "position": arg.position,
+                    "argument": arg.argument,
+                    "evidence": arg.evidence,
+                    "concession": arg.concession,
+                    "turn_number": arg.turn_number,
+                }
+                for arg in debate_history
+            ]
+            _tresult = _tscorer.score_debate(_trajectory_dicts)
+            logger.debug(
+                f"TrajectoryScorer: best={_tresult.best_agent}, "
+                f"quality={_tresult.debate_quality:.2f}, "
+                f"conformity={len([c for c in _tresult.conformity_analysis if c.conformity_detected])}"
+            )
+        except Exception:
+            pass
+
         return DebatePhaseResult(
             debate_result=debate_result,
             final_approach=debate_result.final_approach,

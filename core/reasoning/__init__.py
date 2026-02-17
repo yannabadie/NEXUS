@@ -221,3 +221,43 @@ __all__ += [
     'get_confidence_calibrator',
     'reset_confidence_calibrator',
 ]
+
+# V12.4 COGNITIVE BOOST: Trajectory Scorer (FREE-MAD, arxiv:2509.11035)
+from .trajectory_scorer import (
+    TrajectoryScorer,
+    TrajectoryResult,
+    AgentTrajectory,
+    ConformityAnalysis,
+    get_trajectory_scorer,
+    reset_trajectory_scorer,
+)
+
+__all__ += [
+    'TrajectoryScorer',
+    'TrajectoryResult',
+    'AgentTrajectory',
+    'ConformityAnalysis',
+    'get_trajectory_scorer',
+    'reset_trajectory_scorer',
+]
+
+# V12.4 COGNITIVE BOOST: Uncertainty Propagator (arxiv:2601.15703)
+from .uncertainty_propagator import (
+    UncertaintyPropagator,
+    PropagationSignal,
+    UncertaintyLevel,
+    ChainSummary,
+    PropagatorStats,
+    get_uncertainty_propagator,
+    reset_uncertainty_propagator,
+)
+
+__all__ += [
+    'UncertaintyPropagator',
+    'PropagationSignal',
+    'UncertaintyLevel',
+    'ChainSummary',
+    'PropagatorStats',
+    'get_uncertainty_propagator',
+    'reset_uncertainty_propagator',
+]
