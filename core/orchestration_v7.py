@@ -257,6 +257,23 @@ class OrchestratorV7:
         nexus_root = workspace_path.parent if workspace_path.name == "workspace" else workspace_path
         self.project_memory = ProjectMemory(nexus_root)
 
+        # V12.4.1: FSM Snapshot Manager for fast crash recovery (<500ms)
+        # Creates periodic snapshots of FSM state every 100 events
+        # Recovery: Load snapshot + replay delta events (vs replaying all events)
+        from core.fsm.event_sourcing import get_event_store
+        from core.fsm.snapshot_manager import get_snapshot_manager
+        self._event_store = get_event_store(workspace_path)
+        self._snapshot_manager = get_snapshot_manager(
+            workspace_path,
+            snapshot_interval=100  # Snapshot every 100 FSM transitions
+        )
+        self._event_count = len(self._event_store.replay())  # Count existing events
+        self.logger.debug("FSM Snapshot Manager initialized", {
+            "event_count": self._event_count,
+            "snapshot_interval": 100,
+            "snapshot_stats": self._snapshot_manager.get_snapshot_stats()
+        })
+
         # V7.8 Phase 15: Agent-as-Tool Registry (Vision Fractale)
         # Exposes spawned agents as callable tools for fractal invocation
         self.agent_tool_registry = AgentToolRegistry(
@@ -821,6 +838,26 @@ class OrchestratorV7:
                 trigger="fsm_transition",
                 session_id=getattr(self, '_session_uuid', None),
             )
+            # Increment event counter
+            self._event_count += 1
+
+            # V12.4.1: Create periodic snapshot for fast recovery
+            if self._snapshot_manager.should_snapshot(self._event_count):
+                fsm_state = {
+                    "current_state": new_state.name,
+                    "previous_state": self.state.name,
+                    "session_id": getattr(self, '_session_uuid', None),
+                    "iteration": self.iteration,
+                    "timestamp": time.time(),
+                }
+                snapshot = self._snapshot_manager.create_snapshot(
+                    fsm_state,
+                    sequence_number=self._event_count
+                )
+                if snapshot:
+                    self.logger.debug(
+                        f"Created FSM snapshot at event #{self._event_count}"
+                    )
         except Exception as e:
             self.logger.debug("Telemetry record_transition failed: %s", e)
 
