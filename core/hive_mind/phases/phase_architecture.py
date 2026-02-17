@@ -69,8 +69,8 @@ from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
-    from core.drivers.legacy import GeminiDriverV7
-    from core.drivers.claude_driver_v7 import ClaudeDriverV7
+    from core.drivers.protocol import BaseAsyncDriver
+    
 
 logger = logging.getLogger(__name__)
 
@@ -258,8 +258,8 @@ class ArchitectureGenerationPhase:
 
     def __init__(
         self,
-        gemini_driver: "GeminiDriverV7",
-        claude_driver: "ClaudeDriverV7",
+        gemini_driver: "BaseAsyncDriver",
+        claude_driver: "BaseAsyncDriver",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         agent_registry: AgentRegistry,
@@ -334,6 +334,20 @@ class ArchitectureGenerationPhase:
 
         # Get available agents from registry
         available_agents = self._format_available_agents()
+
+        # V12.4: CascadedRouter pre-routing hints (arxiv:2502.11133)
+        try:
+            from core.routing.cascaded_router import get_cascaded_router
+            _cr = get_cascaded_router()
+            _complexity = getattr(debate_result, 'consensus_confidence', 0.5)
+            _domains = debate_result.final_capabilities[:3] if debate_result.final_capabilities else []
+            _routing = _cr.route(task[:200], complexity=_complexity, domains=_domains)
+            logger.info(
+                f"Phase 3: CascadedRouter suggests mode={_routing.collaboration_mode}, "
+                f"cost_reduction={_routing.estimated_cost_reduction:.0%}"
+            )
+        except Exception:
+            pass
 
         # Generate architecture
         architecture = await self._generate_architecture(

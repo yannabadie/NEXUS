@@ -66,8 +66,7 @@ from core.events.types import CerebroEventType
 from core.fsm.stagnation_detector import StagnationDetector
 
 if TYPE_CHECKING:
-    from core.drivers.legacy import GeminiDriverV7
-    from core.drivers.legacy import ClaudeDriverV7
+    from core.drivers.protocol import BaseAsyncDriver
     from core.swarm import AgentPool
     from core.telemetry import BudgetTracker
     from core.memory import ProjectMemory
@@ -103,8 +102,8 @@ class TrueHiveMind:
         self,
         workspace_path: Path,
         config: Any,
-        gemini_driver: "GeminiDriverV7",
-        claude_driver: "ClaudeDriverV7",
+        gemini_driver: "BaseAsyncDriver",
+        claude_driver: "BaseAsyncDriver",
         agent_pool: "AgentPool" = None,
         budget_tracker: "BudgetTracker" = None,
         project_memory: "ProjectMemory" = None,

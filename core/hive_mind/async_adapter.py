@@ -344,11 +344,11 @@ def create_async_hive_mind(
     """
     # Import here to avoid circular imports
     from .orchestrator import TrueHiveMind
-    from core.drivers.legacy import GeminiDriverV7, ClaudeDriverHybrid
+    from core.drivers.protocol import BaseAsyncDriver, ClaudeDriverHybrid
 
     # Create sync drivers for backwards compatibility
     # TODO: Update phases to use async drivers directly
-    gemini_sync = GeminiDriverV7(workspace_path, config)
+    gemini_sync = BaseAsyncDriver(workspace_path, config)
     claude_sync = ClaudeDriverHybrid(workspace_path, config)
 
     # Create HiveMind with sync drivers

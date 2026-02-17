@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Dict, Optional, Callable
 import tiktoken
 
 from core.agents.unified_registry import get_registry
-from core.drivers.legacy import ClaudeDriverHybrid
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult
@@ -109,7 +108,7 @@ class AgentInvoker:
         self,
         task_type: TaskType,
         timeout_override: Optional[int] = None
-    ) -> ClaudeDriverHybrid:
+    ):
         """
         Get Claude driver with appropriate model for task type.
 
@@ -117,25 +116,24 @@ class AgentInvoker:
         - Opus for: BRAINSTORM, REDTEAM, ARCHITECT, EVOLUTION
         - Sonnet for: TOOL, VALIDATION, SIMPLE, FORMAT
 
+        V12.4 COGNITIVE BOOST: Uses AsyncDriverFactory for SDK-first architecture.
+        Returns SDK driver when API key available, falls back to CLI otherwise.
+
         Args:
             task_type: Type of task for model selection
             timeout_override: Optional timeout override (e.g., shorter for CFL)
 
         Returns:
-            Configured ClaudeDriverHybrid instance
+            Driver instance (SDK or CLI based on factory configuration)
         """
         model = self._orch.model_router.select_claude_model(task_type)
 
-        # Create driver with optional timeout override
-        driver = ClaudeDriverHybrid(
-            self._orch.config,
-            self._orch.workspace_path,
-            model=model,
-            agent_id=f"claude_{task_type.value}"
-        )
+        # V12.4: Use factory to get best available driver (SDK or CLI)
+        driver = self._orch._driver_factory.get_best_claude(model)
 
         # Override timeout if specified (for CFL validation)
-        if timeout_override:
+        # Note: SDK drivers and CLI drivers both support timeout attribute
+        if timeout_override and hasattr(driver, 'timeout'):
             driver.timeout = timeout_override
 
         return driver

@@ -50,8 +50,8 @@ from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
-    from core.drivers.legacy import GeminiDriverV7
-    from core.drivers.claude_driver_v7 import ClaudeDriverV7
+    from core.drivers.protocol import BaseAsyncDriver
+    
     from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
 logger = logging.getLogger(__name__)
@@ -126,8 +126,8 @@ class MonitoredExecutionPhase:
 
     def __init__(
         self,
-        gemini_driver: "GeminiDriverV7",
-        claude_driver: "ClaudeDriverV7",
+        gemini_driver: "BaseAsyncDriver",
+        claude_driver: "BaseAsyncDriver",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         tool_executor: Callable = None,

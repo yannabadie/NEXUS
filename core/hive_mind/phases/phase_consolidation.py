@@ -47,8 +47,8 @@ from ..user_interaction import UserInteractionHandler
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
-    from core.drivers.legacy import GeminiDriverV7
-    from core.drivers.claude_driver_v7 import ClaudeDriverV7
+    from core.drivers.protocol import BaseAsyncDriver
+    
     from core.memory.project_memory import ProjectMemory
 
 logger = logging.getLogger(__name__)
@@ -141,8 +141,8 @@ class KnowledgeConsolidationPhase:
 
     def __init__(
         self,
-        gemini_driver: "GeminiDriverV7",
-        claude_driver: "ClaudeDriverV7",
+        gemini_driver: "BaseAsyncDriver",
+        claude_driver: "BaseAsyncDriver",
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         agent_registry: AgentRegistry,
@@ -396,6 +396,23 @@ class KnowledgeConsolidationPhase:
         try:
             from core.reasoning.uncertainty_propagator import get_uncertainty_propagator
             get_uncertainty_propagator().reset_chain()
+        except Exception:
+            pass
+
+        # V12.4: AdaptiveMemoryOrganizer - store task outcome as structured note (arxiv:2502.12110)
+        try:
+            from core.memory.adaptive_memory_organizer import get_adaptive_memory_organizer
+            _organizer = get_adaptive_memory_organizer()
+            _note_content = (
+                f"Task: {task[:150]}\n"
+                f"Patterns: {'; '.join(consolidation.learned_patterns[:5])}\n"
+                f"Antipatterns: {'; '.join(consolidation.learned_antipatterns[:3])}"
+            )
+            _organizer.add_note(
+                content=_note_content,
+                source="consolidation",
+                importance=0.6 if not consolidation.learned_antipatterns else 0.7,
+            )
         except Exception:
             pass
 

@@ -17,7 +17,7 @@ from core.fsm.stagnation_detector import StagnationDetector
 from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
 from core.fsm.context import TaskExecutionContext
-from core.drivers.legacy import GeminiDriverV7, ClaudeDriverHybrid
+from core.drivers.async_factory import create_driver_factory, AsyncDriverFactory
 from core.routing.model_router import ModelRouter, TaskType
 from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
 from core.synapse.memory_v7 import MemoryManagerV7
@@ -122,16 +122,19 @@ class OrchestratorV7:
         # V7: Model Router for intelligent model selection
         self.model_router = ModelRouter(config)
 
-        # V7 Sprint 8: Task-aware driver creation
-        # Gemini driver is static, Claude driver is created dynamically per task type
-        self.gemini_driver = GeminiDriverV7(config, workspace_path, agent_id="gemini_primary")
+        # V12.4 COGNITIVE BOOST: AsyncDriverFactory for SDK-first architecture
+        # Uses SDK drivers when API keys available, falls back to CLI otherwise
+        self._driver_factory = create_driver_factory(config, workspace_path)
+
+        # Primary Gemini driver (SDK or CLI based on config)
+        self.gemini_driver = self._driver_factory.get_best_gemini()
 
         # Legacy drivers dict for backwards compatibility
         # V8.4.0: Register drivers in unified registry
         self._registry.register_driver("gemini", self.gemini_driver)
         self.drivers = {
             "gemini": self.gemini_driver,  # V8.4.0: lowercase keys
-            "claude": None  # Created dynamically via _get_claude_driver()
+            "claude": None  # Created dynamically via AgentInvoker.get_claude_driver()
         }
 
         # Tool manager
