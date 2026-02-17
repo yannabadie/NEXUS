@@ -140,6 +140,10 @@ def create_cerebro_app() -> FastAPI:
     from .routes import memory
     app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 
+    # V12.4 P2.1: Causality Timeline (observability)
+    from .routes import timeline
+    app.include_router(timeline.router, prefix="/api/timeline", tags=["timeline"])
+
     # V12.4 A2A Protocol: Agent Card endpoint
     from .routes import a2a
     app.include_router(a2a.router, prefix="/.well-known", tags=["a2a"])
@@ -169,6 +173,9 @@ def create_cerebro_app() -> FastAPI:
             "memory": "/api/memory/stats",
             "memory_namespaces": "/api/memory/namespaces",
             "memory_ingest": "/api/memory/ingest",
+            # V12.4 P2.1: Causality Timeline
+            "timeline": "/api/timeline/{task_id}",
+            "timeline_summary": "/api/timeline/{task_id}/summary",
             # V12.4 A2A Protocol
             "agent_card": "/.well-known/agent.json",
         }

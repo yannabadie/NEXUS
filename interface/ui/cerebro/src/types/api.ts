@@ -113,3 +113,6 @@ export interface FileSaveRequest {
   path: string;
   content: string;
 }
+
+// Timeline (V12.4 P2.1)
+export * from './timeline';
