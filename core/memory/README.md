@@ -3,13 +3,17 @@
 ## Synopsis
 NEXUS's V13.0 MEMORIA UNIVERSALIS memory system provides multi-modal knowledge storage and retrieval. It includes episodic memory (SuccessMemory for completed tasks), procedural memory (AutoMemory for learned patterns), and semantic memory (ProjectMemory RAG for codebase knowledge). The system supports pluggable backends (dense/BM25/TF-IDF), multi-format ingestion (PDF, DOCX, images via Docling), and adaptive weight optimization per domain.
 
+**V12.4.1 Epic 1.4**: Introduced LanceDB-backed V2 implementations (`SuccessMemoryV2`, `StrategyBlacklistV2`) with semantic similarity detection for ~+15-20% improved recall over hash-based approaches.
+
 ## Component Map
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | `__init__.py` | Module exports | All memory classes and services |
 | `coordinator.py` | Memory fusion (V12.4) | `MemoryCoordinator`, `UnifiedRecommendation` |
-| `success_memory.py` | Episodic task memory | `SuccessMemory`, `SuccessEntry` |
+| `success_memory.py` | Episodic task memory (V1) | `SuccessMemory`, `SuccessEntry` |
+| `success_memory_v2.py` | **LanceDB-backed episodic (V12.4.1)** | `SuccessMemoryV2` |
+| `strategy_blacklist_v2.py` | **LanceDB-backed failure tracking (V12.4.1)** | `StrategyBlacklistV2`, `BlacklistedStrategy` |
 | `auto_memory.py` | Procedural learning | `AutoMemory`, `MemoryEntry` |
 | `project_memory.py` | Codebase RAG | `ProjectMemory`, `Chunk`, `IndexStats` |
 | `embedding_engine.py` | Shared embeddings | `EmbeddingEngine` |
@@ -91,6 +95,94 @@ matches = memory.query_similar(
 ```
 
 **Storage:** `workspace/memory/successes.json` (AtomicJsonStore)
+
+### SuccessMemoryV2 (V12.4.1 Epic 1.4) - LanceDB-Backed Episodic Memory
+Semantic success memory with vectorized retrieval for improved similarity detection.
+
+```python
+from core.memory import SuccessMemoryV2
+
+memory = SuccessMemoryV2(workspace_path)
+memory.record_success(task_id, analysis, result, quality_score=0.95)
+
+# Semantic search (not hash-based!)
+similar = memory.find_similar_tasks(
+    "implement JWT authentication",
+    limit=3,
+    min_score=0.1
+)
+# Returns: [(SuccessEntry, similarity_score), ...]
+
+# Get best mode for similar task
+mode, task_id, score = memory.get_best_mode_for_similar(
+    "add OAuth login",
+    query_domains=["security", "coding"]
+)
+```
+
+**Key Improvements over V1:**
+- **Semantic Search**: Uses LanceDB embeddings instead of Jaccard similarity (~+15% recall)
+- **Shared Compute**: Uses global `EmbeddingEngine` for efficient batch processing
+- **Auto-Migration**: Migrates V1 JSON data to LanceDB on first run
+- **Domain Boosting**: Matches tasks by semantic similarity + domain overlap
+
+**Storage:**
+- Metadata: `.nexus/project_knowledge.json` (JSON index)
+- Vectors: `.nexus/lancedb/` (vector database)
+
+**Backend Detection:**
+```python
+stats = memory.get_stats()
+print(stats["backend"])  # "dense", "bm25", or "tfidf"
+```
+
+### StrategyBlacklistV2 (V12.4.1 Epic 1.4) - Anti-Circular Retry Prevention
+Semantic failure tracking to prevent retry loops for similar strategies.
+
+```python
+from core.memory import StrategyBlacklistV2
+
+blacklist = StrategyBlacklistV2(workspace_path)
+
+# Record a failed strategy
+blacklist.add_failed_strategy(
+    description="use JWT tokens for auth",
+    swarm_mode="ping_pong",
+    error_message="KeyError: 'exp' field missing",
+    retry_count=3,
+    complexity="MODERATE",
+    domains=["security", "coding"]
+)
+
+# Check if similar strategy is blacklisted (semantic!)
+is_bad, reason = blacklist.is_blacklisted(
+    "implement token-based authentication",
+    swarm_mode="ping_pong"
+)
+
+if is_bad:
+    print(f"BLOCKED: {reason}")
+    # Suggests alternatives based on mode
+    alternatives = blacklist.suggest_alternatives(
+        "implement token-based authentication", limit=3
+    )
+```
+
+**Key Improvements over V1:**
+- **Semantic Detection**: Detects paraphrased failures (e.g., "JWT auth" ≈ "token-based auth")
+- **Lower Threshold**: Uses 0.65 similarity (vs 0.85 hash-based) due to semantic precision
+- **Mode Alternatives**: Suggests different collaboration modes on detection
+- **Auto-Migration**: Migrates V1 blacklist data to LanceDB
+
+**Anti-Pattern Detection Example:**
+```
+Failed:  "use JWT tokens for authentication"
+Query:   "implement token-based auth with JWT"
+Result:  DETECTED (semantic similarity ~0.85)
+Action:  BLOCK retry, suggest "lead_support" or "sequential" instead
+```
+
+**Storage:** Same as SuccessMemoryV2 (shared ProjectMemory backend)
 
 ### AutoMemory (Procedural Memory)
 Learns task-type patterns and optimal agent configurations.

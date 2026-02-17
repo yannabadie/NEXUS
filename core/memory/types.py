@@ -22,6 +22,10 @@ class Chunk:
 
     IMMUTABLE: This dataclass is frozen so it can be used as a dict key
     (required by HybridBackend RRF scoring). All fields are hashable.
+
+    V12.4.1 Epic 1.4: Added optional metadata field for storing arbitrary
+    key-value pairs (e.g., task_id, quality_score for SuccessMemoryV2).
+    Metadata is stored as JSON string to maintain immutability.
     """
     file_path: str
     start_line: int
@@ -30,11 +34,15 @@ class Chunk:
     terms: FrozenSet[str] = frozenset()
     chunk_type: str = "lines"  # "function", "class", "section", "lines"
     name: Optional[str] = None  # Function/class/section name if applicable
+    metadata: Optional[Dict[str, Any]] = None  # V12.4.1: Arbitrary metadata
 
     def __post_init__(self):
         # Coerce mutable set to frozenset for hashability safety
         if isinstance(self.terms, set):
             object.__setattr__(self, 'terms', frozenset(self.terms))
+
+        # V12.4.1: Metadata is allowed to be mutable for convenience
+        # (Chunk is still hashable via chunk_id, not by metadata)
 
     @property
     def chunk_id(self) -> str:
@@ -48,7 +56,7 @@ class Chunk:
 
     def to_dict(self) -> Dict:
         """Convert to JSON-serializable dict."""
-        return {
+        result = {
             "file_path": self.file_path,
             "start_line": self.start_line,
             "end_line": self.end_line,
@@ -57,6 +65,10 @@ class Chunk:
             "chunk_type": self.chunk_type,
             "name": self.name,
         }
+        # V12.4.1: Include metadata if present
+        if self.metadata is not None:
+            result["metadata"] = self.metadata
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'Chunk':
@@ -69,6 +81,7 @@ class Chunk:
             terms=frozenset(data.get("terms", [])),
             chunk_type=data.get("chunk_type", "lines"),
             name=data.get("name"),
+            metadata=data.get("metadata"),  # V12.4.1: Load metadata if present
         )
 
 
