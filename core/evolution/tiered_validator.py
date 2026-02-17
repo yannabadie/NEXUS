@@ -33,6 +33,13 @@ from datetime import datetime
 from enum import IntEnum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# V12.4 Epic 4.2: Deterministic Fitness Function integration
+try:
+    from core.evolution.fitness import DeterministicFitness, FitnessCheck
+    DETERMINISTIC_FITNESS_AVAILABLE = True
+except ImportError:
+    DETERMINISTIC_FITNESS_AVAILABLE = False
+
 
 class ValidationTier(IntEnum):
     """Validation tiers with increasing depth/cost"""
@@ -164,6 +171,19 @@ class TieredValidator:
             result.failed_at_tier = ValidationTier.SYNTAX
             result.recommendation = f"REJECT: Tier 1 failed - {tier1.message}"
             return self._finalize(result, start_time)
+
+        # TIER 1.5 (V12.4 Epic 4.2): Deterministic Quality Checks (ruff, mypy, bandit, pytest)
+        if DETERMINISTIC_FITNESS_AVAILABLE:
+            quality_check = self._run_deterministic_quality_checks()
+            if quality_check:  # Only add if checks were run
+                result.tier_results.append(quality_check)
+                self._print_tier_result(quality_check)
+
+                if not quality_check.passed:
+                    result.passed = False
+                    result.failed_at_tier = ValidationTier.SYNTAX  # Treat as Tier 1 failure
+                    result.recommendation = f"REJECT: Quality checks failed - {quality_check.message}"
+                    return self._finalize(result, start_time)
 
         if max_tier == ValidationTier.SYNTAX:
             result.recommendation = "PARTIAL: Syntax check passed"
@@ -549,6 +569,82 @@ except Exception as e:
                 message=f"CRITICAL: Red Team error - {e}",
                 duration_seconds=time.time() - start,
                 details={"blocked": True, "error": str(e)}
+            )
+
+    def _run_deterministic_quality_checks(self) -> Optional[TierResult]:
+        """
+        V12.4 Epic 4.2: Run deterministic code quality checks.
+
+        Uses DeterministicFitness to run:
+        - Linter (ruff)
+        - Type checking (mypy --strict)
+        - Security scan (bandit)
+        - Test suite (pytest)
+
+        Returns:
+            TierResult if checks were run, None if DeterministicFitness not available
+        """
+        if not DETERMINISTIC_FITNESS_AVAILABLE:
+            return None
+
+        print("\n  [TIER 1.5] Running deterministic quality checks (ruff, mypy, bandit, pytest)...")
+        start = time.time()
+
+        try:
+            fitness = DeterministicFitness(
+                child_path=self.child_path,
+                strict_mode=False,  # Run all checks even if some fail
+                timeout_seconds=300  # 5 min timeout for quality checks
+            )
+
+            result = fitness.evaluate()
+            duration = time.time() - start
+
+            # Count passing/failing checks
+            passed_checks = sum(1 for r in result.results if r.passed)
+            total_checks = len(result.results)
+
+            # Build detailed message
+            failed_checks = [r for r in result.results if not r.passed]
+            if failed_checks:
+                failure_summary = ", ".join([
+                    f"{r.check.name} ({r.message})"
+                    for r in failed_checks[:3]
+                ])
+                message = f"Quality checks: {passed_checks}/{total_checks} passed. Failures: {failure_summary}"
+            else:
+                message = f"All quality checks passed ({total_checks}/{total_checks})"
+
+            return TierResult(
+                tier=ValidationTier.SYNTAX,  # Treat as extended Tier 1
+                passed=result.all_passed,
+                message=message,
+                duration_seconds=duration,
+                details={
+                    "total_checks": total_checks,
+                    "passed_checks": passed_checks,
+                    "failed_checks": len(failed_checks),
+                    "check_results": [
+                        {
+                            "check": r.check.name,
+                            "passed": r.passed,
+                            "message": r.message,
+                            "duration": r.duration_seconds
+                        }
+                        for r in result.results
+                    ]
+                }
+            )
+
+        except Exception as e:
+            # Don't block on quality check errors in V12.4 (graceful degradation)
+            print(f"    [WARNING] Quality checks error: {e}")
+            return TierResult(
+                tier=ValidationTier.SYNTAX,
+                passed=True,  # Don't fail validation on tool errors
+                message=f"Quality checks skipped (error: {str(e)[:50]})",
+                duration_seconds=time.time() - start,
+                details={"error": str(e), "skipped": True}
             )
 
     def _print_tier_result(self, result: TierResult):

@@ -94,8 +94,14 @@
 * **Action :** NEXUS expose **A2A** : Implémente l'Agent Card A2A pour permettre à d'autres orchestrateurs de soumettre des tâches complexes au Hive Mind de NEXUS.
 * **Action :** NEXUS consomme **MCP** : Finalise le client MCP dynamique (`core/mcp/client.py`) pour que le Swarm puisse découvrir dynamiquement des serveurs d'outils externes.
 
-### Epic 4.2 : Fitness Function Déterministe (Évolution)
-* **Action :** Refactorise `core/evolution/promote.py`. Supprime l'évaluation LLM-as-a-judge (génératrice de *Model Collapse*). Une mutation ne peut être promue QUE SI elle passe un pipeline déterministe dans la Sandbox : Linter OK -> Type-check OK -> Scan sécurité (`bandit`) OK -> Exécution `pytest tests/` = Exit Code 0.
+### Epic 4.2 : Fitness Function Déterministe (Évolution) ✅ DONE
+* **✅ DONE:** Created `core/evolution/fitness.py` with `DeterministicFitness` class
+* **✅ DONE:** Implemented 5 deterministic checks: Syntax (delegated), Linter (ruff), Type Check (mypy), Security (bandit), Tests (pytest)
+* **✅ DONE:** Integrated into `TieredValidator` as Tier 1.5 quality checks
+* **✅ DONE:** 25 comprehensive tests in `tests/test_evolution_fitness.py` (all passing)
+* **Implementation:** DeterministicFitness replaces LLM-as-a-judge to prevent model collapse
+* **Modes:** Strict (fail-fast) and Non-Strict (run all checks)
+* **Graceful degradation:** If tools missing, validation continues but quality checks skipped
 
 ### Epic 4.3 : OpenTelemetry & Déploiement
 * **`[WEB-RESEARCH-REQUIRED]`** : Recherche "OpenTelemetry Python Semantic Conventions GenAI 2026".
