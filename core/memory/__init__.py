@@ -122,6 +122,16 @@ from .pointer_memory import (
     reset_pointer_memory,
 )
 
+# V12.4 COGNITIVE BOOST: Adaptive Memory Organizer (arxiv:2502.12110)
+from .adaptive_memory_organizer import (
+    AdaptiveMemoryOrganizer,
+    MemoryNote,
+    RetrievalResult as MemoryRetrievalResult,
+    OrganizerStats,
+    get_adaptive_memory_organizer,
+    reset_adaptive_memory_organizer,
+)
+
 __all__ = [
     # Auto-Memory (V7.5)
     "AutoMemory",
@@ -211,4 +221,11 @@ __all__ = [
     "FilterStats",
     "get_plan_context_filter",
     "reset_plan_context_filter",
+    # V12.4 COGNITIVE BOOST: Adaptive Memory Organizer (arxiv:2502.12110)
+    "AdaptiveMemoryOrganizer",
+    "MemoryNote",
+    "MemoryRetrievalResult",
+    "OrganizerStats",
+    "get_adaptive_memory_organizer",
+    "reset_adaptive_memory_organizer",
 ]

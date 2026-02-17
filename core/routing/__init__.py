@@ -45,6 +45,17 @@ from .routing_effectiveness_analyzer import (
     reset_routing_analyzer,
 )
 
+# V12.4 COGNITIVE BOOST: Cascaded Router (arxiv:2502.11133)
+from .cascaded_router import (
+    CascadedRouter,
+    CascadedRoutingDecision,
+    AgentRouting,
+    RoutingStage,
+    RouterStats,
+    get_cascaded_router,
+    reset_cascaded_router,
+)
+
 __all__ = [
     "ModelRouter",
     "TaskType",
@@ -74,4 +85,12 @@ __all__ = [
     "RoutingAnalyzerStats",
     "get_routing_analyzer",
     "reset_routing_analyzer",
+    # V12.4 COGNITIVE BOOST: Cascaded Router (arxiv:2502.11133)
+    "CascadedRouter",
+    "CascadedRoutingDecision",
+    "AgentRouting",
+    "RoutingStage",
+    "RouterStats",
+    "get_cascaded_router",
+    "reset_cascaded_router",
 ]

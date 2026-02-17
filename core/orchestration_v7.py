@@ -370,8 +370,13 @@ class OrchestratorV7:
     # Model Routing & Agent Drivers
     # =========================================================================
 
-    def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None) -> ClaudeDriverHybrid:
-        """Get Claude driver for task type. V7.8: Delegates to AgentInvoker."""
+    def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None):
+        """
+        Get Claude driver for task type.
+
+        V7.8: Delegates to AgentInvoker.
+        V12.4: Returns SDK or CLI driver based on factory configuration.
+        """
         return self.agent_invoker.get_claude_driver(task_type, timeout_override)
 
     def _invoke_agent(self, task_type: TaskType, context: str) -> Dict:
@@ -689,7 +694,8 @@ class OrchestratorV7:
 
         try:
             if self.active_agent == "claude":  # V9.3: lowercase normalized
-                driver = factory.get_claude_driver()
+                # V12.4: Use SDK-first driver (auto-selects SDK or CLI)
+                driver = factory.get_best_claude()
                 response_parts = []
 
                 # V9: Stream tokens in real-time
@@ -704,8 +710,8 @@ class OrchestratorV7:
                 full_response = "".join(response_parts)
                 response = driver._parse_hybrid_response(full_response)
             else:
-                # Gemini
-                driver = factory.get_gemini_driver()
+                # Gemini - V12.4: Use SDK-first driver
+                driver = factory.get_best_gemini()
                 response_parts = []
 
                 async for token in driver.invoke_stream(
@@ -749,14 +755,16 @@ class OrchestratorV7:
 
         try:
             if self.active_agent == "claude":  # V9.3: lowercase normalized
-                driver = factory.get_claude_driver()
+                # V12.4: Use SDK-first driver (auto-selects SDK or CLI)
+                driver = factory.get_best_claude()
                 # CFL needs faster response - use non-streaming
                 response = await asyncio.wait_for(
                     driver.invoke(context, session_uuid=session_uuid),
                     timeout=30.0
                 )
             else:
-                driver = factory.get_gemini_driver()
+                # V12.4: Use SDK-first driver
+                driver = factory.get_best_gemini()
                 response = await asyncio.wait_for(
                     driver.invoke(context, session_uuid=session_uuid),
                     timeout=30.0
