@@ -309,6 +309,7 @@ class TrueHiveMind:
         )
 
         # Phase 7: Knowledge Consolidation
+        # V12.4.1 Epic 1.4: Pass workspace_path for V2 memory recording
         self.phase_consolidation = KnowledgeConsolidationPhase(
             gemini_driver=self.gemini,
             claude_driver=self.claude,
@@ -316,7 +317,8 @@ class TrueHiveMind:
             context_manager=self.context_manager,
             agent_registry=self.agent_registry,
             user_handler=self.user_handler,
-            project_memory=self.project_memory
+            project_memory=self.project_memory,
+            workspace_path=self.workspace_path
         )
 
     def _set_state(self, new_state: HiveMindState):

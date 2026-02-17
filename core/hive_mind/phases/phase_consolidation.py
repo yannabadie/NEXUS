@@ -28,6 +28,7 @@ import asyncio
 import json
 import logging
 import re
+from pathlib import Path
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
 
@@ -150,7 +151,8 @@ class KnowledgeConsolidationPhase:
         user_handler: UserInteractionHandler,
         project_memory: "ProjectMemory" = None,
         task_id: Optional[str] = None,
-        session_manager: Optional["SwarmSessionManager"] = None
+        session_manager: Optional["SwarmSessionManager"] = None,
+        workspace_path: Optional[Path] = None  # V12.4.1 Epic 1.4: For V2 memory recording
     ):
         """
         Initialize Phase 7.
@@ -165,6 +167,7 @@ class KnowledgeConsolidationPhase:
             project_memory: Optional ProjectMemory for RAG archival
             task_id: V9.2 - Unique task identifier for session isolation
             session_manager: V9.2 - Optional session manager for persistence
+            workspace_path: V12.4.1 - Workspace path for V2 memory recording
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
@@ -178,6 +181,9 @@ class KnowledgeConsolidationPhase:
         self._task_id = task_id or generate_hivemind_task_id("consolidation")
         self._session_manager = session_manager
         self._session_integration: Optional[HiveMindSessionIntegration] = None
+
+        # V12.4.1 Epic 1.4: Workspace path for V2 memory recording
+        self._workspace_path = workspace_path
 
     async def execute(
         self,
@@ -392,6 +398,120 @@ class KnowledgeConsolidationPhase:
             logger.info(f"Phase 7: AutoMemory recorded {'success' if success else 'failure'} for {swarm_mode}/{lead}")
         except Exception as e:
             logger.debug(f"AutoMemory recording failed: {e}")
+
+        # V12.4.1 Epic 1.4: Record to V2 memories (semantic, LanceDB-backed)
+        if self._workspace_path:
+            try:
+                from core.memory import SuccessMemoryV2, StrategyBlacklistV2
+
+                if success:
+                    # Record success to SuccessMemoryV2
+                    success_memory = SuccessMemoryV2(self._workspace_path)
+
+                    # Create mock analysis and result objects for record_success()
+                    # The V2 method expects TaskAnalysis and ExecutionResult, but we have
+                    # consolidation data. We'll create duck-typed objects.
+                    class MockAnalysis:
+                        def __init__(self, task_desc, complexity, domains):
+                            self.raw_input = task_desc
+                            self.complexity = complexity
+                            self.domains = domains
+                            self.primary_domain = domains[0] if domains else None
+
+                    class MockResult:
+                        def __init__(self, mode, agents, duration):
+                            self.selected_mode = mode
+                            self.agent_outputs = [type('obj', (), {'agent_id': a}) for a in agents]
+                            self.total_time_seconds = duration
+                            self.status = "completed"
+                            self.total_rounds = steps_completed
+
+                    # Infer complexity from duration and steps
+                    if duration > 120 or steps_completed > 10:
+                        complexity_str = "COMPLEX"
+                    elif duration > 60 or steps_completed > 5:
+                        complexity_str = "MODERATE"
+                    else:
+                        complexity_str = "SIMPLE"
+
+                    # Infer domains from task keywords
+                    domains = []
+                    task_lower = task.lower()
+                    if any(word in task_lower for word in ["code", "implement", "fix", "debug", "refactor"]):
+                        domains.append("coding")
+                    if any(word in task_lower for word in ["security", "auth", "encrypt", "vulnerability"]):
+                        domains.append("security")
+                    if any(word in task_lower for word in ["test", "validate", "verify"]):
+                        domains.append("testing")
+                    if any(word in task_lower for word in ["research", "analyze", "investigate"]):
+                        domains.append("research")
+                    if not domains:
+                        domains.append("general")
+
+                    mock_analysis = MockAnalysis(task, complexity_str, domains)
+                    mock_result = MockResult(swarm_mode, agents_used, duration)
+
+                    # Quality score from consolidation confidence
+                    quality_score = consolidation.confidence_in_decisions
+
+                    success_memory.record_success(
+                        task_id=self._task_id,
+                        analysis=mock_analysis,
+                        result=mock_result,
+                        quality_score=quality_score
+                    )
+
+                    logger.info(
+                        f"Phase 7: SuccessMemoryV2 recorded success "
+                        f"(mode={swarm_mode}, quality={quality_score:.2f})"
+                    )
+
+                else:
+                    # Record failure to StrategyBlacklistV2
+                    blacklist = StrategyBlacklistV2(self._workspace_path)
+
+                    # Infer complexity from duration
+                    if duration > 120:
+                        complexity_str = "COMPLEX"
+                    elif duration > 60:
+                        complexity_str = "MODERATE"
+                    else:
+                        complexity_str = "SIMPLE"
+
+                    # Extract error from antipatterns
+                    error_message = "; ".join(consolidation.learned_antipatterns[:3]) or "Task failed"
+
+                    # Infer retry count from issues
+                    retry_count = max(1, issues_count)
+
+                    # Infer domains (same logic as success)
+                    domains = []
+                    task_lower = task.lower()
+                    if any(word in task_lower for word in ["code", "implement", "fix", "debug"]):
+                        domains.append("coding")
+                    if any(word in task_lower for word in ["security", "auth", "encrypt"]):
+                        domains.append("security")
+                    if any(word in task_lower for word in ["test", "validate"]):
+                        domains.append("testing")
+                    if not domains:
+                        domains.append("general")
+
+                    blacklist.add_failed_strategy(
+                        description=task,
+                        swarm_mode=swarm_mode,
+                        error_message=error_message,
+                        retry_count=retry_count,
+                        complexity=complexity_str,
+                        domains=domains
+                    )
+
+                    logger.warning(
+                        f"Phase 7: StrategyBlacklistV2 recorded failure "
+                        f"(mode={swarm_mode}, retries={retry_count})"
+                    )
+
+            except Exception as e:
+                logger.debug(f"V2 memory recording failed: {e}")
 
         # V12.4: UncertaintyPropagator - reset chain for next task (arxiv:2601.15703)
         try:
