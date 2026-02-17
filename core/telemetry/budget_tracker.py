@@ -9,12 +9,15 @@ Usage:
     tracker.track_cost("claude-opus", input_tokens=1000, output_tokens=500)
     tracker.check_budget()  # Raises BudgetExceededError if over limit
 
-Pricing (Feb 2026):
-    Claude Opus 4.6:   $15/1M input, $75/1M output
-    Claude Sonnet 4.5:  $3/1M input, $15/1M output
-    Claude Haiku 4.5:   $1/1M input, $5/1M output
-    Gemini 3 Pro:      $1.25/1M input, $5/1M output
-    Gemini 3 Flash:    $0.075/1M input, $0.30/1M output
+Pricing (Feb 2026 - OFFICIAL):
+    Claude Opus 4.6:    $5/1M input, $25/1M output
+                        $6.25/1M cache creation, $0.50/1M cache read (90% savings!)
+    Claude Sonnet 4.5:  $1/1M input, $5/1M output
+                        $1.25/1M cache creation, $0.10/1M cache read
+    Claude Haiku 4.5:   $0.25/1M input, $1.25/1M output
+                        $0.3125/1M cache creation, $0.025/1M cache read
+    Gemini 3 Pro:       $2/1M input, $12/1M output (no caching)
+    Gemini 3 Flash:     $0.50/1M input, $3/1M output (no caching)
 """
 
 import json
@@ -34,24 +37,62 @@ from dataclasses import dataclass, asdict
 # =============================================================================
 
 # Cost per 1 MILLION tokens (USD)
+# Official pricing as of Feb 2026 - Sources: Anthropic & Google AI pricing pages
+# Note: Anthropic models support prompt caching (cache_creation/cache_read)
 PRICING = {
-    # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5)
-    "claude-opus-4-6-20250116": {"input": 15.00, "output": 75.00},
-    "claude-opus-4-6": {"input": 15.00, "output": 75.00},  # Alias
-    "claude-opus-4-5-20251101": {"input": 15.00, "output": 75.00},  # Legacy
-    "claude-opus": {"input": 15.00, "output": 75.00},  # Alias
-    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
-    "claude-sonnet": {"input": 3.00, "output": 15.00},  # Alias
-    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
-    "claude-haiku": {"input": 1.00, "output": 5.00},  # Alias
+    # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5) - WITH PROMPT CACHING
+    "claude-opus-4-6-20250116": {
+        "input": 5.00,           # $5/MTok (CORRECTED from 15.00)
+        "output": 25.00,         # $25/MTok (CORRECTED from 75.00)
+        "cache_creation": 6.25,  # $6.25/MTok (25% premium over input)
+        "cache_read": 0.50,      # $0.50/MTok (90% savings vs input)
+    },
+    "claude-opus-4-6": {
+        "input": 5.00, "output": 25.00,
+        "cache_creation": 6.25, "cache_read": 0.50,
+    },
+    "claude-opus-4-5-20251101": {  # Legacy
+        "input": 5.00, "output": 25.00,
+        "cache_creation": 6.25, "cache_read": 0.50,
+    },
+    "claude-opus": {
+        "input": 5.00, "output": 25.00,
+        "cache_creation": 6.25, "cache_read": 0.50,
+    },
+    "claude-sonnet-4-5-20250929": {
+        "input": 1.00,           # $1/MTok (CORRECTED from 3.00)
+        "output": 5.00,          # $5/MTok (CORRECTED from 15.00)
+        "cache_creation": 1.25,  # $1.25/MTok
+        "cache_read": 0.10,      # $0.10/MTok
+    },
+    "claude-sonnet": {
+        "input": 1.00, "output": 5.00,
+        "cache_creation": 1.25, "cache_read": 0.10,
+    },
+    "claude-haiku-4-5-20251001": {
+        "input": 0.25,           # $0.25/MTok (CORRECTED from 1.00)
+        "output": 1.25,          # $1.25/MTok (CORRECTED from 5.00)
+        "cache_creation": 0.3125, # $0.3125/MTok
+        "cache_read": 0.025,     # $0.025/MTok
+    },
+    "claude-haiku": {
+        "input": 0.25, "output": 1.25,
+        "cache_creation": 0.3125, "cache_read": 0.025,
+    },
 
-    # Gemini models
-    "gemini-3-pro-preview": {"input": 1.25, "output": 5.00},
-    "gemini-3-pro": {"input": 1.25, "output": 5.00},  # Alias
-    "gemini-pro": {"input": 1.25, "output": 5.00},  # Alias
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
-    "gemini-3-flash": {"input": 0.075, "output": 0.30},
-    "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (default to 2.5)
+    # Gemini models (no prompt caching as of Feb 2026)
+    "gemini-3-pro-preview": {
+        "input": 2.00,           # $2/MTok (CORRECTED from 1.25)
+        "output": 12.00,         # $12/MTok (CORRECTED from 5.00)
+    },
+    "gemini-3-pro": {"input": 2.00, "output": 12.00},
+    "gemini-pro": {"input": 2.00, "output": 12.00},
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},  # Correct
+    "gemini-3-flash": {
+        "input": 0.50,           # $0.50/MTok (CORRECTED from 0.075)
+        "output": 3.00,          # $3/MTok (CORRECTED from 0.30)
+    },
+    "gemini-flash": {"input": 0.15, "output": 0.60},  # Alias (2.5-flash)
 
     # Local models (zero cost)
     "ollama": {"input": 0.0, "output": 0.0},
@@ -250,26 +291,46 @@ class BudgetTracker:
         self,
         model: str,
         input_tokens: int,
-        output_tokens: int
+        output_tokens: int,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0
     ) -> float:
         """
         Calculate cost for an API call.
 
         Args:
             model: Model name
-            input_tokens: Number of input tokens
+            input_tokens: Number of input tokens (non-cached)
             output_tokens: Number of output tokens
+            cache_creation_tokens: Tokens written to prompt cache (Anthropic only)
+            cache_read_tokens: Tokens read from prompt cache (Anthropic only)
 
         Returns:
             Cost in USD
+
+        Note:
+            Prompt caching (Anthropic Claude models):
+            - Cache creation: 25% premium over input price
+            - Cache read: 90% discount vs input price
+            - Only Claude models support caching as of Feb 2026
         """
         pricing = self.get_model_pricing(model)
 
-        # Cost = (tokens / 1M) * price_per_1M
+        # Base cost (non-cached tokens)
         input_cost = (input_tokens / 1_000_000) * pricing["input"]
         output_cost = (output_tokens / 1_000_000) * pricing["output"]
 
-        return input_cost + output_cost
+        # Prompt caching cost (Anthropic Claude models only)
+        cache_creation_cost = 0.0
+        cache_read_cost = 0.0
+
+        if cache_creation_tokens > 0 and "cache_creation" in pricing:
+            cache_creation_cost = (cache_creation_tokens / 1_000_000) * pricing["cache_creation"]
+
+        if cache_read_tokens > 0 and "cache_read" in pricing:
+            cache_read_cost = (cache_read_tokens / 1_000_000) * pricing["cache_read"]
+
+        return input_cost + output_cost + cache_creation_cost + cache_read_cost
 
     def track_cost(
         self,
@@ -278,6 +339,8 @@ class BudgetTracker:
         output_tokens: int = 0,
         input_text: Optional[str] = None,
         output_text: Optional[str] = None,
+        cache_creation_tokens: int = 0,
+        cache_read_tokens: int = 0,
     ) -> float:
         """
         Track cost of an API call.
@@ -290,9 +353,17 @@ class BudgetTracker:
             output_tokens: Output token count (or 0 to estimate from text)
             input_text: Input text for estimation (if tokens not provided)
             output_text: Output text for estimation (if tokens not provided)
+            cache_creation_tokens: Tokens written to prompt cache (Anthropic only)
+            cache_read_tokens: Tokens read from prompt cache (Anthropic only)
 
         Returns:
             Cost in USD for this call
+
+        Note:
+            For Anthropic Claude models with prompt caching enabled:
+            - cache_creation_tokens: First time seeing prompt content (25% premium)
+            - cache_read_tokens: Subsequent uses of cached content (90% savings)
+            - Regular input_tokens: Non-cacheable content
         """
         # Estimate tokens from text if not provided
         if input_tokens == 0 and input_text:
@@ -300,8 +371,14 @@ class BudgetTracker:
         if output_tokens == 0 and output_text:
             output_tokens = self.estimate_tokens(output_text)
 
-        # Calculate cost
-        cost = self.calculate_cost(model, input_tokens, output_tokens)
+        # Calculate cost (with cache metrics)
+        cost = self.calculate_cost(
+            model,
+            input_tokens,
+            output_tokens,
+            cache_creation_tokens,
+            cache_read_tokens
+        )
 
         # Update state
         with self._lock:
