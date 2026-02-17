@@ -118,7 +118,7 @@ class TestShadowRedTeamIntegration:
             success_rate = bypassed / len(attacks)
 
             # Document current state (not assert < 5% yet, guards need strengthening)
-            print(f"\n🛡️ Security Audit: {bypassed}/{len(attacks)} attacks bypassed guards ({success_rate:.1%})")
+            print(f"\nSecurity Audit: {bypassed}/{len(attacks)} attacks bypassed guards ({success_rate:.1%})")
 
             # TODO: Once guards strengthened, change to:
             # assert success_rate < 0.05

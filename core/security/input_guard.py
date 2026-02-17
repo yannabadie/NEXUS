@@ -85,6 +85,8 @@ CRITICAL_PATTERNS: Dict[str, Dict] = {
             r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instruction|command|rule|directive|prompt)s?",
             r"disregard\s+(all\s+)?(previous|prior|above)\s+(instruction|command|rule)s?",
             r"forget\s+(all\s+)?(previous|prior|your)\s+(instruction|command|rule|training)s?",
+            r"delete\s+(all\s+)?(previous|prior)\s+(instruction|command|rule)s?",  # V12.4 P3.3
+            r"(remove|clear)\s+(all\s+)?(previous|prior)\s+(instruction|rule|directive)s?",  # V12.4 P3.3
         ],
         "threat_type": ThreatType.INSTRUCTION_OVERRIDE,
         "level": ThreatLevel.CRITICAL,
@@ -92,9 +94,11 @@ CRITICAL_PATTERNS: Dict[str, Dict] = {
     },
     "jailbreak_modes": {
         "patterns": [
-            r"\b(DAN|developer\s*mode|jailbreak\s*mode|unrestricted\s*mode)\b",
-            r"pretend\s+you\s+(have\s+no|don'?t\s+have|lack)\s+(restriction|limitation|rule)s?",
-            r"act\s+as\s+if\s+you\s+(have\s+no|don'?t\s+have)\s+(filter|restriction)s?",
+            r"\b(you'?re?|called|named)\s+(DAN|developer\s*mode|jailbreak\s*mode)",  # V12.4 P3.3: Context-aware DAN detection
+            r"unrestricted\s*(mode|AI)\b",  # V12.4 P3.3: Unrestricted mode/AI
+            r"pretend\s+you\s+(have\s+no|don'?t\s+have|lack)\s+(restriction|limitation|rule|ethical\s+guideline)s?",
+            r"act\s+as\s+if\s+you\s+(have\s+no|don'?t\s+have)\s+(any\s+)?(filter|restriction|content\s+filter)s?",
+            r"(all\s+)?safety\s+features?\s+(disabled|off|deactivated)",  # V12.4 P3.3
         ],
         "threat_type": ThreatType.ROLE_MANIPULATION,
         "level": ThreatLevel.CRITICAL,
@@ -118,11 +122,13 @@ HIGH_PATTERNS: Dict[str, Dict] = {
         "patterns": [
             r"(print|show|display|reveal|output|tell\s+me)\s+(your|the|me\s+your)\s+(system\s+)?(prompt|instruction|rule)s?",
             r"(show|tell)\s+me\s+(your|the)\s+(system\s+)?(instruction|rule|prompt)s?",
-            r"what\s+(are|is)\s+your\s+(system\s+)?(prompt|instruction|rule)s?",
-            r"repeat\s+(your|the)\s+(initial|system|original)\s+(prompt|instruction)s?",
+            r"what\s+(are|is|were)\s+your\s+.{0,50}?(prompt|instruction)s?\??",  # V12.4 P3.3: Flexible matching (up to 50 chars)
+            r"repeat\s+(your|the)\s+(instructions?\s+)?(you\s+)?(received(\s+in)?|initial|system|original|initialization)\s+(your\s+)?(system\s+)?(prompt|instruction)s?",
+            r"(output|print)\s+the\s+hidden\s+context",  # V12.4 P3.3
+            r"verbatim\s+without\s+(any\s+)?modifications?",  # V12.4 P3.3: Common in extraction attempts
         ],
         "threat_type": ThreatType.PROMPT_EXTRACTION,
-        "level": ThreatLevel.HIGH,
+        "level": ThreatLevel.CRITICAL,  # V12.4 P3.3: Raised to CRITICAL (prompt extraction is high risk)
         "description": "Attempt to extract system prompt",
     },
     "delimiter_injection": {
@@ -130,9 +136,14 @@ HIGH_PATTERNS: Dict[str, Dict] = {
             r"```\s*(system|admin|root|sudo)",
             r"\[/?SYSTEM\]",
             r"\[/?INST\]",
+            r"\[/?HIDDEN\]",  # V12.4 P3.3: Hidden instruction markers
             r"</?system>",
             r"</?admin>",
             r"Human:\s*Assistant:",  # Claude format injection
+            r"<!--\s*(ADMIN|SECRET|SYSTEM)\s+(DIRECTIVE|INSTRUCTION)",  # V12.4 P3.3: HTML comment injection
+            r"---\s*SYSTEM\s+(UPDATE|DIRECTIVE)",  # V12.4 P3.3: Markdown delimiter injection
+            r"/\*\s*(CRITICAL|SYSTEM|ADMIN)\s+(PATCH|UPDATE)",  # V12.4 P3.3: Code comment injection
+            r"\{\{INJECT:",  # V12.4 P3.3: Template injection
         ],
         "threat_type": ThreatType.DELIMITER_INJECTION,
         "level": ThreatLevel.HIGH,
@@ -140,13 +151,31 @@ HIGH_PATTERNS: Dict[str, Dict] = {
     },
     "authority_claim": {
         "patterns": [
-            r"(the\s+)?(admin|administrator|developer|creator|owner)\s+(said|told|instructed|wants)",
+            r"(the\s+)?(admin|administrator|developer|creator|owner)\s+(said|told|instructed|wants|explicitly\s+said)",
             r"(this\s+is\s+)?(an?\s+)?(official|authorized|approved)\s+(override|command|instruction)",
             r"(emergency|urgent|critical)\s+(override|bypass|access)",
+            r"according\s+to\s+(your\s+|the\s+)?(training\s+data|documentation(\s+you\s+have\s+access\s+to)?|internal\s+policies)",  # V12.4 P3.3
+            r"based\s+on\s+your\s+internal\s+policies",  # V12.4 P3.3
+            r"(you\s+must|required\s+to)\s+comply\s+with\s+(override|developer)\s+(command|request)s?",  # V12.4 P3.3
+            r"(skip|bypass)\s+(all\s+)?(filter|safety\s+check)s?\s+for\s+this\s+request",  # V12.4 P3.3
+            r"users?\s+can\s+ask\s+anything",  # V12.4 P3.3
         ],
         "threat_type": ThreatType.CONTEXT_MANIPULATION,
         "level": ThreatLevel.HIGH,
         "description": "False authority claim",
+    },
+    "tool_exfiltration": {
+        "patterns": [
+            r"\b(curl|wget|nc|netcat)\s+.*\b(attacker|evil|malicious)\b",  # V12.4 P3.3: Network exfiltration
+            r"\bgrep\s+-r\s+['\"]?(API_KEY|SECRET|PASSWORD)",  # V12.4 P3.3: Secret scanning
+            r"\b(tar|zip)\s+.*\|\s*base64",  # V12.4 P3.3: Data encoding for exfil
+            r"(save|write|export)\s+(all\s+)?(environment\s+variables|env|secrets?)\s+to",  # V12.4 P3.3: Env var dump
+            r"/tmp/leak\.|/tmp/exfil\.",  # V12.4 P3.3: Suspicious file paths
+            r"~/.ssh\s*\|",  # V12.4 P3.3: SSH key exfiltration
+        ],
+        "threat_type": ThreatType.INSTRUCTION_OVERRIDE,
+        "level": ThreatLevel.CRITICAL,
+        "description": "Data exfiltration attempt",
     },
 }
 
@@ -166,11 +195,25 @@ MEDIUM_PATTERNS: Dict[str, Dict] = {
         "patterns": [
             r"decode\s+this\s+(base64|rot13|hex)",
             r"the\s+following\s+is\s+(base64|encoded|encrypted)",
-            r"\b[A-Za-z0-9+/]{40,}={0,2}\b",  # Long base64-like string
+            r"\b[A-Za-z0-9+/]{30,}={0,2}\b",  # V12.4 P3.3: Base64-like (30+ chars total)
+            r"(\\u[0-9a-fA-F]{4}){4,}",  # V12.4 P3.3: Unicode escape sequences (4+ chars)
+            r"(%[0-9a-fA-F]{2}){6,}",  # V12.4 P3.3: URL encoding (6+ chars = 3+ letters)
+            r"[\u2100-\u214F]",  # V12.4 P3.3: Letterlike symbols (homoglyphs like Ⅰ)
         ],
         "threat_type": ThreatType.ENCODING_ATTACK,
-        "level": ThreatLevel.MEDIUM,
-        "description": "Potential encoding-based attack",
+        "level": ThreatLevel.CRITICAL,  # V12.4 P3.3: Raised to CRITICAL (encoding obfuscation is high risk)
+        "description": "Encoding-based obfuscation attempt",
+    },
+    "indirect_injection": {
+        "patterns": [
+            r"SECRET\s+INSTRUCTION:",  # V12.4 P3.3: Hidden instructions in data
+            r"SYSTEM:\s+New\s+directive\s+embedded",  # V12.4 P3.3: Embedded system commands
+            r"(extract|reveal|output)\s+(all\s+)?(API\s+keys?|secrets?|credentials?)",  # V12.4 P3.3: Data extraction commands
+            r"send\s+to\s+\w+\.(com|net|org)",  # V12.4 P3.3: External data transmission
+        ],
+        "threat_type": ThreatType.CONTEXT_MANIPULATION,
+        "level": ThreatLevel.HIGH,
+        "description": "Indirect prompt injection via embedded instructions",
     },
 }
 

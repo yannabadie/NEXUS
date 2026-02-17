@@ -27,7 +27,7 @@ import asyncio
 import logging
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from core.security.input_guard import InputGuard, ThreatLevel
@@ -45,7 +45,7 @@ class AttackResult:
     threat_level: str
     risk_score: float
     reason: str
-    timestamp: str = field(default_factory=lambda: datetime.now(datetime.UTC).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
