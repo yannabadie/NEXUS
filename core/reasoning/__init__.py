@@ -261,3 +261,39 @@ __all__ += [
     'get_uncertainty_propagator',
     'reset_uncertainty_propagator',
 ]
+
+# V12.4 COGNITIVE BOOST: Failure Classifier (AgentDebug, arxiv:2509.25370)
+from .failure_classifier import (
+    FailureClassifier,
+    FailureCategory,
+    Classification,
+    ClassifierStats,
+    get_failure_classifier,
+    reset_failure_classifier,
+)
+
+__all__ += [
+    'FailureClassifier',
+    'FailureCategory',
+    'Classification',
+    'ClassifierStats',
+    'get_failure_classifier',
+    'reset_failure_classifier',
+]
+
+# V12.4 COGNITIVE BOOST: Fault Detector (CP-WBFT, arxiv:2511.10400)
+from .fault_detector import (
+    FaultDetector,
+    FaultStatus,
+    AgentStatus,
+    get_fault_detector,
+    reset_fault_detector,
+)
+
+__all__ += [
+    'FaultDetector',
+    'FaultStatus',
+    'AgentStatus',
+    'get_fault_detector',
+    'reset_fault_detector',
+]

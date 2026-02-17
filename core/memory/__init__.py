@@ -64,6 +64,16 @@ from .context_compressor import (
     reset_compressor,
 )
 
+# V12.4 COGNITIVE BOOST: Plan-Aware Context Filter (arxiv:2512.16970)
+from .plan_context_filter import (
+    PlanContextFilter,
+    ScoredItem,
+    FilterResult,
+    FilterStats,
+    get_plan_context_filter,
+    reset_plan_context_filter,
+)
+
 # V12.4 COGNITIVE BOOST: Cache Manager
 from .cache_manager import (
     CacheManager,
@@ -194,4 +204,11 @@ __all__ = [
     "PointerStats",
     "get_pointer_memory",
     "reset_pointer_memory",
+    # V12.4 COGNITIVE BOOST: Plan-Aware Context Filter (arxiv:2512.16970)
+    "PlanContextFilter",
+    "ScoredItem",
+    "FilterResult",
+    "FilterStats",
+    "get_plan_context_filter",
+    "reset_plan_context_filter",
 ]

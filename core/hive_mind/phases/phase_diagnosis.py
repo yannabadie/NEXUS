@@ -317,6 +317,28 @@ class FailureDiagnosisPhase:
         except Exception as e:
             logger.debug(f"MAST/MARS analysis failed: {e}")
 
+        # V12.4: FailureClassifier - 5-category root cause classification (arxiv:2509.25370)
+        try:
+            from core.reasoning.failure_classifier import get_failure_classifier
+            _fclassifier = get_failure_classifier()
+            _step_outputs = [r.output[:200] for r in results if r.output] if results else []
+            _issues = [
+                {"issue_type": i.issue_type, "severity": getattr(i.severity, "value", str(i.severity))}
+                for i in (issues or [])
+            ]
+            _fc_result = _fclassifier.classify(
+                failure_description=diagnosis.root_cause,
+                step_outputs=_step_outputs,
+                issues=_issues,
+            )
+            diagnosis.contributing_factors.append(
+                f"AgentDebug category: {_fc_result.category.value} "
+                f"(confidence: {_fc_result.confidence:.0%}). "
+                f"Recovery: {_fc_result.recovery_strategy[:150]}"
+            )
+        except Exception:
+            pass
+
         # V12.4: SystemHealth check - enrich diagnosis with system-level context
         try:
             from core.resilience.system_health import get_system_health
