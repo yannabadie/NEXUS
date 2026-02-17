@@ -496,7 +496,7 @@ class OrchestratorV7:
             self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
-                self.state = OrchestratorState.PANIC
+                self._transition_to(OrchestratorState.PANIC)
                 return self._make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED. "
@@ -617,7 +617,7 @@ class OrchestratorV7:
             self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
-                self.state = OrchestratorState.PANIC
+                self._transition_to(OrchestratorState.PANIC)
                 return self._make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
@@ -1037,7 +1037,7 @@ class OrchestratorV7:
         Args:
             clear_task: If True, also clears the current objective and history
         """
-        self.state = OrchestratorState.IDLE
+        self._transition_to(OrchestratorState.IDLE)
         self.stagnation_detector.reset()
         self.stalemate_counter = 0
         self.pending_tool_result = None

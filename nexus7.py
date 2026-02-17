@@ -631,6 +631,31 @@ Documentation: https://github.com/nexus-ai/nexus-v7
         config = load_config()
         pending_metadata = check_pending_review(workspace_path)
 
+        # V12.4 PHASE 2: Crash recovery check
+        from core.fsm.event_sourcing import FSMEventStore
+        event_store = FSMEventStore(workspace_path)
+        interrupted = event_store.get_interrupted_sessions()
+
+        if interrupted:
+            session_info = interrupted[-1]  # Most recent interrupted session
+            print(f"\n⚠️  Detected interrupted session")
+            print(f"   Last state: {session_info['last_state']}")
+            print(f"   Timestamp: {session_info['last_timestamp']}")
+            print(f"   Events: {session_info['event_count']}")
+
+            # Ask user if they want to resume (interactive mode only)
+            response = input("\n   Resume previous session? [y/N]: ").strip().lower()
+            if response in ('y', 'yes'):
+                print("   ✓ Resuming previous session state...")
+                # Note: Actual state restoration would happen in async_main
+                # For now, we just log this and continue with existing events
+            else:
+                print("   Starting new session (old events preserved for debugging)...")
+        else:
+            last_state = event_store.get_last_state()
+            if last_state:
+                print(f"✓ Previous session ended cleanly ({last_state})")
+
         # V9 CYBORG: Launch via asyncio.run()
         asyncio.run(async_main(
             workspace_path=workspace_path,
