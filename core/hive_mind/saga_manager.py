@@ -51,6 +51,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# V12.4.1 Epic 1.3: Redis integration for durable sagas
+def get_redis_bus():
+    """Lazy import of Redis bus to avoid circular dependencies."""
+    try:
+        from core.events.redis_bus import RedisEventBus
+        return RedisEventBus()
+    except ImportError:
+        return None
+
+
 # =============================================================================
 # PHASE DEFINITIONS
 # =============================================================================
@@ -216,7 +226,10 @@ class SagaManager:
         sagas_dir: Path,
         task_id: str,
         *,
-        auto_persist: bool = True
+        auto_persist: bool = True,
+        tenant_id: str = "default",
+        workspace_id: str = "default",
+        enable_redis: bool = True
     ):
         """
         Initialize SagaManager.
@@ -225,6 +238,9 @@ class SagaManager:
             sagas_dir: Directory for saga persistence (e.g., workspace/.nexus/sagas)
             task_id: Unique task identifier (from SwarmSessionManager)
             auto_persist: If True, persist to disk after each checkpoint
+            tenant_id: Tenant identifier for multi-tenant isolation (V12.4.1 Epic 1.3)
+            workspace_id: Workspace identifier (V12.4.1 Epic 1.3)
+            enable_redis: If True, publish events to Redis bus (V12.4.1 Epic 1.3)
         """
         self._sagas_dir = Path(sagas_dir)
         self._task_id = task_id
@@ -246,7 +262,13 @@ class SagaManager:
         self._created_at = datetime.now()
         self._recovery_point: Optional[str] = None
 
-        logger.debug(f"SagaManager initialized for task {task_id[:8]}...")
+        # V12.4.1 Epic 1.3: Redis event bus integration
+        self._tenant_id = tenant_id
+        self._workspace_id = workspace_id
+        self._enable_redis = enable_redis
+        self._redis_bus = get_redis_bus() if enable_redis else None
+
+        logger.debug(f"SagaManager initialized for task {task_id[:8]}... (Redis: {enable_redis})")
 
     @property
     def task_id(self) -> str:
@@ -450,6 +472,31 @@ class SagaManager:
         if self._auto_persist:
             await self._persist()
 
+        # V12.4.1 Epic 1.3: Publish SAGA_CHECKPOINT event to Redis
+        if self._enable_redis and self._redis_bus:
+            try:
+                from core.events.types import CerebroEvent, CerebroEventType
+
+                event = CerebroEvent(
+                    event_type=CerebroEventType.SAGA_CHECKPOINT,
+                    tenant_id=self._tenant_id,
+                    workspace_id=self._workspace_id,
+                    payload={
+                        "task_id": self._task_id,
+                        "phase": phase,
+                        "state": checkpoint.state,
+                        "context_index": context_index,
+                        "timestamp": checkpoint.timestamp.isoformat(),
+                        "recovery_point": self._recovery_point,
+                    },
+                    correlation_id=self._task_id,
+                )
+                await self._redis_bus.publish(event)
+                logger.debug(f"Published SAGA_CHECKPOINT to Redis for phase={phase}")
+            except Exception as e:
+                # Graceful degradation - checkpoint still saved to disk
+                logger.warning(f"Failed to publish saga checkpoint to Redis: {e}")
+
         logger.info(f"Checkpoint created: phase={phase}, context_index={context_index}")
         return checkpoint
 
@@ -553,6 +600,28 @@ class SagaManager:
         if self._auto_persist:
             await self._persist()
 
+        # V12.4.1 Epic 1.3: Publish SAGA_ROLLBACK event to Redis
+        if self._enable_redis and self._redis_bus:
+            try:
+                from core.events.types import CerebroEvent, CerebroEventType
+
+                event = CerebroEvent(
+                    event_type=CerebroEventType.SAGA_ROLLBACK,
+                    tenant_id=self._tenant_id,
+                    workspace_id=self._workspace_id,
+                    payload={
+                        "task_id": self._task_id,
+                        "target_phase": target_phase,
+                        "compensated_phases": [p for p in PHASE_ORDER[target_idx + 1:] if p in self._checkpoints],
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    correlation_id=self._task_id,
+                )
+                await self._redis_bus.publish(event)
+                logger.debug(f"Published SAGA_ROLLBACK to Redis for target_phase={target_phase}")
+            except Exception as e:
+                logger.warning(f"Failed to publish saga rollback to Redis: {e}")
+
         logger.info(f"Rolled back to phase '{target_phase}'")
         return True
 
@@ -640,6 +709,28 @@ class SagaManager:
         # Restore checkpoints
         for phase, cp_data in data.get("checkpoints", {}).items():
             saga._checkpoints[phase] = PhaseCheckpoint.from_dict(cp_data)
+
+        # V12.4.1 Epic 1.3: Publish SAGA_RESUME event to Redis
+        if saga._enable_redis and saga._redis_bus:
+            try:
+                from core.events.types import CerebroEvent, CerebroEventType
+
+                event = CerebroEvent(
+                    event_type=CerebroEventType.SAGA_RESUME,
+                    tenant_id=saga._tenant_id,
+                    workspace_id=saga._workspace_id,
+                    payload={
+                        "task_id": task_id,
+                        "recovery_point": saga._recovery_point,
+                        "checkpointed_phases": list(saga._checkpoints.keys()),
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    correlation_id=task_id,
+                )
+                await saga._redis_bus.publish(event)
+                logger.debug(f"Published SAGA_RESUME to Redis for task_id={task_id[:8]}...")
+            except Exception as e:
+                logger.warning(f"Failed to publish saga resume to Redis: {e}")
 
         logger.info(
             f"Saga resumed for task {task_id[:8]}... "

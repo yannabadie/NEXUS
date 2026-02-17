@@ -67,6 +67,13 @@ class CerebroEventType(str, Enum):
     HIVE_PHASE_END = "hive.phase_end"
 
     # =========================================================================
+    # Saga Events (V12.4.1 Epic 1.3 - Durable Sagas)
+    # =========================================================================
+    SAGA_CHECKPOINT = "saga.checkpoint"  # Phase checkpoint created
+    SAGA_ROLLBACK = "saga.rollback"      # Rollback to previous phase
+    SAGA_RESUME = "saga.resume"          # Saga resumed from disk/Redis
+
+    # =========================================================================
     # Graph Events for React Flow UI (V10 SYNAPSE)
     # =========================================================================
     GRAPH_NODE_SPAWN = "graph.node_spawn"
