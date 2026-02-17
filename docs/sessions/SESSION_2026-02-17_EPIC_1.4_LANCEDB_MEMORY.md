@@ -431,14 +431,54 @@ Environment: PROJECT_MEMORY_BACKEND=auto|dense|bm25|tfidf
 
 ---
 
-## Next Steps
+## Phase 1 Integration (COMPLETED)
 
-### Phase 1 Integration (Epic 1.4 Continuation)
+### Implementation (Commit 6051a19)
 
-**File**: `core/hive_mind/phases/phase_analysis.py`
+**Files Modified**:
+- `core/hive_mind/phases/phase_analysis.py` (128 lines added)
+- `core/hive_mind/orchestrator.py` (workspace_path passed)
 
-**Changes Needed**:
+**New Method**: `_retrieve_memory_context(task: str) -> str`
+
+**Functionality**:
+1. Queries SuccessMemoryV2 for similar past successes (semantic)
+2. Checks StrategyBlacklistV2 for known failures (anti-circular)
+3. Gets memory-based mode recommendations
+4. Formats context for prompt injection
+
+**Memory Context Format**:
+```
+HISTORICAL MEMORY CONTEXT:
+
+⚠️  BLACKLIST WARNING (if applicable)
+============================================================
+Similar strategy failed N times before.
+Failed approach: <description>
+Error: <error_message>
+
+💡 Suggested Alternatives:
+  • alternative_mode_1
+  • alternative_mode_2
+
+📚 SIMILAR PAST SUCCESSES
+============================================================
+1. <description> (similarity: 0.XX)
+   Mode: <mode>
+   Complexity: <complexity>
+   Quality: X.XX/1.00
+   Duration: XX.Xs
+   Domains: <domains>
+
+💭 MEMORY-BASED RECOMMENDATION
+============================================================
+Based on similar past successes, consider using '<mode>' mode
+(confidence: XX%)
+```
+
+**Integration Point**:
 ```python
+# Line ~165 in phase_analysis.py
 async def analyze_task_independent(...):
     # 1. Query SuccessMemoryV2 for similar past successes
     success_memory = get_success_memory_v2(workspace_path)
