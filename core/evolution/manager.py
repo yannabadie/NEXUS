@@ -267,16 +267,20 @@ class EvolutionManager:
             progress = 0.5 + (0.2 * (i / len(children)))
             self._report_progress(f"Validating {child_id}...", progress)
 
-            # Use tiered validator
-            tier_result = self.validator.validate_child(child_path, tier)
+            # Use tiered validator (FIXED: correct API call)
+            tier_result = self.validator.run_tiered(max_tier=tier)
+
+            # Map TieredValidationResult to ValidationResult
+            tier_reached_value = tier_result.failed_at_tier if tier_result.failed_at_tier else tier
+            errors = [tier_result.recommendation] if not tier_result.passed else []
 
             results.append(
                 ValidationResult(
                     child_id=child_id,
                     passed=tier_result.passed,
-                    tier_reached=tier_result.tier_reached.value if hasattr(tier_result.tier_reached, 'value') else tier_result.tier_reached,
-                    errors=tier_result.errors if hasattr(tier_result, 'errors') else [],
-                    details=tier_result.details if hasattr(tier_result, 'details') else {},
+                    tier_reached=tier_reached_value.value if hasattr(tier_reached_value, 'value') else tier_reached_value,
+                    errors=errors,
+                    details=tier_result.to_dict(),
                 )
             )
 
