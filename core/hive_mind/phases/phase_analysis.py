@@ -36,6 +36,7 @@ from ..cost_estimator import CostEstimator
 from ..context_manager import HiveMindContextManager
 from ..context_scope import ContextScope, ScopedContext
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
+from ..prompts import ANALYSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -47,31 +48,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Analysis prompt template
-ANALYSIS_PROMPT = """You are analyzing a task for NEXUS Hive Mind.
-
-TASK: {task}
-
-Analyze this task INDEPENDENTLY. Do NOT assume what the other agent thinks.
-Provide your own genuine assessment.
-
-Respond in this EXACT JSON format:
-{{
-    "task_understanding": "Your understanding of what needs to be done",
-    "complexity_assessment": "TRIVIAL | MODERATE | COMPLEX | EXPERT",
-    "proposed_approach": "Your proposed strategy to solve this",
-    "required_capabilities": ["capability1", "capability2", ...],
-    "potential_risks": ["risk1", "risk2", ...],
-    "confidence": 0.0 to 1.0,
-    "reasoning": "Why you chose this approach"
-}}
-
-Be specific and actionable. Consider:
-- What tools/skills are needed?
-- What could go wrong?
-- How complex is this really?
-- What's the best strategy?
-"""
+# V12.4.1 OPTIMIZATION: Static prompt moved to prompts.py for SDK-level caching
+# The ANALYSIS_SYSTEM_PROMPT is now imported from ..prompts
+# This enables 70-85% cost reduction on repeated HiveMind tasks (ArXiv 2601.06007)
 
 
 @dataclass
@@ -182,12 +161,15 @@ class IndependentAnalysisPhase:
         except Exception as e:
             logger.debug(f"Principle retrieval failed: {e}")
 
-        # Run analyses in parallel with isolated sessions
-        base_prompt = ANALYSIS_PROMPT.format(task=task)
-        prompt = f"{base_prompt}\n\n{principles_context}" if principles_context else base_prompt
+        # V12.4.1 OPTIMIZATION: Build dynamic user prompt (static system prompt handled in methods)
+        # Only task + principles go in user prompt → enables SDK caching of system prompt
+        user_prompt = f"TASK: {task}"
+        if principles_context:
+            user_prompt += f"\n\nRELEVANT PRINCIPLES:\n{principles_context}"
 
-        gemini_task = self._analyze_with_gemini(prompt, parallel_sessions.get("gemini"))
-        claude_task = self._analyze_with_claude(prompt, parallel_sessions.get("claude"))
+        # Run analyses in parallel with isolated sessions
+        gemini_task = self._analyze_with_gemini(user_prompt, parallel_sessions.get("gemini"))
+        claude_task = self._analyze_with_claude(user_prompt, parallel_sessions.get("claude"))
 
         # Wait for both to complete
         gemini_analysis, claude_analysis = await asyncio.gather(
@@ -336,10 +318,10 @@ class IndependentAnalysisPhase:
         """
         Get analysis from Gemini.
 
-        V9.2: Uses session_uuid for context isolation.
+        V12.4.1: Uses invoke() with system_prompt for SDK-level caching.
 
         Args:
-            prompt: Analysis prompt
+            prompt: Dynamic user prompt (task + principles)
             session_uuid: Unique session for isolation
 
         Returns:
@@ -348,15 +330,33 @@ class IndependentAnalysisPhase:
         logger.debug(f"Requesting Gemini analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # V9.2: Call Gemini driver with session isolation
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+            # V12.4.1: Use invoke() with static system prompt (cached by SDK)
+            response = await self.gemini.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=ANALYSIS_SYSTEM_PROMPT,  # Static, cached
+                agent_name="gemini",
+                agent_id="gemini",
+            )
 
-            # Parse JSON response
-            analysis_data = self._parse_analysis_response(response, "gemini")
+            # Check for errors
+            if not response.is_success:
+                raise RuntimeError(f"Gemini analysis failed: {response.error_message}")
 
-            # Record cost
-            tokens = len(str(response)) // 4  # Rough estimate
-            self.cost_estimator.record_cost("independent_analysis_gemini", tokens)
+            # Parse JSON response from DriverResponse.content
+            analysis_data = self._parse_analysis_response(response.content, "gemini")
+
+            # Record actual token usage (not estimates)
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "independent_analysis_gemini",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                # Fallback for legacy cost estimator
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("independent_analysis_gemini", total_tokens)
 
             return IndependentAnalysis(
                 agent_id="gemini",
@@ -375,10 +375,10 @@ class IndependentAnalysisPhase:
         """
         Get analysis from Claude.
 
-        V9.2: Uses session_uuid for context isolation.
+        V12.4.1: Uses invoke() with system_prompt for SDK-level caching.
 
         Args:
-            prompt: Analysis prompt
+            prompt: Dynamic user prompt (task + principles)
             session_uuid: Unique session for isolation
 
         Returns:
@@ -387,15 +387,33 @@ class IndependentAnalysisPhase:
         logger.debug(f"Requesting Claude analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # V9.2: Call Claude driver with session isolation
-            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
+            # V12.4.1: Use invoke() with static system prompt (cached by SDK)
+            response = await self.claude.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=ANALYSIS_SYSTEM_PROMPT,  # Static, cached
+                agent_name="claude",
+                agent_id="claude",
+            )
 
-            # Parse JSON response
-            analysis_data = self._parse_analysis_response(response, "claude")
+            # Check for errors
+            if not response.is_success:
+                raise RuntimeError(f"Claude analysis failed: {response.error_message}")
 
-            # Record cost
-            tokens = len(str(response)) // 4
-            self.cost_estimator.record_cost("independent_analysis_claude", tokens)
+            # Parse JSON response from DriverResponse.content
+            analysis_data = self._parse_analysis_response(response.content, "claude")
+
+            # Record actual token usage (not estimates)
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "independent_analysis_claude",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                # Fallback for legacy cost estimator
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("independent_analysis_claude", total_tokens)
 
             return IndependentAnalysis(
                 agent_id="claude",
