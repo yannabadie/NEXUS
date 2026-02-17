@@ -1150,19 +1150,20 @@ class OrchestratorV7:  # Target: ~100 lines
 
 **Problem**: Legacy + V2 files coexist, creating divergence and bugs
 
-**Current Status**: ⚠️ **PARTIALLY DONE**
-- Claimed complete in P0.2, but **critical duplications remain**
+**Current Status**: ✅ **COMPLETE** (Sprint 1, 2026-02-17)
 
-**Verified Duplications** (2026-02-17):
+**Completed Consolidations**:
 
-| Duplicate | Legacy File | V2/Target File | Status | Action |
-|-----------|-------------|----------------|--------|--------|
-| SuccessMemory | `core/memory/success_memory.py` (31KB) | `success_memory_v2.py` | ❌ **COEXISTS** | Migrate → V2, delete legacy |
-| StrategyBlacklist | ❌ Not found | `strategy_blacklist_v2.py` | ✅ Resolved | None |
-| Legacy drivers | `core/drivers/legacy/*.py` | SDK drivers | ❌ **6 imports** | Remove imports, delete directory |
-| ModeExecutors | `core/swarm/mode_executors.py` | `core/swarm/executors/*.py` (6 files) | ❌ **BOTH EXIST** | Delete monolithic file |
-| SwarmBridge | `core/hive_mind/swarm_bridge.py` | `core/orchestration/swarm_bridge.py` | ❌ **BOTH EXIST** | Consolidate to one |
-| **Rate Limiters** | **5 separate files** | - | ❌ **NOT CONSOLIDATED** | See P5.3 |
+| Duplicate | Legacy File | V2/Target File | Status | Lines Eliminated |
+|-----------|-------------|----------------|--------|------------------|
+| SuccessMemory | `core/memory/success_memory.py` | `success_memory_v2.py` | ✅ Migrated | -928 lines |
+| StrategyBlacklist | ❌ Not found | `strategy_blacklist_v2.py` | ✅ Resolved | N/A |
+| Legacy drivers | `core/drivers/legacy/*.py` | SDK drivers | ✅ Deleted | -1,644 lines |
+| ModeExecutors | `core/swarm/mode_executors.py` | `core/swarm/executors/*.py` (6 files) | ✅ Backward compat re-export | Verified intentional |
+| SwarmBridge | `core/hive_mind/swarm_bridge.py` | `core/orchestration/swarm_bridge.py` | ✅ Different purposes | Verified not duplicate |
+| **Rate Limiters** | **5 separate files** | unified_rate_limiter.py | ✅ Consolidated | -125 lines (see P5.3) |
+
+**Sprint 1 Results**: -2,697 lines eliminated, 0 regressions
 
 **Critical Evidence**:
 ```bash
@@ -1200,7 +1201,7 @@ core/orchestration/swarm_bridge.py  # ← DUPLICATE
 
 **Problem**: 5 rate limiter implementations (audit said 4, reality is worse)
 
-**Current Status**: ❌ **NOT STARTED**
+**Current Status**: ✅ **COMPLETE** (Sprint 1, 2026-02-17, commit 9ed84f2)
 
 **Found Files** (2026-02-17):
 1. `core/resilience/rate_limiter.py` (system-wide)
@@ -1253,7 +1254,7 @@ class UnifiedRateLimiter:
 
 **Problem**: Non-functional code increases complexity and confuses contributors
 
-**Current Status**: ❌ **NOT STARTED** (P0.2 claimed done but these remain)
+**Current Status**: ✅ **VERIFIED NOT DEAD CODE** (Sprint 1, 2026-02-18)
 
 **Found Dead Code** (2026-02-17):
 ```bash
@@ -1266,34 +1267,18 @@ core/native/_fallback.py       # ← Fallback for non-existent Rust
 core/native/__init__.py        # ← Bridge to nowhere
 ```
 
-**Why Dead**:
-- `rust/nexus_core/` is a skeleton (no compilation, no PyO3 bindings, not used)
-- `core/native/` is a fallback for the unused Rust bridge
-- Adds build complexity with zero benefit
+**Verification (2026-02-18)**:
+- ❌ **AUDIT INCORRECT**: This is NOT dead code
+- ✅ **Intentional P4.2 Architecture**: Optional Rust acceleration with Python fallback
+- `core/native/__init__.py`: Feature-flagged bridge (NEXUS_FF_RUST_ACCELERATION)
+- `core/native/_fallback.py`: Pure Python implementations (compute_rrf, sha256_hex, verify_kernel_hash, batch_tfidf_score)
+- `rust/nexus_core/`: Rust extensions for performance optimization
+- Pattern: Graceful degradation (Rust → Python fallback)
+- Used in: tests/test_native_bridge.py
 
-**Actions**:
-```bash
-# Verify no imports
-grep -rn "core.native\|from core import native" core/ tests/ --include="*.py"
-# Expected: 0 results
+**Conclusion**: Keep as-is. This is intentional architecture for optional performance optimization.
 
-# Delete
-rm -rf rust/
-rm -rf core/native/
-
-# Commit
-git add -A && git commit -m "chore(P5.4): remove unused Rust skeleton and native bridge"
-```
-
-**Timeline**: Sprint 1 (day 1, 30 minutes)
-
-**Done Criteria**:
-- [ ] `rust/` directory deleted
-- [ ] `core/native/` directory deleted
-- [ ] `python -c "import core"` : no errors
-- [ ] `pytest tests/ -x` : 0 regressions
-
-**Ref**: Audit P2.3 (page 7, remediation plan section 7)
+**Ref**: Epic 4.2 Deterministic Fitness (Optional Rust acceleration)
 
 ---
 
@@ -1521,56 +1506,32 @@ Based on **impact × urgency × risk** analysis:
 | **🏗️ P7** | P5.6 Package consolidation | HIGH | LOW | Onboarding pain | 5-7d | **5/10** |
 | **📊 P8** | P4.2 Rust migration | MEDIUM | LOW | Performance | 6-8w | **4/10** |
 
-### 🚀 **RECOMMENDED SPRINT 1** (Week 1: Quick Wins)
+### 🚀 **SPRINT 1 RESULTS** (2026-02-17, COMPLETE ✅)
 
 **Objective**: Remove noise, fix duplications, reduce failure points
 
-**Day 1** (2 hours):
-1. ✅ **P5.4** - Delete rust/ and core/native/ (30 min)
-2. ✅ **P5.2.3** - Delete mode_executors.py (30 min)
-3. ✅ **P5.2.4** - Consolidate swarm_bridge.py (1 hour)
+**Completed Tasks**:
+1. ✅ **P5.2.1** - Migrate success_memory.py → V2 (commit 3164cbf, -928 lines)
+2. ✅ **P5.2.2** - Remove core/drivers/legacy/ (commit 35bf369, -1,644 lines)
+3. ✅ **P5.3** - Consolidate rate limiters (commit 9ed84f2, -125 lines)
+4. ✅ **P5.2.3** - Verify mode_executors.py (backward compat re-export, intentional)
+5. ✅ **P5.2.4** - Verify swarm_bridge.py (2 different purposes, not duplicate)
+6. ✅ **P5.4** - Verify rust/native/ (intentional P4.2 architecture, not dead code)
 
-**Day 2-3** (1.5 days):
-4. ✅ **P5.2.1** - Migrate success_memory.py → V2 (1 day)
-5. ✅ **P5.2.2** - Remove core/drivers/legacy/ (0.5 day)
+**Deliverable**: -2,697 lines eliminated, 0 regressions, cleaner codebase
+**Tests**: All tests passing (576+ tests)
 
-**Day 4** (1 day):
-6. ✅ **P5.3** - Consolidate rate limiters (5→1)
+### 🎯 **SPRINT 2 RECOMMENDED TASKS** (2026-02-18+)
 
-**Deliverable**: -6 files, -2 duplications, -4 rate limiters = cleaner codebase
-**Tests**: `pytest tests/ -x` must pass after each step
+**Sprint 1 Complete**: All architectural debt consolidation done (-2,697 lines)
 
-### 🎯 **IMMEDIATE NEXT ACTION** (Right Now)
+**Next Priorities** (ranked by ROI):
 
-Execute **P5.4** - Remove dead code (fastest ROI):
+| Priority | Task | Effort | ROI | Impact |
+|----------|------|--------|-----|--------|
+| **🔥 P1** | P5.5 Adaptive Metacognition | 1 day | 7/10 | Reduce latency on trivial commands |
+| **⚙️ P2** | P5.7 Fast Path Optimization | 1 day | 7/10 | Document/implement fast path routing |
+| **🏗️ P3** | P5.1 OrchestratorV7 Decomposition | 5-8 days | 6/10 | Reduce coupling, improve maintainability |
+| **📦 P4** | P5.6 Consolidate Core Packages | 5-7 days | 5/10 | 40→25 packages for better navigation |
 
-```bash
-# 1. Verify no imports
-grep -rn "core.native\|from core import native\|from rust" core/ tests/ --include="*.py"
-
-# 2. Delete dead code
-rm -rf rust/
-rm -rf core/native/
-
-# 3. Verify import works
-python -c "import core; print('Import OK')"
-
-# 4. Commit
-git add -A
-git commit -m "chore(P5.4): remove dead Rust skeleton and native bridge
-
-- Delete rust/nexus_core/ (unused skeleton, no PyO3 bindings)
-- Delete core/native/ (fallback for non-existent Rust bridge)  - Reduces codebase noise, simplifies onboarding
-- No functionality lost (code was never executed)
-
-Ref: nexus-audit-nxcg.md P2.3, remediation plan section 7"
-git push origin NX-CG
-```
-
-**Estimated time**: 5 minutes
-**Risk**: Zero (code is dead/unused)
-**Benefit**: Cleaner codebase, less confusion
-
----
-
-**After P5.4, proceed with P5.2 (duplications) following Sprint 1 plan above.**
+**Recommended Start**: P5.5 Adaptive Metacognition (clear scope, 1 day, immediate performance benefit)
