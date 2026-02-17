@@ -116,6 +116,17 @@ from .phase_audit_logger import (
     reset_phase_audit_logger,
 )
 
+# V12.4 COGNITIVE BOOST: Multi-Agent Reflexion (arxiv:2512.20845)
+from .multi_agent_reflexion import (
+    MultiAgentReflexion,
+    AgentReflection,
+    ReflexionSynthesis,
+    ReflexionMode,
+    ReflexionStats,
+    get_multi_agent_reflexion,
+    reset_multi_agent_reflexion,
+)
+
 __all__ = [
     # Enums
     "HiveMindState",
@@ -191,4 +202,13 @@ __all__ = [
     "AuditStats",
     "get_phase_audit_logger",
     "reset_phase_audit_logger",
+
+    # V12.4 COGNITIVE BOOST: Multi-Agent Reflexion (arxiv:2512.20845)
+    "MultiAgentReflexion",
+    "AgentReflection",
+    "ReflexionSynthesis",
+    "ReflexionMode",
+    "ReflexionStats",
+    "get_multi_agent_reflexion",
+    "reset_multi_agent_reflexion",
 ]

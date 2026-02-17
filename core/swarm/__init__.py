@@ -181,6 +181,29 @@ from .agent_role_tracker import (
     reset_role_tracker,
 )
 
+# V12.4 COGNITIVE BOOST: Dynamic Role Assigner (arxiv:2601.17152)
+from .dynamic_role_assigner import (
+    DynamicRoleAssigner,
+    CapabilityProposal,
+    RoleScore,
+    RoleAssignmentResult,
+    RoleType,
+    AssignerStats,
+    get_dynamic_role_assigner,
+    reset_dynamic_role_assigner,
+)
+
+# V12.4 COGNITIVE BOOST: Scaling Heuristics (arxiv:2512.08296)
+from .scaling_heuristics import (
+    ScalingHeuristicEvaluator,
+    ScalingRecommendation,
+    CoordinationType,
+    TaskCharacteristic,
+    ScalingStats,
+    get_scaling_heuristics,
+    reset_scaling_heuristics,
+)
+
 __all__ = [
     # Agent Metrics
     "AgentInvocationResult",
@@ -304,4 +327,23 @@ __all__ = [
     "RoleTrackerStats",
     "get_role_tracker",
     "reset_role_tracker",
+
+    # V12.4 COGNITIVE BOOST: Dynamic Role Assigner (arxiv:2601.17152)
+    "DynamicRoleAssigner",
+    "CapabilityProposal",
+    "RoleScore",
+    "RoleAssignmentResult",
+    "RoleType",
+    "AssignerStats",
+    "get_dynamic_role_assigner",
+    "reset_dynamic_role_assigner",
+
+    # V12.4 COGNITIVE BOOST: Scaling Heuristics (arxiv:2512.08296)
+    "ScalingHeuristicEvaluator",
+    "ScalingRecommendation",
+    "CoordinationType",
+    "TaskCharacteristic",
+    "ScalingStats",
+    "get_scaling_heuristics",
+    "reset_scaling_heuristics",
 ]

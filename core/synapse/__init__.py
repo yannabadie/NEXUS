@@ -45,3 +45,15 @@ from .message_reliability_tracker import (
     get_message_tracker,
     reset_message_tracker,
 )
+
+# V12.4 COGNITIVE BOOST: AgentDiet Trajectory Pruner (arxiv:2509.23586)
+from .trajectory_pruner import (
+    TrajectoryPruner,
+    TrajectoryMessage,
+    PruneResult,
+    PruneReason,
+    PruneDecision,
+    PrunerStats,
+    get_trajectory_pruner,
+    reset_trajectory_pruner,
+)

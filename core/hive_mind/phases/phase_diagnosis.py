@@ -353,6 +353,33 @@ class FailureDiagnosisPhase:
         except Exception:
             pass
 
+        # V12.4: MultiAgentReflexion - cross-agent reflection to break degeneration loops (arxiv:2512.20845)
+        try:
+            from core.hive_mind.multi_agent_reflexion import get_multi_agent_reflexion
+            _mar = get_multi_agent_reflexion()
+            _reflections = []
+            if gemini_result:
+                _reflections.append(_mar.create_reflection("gemini", gemini_result, failure_context=task[:200]))
+            if claude_result:
+                _reflections.append(_mar.create_reflection("claude", claude_result, failure_context=task[:200]))
+            if len(_reflections) >= 2:
+                _synthesis = _mar.synthesize(
+                    reflections=_reflections,
+                    failure_context=task[:200],
+                    attempt_number=getattr(self, '_retry_count', 1),
+                )
+                if _synthesis.degeneration_detected:
+                    diagnosis.contributing_factors.append(
+                        f"MAR: Degeneration-of-thought detected (agreement={_synthesis.agreement_level:.0%}). "
+                        f"Anti-degeneration strategy: {_synthesis.proposed_strategy[:150]}"
+                    )
+                if _synthesis.diverse_insights:
+                    diagnosis.contributing_factors.append(
+                        f"MAR diverse insights: {'; '.join(_synthesis.diverse_insights[:3])}"
+                    )
+        except Exception:
+            pass
+
         # V12.4: SystemHealth check - enrich diagnosis with system-level context
         try:
             from core.resilience.system_health import get_system_health
