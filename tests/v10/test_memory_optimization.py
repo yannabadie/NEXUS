@@ -205,7 +205,7 @@ class TestMemorySingletonMigration:
     def test_success_memory_has_prism_pattern(self):
         """SuccessMemory.get_success_memory includes PRISM pattern."""
         import inspect
-        from core.memory.success_memory import get_success_memory
+        from core.memory import get_success_memory  # V2 via backward compat alias
 
         source = inspect.getsource(get_success_memory)
 
