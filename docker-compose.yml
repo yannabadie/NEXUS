@@ -1,16 +1,20 @@
 # NEXUS V12.4 COGNITIVE BOOST - Docker Compose
 #
 # Services:
-#   redis      - Event bus, FSM event store, workflow registry
-#   nexus      - NEXUS backend (headless mode, SDK drivers)
-#   cerebro    - CEREBRO WebSocket API (optional)
+#   redis          - Event bus, FSM event store, workflow registry
+#   nexus          - NEXUS backend (headless mode, SDK drivers)
+#   cerebro        - CEREBRO WebSocket API (optional, profile: api)
+#   otel-collector - OpenTelemetry Collector (optional, profile: observability)
+#   jaeger         - Jaeger tracing UI (optional, profile: observability)
 #
 # Usage:
-#   docker compose up -d redis           # Redis only (local dev)
-#   docker compose up -d                 # Full stack
-#   docker compose --profile api up -d   # Include CEREBRO API
-#   docker compose logs -f nexus         # Watch NEXUS logs
-#   docker compose down                  # Stop all
+#   docker compose up -d redis                    # Redis only (local dev)
+#   docker compose up -d                          # Full stack (no observability)
+#   docker compose --profile api up -d            # Include CEREBRO API
+#   docker compose --profile observability up -d  # Include OTel + Jaeger
+#   docker compose --profile api --profile observability up -d  # Full stack
+#   docker compose logs -f nexus                  # Watch NEXUS logs
+#   docker compose down                           # Stop all
 
 services:
   # ===========================================================================
@@ -65,6 +69,12 @@ services:
       # Feature flags
       - NEXUS_FF_HEADLESS_MODE=true
       - NEXUS_FF_TELEMETRY_JSONL=true
+      # OpenTelemetry (Epic 4.3)
+      - NEXUS_FF_OTEL_ENABLED=${NEXUS_FF_OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      - OTEL_SERVICE_NAME=nexus-backend
+      - OTEL_SERVICE_VERSION=12.4.0
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=${NEXUS_ENV:-development}
     volumes:
       - nexus_workspace:/app/workspace
     restart: unless-stopped
@@ -100,6 +110,61 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
+  # ===========================================================================
+  # OpenTelemetry Collector (Epic 4.3)
+  # ===========================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: nexus-otel-collector
+    profiles:
+      - observability
+    command: ["--config", "/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "13133:13133" # Health check
+      - "55679:55679" # zpages
+    environment:
+      - NEXUS_ENV=${NEXUS_ENV:-development}
+    depends_on:
+      - jaeger
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
+  # ===========================================================================
+  # Jaeger: Distributed Tracing UI (Epic 4.3)
+  # ===========================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: nexus-jaeger
+    profiles:
+      - observability
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14268:14268" # Accept spans directly (HTTP)
+      - "14250:14250" # Accept spans (gRPC)
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269"]
+      interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
