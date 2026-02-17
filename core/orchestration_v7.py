@@ -38,7 +38,8 @@ from core.telemetry import TelemetryCollector, BudgetExceededError
 from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
-from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge, FSMHandlers  # V7.8 Phase 14c.2
+from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge  # V7.8 Phase 14c.2
+from core.fsm.handlers import FSMHandlers  # V12.4 P1.3: Modular handlers
 from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
 from core.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
 from pydantic import ValidationError
