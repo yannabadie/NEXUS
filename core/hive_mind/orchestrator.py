@@ -253,11 +253,13 @@ class TrueHiveMind:
     def _init_phases(self):
         """Initialize all 7 phases."""
         # Phase 1: Independent Analysis
+        # V12.4.1 Epic 1.4: Pass workspace_path for V2 memory access
         self.phase_analysis = IndependentAnalysisPhase(
             gemini_driver=self.gemini,
             claude_driver=self.claude,
             cost_estimator=self.cost_estimator,
-            context_manager=self.context_manager
+            context_manager=self.context_manager,
+            workspace_path=self.workspace_path
         )
 
         # Phase 2: Strategic Debate

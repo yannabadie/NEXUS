@@ -24,6 +24,7 @@ Key Innovation:
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Optional, Callable, Awaitable, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
 
@@ -83,7 +84,8 @@ class IndependentAnalysisPhase:
         cost_estimator: CostEstimator,
         context_manager: HiveMindContextManager,
         task_id: Optional[str] = None,
-        session_manager: Optional["SwarmSessionManager"] = None
+        session_manager: Optional["SwarmSessionManager"] = None,
+        workspace_path: Optional["Path"] = None  # V12.4.1 Epic 1.4: For V2 memory access
     ):
         """
         Initialize Phase 1.
@@ -95,6 +97,7 @@ class IndependentAnalysisPhase:
             context_manager: Context manager for state
             task_id: V9.2 - Unique task identifier for session isolation
             session_manager: V9.2 - Optional session manager for persistence
+            workspace_path: V12.4.1 - Workspace path for V2 memory access
         """
         self.gemini = gemini_driver
         self.claude = claude_driver
@@ -105,6 +108,9 @@ class IndependentAnalysisPhase:
         self._task_id = task_id or generate_hivemind_task_id("analysis")
         self._session_manager = session_manager
         self._session_integration: Optional[HiveMindSessionIntegration] = None
+
+        # V12.4.1 Epic 1.4: Workspace path for V2 memory
+        self._workspace_path = workspace_path
 
     async def execute(self, task: str) -> AnalysisPhaseResult:
         """
@@ -161,11 +167,20 @@ class IndependentAnalysisPhase:
         except Exception as e:
             logger.debug(f"Principle retrieval failed: {e}")
 
+        # V12.4.1 Epic 1.4: Retrieve semantic memories (successes & blacklist)
+        memory_context = ""
+        try:
+            memory_context = await self._retrieve_memory_context(task)
+        except Exception as e:
+            logger.debug(f"Memory retrieval failed: {e}")
+
         # V12.4.1 OPTIMIZATION: Build dynamic user prompt (static system prompt handled in methods)
-        # Only task + principles go in user prompt → enables SDK caching of system prompt
+        # Only task + principles + memories go in user prompt → enables SDK caching of system prompt
         user_prompt = f"TASK: {task}"
         if principles_context:
             user_prompt += f"\n\nRELEVANT PRINCIPLES:\n{principles_context}"
+        if memory_context:
+            user_prompt += f"\n\n{memory_context}"
 
         # Run analyses in parallel with isolated sessions
         gemini_task = self._analyze_with_gemini(user_prompt, parallel_sessions.get("gemini"))
@@ -714,6 +729,114 @@ class IndependentAnalysisPhase:
             "primary_agent": primary.agent_id,
             "needs_debate": result.needs_debate
         }
+
+    async def _retrieve_memory_context(self, task: str) -> str:
+        """
+        Retrieve semantic memory context from V2 memories.
+
+        V12.4.1 Epic 1.4: Query SuccessMemoryV2 and StrategyBlacklistV2
+        for historical context to improve analysis quality.
+
+        Args:
+            task: Task description to query against
+
+        Returns:
+            Formatted memory context string for injection into prompt
+        """
+        context_parts = []
+
+        try:
+            # Import V2 memories
+            from core.memory import (
+                SuccessMemoryV2,
+                StrategyBlacklistV2,
+            )
+
+            # Get workspace path (injected in __init__ or fallback to default)
+            workspace_path = self._workspace_path
+            if workspace_path is None:
+                # Fallback: try to infer from current working directory
+                workspace_path = Path.cwd() / "workspace"
+                logger.debug(f"Using fallback workspace_path: {workspace_path}")
+
+            # Initialize V2 memories (lazy-loaded, auto-migration)
+            success_memory = SuccessMemoryV2(workspace_path)
+            blacklist = StrategyBlacklistV2(workspace_path)
+
+            # 1. Check blacklist FIRST (anti-circular retry prevention)
+            is_blacklisted, block_reason = blacklist.is_blacklisted(task)
+
+            if is_blacklisted:
+                context_parts.append("⚠️  BLACKLIST WARNING")
+                context_parts.append("=" * 60)
+                context_parts.append(block_reason)
+                context_parts.append("")
+
+                # Suggest alternatives
+                alternatives = blacklist.suggest_alternatives(task, limit=3)
+                if alternatives:
+                    context_parts.append("💡 Suggested Alternatives:")
+                    for alt in alternatives:
+                        context_parts.append(f"  • {alt}")
+                    context_parts.append("")
+
+                logger.warning(f"Phase 1: Task matches blacklisted strategy (semantic similarity)")
+
+            # 2. Retrieve similar past successes (even if blacklisted, for comparison)
+            similar_successes = success_memory.find_similar_tasks(
+                task,
+                limit=3,
+                min_score=0.2  # Lower threshold for informational purposes
+            )
+
+            if similar_successes:
+                context_parts.append("📚 SIMILAR PAST SUCCESSES")
+                context_parts.append("=" * 60)
+
+                for i, (entry, similarity) in enumerate(similar_successes, 1):
+                    context_parts.append(
+                        f"{i}. {entry.description} (similarity: {similarity:.2f})"
+                    )
+                    context_parts.append(f"   Mode: {entry.swarm_mode}")
+                    context_parts.append(f"   Complexity: {entry.complexity}")
+                    context_parts.append(f"   Quality: {entry.quality_score:.2f}/1.00")
+                    context_parts.append(f"   Duration: {entry.duration_seconds:.1f}s")
+                    if entry.domains:
+                        context_parts.append(f"   Domains: {', '.join(entry.domains)}")
+                    context_parts.append("")
+
+                logger.info(f"Phase 1: Injected {len(similar_successes)} similar past successes")
+
+            # 3. Get best mode recommendation based on memory
+            best_mode_result = success_memory.get_best_mode_for_similar(
+                task,
+                min_similarity=0.2
+            )
+
+            if best_mode_result:
+                mode, task_id, score = best_mode_result
+                context_parts.append("💭 MEMORY-BASED RECOMMENDATION")
+                context_parts.append("=" * 60)
+                context_parts.append(
+                    f"Based on similar past successes, consider using '{mode}' mode "
+                    f"(confidence: {score:.0%})"
+                )
+                context_parts.append("")
+
+                logger.info(f"Phase 1: Memory recommends mode={mode} (confidence={score:.0%})")
+
+            # Return formatted context
+            if context_parts:
+                return "HISTORICAL MEMORY CONTEXT:\n" + "\n".join(context_parts)
+            else:
+                return ""
+
+        except ImportError as e:
+            logger.debug(f"V2 memory modules not available: {e}")
+            return ""
+        except Exception as e:
+            logger.warning(f"Memory retrieval failed: {e}", exc_info=True)
+            return ""
 
     # V9.2: Session accessors for subsequent phases
     @property
