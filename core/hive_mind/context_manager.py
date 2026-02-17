@@ -476,6 +476,48 @@ Timestamp: {insight['timestamp']}
 
     # State management
 
+    def compress_with_afm(self, target_budget: Optional[int] = None) -> Dict:
+        """
+        Compress context using Adaptive Focus Memory (arxiv:2511.12712).
+
+        Uses 3-tier fidelity (FULL/COMPRESSED/PLACEHOLDER) to reduce
+        context size while preserving high-importance items verbatim.
+
+        Args:
+            target_budget: Target token budget (default: 60% of max)
+
+        Returns:
+            Dict with compression stats
+        """
+        try:
+            from core.memory.adaptive_focus import AdaptiveFocusManager
+            budget = target_budget or int(self.max_tokens * 0.6)
+            afm = AdaptiveFocusManager(token_budget=budget)
+
+            # Feed context items into AFM
+            with self._lock:
+                items = list(self._items)
+
+            for item in items:
+                afm.add_item(
+                    content=item.content,
+                    role=item.source,
+                    importance=item.priority.value / 3.0,  # Normalize 1-3 to ~0.33-1.0
+                    pinned=item.priority == ContextPriority.CRITICAL,
+                )
+
+            result = afm.assign_fidelity()
+            logger.debug(
+                f"AFM compression: {result.total_tokens_before} -> {result.total_tokens_after} tokens "
+                f"({result.compression_ratio:.0%} reduction, "
+                f"{result.items_full} full / {result.items_compressed} compressed / "
+                f"{result.items_placeholder} placeholder)"
+            )
+            return result.to_dict()
+        except Exception as e:
+            logger.debug(f"AFM compression failed: {e}")
+            return {"error": str(e)}
+
     def clear(self, keep_critical: bool = True):
         """
         Clear context.

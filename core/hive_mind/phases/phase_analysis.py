@@ -283,6 +283,23 @@ class IndependentAnalysisPhase:
         except Exception as e:
             logger.debug(f"ConsensusTracker recording failed: {e}")
 
+        # V12.4: Multi-dimensional evaluation of analysis quality (CRM, arxiv:2511.16202)
+        try:
+            from core.reasoning.evaluation_panel import get_evaluation_panel
+            eval_panel = get_evaluation_panel()
+            for agent_id, analysis in [("gemini", gemini_analysis), ("claude", claude_analysis)]:
+                panel_result = eval_panel.evaluate(
+                    output=analysis.proposed_approach[:500],
+                    context=task[:200],
+                )
+                logger.debug(
+                    f"Phase 1: {agent_id} analysis quality: "
+                    f"composite={panel_result.composite_score:.2f}, "
+                    f"weakest={panel_result.weakest_dimension.value}"
+                )
+        except Exception as e:
+            logger.debug(f"EvaluationPanel scoring failed: {e}")
+
         # Compare analyses
         comparison = self._compare_analyses(gemini_analysis, claude_analysis)
 
