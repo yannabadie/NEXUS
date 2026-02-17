@@ -52,6 +52,9 @@ from .confidence_monitor import StepwiseConfidenceMonitor
 # V12.4: Phase audit logging for decision tracking
 from .phase_audit_logger import get_phase_audit_logger
 
+# V12.4: Phase budget allocation (TALE, arxiv:2412.18547)
+from .budget_allocator import PhaseBudgetAllocator
+
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
@@ -193,6 +196,11 @@ class TrueHiveMind:
 
         # V12.4: Stepwise confidence monitor
         self.confidence_monitor = StepwiseConfidenceMonitor()
+
+        # V12.4: Phase budget allocator (TALE-inspired dynamic budgeting)
+        self.budget_allocator = PhaseBudgetAllocator(
+            total_budget=budget_limit,
+        )
 
         # Initialize phases
         self._init_phases()
@@ -348,6 +356,20 @@ class TrueHiveMind:
             self.context_manager.clear(keep_critical=False)
             self.confidence_monitor.reset()
 
+            # V12.4: Reset echo chamber guard for new task
+            try:
+                from .echo_chamber_guard import get_echo_chamber_guard
+                get_echo_chamber_guard().reset()
+            except Exception:
+                pass
+
+            # V12.4: Allocate phase budgets based on complexity
+            self.budget_allocator.reset()
+            phase_budgets = self.budget_allocator.allocate(
+                complexity.value if hasattr(complexity, 'value') else str(complexity)
+            )
+            logger.info(f"[HiveMind] Phase budgets allocated: execution={phase_budgets.get('execution', 0)}")
+
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
                 from core.swarm import generate_task_id
@@ -410,6 +432,9 @@ class TrueHiveMind:
                 analysis_result.comparison.agreement_score,
                 needs_debate=analysis_result.needs_debate,
             )
+
+            # V12.4: Report actual analysis cost to budget allocator
+            self.budget_allocator.report_actual("analysis", self.cost_estimator.spent)
 
             # V12.4: Audit log analysis decision
             _audit = get_phase_audit_logger()
@@ -493,6 +518,9 @@ class TrueHiveMind:
                 was_skipped=debate_result.was_skipped,
             )
 
+            # V12.4: Report actual debate cost to budget allocator
+            self.budget_allocator.report_actual("debate", self.cost_estimator.spent)
+
             # V12.4: Audit log debate decision
             _audit.record_decision(
                 session_id=task_id or "unknown",
@@ -540,6 +568,9 @@ class TrueHiveMind:
                 arch_confidence,
                 agents_spawned=len(agents_spawned),
             )
+
+            # V12.4: Report actual architecture cost to budget allocator
+            self.budget_allocator.report_actual("architecture", self.cost_estimator.spent)
 
             # V12.4: Audit log architecture decision
             _audit.record_decision(
@@ -731,6 +762,15 @@ class TrueHiveMind:
                 agents_spawned=agents_spawned
             )
             phases_completed.append("consolidation")
+
+            # V12.4: Report consolidation cost and log budget summary
+            self.budget_allocator.report_actual("consolidation", self.cost_estimator.spent)
+            budget_stats = self.budget_allocator.get_stats()
+            logger.info(
+                f"[HiveMind] Budget: spent={budget_stats['total_spent']}, "
+                f"redistributed={budget_stats['redistributed']}, "
+                f"utilization={budget_stats['utilization']:.1%}"
+            )
 
             # V12.4: Record consolidation confidence and log trajectory
             self.confidence_monitor.record(

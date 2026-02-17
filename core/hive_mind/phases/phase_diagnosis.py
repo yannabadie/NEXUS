@@ -249,6 +249,27 @@ class FailureDiagnosisPhase:
             claude_diagnosis=claude_result
         )
 
+        # V12.4: Multi-persona analysis (MAR, arxiv:2512.20845)
+        try:
+            from ..persona_diagnosis import get_persona_diagnoser
+            persona_diagnoser = get_persona_diagnoser()
+            persona_result = persona_diagnoser.analyze(
+                failure_context=f"Task: {task[:100]}. Failure step: {failure_step}. Issues: {issues_text[:200]}",
+                gemini_diagnosis=str(gemini_result)[:500],
+                claude_diagnosis=str(claude_result)[:500],
+                failure_type=diagnosis.failure_type.value if hasattr(diagnosis.failure_type, 'value') else str(diagnosis.failure_type),
+            )
+            # Enrich diagnosis with persona insights
+            unique_insights = persona_result.get_unique_insights()
+            if unique_insights:
+                diagnosis.contributing_factors.extend(unique_insights[:3])
+                logger.info(
+                    f"Phase 5: Multi-persona added {len(unique_insights)} unique insights "
+                    f"(consensus: {persona_result.consensus_level:.0%})"
+                )
+        except Exception as e:
+            logger.debug(f"Multi-persona analysis failed: {e}")
+
         # Add to context
         self.context_manager.add_diagnosis("gemini", gemini_result)
         self.context_manager.add_diagnosis("claude", claude_result)

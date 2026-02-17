@@ -365,6 +365,7 @@ class ArchitectureGenerationPhase:
                 if user_response.chosen_option == "spawn_all":
                     # Spawn all agents
                     spawned = await self._spawn_agents(architecture.agents_to_spawn)
+                    self._annotate_with_graph_of_thought(architecture)
                     return ArchitecturePhaseResult(
                         architecture=architecture,
                         agents_spawned=spawned,
@@ -403,6 +404,10 @@ class ArchitectureGenerationPhase:
 
         # No spawning needed
         logger.info("No spawning required - using existing agents")
+
+        # V12.4: Analyze execution plan with GraphOfThought for DAG insights
+        self._annotate_with_graph_of_thought(architecture)
+
         return ArchitecturePhaseResult(
             architecture=architecture,
             agents_spawned=[],
@@ -837,6 +842,75 @@ class ArchitectureGenerationPhase:
                 logger.error(f"Failed to spawn {spec.role}: {e}")
 
         return spawned
+
+    def _annotate_with_graph_of_thought(self, architecture: AgentArchitecture) -> None:
+        """
+        V12.4: Analyze execution plan with GraphOfThought.
+
+        Builds a DAG from execution steps, identifies parallelizable groups,
+        and annotates the architecture with:
+        - Critical path length
+        - Parallel execution opportunities
+        - Topological execution order
+        """
+        try:
+            from core.reasoning.graph_of_thought import ThoughtGraph, ThoughtNode, ThoughtType
+
+            steps = architecture.execution_plan.steps
+            if not steps:
+                return
+
+            graph = ThoughtGraph(name="execution_plan_analysis")
+
+            # Build name-to-ID mapping
+            step_node_ids: Dict[str, str] = {}
+
+            for step in steps:
+                deps = []
+                for dep_name in (step.depends_on or []):
+                    if dep_name in step_node_ids:
+                        deps.append(step_node_ids[dep_name])
+
+                node = graph.create_node(
+                    question=step.action[:100] if step.action else step.name,
+                    name=step.name,
+                    thought_type=ThoughtType.ANALYZE,
+                    dependencies=deps,
+                )
+                step_node_ids[step.name] = node.id
+
+            # Get execution order and identify parallelizable groups
+            exec_order = graph.get_execution_order()
+            root_nodes = graph.root_nodes
+            leaf_nodes = graph.leaf_nodes
+
+            # Identify parallel groups: nodes at the same depth with no mutual deps
+            depth_groups: Dict[int, List[str]] = {}
+            for nid in exec_order:
+                depth = graph._get_depth(nid)
+                depth_groups.setdefault(depth, []).append(nid)
+
+            parallel_opportunities = sum(
+                1 for group in depth_groups.values() if len(group) > 1
+            )
+
+            # Annotate architecture reasoning with DAG analysis
+            dag_info = (
+                f" [GoT DAG: {len(steps)} nodes, "
+                f"{len(root_nodes)} roots, {len(leaf_nodes)} leaves, "
+                f"{parallel_opportunities} parallel opportunities, "
+                f"depth={len(depth_groups)}]"
+            )
+            architecture.reasoning = (architecture.reasoning or "") + dag_info
+
+            logger.info(
+                f"Phase 3: GoT analysis - {len(steps)} steps, "
+                f"{parallel_opportunities} parallelizable groups, "
+                f"critical path depth={len(depth_groups)}"
+            )
+
+        except Exception as e:
+            logger.debug(f"GraphOfThought annotation failed: {e}")
 
     def get_execution_ready_architecture(
         self,

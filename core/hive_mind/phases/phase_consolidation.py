@@ -335,6 +335,33 @@ class KnowledgeConsolidationPhase:
         except Exception as e:
             logger.debug(f"Skill crystallization failed: {e}")
 
+        # V12.4: Extract principles for EvolveR library (arxiv:2510.16079)
+        try:
+            from ..principle_library import get_principle_library
+            library = get_principle_library()
+            # Extract principles from learned patterns
+            for pattern in consolidation.learned_patterns:
+                library.add_principle(
+                    text=pattern,
+                    tags=["pattern", "hive_mind"],
+                    source_task=task[:100],
+                )
+            # Extract anti-principles from antipatterns
+            for antipattern in consolidation.learned_antipatterns:
+                p = library.add_principle(
+                    text=f"AVOID: {antipattern}",
+                    tags=["antipattern", "hive_mind"],
+                    source_task=task[:100],
+                )
+                # Anti-patterns start with a failure recorded
+                p.record_usage(success=False)
+            logger.info(
+                f"Phase 7: Extracted {len(consolidation.learned_patterns)} principles, "
+                f"{len(consolidation.learned_antipatterns)} anti-principles to library"
+            )
+        except Exception as e:
+            logger.debug(f"Principle extraction failed: {e}")
+
         return ConsolidationPhaseResult(
             consolidation=consolidation,
             gemini_reflection=gemini_result,

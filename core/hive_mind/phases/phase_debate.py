@@ -419,6 +419,25 @@ class StrategicDebatePhase:
             except Exception:
                 pass  # Non-blocking
 
+            # V12.4: EchoChamberGuard - detect sycophantic patterns (arxiv:2509.05396)
+            try:
+                from ..echo_chamber_guard import get_echo_chamber_guard, GuardActionType
+                guard = get_echo_chamber_guard()
+                guard_action = guard.check_turn(
+                    agent_id=current_speaker,
+                    position=argument.position,
+                    evidence=argument.evidence or [],
+                    turn_number=turn_number,
+                )
+                if guard_action.action_type == GuardActionType.FLAG_SYCOPHANCY:
+                    logger.warning(f"Phase 2: Sycophantic flip detected - {guard_action.reason}")
+                elif guard_action.action_type == GuardActionType.FORCE_DEVIL_ADVOCATE:
+                    logger.info(f"Phase 2: Devil's advocate forced - {guard_action.reason}")
+                elif guard_action.action_type == GuardActionType.INJECT_INDEPENDENCE:
+                    logger.debug(f"Phase 2: Independence checkpoint at turn {turn_number}")
+            except Exception:
+                pass  # Non-blocking
+
             # V13.0 CEREBRO LIVE: Emit debate exchange
             next_speaker = registry.get_alternate(current_speaker) or "user"
             emit_agent_speak(

@@ -169,8 +169,23 @@ class IndependentAnalysisPhase:
         )
         logger.debug(f"Created isolated sessions: {parallel_sessions}")
 
+        # V12.4: Retrieve relevant principles from EvolveR library (arxiv:2510.16079)
+        principles_context = ""
+        try:
+            from ..principle_library import get_principle_library
+            library = get_principle_library()
+            # Derive tags from task keywords
+            task_words = task.lower().split()
+            task_tags = [w for w in task_words if len(w) > 4][:5]
+            principles_context = library.format_for_prompt(tags=task_tags, top_k=3)
+            if principles_context:
+                logger.info(f"Phase 1: Injecting {len(library.retrieve(tags=task_tags, top_k=3))} principles into analysis")
+        except Exception as e:
+            logger.debug(f"Principle retrieval failed: {e}")
+
         # Run analyses in parallel with isolated sessions
-        prompt = ANALYSIS_PROMPT.format(task=task)
+        base_prompt = ANALYSIS_PROMPT.format(task=task)
+        prompt = f"{base_prompt}\n\n{principles_context}" if principles_context else base_prompt
 
         gemini_task = self._analyze_with_gemini(prompt, parallel_sessions.get("gemini"))
         claude_task = self._analyze_with_claude(prompt, parallel_sessions.get("claude"))
