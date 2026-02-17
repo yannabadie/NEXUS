@@ -33,6 +33,12 @@ workspace_archive.tar.gz
 data/
 workspace_registry.json
 
+# Temporary analysis files
+repomix-output.xml
+repomix-output.txt
+prompt.txt
+test_run_output.txt
+
 # Node.js (for Playwright/UI tests)
 node_modules/
 package-lock.json
