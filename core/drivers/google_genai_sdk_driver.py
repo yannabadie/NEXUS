@@ -245,6 +245,279 @@ class GoogleGenAISDKDriver(BaseAsyncDriver):
                 error_code=error_code,
             )
 
+    async def invoke_structured(
+        self,
+        prompt: str,
+        output_type: type,
+        *,
+        system_prompt: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> DriverResponse:
+        """
+        Invoke Gemini with structured output using Pydantic model validation.
+
+        Uses the Google GenAI SDK's responseSchema parameter for guaranteed
+        schema-conformant responses. The parsed Pydantic model instance is
+        accessible via response.raw["parsed"].
+
+        Args:
+            prompt: User message content
+            output_type: Pydantic BaseModel class defining the output schema
+            system_prompt: Optional system instruction
+            timeout: Override default timeout
+            **kwargs: Extra params (temperature, top_p, etc.)
+
+        Returns:
+            DriverResponse with:
+                - content: JSON string of the structured output
+                - raw["parsed"]: The parsed Pydantic model instance
+                - raw["output_type"]: The output type class name
+        """
+        import json
+        start_time = time.monotonic()
+        effective_timeout = timeout or self._timeout
+
+        try:
+            # Build config with responseSchema
+            config = self._build_config(system_prompt, tools=None, **kwargs)
+
+            # Add Pydantic schema
+            config.response_mime_type = "application/json"
+            config.response_schema = output_type
+
+            # OTel span wraps the API call
+            agent_name = kwargs.pop("agent_name", "")
+            agent_id = kwargs.pop("agent_id", "")
+            with trace_llm_call(
+                self._provider, self._model, "chat.structured",
+                agent_name=agent_name, agent_id=agent_id,
+            ) as span:
+                # Run in executor
+                response = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self._client.models.generate_content(
+                            model=self._model,
+                            contents=prompt,
+                            config=config,
+                        ),
+                    ),
+                    timeout=effective_timeout,
+                )
+
+                latency_ms = (time.monotonic() - start_time) * 1000
+
+                # Extract JSON content
+                content = response.text or ""
+
+                # Parse Pydantic model from JSON
+                parsed = None
+                try:
+                    parsed = output_type.model_validate_json(content)
+                except Exception as e:
+                    logger.warning(f"Failed to parse structured output: {e}")
+                    # Gemini should guarantee valid JSON, but handle gracefully
+
+                # Extract token usage
+                input_tokens = 0
+                output_tokens = 0
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    meta = response.usage_metadata
+                    input_tokens = getattr(meta, "prompt_token_count", 0) or 0
+                    output_tokens = getattr(meta, "candidates_token_count", 0) or 0
+
+                # OTel: record token usage
+                span.set_attribute("gen_ai.usage.input_tokens", input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", output_tokens)
+                span.set_attribute("gen_ai.response.model", self._model)
+
+            # Auto-track cost
+            if self._budget_tracker:
+                self._budget_tracker.track_cost(
+                    self._model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+
+            # Record health
+            driver_id = f"{self._provider}/{self._model}"
+            if self._health_monitor:
+                total_tokens = input_tokens + output_tokens
+                self._health_monitor.record_success(
+                    driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                )
+
+            return DriverResponse(
+                content=content,
+                status=DriverResponseStatus.SUCCESS,
+                model=self._model,
+                provider=self._provider,
+                latency_ms=latency_ms,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                raw={
+                    "parsed": parsed,
+                    "output_type": output_type.__name__,
+                },
+                timestamp=datetime.now(timezone.utc),
+            )
+
+        except asyncio.TimeoutError:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            return DriverResponse(
+                content="",
+                status=DriverResponseStatus.TIMEOUT,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=f"Structured output timed out after {effective_timeout}s",
+                error_code="TIMEOUT",
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            status, error_code = self._classify_error(e)
+            return DriverResponse(
+                content="",
+                status=status,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=str(e),
+                error_code=error_code,
+            )
+
+    async def invoke_json_schema(
+        self,
+        prompt: str,
+        json_schema: Dict[str, Any],
+        *,
+        system_prompt: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs: Any,
+    ) -> DriverResponse:
+        """
+        Invoke Gemini with a raw JSON schema for structured output.
+
+        Uses responseJsonSchema parameter for when you have a JSON schema dict
+        rather than a Pydantic model. The response content is guaranteed-valid
+        JSON matching your schema.
+
+        Args:
+            prompt: User message content
+            json_schema: JSON Schema dict defining the output structure
+            system_prompt: Optional system instruction
+            timeout: Override default timeout
+            **kwargs: Extra params (temperature, top_p, etc.)
+
+        Returns:
+            DriverResponse with content as valid JSON string
+        """
+        start_time = time.monotonic()
+        effective_timeout = timeout or self._timeout
+
+        try:
+            # Build config with responseJsonSchema
+            config = self._build_config(system_prompt, tools=None, **kwargs)
+
+            # Add JSON schema
+            config.response_mime_type = "application/json"
+            config.response_json_schema = json_schema
+
+            # OTel span wraps the API call
+            agent_name = kwargs.pop("agent_name", "")
+            agent_id = kwargs.pop("agent_id", "")
+            with trace_llm_call(
+                self._provider, self._model, "chat.json_schema",
+                agent_name=agent_name, agent_id=agent_id,
+            ) as span:
+                # Run in executor
+                response = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: self._client.models.generate_content(
+                            model=self._model,
+                            contents=prompt,
+                            config=config,
+                        ),
+                    ),
+                    timeout=effective_timeout,
+                )
+
+                latency_ms = (time.monotonic() - start_time) * 1000
+
+                # Extract JSON content
+                content = response.text or ""
+
+                # Extract token usage
+                input_tokens = 0
+                output_tokens = 0
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    meta = response.usage_metadata
+                    input_tokens = getattr(meta, "prompt_token_count", 0) or 0
+                    output_tokens = getattr(meta, "candidates_token_count", 0) or 0
+
+                # OTel: record token usage
+                span.set_attribute("gen_ai.usage.input_tokens", input_tokens)
+                span.set_attribute("gen_ai.usage.output_tokens", output_tokens)
+                span.set_attribute("gen_ai.response.model", self._model)
+
+            # Auto-track cost
+            if self._budget_tracker:
+                self._budget_tracker.track_cost(
+                    self._model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+
+            # Record health
+            driver_id = f"{self._provider}/{self._model}"
+            if self._health_monitor:
+                total_tokens = input_tokens + output_tokens
+                self._health_monitor.record_success(
+                    driver_id, latency_ms=latency_ms, tokens=total_tokens,
+                )
+
+            return DriverResponse(
+                content=content,
+                status=DriverResponseStatus.SUCCESS,
+                model=self._model,
+                provider=self._provider,
+                latency_ms=latency_ms,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                raw={"json_schema_provided": True},
+                timestamp=datetime.now(timezone.utc),
+            )
+
+        except asyncio.TimeoutError:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            return DriverResponse(
+                content="",
+                status=DriverResponseStatus.TIMEOUT,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=f"JSON schema output timed out after {effective_timeout}s",
+                error_code="TIMEOUT",
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            status, error_code = self._classify_error(e)
+            return DriverResponse(
+                content="",
+                status=status,
+                provider=self._provider,
+                model=self._model,
+                latency_ms=latency_ms,
+                error_message=str(e),
+                error_code=error_code,
+            )
+
     async def invoke_stream(
         self,
         prompt: str,

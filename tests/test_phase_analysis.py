@@ -4,7 +4,7 @@ Tests for NEXUS V9.2 Phase 1: Independent Analysis
 
 Covers:
 - AnalysisPhaseResult dataclass
-- ANALYSIS_PROMPT template
+- ANALYSIS_SYSTEM_PROMPT template
 - IndependentAnalysisPhase: parsing, comparison, similarity, debate decisions
 - Driver error handling (one fails, both fail)
 - Cost estimation and budget checks
@@ -37,10 +37,10 @@ from core.hive_mind.types import (
     IndependentAnalysis,
 )
 from core.hive_mind.phases.phase_analysis import (
-    ANALYSIS_PROMPT,
     AnalysisPhaseResult,
     IndependentAnalysisPhase,
 )
+from core.hive_mind.prompts import ANALYSIS_SYSTEM_PROMPT
 from core.hive_mind.cost_estimator import CostEstimator
 from core.hive_mind.context_manager import HiveMindContextManager
 
@@ -185,36 +185,36 @@ class TestAnalysisPhaseResult:
 
 
 # ============================================================================
-# 2. ANALYSIS_PROMPT template tests
+# 2. ANALYSIS_SYSTEM_PROMPT template tests
 # ============================================================================
 
 class TestAnalysisPrompt:
-    """Tests for the ANALYSIS_PROMPT template string."""
+    """Tests for the ANALYSIS_SYSTEM_PROMPT template string."""
 
     def test_prompt_contains_task_placeholder(self):
-        assert "{task}" in ANALYSIS_PROMPT
+        assert "{task}" in ANALYSIS_SYSTEM_PROMPT
 
     def test_prompt_format_with_task(self):
-        prompt = ANALYSIS_PROMPT.format(task="Build a REST API")
+        prompt = ANALYSIS_SYSTEM_PROMPT.format(task="Build a REST API")
         assert "Build a REST API" in prompt
         assert "{task}" not in prompt
 
     def test_prompt_requests_json_format(self):
-        assert "task_understanding" in ANALYSIS_PROMPT
-        assert "complexity_assessment" in ANALYSIS_PROMPT
-        assert "proposed_approach" in ANALYSIS_PROMPT
-        assert "required_capabilities" in ANALYSIS_PROMPT
-        assert "potential_risks" in ANALYSIS_PROMPT
-        assert "confidence" in ANALYSIS_PROMPT
-        assert "reasoning" in ANALYSIS_PROMPT
+        assert "task_understanding" in ANALYSIS_SYSTEM_PROMPT
+        assert "complexity_assessment" in ANALYSIS_SYSTEM_PROMPT
+        assert "proposed_approach" in ANALYSIS_SYSTEM_PROMPT
+        assert "required_capabilities" in ANALYSIS_SYSTEM_PROMPT
+        assert "potential_risks" in ANALYSIS_SYSTEM_PROMPT
+        assert "confidence" in ANALYSIS_SYSTEM_PROMPT
+        assert "reasoning" in ANALYSIS_SYSTEM_PROMPT
 
     def test_prompt_mentions_independence(self):
-        lower = ANALYSIS_PROMPT.lower()
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
         assert "independently" in lower
 
     def test_prompt_mentions_all_complexity_levels(self):
         for level in ["TRIVIAL", "MODERATE", "COMPLEX", "EXPERT"]:
-            assert level in ANALYSIS_PROMPT
+            assert level in ANALYSIS_SYSTEM_PROMPT
 
 
 # ============================================================================

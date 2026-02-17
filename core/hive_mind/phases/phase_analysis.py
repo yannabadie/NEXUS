@@ -330,10 +330,12 @@ class IndependentAnalysisPhase:
         logger.debug(f"Requesting Gemini analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # V12.4.1: Use invoke() with static system prompt (cached by SDK)
-            response = await self.gemini.invoke(
+            # V12.4.1 Epic 1.2: Use invoke_structured() with Pydantic schema
+            from ..schemas import AnalysisOutput
+
+            response = await self.gemini.invoke_structured(
                 prompt,
-                session_id=session_uuid,
+                output_type=AnalysisOutput,
                 system_prompt=ANALYSIS_SYSTEM_PROMPT,  # Static, cached
                 agent_name="gemini",
                 agent_id="gemini",
@@ -343,8 +345,27 @@ class IndependentAnalysisPhase:
             if not response.is_success:
                 raise RuntimeError(f"Gemini analysis failed: {response.error_message}")
 
-            # Parse JSON response from DriverResponse.content
-            analysis_data = self._parse_analysis_response(response.content, "gemini")
+            # Extract parsed Pydantic model (guaranteed type-safe)
+            parsed = response.raw.get("parsed")
+            if parsed is None:
+                # Fallback: parse from JSON content
+                import json
+                from ..schemas import AnalysisOutput as Schema
+                try:
+                    data = json.loads(response.content)
+                    parsed = Schema(**data)
+                except Exception:
+                    raise RuntimeError("Failed to parse structured output")
+
+            analysis_data = {
+                "task_understanding": parsed.task_understanding,
+                "complexity_assessment": parsed.complexity_assessment.value,
+                "proposed_approach": parsed.proposed_approach,
+                "required_capabilities": parsed.required_capabilities,
+                "potential_risks": parsed.potential_risks,
+                "confidence": parsed.confidence,
+                "reasoning": parsed.reasoning,
+            }
 
             # Record actual token usage (not estimates)
             if hasattr(self.cost_estimator, 'record_tokens'):
@@ -387,10 +408,12 @@ class IndependentAnalysisPhase:
         logger.debug(f"Requesting Claude analysis (session: {session_uuid[:8] if session_uuid else 'none'})")
 
         try:
-            # V12.4.1: Use invoke() with static system prompt (cached by SDK)
-            response = await self.claude.invoke(
+            # V12.4.1 Epic 1.2: Use invoke_structured() with Pydantic schema
+            from ..schemas import AnalysisOutput
+
+            response = await self.claude.invoke_structured(
                 prompt,
-                session_id=session_uuid,
+                output_type=AnalysisOutput,
                 system_prompt=ANALYSIS_SYSTEM_PROMPT,  # Static, cached
                 agent_name="claude",
                 agent_id="claude",
@@ -400,8 +423,27 @@ class IndependentAnalysisPhase:
             if not response.is_success:
                 raise RuntimeError(f"Claude analysis failed: {response.error_message}")
 
-            # Parse JSON response from DriverResponse.content
-            analysis_data = self._parse_analysis_response(response.content, "claude")
+            # Extract parsed Pydantic model (guaranteed type-safe)
+            parsed = response.raw.get("parsed")
+            if parsed is None:
+                # Fallback: parse from JSON content
+                import json
+                from ..schemas import AnalysisOutput as Schema
+                try:
+                    data = json.loads(response.content)
+                    parsed = Schema(**data)
+                except Exception:
+                    raise RuntimeError("Failed to parse structured output")
+
+            analysis_data = {
+                "task_understanding": parsed.task_understanding,
+                "complexity_assessment": parsed.complexity_assessment.value,
+                "proposed_approach": parsed.proposed_approach,
+                "required_capabilities": parsed.required_capabilities,
+                "potential_risks": parsed.potential_risks,
+                "confidence": parsed.confidence,
+                "reasoning": parsed.reasoning,
+            }
 
             # Record actual token usage (not estimates)
             if hasattr(self.cost_estimator, 'record_tokens'):
@@ -424,40 +466,6 @@ class IndependentAnalysisPhase:
             logger.error(f"Claude analysis error: {e}")
             raise
 
-    def _parse_analysis_response(self, response, agent_id: str) -> Dict[str, Any]:
-        """Parse agent's response into analysis data."""
-        from ..json_parser import parse_json_response
-
-        data = parse_json_response(response, agent_id, default=None)
-        if data is None:
-            return self._default_analysis_data()
-
-        # Validate and normalize
-        try:
-            return {
-                "task_understanding": data.get("task_understanding", "Unknown"),
-                "complexity_assessment": data.get("complexity_assessment", "MODERATE"),
-                "proposed_approach": data.get("proposed_approach", "Unknown"),
-                "required_capabilities": data.get("required_capabilities", []),
-                "potential_risks": data.get("potential_risks", []),
-                "confidence": float(data.get("confidence", 0.5)),
-                "reasoning": data.get("reasoning", "")
-            }
-        except Exception as e:
-            logger.warning(f"Data extraction error for {agent_id}: {e}")
-            return self._default_analysis_data()
-
-    def _default_analysis_data(self) -> Dict[str, Any]:
-        """Return default analysis data when parsing fails."""
-        return {
-            "task_understanding": "Parse error - using defaults",
-            "complexity_assessment": "MODERATE",
-            "proposed_approach": "Standard approach",
-            "required_capabilities": ["general"],
-            "potential_risks": ["unknown"],
-            "confidence": 0.3,
-            "reasoning": "Fallback due to parse error"
-        }
 
     def _create_fallback_analysis(self, agent_id: str, error: str) -> IndependentAnalysis:
         """Create fallback analysis when an agent fails."""
