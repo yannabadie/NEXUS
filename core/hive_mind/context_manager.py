@@ -656,6 +656,59 @@ Timestamp: {insight['timestamp']}
             }
         )
 
+    async def compress_for_next_phase(
+        self,
+        from_phase: str,
+        max_tokens: int = 300,
+        use_semantic_compression: bool = True,
+    ) -> str:
+        """
+        Compress context for next phase using semantic compression.
+
+        V12.4.1 Enhancement: Uses SLM-based semantic compression (70-85% reduction)
+        instead of simple summarization. Falls back to summarization if SLM unavailable.
+
+        Args:
+            from_phase: Phase to compress from (analysis, debate, etc.)
+            max_tokens: Maximum tokens for compressed output
+            use_semantic_compression: Use SLM compression (True) or basic summarization (False)
+
+        Returns:
+            Compressed context string
+        """
+        # Get content for this phase
+        content = self.summarize_for_inheritance(from_phase, max_tokens=max_tokens * 3)
+
+        if not use_semantic_compression or not content:
+            return content  # Fall back to basic summarization
+
+        try:
+            from .semantic_compressor import get_semantic_compressor
+            compressor = get_semantic_compressor()
+
+            # Check if Ollama is available
+            if not await compressor.is_available():
+                logger.debug("Semantic compression unavailable - using basic summarization")
+                return content
+
+            # Compress via SLM
+            result = await compressor.compress_phase_output(
+                phase_name=from_phase,
+                content=content,
+                max_output_tokens=max_tokens,
+            )
+
+            logger.info(
+                f"Semantic compression: {result.original_tokens} → {result.compressed_tokens} tokens "
+                f"({result.compression_ratio:.1%} reduction)"
+            )
+
+            return result.compressed_content
+
+        except Exception as e:
+            logger.warning(f"Semantic compression failed: {e} - using basic summarization")
+            return content
+
     def summarize_for_inheritance(
         self,
         from_phase: Optional[str] = None,
@@ -665,6 +718,8 @@ Timestamp: {insight['timestamp']}
         Summarize context for inheritance to next phase/agent.
 
         Extracts only the essential results, not the full history.
+
+        NOTE: V12.4.1 - Consider using compress_for_next_phase() for semantic compression.
 
         Args:
             from_phase: Phase to summarize from (filters by category)
