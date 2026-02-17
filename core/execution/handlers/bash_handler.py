@@ -53,20 +53,33 @@ class BashHandler(BaseHandler):
         self.execution_policy = execution_policy or ExecutionPolicy(workspace_path)
         self.timeout = timeout or TIMEOUTS.BASH_COMMAND
 
-        # V12.4: Sandbox delegation (feature-flagged)
+        # V12.4 PHASE 3: Sandbox delegation with production enforcement
         self._sandbox = None
+        self._sandbox_required = False
         try:
             import os
-            if os.getenv("NEXUS_FF_SANDBOX_ENABLED", "false").lower() in ("true", "1"):
+            sandbox_enabled = os.getenv("NEXUS_FF_SANDBOX_ENABLED", "false").lower() in ("true", "1")
+            self._sandbox_required = os.getenv("NEXUS_FF_SANDBOX_REQUIRED", "false").lower() in ("true", "1")
+
+            if sandbox_enabled or self._sandbox_required:
                 from .sandbox_handler import SandboxHandler
                 self._sandbox = SandboxHandler(workspace_path)
                 if self._sandbox.is_available():
                     logger.info("BashHandler: sandbox mode ENABLED (Docker)")
                 else:
-                    logger.warning("BashHandler: sandbox requested but Docker not available, using host execution")
-                    self._sandbox = None
-        except Exception:
-            pass
+                    if self._sandbox_required:
+                        # CRITICAL: Production mode requires sandbox
+                        raise RuntimeError(
+                            "Sandbox is REQUIRED (NEXUS_FF_SANDBOX_REQUIRED=true) but Docker is not available. "
+                            "Cannot execute commands without sandbox in production mode."
+                        )
+                    else:
+                        logger.warning("BashHandler: sandbox requested but Docker not available, using host execution")
+                        self._sandbox = None
+        except Exception as e:
+            if self._sandbox_required:
+                raise  # Re-raise if sandbox is required
+            logger.debug(f"Sandbox initialization failed (optional): {e}")
 
     @property
     def tool_name(self) -> str:
@@ -86,6 +99,16 @@ class BashHandler(BaseHandler):
 
         if not command or not command.strip():
             return self._error("Empty command")
+
+        # V12.4 PHASE 3: Enforce sandbox in production mode
+        if self._sandbox_required and self._sandbox is None:
+            return ToolResult(
+                tool_name=self.tool_name,
+                status="ERROR",
+                content="",
+                error="Sandbox execution required but sandbox not available. "
+                      "Set NEXUS_FF_SANDBOX_REQUIRED=false to allow host execution (development only)."
+            )
 
         # V12.4: Delegate to sandbox if enabled
         if self._sandbox is not None:

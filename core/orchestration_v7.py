@@ -796,9 +796,21 @@ class OrchestratorV7:
         return self.context_builder.build_simple_context(user_input, task_analysis)
 
     def _transition_to(self, new_state: OrchestratorState):
-        """Transition FSM with event sourcing (V12.4)."""
+        """Transition FSM with event sourcing (V12.4) and OTel tracing (PHASE 3)."""
         if self.config.ui_verbose:
             print(f"[FSM] {self.state.name} -> {new_state.name}")
+
+        # V12.4 PHASE 3: OTel span for FSM transition
+        try:
+            from core.telemetry.otel_provider import get_tracer
+            tracer = get_tracer()
+            if tracer:
+                with tracer.start_as_current_span("fsm.transition") as span:
+                    span.set_attribute("nexus.from_state", self.state.name)
+                    span.set_attribute("nexus.to_state", new_state.name)
+                    span.set_attribute("nexus.iteration", self.iteration)
+        except Exception as e:
+            self.logger.debug("OTel span creation failed: %s", e)
 
         # V12.4: Record transition for crash recovery
         try:
