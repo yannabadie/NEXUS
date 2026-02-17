@@ -202,6 +202,20 @@ class TrueHiveMind:
             total_budget=budget_limit,
         )
 
+        # V12.4: System introspector - register HiveMind components
+        try:
+            from core.meta.system_introspector import get_introspector
+            self._introspector = get_introspector()
+            self._introspector.register_component(
+                "hive_mind_orchestrator",
+                category="orchestration",
+                version="12.4",
+                description="TRUE HIVE MIND 7-phase pipeline orchestrator",
+                capabilities=["analysis", "debate", "architecture", "execution", "diagnosis", "retry", "consolidation"],
+            )
+        except Exception:
+            self._introspector = None
+
         # Initialize phases
         self._init_phases()
 
@@ -783,6 +797,22 @@ class TrueHiveMind:
                 f"[HiveMind] Confidence trajectory: trend={trajectory.trend}, "
                 f"avg={trajectory.average:.2f}, min={trajectory.minimum:.2f}"
             )
+
+            # V12.4: System health snapshot via introspector
+            if self._introspector:
+                try:
+                    snapshot = self._introspector.get_snapshot()
+                    if snapshot.degraded_components > 0:
+                        logger.warning(
+                            f"[HiveMind] System health: {snapshot.degraded_components} degraded, "
+                            f"{snapshot.inactive_components} inactive of {snapshot.total_components} components"
+                        )
+                    else:
+                        logger.debug(
+                            f"[HiveMind] System health: {snapshot.active_components}/{snapshot.total_components} active"
+                        )
+                except Exception:
+                    pass
 
             # V12.4: Audit log consolidation and detect patterns
             _audit.record_decision(

@@ -270,6 +270,41 @@ class FailureDiagnosisPhase:
         except Exception as e:
             logger.debug(f"Multi-persona analysis failed: {e}")
 
+        # V12.4: MAST classification + MARS triple-pathway reflection (arxiv:2503.13657, arxiv:2601.11974)
+        try:
+            from ..failure_taxonomy import get_mast_classifier, get_triple_reflector
+            failure_type_str = diagnosis.failure_type.value if hasattr(diagnosis.failure_type, 'value') else str(diagnosis.failure_type)
+
+            # MAST: Classify failure into 14-mode taxonomy
+            mast_classifier = get_mast_classifier()
+            mast_result = mast_classifier.classify(
+                failure_context=f"Task: {task[:100]}. Failure step: {failure_step}. Root cause: {diagnosis.root_cause}",
+                failure_type=failure_type_str,
+                agent_diagnoses=[str(gemini_result)[:300], str(claude_result)[:300]],
+            )
+            # Enrich evidence with MAST classification
+            diagnosis.evidence.append(
+                f"MAST codes: {', '.join(c.value for c in mast_result.codes)} "
+                f"(primary: {mast_result.primary_category.value}, confidence: {mast_result.confidence:.0%})"
+            )
+
+            # MARS: Generate triple-pathway reflection for retry guidance
+            reflector = get_triple_reflector()
+            reflection = reflector.reflect(
+                failure_context=f"Task: {task[:100]}. Step: {failure_step}",
+                diagnosis=diagnosis.root_cause,
+                failure_type=failure_type_str,
+                mast_codes=[c.value for c in mast_result.codes],
+            )
+            # Add synthesis as a recommended change for Phase 6
+            diagnosis.recommended_changes.insert(0, f"[MARS] {reflection.synthesis}")
+            logger.info(
+                f"Phase 5: MAST classified {len(mast_result.codes)} codes, "
+                f"MARS generated reflection (type: {failure_type_str})"
+            )
+        except Exception as e:
+            logger.debug(f"MAST/MARS analysis failed: {e}")
+
         # Add to context
         self.context_manager.add_diagnosis("gemini", gemini_result)
         self.context_manager.add_diagnosis("claude", claude_result)
