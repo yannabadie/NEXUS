@@ -99,6 +99,27 @@ __all__ = [
     "ResilienceTrackerStats",
     "get_resilience_tracker",
     "reset_resilience_tracker",
+    # V12.4 COGNITIVE BOOST: Runtime Waste Filter (arxiv:2510.26585)
+    "RuntimeWasteFilter",
+    "ExchangeRecord",
+    "Intervention",
+    "InterventionType",
+    "InterventionAction",
+    "FilterStats",
+    "get_runtime_waste_filter",
+    "reset_runtime_waste_filter",
 ]
+
+# V12.4 COGNITIVE BOOST: Runtime Waste Filter (arxiv:2510.26585)
+from core.resilience.runtime_waste_filter import (
+    RuntimeWasteFilter,
+    ExchangeRecord,
+    Intervention,
+    InterventionType,
+    InterventionAction,
+    FilterStats,
+    get_runtime_waste_filter,
+    reset_runtime_waste_filter,
+)
 
 __version__ = "12.4.0"

@@ -399,6 +399,22 @@ class KnowledgeConsolidationPhase:
         except Exception:
             pass
 
+        # V12.4: ExperienceDistiller - distill task experience into strategic principles (arxiv:2510.16079)
+        try:
+            from core.skills.experience_distiller import get_experience_distiller
+            _distiller = get_experience_distiller()
+            _lessons = list(consolidation.learned_patterns) + [
+                f"AVOID: {ap}" for ap in consolidation.learned_antipatterns
+            ]
+            _outcome = "success" if not consolidation.learned_antipatterns else "mixed"
+            _distiller.distill(
+                task_description=task[:200],
+                outcome=_outcome,
+                lessons=_lessons[:10],
+            )
+        except Exception:
+            pass
+
         return ConsolidationPhaseResult(
             consolidation=consolidation,
             gemini_reflection=gemini_result,
