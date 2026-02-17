@@ -43,6 +43,7 @@ from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from ...agents.unified_registry import get_registry  # V8.4.0
+from ..prompts import DEBATE_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -649,17 +650,20 @@ class StrategicDebatePhase:
             your_confidence = comparison.claude_analysis.confidence
             driver = self.claude
 
-        # Choose prompt
+        # V12.4.1: Build dynamic user prompt (static system prompt handled separately)
         if turn_number == 1 or (turn_number == 2 and registry.is_claude(speaker)):
-            # Opening argument
-            prompt = DEBATE_OPENER_PROMPT.format(
-                task=task,
-                topic=disagreement.topic,
-                your_position=your_position,
-                other_position=other_position,
-                agreement_score=comparison.agreement_score,
-                your_confidence=your_confidence
-            )
+            # Opening argument - dynamic context only
+            user_prompt = f"""TASK: {task}
+
+DISAGREEMENT POINT: {disagreement.topic}
+- Your position: {your_position}
+- Other agent's position: {other_position}
+
+COMPARISON CONTEXT:
+- Agreement score: {comparison.agreement_score:.0%}
+- Your confidence: {your_confidence:.0%}
+
+Present your OPENING ARGUMENT on this disagreement."""
         else:
             # Response to previous argument
             previous = debate_history[-1]
@@ -667,15 +671,19 @@ class StrategicDebatePhase:
 
             # V8.4.0: Use registry for display name of other agent
             other_display = registry.get_display_name(registry.get_alternate(speaker) or speaker)
-            prompt = DEBATE_RESPONSE_PROMPT.format(
-                task=task,
-                topic=disagreement.topic,
-                your_position=your_position,
-                other_position=other_position,
-                other_agent=other_display,
-                previous_argument=previous.argument,
-                debate_history=history_text
-            )
+            user_prompt = f"""TASK: {task}
+
+DISAGREEMENT POINT: {disagreement.topic}
+- Your original position: {your_position}
+- Other agent's position: {other_position}
+
+PREVIOUS ARGUMENT (by {other_display}):
+{previous.argument}
+
+DEBATE HISTORY:
+{history_text}
+
+Respond to this argument (SUPPORT, OPPOSE, or CONCEDE)."""
 
         # V9.2: Get isolated session for this speaker
         session_uuid = None
@@ -683,28 +691,41 @@ class StrategicDebatePhase:
             session_uuid = self._session_integration.get_agent_session(speaker)
             logger.debug(f"Debate turn {turn_number}: {speaker} using session {session_uuid[:8] if session_uuid else 'none'}")
 
-        # Call driver with session isolation
+        # V12.4.1: Use invoke() with static system prompt (cached by SDK)
         try:
-            response = await driver.send_message_async(prompt, session_uuid=session_uuid)
-            argument_data = self._parse_argument_response(response)
+            response = await driver.invoke(
+                user_prompt,
+                session_id=session_uuid,
+                system_prompt=DEBATE_SYSTEM_PROMPT,  # Static, cached
+                agent_name=speaker,
+                agent_id=speaker,
+            )
 
-            # V9.1.1: Safely get raw string for fallback and cost estimation
-            raw_response = response
-            if isinstance(raw_response, dict):
-                raw_response = raw_response.get("content", raw_response.get("text", str(raw_response)))
-            if not isinstance(raw_response, str):
-                raw_response = str(raw_response)
+            # Check for errors
+            if not response.is_success:
+                raise RuntimeError(f"Debate turn failed: {response.error_message}")
 
-            # Record cost
-            tokens = len(raw_response) // 4
-            self.cost_estimator.record_cost("debate_turn", tokens)
+            # Parse argument from DriverResponse.content
+            argument_data = self._parse_argument_response(response.content)
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "debate_turn",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                # Fallback for legacy cost estimator
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("debate_turn", total_tokens)
 
             return DebateArgument(
                 agent_id=speaker,
                 turn_number=turn_number,
                 position=argument_data.get("position", "OPPOSE"),
                 target_point=argument_data.get("target_point", disagreement.topic),
-                argument=argument_data.get("argument", raw_response[:200]),
+                argument=argument_data.get("argument", response.content[:200]),
                 evidence=argument_data.get("evidence", []),
                 proposed_modification=argument_data.get("proposed_modification"),
                 concession=argument_data.get("concession")
@@ -759,13 +780,17 @@ class StrategicDebatePhase:
         """Check if consensus has been reached."""
         history_text = self._format_debate_history(debate_history)
 
-        prompt = CONSENSUS_CHECK_PROMPT.format(
-            task=task,
-            debate_history=history_text,
-            topic=disagreement.topic,
-            gemini_position=disagreement.gemini_position,
-            claude_position=disagreement.claude_position
-        )
+        # V12.4.1: Build dynamic user prompt for consensus check
+        user_prompt = f"""TASK: {task}
+
+DEBATE HISTORY:
+{history_text}
+
+ORIGINAL DISAGREEMENT: {disagreement.topic}
+- Gemini's original position: {disagreement.gemini_position}
+- Claude's original position: {disagreement.claude_position}
+
+Evaluate if consensus has been reached."""
 
         # V9.2: Get session for consensus check (use gemini's session)
         session_uuid = None
@@ -776,16 +801,31 @@ class StrategicDebatePhase:
         try:
             from ..json_parser import parse_json_response
 
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+            # V12.4.1: Use invoke() with system prompt
+            response = await self.gemini.invoke(
+                user_prompt,
+                session_id=session_uuid,
+                system_prompt=DEBATE_SYSTEM_PROMPT,  # Static, cached
+                agent_name="gemini",
+                agent_id="gemini",
+            )
 
-            # Record cost estimate
-            raw = response
-            if isinstance(raw, dict):
-                raw = raw.get("content", raw.get("text", str(raw)))
-            tokens = len(str(raw)) // 4
-            self.cost_estimator.record_cost("check_consensus", tokens)
+            # Check for errors
+            if not response.is_success:
+                raise RuntimeError(f"Consensus check failed: {response.error_message}")
 
-            data = parse_json_response(response, "consensus", default=None)
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "check_consensus",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("check_consensus", total_tokens)
+
+            data = parse_json_response(response.content, "consensus", default=None)
             if data is not None:
                 return data
 
