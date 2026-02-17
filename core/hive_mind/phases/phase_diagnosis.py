@@ -46,6 +46,7 @@ from ..context_manager import HiveMindContextManager
 from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..user_interaction import UserInteractionHandler
+from ..prompts import DIAGNOSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
@@ -439,10 +440,30 @@ class FailureDiagnosisPhase:
         """Get diagnosis from Gemini with session isolation."""
         try:
             logger.debug(f"Gemini diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
-            tokens = len(str(response)) // 4
-            self.cost_estimator.record_cost("failure_diagnosis_gemini", tokens)
-            return response
+            # V12.4.1: Use invoke() with cached system prompt
+            response = await self.gemini.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=DIAGNOSIS_SYSTEM_PROMPT,
+                agent_name="gemini",
+                agent_id="gemini",
+            )
+
+            if not response.is_success:
+                raise RuntimeError(f"Gemini diagnosis failed: {response.error_message}")
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "failure_diagnosis_gemini",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("failure_diagnosis_gemini", total_tokens)
+
+            return response.content
         except Exception as e:
             logger.error(f"Gemini diagnosis failed: {e}")
             raise
@@ -451,10 +472,30 @@ class FailureDiagnosisPhase:
         """Get diagnosis from Claude with session isolation."""
         try:
             logger.debug(f"Claude diagnosis using session {session_uuid[:8] if session_uuid else 'none'}")
-            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
-            tokens = len(str(response)) // 4
-            self.cost_estimator.record_cost("failure_diagnosis_claude", tokens)
-            return response
+            # V12.4.1: Use invoke() with cached system prompt
+            response = await self.claude.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=DIAGNOSIS_SYSTEM_PROMPT,
+                agent_name="claude",
+                agent_id="claude",
+            )
+
+            if not response.is_success:
+                raise RuntimeError(f"Claude diagnosis failed: {response.error_message}")
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "failure_diagnosis_claude",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("failure_diagnosis_claude", total_tokens)
+
+            return response.content
         except Exception as e:
             logger.error(f"Claude diagnosis failed: {e}")
             raise
@@ -479,13 +520,33 @@ class FailureDiagnosisPhase:
             logger.debug(f"Synthesis using session {session_uuid[:8] if session_uuid else 'none'}")
 
         try:
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
-            tokens = len(response) // 4
-            self.cost_estimator.record_cost("synthesize_diagnosis", tokens)
+            # V12.4.1: Use invoke() with cached system prompt
+            response = await self.gemini.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=DIAGNOSIS_SYSTEM_PROMPT,
+                agent_name="gemini",
+                agent_id="gemini",
+            )
 
-            # Parse response
+            if not response.is_success:
+                logger.warning(f"Diagnosis synthesis failed: {response.error_message}")
+                return self._create_fallback_diagnosis()
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "synthesize_diagnosis",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("synthesize_diagnosis", total_tokens)
+
+            # Parse response from DriverResponse.content
             return self._parse_diagnosis_response(
-                response,
+                response.content,
                 gemini_diagnosis,
                 claude_diagnosis
             )
