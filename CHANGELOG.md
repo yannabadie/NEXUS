@@ -37,6 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FSM transitions instrumented with OTel spans
 - SDK drivers auto-traced with trace_llm_call
 
+#### PHASE 4: Strategic Prompt Caching (ArXiv 2601.06007)
+- **Problem**: Redundant system prompt tokens on every LLM call (41-90% waste)
+- **Solution**: Split static (cached) system prompts from dynamic user prompts
+- **Implementation**: Created `core/hive_mind/prompts.py` with 7 static system prompts
+- **Migration**: All 7 HiveMind phases now use `BaseAsyncDriver.invoke()`:
+  - Phase 1 (Analysis): 2 call sites - ANALYSIS_SYSTEM_PROMPT
+  - Phase 2 (Debate): 3 call sites - DEBATE_SYSTEM_PROMPT
+  - Phase 3 (Architecture): 4 call sites - ARCHITECTURE_SYSTEM_PROMPT
+  - Phase 4 (Execution): 1 call site - EXECUTION_SYSTEM_PROMPT
+  - Phase 5 (Diagnosis): 3 call sites - DIAGNOSIS_SYSTEM_PROMPT
+  - Phase 6 (Retry): 0 call sites - pure logic, no LLM calls
+  - Phase 7 (Consolidation): 2 call sites - CONSOLIDATION_SYSTEM_PROMPT
+- **Token Tracking**: Switched from rough estimates to actual `response.input_tokens`/`output_tokens`
+- **Response Parsing**: All phases now parse `response.content` from `DriverResponse`
+- **Impact**: Expected 41-90% cost reduction on multi-turn HiveMind tasks
+- **Files Modified**: 7 phase files + 1 new prompts module
+- **Commits**: 8 systematic commits (1 per phase + setup)
+
 ### 📦 New Tests
 - `tests/test_sdk_e2e_pipeline.py` (6 tests, 4 passing)
 - Validates SDK-first architecture end-to-end
@@ -45,9 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed todo5.md, todo6.md, todo7.md, todo8.md (all applied)
 
 ### 📊 Metrics
-- Commits: 6 feature commits
-- Files: 15+ modified
-- Lines: 200+ insertions
+- Commits: 14 feature commits (6 SDK wiring + 8 prompt caching)
+- Files: 23+ modified (15 SDK + 8 prompt caching)
+- Lines: 900+ insertions (200 SDK + 700 prompt caching)
 
 ---
 
