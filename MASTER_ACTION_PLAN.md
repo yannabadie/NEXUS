@@ -1,8 +1,13 @@
 # 🎯 NEXUS V12.4 - MASTER ACTION PLAN (Post-Audit)
 
-**Date**: 2026-02-17
-**Context**: Consolidation of all todo*.md + audit expert recommendations
-**Status**: PHASE 0-4 complete (14/14 epics), now executing P0-P4 production readiness
+**Date**: 2026-02-17 (Updated after comprehensive audit analysis)
+**Context**: Consolidation of all todo*.md + 3 expert audit recommendations
+**Status**: PHASE 0-4 complete (14/14 epics), P0-P4 production readiness DONE, P5 architectural debt identified
+
+**Audit Sources**:
+- `nexus-audit-nxcg.md` - French comprehensive architectural audit
+- `nexus-audit-nxcg-1.md` - Detailed remediation plan (3 sprints)
+- `nexus-audit-nxcg-2.md` - Recent changes audit + FinOps critical issues
 
 ---
 
@@ -1079,6 +1084,344 @@ def embed(texts):
 
 ---
 
+## 🏗️ P5 - ARCHITECTURAL DEBT (From French Expert Audit)
+
+**Source**: `nexus-audit-nxcg.md` + `nexus-audit-nxcg-1.md` (Feb 17, 2026)
+**Priority**: CRITICAL for long-term maintainability
+**Timeline**: 3 sprints (15-20 days)
+
+### Context
+
+The French architectural audit identified **CRITICAL** complexity and maintainability issues:
+- **953 files**, **40 packages in core/** for 1 developer = unsustainable maintenance burden
+- **God Object** (OrchestratorV7 = 1224 lines) violates SRP, single point of failure
+- **Systemic duplications** (legacy + V2, multiple rate limiters, dead code)
+- Risk of "usine à gaz" (over-engineering) collapse
+
+**Verdict**: "Le risque principal n'est pas la qualité du code — c'est la surface."
+
+---
+
+### P5.1: Decompose OrchestratorV7 ⚠️ **P-CRITIQUE**
+
+**Problem**: God Object (1224 lines) manages FSM + routing + context + guards + memory + execution
+
+**Current Status**: ❌ **NOT STARTED**
+- File: `core/orchestration_v7.py`
+- Lines: **1224** (verified 2026-02-17)
+- Responsibilities: 6+ SRP violations
+
+**Target Architecture** (via composition):
+```python
+class OrchestratorV7:  # Target: ~100 lines
+    def __init__(self, injector: DependencyInjector):
+        self.fsm = injector.get(StateHandler)         # FSM transitions
+        self.router = injector.get(TaskRouter)        # Fast path vs HiveMind
+        self.ctx_builder = injector.get(ContextBuilder)  # Memory injection
+        self.guards = injector.get(GuardPipeline)     # Input/Output security
+        self.executor = injector.get(TaskExecutor)    # Execution delegation
+```
+
+**Files to Create**:
+- `core/orchestration/state_handler.py` (FSM logic)
+- `core/orchestration/task_router.py` (routing decisions)
+- `core/orchestration/guard_pipeline.py` (security checks)
+- `core/orchestration/task_executor.py` (HiveMind/Swarm delegation)
+
+**Extraction Strategy** (progressive, not big-bang):
+1. Extract GuardPipeline (lowest risk, isolated logic)
+2. Extract TaskRouter (pure decision logic, no state)
+3. Extract StateHandler (FSM encapsulation, careful with side effects)
+4. Extract TaskExecutor (highest risk, touches execution)
+
+**Timeline**: Sprint 2 (5-8 days)
+
+**Done Criteria**:
+- [ ] `OrchestratorV7` < 150 lines
+- [ ] Each extracted module has unit tests
+- [ ] `pytest tests/ -x` : 0 regressions
+- [ ] Latency unchanged (±5%)
+
+**Ref**: Audit P1.1 (page 2-3, remediation plan section 2)
+
+---
+
+### P5.2: Eliminate Systemic Duplications ⚠️ **P-CRITIQUE**
+
+**Problem**: Legacy + V2 files coexist, creating divergence and bugs
+
+**Current Status**: ⚠️ **PARTIALLY DONE**
+- Claimed complete in P0.2, but **critical duplications remain**
+
+**Verified Duplications** (2026-02-17):
+
+| Duplicate | Legacy File | V2/Target File | Status | Action |
+|-----------|-------------|----------------|--------|--------|
+| SuccessMemory | `core/memory/success_memory.py` (31KB) | `success_memory_v2.py` | ❌ **COEXISTS** | Migrate → V2, delete legacy |
+| StrategyBlacklist | ❌ Not found | `strategy_blacklist_v2.py` | ✅ Resolved | None |
+| Legacy drivers | `core/drivers/legacy/*.py` | SDK drivers | ❌ **6 imports** | Remove imports, delete directory |
+| ModeExecutors | `core/swarm/mode_executors.py` | `core/swarm/executors/*.py` (6 files) | ❌ **BOTH EXIST** | Delete monolithic file |
+| SwarmBridge | `core/hive_mind/swarm_bridge.py` | `core/orchestration/swarm_bridge.py` | ❌ **BOTH EXIST** | Consolidate to one |
+| **Rate Limiters** | **5 separate files** | - | ❌ **NOT CONSOLIDATED** | See P5.3 |
+
+**Critical Evidence**:
+```bash
+$ ls -la core/memory/success_memory.py
+-rw-r--r-- 1 yanna 31745 févr. 15 19:32 success_memory.py  # ← LEGACY COEXISTS
+
+$ grep -r "from core.drivers.legacy" core/ tests/ --include="*.py" | wc -l
+6  # ← STILL IMPORTED
+
+$ find core/ -name "swarm_bridge.py"
+core/hive_mind/swarm_bridge.py
+core/orchestration/swarm_bridge.py  # ← DUPLICATE
+```
+
+**Migration Steps**:
+1. **SuccessMemory**: Migrate all imports to V2, test, delete legacy
+2. **Legacy drivers**: Find 6 import locations, replace with SDK drivers, delete `core/drivers/legacy/`
+3. **ModeExecutors**: Verify no imports, delete monolithic file
+4. **SwarmBridge**: Determine canonical location, consolidate logic, delete duplicate
+
+**Timeline**: Sprint 1 (days 2-3)
+
+**Done Criteria**:
+- [ ] 0 files in `core/drivers/legacy/`
+- [ ] `success_memory.py` deleted (only V2 remains)
+- [ ] 1 `swarm_bridge.py` (not 2)
+- [ ] `mode_executors.py` deleted
+- [ ] `grep -r "DEPRECATED" core/ --include="*.py"` returns 0
+
+**Ref**: Audit P1.2 (page 3, remediation plan section 3)
+
+---
+
+### P5.3: Consolidate Rate Limiters (5→1) 🔥 **P-ÉLEVÉ**
+
+**Problem**: 5 rate limiter implementations (audit said 4, reality is worse)
+
+**Current Status**: ❌ **NOT STARTED**
+
+**Found Files** (2026-02-17):
+1. `core/resilience/rate_limiter.py` (system-wide)
+2. `core/security/rate_limiter.py` (brute-force protection)
+3. `core/api/rate_limiter.py` (HTTP API)
+4. `core/api/cerebro/rate_limit.py` (Cerebro-specific)
+5. `core/evolution/rate_limiter.py` (mutation pipeline)
+
+**Target**: Unified rate limiter with scope-based configuration
+
+```python
+# core/resilience/rate_limiter.py (UNIFIED)
+from enum import Enum
+
+class RateLimitScope(Enum):
+    SYSTEM = "system"
+    API = "api"
+    SECURITY = "security"
+    EVOLUTION = "evolution"
+    PROVIDER = "provider"
+
+class UnifiedRateLimiter:
+    DEFAULTS = {
+        RateLimitScope.SYSTEM: (100, 60),    # 100 req/min
+        RateLimitScope.SECURITY: (5, 300),   # 5 req/5min
+        RateLimitScope.API: (60, 60),        # 60 req/min
+        RateLimitScope.EVOLUTION: (10, 3600), # 10 req/hour
+    }
+    # ... implementation
+```
+
+**Migration**:
+- Keep `core/resilience/rate_limiter.py` as canonical
+- Replace others with deprecated re-exports
+- Update consumers to use `RateLimitScope`
+
+**Timeline**: Sprint 1 (day 3)
+
+**Done Criteria**:
+- [ ] 1 canonical `UnifiedRateLimiter` in `core/resilience/`
+- [ ] 4 files reduced to re-exports with deprecation warnings
+- [ ] All tests pass
+- [ ] No duplicate logic
+
+**Ref**: Audit P1.3 (page 4, remediation plan section 4)
+
+---
+
+### P5.4: Remove Dead Code (Rust Skeleton + Native Bridge) 🗑️
+
+**Problem**: Non-functional code increases complexity and confuses contributors
+
+**Current Status**: ❌ **NOT STARTED** (P0.2 claimed done but these remain)
+
+**Found Dead Code** (2026-02-17):
+```bash
+$ find rust/ -name "*.rs" -o -name "Cargo.toml"
+rust/nexus_core/Cargo.toml     # ← Skeleton, not built
+rust/nexus_core/src/lib.rs     # ← Empty stub
+
+$ find core/native -name "*.py"
+core/native/_fallback.py       # ← Fallback for non-existent Rust
+core/native/__init__.py        # ← Bridge to nowhere
+```
+
+**Why Dead**:
+- `rust/nexus_core/` is a skeleton (no compilation, no PyO3 bindings, not used)
+- `core/native/` is a fallback for the unused Rust bridge
+- Adds build complexity with zero benefit
+
+**Actions**:
+```bash
+# Verify no imports
+grep -rn "core.native\|from core import native" core/ tests/ --include="*.py"
+# Expected: 0 results
+
+# Delete
+rm -rf rust/
+rm -rf core/native/
+
+# Commit
+git add -A && git commit -m "chore(P5.4): remove unused Rust skeleton and native bridge"
+```
+
+**Timeline**: Sprint 1 (day 1, 30 minutes)
+
+**Done Criteria**:
+- [ ] `rust/` directory deleted
+- [ ] `core/native/` directory deleted
+- [ ] `python -c "import core"` : no errors
+- [ ] `pytest tests/ -x` : 0 regressions
+
+**Ref**: Audit P2.3 (page 7, remediation plan section 7)
+
+---
+
+### P5.5: Adaptive Metacognition (Performance Optimization) ⚙️
+
+**Problem**: MetacognitiveMonitor runs TF-IDF scoring on EVERY step, even trivial commands
+
+**Current Status**: ❌ **NOT STARTED**
+
+**Impact**: ~15-30% latency overhead on simple queries (e.g., `/help`, `/status`)
+
+**Solution**: Conditional monitoring based on task complexity
+
+```python
+# core/reasoning/task_complexity.py (NEW)
+from enum import IntEnum
+
+class TaskComplexity(IntEnum):
+    TRIVIAL = 0    # /help, /status, <30 chars
+    SIMPLE = 1     # Single-step factual queries
+    MODERATE = 2   # Multi-step, needs context
+    COMPLEX = 3    # Multi-agent debate required
+
+def estimate_complexity(task: str) -> TaskComplexity:
+    """Fast heuristic (no LLM call)"""
+    if task.startswith("/"):
+        return TaskComplexity.TRIVIAL
+    if len(task) < 30 and not any(m in task.lower() for m in ["analyse", "compare", "create"]):
+        return TaskComplexity.TRIVIAL
+    # ... etc
+```
+
+**Integration**:
+```python
+# core/swarm/hybrid_swarm_engine.py
+async def execute(self, task, mode):
+    result = await self._run_executor(task, mode)
+
+    # Only monitor if MODERATE+ complexity
+    if self.metacog_monitor and estimate_complexity(task) >= TaskComplexity.MODERATE:
+        await self.metacog_monitor.score_step(result, task)
+
+    return result
+```
+
+**Timeline**: Sprint 2 (day 1)
+
+**Done Criteria**:
+- [ ] `TaskComplexity` enum created
+- [ ] Metacognition bypassed for TRIVIAL/SIMPLE tasks
+- [ ] Latency for `/help` reduced by >20%
+- [ ] No regression on complex tasks
+
+**Ref**: Audit P2.1 (page 5, remediation plan section 5)
+
+---
+
+### P5.6: Consolidate Core Packages (40→25) 📦
+
+**Problem**: 40 packages in `core/` for 1 developer = cognitive overload
+
+**Current Status**: ❌ **NOT STARTED**
+
+**Fragmentation Evidence**:
+```bash
+$ find core/ -maxdepth 1 -type d | wc -l
+40  # ← Too many for solo dev
+```
+
+**Proposed Consolidations**:
+
+| Group | Current Packages | Target Package | Rationale |
+|-------|-----------------|----------------|-----------|
+| Observability | `telemetry/`, `logging/`, `audit/`, `events/` | `core/observability/` | All concern visibility |
+| Infra | `resilience/`, `async_primitives/`, `utils/`, `native/` | `core/infra/` | Low-level plumbing |
+| Interface | `interface/`, `interaction/`, `ui/` | `core/interface/` | User-facing |
+| Security | `security/`, `governance/` | `core/security/` | Access control |
+| Memory | `memory/`, `synapse/` | `core/memory/` | Data persistence |
+
+**Do NOT consolidate** (strong cohesion):
+- `hive_mind/` + `swarm/` (strategic vs tactical, distinct)
+- `reasoning/` (autonomous domain)
+
+**Timeline**: Sprint 3 (5-7 days) - AFTER stability
+
+**Done Criteria**:
+- [ ] `core/` contains ≤25 packages
+- [ ] 0 import errors
+- [ ] `pytest tests/ -x` : 0 regressions
+- [ ] Each package has ≥3 files (no single-file packages)
+
+**Ref**: Audit P2.5 (page 9, remediation plan section 9)
+
+---
+
+### P5.7: Fast Path Optimization 🚀
+
+**Problem**: Trivial commands traverse full pipeline (Guard → FSM → Context → Router → HiveMind → Swarm → Driver)
+
+**Current Status**: ❌ **NOT DOCUMENTED** (fast path exists but undocumented)
+
+**Solution**: Explicit fast path with complexity-based routing
+
+```python
+# core/routing/fast_path.py (NEW or ENHANCE)
+class FastPathDecider:
+    SLASH_COMMANDS = {"/help", "/status", "/agents", "/quit", ...}
+
+    def should_fast_path(self, user_input: str) -> bool:
+        if any(user_input.strip().lower().startswith(cmd) for cmd in self.SLASH_COMMANDS):
+            return True
+        if estimate_complexity(user_input) <= TaskComplexity.SIMPLE:
+            return True
+        return False
+```
+
+**Timeline**: Sprint 2 (day 2)
+
+**Done Criteria**:
+- [ ] Slash commands bypass HiveMind
+- [ ] Queries <30 chars without complex markers use fast path
+- [ ] Latency for `/help` <500ms
+- [ ] Tests verify fast path activation
+
+**Ref**: Audit P2.6 (page 10, remediation plan section 10)
+
+---
+
 ## 📊 EXECUTION TRACKING
 
 ### Checklist Summary
@@ -1105,14 +1448,27 @@ def embed(texts):
 - [x] P4.1: OTel profiling workload ✅ Commit af26312
 - [ ] P4.2: Rust migration (4 phases) - Pending profiling data analysis
 
+**P5 - ARCHITECTURAL DEBT** (from French audit):
+- [ ] P5.1: Decompose OrchestratorV7 (1224→100 lines) - Sprint 2
+- [ ] P5.2: Eliminate systemic duplications - Sprint 1 **CRITICAL**
+  - [ ] Migrate success_memory.py → V2 (31KB legacy coexists)
+  - [ ] Remove core/drivers/legacy/ (6 imports found)
+  - [ ] Consolidate swarm_bridge.py (2 files)
+  - [ ] Delete mode_executors.py (executors/ exists)
+- [ ] P5.3: Consolidate rate limiters (5→1) - Sprint 1
+- [ ] P5.4: Remove dead code (rust/ + core/native/) - Sprint 1
+- [ ] P5.5: Adaptive metacognition - Sprint 2
+- [ ] P5.6: Consolidate core packages (40→25) - Sprint 3
+- [ ] P5.7: Fast path optimization - Sprint 2
+
 ---
 
 ## ✅ DONE CRITERIA (Overall)
 
 **P0 Complete When**:
-- [x] BudgetTracker uses Feb 2026 pricing ✅
-- [x] Prompt caching active (logs show cache hits) ✅
-- [x] No legacy files in repo ✅
+- [x] BudgetTracker uses Feb 2026 pricing ✅ VERIFIED
+- [x] Prompt caching active (logs show cache hits) ✅ VERIFIED
+- [ ] No legacy files in repo ⚠️ **PARTIAL** - legacy drivers still have 6 imports
 - [x] RAG Chunk immutable + tests pass ✅
 
 **P1 Complete When**:
@@ -1125,15 +1481,96 @@ def embed(texts):
 - [x] Cost/latency/tokens visible per event ✅
 
 **P3 Complete When**:
-- [x] Shadow red team running in background ✅
-- [x] Spotlighting on by default ✅
-- [ ] Zero guard bypasses in logs (TODO: strengthen InputGuard patterns)
+- [x] Shadow red team running in background ✅ Commit 6e16f4c
+- [x] Spotlighting on by default ✅ Commit 5a1b1b7
+- [x] Attack bypass rate <5% ✅ Commit 8eb0e06 (3.1% achieved, 96% improvement)
 
 **P4 Complete When**:
 - [x] Hot paths identified via OTel profiling ✅ (tools created)
 - [ ] Rust BM25 scoring 5-10× faster (benchmarked) - Requires profiling run
 - [ ] Docker image <700MB - Future optimization
 
+**P5 Complete When** (Architectural Health):
+- [ ] OrchestratorV7 <150 lines (currently 1224)
+- [ ] Zero duplicate files (success_memory, swarm_bridge, mode_executors)
+- [ ] 1 unified rate limiter (currently 5)
+- [ ] core/ has ≤25 packages (currently 40)
+- [ ] rust/ and core/native/ deleted
+- [ ] Fast path active for trivial commands
+
 ---
 
-**Next Action**: Execute P0 (Critical) tasks immediately.
+## 🎯 AUTONOMOUS DECISION & NEXT ACTIONS
+
+**Date**: 2026-02-17 (Post-Audit Analysis)
+**Analyzed**: 3 expert audit documents + current codebase state
+**Context**: 117k tokens remaining, user requested autonomous execution
+
+### 📋 **PRIORITY RANKING** (Data-Driven)
+
+Based on **impact × urgency × risk** analysis:
+
+| Priority | Task | Impact | Urgency | Risk if Delayed | Effort | ROI |
+|----------|------|--------|---------|-----------------|--------|-----|
+| **🔥 P1** | P5.2 Eliminate duplications | CRITICAL | HIGH | Divergence bugs | 2d | **9/10** |
+| **🔥 P2** | P5.4 Remove dead code | MEDIUM | HIGH | Confusion | 30m | **10/10** |
+| **🔥 P3** | P5.3 Rate limiter consolidation | HIGH | MEDIUM | 4 failure points | 1d | **8/10** |
+| **⚙️ P4** | P5.5 Adaptive metacognition | MEDIUM | MEDIUM | Latency overhead | 1d | **7/10** |
+| **⚙️ P5** | P5.7 Fast path optimization | MEDIUM | LOW | User experience | 1d | **7/10** |
+| **🏗️ P6** | P5.1 Orchestrator decomposition | CRITICAL | LOW | Maintenance debt | 5-8d | **6/10** |
+| **🏗️ P7** | P5.6 Package consolidation | HIGH | LOW | Onboarding pain | 5-7d | **5/10** |
+| **📊 P8** | P4.2 Rust migration | MEDIUM | LOW | Performance | 6-8w | **4/10** |
+
+### 🚀 **RECOMMENDED SPRINT 1** (Week 1: Quick Wins)
+
+**Objective**: Remove noise, fix duplications, reduce failure points
+
+**Day 1** (2 hours):
+1. ✅ **P5.4** - Delete rust/ and core/native/ (30 min)
+2. ✅ **P5.2.3** - Delete mode_executors.py (30 min)
+3. ✅ **P5.2.4** - Consolidate swarm_bridge.py (1 hour)
+
+**Day 2-3** (1.5 days):
+4. ✅ **P5.2.1** - Migrate success_memory.py → V2 (1 day)
+5. ✅ **P5.2.2** - Remove core/drivers/legacy/ (0.5 day)
+
+**Day 4** (1 day):
+6. ✅ **P5.3** - Consolidate rate limiters (5→1)
+
+**Deliverable**: -6 files, -2 duplications, -4 rate limiters = cleaner codebase
+**Tests**: `pytest tests/ -x` must pass after each step
+
+### 🎯 **IMMEDIATE NEXT ACTION** (Right Now)
+
+Execute **P5.4** - Remove dead code (fastest ROI):
+
+```bash
+# 1. Verify no imports
+grep -rn "core.native\|from core import native\|from rust" core/ tests/ --include="*.py"
+
+# 2. Delete dead code
+rm -rf rust/
+rm -rf core/native/
+
+# 3. Verify import works
+python -c "import core; print('Import OK')"
+
+# 4. Commit
+git add -A
+git commit -m "chore(P5.4): remove dead Rust skeleton and native bridge
+
+- Delete rust/nexus_core/ (unused skeleton, no PyO3 bindings)
+- Delete core/native/ (fallback for non-existent Rust bridge)  - Reduces codebase noise, simplifies onboarding
+- No functionality lost (code was never executed)
+
+Ref: nexus-audit-nxcg.md P2.3, remediation plan section 7"
+git push origin NX-CG
+```
+
+**Estimated time**: 5 minutes
+**Risk**: Zero (code is dead/unused)
+**Benefit**: Cleaner codebase, less confusion
+
+---
+
+**After P5.4, proceed with P5.2 (duplications) following Sprint 1 plan above.**

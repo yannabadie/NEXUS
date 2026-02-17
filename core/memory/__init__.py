@@ -15,16 +15,21 @@ Memory systems for NEXUS:
 """
 
 from .auto_memory import AutoMemory, get_auto_memory, MemoryEntry
-from .success_memory import SuccessMemory, SuccessEntry, get_success_memory
 from .project_memory import ProjectMemory
 from .types import Chunk, ScoredChunk, IndexStats
 
-# V12.4.1 Epic 1.4: LanceDB-backed memory V2
+# V12.4.1 Epic 1.4: LanceDB-backed memory V2 (CANONICAL)
 from .success_memory_v2 import (
     SuccessMemoryV2,
+    SuccessEntry,  # SuccessEntry is now in V2
     get_success_memory_v2,
     reset_success_memory_v2,
 )
+
+# Backward compatibility aliases (DEPRECATED - remove in V13.0)
+# Allows legacy imports to work transparently while we migrate
+SuccessMemory = SuccessMemoryV2
+get_success_memory = get_success_memory_v2
 from .strategy_blacklist_v2 import (
     StrategyBlacklistV2,
     BlacklistedStrategy,
