@@ -44,6 +44,7 @@ from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..agent_registry import AgentRegistry
 from ..user_interaction import UserInteractionHandler
+from ..prompts import CONSOLIDATION_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
@@ -446,10 +447,31 @@ class KnowledgeConsolidationPhase:
         """Get reflection from Gemini with session isolation."""
         try:
             logger.debug(f"Gemini reflection using session {session_uuid[:8] if session_uuid else 'none'}")
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
-            tokens = len(response) // 4
-            self.cost_estimator.record_cost("reflection_gemini", tokens)
-            return response
+            # V12.4.1: Use invoke() with cached system prompt
+            response = await self.gemini.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
+                agent_name="gemini",
+                agent_id="gemini",
+            )
+
+            if not response.is_success:
+                logger.warning(f"Gemini reflection failed: {response.error_message}")
+                return ""
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "reflection_gemini",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("reflection_gemini", total_tokens)
+
+            return response.content
         except Exception as e:
             logger.error(f"Gemini reflection failed: {e}")
             raise
@@ -458,10 +480,31 @@ class KnowledgeConsolidationPhase:
         """Get reflection from Claude with session isolation."""
         try:
             logger.debug(f"Claude reflection using session {session_uuid[:8] if session_uuid else 'none'}")
-            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
-            tokens = len(response) // 4
-            self.cost_estimator.record_cost("reflection_claude", tokens)
-            return response
+            # V12.4.1: Use invoke() with cached system prompt
+            response = await self.claude.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
+                agent_name="claude",
+                agent_id="claude",
+            )
+
+            if not response.is_success:
+                logger.warning(f"Claude reflection failed: {response.error_message}")
+                return ""
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "reflection_claude",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("reflection_claude", total_tokens)
+
+            return response.content
         except Exception as e:
             logger.error(f"Claude reflection failed: {e}")
             raise
