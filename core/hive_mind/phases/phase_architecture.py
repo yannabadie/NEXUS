@@ -63,6 +63,7 @@ from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..agent_registry import AgentRegistry
 from ..user_interaction import UserInteractionHandler
+from ..prompts import ARCHITECTURE_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -557,13 +558,30 @@ class ArchitectureGenerationPhase:
             logger.debug(f"Claude architecture using session {session_uuid[:8] if session_uuid else 'none'}")
 
         try:
-            response = await self.claude.send_message_async(prompt, session_uuid=session_uuid)
+            # V12.4.1: Use invoke() with static system prompt (cached)
+            response = await self.claude.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=ARCHITECTURE_SYSTEM_PROMPT,
+                agent_name="claude",
+                agent_id="claude",
+            )
 
-            # Record cost
-            tokens = len(str(response)) // 4
-            self.cost_estimator.record_cost("generate_architecture_claude", tokens)
+            if not response.is_success:
+                raise RuntimeError(f"Claude architecture generation failed: {response.error_message}")
 
-            return self._parse_architecture_response(response, capabilities)
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "generate_architecture_claude",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("generate_architecture_claude", total_tokens)
+
+            return self._parse_architecture_response(response.content, capabilities)
 
         except Exception as e:
             logger.error(f"Claude architecture generation failed: {e}")
@@ -621,15 +639,33 @@ class ArchitectureGenerationPhase:
             session_uuid = self._session_integration.get_agent_session("gemini")
             logger.debug(f"Gemini validation using session {session_uuid[:8] if session_uuid else 'none'}")
 
-        response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+        # V12.4.1: Use invoke() with system prompt
+        response = await self.gemini.invoke(
+            prompt,
+            session_id=session_uuid,
+            system_prompt=ARCHITECTURE_SYSTEM_PROMPT,
+            agent_name="gemini",
+            agent_id="gemini",
+        )
 
-        # Record cost
-        tokens = len(str(response)) // 4
-        self.cost_estimator.record_cost("validate_architecture_gemini", tokens)
+        if not response.is_success:
+            logger.warning(f"Gemini validation failed: {response.error_message}, using Claude's architecture")
+            return claude_arch
+
+        # Record actual token usage
+        if hasattr(self.cost_estimator, 'record_tokens'):
+            self.cost_estimator.record_tokens(
+                "validate_architecture_gemini",
+                input_tokens=response.input_tokens,
+                output_tokens=response.output_tokens,
+            )
+        else:
+            total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+            self.cost_estimator.record_cost("validate_architecture_gemini", total_tokens)
 
         # Parse validation response
         from ..json_parser import parse_json_response
-        data = parse_json_response(response, "validation", default=None)
+        data = parse_json_response(response.content, "validation", default=None)
 
         if data is None:
             logger.warning("  Gemini validation parse failed - using Claude architecture")
@@ -680,14 +716,31 @@ class ArchitectureGenerationPhase:
             logger.debug(f"Architecture generation using session {session_uuid[:8] if session_uuid else 'none'}")
 
         try:
-            response = await self.gemini.send_message_async(prompt, session_uuid=session_uuid)
+            # V12.4.1: Use invoke() with system prompt
+            response = await self.gemini.invoke(
+                prompt,
+                session_id=session_uuid,
+                system_prompt=ARCHITECTURE_SYSTEM_PROMPT,
+                agent_name="gemini",
+                agent_id="gemini",
+            )
 
-            # Record cost
-            tokens = len(str(response)) // 4
-            self.cost_estimator.record_cost("generate_architecture", tokens)
+            if not response.is_success:
+                raise RuntimeError(f"Legacy architecture generation failed: {response.error_message}")
+
+            # Record actual token usage
+            if hasattr(self.cost_estimator, 'record_tokens'):
+                self.cost_estimator.record_tokens(
+                    "generate_architecture",
+                    input_tokens=response.input_tokens,
+                    output_tokens=response.output_tokens,
+                )
+            else:
+                total_tokens = (response.input_tokens or 0) + (response.output_tokens or 0)
+                self.cost_estimator.record_cost("generate_architecture", total_tokens)
 
             # Parse response
-            return self._parse_architecture_response(response, capabilities)
+            return self._parse_architecture_response(response.content, capabilities)
 
         except Exception as e:
             logger.error(f"Architecture generation failed: {e}")
