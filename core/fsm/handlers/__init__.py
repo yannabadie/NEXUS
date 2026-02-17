@@ -16,8 +16,9 @@ from core.fsm.handlers.executing_tool import ExecutingToolHandler
 from core.fsm.handlers.validating_cfl import ValidatingCFLHandler
 from core.fsm.handlers.evolution import EvolutionHandler
 from core.fsm.handlers.swarm import SwarmHandler
+from core.fsm.handlers.idle_waiting import IdleWaitingHandler
 
-# Import legacy handlers temporarily for complex extractions
+# Import legacy handlers temporarily for simple execution helpers
 from core.orchestration.fsm_handlers import FSMHandlers as LegacyFSMHandlers
 
 from typing import TYPE_CHECKING, Dict, Optional
@@ -49,8 +50,9 @@ class FSMHandlers:
         self.validating_cfl_handler = ValidatingCFLHandler(orchestrator)
         self.evolution_handler = EvolutionHandler(orchestrator)
         self.swarm_handler = SwarmHandler(orchestrator)
+        self.idle_waiting_handler = IdleWaitingHandler(orchestrator)
 
-        # Temporary: Use legacy handler for idle/waiting (complex routing logic)
+        # Temporary: Use legacy handler for simple execution helpers
         self._legacy_handler = LegacyFSMHandlers(orchestrator)
 
     # =========================================================================
@@ -59,13 +61,11 @@ class FSMHandlers:
 
     def handle_idle(self, user_input: Optional[str]) -> Dict:
         """Handle IDLE state."""
-        # TODO: Replace with IdleWaitingHandler once extracted
-        return self._legacy_handler.handle_idle(user_input)
+        return self.idle_waiting_handler.handle_idle(user_input)
 
     def handle_waiting_user(self, user_input: Optional[str]) -> Dict:
         """Handle WAITING_USER state."""
-        # TODO: Replace with IdleWaitingHandler once extracted
-        return self._legacy_handler.handle_waiting_user(user_input)
+        return self.idle_waiting_handler.handle_waiting_user(user_input)
 
     def handle_brainstorming(self) -> Dict:
         """Handle BRAINSTORMING state."""
