@@ -18,6 +18,7 @@ dependencies = [
     # Core
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
+    "email-validator>=2.0.0",  # Required by pydantic EmailStr
     "rich>=13.7.0",
     "prompt-toolkit>=3.0.43",
     "tiktoken>=0.5.2",
