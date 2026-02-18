@@ -34,9 +34,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ DECAY_RATE_PER_HOUR = 0.01
 MIN_OBSERVATIONS = 3
 
 # Known fine-grained capabilities (superset of AgentCapability enum)
-KNOWN_CAPABILITIES: Dict[str, str] = {
+KNOWN_CAPABILITIES: dict[str, str] = {
     # Coding
     "coding": "General code writing",
     "debugging": "Bug diagnosis and fixing",
@@ -125,7 +124,7 @@ class CapabilityRecord:
         """Whether we have enough data to trust the proficiency."""
         return self.observations >= MIN_OBSERVATIONS
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "capability": self.capability,
             "proficiency": round(self.proficiency, 4),
@@ -140,7 +139,7 @@ class CapabilityRecord:
 class AgentProfile:
     """Complete capability profile for one agent."""
     agent_id: str
-    capabilities: Dict[str, CapabilityRecord] = field(default_factory=dict)
+    capabilities: dict[str, CapabilityRecord] = field(default_factory=dict)
     total_tasks: int = 0
     total_successes: int = 0
     registered_at: float = field(default_factory=time.monotonic)
@@ -152,7 +151,7 @@ class AgentProfile:
         return self.total_successes / self.total_tasks
 
     @property
-    def capability_names(self) -> List[str]:
+    def capability_names(self) -> list[str]:
         return sorted(self.capabilities.keys())
 
     def get_proficiency(self, capability: str) -> float:
@@ -160,7 +159,7 @@ class AgentProfile:
         rec = self.capabilities.get(capability)
         return rec.proficiency if rec else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "total_tasks": self.total_tasks,
@@ -177,15 +176,15 @@ class MatchResult:
     """Result of matching required capabilities to an agent."""
     agent_id: str
     score: float  # 0.0 to 1.0
-    matched_capabilities: List[str]
-    missing_capabilities: List[str]
-    proficiency_details: Dict[str, float]
+    matched_capabilities: list[str]
+    missing_capabilities: list[str]
+    proficiency_details: dict[str, float]
 
     @property
     def is_full_match(self) -> bool:
         return len(self.missing_capabilities) == 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "score": round(self.score, 4),
@@ -220,7 +219,7 @@ class CapabilityProfiler:
         decay_rate_per_hour: float = DECAY_RATE_PER_HOUR,
         min_observations: int = MIN_OBSERVATIONS,
     ):
-        self._profiles: Dict[str, AgentProfile] = {}
+        self._profiles: dict[str, AgentProfile] = {}
         self._learning_rate = learning_rate
         self._decay_rate = decay_rate_per_hour
         self._min_observations = min_observations
@@ -233,8 +232,8 @@ class CapabilityProfiler:
         self,
         agent_id: str,
         *,
-        capabilities: Optional[List[str]] = None,
-        initial_proficiency: Optional[Dict[str, float]] = None,
+        capabilities: list[str] | None = None,
+        initial_proficiency: dict[str, float] | None = None,
     ) -> AgentProfile:
         """
         Register an agent with its capabilities.
@@ -369,7 +368,7 @@ class CapabilityProfiler:
 
         return True
 
-    def apply_decay(self, agent_id: Optional[str] = None) -> int:
+    def apply_decay(self, agent_id: str | None = None) -> int:
         """
         Apply proficiency decay for inactive capabilities.
 
@@ -420,11 +419,11 @@ class CapabilityProfiler:
 
     def best_match(
         self,
-        required: List[str],
+        required: list[str],
         *,
-        preferred: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-    ) -> Optional[MatchResult]:
+        preferred: list[str] | None = None,
+        exclude: list[str] | None = None,
+    ) -> MatchResult | None:
         """
         Find the best agent for a set of required capabilities.
 
@@ -451,11 +450,11 @@ class CapabilityProfiler:
 
     def match_all(
         self,
-        required: List[str],
+        required: list[str],
         *,
-        preferred: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-    ) -> List[MatchResult]:
+        preferred: list[str] | None = None,
+        exclude: list[str] | None = None,
+    ) -> list[MatchResult]:
         """
         Rank all agents for a set of required capabilities.
 
@@ -470,10 +469,10 @@ class CapabilityProfiler:
 
     def _match_all(
         self,
-        required: List[str],
-        preferred: Optional[List[str]] = None,
-        exclude: Optional[List[str]] = None,
-    ) -> List[MatchResult]:
+        required: list[str],
+        preferred: list[str] | None = None,
+        exclude: list[str] | None = None,
+    ) -> list[MatchResult]:
         exclude_set = set(exclude or [])
         preferred_caps = preferred or []
         results = []
@@ -527,7 +526,7 @@ class CapabilityProfiler:
     # Queries
     # =========================================================================
 
-    def get_profile(self, agent_id: str) -> Optional[AgentProfile]:
+    def get_profile(self, agent_id: str) -> AgentProfile | None:
         """Get profile for an agent."""
         return self._profiles.get(agent_id)
 
@@ -538,18 +537,18 @@ class CapabilityProfiler:
             return 0.0
         return profile.get_proficiency(capability)
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all registered agent IDs."""
         return sorted(self._profiles.keys())
 
-    def list_capabilities(self, agent_id: str) -> List[str]:
+    def list_capabilities(self, agent_id: str) -> list[str]:
         """List capabilities for an agent."""
         profile = self._profiles.get(agent_id)
         if profile is None:
             return []
         return profile.capability_names
 
-    def agents_with_capability(self, capability: str) -> List[str]:
+    def agents_with_capability(self, capability: str) -> list[str]:
         """Find all agents that have a specific capability."""
         return sorted(
             agent_id
@@ -596,7 +595,7 @@ class CapabilityProfiler:
     def agent_count(self) -> int:
         return len(self._profiles)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export profiler state."""
         return {
             "agent_count": self.agent_count,
@@ -613,7 +612,7 @@ class CapabilityProfiler:
 # Singleton
 # =============================================================================
 
-_profiler: Optional[CapabilityProfiler] = None
+_profiler: CapabilityProfiler | None = None
 _profiler_lock = threading.Lock()
 
 
