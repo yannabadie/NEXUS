@@ -956,6 +956,12 @@ class OrchestratorV7:
         """Transition to new FSM state. P5.1: Delegates to StateHandler for backward compatibility."""
         return self.state_handler.transition_to(new_state)
 
+    def _make_result(self, state: str, output: Optional[str], agent: Optional[str],
+                     finished: bool, error: Optional[str] = None, tool: Optional[str] = None,
+                     metadata: Optional[Dict] = None) -> Dict:
+        """Create result dict. P5.1: Delegates to ResultHandler for backward compatibility."""
+        return self.result_handler.make_result(state, output, agent, finished, error, tool, metadata)
+
     def get_system_status(self) -> Dict:
         """Get comprehensive system status (for /status command)"""
         current_plan = self.blackboard.get("strategic_plan", [])
