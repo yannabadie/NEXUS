@@ -6,20 +6,21 @@ Cost-effective LLM API using DeepSeek's OpenAI-compatible endpoint.
 
 Features:
 - OpenAI-compatible API (via openai package)
-- Cache hits: $0.028/M (90% savings vs $0.28/M cache miss)
-- DeepSeek V3.2: $0.28/$0.42 per million tokens
-- DeepSeek R1: Reasoning model at $0.42/M output
+- Cache hits: $0.014/M (90% savings vs $0.14/M cache miss)
+- DeepSeek V3: $0.14/$0.28 per million tokens (Feb 2025)
+- DeepSeek R1: Reasoning model at $0.55/$2.19 per M tokens
 - Streaming responses
 - Function/tool calling support
 
-Pricing (2026):
-- Input: $0.28/M tokens (cache miss), $0.028/M (cache hit)
-- Output: $0.42/M tokens
+Pricing (Feb 2025):
+- Input: $0.14/M tokens (cache miss), $0.014/M (cache hit)
+- Output: $0.28/M tokens
 - FREE: 5M tokens for new signups (no credit card)
 
-Comparison:
-- vs Claude Sonnet 4: $3/$15 per million (94% cheaper)
-- vs GPT-4o: $2.50/$10 per million (89% cheaper)
+Comparison (Feb 2025):
+- vs Claude 3.7 Sonnet: $3/$15 per million (98% cheaper)
+- vs Gemini 2.5 Flash: $0.30/$2.50 per million (85% cheaper)
+- vs GPT-4o: $2.50/$10 per million (95% cheaper)
 
 Usage:
     from core.drivers.deepseek_sdk_driver import DeepSeekSDKDriver
@@ -238,10 +239,10 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
             output_tokens = usage.completion_tokens if usage else 0
             total_tokens = usage.total_tokens if usage else 0
 
-            # Calculate cost (DeepSeek V3.2 pricing)
-            # Input: $0.28/M, Output: $0.42/M
-            cost_input = (input_tokens / 1_000_000) * 0.28
-            cost_output = (output_tokens / 1_000_000) * 0.42
+            # Calculate cost (DeepSeek V3 pricing - Feb 2025)
+            # Input: $0.14/M, Output: $0.28/M
+            cost_input = (input_tokens / 1_000_000) * 0.14
+            cost_output = (output_tokens / 1_000_000) * 0.28
             cost_total = cost_input + cost_output
 
             # Track budget if available
