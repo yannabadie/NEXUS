@@ -62,6 +62,7 @@ from .async_factory import (
 # V12.4 SDK-Native Drivers (API-First)
 from .anthropic_sdk_driver import AnthropicSDKDriver
 from .google_genai_sdk_driver import GoogleGenAISDKDriver
+from .deepseek_sdk_driver import DeepSeekSDKDriver
 
 # V12.4 Local LLM Driver
 from .ollama_driver import OllamaDriver
@@ -151,6 +152,7 @@ __all__ = [
     # V12.4 SDK-Native (API-First)
     "AnthropicSDKDriver",
     "GoogleGenAISDKDriver",
+    "DeepSeekSDKDriver",
     # V12.4 Local LLM
     "OllamaDriver",
     # V12.4 Response Cache

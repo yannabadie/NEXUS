@@ -48,6 +48,7 @@ from core.telemetry.budget_tracker import get_budget_tracker
 if TYPE_CHECKING:
     from .anthropic_sdk_driver import AnthropicSDKDriver
     from .google_genai_sdk_driver import GoogleGenAISDKDriver
+    from .deepseek_sdk_driver import DeepSeekSDKDriver
     from .protocol import BaseAsyncDriver
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ class AsyncDriverFactory:
         # API keys for SDK drivers
         self._anthropic_api_key: Optional[str] = getattr(config, 'anthropic_api_key', None)
         self._google_api_key: Optional[str] = getattr(config, 'google_api_key', None)
+        self._deepseek_api_key: Optional[str] = getattr(config, 'deepseek_api_key', None)
 
         # Shared response cache for SDK drivers (deduplication)
         self._response_cache = ResponseCache(
@@ -102,6 +104,7 @@ class AsyncDriverFactory:
         # Lazy-initialized SDK drivers (V12.4)
         self._claude_sdk: Optional["AnthropicSDKDriver"] = None
         self._gemini_sdk: Optional["GoogleGenAISDKDriver"] = None
+        self._deepseek_sdk: Optional["DeepSeekSDKDriver"] = None
 
     # =========================================================================
     # CLI Drivers (backward compatible)
@@ -248,6 +251,53 @@ class AsyncDriverFactory:
 
         return self._gemini_sdk
 
+    def get_deepseek_sdk(
+        self,
+        model: str | None = None,
+    ) -> "DeepSeekSDKDriver":
+        """
+        Get or create the DeepSeek SDK driver (cost-effective alternative).
+
+        DeepSeek provides 95% cost savings vs Anthropic/Gemini with
+        OpenAI-compatible API and 5M free tokens for new users.
+
+        Args:
+            model: Optional model override (default: "deepseek-chat")
+                   Aliases: "chat" (V3.2), "reasoner" (R1), "default"
+
+        Returns:
+            DeepSeekSDKDriver instance
+
+        Raises:
+            RuntimeError: If no DEEPSEEK_API_KEY is configured
+        """
+        if self._deepseek_sdk is None:
+            if not self._deepseek_api_key:
+                raise RuntimeError(
+                    "DeepSeekSDKDriver requires DEEPSEEK_API_KEY. "
+                    "Set it in .env or environment.\n"
+                    "Get your free API key with 5M tokens at: https://platform.deepseek.com/"
+                )
+            from .deepseek_sdk_driver import DeepSeekSDKDriver
+
+            self._deepseek_sdk = DeepSeekSDKDriver(
+                model=model or getattr(self.config, 'deepseek_model', 'deepseek-chat'),
+                api_key=self._deepseek_api_key,
+                max_tokens=getattr(self.config, 'max_tokens', 8192),
+                timeout=float(getattr(self.config, 'timeout', 300)),
+                enable_caching=True,
+                response_cache=self._response_cache,
+            )
+            self._deepseek_sdk.set_budget_tracker(self._budget_tracker)
+            self._deepseek_sdk.set_health_monitor(self._health_monitor)
+            sdk_model = getattr(self._deepseek_sdk, '_model', 'unknown')
+            self._failover.register_driver(f"deepseek/{sdk_model}", priority=2)
+            logger.info(f"Created DeepSeekSDKDriver (model={sdk_model})")
+        elif model and hasattr(self._deepseek_sdk, '_model'):
+            self._deepseek_sdk._model = model
+
+        return self._deepseek_sdk
+
     # =========================================================================
     # Smart Driver Selection (V12.4)
     # =========================================================================
@@ -261,6 +311,11 @@ class AsyncDriverFactory:
     def gemini_sdk_available(self) -> bool:
         """Check if Gemini SDK driver can be created (API key present)."""
         return bool(self._google_api_key) and self._driver_mode != "cli"
+
+    @property
+    def deepseek_sdk_available(self) -> bool:
+        """Check if DeepSeek SDK driver can be created (API key present)."""
+        return bool(self._deepseek_api_key) and self._driver_mode != "cli"
 
     def get_best_claude(self, model: Optional[str] = None) -> Any:
         """
