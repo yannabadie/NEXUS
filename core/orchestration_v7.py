@@ -57,8 +57,8 @@ except ImportError:
     KERNEL_AVAILABLE = False
     runtime_integrity_check = None
 
-# V8.8: Security Guards (OWASP LLM01:2025 - Prompt Injection Prevention)
-from core.security import get_input_guard, ThreatLevel
+# P5.1 Phase 1: GuardPipeline extraction (replaces inline INPUT_GUARD calls)
+from core.orchestration.guard_pipeline import GuardPipeline
 
 
 class OrchestratorV7:
@@ -244,6 +244,9 @@ class OrchestratorV7:
         self.agent_invoker = AgentInvoker(self)
         self.swarm_bridge = SwarmBridge(self)
         self.fsm_handlers = FSMHandlers(self)
+
+        # P5.1 Phase 1: GuardPipeline for security validation
+        self.guard_pipeline = GuardPipeline()
 
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         from core.orchestration.sync_bridge import get_sync_bridge
@@ -553,38 +556,18 @@ class OrchestratorV7:
             except Exception:
                 pass  # Non-blocking advisory check
 
-        # V8.8: INPUT GUARD - Prompt Injection Prevention (OWASP LLM01:2025)
-        # Validates user input before processing to detect injection attempts
-        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
-            input_guard = get_input_guard()
-            validation = input_guard.validate(user_input)
-
-            if not validation.is_safe:
-                # CRITICAL/HIGH threats: Block and log
-                self.logger.warning(
-                    "Prompt injection attempt detected",
-                    {
-                        "threat_level": validation.threat_level.value,
-                        "threat_type": validation.threat_type.value,
-                        "reason": validation.reason,
-                        "risk_score": validation.risk_score,
-                        "matched_patterns": validation.matched_patterns[:3]  # First 3 patterns
-                    }
-                )
-
-                if validation.threat_level == ThreatLevel.CRITICAL:
-                    return self._make_result(
-                        self.state.name,
-                        f"[SECURITY] Input blocked: {validation.reason}. "
-                        "Your request was flagged as a potential prompt injection attack.",
-                        None,
-                        False,
-                        error="PROMPT_INJECTION_BLOCKED"
-                    )
-                # HIGH threats: Warn but allow with sanitized input
-                elif validation.threat_level == ThreatLevel.HIGH:
-                    self.logger.info("Using sanitized input due to HIGH threat level")
-                    user_input = validation.sanitized_text
+        # P5.1: INPUT GUARD - Prompt Injection Prevention (OWASP LLM01:2025)
+        # Extracted to GuardPipeline for modularity
+        guard_result = self.guard_pipeline.validate_input(user_input, self.state)
+        if self.guard_pipeline.should_block(guard_result):
+            return self._make_result(
+                self.state.name,
+                f"[SECURITY] Input blocked: {guard_result.reason}. "
+                "Your request was flagged as a potential prompt injection attack.",
+                None,
+                False,
+                error="PROMPT_INJECTION_BLOCKED"
+            )
 
         # V7.8 Phase 14c.2d: FSM State Dispatcher
         state_handlers = {
@@ -642,20 +625,15 @@ class OrchestratorV7:
                     None, True, error="KERNEL_INTEGRITY_VIOLATION"
                 )
 
-        # V8.8: INPUT GUARD - Prompt Injection Prevention (async path)
-        if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
-            input_guard = get_input_guard()
-            validation = input_guard.validate(user_input)
-            if not validation.is_safe and validation.threat_level == ThreatLevel.CRITICAL:
-                self.logger.warning("Prompt injection blocked (async)", {
-                    "threat_type": validation.threat_type.value,
-                    "risk_score": validation.risk_score
-                })
-                return self._make_result(
-                    self.state.name,
-                    f"[SECURITY] Input blocked: {validation.reason}",
-                    None, False, error="PROMPT_INJECTION_BLOCKED"
-                )
+        # P5.1: INPUT GUARD - Prompt Injection Prevention (async path)
+        # Extracted to GuardPipeline for modularity
+        guard_result = self.guard_pipeline.validate_input(user_input, self.state)
+        if self.guard_pipeline.should_block(guard_result):
+            return self._make_result(
+                self.state.name,
+                f"[SECURITY] Input blocked: {guard_result.reason}",
+                None, False, error="PROMPT_INJECTION_BLOCKED"
+            )
 
         # P5.7: FAST PATH - Bypass HiveMind for trivial inputs (15-30% latency reduction)
         if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):

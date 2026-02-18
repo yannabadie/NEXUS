@@ -35,6 +35,8 @@ from core.orchestration.detectors import MutationDetector, ResponseDetector, get
 from core.orchestration.agent_invoker import AgentInvoker
 from core.orchestration.swarm_bridge import SwarmBridge
 from core.orchestration.fsm_handlers import FSMHandlers
+# P5.1 Phase 1: GuardPipeline extraction
+from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
 
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import (
@@ -76,6 +78,9 @@ __all__ = [
     'AgentInvoker',
     'SwarmBridge',
     'FSMHandlers',
+    # P5.1 Phase 1: GuardPipeline
+    'GuardPipeline',
+    'GuardValidationResult',
     # V9.4: Sync bridge
     'OrchestratorSyncBridge',
     'SyncEvent',
