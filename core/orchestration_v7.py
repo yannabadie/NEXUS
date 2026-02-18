@@ -248,6 +248,10 @@ class OrchestratorV7:
         # P5.1 Phase 1: GuardPipeline for security validation
         self.guard_pipeline = GuardPipeline()
 
+        # P5.1 Phase 2: TaskRouter for routing logic
+        from core.orchestration.task_router import TaskRouter
+        self.task_router = TaskRouter()
+
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         from core.orchestration.sync_bridge import get_sync_bridge
         self._sync_bridge = get_sync_bridge()
@@ -635,16 +639,14 @@ class OrchestratorV7:
                 None, False, error="PROMPT_INJECTION_BLOCKED"
             )
 
-        # P5.7: FAST PATH - Bypass HiveMind for trivial inputs (15-30% latency reduction)
+        # P5.1 Phase 2: FAST PATH - Bypass HiveMind for trivial inputs
+        # Extracted to TaskRouter for modularity
         if user_input and self.state in (OrchestratorState.IDLE, OrchestratorState.WAITING_USER):
-            analyzer = TaskAnalyzer()
-
-            # Check if instant command or conversational trivial
-            if analyzer.is_instant_command(user_input) or analyzer.is_conversational_trivial(user_input):
+            if self.task_router.is_fast_path(user_input):
                 self.logger.debug("Fast path activated (trivial input)", {"input_length": len(user_input)})
 
-                # Simple direct response for trivial inputs
-                response = self._handle_trivial_input(user_input)
+                # Get direct response from TaskRouter
+                response = self.task_router.handle_fast_path(user_input)
                 self._transition_to(OrchestratorState.WAITING_USER)
 
                 return self._make_result(
@@ -1199,39 +1201,6 @@ class OrchestratorV7:
 
         return results
 
-    def _handle_trivial_input(self, user_input: str) -> str:
-        """
-        P5.7: Fast path handler for trivial inputs.
-
-        Provides simple direct responses for greetings, acknowledgments,
-        and instant commands without invoking HiveMind or Swarm.
-
-        Args:
-            user_input: Trivial user input (greeting, command, etc.)
-
-        Returns:
-            Simple response string
-        """
-        input_lower = user_input.strip().lower()
-
-        # Greetings
-        if any(g in input_lower for g in ["hello", "hi", "hey", "bonjour", "salut"]):
-            return "Hello! I'm NEXUS, your multi-agent orchestrator. How can I help you today?"
-
-        # Farewells
-        if any(f in input_lower for f in ["bye", "goodbye", "au revoir", "ciao"]):
-            return "Goodbye! Feel free to return anytime."
-
-        # Acknowledgments
-        if any(a in input_lower for a in ["ok", "okay", "thanks", "merci"]):
-            return "You're welcome! Let me know if you need anything else."
-
-        # Test/ping
-        if any(t in input_lower for t in ["test", "ping", "pong"]):
-            return "Pong! NEXUS is responsive."
-
-        # Default for other trivial inputs
-        return "I'm here and ready to assist. What would you like to work on?"
 
     def start_swarm_mode(self, objective: str, force_mode: Optional[CollaborationMode] = None) -> Dict:
         """Start Hybrid Swarm mode. V7.8: Delegates to SwarmBridge."""
