@@ -26,7 +26,7 @@ import uuid as uuid_module
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Dict, Any, Optional
+from typing import TYPE_CHECKING, Any
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
@@ -38,10 +38,10 @@ if TYPE_CHECKING:
 class SpawnResult:
     """Result of a spawn operation."""
     success: bool
-    agent_id: Optional[str] = None
-    agent_uuid: Optional[str] = None
-    agent_path: Optional[Path] = None
-    error: Optional[str] = None
+    agent_id: str | None = None
+    agent_uuid: str | None = None
+    agent_path: Path | None = None
+    error: str | None = None
     prompt_lines: int = 0
 
 
@@ -61,7 +61,7 @@ class PoolStats:
     total_agents: int
     total_invocations: int
     average_importance: float
-    agents_detail: Dict[str, Dict[str, Any]]
+    agents_detail: Dict[str, dict[str, Any]]
 
 
 class AgentService:
@@ -231,7 +231,7 @@ class AgentService:
             self.console.print("="*60 + "\n")
             return SpawnResult(success=False, error=str(e))
 
-    def list_agents(self) -> List[AgentInfo]:
+    def list_agents(self) -> list[AgentInfo]:
         """
         List all spawned agents in workspace/agents/.
 
@@ -269,7 +269,7 @@ class AgentService:
         self.console.print("\n" + "="*60 + "\n")
         return agents
 
-    def get_pool_stats(self) -> Optional[PoolStats]:
+    def get_pool_stats(self) -> PoolStats | None:
         """
         Get AgentPool statistics with DyLAN importance scores.
 
@@ -322,7 +322,7 @@ class AgentService:
 
     # ==================== PRIVATE HELPERS ====================
 
-    def _detect_domains_from_role(self, role: str) -> List[str]:
+    def _detect_domains_from_role(self, role: str) -> list[str]:
         """
         Detect domains from role string using heuristics.
 
@@ -352,7 +352,7 @@ class AgentService:
 
         return domains
 
-    def _brainstorm_agent_prompt(self, role: str, agent_uuid: str, domains: List[str]) -> Optional[str]:
+    def _brainstorm_agent_prompt(self, role: str, agent_uuid: str, domains: list[str]) -> str | None:
         """
         Brainstorm specialized system prompt via Hive Mind.
 
@@ -434,7 +434,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
             self.console.print(f"   Brainstorm exception: {e}")
             return None
 
-    def _extract_inference_config(self, prompt: str) -> Optional[Dict[str, str]]:
+    def _extract_inference_config(self, prompt: str) -> dict[str, str] | None:
         """
         Extract inference configuration from generated prompt.
 
@@ -482,7 +482,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
 
         return None
 
-    def _validate_prompt_tools(self, prompt: str) -> List[str]:
+    def _validate_prompt_tools(self, prompt: str) -> list[str]:
         """
         Validate that generated prompt only references real NEXUS tools.
 
@@ -515,7 +515,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
 
         return list(set(hallucinated))
 
-    def _static_agent_template(self, role: str, agent_uuid: str, domains: List[str]) -> str:
+    def _static_agent_template(self, role: str, agent_uuid: str, domains: list[str]) -> str:
         """
         Fallback static template when brainstorm fails.
 
@@ -619,10 +619,10 @@ Creator: Yann Abadie
         role_slug: str,
         agent_uuid: str,
         role: str,
-        domains: List[str],
-        inference_config: Dict[str, str],
+        domains: list[str],
+        inference_config: dict[str, str],
         generated_prompt: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create agent configuration dictionary.
 

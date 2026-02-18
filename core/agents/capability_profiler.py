@@ -561,7 +561,7 @@ class CapabilityProfiler:
         capability: str,
         *,
         limit: int = 5,
-    ) -> List[tuple]:
+    ) -> list[tuple]:
         """
         Get top agents for a capability, ranked by proficiency.
 
