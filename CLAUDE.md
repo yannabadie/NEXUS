@@ -195,6 +195,50 @@ You may temporarily assume an "executor" role **if both agents agree** it's the 
 
 ---
 
+## ⚠️ CRITICAL RULE: Always Verify Your Claims
+
+**MANDATORY VERIFICATION PROTOCOL**
+
+When you claim to have **fixed**, **resolved**, **completed**, or **verified** something, you MUST:
+
+1. **Execute verification commands** - Don't assume, verify
+2. **Check actual output** - Read logs, test results, CI status
+3. **Confirm success criteria** - All tests pass? CI green? No errors?
+4. **Document evidence** - Show the proof (logs, output, status)
+
+**Examples of Required Verification:**
+
+| Claim | Required Verification |
+|-------|----------------------|
+| "CI is fixed" | `gh run list --limit 1` + check status is "success" |
+| "Tests pass" | `pytest tests/` + verify 0 failures |
+| "Module works" | `python -c "import module"` + no errors |
+| "Bug resolved" | Run reproduction steps + confirm no error |
+| "API responds" | `curl endpoint` + verify 200 status |
+
+**Anti-Pattern (FORBIDDEN):**
+```
+❌ "I fixed the CI by adding requirements.txt"
+   → Did NOT verify CI actually passes
+```
+
+**Correct Pattern:**
+```
+✅ "I added requirements.txt and pushed (commit abc123)"
+✅ "Checking CI status... gh run view shows 'success'"
+✅ "CI is now passing - verified ✓"
+```
+
+**Why This Matters:**
+- Prevents false confidence in broken solutions
+- Catches hidden dependencies and edge cases
+- Builds trust through demonstrated evidence
+- Saves time by catching issues immediately
+
+**When in doubt:** Over-verify rather than under-verify. The cost of checking is low; the cost of claiming success when there's failure is high.
+
+---
+
 ## 📁 Project Structure
 
 ```
