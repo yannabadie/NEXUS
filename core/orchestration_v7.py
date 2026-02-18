@@ -952,6 +952,10 @@ class OrchestratorV7:
         """Reset orchestrator to IDLE. P5.1: Delegates to StateHandler."""
         return self.state_handler.reset_to_idle(clear_task)
 
+    def _transition_to(self, new_state):
+        """Transition to new FSM state. P5.1: Delegates to StateHandler for backward compatibility."""
+        return self.state_handler.transition_to(new_state)
+
     def get_system_status(self) -> Dict:
         """Get comprehensive system status (for /status command)"""
         current_plan = self.blackboard.get("strategic_plan", [])

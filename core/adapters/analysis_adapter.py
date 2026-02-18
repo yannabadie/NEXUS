@@ -25,10 +25,9 @@ Date: 2025-12-09
 """
 
 from datetime import datetime
-from typing import List, Optional
 
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 from core.hive_mind.types import IndependentAnalysis
+from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 class AnalysisAdapter:
@@ -120,7 +119,7 @@ class AnalysisAdapter:
 
         # Detect domains from text if requested
         # Note: TaskDomain has no UNKNOWN value, use CODING as fallback
-        domains: List[TaskDomain] = [TaskDomain.CODING]
+        domains: list[TaskDomain] = [TaskDomain.CODING]
         primary_domain = TaskDomain.CODING
 
         if detect_domains:
