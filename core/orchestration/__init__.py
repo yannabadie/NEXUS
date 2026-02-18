@@ -41,6 +41,8 @@ from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResu
 from core.orchestration.task_router import TaskRouter, RouteDecision, RouteType
 # P5.1 Phase 3: ResultHandler extraction
 from core.orchestration.result_handler import ResultHandler
+# P5.1 Phase 4: StateHandler extraction
+from core.orchestration.state_handler import StateHandler
 
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
 from core.orchestration.sync_bridge import (
@@ -91,6 +93,8 @@ __all__ = [
     'RouteType',
     # P5.1 Phase 3: ResultHandler
     'ResultHandler',
+    # P5.1 Phase 4: StateHandler
+    'StateHandler',
     # V9.4: Sync bridge
     'OrchestratorSyncBridge',
     'SyncEvent',

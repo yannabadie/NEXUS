@@ -256,6 +256,10 @@ class OrchestratorV7:
         from core.orchestration.result_handler import ResultHandler
         self.result_handler = ResultHandler(self)
 
+        # P5.1 Phase 4: StateHandler for FSM state management
+        from core.orchestration.state_handler import StateHandler
+        self.state_handler = StateHandler(self)
+
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         from core.orchestration.sync_bridge import get_sync_bridge
         self._sync_bridge = get_sync_bridge()
@@ -525,7 +529,7 @@ class OrchestratorV7:
             self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
-                self._transition_to(OrchestratorState.PANIC)
+                self.state_handler.transition_to(OrchestratorState.PANIC)
                 return self.result_handler.make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED. "
@@ -626,7 +630,7 @@ class OrchestratorV7:
             self.logger.info("Running KERNEL runtime integrity check", {"iteration": self.iteration})
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
-                self._transition_to(OrchestratorState.PANIC)
+                self.state_handler.transition_to(OrchestratorState.PANIC)
                 return self.result_handler.make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
@@ -651,7 +655,7 @@ class OrchestratorV7:
 
                 # Get direct response from TaskRouter
                 response = self.task_router.handle_fast_path(user_input)
-                self._transition_to(OrchestratorState.WAITING_USER)
+                self.state_handler.transition_to(OrchestratorState.WAITING_USER)
 
                 return self.result_handler.make_result(
                     self.state.name,
@@ -815,72 +819,6 @@ class OrchestratorV7:
         """Build lightweight context for SIMPLE task. V7.8: Delegates to ContextBuilder."""
         return self.context_builder.build_simple_context(user_input, task_analysis)
 
-    def _transition_to(self, new_state: OrchestratorState):
-        """Transition FSM with event sourcing (V12.4) and OTel tracing (PHASE 3)."""
-        if self.config.ui_verbose:
-            print(f"[FSM] {self.state.name} -> {new_state.name}")
-
-        # V12.4 PHASE 3: OTel span for FSM transition
-        try:
-            from core.telemetry.otel_provider import get_tracer
-            tracer = get_tracer()
-            if tracer:
-                with tracer.start_as_current_span("fsm.transition") as span:
-                    span.set_attribute("nexus.from_state", self.state.name)
-                    span.set_attribute("nexus.to_state", new_state.name)
-                    span.set_attribute("nexus.iteration", self.iteration)
-        except Exception as e:
-            self.logger.debug("OTel span creation failed: %s", e)
-
-        # V12.4: Record transition for crash recovery
-        try:
-            from core.fsm.event_sourcing import record_transition
-            record_transition(
-                from_state=self.state.name,
-                to_state=new_state.name,
-                trigger="fsm_transition",
-                session_id=getattr(self, '_session_uuid', None),
-            )
-            # Increment event counter
-            self._event_count += 1
-
-            # V12.4.1: Create periodic snapshot for fast recovery
-            if self._snapshot_manager.should_snapshot(self._event_count):
-                fsm_state = {
-                    "current_state": new_state.name,
-                    "previous_state": self.state.name,
-                    "session_id": getattr(self, '_session_uuid', None),
-                    "iteration": self.iteration,
-                    "timestamp": time.time(),
-                }
-                snapshot = self._snapshot_manager.create_snapshot(
-                    fsm_state,
-                    sequence_number=self._event_count
-                )
-                if snapshot:
-                    self.logger.debug(
-                        f"Created FSM snapshot at event #{self._event_count}"
-                    )
-        except Exception as e:
-            self.logger.debug("Telemetry record_transition failed: %s", e)
-
-        # Create backup before critical transitions
-        if new_state in [OrchestratorState.PANIC, OrchestratorState.ERROR]:
-            self.memory.create_backup(reason=f"transition_{new_state.name.lower()}")
-
-        # Evolution mode hooks
-        if new_state == OrchestratorState.EVOLUTION_BRAINSTORM:
-            # Enable evolution permissions (READ parent code, WRITE GENERATION_ACTIVE)
-            self.tool_manager.evolution_mode = True
-            self.logger.info("🧬 EVOLUTION MODE: Extended permissions enabled (READ parent, WRITE GENERATION_ACTIVE)")
-
-        elif self.state == OrchestratorState.EVOLUTION_BRAINSTORM and new_state != OrchestratorState.EVOLUTION_BRAINSTORM:
-            # Disable evolution permissions when leaving EVOLUTION_BRAINSTORM
-            self.tool_manager.evolution_mode = False
-            self.logger.info("🧬 EVOLUTION MODE: Permissions restored to normal (workspace only)")
-
-        self.state = new_state
-        self.memory.save_to_disk()  # Backup after transition
 
 
     def _detect_mutation_complete(self, content: str) -> bool:
@@ -905,12 +843,12 @@ class OrchestratorV7:
 
     def _handle_error(self, error_msg: str) -> Dict:
         """Handle recoverable error"""
-        self._transition_to(OrchestratorState.ERROR)
+        self.state_handler.transition_to(OrchestratorState.ERROR)
         return self.result_handler.make_result("ERROR", f"[ERROR] {error_msg}", None, False, error=error_msg)
 
     def _trigger_panic(self, reason: str) -> Dict:
         """Trigger panic state"""
-        self._transition_to(OrchestratorState.PANIC)
+        self.state_handler.transition_to(OrchestratorState.PANIC)
         return self.result_handler.make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
 
     def _calculate_quality_score(
@@ -1033,26 +971,8 @@ class OrchestratorV7:
         return self.result_handler.validate_message(response, expect_heavy)
 
     def reset_to_idle(self, clear_task: bool = True):
-        """
-        Reset orchestrator to IDLE (for /reset command)
-
-        Args:
-            clear_task: If True, also clears the current objective and history
-        """
-        self._transition_to(OrchestratorState.IDLE)
-        self.stagnation_detector.reset()
-        self.stalemate_counter = 0
-        self.pending_tool_result = None
-        self.json_parse_failures = 0
-        self.panic_system.clear_panic()  # Clear panic state
-        self.plan_health.reset()  # Reset plan health monitoring
-
-        # Clear task-related state to avoid stale objectives
-        if clear_task:
-            self.blackboard["objective"] = ""
-            self.blackboard["strategic_plan"] = []
-            self.blackboard["recent_history"] = []
-            self.memory.save_to_disk()
+        """Reset orchestrator to IDLE. P5.1: Delegates to StateHandler."""
+        return self.state_handler.reset_to_idle(clear_task)
 
     def get_system_status(self) -> Dict:
         """Get comprehensive system status (for /status command)"""
