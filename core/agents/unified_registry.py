@@ -17,9 +17,9 @@ With O(1) lookups:
 """
 
 from dataclasses import dataclass, field
-from typing import Protocol, Any, runtime_checkable
 from enum import Enum
 from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 
 
 class AgentProvider(Enum):

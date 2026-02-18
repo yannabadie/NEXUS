@@ -20,14 +20,14 @@ Usage:
 
 from __future__ import annotations
 
-import re
 import json
-import uuid as uuid_module
+import re
 import shutil
+import uuid as uuid_module
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
@@ -61,7 +61,7 @@ class PoolStats:
     total_agents: int
     total_invocations: int
     average_importance: float
-    agents_detail: Dict[str, dict[str, Any]]
+    agents_detail: dict[str, dict[str, Any]]
 
 
 class AgentService:
@@ -74,9 +74,9 @@ class AgentService:
 
     def __init__(
         self,
-        orchestrator: "OrchestratorV7",
+        orchestrator: OrchestratorV7,
         workspace_path: Path,
-        console: "ConsoleV7"
+        console: ConsoleV7
     ):
         """
         Initialize AgentService.

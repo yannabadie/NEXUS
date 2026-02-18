@@ -5,11 +5,11 @@ Centralized agent management, registry, and services.
 """
 
 from .unified_registry import (
-    UnifiedAgentRegistry,
+    AgentCapability,
     AgentDescriptor,
     AgentProvider,
-    AgentCapability,
     DriverProtocol,
+    UnifiedAgentRegistry,
     get_registry,
 )
 
