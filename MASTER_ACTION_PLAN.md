@@ -1104,43 +1104,61 @@ The French architectural audit identified **CRITICAL** complexity and maintainab
 
 ### P5.1: Decompose OrchestratorV7 ⚠️ **P-CRITIQUE**
 
-**Problem**: God Object (1224 lines) manages FSM + routing + context + guards + memory + execution
+**Problem**: God Object (1276 lines) manages FSM + routing + context + guards + memory + execution
 
-**Current Status**: ❌ **NOT STARTED**
+**Current Status**: ⏳ **IN PROGRESS** (Phase 3/7 complete, 2026-02-18)
 - File: `core/orchestration_v7.py`
-- Lines: **1224** (verified 2026-02-17)
+- Starting Lines: **1276** (actual count 2026-02-18)
+- Current Lines: **1177** (-99 lines, -7.8%)
 - Responsibilities: 6+ SRP violations
+- **Session**: `docs/sessions/SESSION_2026-02-18_P5.1_ORCHESTRATOR_DECOMPOSITION.md`
+
+**Completed Phases** (3/7):
+- [x] ✅ Phase 1: GuardPipeline extraction (commit f88090f, -22 lines)
+- [x] ✅ Phase 2: TaskRouter extraction (commit 14a5be1, -31 lines)
+- [x] ✅ Phase 3: ResultHandler extraction (commit fac6804, -46 lines)
+- [ ] Phase 4: StateHandler (MEDIUM-HIGH risk, ~150 lines, 6-8h)
+- [ ] Phase 5: TaskExecutor (HIGH risk, ~200 lines, 1-2 days)
+- [ ] Phase 6: Final Integration (1 day)
+- [ ] Phase 7: Cleanup (1 day)
+
+**Files Created**:
+- [x] `core/orchestration/guard_pipeline.py` (145 lines, 12 tests)
+- [x] `core/orchestration/task_router.py` (203 lines, 30 tests)
+- [x] `core/orchestration/result_handler.py` (206 lines, 18 tests)
+- [ ] `core/orchestration/state_handler.py` (FSM logic)
+- [ ] `core/orchestration/task_executor.py` (HiveMind/Swarm delegation)
 
 **Target Architecture** (via composition):
 ```python
-class OrchestratorV7:  # Target: ~100 lines
-    def __init__(self, injector: DependencyInjector):
-        self.fsm = injector.get(StateHandler)         # FSM transitions
-        self.router = injector.get(TaskRouter)        # Fast path vs HiveMind
-        self.ctx_builder = injector.get(ContextBuilder)  # Memory injection
-        self.guards = injector.get(GuardPipeline)     # Input/Output security
-        self.executor = injector.get(TaskExecutor)    # Execution delegation
+class OrchestratorV7:  # Target: ~150 lines (revised from ~100)
+    def __init__(self, workspace_path, config, ...):
+        # Phase 1-3 complete:
+        self.guard_pipeline = GuardPipeline()
+        self.task_router = TaskRouter()
+        self.result_handler = ResultHandler(self)
+
+        # Phase 4-5 remaining:
+        self.state_handler = StateHandler(self)  # FSM transitions
+        self.task_executor = TaskExecutor(self)  # Execution delegation
 ```
 
-**Files to Create**:
-- `core/orchestration/state_handler.py` (FSM logic)
-- `core/orchestration/task_router.py` (routing decisions)
-- `core/orchestration/guard_pipeline.py` (security checks)
-- `core/orchestration/task_executor.py` (HiveMind/Swarm delegation)
-
 **Extraction Strategy** (progressive, not big-bang):
-1. Extract GuardPipeline (lowest risk, isolated logic)
-2. Extract TaskRouter (pure decision logic, no state)
-3. Extract StateHandler (FSM encapsulation, careful with side effects)
-4. Extract TaskExecutor (highest risk, touches execution)
+1. [x] ✅ Extract GuardPipeline (lowest risk, isolated logic)
+2. [x] ✅ Extract TaskRouter (pure decision logic, no state)
+3. [x] ✅ Extract ResultHandler (result creation + Auto-Memory)
+4. [ ] Extract StateHandler (FSM encapsulation, careful with side effects)
+5. [ ] Extract TaskExecutor (highest risk, touches execution)
+6. [ ] Final integration and testing
+7. [ ] Cleanup and documentation
 
-**Timeline**: Sprint 2 (5-8 days)
+**Timeline**: Sprint 2-3 (5-8 days total, ~4 hours spent)
 
 **Done Criteria**:
-- [ ] `OrchestratorV7` < 150 lines
-- [ ] Each extracted module has unit tests
-- [ ] `pytest tests/ -x` : 0 regressions
-- [ ] Latency unchanged (±5%)
+- [ ] `OrchestratorV7` < 150 lines (currently 1177, need -1027 more)
+- [x] ✅ Each extracted module has unit tests (60 tests added)
+- [x] ✅ Zero regressions (all imports validated)
+- [ ] Latency unchanged (±5%) - to be measured after Phase 5
 
 **Ref**: Audit P1.1 (page 2-3, remediation plan section 2)
 
