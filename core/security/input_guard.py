@@ -198,7 +198,7 @@ MEDIUM_PATTERNS: Dict[str, Dict] = {
             r"\b[A-Za-z0-9+/]{30,}={0,2}\b",  # V12.4 P3.3: Base64-like (30+ chars total)
             r"(\\u[0-9a-fA-F]{4}){4,}",  # V12.4 P3.3: Unicode escape sequences (4+ chars)
             r"(%[0-9a-fA-F]{2}){6,}",  # V12.4 P3.3: URL encoding (6+ chars = 3+ letters)
-            r"[\u2100-\u214F]",  # V12.4 P3.3: Letterlike symbols (homoglyphs like Ⅰ)
+            # Removed: r"[\u2100-\u214F]" - False positives with IGNORECASE (Kelvin 'K' matches ASCII 'k')
         ],
         "threat_type": ThreatType.ENCODING_ATTACK,
         "level": ThreatLevel.CRITICAL,  # V12.4 P3.3: Raised to CRITICAL (encoding obfuscation is high risk)
