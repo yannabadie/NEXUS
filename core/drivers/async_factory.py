@@ -81,6 +81,7 @@ class AsyncDriverFactory:
         self._anthropic_api_key: Optional[str] = getattr(config, 'anthropic_api_key', None)
         self._google_api_key: Optional[str] = getattr(config, 'google_api_key', None)
         self._deepseek_api_key: Optional[str] = getattr(config, 'deepseek_api_key', None)
+        self._kimi_api_key: Optional[str] = getattr(config, 'kimi_api_key', None)
 
         # Shared response cache for SDK drivers (deduplication)
         self._response_cache = ResponseCache(
@@ -105,6 +106,7 @@ class AsyncDriverFactory:
         self._claude_sdk: Optional["AnthropicSDKDriver"] = None
         self._gemini_sdk: Optional["GoogleGenAISDKDriver"] = None
         self._deepseek_sdk: Optional["DeepSeekSDKDriver"] = None
+        self._kimi_sdk: Optional["KimiSDKDriver"] = None
 
     # =========================================================================
     # CLI Drivers (backward compatible)
@@ -298,6 +300,53 @@ class AsyncDriverFactory:
 
         return self._deepseek_sdk
 
+    def get_kimi_sdk(
+        self,
+        model: str | None = None,
+    ) -> "KimiSDKDriver":
+        """
+        Get or create the Kimi SDK driver (Moonshot AI K2.5).
+
+        Kimi K2.5 is a multimodal frontier model with agent swarm capabilities,
+        vision, and tool calling. Released January 2026.
+
+        Args:
+            model: Optional model override (default: "kimi-k2.5")
+                   Aliases: "k2.5" (latest), "k2", "latest", "default"
+
+        Returns:
+            KimiSDKDriver instance
+
+        Raises:
+            RuntimeError: If no KIMI_API_KEY is configured
+        """
+        if self._kimi_sdk is None:
+            if not self._kimi_api_key:
+                raise RuntimeError(
+                    "KimiSDKDriver requires KIMI_API_KEY. "
+                    "Set it in .env or environment.\n"
+                    "Get your API key at: https://platform.moonshot.ai/"
+                )
+            from .kimi_sdk_driver import KimiSDKDriver
+
+            self._kimi_sdk = KimiSDKDriver(
+                model=model or getattr(self.config, 'kimi_model', 'kimi-k2.5'),
+                api_key=self._kimi_api_key,
+                max_tokens=getattr(self.config, 'max_tokens', 8192),
+                timeout=float(getattr(self.config, 'timeout', 300)),
+                enable_caching=True,
+                response_cache=self._response_cache,
+            )
+            self._kimi_sdk.set_budget_tracker(self._budget_tracker)
+            self._kimi_sdk.set_health_monitor(self._health_monitor)
+            sdk_model = getattr(self._kimi_sdk, '_model', 'unknown')
+            self._failover.register_driver(f"kimi/{sdk_model}", priority=2)
+            logger.info(f"Created KimiSDKDriver (model={sdk_model})")
+        elif model and hasattr(self._kimi_sdk, '_model'):
+            self._kimi_sdk._model = model
+
+        return self._kimi_sdk
+
     # =========================================================================
     # Smart Driver Selection (V12.4)
     # =========================================================================
@@ -316,6 +365,11 @@ class AsyncDriverFactory:
     def deepseek_sdk_available(self) -> bool:
         """Check if DeepSeek SDK driver can be created (API key present)."""
         return bool(self._deepseek_api_key) and self._driver_mode != "cli"
+
+    @property
+    def kimi_sdk_available(self) -> bool:
+        """Check if Kimi SDK driver can be created (API key present)."""
+        return bool(self._kimi_api_key) and self._driver_mode != "cli"
 
     def get_best_claude(self, model: Optional[str] = None) -> Any:
         """
