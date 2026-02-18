@@ -199,11 +199,12 @@ class OrchestratorV7:
 
         # V7 Sprint 9: Hybrid Swarm Engine for dynamic multi-agent collaboration
         if getattr(self.config, 'swarm_enabled', False):
+            # P5.1 Phase 5: Use agent_invoker directly (delegation wrappers removed)
             self.swarm_engine = HybridSwarmEngine(
                 agent_pool=self.agent_pool,
                 model_router=self.model_router,
                 config=self.config,
-                invoke_agent=self._invoke_for_swarm
+                invoke_agent=self.agent_invoker.invoke_for_swarm
             )
             self.logger.debug("HybridSwarmEngine initialized", {
                 "negotiation_enabled": getattr(self.config, 'swarm_negotiation_enabled', True),
@@ -403,30 +404,6 @@ class OrchestratorV7:
     # Model Routing & Agent Drivers
     # =========================================================================
 
-    def _get_claude_driver(self, task_type: TaskType, timeout_override: int = None):
-        """
-        Get Claude driver for task type.
-
-        V7.8: Delegates to AgentInvoker.
-        V12.4: Returns SDK or CLI driver based on factory configuration.
-        """
-        return self.agent_invoker.get_claude_driver(task_type, timeout_override)
-
-    def _invoke_agent(self, task_type: TaskType, context: str) -> Dict:
-        """Invoke active agent. V7.8: Delegates to AgentInvoker."""
-        return self.agent_invoker.invoke_agent(task_type, context)
-
-    def _invoke_for_swarm(self, agent_id: str, task_type: str, context: str, session_uuid: str = None) -> str:
-        """Invoke agent for swarm. V7.8: Delegates to AgentInvoker."""
-        return self.agent_invoker.invoke_for_swarm(agent_id, task_type, context, session_uuid)
-
-    def _invoke_agent_direct(self, task_type: TaskType, context: str, target_agent: str) -> Dict:
-        """Invoke specific agent directly. V7.8: Delegates to AgentInvoker."""
-        return self.agent_invoker.invoke_agent_direct(task_type, context, target_agent)
-
-    def _build_swarm_context(self, task_context: str, task_type: str, target_agent: str = None) -> str:
-        """Build enriched context for swarm execution. V7.8: Delegates to ContextBuilder."""
-        return self.context_builder.build_swarm_context(task_context, task_type, target_agent)
 
     # === Project Context Methods (Sprint 11) ===
 
