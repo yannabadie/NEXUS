@@ -17,7 +17,6 @@ Note: Use require_auth() for protected routes, get_current_user_optional() for o
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from fastapi import WebSocket, HTTPException, Header, status
 
@@ -40,7 +39,7 @@ class WebSocketContext:
         return f"WebSocketContext(tenant={self.tenant_id}, user={self.user_id}, ws={self.workspace_id})"
 
 
-def _decode_token(token: str) -> Optional[dict]:
+def _decode_token(token: str) -> dict | None:
     """Decode JWT token and return claims."""
     try:
         from jose import jwt
@@ -101,7 +100,7 @@ async def get_ws_context(websocket: WebSocket) -> WebSocketContext:
     )
 
 
-async def get_ws_context_optional(websocket: WebSocket) -> Optional[WebSocketContext]:
+async def get_ws_context_optional(websocket: WebSocket) -> WebSocketContext | None:
     """
     Extract context from WebSocket connection (optional).
 
@@ -123,7 +122,7 @@ def create_ws_url(
     base_url: str,
     tenant_id: str,
     workspace_id: str = "default",
-    token: Optional[str] = None,
+    token: str | None = None,
 ) -> str:
     """
     Create WebSocket URL with auth params.
@@ -170,7 +169,7 @@ class AuthenticatedUser:
 
 
 async def require_auth(
-    authorization: Optional[str] = Header(None, description="Bearer <jwt>")
+    authorization: str | None = Header(None, description="Bearer <jwt>")
 ) -> AuthenticatedUser:
     """
     Dependency that requires authentication.
@@ -223,8 +222,8 @@ async def require_auth(
 
 
 async def get_current_user_optional(
-    authorization: Optional[str] = Header(None, description="Bearer <jwt>")
-) -> Optional[AuthenticatedUser]:
+    authorization: str | None = Header(None, description="Bearer <jwt>")
+) -> AuthenticatedUser | None:
     """
     Dependency that optionally extracts authentication.
 

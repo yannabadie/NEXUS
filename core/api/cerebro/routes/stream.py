@@ -51,8 +51,8 @@ router = APIRouter()
 async def _get_context_from_params(
     websocket: WebSocket,
     workspace_id: str,
-    token: Optional[str],
-) -> Optional[WebSocketContext]:
+    token: str | None,
+) -> WebSocketContext | None:
     """
     Extract context from JWT token.
 
@@ -99,8 +99,8 @@ async def _get_context_from_params(
 async def websocket_stream(
     websocket: WebSocket,
     workspace_id: str = Query("default", description="Workspace identifier"),
-    token: Optional[str] = Query(None, description="JWT auth token (MANDATORY)"),
-    event_types: Optional[str] = Query(None, description="Comma-separated event types to filter"),
+    token: str | None = Query(None, description="JWT auth token (MANDATORY)"),
+    event_types: str | None = Query(None, description="Comma-separated event types to filter"),
 ):
     """
     Stream events to connected WebSocket clients.
@@ -164,7 +164,7 @@ async def websocket_stream(
         logger.warning(f"CEREBRO: Failed to check hibernation: {e}")
 
     # Parse event type filter
-    filter_types: Optional[List[CerebroEventType]] = None
+    filter_types: list[CerebroEventType] | None = None
     if event_types:
         try:
             filter_types = [

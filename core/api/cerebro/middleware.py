@@ -17,7 +17,7 @@ V11.3 HARDENING: JWT_SECRET loaded from environment variable.
 
 import logging
 import os
-from typing import Optional
+
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -40,7 +40,7 @@ if not JWT_SECRET:
     )
 
 
-def decode_jwt(token: str) -> Optional[dict]:
+def decode_jwt(token: str) -> dict | None:
     """
     Decode and validate JWT token.
 
@@ -122,7 +122,7 @@ def create_jwt_token(
     user_id: str = "anonymous",
     workspace_id: str = "default",
     expires_in_seconds: int = 3600,
-    extra_claims: Optional[dict] = None,
+    extra_claims: dict | None = None,
 ) -> str:
     """
     Create a JWT token.

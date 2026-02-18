@@ -21,7 +21,7 @@ Security Features:
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
@@ -47,27 +47,27 @@ MAX_UPLOAD_SIZE = 10_000_000  # 10MB for document uploads
 class NamespaceCreateRequest(BaseModel):
     """Request body for creating an agent namespace."""
     name: str = Field(..., min_length=1, max_length=50, description="Namespace name")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Optional metadata")
+    metadata: dict[str, Any] | None = Field(default=None, description="Optional metadata")
 
 
 class LearnRequest(BaseModel):
     """Request body for learning from path."""
     path: str = Field(..., description="Path to file or directory")
     recursive: bool = Field(default=True, description="Include subdirectories")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class ForgetRequest(BaseModel):
     """Request body for forgetting a file."""
     path: str = Field(..., description="Path to file to forget")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class QueryRequest(BaseModel):
     """Request body for RAG query."""
     query: str = Field(..., min_length=1, description="Search query")
     limit: int = Field(default=5, ge=1, le=20, description="Max results")
-    namespace: Optional[str] = Field(default=None, description="Target namespace (default: project)")
+    namespace: str | None = Field(default=None, description="Target namespace (default: project)")
 
 
 class ChunkResponse(BaseModel):
@@ -77,7 +77,7 @@ class ChunkResponse(BaseModel):
     end_line: int
     content: str
     chunk_type: str
-    name: Optional[str]
+    name: str | None
     score: float = 0.0
 
 
@@ -99,7 +99,7 @@ def _get_namespace_manager():
         raise HTTPException(500, f"Memory system error: {e}")
 
 
-def _get_rag_for_namespace(manager, namespace: Optional[str]):
+def _get_rag_for_namespace(manager, namespace: str | None):
     """Get the appropriate RAG for a namespace."""
     if namespace is None or namespace == "project":
         return manager.get_project_rag()
@@ -116,9 +116,9 @@ def _get_rag_for_namespace(manager, namespace: Optional[str]):
 
 @router.get("/stats")
 async def memory_stats(
-    namespace: Optional[str] = Query(None, description="Namespace to get stats for"),
+    namespace: str | None = Query(None, description="Namespace to get stats for"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get memory statistics.
 
@@ -153,7 +153,7 @@ async def memory_stats(
 @router.get("/namespaces")
 async def list_namespaces(
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List all available namespaces.
 
@@ -173,7 +173,7 @@ async def list_namespaces(
 async def create_namespace(
     body: NamespaceCreateRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a new agent namespace.
 
@@ -207,7 +207,7 @@ async def create_namespace(
 async def delete_namespace(
     name: str,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete an agent namespace.
 
@@ -234,9 +234,9 @@ async def delete_namespace(
 @router.post("/ingest")
 async def ingest_file(
     file: UploadFile = File(..., description="File to ingest"),
-    namespace: Optional[str] = Form(None, description="Target namespace"),
+    namespace: str | None = Form(None, description="Target namespace"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Upload and ingest a file into memory.
 
@@ -291,7 +291,7 @@ async def ingest_file(
 async def learn_path(
     body: LearnRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Learn from a path (file or directory).
 
@@ -339,7 +339,7 @@ async def learn_path(
 async def forget_path(
     body: ForgetRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Forget a file from memory.
 
@@ -378,7 +378,7 @@ async def forget_path(
 async def query_memory(
     body: QueryRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Query the RAG memory.
 
@@ -417,7 +417,7 @@ async def merge_to_project(
     namespace: str = Query(..., description="Agent namespace to merge"),
     clear_agent: bool = Query(False, description="Clear agent namespace after merge"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "memory")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Merge an agent namespace to the project namespace.
 

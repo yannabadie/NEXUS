@@ -19,7 +19,7 @@ Date: 2025-12-16
 
 import logging
 import os
-from typing import Optional, Tuple
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Header, status
@@ -49,7 +49,7 @@ if FALLBACK_ADMIN_PASSWORD == "nexus":
 # Database Authentication (V12.2 IRONCLAD)
 # =============================================================================
 
-def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[dict]]:
+def authenticate_user_db(username: str, password: str) -> tuple[bool, dict | None]:
     """
     Authenticate user against database.
 
@@ -87,7 +87,7 @@ def authenticate_user_db(username: str, password: str) -> Tuple[bool, Optional[d
         return False, None
 
 
-def authenticate_user_fallback(username: str, password: str) -> Tuple[bool, Optional[dict]]:
+def authenticate_user_fallback(username: str, password: str) -> tuple[bool, dict | None]:
     """
     Fallback authentication using environment variable.
 
@@ -111,7 +111,7 @@ def authenticate_user_fallback(username: str, password: str) -> Tuple[bool, Opti
     return False, None
 
 
-def authenticate_user(username: str, password: str) -> Tuple[bool, dict]:
+def authenticate_user(username: str, password: str) -> tuple[bool, dict]:
     """
     Authenticate user: try DB first, fallback to env var.
 
@@ -237,7 +237,7 @@ async def login(body: LoginRequest) -> TokenResponse:
 
 @router.get("/me", response_model=UserInfo)
 async def get_current_user(
-    authorization: Optional[str] = Header(None, description="Bearer token")
+    authorization: str | None = Header(None, description="Bearer token")
 ) -> UserInfo:
     """
     Verify token and return current user info.
@@ -321,7 +321,7 @@ async def logout() -> dict:
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
-    authorization: Optional[str] = Header(None, description="Bearer token")
+    authorization: str | None = Header(None, description="Bearer token")
 ) -> TokenResponse:
     """
     V12.1 RETINA: Refresh JWT token before expiration.

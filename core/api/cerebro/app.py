@@ -24,7 +24,7 @@ Usage:
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # V11.3 HARDENING: CORS origins from environment (comma-separated)
 # Example: NEXUS_CORS_ORIGINS=http://localhost:3000,https://nexus.example.com
 _cors_env = os.environ.get("NEXUS_CORS_ORIGINS", "http://localhost:3000")
-CORS_ORIGINS: List[str] = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
+CORS_ORIGINS: list[str] = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 
 if not CORS_ORIGINS:
     CORS_ORIGINS = ["http://localhost:3000"]

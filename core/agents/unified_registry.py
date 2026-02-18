@@ -17,7 +17,7 @@ With O(1) lookups:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Protocol, Any, runtime_checkable
+from typing import Protocol, Any, runtime_checkable
 from enum import Enum
 from pathlib import Path
 
@@ -56,9 +56,9 @@ class AgentDescriptor:
     id: str
     provider: AgentProvider
     display_name: str
-    capabilities: List[AgentCapability] = field(default_factory=list)
-    dylan_scores: Dict[str, float] = field(default_factory=dict)
-    config_path: Optional[Path] = None
+    capabilities: list[AgentCapability] = field(default_factory=list)
+    dylan_scores: dict[str, float] = field(default_factory=dict)
+    config_path: Path | None = None
     is_available: bool = True
 
     @property
@@ -102,9 +102,9 @@ class UnifiedAgentRegistry:
     """
 
     def __init__(self) -> None:
-        self._agents: Dict[str, AgentDescriptor] = {}
-        self._drivers: Dict[str, DriverProtocol] = {}
-        self._aliases: Dict[str, str] = {}  # "Gemini" → "gemini"
+        self._agents: dict[str, AgentDescriptor] = {}
+        self._drivers: dict[str, DriverProtocol] = {}
+        self._aliases: dict[str, str] = {}  # "Gemini" → "gemini"
         self._register_builtins()
 
     def _register_builtins(self) -> None:
@@ -176,7 +176,7 @@ class UnifiedAgentRegistry:
             return self._aliases[agent_id]
         return agent_id.lower()
 
-    def get(self, agent_id: str) -> Optional[AgentDescriptor]:
+    def get(self, agent_id: str) -> AgentDescriptor | None:
         """
         Get agent descriptor by ID or alias (O(1) lookup).
 
@@ -189,7 +189,7 @@ class UnifiedAgentRegistry:
         normalized = self._normalize_id(agent_id)
         return self._agents.get(normalized)
 
-    def get_driver(self, agent_id: str) -> Optional[DriverProtocol]:
+    def get_driver(self, agent_id: str) -> DriverProtocol | None:
         """
         Get driver for an agent.
 
@@ -215,7 +215,7 @@ class UnifiedAgentRegistry:
         agent = self.get(agent_id)
         return agent.display_name if agent else agent_id.title()
 
-    def get_alternate(self, agent_id: str) -> Optional[str]:
+    def get_alternate(self, agent_id: str) -> str | None:
         """
         Get the 'other' builtin agent (for alternation in BRAINSTORMING).
 
@@ -271,7 +271,7 @@ class UnifiedAgentRegistry:
         agent = self.get(agent_id)
         return agent is not None and agent.is_builtin
 
-    def list_available(self) -> List[AgentDescriptor]:
+    def list_available(self) -> list[AgentDescriptor]:
         """
         List all available agents.
 
@@ -280,7 +280,7 @@ class UnifiedAgentRegistry:
         """
         return [a for a in self._agents.values() if a.is_available]
 
-    def list_builtins(self) -> List[AgentDescriptor]:
+    def list_builtins(self) -> list[AgentDescriptor]:
         """
         List builtin agents only.
 
@@ -289,7 +289,7 @@ class UnifiedAgentRegistry:
         """
         return [a for a in self._agents.values() if a.is_builtin]
 
-    def list_spawned(self) -> List[AgentDescriptor]:
+    def list_spawned(self) -> list[AgentDescriptor]:
         """
         List spawned agents only.
 
@@ -301,8 +301,8 @@ class UnifiedAgentRegistry:
     def select_for_capability(
         self,
         capability: AgentCapability,
-        exclude: Optional[List[str]] = None
-    ) -> Optional[AgentDescriptor]:
+        exclude: list[str] | None = None
+    ) -> AgentDescriptor | None:
         """
         Select best agent for a capability using DyLAN scores.
 
@@ -367,7 +367,7 @@ class UnifiedAgentRegistry:
 # Legacy global singleton kept for backward compatibility.
 
 import threading
-_registry: Optional[UnifiedAgentRegistry] = None
+_registry: UnifiedAgentRegistry | None = None
 _registry_lock = threading.Lock()
 
 

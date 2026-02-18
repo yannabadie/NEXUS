@@ -6,7 +6,7 @@ Provides timeline visualization of task execution events with cost, latency, and
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any, Optional
+from typing import Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -30,8 +30,8 @@ class TokenMetrics(BaseModel):
     """Token usage metrics for an event."""
     input: int = 0
     output: int = 0
-    cache_creation: Optional[int] = None
-    cache_read: Optional[int] = None
+    cache_creation: int | None = None
+    cache_read: int | None = None
 
 
 class TimelineEvent(BaseModel):
@@ -41,21 +41,21 @@ class TimelineEvent(BaseModel):
     phase: str  # analysis, debate, architecture, execution, diagnosis, retry, consolidation
     agent_id: str
     action: str  # llm_call, tool_exec, snapshot, transition, validation
-    model: Optional[str] = None
-    tokens: Optional[TokenMetrics] = None
-    cost: Optional[float] = None
-    latency_ms: Optional[float] = None
+    model: str | None = None
+    tokens: TokenMetrics | None = None
+    cost: float | None = None
+    latency_ms: float | None = None
     result: str  # success, failure, rollback, pending
-    diff: Optional[Dict[str, Any]] = None  # State changes
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    diff: dict[str, Any] | None = None  # State changes
+    error: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class TimelineResponse(BaseModel):
     """Timeline response with events and aggregated metrics."""
-    events: List[TimelineEvent]
+    events: list[TimelineEvent]
     total_cost: float = Field(default=0.0, description="Total cost across all events")
-    total_tokens: Dict[str, int] = Field(
+    total_tokens: dict[str, int] = Field(
         default_factory=lambda: {"input": 0, "output": 0, "cache_read": 0}
     )
     duration_ms: float = Field(default=0.0, description="Total task duration")
@@ -65,7 +65,7 @@ class TimelineResponse(BaseModel):
 # Helper Functions
 # ============================================================================
 
-def calculate_event_cost(event: Dict[str, Any]) -> float:
+def calculate_event_cost(event: dict[str, Any]) -> float:
     """
     Calculate cost for a single event based on tokens and model.
 
@@ -97,7 +97,7 @@ def calculate_event_cost(event: Dict[str, Any]) -> float:
         return input_cost + output_cost
 
 
-def enrich_event(raw_event: Dict[str, Any]) -> TimelineEvent:
+def enrich_event(raw_event: dict[str, Any]) -> TimelineEvent:
     """
     Enrich raw event with calculated metrics (cost, latency).
 

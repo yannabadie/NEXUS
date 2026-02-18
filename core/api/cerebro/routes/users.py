@@ -43,13 +43,13 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool
-    created_at: Optional[datetime] = None
-    last_login: Optional[datetime] = None
+    created_at: datetime | None = None
+    last_login: datetime | None = None
 
 
 class UserListResponse(BaseModel):
     """List of users response."""
-    users: List[UserResponse]
+    users: list[UserResponse]
     total: int
 
 
@@ -58,7 +58,7 @@ class InviteUserRequest(BaseModel):
     username: str
     email: EmailStr
     role: str = "member"  # Default role
-    password: Optional[str] = None  # Optional, will generate if not provided
+    password: str | None = None  # Optional, will generate if not provided
 
 
 class ChangeRoleRequest(BaseModel):
@@ -70,7 +70,7 @@ class ChangeRoleRequest(BaseModel):
 # Helper Functions
 # =============================================================================
 
-def _get_users(tenant_id: UUID) -> List[dict]:
+def _get_users(tenant_id: UUID) -> list[dict]:
     """Get all users for a tenant (sync, for thread pool)."""
     from sqlmodel import select
     from core.db import get_session, User
@@ -172,7 +172,7 @@ def _delete_user(tenant_id: UUID, user_id: UUID) -> bool:
         return True
 
 
-def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> Optional[dict]:
+def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> dict | None:
     """Change user role (sync, for thread pool)."""
     from sqlmodel import select
     from core.db import get_session, User, UserRole

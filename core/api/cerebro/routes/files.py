@@ -127,7 +127,7 @@ async def read_file(
     request: Request,
     path: str = Query(..., description="Relative path to file"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Read file content with size limit and path validation.
 
@@ -212,7 +212,7 @@ async def save_file(
     request: Request,
     body: FileWriteRequest,
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_WRITE, "file")),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Save file content with path validation.
 
@@ -273,7 +273,7 @@ async def file_tree(
     path: str = Query(".", description="Root path for tree"),
     max_depth: int = Query(3, ge=1, le=5, description="Max directory depth"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get directory tree structure.
 
@@ -312,7 +312,7 @@ async def file_tree(
         '.mypy_cache', '.ruff_cache', 'egg-info', '.eggs'
     }
 
-    def build_tree(p: Path, current_depth: int, base_path: Path) -> Dict[str, Any] | None:
+    def build_tree(p: Path, current_depth: int, base_path: Path) -> dict[str, Any] | None:
         """Recursively build directory tree."""
         if current_depth > max_depth:
             return None
@@ -373,7 +373,7 @@ async def file_tree(
 async def file_info(
     path: str = Query(..., description="Relative path to file"),
     user: AuthenticatedUser = Depends(require_permission(Permission.FILE_READ, "file")),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get file metadata without reading content.
 

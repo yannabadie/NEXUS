@@ -39,7 +39,7 @@ router = APIRouter()
 @router.get("/snapshot")
 async def get_state_snapshot(
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get state snapshot for UI hydration (F5 recovery).
 
@@ -87,7 +87,7 @@ async def get_state_snapshot(
         return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
 
 
-def _empty_snapshot(tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+def _empty_snapshot(tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Return empty snapshot structure."""
     return {
         "phase": None,
@@ -99,7 +99,7 @@ def _empty_snapshot(tenant_id: str, workspace_id: str) -> Dict[str, Any]:
     }
 
 
-def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Get snapshot from in-memory state (V13.0 fallback)."""
     try:
         state = bus.get_full_state(tenant_id, workspace_id)
@@ -126,7 +126,7 @@ def _get_snapshot_from_memory(bus, tenant_id: str, workspace_id: str) -> Dict[st
         return _empty_snapshot(tenant_id, workspace_id)
 
 
-async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> Dict[str, Any]:
+async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> dict[str, Any]:
     """Get snapshot from Redis (original implementation)."""
     redis = bus._redis
     base_key = f"nexus:{tenant_id}:{workspace_id}:state"
@@ -177,7 +177,7 @@ async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> Di
         return _get_snapshot_from_memory(bus, tenant_id, workspace_id)
 
 
-def _get_pending_interactions() -> List[Dict[str, Any]]:
+def _get_pending_interactions() -> list[dict[str, Any]]:
     """Get pending interactions from HeadlessProvider."""
     try:
         from core.interaction import get_interaction_provider
@@ -192,7 +192,7 @@ def _get_pending_interactions() -> List[Dict[str, Any]]:
 @router.delete("/snapshot")
 async def clear_state_snapshot(
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Clear state snapshot (for testing/debugging).
 

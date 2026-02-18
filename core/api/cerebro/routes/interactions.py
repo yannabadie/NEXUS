@@ -14,7 +14,7 @@ Date: 2025-12-15
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -36,7 +36,7 @@ async def reply_to_interaction(
     request_id: str,
     body: InteractionResponse,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Reply to a pending interaction.
 
@@ -88,7 +88,7 @@ async def reply_to_interaction(
 @router.get("/pending")
 async def list_pending_interactions(
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, List[dict]]:
+) -> dict[str, list[dict]]:
     """
     List all pending interactions.
 

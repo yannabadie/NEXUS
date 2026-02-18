@@ -44,16 +44,16 @@ _registry = get_workflow_registry()
 class WorkflowStartRequest(BaseModel):
     """Request body for starting a workflow."""
     task: str
-    complexity: Optional[str] = None
+    complexity: str | None = None
 
 
 class WorkflowResponse(BaseModel):
     """Response model for workflow operations."""
     workflow_id: str
     status: str
-    task: Optional[str] = None
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    task: str | None = None
+    result: Any | None = None
+    error: str | None = None
 
 
 def _get_orchestrator():
@@ -80,7 +80,7 @@ async def start_workflow(
     body: WorkflowStartRequest,
     background_tasks: BackgroundTasks,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Start a workflow (non-blocking).
 
@@ -207,7 +207,7 @@ async def start_workflow(
 async def get_workflow_status(
     workflow_id: str,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Get workflow status.
 
@@ -250,7 +250,7 @@ async def get_workflow_status(
 async def stop_workflow(
     workflow_id: str,
     user: AuthenticatedUser = Depends(require_auth),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Stop a running workflow.
 
@@ -303,8 +303,8 @@ async def stop_workflow(
 @router.get("/")
 async def list_workflows(
     user: AuthenticatedUser = Depends(require_auth),
-    status: Optional[str] = Query(None, description="Filter by status"),
-) -> Dict[str, list]:
+    status: str | None = Query(None, description="Filter by status"),
+) -> dict[str, list]:
     """
     List workflows for the authenticated tenant.
 

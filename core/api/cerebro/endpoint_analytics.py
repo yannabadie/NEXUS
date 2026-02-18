@@ -27,7 +27,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class EndpointRequestRecord:
     error_type: str = ""
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary.
 
         Returns:
@@ -116,7 +116,7 @@ class EndpointProfile:
             return self.total_latency_ms / self.total_requests
         return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary including computed properties.
 
         Returns:
@@ -144,7 +144,7 @@ class EndpointAnalyticsStats:
     overall_error_rate: float = 0.0
     avg_latency_ms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary.
 
         Returns:
@@ -173,8 +173,8 @@ class EndpointAnalytics:
 
     def __init__(self, max_requests: int = MAX_REQUESTS) -> None:
         self._max_requests = max_requests
-        self._requests: List[EndpointRequestRecord] = []
-        self._profiles: Dict[str, EndpointProfile] = {}
+        self._requests: list[EndpointRequestRecord] = []
+        self._profiles: dict[str, EndpointProfile] = {}
         self._counter: int = 1
         self._lock = threading.Lock()
 
@@ -255,7 +255,7 @@ class EndpointAnalytics:
 
     def get_endpoint_profile(
         self, endpoint: str, method: str = "GET"
-    ) -> Optional[EndpointProfile]:
+    ) -> EndpointProfile | None:
         """Get the aggregated profile for a specific endpoint and method.
 
         Args:
@@ -269,7 +269,7 @@ class EndpointAnalytics:
             key = f"{method}:{endpoint}"
             return self._profiles.get(key)
 
-    def get_all_profiles(self) -> List[EndpointProfile]:
+    def get_all_profiles(self) -> list[EndpointProfile]:
         """Return all endpoint profiles sorted by total_requests descending.
 
         Returns:
@@ -282,7 +282,7 @@ class EndpointAnalytics:
                 reverse=True,
             )
 
-    def get_slowest_endpoints(self, limit: int = 5) -> List[EndpointProfile]:
+    def get_slowest_endpoints(self, limit: int = 5) -> list[EndpointProfile]:
         """Return the slowest endpoints by average latency.
 
         Args:
@@ -300,7 +300,7 @@ class EndpointAnalytics:
 
     def get_error_prone_endpoints(
         self, min_requests: int = 3, threshold: float = 0.1
-    ) -> List[EndpointProfile]:
+    ) -> list[EndpointProfile]:
         """Return endpoints with error rates exceeding the threshold.
 
         Filters to endpoints with at least min_requests total requests
@@ -325,8 +325,8 @@ class EndpointAnalytics:
     # =========================================================================
 
     def get_recent_requests(
-        self, limit: int = 10, endpoint: Optional[str] = None
-    ) -> List[EndpointRequestRecord]:
+        self, limit: int = 10, endpoint: str | None = None
+    ) -> list[EndpointRequestRecord]:
         """Return the most recent request records.
 
         Args:
@@ -345,7 +345,7 @@ class EndpointAnalytics:
                 filtered = list(self._requests)
             return filtered[-limit:]
 
-    def list_endpoints(self) -> List[str]:
+    def list_endpoints(self) -> list[str]:
         """Return sorted list of all tracked endpoint keys (METHOD:path).
 
         Returns:
@@ -398,7 +398,7 @@ class EndpointAnalytics:
             self._profiles.clear()
             self._counter = 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize analytics state to dictionary.
 
         Note:
@@ -426,7 +426,7 @@ class EndpointAnalytics:
 # Global Instance
 # =============================================================================
 
-_instance: Optional[EndpointAnalytics] = None
+_instance: EndpointAnalytics | None = None
 _lock = threading.Lock()
 
 

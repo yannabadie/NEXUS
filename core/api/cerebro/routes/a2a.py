@@ -13,7 +13,7 @@ Spec: https://a2a-protocol.org/v0.3.0/specification/
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Cache the agent card in memory after first load
-_agent_card_cache: Dict[str, Any] | None = None
+_agent_card_cache: dict[str, Any] | None = None
 
 
-def _load_agent_card() -> Dict[str, Any]:
+def _load_agent_card() -> dict[str, Any]:
     """Load and cache the agent card from disk."""
     global _agent_card_cache
 

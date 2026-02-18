@@ -24,7 +24,7 @@ Date: 2025-12-16
 
 import logging
 from enum import Enum
-from typing import Optional, Set
+from typing import Set
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -108,7 +108,7 @@ ROLE_PERMISSIONS: dict[str, Set[Permission]] = {
 # Permission Checking
 # =============================================================================
 
-def get_user_role(user_id: UUID, tenant_id: UUID) -> Optional[str]:
+def get_user_role(user_id: UUID, tenant_id: UUID) -> str | None:
     """
     Get user's role from database.
 
@@ -160,8 +160,8 @@ async def log_permission_denial(
     user: AuthenticatedUser,
     permission: Permission,
     resource_type: str,
-    resource_id: Optional[str] = None,
-    request: Optional[Request] = None,
+    resource_id: str | None = None,
+    request: Request | None = None,
 ) -> None:
     """
     Log a permission denial to audit log.
