@@ -28,7 +28,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 _logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class RetirementPolicy:
     observation_window: int = DEFAULT_OBSERVATION_WINDOW
     min_observations: int = 5  # Need at least this many before retiring
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "min_quality": self.min_quality,
             "max_consecutive_failures": self.max_consecutive_failures,
@@ -77,7 +77,7 @@ class AgentHealthSnapshot:
     is_retired: bool = False
     registered_at: float = field(default_factory=time.monotonic)
     last_active_at: float = field(default_factory=time.monotonic)
-    capabilities: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     retirement_reason: str = ""
 
     @property
@@ -86,7 +86,7 @@ class AgentHealthSnapshot:
             return 0.0
         return self.successes / self.total_tasks
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "total_tasks": self.total_tasks,
@@ -110,7 +110,7 @@ class LifecycleEvent:
     timestamp: float = field(default_factory=time.monotonic)
     details: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "event_type": self.event_type,
@@ -129,7 +129,7 @@ class LifecycleStats:
     total_events: int
     total_retirements: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_agents": self.total_agents,
             "active_agents": self.active_agents,
@@ -177,7 +177,7 @@ class AgentLifecycleManager:
     # Registration
     # =========================================================================
 
-    def register(self, agent_id: str, *, capabilities: Optional[List[str]] = None) -> bool:
+    def register(self, agent_id: str, *, capabilities: Optional[list[str]] = None) -> bool:
         """Register an agent for lifecycle tracking. Returns False if already registered or at limit."""
         with self._lock:
             if agent_id in self._agents:
@@ -208,7 +208,7 @@ class AgentLifecycleManager:
     def is_registered(self, agent_id: str) -> bool:
         return agent_id in self._agents
 
-    def list_agents(self) -> List[str]:
+    def list_agents(self) -> list[str]:
         """List all registered agent IDs (sorted)."""
         return sorted(self._agents.keys())
 
@@ -324,7 +324,7 @@ class AgentLifecycleManager:
             ))
             return True
 
-    def apply_retirements(self) -> List[str]:
+    def apply_retirements(self) -> list[str]:
         """Apply retirement policy to all agents. Returns list of newly retired agent IDs."""
         with self._lock:
             retired = []
@@ -374,21 +374,21 @@ class AgentLifecycleManager:
         """Get health snapshot for an agent."""
         return self._agents.get(agent_id)
 
-    def get_active_agents(self) -> List[str]:
+    def get_active_agents(self) -> list[str]:
         """List agents that are not retired."""
         return sorted(
             aid for aid, snap in self._agents.items()
             if not snap.is_retired
         )
 
-    def get_degraded_agents(self) -> List[str]:
+    def get_degraded_agents(self) -> list[str]:
         """List agents flagged as degraded (but not yet retired)."""
         return sorted(
             aid for aid, snap in self._agents.items()
             if snap.is_degraded and not snap.is_retired
         )
 
-    def get_retired_agents(self) -> List[str]:
+    def get_retired_agents(self) -> list[str]:
         """List retired agents."""
         return sorted(
             aid for aid, snap in self._agents.items()
@@ -465,7 +465,7 @@ class AgentLifecycleManager:
             self._events.clear()
             self._total_retirements = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_count": self.agent_count,
             "policy": self._policy.to_dict(),
