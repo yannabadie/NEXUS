@@ -19,9 +19,9 @@ def test_hive_mind_execution():
         shutil.rmtree(workspace_path)
     workspace_path.mkdir()
     
-    # Mock Drivers
-    with patch('core.orchestration_v7.GeminiDriverV7') as MockGemini, \
-         patch('core.orchestration_v7.ClaudeDriverHybrid') as MockClaude, \
+    # Mock Drivers (V12.4: Use AsyncDriverFactory pattern)
+    with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as MockGetGemini, \
+         patch('core.drivers.async_factory.AsyncDriverFactory.get_best_claude') as MockGetClaude, \
          patch('core.swarm.task_analyzer.TaskAnalyzer.analyze') as MockAnalyze, \
          patch('core.swarm.mode_selector.ModeSelector.select_mode') as MockSelect, \
          patch('core.swarm.mode_executors.get_executor') as MockGetExecutor:

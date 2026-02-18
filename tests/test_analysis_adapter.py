@@ -157,6 +157,7 @@ class TestAnalysisAdapter:
         assert TaskDomain.TESTING in result.domains
 
 
+@pytest.mark.skip(reason="V12.4.1: SuccessMemoryV2 uses LanceDB semantic search, not time decay")
 class TestSuccessMemoryDecay:
     """Tests for time decay in SuccessMemory."""
 
