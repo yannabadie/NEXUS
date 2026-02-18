@@ -28,7 +28,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -156,11 +156,11 @@ class AgentLifecycleManager:
     - Thread-safe
     """
 
-    def __init__(self, *, policy: Optional[RetirementPolicy] = None):
+    def __init__(self, *, policy: RetirementPolicy | None = None):
         self._policy = policy or RetirementPolicy()
-        self._agents: Dict[str, AgentHealthSnapshot] = {}
-        self._quality_history: Dict[str, List[float]] = {}  # agent_id -> recent quality scores
-        self._events: List[LifecycleEvent] = []
+        self._agents: dict[str, AgentHealthSnapshot] = {}
+        self._quality_history: dict[str, list[float]] = {}  # agent_id -> recent quality scores
+        self._events: list[LifecycleEvent] = []
         self._total_retirements = 0
         self._lock = threading.Lock()
 
@@ -177,7 +177,7 @@ class AgentLifecycleManager:
     # Registration
     # =========================================================================
 
-    def register(self, agent_id: str, *, capabilities: Optional[list[str]] = None) -> bool:
+    def register(self, agent_id: str, *, capabilities: list[str] | None = None) -> bool:
         """Register an agent for lifecycle tracking. Returns False if already registered or at limit."""
         with self._lock:
             if agent_id in self._agents:
@@ -370,7 +370,7 @@ class AgentLifecycleManager:
     # Queries
     # =========================================================================
 
-    def get_health(self, agent_id: str) -> Optional[AgentHealthSnapshot]:
+    def get_health(self, agent_id: str) -> AgentHealthSnapshot | None:
         """Get health snapshot for an agent."""
         return self._agents.get(agent_id)
 
@@ -395,7 +395,7 @@ class AgentLifecycleManager:
             if snap.is_retired
         )
 
-    def get_events(self, *, agent_id: Optional[str] = None, event_type: Optional[str] = None, limit: int = 100) -> List[LifecycleEvent]:
+    def get_events(self, *, agent_id: str | None = None, event_type: str | None = None, limit: int = 100) -> list[LifecycleEvent]:
         """Get lifecycle events with optional filters."""
         events = list(reversed(self._events))
         if agent_id:
@@ -404,7 +404,7 @@ class AgentLifecycleManager:
             events = [e for e in events if e.event_type == event_type]
         return events[:limit]
 
-    def find_replacement(self, agent_id: str) -> Optional[str]:
+    def find_replacement(self, agent_id: str) -> str | None:
         """
         Find a replacement for a retired/degraded agent based on shared capabilities.
         Returns the best active agent with overlapping capabilities, or None.
@@ -477,7 +477,7 @@ class AgentLifecycleManager:
 # Global Instance
 # =============================================================================
 
-_manager: Optional[AgentLifecycleManager] = None
+_manager: AgentLifecycleManager | None = None
 _manager_lock = threading.Lock()
 
 
