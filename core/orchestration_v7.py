@@ -252,6 +252,10 @@ class OrchestratorV7:
         from core.orchestration.task_router import TaskRouter
         self.task_router = TaskRouter()
 
+        # P5.1 Phase 3: ResultHandler for result creation and validation
+        from core.orchestration.result_handler import ResultHandler
+        self.result_handler = ResultHandler(self)
+
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
         from core.orchestration.sync_bridge import get_sync_bridge
         self._sync_bridge = get_sync_bridge()
@@ -522,7 +526,7 @@ class OrchestratorV7:
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
                 self._transition_to(OrchestratorState.PANIC)
-                return self._make_result(
+                return self.result_handler.make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED. "
                     "Invariants may have been modified in memory. Immediate shutdown required.",
@@ -564,7 +568,7 @@ class OrchestratorV7:
         # Extracted to GuardPipeline for modularity
         guard_result = self.guard_pipeline.validate_input(user_input, self.state)
         if self.guard_pipeline.should_block(guard_result):
-            return self._make_result(
+            return self.result_handler.make_result(
                 self.state.name,
                 f"[SECURITY] Input blocked: {guard_result.reason}. "
                 "Your request was flagged as a potential prompt injection attack.",
@@ -592,7 +596,7 @@ class OrchestratorV7:
         if handler:
             return handler()
 
-        return self._make_result("ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE")
+        return self.result_handler.make_result("ERROR", f"Unknown state: {self.state}", None, False, error="UNKNOWN_STATE")
 
     # =========================================================================
     # V9 CYBORG: Async Process Turn
@@ -623,7 +627,7 @@ class OrchestratorV7:
             if not runtime_integrity_check():
                 self.logger.critical("KERNEL INTEGRITY VIOLATION - Shutting down!")
                 self._transition_to(OrchestratorState.PANIC)
-                return self._make_result(
+                return self.result_handler.make_result(
                     "PANIC",
                     "[SECURITY VIOLATION] KERNEL runtime integrity check FAILED.",
                     None, True, error="KERNEL_INTEGRITY_VIOLATION"
@@ -633,7 +637,7 @@ class OrchestratorV7:
         # Extracted to GuardPipeline for modularity
         guard_result = self.guard_pipeline.validate_input(user_input, self.state)
         if self.guard_pipeline.should_block(guard_result):
-            return self._make_result(
+            return self.result_handler.make_result(
                 self.state.name,
                 f"[SECURITY] Input blocked: {guard_result.reason}",
                 None, False, error="PROMPT_INJECTION_BLOCKED"
@@ -649,7 +653,7 @@ class OrchestratorV7:
                 response = self.task_router.handle_fast_path(user_input)
                 self._transition_to(OrchestratorState.WAITING_USER)
 
-                return self._make_result(
+                return self.result_handler.make_result(
                     self.state.name,
                     response,
                     None, False, metadata={"fast_path": True}
@@ -746,7 +750,7 @@ class OrchestratorV7:
 
         except asyncio.CancelledError:
             self.logger.warning("Brainstorming cancelled by user")
-            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+            return self.result_handler.make_result("IDLE", "Task cancelled by user", self.active_agent, True)
 
         except Exception as e:
             self.logger.error(f"Async brainstorming error: {e}")
@@ -794,7 +798,7 @@ class OrchestratorV7:
 
         except asyncio.CancelledError:
             self.logger.warning("CFL cancelled by user")
-            return self._make_result("IDLE", "Task cancelled by user", self.active_agent, True)
+            return self.result_handler.make_result("IDLE", "Task cancelled by user", self.active_agent, True)
 
         except Exception as e:
             self.logger.error(f"Async CFL error: {e}")
@@ -878,50 +882,6 @@ class OrchestratorV7:
         self.state = new_state
         self.memory.save_to_disk()  # Backup after transition
 
-    def _make_result(self, state: str, output: Optional[str], agent: Optional[str],
-                     finished: bool, error: Optional[str] = None, tool: Optional[str] = None) -> Dict:
-        """Helper pour créer result dict + V7.5 Auto-Memory recording"""
-        result = {
-            "state": state,
-            "output": output,
-            "agent": agent,
-            "finished": finished
-        }
-        if error:
-            result["error"] = error
-        if tool:
-            result["tool"] = tool
-
-        # V7.5 HIVE MIND: Record to Auto-Memory when task finishes
-        if finished and state == "FINISHED" and self._current_task_start > 0:
-            duration = time.time() - self._current_task_start
-            lead_agent = agent.lower() if agent else "unknown"
-
-            if error:
-                # Record failure
-                self.auto_memory.record_failure(
-                    task_type=self._current_task_type,
-                    task_description=self._current_task_description,
-                    swarm_mode=self._current_swarm_mode,
-                    lead_agent=lead_agent,
-                    duration_seconds=duration,
-                    reason=error
-                )
-            else:
-                # Record success
-                self.auto_memory.record_success(
-                    task_type=self._current_task_type,
-                    task_description=self._current_task_description,
-                    swarm_mode=self._current_swarm_mode,
-                    lead_agent=lead_agent,
-                    duration_seconds=duration,
-                    score=1.0
-                )
-
-            # Reset tracking
-            self._current_task_start = 0
-
-        return result
 
     def _detect_mutation_complete(self, content: str) -> bool:
         """Detect valid mutation proposal. V7.8: Delegates to MutationDetector."""
@@ -935,7 +895,7 @@ class OrchestratorV7:
         self.active_agent = "gemini"
         self.stagnation_detector.reset()
 
-        return self._make_result(
+        return self.result_handler.make_result(
             "BRAINSTORMING",
             "⚠️ Stagnation detected. Forcing decision...",
             "Gemini",
@@ -946,12 +906,12 @@ class OrchestratorV7:
     def _handle_error(self, error_msg: str) -> Dict:
         """Handle recoverable error"""
         self._transition_to(OrchestratorState.ERROR)
-        return self._make_result("ERROR", f"[ERROR] {error_msg}", None, False, error=error_msg)
+        return self.result_handler.make_result("ERROR", f"[ERROR] {error_msg}", None, False, error=error_msg)
 
     def _trigger_panic(self, reason: str) -> Dict:
         """Trigger panic state"""
         self._transition_to(OrchestratorState.PANIC)
-        return self._make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
+        return self.result_handler.make_result("PANIC", f"[PANIC] {reason}", None, True, error=reason)
 
     def _calculate_quality_score(
         self,
@@ -1065,18 +1025,12 @@ class OrchestratorV7:
         return self.context_builder.build_context_with_tool_result()
 
     def _format_tool_result(self, result) -> str:
-        """Format tool result for display"""
-        return f"[Tool: {result.tool_name}] {result.status} - {result.output[:100]}"
+        """Format tool result for display. P5.1: Delegates to ResultHandler."""
+        return self.result_handler.format_tool_result(result)
 
     def _validate_message(self, response: Dict, expect_heavy: bool = False) -> Dict:
-        """Validate and parse message with Pydantic V2"""
-        try:
-            if expect_heavy or response.get("action_type") == "TOOL_USE":
-                return HeavyMessageV7(**response).model_dump()
-            else:
-                return LightMessageV7(**response).model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Invalid message schema: {e}")
+        """Validate and parse message with Pydantic V2. P5.1: Delegates to ResultHandler."""
+        return self.result_handler.validate_message(response, expect_heavy)
 
     def reset_to_idle(self, clear_task: bool = True):
         """
