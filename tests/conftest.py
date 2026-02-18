@@ -232,11 +232,12 @@ def orchestrator_with_mocks(tmp_path):
     mock_gemini = MockDriver("Gemini")
     mock_claude = MockDriver("Claude")
 
-    with patch('core.orchestration_v7.GeminiDriverV7') as MockGeminiClass, \
-         patch('core.orchestration_v7.ClaudeDriverHybrid') as MockClaudeClass:
+    # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
+    with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
+         patch('core.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
 
-        MockGeminiClass.return_value = mock_gemini
-        MockClaudeClass.return_value = mock_claude
+        mock_get_gemini.return_value = mock_gemini
+        mock_get_claude.return_value = mock_claude
 
         # Create orchestrator with mocked drivers
         orch = OrchestratorV7(
@@ -289,11 +290,12 @@ def orchestrator_with_swarm(tmp_path):
     mock_gemini = MockDriver("Gemini")
     mock_claude = MockDriver("Claude")
 
-    with patch('core.orchestration_v7.GeminiDriverV7') as MockGeminiClass, \
-         patch('core.orchestration_v7.ClaudeDriverHybrid') as MockClaudeClass:
+    # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
+    with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
+         patch('core.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
 
-        MockGeminiClass.return_value = mock_gemini
-        MockClaudeClass.return_value = mock_claude
+        mock_get_gemini.return_value = mock_gemini
+        mock_get_claude.return_value = mock_claude
 
         orch = OrchestratorV7(
             workspace_path=tmp_path,
@@ -304,8 +306,9 @@ def orchestrator_with_swarm(tmp_path):
 
     orch.gemini_driver = mock_gemini
 
-    # CRITICAL: Patch _get_claude_driver to return our mock
-    orch._get_claude_driver = lambda *args, **kwargs: mock_claude
+    # CRITICAL: Patch _get_claude_driver to return our mock (if method still exists)
+    if hasattr(orch, '_get_claude_driver'):
+        orch._get_claude_driver = lambda *args, **kwargs: mock_claude
 
     # V7.8 Phase 14c.2: Also patch agent_invoker.get_claude_driver since _get_claude_driver now delegates
     if hasattr(orch, 'agent_invoker'):
