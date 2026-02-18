@@ -197,6 +197,14 @@ class OrchestratorV7:
         # V7 FIX: Task Analyzer for trivial input detection
         self.task_analyzer = TaskAnalyzer()
 
+        # V7.8 Phase 14c.2: AgentInvoker must be created BEFORE SwarmEngine (P5.1 fix)
+        # Moved here from line 245 to fix initialization order
+        self.context_builder = ContextBuilder(self)
+        self.mutation_detector = MutationDetector()
+        self.agent_invoker = AgentInvoker(self)
+        self.swarm_bridge = SwarmBridge(self)
+        self.fsm_handlers = FSMHandlers(self)
+
         # V7 Sprint 9: Hybrid Swarm Engine for dynamic multi-agent collaboration
         if getattr(self.config, 'swarm_enabled', False):
             # P5.1 Phase 5: Use agent_invoker directly (delegation wrappers removed)
@@ -238,13 +246,6 @@ class OrchestratorV7:
         self.logger.debug("AutoMemory initialized", {
             "memory_dir": str(self.auto_memory.memory_dir)
         })
-
-        # V7.8 Phase 14c.2: Composition modules (extracted from monolith)
-        self.context_builder = ContextBuilder(self)
-        self.mutation_detector = MutationDetector()
-        self.agent_invoker = AgentInvoker(self)
-        self.swarm_bridge = SwarmBridge(self)
-        self.fsm_handlers = FSMHandlers(self)
 
         # P5.1 Phase 1: GuardPipeline for security validation
         self.guard_pipeline = GuardPipeline()
