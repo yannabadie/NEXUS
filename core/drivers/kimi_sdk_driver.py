@@ -220,12 +220,13 @@ class KimiSDKDriver(BaseAsyncDriver):
                 messages.append({"role": "user", "content": prompt})
 
             # Build request parameters
+            # NOTE: Kimi only accepts top_p=0.95 (not 1.0)
             request_params = {
                 "model": self._model,
                 "messages": messages,
                 "max_tokens": self._max_tokens,
                 "temperature": kwargs.get("temperature", 1.0),
-                "top_p": kwargs.get("top_p", 1.0),
+                "top_p": 0.95,  # Kimi constraint: only 0.95 allowed
                 "frequency_penalty": kwargs.get("frequency_penalty", 0.0),
                 "presence_penalty": kwargs.get("presence_penalty", 0.0),
                 "stream": False,
@@ -269,12 +270,10 @@ class KimiSDKDriver(BaseAsyncDriver):
 
             # Track budget if available
             if self._budget_tracker:
-                self._budget_tracker.record_cost(
-                    provider=self._provider,
-                    model=self._model,
+                self._budget_tracker.track_cost(
+                    self._model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    cost_usd=cost_total,
                 )
 
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -298,13 +297,13 @@ class KimiSDKDriver(BaseAsyncDriver):
                 latency_ms=latency_ms,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                cost_usd=cost_total,
-                finish_reason=finish_reason,
-                tool_calls=tool_calls if tool_calls else None,
+                tool_calls=tool_calls if tool_calls else [],
                 raw={
                     "response_id": response.id,
                     "created": response.created,
                     "cached": False,
+                    "finish_reason": finish_reason,
+                    "cost_usd": round(cost_total, 6),
                     "cost_breakdown": {
                         "input_tokens": input_tokens,
                         "output_tokens": output_tokens,
@@ -317,7 +316,7 @@ class KimiSDKDriver(BaseAsyncDriver):
 
             # Cache successful response (if caching enabled and no tools)
             if self._response_cache and not tools and content:
-                self._response_cache.set(
+                self._response_cache.put(
                     self._model, prompt, content,
                     temperature=kwargs.get("temperature", 1.0),
                     system_prompt=system_prompt or "",
@@ -326,7 +325,9 @@ class KimiSDKDriver(BaseAsyncDriver):
             # Update health monitor
             if self._health_monitor:
                 self._health_monitor.record_success(
-                    self._provider, self._model, latency_ms
+                    f"{self._provider}/{self._model}",
+                    latency_ms=latency_ms,
+                    tokens=total_tokens,
                 )
 
             logger.info(
@@ -341,8 +342,10 @@ class KimiSDKDriver(BaseAsyncDriver):
             logger.error(f"Kimi timeout after {latency_ms:.0f}ms")
 
             if self._health_monitor:
-                self._health_monitor.record_timeout(
-                    self._provider, self._model, latency_ms
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error="TIMEOUT",
+                    latency_ms=latency_ms,
                 )
 
             return DriverResponse(
@@ -367,8 +370,10 @@ class KimiSDKDriver(BaseAsyncDriver):
                 status = DriverResponseStatus.AUTHENTICATION_ERROR
 
             if self._health_monitor:
-                self._health_monitor.record_error(
-                    self._provider, self._model, error_msg, latency_ms
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error=error_msg,
+                    latency_ms=latency_ms,
                 )
 
             return DriverResponse(

@@ -213,6 +213,8 @@ class Config:
         # When set, the factory creates SDK drivers instead of CLI subprocess drivers
         self.anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
         self.google_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        self.deepseek_api_key: Optional[str] = os.getenv("DEEPSEEK_API_KEY")
+        self.kimi_api_key: Optional[str] = os.getenv("KIMI_API_KEY")
 
         # Driver mode: "auto" (SDK when key available, else CLI), "sdk", "cli"
         self.driver_mode: str = os.getenv("NEXUS_DRIVER_MODE", "auto")

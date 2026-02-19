@@ -247,12 +247,10 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
 
             # Track budget if available
             if self._budget_tracker:
-                self._budget_tracker.record_cost(
-                    provider=self._provider,
-                    model=self._model,
+                self._budget_tracker.track_cost(
+                    self._model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    cost_usd=cost_total,
                 )
 
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -303,7 +301,9 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
             # Update health monitor
             if self._health_monitor:
                 self._health_monitor.record_success(
-                    self._provider, self._model, latency_ms
+                    f"{self._provider}/{self._model}",
+                    latency_ms=latency_ms,
+                    tokens=total_tokens,
                 )
 
             logger.info(
@@ -318,8 +318,10 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
             logger.error(f"DeepSeek timeout after {latency_ms:.0f}ms")
 
             if self._health_monitor:
-                self._health_monitor.record_timeout(
-                    self._provider, self._model, latency_ms
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error="TIMEOUT",
+                    latency_ms=latency_ms,
                 )
 
             return DriverResponse(
@@ -344,8 +346,10 @@ class DeepSeekSDKDriver(BaseAsyncDriver):
                 status = DriverResponseStatus.AUTHENTICATION_ERROR
 
             if self._health_monitor:
-                self._health_monitor.record_error(
-                    self._provider, self._model, error_msg, latency_ms
+                self._health_monitor.record_failure(
+                    f"{self._provider}/{self._model}",
+                    error=error_msg,
+                    latency_ms=latency_ms,
                 )
 
             return DriverResponse(
