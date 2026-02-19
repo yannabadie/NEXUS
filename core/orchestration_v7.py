@@ -23,7 +23,7 @@ from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
 from core.synapse.memory_v7 import MemoryManagerV7
 from core.execution.tool_manager import ToolManager
 from core.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
-from core.logging import init_logger, get_logger
+from core.observability.logging import init_logger, get_logger
 from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
 from core.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
 from core.swarm import (

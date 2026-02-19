@@ -18,12 +18,35 @@ from core.observability.audit import (
     get_audit_logger,
 )
 
+# Logging exports
+from core.observability.logging import (
+    NexusLogger,
+    LogLevel,
+    EventType,
+    init_logger,
+    get_logger,
+    cleanup_old_logs,
+    get_driver_logger,
+    configure_driver_logging,
+    DriverLogger,
+)
+
 __all__ = [
     # Audit
     "AuditLogger",
     "AuditLog",
     "HITLRequest",
     "get_audit_logger",
+    # Logging
+    "NexusLogger",
+    "LogLevel",
+    "EventType",
+    "init_logger",
+    "get_logger",
+    "cleanup_old_logs",
+    "get_driver_logger",
+    "configure_driver_logging",
+    "DriverLogger",
 ]
 
 __version__ = "12.4.0"

@@ -8,7 +8,7 @@ initialized before the main NexusLogger. Falls back to Python's
 standard logging module.
 
 Usage:
-    from core.logging.driver_logger import get_driver_logger
+    from core.observability.logging.driver_logger import get_driver_logger
 
     logger = get_driver_logger("gemini_driver")
     logger.debug("Invoking Gemini", model="gemini-3-pro")
