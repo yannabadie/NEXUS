@@ -127,8 +127,8 @@ class HeadlessProvider(InteractionProvider):
 
         try:
             # Lazy import to avoid circular dependencies
-            from core.events.redis_bus import get_redis_bus
-            from core.events.types import CerebroEvent, CerebroEventType
+            from core.observability.events.redis_bus import get_redis_bus
+            from core.observability.events.types import CerebroEvent, CerebroEventType
 
             # Get current tenant context
             try:

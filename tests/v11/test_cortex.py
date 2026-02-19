@@ -251,13 +251,13 @@ class TestTelemetryBridgePersistence:
 
     def test_state_ttl_24_hours(self):
         """STATE_TTL should be 24 hours (86400 seconds)."""
-        from core.events.telemetry_bridge import STATE_TTL
+        from core.observability.events.telemetry_bridge import STATE_TTL
 
         assert STATE_TTL == 86400  # 24 hours
 
     def test_persist_state_method_exists(self):
         """TelemetryBridge should have _persist_state method."""
-        from core.events.telemetry_bridge import TelemetryBridge
+        from core.observability.events.telemetry_bridge import TelemetryBridge
 
         bridge = TelemetryBridge()
         assert hasattr(bridge, '_persist_state')

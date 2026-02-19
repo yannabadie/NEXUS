@@ -662,8 +662,8 @@ class OrchestratorSyncBridge:
         for each sync event between HiveMind and Swarm.
         """
         try:
-            from core.events.telemetry_bridge import get_telemetry_bridge
-            from core.events.types import CerebroEventType
+            from core.observability.events.telemetry_bridge import get_telemetry_bridge
+            from core.observability.events.types import CerebroEventType
 
             bridge = get_telemetry_bridge()
 

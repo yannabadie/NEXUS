@@ -59,8 +59,8 @@ from .budget_allocator import PhaseBudgetAllocator
 from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
 # V10 SYNAPSE: Telemetry instrumentation
-from core.events.telemetry_bridge import get_telemetry_bridge
-from core.events.types import CerebroEventType
+from core.observability.events.telemetry_bridge import get_telemetry_bridge
+from core.observability.events.types import CerebroEventType
 
 # V8.0.1: Hot-Swap Lead Agent
 from core.fsm.stagnation_detector import StagnationDetector

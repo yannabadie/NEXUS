@@ -5,7 +5,7 @@ Redis-based event bus for external UI observation.
 Coexists with internal EventBus (core/async_primitives/event_bus.py).
 
 Usage:
-    from core.events import CerebroEvent, CerebroEventType, get_redis_bus
+    from core.observability.events import CerebroEvent, CerebroEventType, get_redis_bus
 
     # Publish event
     event = CerebroEvent(

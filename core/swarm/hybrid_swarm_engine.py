@@ -65,8 +65,8 @@ from .task_analyzer import TaskComplexity
 from .task_completion_validator import get_adaptive_max_rounds
 
 # V10 SYNAPSE: Telemetry instrumentation
-from core.events.telemetry_bridge import get_telemetry_bridge, emit_agent_exchange, emit_agent_speak
-from core.events.types import CerebroEventType
+from core.observability.events.telemetry_bridge import get_telemetry_bridge, emit_agent_exchange, emit_agent_speak
+from core.observability.events.types import CerebroEventType
 
 class SwarmPhase(Enum):
     """Current phase of swarm processing"""

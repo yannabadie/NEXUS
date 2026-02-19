@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.events.event_analytics import (
+from core.observability.events.event_analytics import (
     MAX_EVENTS,
     EventAnalytics,
     EventRecord,
@@ -276,7 +276,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_events_package(self):
-        from core.events import (
+        from core.observability.events import (
             EventAnalytics, EventRecord,
             EventTypeMetrics, EventAnalyticsStats,
             get_event_analytics, reset_event_analytics,
@@ -288,5 +288,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.events.event_analytics import MAX_EVENTS
+        from core.observability.events.event_analytics import MAX_EVENTS
         assert MAX_EVENTS == 50000

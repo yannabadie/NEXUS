@@ -172,8 +172,8 @@ class FSMEventStore:
     def _publish_to_cerebro(self, event: TransitionEvent) -> None:
         """Fire-and-forget publish to CEREBRO event bus."""
         try:
-            from core.events.types import CerebroEvent, CerebroEventType
-            from core.events.redis_bus import get_redis_bus
+            from core.observability.events.types import CerebroEvent, CerebroEventType
+            from core.observability.events.redis_bus import get_redis_bus
 
             cerebro_event = CerebroEvent(
                 event_type=CerebroEventType.STATE_CHANGE,

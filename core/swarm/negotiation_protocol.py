@@ -32,7 +32,7 @@ from .mode_selector import ModeProposal, AgentAssignment
 from ..agents.unified_registry import get_registry  # V8.4.0
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 
 class NegotiationStatus(Enum):

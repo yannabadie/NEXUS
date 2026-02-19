@@ -39,8 +39,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
-from core.events.redis_bus import get_redis_bus
-from core.events.types import CerebroEvent, CerebroEventType
+from core.observability.events.redis_bus import get_redis_bus
+from core.observability.events.types import CerebroEvent, CerebroEventType
 from ..deps import WebSocketContext
 
 logger = logging.getLogger(__name__)

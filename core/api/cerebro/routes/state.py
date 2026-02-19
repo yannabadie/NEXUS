@@ -72,7 +72,7 @@ async def get_state_snapshot(
     workspace_id = user.workspace_id
 
     try:
-        from core.events.redis_bus import get_redis_bus
+        from core.observability.events.redis_bus import get_redis_bus
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")
@@ -217,7 +217,7 @@ async def clear_state_snapshot(
     workspace_id = user.workspace_id
 
     try:
-        from core.events.redis_bus import get_redis_bus
+        from core.observability.events.redis_bus import get_redis_bus
         bus = get_redis_bus()
     except Exception as e:
         logger.error(f"Failed to get Redis bus: {e}")

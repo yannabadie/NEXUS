@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 from fastapi import APIRouter
 
-from core.events.redis_bus import get_redis_bus
+from core.observability.events.redis_bus import get_redis_bus
 
 logger = logging.getLogger(__name__)
 

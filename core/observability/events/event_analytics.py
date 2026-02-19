@@ -10,7 +10,7 @@ Tracks event stream analytics:
 - Event flow patterns (source distribution, type distribution)
 
 Usage:
-    from core.events.event_analytics import get_event_analytics
+    from core.observability.events.event_analytics import get_event_analytics
 
     analytics = get_event_analytics()
     record = analytics.record_event("agent.speak", source="claude", processing_time_ms=12.5)

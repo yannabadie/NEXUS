@@ -122,8 +122,8 @@ async def start_workflow(
     async def run_workflow():
         """Background task to execute the workflow."""
         import concurrent.futures
-        from core.events.telemetry_bridge import get_telemetry_bridge
-        from core.events.types import CerebroEventType
+        from core.observability.events.telemetry_bridge import get_telemetry_bridge
+        from core.observability.events.types import CerebroEventType
 
         bridge = get_telemetry_bridge()
 

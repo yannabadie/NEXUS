@@ -11,7 +11,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from core.api.cerebro.deps import require_auth, AuthenticatedUser
-from core.events.event_store import EventStore
+from core.observability.events.event_store import EventStore
 from core.observability.telemetry.budget_tracker import BudgetTracker
 
 router = APIRouter(prefix="/timeline", tags=["timeline"])

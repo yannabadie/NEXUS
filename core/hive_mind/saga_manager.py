@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 def get_redis_bus():
     """Lazy import of Redis bus to avoid circular dependencies."""
     try:
-        from core.events.redis_bus import RedisEventBus
+        from core.observability.events.redis_bus import RedisEventBus
         return RedisEventBus()
     except ImportError:
         return None
@@ -475,7 +475,7 @@ class SagaManager:
         # V12.4.1 Epic 1.3: Publish SAGA_CHECKPOINT event to Redis
         if self._enable_redis and self._redis_bus:
             try:
-                from core.events.types import CerebroEvent, CerebroEventType
+                from core.observability.events.types import CerebroEvent, CerebroEventType
 
                 event = CerebroEvent(
                     event_type=CerebroEventType.SAGA_CHECKPOINT,
@@ -603,7 +603,7 @@ class SagaManager:
         # V12.4.1 Epic 1.3: Publish SAGA_ROLLBACK event to Redis
         if self._enable_redis and self._redis_bus:
             try:
-                from core.events.types import CerebroEvent, CerebroEventType
+                from core.observability.events.types import CerebroEvent, CerebroEventType
 
                 event = CerebroEvent(
                     event_type=CerebroEventType.SAGA_ROLLBACK,
@@ -713,7 +713,7 @@ class SagaManager:
         # V12.4.1 Epic 1.3: Publish SAGA_RESUME event to Redis
         if saga._enable_redis and saga._redis_bus:
             try:
-                from core.events.types import CerebroEvent, CerebroEventType
+                from core.observability.events.types import CerebroEvent, CerebroEventType
 
                 event = CerebroEvent(
                     event_type=CerebroEventType.SAGA_RESUME,

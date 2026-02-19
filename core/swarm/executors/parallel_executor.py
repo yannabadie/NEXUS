@@ -28,7 +28,7 @@ from ..collaboration_modes import CollaborationMode
 from ...agents.unified_registry import get_registry
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from ..merge_strategies import MergeStrategy, MergeResult

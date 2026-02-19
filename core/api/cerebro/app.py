@@ -29,7 +29,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.events.redis_bus import get_redis_bus
+from core.observability.events.redis_bus import get_redis_bus
 
 logger = logging.getLogger(__name__)
 

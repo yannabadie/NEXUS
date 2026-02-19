@@ -12,7 +12,7 @@ Features:
 - emit() for async code, emit_sync() for sync code
 
 Usage:
-    from core.events.telemetry_bridge import get_telemetry_bridge
+    from core.observability.events.telemetry_bridge import get_telemetry_bridge
 
     # In async code
     bridge = get_telemetry_bridge()
@@ -130,7 +130,7 @@ class TelemetryBridge:
         """Get current tenant ID from subscribers or context."""
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
-            from core.events.redis_bus import get_redis_bus
+            from core.observability.events.redis_bus import get_redis_bus
             bus = get_redis_bus()
             if bus._memory_subscribers:
                 first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -154,7 +154,7 @@ class TelemetryBridge:
         """Get current workspace ID from subscribers or context."""
         # V13.0 FIX: Check active subscribers first (most reliable)
         try:
-            from core.events.redis_bus import get_redis_bus
+            from core.observability.events.redis_bus import get_redis_bus
             bus = get_redis_bus()
             if bus._memory_subscribers:
                 first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -231,8 +231,8 @@ class TelemetryBridge:
             payload: Event payload data
         """
         try:
-            from core.events.redis_bus import get_redis_bus
-            from core.events.types import CerebroEventType
+            from core.observability.events.redis_bus import get_redis_bus
+            from core.observability.events.types import CerebroEventType
 
             bus = get_redis_bus()
 
@@ -259,7 +259,7 @@ class TelemetryBridge:
     ) -> None:
         """Persist state to in-memory storage (V13.0)."""
         try:
-            from core.events.types import CerebroEventType
+            from core.observability.events.types import CerebroEventType
 
             # Phase state (HIVE_PHASE_START, HIVE_STATE_CHANGE)
             if event_type in (CerebroEventType.HIVE_PHASE_START,
@@ -291,7 +291,7 @@ class TelemetryBridge:
         payload: Dict[str, Any]
     ) -> None:
         """Persist state to Redis (original implementation)."""
-        from core.events.types import CerebroEventType
+        from core.observability.events.types import CerebroEventType
 
         base_key = f"nexus:{tenant_id}:{workspace_id}:state"
 
@@ -347,8 +347,8 @@ class TelemetryBridge:
         """
         try:
             # Lazy import to avoid circular dependencies
-            from core.events.redis_bus import get_redis_bus
-            from core.events.types import CerebroEvent
+            from core.observability.events.redis_bus import get_redis_bus
+            from core.observability.events.types import CerebroEvent
 
             # Truncate if needed
             payload_final, truncated = self._truncate_payload(payload)
@@ -413,7 +413,7 @@ class TelemetryBridge:
             # V13.0: Get the main loop from redis_bus (set during app startup)
             # This is required because worker threads don't have a running loop,
             # and asyncio.run() creates a NEW loop that can't access subscribers
-            from core.events.redis_bus import get_redis_bus
+            from core.observability.events.redis_bus import get_redis_bus
             bus = get_redis_bus()
             main_loop = bus._main_loop
 
@@ -479,7 +479,7 @@ def _resolve_tenant_workspace() -> tuple:
 
     # Priority 1: Active WebSocket subscribers (most reliable)
     try:
-        from core.events.redis_bus import get_redis_bus
+        from core.observability.events.redis_bus import get_redis_bus
         bus = get_redis_bus()
         if bus._memory_subscribers:
             first_key = next(iter(bus._memory_subscribers.keys()), None)
@@ -604,9 +604,9 @@ def emit_agent_speak(
 
 
 # Lazy import to get actual enum
-from core.events.types import CerebroEventType
+from core.observability.events.types import CerebroEventType
 
 
 # Type hint import (deferred to avoid circular import at module load)
 if False:  # TYPE_CHECKING equivalent without import
-    from core.events.types import CerebroEventType
+    from core.observability.events.types import CerebroEventType

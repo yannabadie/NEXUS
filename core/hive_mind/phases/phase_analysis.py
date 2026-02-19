@@ -40,7 +40,7 @@ from ..session_integration import HiveMindSessionIntegration, generate_hivemind_
 from ..prompts import ANALYSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager

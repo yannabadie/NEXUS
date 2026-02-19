@@ -46,7 +46,7 @@ from ...agents.unified_registry import get_registry  # V8.4.0
 from ..prompts import DEBATE_SYSTEM_PROMPT, CONSENSUS_SYSTEM_PROMPT  # V12.4.1: Static prompts for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager

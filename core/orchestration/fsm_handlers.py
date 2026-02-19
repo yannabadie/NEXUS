@@ -31,7 +31,7 @@ from core.swarm import TaskComplexity
 from core.governance.sandbox_policy import SandboxPolicy
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 # V8.0 TRUE HIVE MIND
 try:

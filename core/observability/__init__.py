@@ -73,6 +73,24 @@ from core.observability.telemetry import (
     reset_error_analyzer,
 )
 
+# Events exports
+from core.observability.events import (
+    CerebroEvent,
+    CerebroEventType,
+    RedisEventBus,
+    get_redis_bus,
+    reset_redis_bus,
+    TelemetryBridge,
+    get_telemetry_bridge,
+    reset_telemetry_bridge,
+    EventAnalytics,
+    EventRecord,
+    EventTypeMetrics,
+    EventAnalyticsStats,
+    get_event_analytics,
+    reset_event_analytics,
+)
+
 __all__ = [
     # Audit
     "AuditLogger",
@@ -128,6 +146,21 @@ __all__ = [
     "ErrorAnalyzerStats",
     "get_error_analyzer",
     "reset_error_analyzer",
+    # Events
+    "CerebroEvent",
+    "CerebroEventType",
+    "RedisEventBus",
+    "get_redis_bus",
+    "reset_redis_bus",
+    "TelemetryBridge",
+    "get_telemetry_bridge",
+    "reset_telemetry_bridge",
+    "EventAnalytics",
+    "EventRecord",
+    "EventTypeMetrics",
+    "EventAnalyticsStats",
+    "get_event_analytics",
+    "reset_event_analytics",
 ]
 
 __version__ = "12.4.0"

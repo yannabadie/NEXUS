@@ -13,7 +13,7 @@ from core.governance.sandbox_policy import SandboxPolicy
 from core.fsm.handlers.base import BaseHandler
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 
 class EvolutionHandler(BaseHandler):

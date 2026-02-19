@@ -20,7 +20,7 @@ from ..collaboration_modes import CollaborationMode
 from ...utils.artifact_verifier import ArtifactVerifier
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
-from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
+from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 
 class RedBlueExecutor(ModeExecutor):

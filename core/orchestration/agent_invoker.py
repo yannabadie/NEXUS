@@ -31,8 +31,8 @@ from core.swarm import AgentInvocationResult
 from core.observability.telemetry import BudgetExceededError
 
 # V13.0: Real-time telemetry for CEREBRO UI
-from core.events.telemetry_bridge import get_telemetry_bridge, _resolve_tenant_workspace
-from core.events.types import CerebroEventType
+from core.observability.events.telemetry_bridge import get_telemetry_bridge, _resolve_tenant_workspace
+from core.observability.events.types import CerebroEventType
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7
