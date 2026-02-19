@@ -12,7 +12,7 @@ Key Concepts:
 - use_context: Context manager for scoped session activation
 
 Usage:
-    from core.context import use_context, get_current_session
+    from core.infrastructure.context import use_context, get_current_session
 
     # Set context for a request
     async with use_context(tenant_id="acme", user_id="user_123"):

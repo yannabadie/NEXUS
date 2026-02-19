@@ -17,7 +17,7 @@ Validates:
 import time
 import pytest
 
-from core.context.audit_trail import (
+from core.infrastructure.context.audit_trail import (
     DEFAULT_RETENTION,
     MAX_ENTRIES,
     AuditEntry,
@@ -312,7 +312,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_context_package(self):
-        from core.context import (
+        from core.infrastructure.context import (
             ContextAuditTrail, AuditEntry, AuditStats,
             get_audit_trail, reset_audit_trail,
         )
@@ -322,6 +322,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.context.audit_trail import MAX_ENTRIES, DEFAULT_RETENTION
+        from core.infrastructure.context.audit_trail import MAX_ENTRIES, DEFAULT_RETENTION
         assert MAX_ENTRIES == 50000
         assert DEFAULT_RETENTION == 86400.0

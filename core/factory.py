@@ -30,7 +30,7 @@ Thread Safety:
     - Cache keys include tenant_id for isolation
 
 Usage:
-    from core.context import use_context
+    from core.infrastructure.context import use_context
     from core.factory import ServiceFactory
 
     with use_context(tenant_id="acme"):

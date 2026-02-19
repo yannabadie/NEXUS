@@ -9,7 +9,7 @@ Provides an append-only audit log for all context changes:
 - Access violations (unauthorized attempts)
 
 Usage:
-    from core.context.audit_trail import get_audit_trail
+    from core.infrastructure.context.audit_trail import get_audit_trail
 
     trail = get_audit_trail()
     trail.record_activation(tenant_id="t1", user_id="u1", context_id="ctx_123")

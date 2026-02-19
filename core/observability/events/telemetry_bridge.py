@@ -141,7 +141,7 @@ class TelemetryBridge:
 
         # Fallback to context
         try:
-            from core.context import get_current_session_or_none
+            from core.infrastructure.context import get_current_session_or_none
             ctx = get_current_session_or_none()
             if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
                 return ctx.tenant_id
@@ -165,7 +165,7 @@ class TelemetryBridge:
 
         # Fallback to context
         try:
-            from core.context import get_current_session_or_none
+            from core.infrastructure.context import get_current_session_or_none
             ctx = get_current_session_or_none()
             if ctx and ctx.workspace_id:
                 return ctx.workspace_id
@@ -490,7 +490,7 @@ def _resolve_tenant_workspace() -> tuple:
 
     # Priority 2: Session context (works in main thread only)
     try:
-        from core.context import get_current_session_or_none
+        from core.infrastructure.context import get_current_session_or_none
         ctx = get_current_session_or_none()
         if ctx and ctx.tenant_id and ctx.tenant_id != "anonymous":
             return (ctx.tenant_id, ctx.workspace_id or "default")

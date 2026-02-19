@@ -7,7 +7,7 @@ This module provides request-scoped context for multi-tenant isolation
 using Python's contextvars.
 
 Quick Start:
-    from core.context import use_context, get_current_session
+    from core.infrastructure.context import use_context, get_current_session
 
     # Set context for a request
     with use_context(tenant_id="acme", user_id="alice"):

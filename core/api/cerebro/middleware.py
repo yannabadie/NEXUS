@@ -100,7 +100,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
             if claims:
                 # Hydrate PRISM context
                 try:
-                    from core.context import use_context_async
+                    from core.infrastructure.context import use_context_async
 
                     async with use_context_async(
                         tenant_id=claims.get("tenant_id", "anonymous"),

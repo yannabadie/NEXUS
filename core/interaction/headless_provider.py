@@ -132,7 +132,7 @@ class HeadlessProvider(InteractionProvider):
 
             # Get current tenant context
             try:
-                from core.context import get_current_session_or_none
+                from core.infrastructure.context import get_current_session_or_none
                 ctx = get_current_session_or_none()
                 if ctx:
                     tenant_id = ctx.tenant_id
