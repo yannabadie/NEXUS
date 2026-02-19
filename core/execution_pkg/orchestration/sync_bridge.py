@@ -63,7 +63,7 @@ from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 from core.foundation.async_primitives.rwlock import AsyncRWLock
 
 if TYPE_CHECKING:
-    from core.hive_mind.saga_manager import SagaManager
+    from core.intelligence.hive_mind.saga_manager import SagaManager
     from core.intelligence.swarm.session_manager import SwarmSessionManager
 
 

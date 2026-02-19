@@ -45,8 +45,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # ---------------------------------------------------------------------------
 # Module under test
 # ---------------------------------------------------------------------------
-from core.hive_mind.orchestrator import HiveMindResult, TrueHiveMind
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.orchestrator import HiveMindResult, TrueHiveMind
+from core.intelligence.hive_mind.types import (
     AgentArchitecture,
     AgentSpec,
     AnalysisComparison,
@@ -68,15 +68,15 @@ from core.hive_mind.types import (
     RetryDecision,
     UserBreakpoint,
 )
-from core.hive_mind.adaptive_debate import TaskComplexity
-from core.hive_mind.phases.phase_analysis import AnalysisPhaseResult
-from core.hive_mind.phases.phase_debate import DebatePhaseResult
-from core.hive_mind.phases.phase_architecture import ArchitecturePhaseResult
-from core.hive_mind.phases.phase_execution import ExecutionPhaseResult
-from core.hive_mind.phases.phase_diagnosis import DiagnosisPhaseResult
-from core.hive_mind.phases.phase_retry import RetryPhaseResult
-from core.hive_mind.phases.phase_consolidation import ConsolidationPhaseResult
-from core.hive_mind.confidence_monitor import (
+from core.intelligence.hive_mind.adaptive_debate import TaskComplexity
+from core.intelligence.hive_mind.phases.phase_analysis import AnalysisPhaseResult
+from core.intelligence.hive_mind.phases.phase_debate import DebatePhaseResult
+from core.intelligence.hive_mind.phases.phase_architecture import ArchitecturePhaseResult
+from core.intelligence.hive_mind.phases.phase_execution import ExecutionPhaseResult
+from core.intelligence.hive_mind.phases.phase_diagnosis import DiagnosisPhaseResult
+from core.intelligence.hive_mind.phases.phase_retry import RetryPhaseResult
+from core.intelligence.hive_mind.phases.phase_consolidation import ConsolidationPhaseResult
+from core.intelligence.hive_mind.confidence_monitor import (
     AbortRecommendation,
     ConfidenceTrajectory,
     PhaseConfidence,

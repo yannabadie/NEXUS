@@ -145,7 +145,7 @@ class ConsolidationPhase:
 ## Usage
 
 ```python
-from core.hive_mind.phases import (
+from core.intelligence.hive_mind.phases import (
     AnalysisPhase,
     DebatePhase,
     ArchitecturePhase,

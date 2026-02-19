@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from dataclasses import dataclass
 
-from core.hive_mind.swarm_bridge import (
+from core.intelligence.hive_mind.swarm_bridge import (
     SwarmBridge,
     SwarmDelegationResult,
     HivePhase,

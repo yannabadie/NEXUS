@@ -1,7 +1,7 @@
 """Tests for PhaseBudgetAllocator - dynamic token budget allocation."""
 
 import pytest
-from core.hive_mind.budget_allocator import (
+from core.intelligence.hive_mind.budget_allocator import (
     PhaseBudgetAllocator,
     PhaseBudget,
     BudgetReport,

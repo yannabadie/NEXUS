@@ -7,7 +7,7 @@ Handles various response formats from LLM drivers:
 - Mixed formats with text around JSON
 
 Usage:
-    from core.hive_mind.json_parser import parse_json_response
+    from core.intelligence.hive_mind.json_parser import parse_json_response
 
     data = parse_json_response(response, "gemini")
     if data is None:

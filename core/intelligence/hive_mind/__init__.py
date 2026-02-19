@@ -19,7 +19,7 @@ Components:
 - fsm_states.py: FSM states extension for V8.0
 
 Usage:
-    from core.hive_mind import TrueHiveMind
+    from core.intelligence.hive_mind import TrueHiveMind
 
     hive = TrueHiveMind(workspace_path, config)
     result = await hive.process_task("Complex task here")

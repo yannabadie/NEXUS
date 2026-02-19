@@ -44,7 +44,7 @@ from unittest.mock import (
 
 import pytest
 
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AgentArchitecture,
     AgentSpec,
     ExecutionIssue,
@@ -54,7 +54,7 @@ from core.hive_mind.types import (
     MonitoredStepResult,
     RAGConfig,
 )
-from core.hive_mind.phases.phase_execution import (
+from core.intelligence.hive_mind.phases.phase_execution import (
     EXECUTION_PROMPT,
     ExecutionPhaseResult,
     MonitoredExecutionPhase,

@@ -19,7 +19,7 @@ from typing import List, Optional, TYPE_CHECKING
 from difflib import SequenceMatcher
 
 if TYPE_CHECKING:
-    from core.hive_mind.strategy_blacklist import StrategyBlacklist
+    from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
 
 class StagnationDetector:
@@ -349,7 +349,7 @@ class StagnationDetector:
 
         # Import here to avoid circular imports
         try:
-            from core.hive_mind.strategy_blacklist import FailureCategory
+            from core.intelligence.hive_mind.strategy_blacklist import FailureCategory
         except ImportError:
             return False
 

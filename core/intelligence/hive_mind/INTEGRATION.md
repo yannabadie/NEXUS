@@ -281,7 +281,7 @@ StagnationDetector.add_message(msg)
 
 ```python
 # Test CostEstimator -> BudgetTracker
-from core.hive_mind.cost_estimator import CostEstimator
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
 from core.telemetry.budget_tracker import BudgetTracker
 
 tracker = BudgetTracker(config)
@@ -293,7 +293,7 @@ estimator.can_afford("spawn_agent")  # Checks both
 
 # Test StagnationDetector -> StrategyBlacklist
 from core.fsm.stagnation_detector import StagnationDetector
-from core.hive_mind.strategy_blacklist import StrategyBlacklist
+from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
 blacklist = StrategyBlacklist()
 detector = StagnationDetector()

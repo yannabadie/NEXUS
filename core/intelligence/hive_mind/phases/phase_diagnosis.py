@@ -356,7 +356,7 @@ class FailureDiagnosisPhase:
 
         # V12.4: MultiAgentReflexion - cross-agent reflection to break degeneration loops (arxiv:2512.20845)
         try:
-            from core.hive_mind.multi_agent_reflexion import get_multi_agent_reflexion
+            from core.intelligence.hive_mind.multi_agent_reflexion import get_multi_agent_reflexion
             _mar = get_multi_agent_reflexion()
             _reflections = []
             if gemini_result:

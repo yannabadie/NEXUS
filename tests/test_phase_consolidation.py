@@ -25,13 +25,13 @@ import pytest
 from dataclasses import fields
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
-from core.hive_mind.phases.phase_consolidation import (
+from core.intelligence.hive_mind.phases.phase_consolidation import (
     ConsolidationPhaseResult,
     REFLECTION_PROMPT,
     CONSOLIDATION_DEBATE_PROMPT,
     KnowledgeConsolidationPhase,
 )
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AgentRetention,
     BreakpointResponse,
     KnowledgeConsolidation,

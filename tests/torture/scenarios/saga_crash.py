@@ -18,7 +18,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 # Add project root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.saga_manager import SagaManager
+from core.intelligence.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
 from tests.torture.base import TortureBase, TortureResultV8
 from tests.torture.chaos_injectors import CrashInjector, CorruptionInjector

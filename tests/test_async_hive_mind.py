@@ -18,7 +18,7 @@ from datetime import datetime
 sys.path.insert(0, str(__file__).replace("\\tests\\test_async_hive_mind.py", "").replace("/tests/test_async_hive_mind.py", ""))
 
 from core.foundation.async_primitives import CancellationToken, AsyncBlackboard
-from core.hive_mind.async_adapter import AsyncHiveMindAdapter
+from core.intelligence.hive_mind.async_adapter import AsyncHiveMindAdapter
 
 
 # ============================================================================

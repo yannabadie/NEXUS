@@ -7,7 +7,7 @@ Records and analyzes decisions made during each HiveMind phase,
 with reasoning, timing, and pattern detection.
 
 Usage:
-    from core.hive_mind.phase_audit_logger import get_phase_audit_logger
+    from core.intelligence.hive_mind.phase_audit_logger import get_phase_audit_logger
 
     logger = get_phase_audit_logger()
 

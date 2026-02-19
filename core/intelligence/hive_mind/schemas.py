@@ -8,7 +8,7 @@ Epic 1.2: Structured Outputs
 Research: JSONSchemaBench (ArXiv 2501.10868)
 
 Usage:
-    from core.hive_mind.schemas import AnalysisOutput
+    from core.intelligence.hive_mind.schemas import AnalysisOutput
 
     # With Anthropic SDK:
     response = await driver.invoke_structured(

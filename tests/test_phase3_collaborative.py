@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Helper to build a DebateResult with current fields
 def make_debate_result(final_approach="Test approach", final_capabilities=None):
-    from core.hive_mind.types import DebateResult
+    from core.intelligence.hive_mind.types import DebateResult
 
     if final_capabilities is None:
         final_capabilities = ["coding"]
@@ -36,7 +36,7 @@ def make_debate_result(final_approach="Test approach", final_capabilities=None):
 # Test the feature flag
 def test_feature_flag_default_enabled():
     """Feature flag should be enabled by default."""
-    from core.hive_mind.phases.phase_architecture import COLLABORATIVE_ARCHITECTURE
+    from core.intelligence.hive_mind.phases.phase_architecture import COLLABORATIVE_ARCHITECTURE
     assert COLLABORATIVE_ARCHITECTURE is True
 
 
@@ -46,7 +46,7 @@ def test_feature_flag_can_be_disabled():
     with patch.dict(os.environ, {"NEXUS_COLLABORATIVE_ARCHITECTURE": "false"}):
         # Need to reimport to pick up new env var
         import importlib
-        from core.hive_mind.phases import phase_architecture
+        from core.intelligence.hive_mind.phases import phase_architecture
         importlib.reload(phase_architecture)
         assert phase_architecture.COLLABORATIVE_ARCHITECTURE is False
 
@@ -173,7 +173,7 @@ class TestCollaborativeArchitecture:
         tmp_path
     ):
         """Collaborative mode should call Claude first, then Gemini."""
-        from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
+        from core.intelligence.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
         phase = ArchitectureGenerationPhase(
             gemini_driver=mock_gemini_driver,
             claude_driver=mock_claude_driver,
@@ -214,7 +214,7 @@ class TestCollaborativeArchitecture:
         tmp_path
     ):
         """Should use Claude-only architecture when budget is exceeded."""
-        from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
+        from core.intelligence.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
         # Make budget check fail for validation step
         mock_cost_estimator.can_afford = MagicMock(side_effect=lambda x: x != "validate_architecture")
 
@@ -254,7 +254,7 @@ class TestCollaborativeArchitecture:
         tmp_path
     ):
         """Should use Claude architecture when Gemini validation fails."""
-        from core.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
+        from core.intelligence.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
         # Make Gemini fail
         mock_gemini_driver.send_message_async = AsyncMock(
             side_effect=Exception("Gemini error")
@@ -329,7 +329,7 @@ class TestLegacyArchitecture:
         with patch.dict(os.environ, {"NEXUS_COLLABORATIVE_ARCHITECTURE": "false"}):
             # Reimport to pick up env var
             import importlib
-            from core.hive_mind.phases import phase_architecture
+            from core.intelligence.hive_mind.phases import phase_architecture
             importlib.reload(phase_architecture)
 
             mock_claude_driver = MagicMock()

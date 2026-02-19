@@ -31,18 +31,18 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AnalysisComparison,
     Disagreement,
     IndependentAnalysis,
 )
-from core.hive_mind.phases.phase_analysis import (
+from core.intelligence.hive_mind.phases.phase_analysis import (
     AnalysisPhaseResult,
     IndependentAnalysisPhase,
 )
-from core.hive_mind.prompts import ANALYSIS_SYSTEM_PROMPT
-from core.hive_mind.cost_estimator import CostEstimator
-from core.hive_mind.context_manager import HiveMindContextManager
+from core.intelligence.hive_mind.prompts import ANALYSIS_SYSTEM_PROMPT
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
+from core.intelligence.hive_mind.context_manager import HiveMindContextManager
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.adapters import AnalysisAdapter
 from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.hive_mind.types import IndependentAnalysis
+from core.intelligence.hive_mind.types import IndependentAnalysis
 
 
 class TestAnalysisAdapter:

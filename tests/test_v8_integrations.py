@@ -21,7 +21,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
     def test_tokens_to_usd_conversion(self):
         """Test token to USD conversion."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         estimator = CostEstimator(budget_limit=50000)
 
@@ -32,7 +32,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
     def test_can_afford_without_tracker(self):
         """Test can_afford works without BudgetTracker (token-only)."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         estimator = CostEstimator(budget_limit=1000)
 
@@ -49,7 +49,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
     def test_can_afford_with_budget_tracker(self):
         """Test can_afford checks both token AND USD budgets."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         # Create mock BudgetTracker
         mock_tracker = MagicMock()
@@ -68,7 +68,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
     def test_check_usd_budget_no_tracker(self):
         """Test check_usd_budget returns True when no tracker set."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         estimator = CostEstimator(budget_limit=50000)
 
@@ -77,7 +77,7 @@ class TestCostEstimatorBudgetTrackerIntegration:
 
     def test_get_stats_includes_usd_info(self):
         """Test get_stats includes USD integration info."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         # Without tracker
         estimator = CostEstimator(budget_limit=50000)
@@ -104,7 +104,7 @@ class TestStagnationDetectorBlacklistIntegration:
 
     def test_stagnation_category_exists(self):
         """Test STAGNATION category exists in FailureCategory."""
-        from core.hive_mind.strategy_blacklist import FailureCategory
+        from core.intelligence.hive_mind.strategy_blacklist import FailureCategory
 
         assert hasattr(FailureCategory, "STAGNATION")
         assert FailureCategory.STAGNATION.value == "stagnation"
@@ -112,7 +112,7 @@ class TestStagnationDetectorBlacklistIntegration:
     def test_set_strategy_blacklist(self):
         """Test setting blacklist reference."""
         from core.fsm.stagnation_detector import StagnationDetector
-        from core.hive_mind.strategy_blacklist import StrategyBlacklist
+        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
         detector = StagnationDetector()
         blacklist = StrategyBlacklist()
@@ -150,7 +150,7 @@ class TestStagnationDetectorBlacklistIntegration:
     def test_report_to_blacklist_success(self):
         """Test successful stagnation report to blacklist."""
         from core.fsm.stagnation_detector import StagnationDetector
-        from core.hive_mind.strategy_blacklist import StrategyBlacklist
+        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
         detector = StagnationDetector(similarity_threshold=0.5)
         blacklist = StrategyBlacklist()
@@ -170,7 +170,7 @@ class TestStagnationDetectorBlacklistIntegration:
     def test_check_and_report_combined(self):
         """Test check_and_report convenience method."""
         from core.fsm.stagnation_detector import StagnationDetector
-        from core.hive_mind.strategy_blacklist import StrategyBlacklist
+        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist
 
         detector = StagnationDetector(similarity_threshold=0.3)  # Very low for test
         blacklist = StrategyBlacklist()
@@ -193,7 +193,7 @@ class TestStagnationDetectorBlacklistIntegration:
 
     def test_stagnation_suggestions(self):
         """Test STAGNATION category has specific suggestions."""
-        from core.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
+        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
 
         blacklist = StrategyBlacklist()
         blacklist.add_failed_strategy(

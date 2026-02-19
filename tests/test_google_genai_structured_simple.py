@@ -16,7 +16,7 @@ from typing import List
 # Validates that the imports work
 from core.drivers.google_genai_sdk_driver import GoogleGenAISDKDriver
 from core.drivers.protocol import DriverResponse
-from core.hive_mind.schemas import AnalysisOutput
+from core.intelligence.hive_mind.schemas import AnalysisOutput
 
 
 class SimpleTestModel(BaseModel):
@@ -70,7 +70,7 @@ class TestGoogleGenAIStructuredOutputsAPI:
 
     def test_schemas_are_importable(self):
         """HiveMind schemas should be importable for use with structured outputs."""
-        from core.hive_mind.schemas import (
+        from core.intelligence.hive_mind.schemas import (
             AnalysisOutput,
             DebateOutput,
             ArchitectureOutput,

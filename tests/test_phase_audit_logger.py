@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.hive_mind.phase_audit_logger import (
+from core.intelligence.hive_mind.phase_audit_logger import (
     MAX_AUDITS,
     PHASES,
     AuditPattern,
@@ -387,7 +387,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
-        from core.hive_mind import (
+        from core.intelligence.hive_mind import (
             PhaseAuditLogger, DecisionAudit, PhaseAuditReport,
             AuditPattern, AuditStats,
             get_phase_audit_logger, reset_phase_audit_logger,
@@ -399,7 +399,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.hive_mind.phase_audit_logger import MAX_AUDITS, PHASES
+        from core.intelligence.hive_mind.phase_audit_logger import MAX_AUDITS, PHASES
         assert MAX_AUDITS == 50000
         assert "ANALYSIS" in PHASES
         assert "EXECUTION" in PHASES

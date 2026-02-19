@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.hive_mind.phase_coordinator import (
+from core.intelligence.hive_mind.phase_coordinator import (
     CoordinatorStats,
     PHASE_ORDER,
     PhaseCoordinator,
@@ -369,7 +369,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
-        from core.hive_mind import (
+        from core.intelligence.hive_mind import (
             PhaseCoordinator, PhaseState, PhaseTransition,
             TransitionResult, get_phase_coordinator, reset_phase_coordinator,
         )
@@ -379,7 +379,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.hive_mind.phase_coordinator import (
+        from core.intelligence.hive_mind.phase_coordinator import (
             PhaseCoordinator, PHASE_ORDER, VALID_TRANSITIONS,
             SKIPPABLE_PHASES,
         )

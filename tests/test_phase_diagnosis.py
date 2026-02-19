@@ -29,13 +29,13 @@ from unittest.mock import (
     PropertyMock,
 )
 
-from core.hive_mind.phases.phase_diagnosis import (
+from core.intelligence.hive_mind.phases.phase_diagnosis import (
     DIAGNOSIS_PROMPT,
     SYNTHESIS_PROMPT,
     DiagnosisPhaseResult,
     FailureDiagnosisPhase,
 )
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     BreakpointResponse,
     ExecutionIssue,
     FailureDiagnosis,

@@ -7,7 +7,7 @@ Tracks positions taken by agents during debate and analysis phases,
 measures consensus level, and identifies contentious points.
 
 Usage:
-    from core.hive_mind.consensus_tracker import get_consensus_tracker
+    from core.intelligence.hive_mind.consensus_tracker import get_consensus_tracker
 
     tracker = get_consensus_tracker()
 

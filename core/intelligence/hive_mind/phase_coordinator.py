@@ -7,7 +7,7 @@ Tracks phase transitions, validates entry conditions,
 and manages phase lifecycle for hive mind sessions.
 
 Usage:
-    from core.hive_mind.phase_coordinator import get_phase_coordinator
+    from core.intelligence.hive_mind.phase_coordinator import get_phase_coordinator
 
     coord = get_phase_coordinator()
 

@@ -215,7 +215,7 @@ def serialize_for_checkpoint(obj: Any) -> Dict[str, Any]:
         Dictionary safe for JSON serialization
 
     Example:
-        >>> from core.hive_mind.types import IndependentAnalysis
+        >>> from core.intelligence.hive_mind.types import IndependentAnalysis
         >>> result = IndependentAnalysis(...)
         >>> checkpoint_data = serialize_for_checkpoint(result)
         >>> json.dumps(checkpoint_data)  # Will not raise TypeError

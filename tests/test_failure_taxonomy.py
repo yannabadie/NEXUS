@@ -1,7 +1,7 @@
 """Tests for MAST Failure Taxonomy + MARS Triple-Pathway Reflection."""
 
 import pytest
-from core.hive_mind.failure_taxonomy import (
+from core.intelligence.hive_mind.failure_taxonomy import (
     MastCategory,
     MastCode,
     MastClassification,

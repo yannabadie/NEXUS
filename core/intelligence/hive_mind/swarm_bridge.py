@@ -488,7 +488,7 @@ class SwarmBridge:
         Swarm modes work best for different types of delegated tasks.
         """
         try:
-            from core.hive_mind.success_adapter import create_swarm_delegation_adapters
+            from core.intelligence.hive_mind.success_adapter import create_swarm_delegation_adapters
 
             analysis, result_adapter = create_swarm_delegation_adapters(
                 task=task,

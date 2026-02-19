@@ -6,7 +6,7 @@ abort recommendations, and trend detection for the HiveMind pipeline.
 
 import pytest
 
-from core.hive_mind.confidence_monitor import (
+from core.intelligence.hive_mind.confidence_monitor import (
     StepwiseConfidenceMonitor,
     PhaseConfidence,
     ConfidenceTrajectory,

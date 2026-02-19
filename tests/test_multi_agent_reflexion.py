@@ -33,7 +33,7 @@ import pytest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from core.hive_mind.multi_agent_reflexion import (
+from core.intelligence.hive_mind.multi_agent_reflexion import (
     ReflexionMode,
     AgentReflection,
     ReflexionSynthesis,

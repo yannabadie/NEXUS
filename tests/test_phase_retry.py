@@ -29,11 +29,11 @@ from unittest.mock import (
     call,
 )
 
-from core.hive_mind.phases.phase_retry import (
+from core.intelligence.hive_mind.phases.phase_retry import (
     AdaptiveRetryPhase,
     RetryPhaseResult,
 )
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AgentArchitecture,
     AgentSpec,
     ExecutionPlan,
@@ -43,13 +43,13 @@ from core.hive_mind.types import (
     RAGConfig,
     RetryDecision,
 )
-from core.hive_mind.strategy_blacklist import (
+from core.intelligence.hive_mind.strategy_blacklist import (
     BlacklistedStrategy,
     FailureCategory,
     StrategyBlacklist,
 )
-from core.hive_mind.cost_estimator import CostEstimator
-from core.hive_mind.context_manager import HiveMindContextManager
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
+from core.intelligence.hive_mind.context_manager import HiveMindContextManager
 
 
 # =============================================================================

@@ -36,7 +36,7 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AgentArchitecture,
     AgentSpec,
     BreakpointResponse,
@@ -46,7 +46,7 @@ from core.hive_mind.types import (
     RAGConfig,
     UserBreakpoint,
 )
-from core.hive_mind.phases.phase_architecture import (
+from core.intelligence.hive_mind.phases.phase_architecture import (
     ARCHITECTURE_PROMPT,
     CLAUDE_ARCHITECTURE_PROMPT,
     GEMINI_VALIDATION_PROMPT,
@@ -54,9 +54,9 @@ from core.hive_mind.phases.phase_architecture import (
     ArchitectureGenerationPhase,
     ArchitecturePhaseResult,
 )
-from core.hive_mind.cost_estimator import CostEstimator
-from core.hive_mind.context_manager import HiveMindContextManager
-from core.hive_mind.agent_registry import AgentRegistry
+from core.intelligence.hive_mind.cost_estimator import CostEstimator
+from core.intelligence.hive_mind.context_manager import HiveMindContextManager
+from core.intelligence.hive_mind.agent_registry import AgentRegistry
 
 
 # =============================================================================

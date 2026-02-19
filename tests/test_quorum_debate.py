@@ -8,7 +8,7 @@ terminates immediately without an LLM consensus check.
 import pytest
 from datetime import datetime
 
-from core.hive_mind.types import DebateArgument
+from core.intelligence.hive_mind.types import DebateArgument
 
 
 class TestQuorumDetection:

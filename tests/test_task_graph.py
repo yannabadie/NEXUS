@@ -9,7 +9,7 @@ Target: ~90 tests across 21 test categories.
 
 import pytest
 
-from core.hive_mind.task_graph import (
+from core.intelligence.hive_mind.task_graph import (
     EvaluatorStats,
     GraphMetrics,
     GraphStats,

@@ -30,7 +30,7 @@ from dataclasses import fields as dc_fields
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
-from core.hive_mind.phases.phase_debate import (
+from core.intelligence.hive_mind.phases.phase_debate import (
     DebatePhaseResult,
     MisalignmentDetector,
     MisalignmentFlag,
@@ -39,14 +39,14 @@ from core.hive_mind.phases.phase_debate import (
     DEBATE_RESPONSE_PROMPT,
     CONSENSUS_CHECK_PROMPT,
 )
-from core.hive_mind.types import (
+from core.intelligence.hive_mind.types import (
     AnalysisComparison,
     DebateArgument,
     DebateResult,
     Disagreement,
     IndependentAnalysis,
 )
-from core.hive_mind.adaptive_debate import (
+from core.intelligence.hive_mind.adaptive_debate import (
     AdaptiveDebateConfig,
     DebateParams,
     TaskComplexity,

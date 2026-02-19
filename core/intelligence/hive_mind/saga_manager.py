@@ -45,7 +45,7 @@ from core.utils.atomic_store import AtomicJsonStore
 from core.utils.serialization import NexusJSONEncoder, serialize_for_checkpoint, nexus_dumps
 
 if TYPE_CHECKING:
-    from core.hive_mind.types import HiveMindState
+    from core.intelligence.hive_mind.types import HiveMindState
 
 
 logger = logging.getLogger(__name__)

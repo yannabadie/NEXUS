@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from core.hive_mind.saga_manager import SagaManager
+from core.intelligence.hive_mind.saga_manager import SagaManager
 from core.utils.atomic_store import AtomicJsonStore
 from tests.torture.base import TortureBase
 from tests.torture.chaos_injectors import RaceInjector

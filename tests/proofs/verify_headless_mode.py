@@ -207,8 +207,8 @@ def test_7_user_interaction_headless():
     print("=" * 60)
 
     from core.security_pkg.interaction import HeadlessProvider
-    from core.hive_mind.user_interaction import UserInteractionHandler
-    from core.hive_mind.types import UserBreakpoint, BreakpointOption
+    from core.intelligence.hive_mind.user_interaction import UserInteractionHandler
+    from core.intelligence.hive_mind.types import UserBreakpoint, BreakpointOption
 
     # Create handler with headless provider
     provider = HeadlessProvider(strict=False)

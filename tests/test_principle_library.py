@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from core.hive_mind.principle_library import (
+from core.intelligence.hive_mind.principle_library import (
     Principle,
     PrincipleLibrary,
     get_principle_library,

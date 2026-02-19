@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.hive_mind.consensus_tracker import (
+from core.intelligence.hive_mind.consensus_tracker import (
     ConsensusReport,
     ConsensusTracker,
     Disagreement,
@@ -436,7 +436,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_hive_mind_package(self):
-        from core.hive_mind import (
+        from core.intelligence.hive_mind import (
             ConsensusTracker, TopicConsensus, ConsensusReport,
             get_consensus_tracker, reset_consensus_tracker,
         )
@@ -446,7 +446,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.hive_mind.consensus_tracker import (
+        from core.intelligence.hive_mind.consensus_tracker import (
             ConsensusTracker, Position, TopicConsensus,
             Disagreement, DEFAULT_MIN_CONSENSUS,
         )

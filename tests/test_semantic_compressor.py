@@ -17,7 +17,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from typing import Any
 
-from core.hive_mind.semantic_compressor import (
+from core.intelligence.hive_mind.semantic_compressor import (
     SemanticCompressor,
     CompressionResult,
     COMPRESSION_PROMPTS,

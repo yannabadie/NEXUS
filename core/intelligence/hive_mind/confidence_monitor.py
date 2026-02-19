@@ -14,7 +14,7 @@ Features:
 - Minimum viable confidence floor that grows with pipeline depth
 
 Usage:
-    from core.hive_mind.confidence_monitor import StepwiseConfidenceMonitor
+    from core.intelligence.hive_mind.confidence_monitor import StepwiseConfidenceMonitor
 
     monitor = StepwiseConfidenceMonitor()
     monitor.record("analysis", 0.85)

@@ -35,7 +35,7 @@ from core.observability.events.telemetry_bridge import emit_agent_exchange, emit
 
 # V8.0 TRUE HIVE MIND
 try:
-    from core.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
+    from core.intelligence.hive_mind import TrueHiveMind, TaskComplexity as HiveComplexity
     HIVE_MIND_AVAILABLE = True
 except ImportError:
     HIVE_MIND_AVAILABLE = False

@@ -1,7 +1,7 @@
 """Tests for EchoChamberGuard - sycophantic debate detection."""
 
 import pytest
-from core.hive_mind.echo_chamber_guard import (
+from core.intelligence.hive_mind.echo_chamber_guard import (
     EchoChamberGuard,
     GuardActionType,
     GuardAction,

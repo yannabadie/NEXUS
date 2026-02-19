@@ -1,7 +1,7 @@
 """Tests for MultiPersonaDiagnoser - multi-perspective failure analysis."""
 
 import pytest
-from core.hive_mind.persona_diagnosis import (
+from core.intelligence.hive_mind.persona_diagnosis import (
     MultiPersonaDiagnoser,
     PersonaType,
     PersonaInsight,

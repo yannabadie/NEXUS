@@ -66,7 +66,7 @@ class TestHiveMindOrchestrator:
 
     def test_hive_mind_components_import(self):
         """Test all Hive Mind components can be imported."""
-        from core.hive_mind import (
+        from core.intelligence.hive_mind import (
             TrueHiveMind,
             HiveMindResult,
             AgentRegistry,
@@ -85,7 +85,7 @@ class TestHiveMindOrchestrator:
 
     def test_hive_mind_phases_import(self):
         """Test all 7 phases can be imported."""
-        from core.hive_mind.phases import (
+        from core.intelligence.hive_mind.phases import (
             IndependentAnalysisPhase,
             StrategicDebatePhase,
             ArchitectureGenerationPhase,
@@ -106,7 +106,7 @@ class TestHiveMindOrchestrator:
 
     def test_hive_mind_types(self):
         """Test Hive Mind type definitions."""
-        from core.hive_mind.types import (
+        from core.intelligence.hive_mind.types import (
             HiveMindState,
             UserBreakpoint,
             IndependentAnalysis,
@@ -121,7 +121,7 @@ class TestHiveMindOrchestrator:
 
     def test_cost_estimator_initialization(self, mock_workspace):
         """Test CostEstimator initializes correctly."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         estimator = CostEstimator(budget_limit=50000)
 
@@ -131,7 +131,7 @@ class TestHiveMindOrchestrator:
 
     def test_cost_estimator_full_hive_mind_estimate(self):
         """Test estimating cost of full Hive Mind run."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
 
         estimator = CostEstimator(budget_limit=50000)
 
@@ -148,7 +148,7 @@ class TestHiveMindOrchestrator:
 
     def test_agent_registry_initialization(self, mock_workspace):
         """Test AgentRegistry initializes correctly."""
-        from core.hive_mind.agent_registry import AgentRegistry
+        from core.intelligence.hive_mind.agent_registry import AgentRegistry
 
         registry = AgentRegistry(mock_workspace)
 
@@ -160,7 +160,7 @@ class TestHiveMindOrchestrator:
 
     def test_strategy_blacklist_operations(self, mock_workspace):
         """Test StrategyBlacklist basic operations."""
-        from core.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
+        from core.intelligence.hive_mind.strategy_blacklist import StrategyBlacklist, FailureCategory
 
         blacklist = StrategyBlacklist(workspace_path=mock_workspace)
 
@@ -183,7 +183,7 @@ class TestHiveMindOrchestrator:
 
     def test_context_manager_sliding_window(self):
         """Test HiveMindContextManager sliding window."""
-        from core.hive_mind.context_manager import HiveMindContextManager
+        from core.intelligence.hive_mind.context_manager import HiveMindContextManager
 
         manager = HiveMindContextManager(max_tokens=10000)
 
@@ -197,7 +197,7 @@ class TestHiveMindOrchestrator:
 
     def test_adaptive_debate_config(self):
         """Test AdaptiveDebateConfig calculates correct turns."""
-        from core.hive_mind.adaptive_debate import AdaptiveDebateConfig, TaskComplexity
+        from core.intelligence.hive_mind.adaptive_debate import AdaptiveDebateConfig, TaskComplexity
 
         config = AdaptiveDebateConfig()
 
@@ -275,7 +275,7 @@ class TestHiveMindWithMockedDrivers:
 
     def test_true_hive_mind_initialization(self, hive_mind_setup):
         """Test TrueHiveMind can be initialized."""
-        from core.hive_mind import TrueHiveMind
+        from core.intelligence.hive_mind import TrueHiveMind
 
         hive = TrueHiveMind(
             workspace_path=hive_mind_setup["workspace"],
@@ -289,7 +289,7 @@ class TestHiveMindWithMockedDrivers:
 
     def test_true_hive_mind_components_initialized(self, hive_mind_setup):
         """Test TrueHiveMind initializes all components."""
-        from core.hive_mind import TrueHiveMind
+        from core.intelligence.hive_mind import TrueHiveMind
 
         hive = TrueHiveMind(
             workspace_path=hive_mind_setup["workspace"],
@@ -309,7 +309,7 @@ class TestBudgetChainIntegration:
 
     def test_full_budget_chain(self, tmp_path):
         """Test full budget chain with real components."""
-        from core.hive_mind.cost_estimator import CostEstimator
+        from core.intelligence.hive_mind.cost_estimator import CostEstimator
         from core.observability.telemetry.budget_tracker import BudgetTracker
 
         # Create real BudgetTracker

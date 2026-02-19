@@ -62,7 +62,7 @@ def main():
     # Test component initialization
     print("\n[TEST] Component Initialization:")
 
-    from core.hive_mind import (
+    from core.intelligence.hive_mind import (
         TrueHiveMind,
         AgentRegistry,
         CostEstimator,

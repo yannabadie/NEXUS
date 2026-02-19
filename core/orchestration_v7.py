@@ -40,7 +40,7 @@ from core.memory_pkg.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE M
 from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.execution_pkg.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge  # V7.8 Phase 14c.2
 from core.fsm.handlers import FSMHandlers  # V12.4 P1.3: Modular handlers
-from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
+from core.intelligence.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
 from pydantic import ValidationError
 import asyncio
