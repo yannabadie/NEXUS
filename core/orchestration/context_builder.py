@@ -23,7 +23,7 @@ _logger = logging.getLogger(__name__)
 
 from core.foundation.agents.unified_registry import get_registry
 from core.memory_pkg.prompts import load_prompt
-from core.swarm import TaskAnalysis, TaskComplexity
+from core.intelligence.swarm import TaskAnalysis, TaskComplexity
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7

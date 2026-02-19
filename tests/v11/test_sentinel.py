@@ -28,13 +28,13 @@ class TestHybridTaskAnalyzer:
 
     def test_import_task_analyzer(self):
         """Verify TaskAnalyzer can be imported."""
-        from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
         assert TaskAnalyzer is not None
         assert AnalysisStage is not None
 
     def test_analysis_stage_enum(self):
         """Verify AnalysisStage enum has correct values."""
-        from core.swarm.task_analyzer import AnalysisStage
+        from core.intelligence.swarm.task_analyzer import AnalysisStage
 
         assert AnalysisStage.STAGE1_REGEX == 1
         assert AnalysisStage.STAGE2_HEURISTIC == 2
@@ -42,7 +42,7 @@ class TestHybridTaskAnalyzer:
 
     def test_stage1_instant_commands_patterns(self):
         """Verify Stage 1 regex patterns for instant commands."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
@@ -65,7 +65,7 @@ class TestHybridTaskAnalyzer:
 
     def test_stage1_non_instant_commands(self):
         """Verify Stage 1 does NOT match non-instant commands."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
@@ -91,7 +91,7 @@ class TestHybridTaskAnalyzer:
 
     def test_stage2_heuristic_analysis(self):
         """Verify Stage 2 heuristic analysis works."""
-        from core.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, AnalysisStage
 
         analyzer = TaskAnalyzer()
 
@@ -102,13 +102,13 @@ class TestHybridTaskAnalyzer:
 
     def test_stage3_confidence_threshold(self):
         """Verify confidence threshold constant exists."""
-        from core.swarm.task_analyzer import STAGE2_CONFIDENCE_THRESHOLD
+        from core.intelligence.swarm.task_analyzer import STAGE2_CONFIDENCE_THRESHOLD
 
         assert STAGE2_CONFIDENCE_THRESHOLD == 0.6
 
     def test_analyze_async_method_exists(self):
         """Verify analyze_async method exists."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
         assert hasattr(analyzer, 'analyze_async')
@@ -117,7 +117,7 @@ class TestHybridTaskAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_async_works(self):
         """Test that analyze_async returns valid result."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
         result = await analyzer.analyze_async("help")
@@ -128,7 +128,7 @@ class TestHybridTaskAnalyzer:
 
     def test_task_analysis_has_new_fields(self):
         """Verify TaskAnalysis dataclass has V11 SENTINEL fields."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskAnalysis, AnalysisStage
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskAnalysis, AnalysisStage
 
         analyzer = TaskAnalyzer()
         result = analyzer.analyze("test")
@@ -140,7 +140,7 @@ class TestHybridTaskAnalyzer:
 
     def test_needs_stage3_escalation(self):
         """Verify needs_stage3_escalation method exists and works."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 
@@ -396,7 +396,7 @@ class TestSentinelIntegration:
 
     def test_task_analyzer_has_sentinel_features(self):
         """Verify TaskAnalyzer has all SENTINEL features."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
 

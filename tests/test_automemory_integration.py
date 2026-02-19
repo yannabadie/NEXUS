@@ -18,10 +18,10 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from dataclasses import dataclass
 
-from core.swarm.mode_selector import ModeSelector, ModeProposal, AgentAssignment
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.swarm.agent_metrics import AgentProfile
+from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal, AgentAssignment
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.agent_metrics import AgentProfile
 
 
 # ============================================================================

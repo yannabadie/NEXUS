@@ -9,7 +9,7 @@ import sys
 from typing import Dict, Optional
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
-from core.swarm import TaskComplexity
+from core.intelligence.swarm import TaskComplexity
 from core.fsm.handlers.base import BaseHandler
 
 # V8.0 TRUE HIVE MIND

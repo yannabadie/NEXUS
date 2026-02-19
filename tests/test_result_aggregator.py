@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.swarm.result_aggregator import (
+from core.intelligence.swarm.result_aggregator import (
     AgentResult,
     AggregatorStats,
     Conflict,
@@ -421,7 +421,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             ResultAggregator, MergeStrategy, MergeResult,
             AggregatorStats, get_aggregator, reset_aggregator,
         )
@@ -431,7 +431,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.swarm.result_aggregator import (
+        from core.intelligence.swarm.result_aggregator import (
             ResultAggregator, AgentResult, Conflict,
             MergeStrategy, MAX_TASKS,
         )

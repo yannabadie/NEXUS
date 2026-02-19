@@ -17,7 +17,7 @@ def _get_evolution_service(context: CommandContext):
 
     EvolutionService requires evolution_manager, console, and config.
     """
-    from core.evolution import EvolutionService
+    from core.intelligence.evolution import EvolutionService
 
     # Try to get cached service from extras
     service = context.extras.get("evolution_service")

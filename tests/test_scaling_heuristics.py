@@ -24,7 +24,7 @@ import pytest
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.scaling_heuristics import (
+from core.intelligence.swarm.scaling_heuristics import (
     CoordinationType,
     TaskCharacteristic,
     ScalingRecommendation,

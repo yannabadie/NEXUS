@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.evolution.fitness import (
+from core.intelligence.evolution.fitness import (
     DeterministicFitness,
     DeterministicFitnessResult,
     FitnessCheck,
@@ -443,7 +443,7 @@ class TestIntegration:
     )
     def test_fitness_module_imports(self):
         """Test that all fitness module components can be imported"""
-        from core.evolution.fitness import (
+        from core.intelligence.evolution.fitness import (
             DeterministicFitness,
             DeterministicFitnessResult,
             FitnessCheck,
@@ -461,7 +461,7 @@ class TestIntegration:
     )
     def test_fitness_check_enum_order(self):
         """Test that FitnessCheck enum values are in correct order"""
-        from core.evolution.fitness import FitnessCheck
+        from core.intelligence.evolution.fitness import FitnessCheck
 
         assert FitnessCheck.SYNTAX == 1
         assert FitnessCheck.LINTER == 2

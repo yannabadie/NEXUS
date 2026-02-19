@@ -48,7 +48,7 @@ from ..user_interaction import UserInteractionHandler
 from ..prompts import CONSOLIDATION_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
     from core.memory_pkg.memory.project_memory import ProjectMemory
@@ -515,7 +515,7 @@ class KnowledgeConsolidationPhase:
 
         # V12.4: UncertaintyPropagator - reset chain for next task (arxiv:2601.15703)
         try:
-            from core.reasoning.uncertainty_propagator import get_uncertainty_propagator
+            from core.intelligence.reasoning.uncertainty_propagator import get_uncertainty_propagator
             get_uncertainty_propagator().reset_chain()
         except Exception:
             pass

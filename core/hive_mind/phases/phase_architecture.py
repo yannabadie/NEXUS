@@ -69,7 +69,7 @@ from ..prompts import ARCHITECTURE_SYSTEM_PROMPT  # V12.4.1: Static prompt for c
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
 
@@ -933,7 +933,7 @@ class ArchitectureGenerationPhase:
         - Topological execution order
         """
         try:
-            from core.reasoning.graph_of_thought import ThoughtGraph, ThoughtNode, ThoughtType
+            from core.intelligence.reasoning.graph_of_thought import ThoughtGraph, ThoughtNode, ThoughtType
 
             steps = architecture.execution_plan.steps
             if not steps:

@@ -291,7 +291,7 @@ class TestSwarmSessionManagerIntegration:
     @pytest.fixture
     def swarm_session_manager(self, tmp_path):
         """Create SwarmSessionManager with HOME isolation."""
-        from core.swarm.session_manager import SwarmSessionManager
+        from core.intelligence.swarm.session_manager import SwarmSessionManager
 
         workspace = tmp_path / "workspace"
         workspace.mkdir()
@@ -347,8 +347,8 @@ class TestExecutionContextIsolatedEnv:
 
     def test_get_isolated_env_with_session_manager(self, tmp_path):
         """get_isolated_env should return env from session manager."""
-        from core.swarm.executors.base import ExecutionContext
-        from core.swarm.session_manager import SwarmSessionManager
+        from core.intelligence.swarm.executors.base import ExecutionContext
+        from core.intelligence.swarm.session_manager import SwarmSessionManager
 
         workspace = tmp_path / "workspace"
         workspace.mkdir()
@@ -373,7 +373,7 @@ class TestExecutionContextIsolatedEnv:
 
     def test_get_isolated_env_without_session_manager(self):
         """get_isolated_env without session_manager returns None."""
-        from core.swarm.executors.base import ExecutionContext
+        from core.intelligence.swarm.executors.base import ExecutionContext
 
         context = ExecutionContext(
             task_input="test",

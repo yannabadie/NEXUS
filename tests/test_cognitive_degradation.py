@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.reasoning.cognitive_degradation import (
+from core.intelligence.reasoning.cognitive_degradation import (
     CognitiveDegradationDetector,
     DegradationReason,
     DegradationSignal,
@@ -11,7 +11,7 @@ from core.reasoning.cognitive_degradation import (
     get_degradation_detector,
     reset_degradation_detector,
 )
-from core.reasoning.reasoning_quality_scorer import (
+from core.intelligence.reasoning.reasoning_quality_scorer import (
     get_quality_scorer,
     reset_quality_scorer,
 )

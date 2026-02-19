@@ -129,7 +129,7 @@ print(decision.reason)
 # "Task type 'evolution' requires complex reasoning - routing to Opus"
 
 # Dynamic routing with DyLAN metrics
-from core.swarm import create_default_pool
+from core.intelligence.swarm import create_default_pool
 
 pool = create_default_pool(config)
 decision = router.select_best_agent(TaskType.BRAINSTORM, pool)

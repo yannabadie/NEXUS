@@ -8,7 +8,7 @@ import pytest
 import os
 from unittest.mock import patch
 
-from core.swarm.merge_strategies import (
+from core.intelligence.swarm.merge_strategies import (
     MergeStrategyType,
     MergeContext,
     MergeResult,
@@ -19,7 +19,7 @@ from core.swarm.merge_strategies import (
     get_merge_strategy,
     get_default_merge_strategy,
 )
-from core.swarm.mode_executors import AgentResponse
+from core.intelligence.swarm.mode_executors import AgentResponse
 
 
 class TestMergeStrategyType:
@@ -367,7 +367,7 @@ class TestParallelExecutorIntegration:
 
     def test_parallel_executor_uses_merge_strategy(self):
         """ParallelExecutor should use the merge strategy system"""
-        from core.swarm.mode_executors import ParallelExecutor
+        from core.intelligence.swarm.mode_executors import ParallelExecutor
 
         # ParallelExecutor should accept merge_strategy parameter
         executor = ParallelExecutor()
@@ -375,7 +375,7 @@ class TestParallelExecutorIntegration:
 
     def test_parallel_executor_with_custom_strategy(self):
         """ParallelExecutor should accept custom merge strategy"""
-        from core.swarm.mode_executors import ParallelExecutor
+        from core.intelligence.swarm.mode_executors import ParallelExecutor
 
         strategy = DeduplicateMergeStrategy()
         executor = ParallelExecutor(merge_strategy=strategy)

@@ -27,7 +27,7 @@ from core.foundation.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
-from core.swarm import TaskComplexity
+from core.intelligence.swarm import TaskComplexity
 from core.security_pkg.governance.sandbox_policy import SandboxPolicy
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry

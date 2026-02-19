@@ -350,7 +350,7 @@ class TestTrivialInputDetection:
 
     def test_greeting_patterns_detected(self):
         """Les salutations simples doivent être détectées comme TRIVIAL."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
 
         ta = TaskAnalyzer()
 
@@ -370,7 +370,7 @@ class TestTrivialInputDetection:
 
     def test_non_trivial_inputs_not_detected(self):
         """Les tâches réelles ne doivent PAS être détectées comme TRIVIAL."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
 
         ta = TaskAnalyzer()
 
@@ -390,7 +390,7 @@ class TestTrivialInputDetection:
 
     def test_trivial_analysis_has_special_keyword(self):
         """Les inputs TRIVIAL doivent avoir le keyword spécial."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         ta = TaskAnalyzer()
         analysis = ta.analyze("hello")

@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.reasoning.reasoning_quality_scorer import (
+from core.intelligence.reasoning.reasoning_quality_scorer import (
     MAX_EVALUATIONS,
     AgentReasoningProfile,
     ReasoningEvaluation,
@@ -284,7 +284,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_reasoning_package(self):
-        from core.reasoning import (
+        from core.intelligence.reasoning import (
             ReasoningQualityScorer, ReasoningEvaluation,
             AgentReasoningProfile, ScorerStats,
             get_quality_scorer, reset_quality_scorer,
@@ -296,5 +296,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.reasoning.reasoning_quality_scorer import MAX_EVALUATIONS
+        from core.intelligence.reasoning.reasoning_quality_scorer import MAX_EVALUATIONS
         assert MAX_EVALUATIONS == 50000

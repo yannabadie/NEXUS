@@ -296,7 +296,7 @@ class TestExecutorIntegration:
 
     def test_base_executor_import(self):
         """Verify base executor imports concurrency limiter."""
-        from core.swarm.executors.base import get_concurrency_limiter
+        from core.intelligence.swarm.executors.base import get_concurrency_limiter
         assert callable(get_concurrency_limiter)
 
     @pytest.mark.asyncio

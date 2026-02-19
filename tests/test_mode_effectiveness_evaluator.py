@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.swarm.mode_effectiveness_evaluator import (
+from core.intelligence.swarm.mode_effectiveness_evaluator import (
     MAX_EVALUATIONS,
     EvaluatorStats,
     ModeEffectivenessEvaluator,
@@ -307,7 +307,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             ModeEffectivenessEvaluator, ModeEvaluation,
             ModeEffectivenessSummary, EvaluatorStats,
             get_mode_evaluator, reset_mode_evaluator,
@@ -319,5 +319,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.swarm.mode_effectiveness_evaluator import MAX_EVALUATIONS
+        from core.intelligence.swarm.mode_effectiveness_evaluator import MAX_EVALUATIONS
         assert MAX_EVALUATIONS == 50000

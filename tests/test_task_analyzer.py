@@ -32,7 +32,7 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.task_analyzer import (
+from core.intelligence.swarm.task_analyzer import (
     TaskComplexity,
     TaskDomain,
     AnalysisStage,

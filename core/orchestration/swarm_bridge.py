@@ -16,7 +16,7 @@ import logging
 from typing import TYPE_CHECKING, Dict, Optional, Callable
 
 from core.fsm.states import OrchestratorState
-from core.swarm import CollaborationMode, SwarmPhase
+from core.intelligence.swarm import CollaborationMode, SwarmPhase
 
 if TYPE_CHECKING:
     from core.orchestration_v7 import OrchestratorV7

@@ -17,7 +17,7 @@ import time
 
 import pytest
 
-from core.reasoning.inspector_guard import (
+from core.intelligence.reasoning.inspector_guard import (
     ERROR_INDICATORS,
     HALLUCINATION_INDICATORS,
     GuardStats,

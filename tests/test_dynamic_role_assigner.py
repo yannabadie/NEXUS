@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 
-from core.swarm.dynamic_role_assigner import (
+from core.intelligence.swarm.dynamic_role_assigner import (
     RoleType,
     CapabilityProposal,
     RoleScore,

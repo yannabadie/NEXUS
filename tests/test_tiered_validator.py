@@ -13,7 +13,7 @@ from pathlib import Path
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.evolution.tiered_validator import (
+from core.intelligence.evolution.tiered_validator import (
     TieredValidator,
     ValidationTier,
     TierResult,

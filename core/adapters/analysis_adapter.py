@@ -27,7 +27,7 @@ Date: 2025-12-09
 from datetime import datetime
 
 from core.hive_mind.types import IndependentAnalysis
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 class AnalysisAdapter:

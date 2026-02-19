@@ -448,7 +448,7 @@ class TestHybridSwarmEngineIntegration:
 
     def test_engine_initializes_success_memory(self, tmp_path):
         """Engine initializes SuccessMemory when workspace provided."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         engine = HybridSwarmEngine(workspace_path=tmp_path)
         assert engine.success_memory is not None
@@ -456,7 +456,7 @@ class TestHybridSwarmEngineIntegration:
 
     def test_engine_without_workspace_has_no_memory(self):
         """Engine without workspace_path has no SuccessMemory."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         engine = HybridSwarmEngine(workspace_path=None)
         assert engine.success_memory is None

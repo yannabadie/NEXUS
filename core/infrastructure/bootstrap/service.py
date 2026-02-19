@@ -254,7 +254,7 @@ class SpinoffService:
         Returns:
             ServiceResult with spinoff outcome
         """
-        from core.evolution.lineage import load_lineage, get_current_parent
+        from core.intelligence.evolution.lineage import load_lineage, get_current_parent
 
         self.console.print("\n" + "=" * 60)
         self.console.print("  SPECIALIZATION CYCLE STARTED")

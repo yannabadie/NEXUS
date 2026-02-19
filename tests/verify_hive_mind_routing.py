@@ -20,7 +20,7 @@ def main():
     print("=" * 60)
 
     # Import components
-    from core.swarm.task_analyzer import TaskComplexity
+    from core.intelligence.swarm.task_analyzer import TaskComplexity
     from core.config import Config
 
     # Load real config

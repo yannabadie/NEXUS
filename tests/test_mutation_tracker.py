@@ -23,7 +23,7 @@ Validates:
 
 import pytest
 
-from core.evolution.mutation_tracker import (
+from core.intelligence.evolution.mutation_tracker import (
     AgentPerformance,
     LineageNode,
     MutationRecord,
@@ -444,7 +444,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_evolution_package(self):
-        from core.evolution import (
+        from core.intelligence.evolution import (
             MutationTracker, MutationRecord, AgentPerformance,
             LineageNode, get_mutation_tracker, reset_mutation_tracker,
         )
@@ -454,7 +454,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.evolution.mutation_tracker import (
+        from core.intelligence.evolution.mutation_tracker import (
             MutationTracker, VariantComparison, TrackerStats,
             MAX_MUTATIONS, LEARNING_RATE,
         )

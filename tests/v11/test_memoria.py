@@ -215,7 +215,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_task_analyzer_accepts_project_memory(self):
         """Verify TaskAnalyzer accepts project_memory parameter."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         # Without memory
         analyzer1 = TaskAnalyzer()
@@ -228,7 +228,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_enrich_with_rag_no_memory(self):
         """Verify _enrich_with_rag_context returns empty with no memory."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         analyzer = TaskAnalyzer()
         domains, boost = analyzer._enrich_with_rag_context("test query")
@@ -238,7 +238,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_enrich_with_rag_no_chunks(self):
         """Verify _enrich_with_rag_context handles no matching chunks."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         mock_memory = MagicMock()
         mock_memory.retrieve.return_value = []
@@ -251,7 +251,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_enrich_with_rag_python_files(self):
         """Verify _enrich_with_rag_context infers CODING from .py files."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskDomain
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskDomain
 
         mock_chunk = MagicMock()
         mock_chunk.file_path = "src/main.py"
@@ -267,7 +267,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_enrich_with_rag_test_files(self):
         """Verify _enrich_with_rag_context infers TESTING from test files."""
-        from core.swarm.task_analyzer import TaskAnalyzer, TaskDomain
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskDomain
 
         mock_chunk = MagicMock()
         mock_chunk.file_path = "tests/test_main.py"
@@ -284,7 +284,7 @@ class TestRAGInTaskAnalyzer:
 
     def test_enrich_with_rag_complexity_boost(self):
         """Verify _enrich_with_rag_context boosts complexity for async code."""
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         mock_chunk = MagicMock()
         mock_chunk.file_path = "src/async_handler.py"
@@ -425,7 +425,7 @@ class TestMemoriaIntegration:
 
     def test_mode_selector_has_coordinator(self):
         """Verify ModeSelector initializes MemoryCoordinator when memories available."""
-        from core.swarm.mode_selector import ModeSelector
+        from core.intelligence.swarm.mode_selector import ModeSelector
 
         mock_success = MagicMock()
         mock_auto = MagicMock()
@@ -444,7 +444,7 @@ class TestMemoriaIntegration:
 
     def test_mode_selector_unified_boost_method(self):
         """Verify ModeSelector has _apply_unified_memory_boost method."""
-        from core.swarm.mode_selector import ModeSelector
+        from core.intelligence.swarm.mode_selector import ModeSelector
 
         selector = ModeSelector(agent_pool=None)
         assert hasattr(selector, '_apply_unified_memory_boost')

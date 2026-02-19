@@ -19,8 +19,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
-from core.evolution.auto_specializer import (
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
+from core.intelligence.evolution.auto_specializer import (
     AutoSpecializer,
     SpecializationConfig,
     SpecializationProposal,
@@ -590,7 +590,7 @@ class TestModuleExports:
     """Test that auto-specializer types are importable."""
 
     def test_from_evolution_package(self):
-        from core.evolution import (
+        from core.intelligence.evolution import (
             AutoSpecializer,
             SpecializationConfig,
             SpecializationProposal,
@@ -600,7 +600,7 @@ class TestModuleExports:
         assert SpecializationConfig is not None
 
     def test_from_module(self):
-        from core.evolution.auto_specializer import (
+        from core.intelligence.evolution.auto_specializer import (
             AutoSpecializer,
             SpecializationConfig,
             SpecializationProposal,

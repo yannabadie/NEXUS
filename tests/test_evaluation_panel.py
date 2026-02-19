@@ -1,7 +1,7 @@
 """Tests for Multi-Dimensional Evaluation Panel (CRM-inspired)."""
 
 import pytest
-from core.reasoning.evaluation_panel import (
+from core.intelligence.reasoning.evaluation_panel import (
     EvalDimension,
     DimensionScore,
     PanelResult,

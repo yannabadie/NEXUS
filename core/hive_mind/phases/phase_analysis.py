@@ -43,7 +43,7 @@ from ..prompts import ANALYSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for cachi
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
 
 logger = logging.getLogger(__name__)
@@ -230,7 +230,7 @@ class IndependentAnalysisPhase:
 
         # V12.4: Evaluate analysis quality via ThoughtEvaluator
         try:
-            from core.reasoning.thought_evaluator import get_thought_evaluator
+            from core.intelligence.reasoning.thought_evaluator import get_thought_evaluator
             evaluator = get_thought_evaluator()
             for agent_id, analysis in [("gemini", gemini_analysis), ("claude", claude_analysis)]:
                 # Novelty: higher if approach is specific (more words = more detail)
@@ -281,7 +281,7 @@ class IndependentAnalysisPhase:
 
         # V12.4: Multi-dimensional evaluation of analysis quality (CRM, arxiv:2511.16202)
         try:
-            from core.reasoning.evaluation_panel import get_evaluation_panel
+            from core.intelligence.reasoning.evaluation_panel import get_evaluation_panel
             eval_panel = get_evaluation_panel()
             for agent_id, analysis in [("gemini", gemini_analysis), ("claude", claude_analysis)]:
                 panel_result = eval_panel.evaluate(
@@ -668,8 +668,8 @@ class IndependentAnalysisPhase:
         # V12.4: Check quality profiles - poorly calibrated agents
         # should trigger debate even at moderate agreement
         try:
-            from core.reasoning.reasoning_quality_scorer import get_quality_scorer
-            from core.reasoning.cognitive_degradation import get_degradation_detector
+            from core.intelligence.reasoning.reasoning_quality_scorer import get_quality_scorer
+            from core.intelligence.reasoning.cognitive_degradation import get_degradation_detector
             scorer = get_quality_scorer()
             detector = get_degradation_detector()
             for agent_id in ("claude", "gemini"):

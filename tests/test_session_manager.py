@@ -31,7 +31,7 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.session_manager import (
+from core.intelligence.swarm.session_manager import (
     AgentSession,
     SessionMode,
     SessionStatus,

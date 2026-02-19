@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from core.config import Config
-    from core.swarm import AgentPool, AgentProfile
+    from core.intelligence.swarm import AgentPool, AgentProfile
 
 
 class RoutingPolicy(Enum):

@@ -225,7 +225,7 @@ class TestHiveMindIntegrationWithFSM:
 
     def test_complexity_gating_logic(self):
         """Test complexity-based routing logic."""
-        from core.swarm.task_analyzer import TaskComplexity
+        from core.intelligence.swarm.task_analyzer import TaskComplexity
 
         complexities = [
             TaskComplexity.TRIVIAL,

@@ -29,7 +29,7 @@ from unittest.mock import Mock, MagicMock, patch, PropertyMock
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.fsm.states import OrchestratorState, TRANSITION_MATRIX
-from core.swarm.task_analyzer import TaskComplexity
+from core.intelligence.swarm.task_analyzer import TaskComplexity
 
 
 # ---------------------------------------------------------------------------

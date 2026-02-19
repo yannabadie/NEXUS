@@ -22,7 +22,7 @@ from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.evolution.mutation_parser import (
+from core.intelligence.evolution.mutation_parser import (
     MutationParser,
     Mutation,
     apply_mutation,

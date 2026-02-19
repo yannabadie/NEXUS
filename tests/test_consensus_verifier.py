@@ -1,7 +1,7 @@
 """Tests for ConsensusVerifier - Six Sigma-inspired multi-sampling verification."""
 
 import pytest
-from core.reasoning.consensus_verifier import (
+from core.intelligence.reasoning.consensus_verifier import (
     ConsensusVerifier,
     VerificationOutcome,
     VerificationResult,

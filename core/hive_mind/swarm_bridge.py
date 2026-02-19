@@ -19,7 +19,7 @@ from enum import Enum
 import time
 import logging
 
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 # V9.3 ISSUE-008: Exception for exhausted fallback chains (no more silent failures)
@@ -49,7 +49,7 @@ class FallbackExhaustedError(Exception):
 
 # V8.8 (GROK-004): Adaptive fallback selection
 try:
-    from core.swarm.adaptive_fallback import (
+    from core.intelligence.swarm.adaptive_fallback import (
         get_adaptive_fallback_selector,
         FallbackContext,
         AdaptiveFallbackSelector

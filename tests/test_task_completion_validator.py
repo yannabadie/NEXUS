@@ -8,13 +8,13 @@ import pytest
 from pathlib import Path
 import tempfile
 
-from core.swarm.task_completion_validator import (
+from core.intelligence.swarm.task_completion_validator import (
     TaskCompletionValidator,
     ValidationResult,
     CompletionCriteria,
     get_adaptive_max_rounds
 )
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 class TestAdaptiveMaxRounds:
@@ -185,25 +185,25 @@ class TestIsFinishedImproved:
 
     def test_clear_finished(self):
         """Test clear FINISHED signal is detected."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(agent_id="test", content="All done. FINISHED.")
         assert resp.is_finished is True
 
     def test_done_signal(self):
         """Test DONE signal is detected."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(agent_id="test", content="Task completed. DONE.")
         assert resp.is_finished is True
 
     def test_task_complete_signal(self):
         """Test TASK COMPLETE signal is detected."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(agent_id="test", content="TASK COMPLETE. Everything is ready.")
         assert resp.is_finished is True
 
     def test_rejects_ongoing_will(self):
         """Test rejection when 'will' indicates future work."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="FINISHED with this part. I will continue with the next."
@@ -212,7 +212,7 @@ class TestIsFinishedImproved:
 
     def test_rejects_ongoing_next_step(self):
         """Test rejection when 'next step' indicates future work."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="DONE. The next step is to implement tests."
@@ -221,7 +221,7 @@ class TestIsFinishedImproved:
 
     def test_rejects_ongoing_need_to(self):
         """Test rejection when 'need to' indicates remaining work."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="FINISHED the refactoring but we need to update the docs."
@@ -230,7 +230,7 @@ class TestIsFinishedImproved:
 
     def test_rejects_ongoing_todo(self):
         """Test rejection when 'todo' indicates remaining work."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="DONE! TODO: add error handling later."
@@ -239,7 +239,7 @@ class TestIsFinishedImproved:
 
     def test_no_signal_returns_false(self):
         """Test no completion signal returns False."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="Working on the implementation..."
@@ -248,7 +248,7 @@ class TestIsFinishedImproved:
 
     def test_status_finished(self):
         """Test status='finished' is detected."""
-        from core.swarm.mode_executors import AgentResponse
+        from core.intelligence.swarm.mode_executors import AgentResponse
         resp = AgentResponse(
             agent_id="test",
             content="Task result here",

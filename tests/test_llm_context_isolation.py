@@ -253,7 +253,7 @@ class TestSessionManagerIntegration:
 
     def test_session_manager_creates_isolated_sessions(self):
         """Test that SessionManager creates truly isolated sessions."""
-        from core.swarm.session_manager import SwarmSessionManager
+        from core.intelligence.swarm.session_manager import SwarmSessionManager
 
         manager = SwarmSessionManager()
 

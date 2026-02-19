@@ -67,7 +67,7 @@ from core.fsm.stagnation_detector import StagnationDetector
 
 if TYPE_CHECKING:
     from core.drivers.protocol import BaseAsyncDriver
-    from core.swarm import AgentPool
+    from core.intelligence.swarm import AgentPool
     from core.observability.telemetry import BudgetTracker
     from core.memory_pkg.memory import ProjectMemory
 
@@ -466,7 +466,7 @@ class TrueHiveMind:
 
             # V8.4.4b: Initialize SagaManager for checkpoint/rollback
             if self.saga_enabled:
-                from core.swarm import generate_task_id
+                from core.intelligence.swarm import generate_task_id
                 task_id = task_id or generate_task_id(prefix="hive")
                 sagas_dir = self.workspace_path / ".nexus" / "sagas"
                 sagas_dir.mkdir(parents=True, exist_ok=True)

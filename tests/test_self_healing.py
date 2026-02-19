@@ -24,9 +24,9 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.session_manager import SwarmSessionManager, generate_task_id, SessionStatus
-from core.swarm.mode_executors import (
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.session_manager import SwarmSessionManager, generate_task_id, SessionStatus
+from core.intelligence.swarm.mode_executors import (
     ExecutionContext,
     ExecutionResult,
     ExecutionStatus,
@@ -39,7 +39,7 @@ from core.swarm.mode_executors import (
     EXECUTOR_REGISTRY,
     get_executor,
 )
-from core.swarm.mode_selector import AgentAssignment
+from core.intelligence.swarm.mode_selector import AgentAssignment
 
 
 class TestFallbackModeProperty(TestCase):
@@ -488,7 +488,7 @@ class TestHybridSwarmEngineSelfHealing(TestCase):
 
     def test_engine_uses_execute_with_fallback_when_enabled(self):
         """Test HybridSwarmEngine uses execute_with_fallback when self_healing=True."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         # Create mock config with self-healing enabled
         mock_config = MagicMock()

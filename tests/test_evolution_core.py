@@ -21,8 +21,8 @@ from datetime import datetime
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.evolution.manager import EvolutionManager
-from core.evolution.models import (
+from core.intelligence.evolution.manager import EvolutionManager
+from core.intelligence.evolution.models import (
     MutationProposal,
     BrainstormResult,
     ChildCreationResult,
@@ -31,7 +31,7 @@ from core.evolution.models import (
     EvolutionResult,
     EvolutionPhaseStatus,
 )
-from core.evolution.evaluator import (
+from core.intelligence.evolution.evaluator import (
     calculate_fitness_score,
     compare_to_parent,
     select_winner,

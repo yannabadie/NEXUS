@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.reasoning.thought_evaluator import (
+from core.intelligence.reasoning.thought_evaluator import (
     DEFAULT_NOVELTY_WEIGHT,
     DEFAULT_RELEVANCE_WEIGHT,
     DEFAULT_CONFIDENCE_WEIGHT,
@@ -378,7 +378,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_reasoning_package(self):
-        from core.reasoning import (
+        from core.intelligence.reasoning import (
             ThoughtEvaluator, ThoughtScore,
             EvaluationResult, EvaluatorStats,
             get_thought_evaluator, reset_thought_evaluator,
@@ -390,7 +390,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.reasoning.thought_evaluator import (
+        from core.intelligence.reasoning.thought_evaluator import (
             MAX_THOUGHTS, REDUNDANCY_THRESHOLD,
             DEFAULT_NOVELTY_WEIGHT, DEFAULT_RELEVANCE_WEIGHT,
         )

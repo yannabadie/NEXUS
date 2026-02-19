@@ -22,15 +22,15 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.agent_metrics import (
+from core.intelligence.swarm.agent_metrics import (
     AgentPool,
     AgentProfile,
     AgentInvocationResult,
     create_default_pool
 )
-from core.swarm.mode_selector import ModeSelector, AgentAssignment
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import ModeSelector, AgentAssignment
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 class TestAgentPoolCapabilitySelection(TestCase):

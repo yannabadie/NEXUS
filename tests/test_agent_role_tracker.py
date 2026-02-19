@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.swarm.agent_role_tracker import (
+from core.intelligence.swarm.agent_role_tracker import (
     MAX_ASSIGNMENTS,
     ROLES,
     AgentRoleProfile,
@@ -293,7 +293,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             AgentRoleTracker, RoleAssignment, AgentRoleProfile,
             RoleTrackerStats,
             get_role_tracker, reset_role_tracker,
@@ -305,7 +305,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.swarm.agent_role_tracker import MAX_ASSIGNMENTS, ROLES
+        from core.intelligence.swarm.agent_role_tracker import MAX_ASSIGNMENTS, ROLES
         assert MAX_ASSIGNMENTS == 50000
         assert "lead" in ROLES
         assert "support" in ROLES

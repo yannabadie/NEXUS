@@ -50,10 +50,10 @@ from ..prompts import EXECUTION_SYSTEM_PROMPT  # V12.4.1: Static prompt for cach
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
-    from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+    from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +204,7 @@ class MonitoredExecutionPhase:
 
         # V12.4: MetaPolicyMemory soft retrieval - inject learned rules into context (arxiv:2509.03990)
         try:
-            from core.reasoning.meta_policy_memory import get_meta_policy_memory
+            from core.intelligence.reasoning.meta_policy_memory import get_meta_policy_memory
             _mpm_retrieval = get_meta_policy_memory().retrieve_applicable(
                 context=task[:300],
             )
@@ -275,7 +275,7 @@ class MonitoredExecutionPhase:
 
             # V12.4: MetaPolicyMemory HAC - hard admissibility check before execution (arxiv:2509.03990)
             try:
-                from core.reasoning.meta_policy_memory import get_meta_policy_memory
+                from core.intelligence.reasoning.meta_policy_memory import get_meta_policy_memory
                 _mpm = get_meta_policy_memory()
                 _hac = _mpm.check_admissibility(step.action[:300] if step.action else step.name)
                 if _hac.is_blocked:
@@ -318,7 +318,7 @@ class MonitoredExecutionPhase:
 
             # V12.4: UncertaintyPropagator - forward uncertainty propagation (arxiv:2601.15703)
             try:
-                from core.reasoning.uncertainty_propagator import get_uncertainty_propagator
+                from core.intelligence.reasoning.uncertainty_propagator import get_uncertainty_propagator
                 _uprop = get_uncertainty_propagator()
                 _step_confidence = 0.8 if result.status == "success" else 0.3
                 _usignal = _uprop.propagate(
@@ -339,8 +339,8 @@ class MonitoredExecutionPhase:
             # V12.4: MetacognitiveMonitor - step-level anomaly detection (arxiv:2510.14319)
             # P5.5: Adaptive metacognition - bypass for TRIVIAL/SIMPLE tasks (15-30% latency reduction)
             try:
-                from core.reasoning.task_complexity import should_monitor_metacognition
-                from core.reasoning.metacognitive_monitor import get_metacognitive_monitor
+                from core.intelligence.reasoning.task_complexity import should_monitor_metacognition
+                from core.intelligence.reasoning.metacognitive_monitor import get_metacognitive_monitor
 
                 # Only run metacognition for MODERATE+ complexity tasks
                 if should_monitor_metacognition(task):
@@ -363,7 +363,7 @@ class MonitoredExecutionPhase:
 
             # V12.4: InspectorGuard - post-step verification (arxiv:2408.00989)
             try:
-                from core.reasoning.inspector_guard import get_inspector_guard
+                from core.intelligence.reasoning.inspector_guard import get_inspector_guard
                 _inspector = get_inspector_guard()
                 _inspection = _inspector.inspect_step(
                     step_name=step.name,
@@ -475,7 +475,7 @@ class MonitoredExecutionPhase:
         # V12.4: Consensus verification on step outputs (arxiv:2601.22290)
         consensus_failed = False
         try:
-            from core.reasoning.consensus_verifier import get_consensus_verifier
+            from core.intelligence.reasoning.consensus_verifier import get_consensus_verifier
             verifier = get_consensus_verifier()
             successful_outputs = [
                 r.output for r in step_results
@@ -499,7 +499,7 @@ class MonitoredExecutionPhase:
         # V12.4: Check for cognitive degradation
         degradation_detected = False
         try:
-            from core.reasoning.cognitive_degradation import get_degradation_detector
+            from core.intelligence.reasoning.cognitive_degradation import get_degradation_detector
             detector = get_degradation_detector()
             for agent_id in {s.agent_id for s in architecture.execution_steps if hasattr(s, 'agent_id')}:
                 signal = detector.check_agent(agent_id)
@@ -515,7 +515,7 @@ class MonitoredExecutionPhase:
 
         # V12.4: ConfidenceCalibrator - record agent confidence vs outcome (arxiv:2404.09127)
         try:
-            from core.reasoning.confidence_calibrator import get_confidence_calibrator
+            from core.intelligence.reasoning.confidence_calibrator import get_confidence_calibrator
             _calibrator = get_confidence_calibrator()
             for agent_id in {s.agent_id for s in architecture.execution_steps if hasattr(s, 'agent_id')}:
                 _calibrator.record(
@@ -529,7 +529,7 @@ class MonitoredExecutionPhase:
 
         # V12.4: FaultDetector - record per-agent reliability for Byzantine detection (arxiv:2511.10400)
         try:
-            from core.reasoning.fault_detector import get_fault_detector
+            from core.intelligence.reasoning.fault_detector import get_fault_detector
             _fdetector = get_fault_detector()
             for sr in step_results:
                 _fdetector.record_output(
@@ -617,7 +617,7 @@ class MonitoredExecutionPhase:
 
         # Record per-agent evaluations via ReasoningQualityScorer
         try:
-            from core.reasoning.reasoning_quality_scorer import get_quality_scorer
+            from core.intelligence.reasoning.reasoning_quality_scorer import get_quality_scorer
             scorer = get_quality_scorer()
             agents_seen = set()
             for r in step_results:
@@ -1012,7 +1012,7 @@ class MonitoredExecutionPhase:
         Returns:
             MonitoredStepResult with Swarm execution results
         """
-        from core.swarm.collaboration_modes import CollaborationMode
+        from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
         logger.info(f"[V8.3 Dictator Mode] Delegating step '{step.name}' to Swarm (mode={step.swarm_mode})")
 

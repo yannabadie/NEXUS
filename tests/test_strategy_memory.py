@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.swarm.strategy_memory import (
+from core.intelligence.swarm.strategy_memory import (
     MAX_RECORDS,
     MIN_SAMPLES_FOR_SUGGESTION,
     ModeEffectiveness,
@@ -429,7 +429,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             StrategyMemory, StrategyRecord, ModeEffectiveness,
             ModeSuggestion, StrategyStats,
             get_strategy_memory, reset_strategy_memory,
@@ -441,6 +441,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.swarm.strategy_memory import MAX_RECORDS, MIN_SAMPLES_FOR_SUGGESTION
+        from core.intelligence.swarm.strategy_memory import MAX_RECORDS, MIN_SAMPLES_FOR_SUGGESTION
         assert MAX_RECORDS == 50000
         assert MIN_SAMPLES_FOR_SUGGESTION == 3

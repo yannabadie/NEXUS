@@ -22,7 +22,7 @@ from core.hive_mind.swarm_bridge import (
     suggest_mode_for_subtask,
     create_bridge_for_phase,
 )
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 # =============================================================================

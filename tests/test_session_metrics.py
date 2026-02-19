@@ -17,14 +17,14 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.memory_pkg.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
-from core.swarm.agent_metrics import (
+from core.intelligence.swarm.agent_metrics import (
     AgentPool,
     AgentProfile,
     AgentInvocationResult,
     create_default_pool
 )
-from core.swarm.mode_selector import ModeSelector, ModeProposal
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
 
 # =============================================================================

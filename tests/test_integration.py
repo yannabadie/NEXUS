@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.infrastructure.bootstrap import AutoBootstrap
 # V7.8.1: GoT imports removed (Phase 14c cleanup)
-from core.swarm import HybridSwarmEngine
-from core.swarm.task_analyzer import TaskComplexity, TaskDomain
+from core.intelligence.swarm import HybridSwarmEngine
+from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskDomain
 from core.interface_pkg.interface.commands import (
     SLASH_COMMANDS,
     is_slash_command,
@@ -205,7 +205,7 @@ class TestModuleImports:
 
     def test_import_swarm(self):
         """SwarmEngine should be importable."""
-        from core.swarm import HybridSwarmEngine
+        from core.intelligence.swarm import HybridSwarmEngine
         assert HybridSwarmEngine is not None
 
     def test_import_security(self):

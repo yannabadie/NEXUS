@@ -11,7 +11,7 @@ from dataclasses import fields as dc_fields
 
 import pytest
 
-from core.reasoning.trajectory_scorer import (
+from core.intelligence.reasoning.trajectory_scorer import (
     STRONG_EVIDENCE_PATTERNS,
     WEAK_EVIDENCE_PATTERNS,
     AgentTrajectory,

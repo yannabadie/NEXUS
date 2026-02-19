@@ -33,33 +33,33 @@ import pytest
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.hybrid_swarm_engine import (
+from core.intelligence.swarm.hybrid_swarm_engine import (
     SwarmPhase,
     SwarmResult,
     HybridSwarmEngine,
 )
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.task_analyzer import (
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.task_analyzer import (
     TaskComplexity,
     TaskDomain,
     TaskAnalysis,
     AnalysisStage,
 )
-from core.swarm.mode_selector import (
+from core.intelligence.swarm.mode_selector import (
     AgentAssignment,
     ModeProposal,
 )
-from core.swarm.negotiation_protocol import (
+from core.intelligence.swarm.negotiation_protocol import (
     NegotiationResult,
     NegotiationStatus,
 )
-from core.swarm.mode_executors import (
+from core.intelligence.swarm.mode_executors import (
     ExecutionContext,
     ExecutionResult,
     ExecutionStatus,
     AgentResponse,
 )
-from core.swarm.agent_metrics import (
+from core.intelligence.swarm.agent_metrics import (
     AgentPool,
     AgentProfile,
     AgentInvocationResult,

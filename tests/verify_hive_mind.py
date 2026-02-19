@@ -7,7 +7,7 @@ sys.path.append(os.getcwd())
 
 from core.config import load_config
 from core.orchestration_v7 import OrchestratorV7
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 def verify_hive_mind():
     print("[*] INITIALIZING HIVE MIND VERIFICATION...")

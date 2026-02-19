@@ -10,7 +10,7 @@ from pathlib import Path
 import time
 
 from core.config import Config
-from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
 from core.fsm.states import OrchestratorState
 
 
@@ -139,7 +139,7 @@ class TestFastPathIntegration:
     def test_fast_path_returns_immediately(self, mock_gemini_driver):
         """Fast path should return immediately for trivial inputs."""
         # Create a minimal mock orchestrator
-        from core.swarm.task_analyzer import TaskAnalyzer
+        from core.intelligence.swarm.task_analyzer import TaskAnalyzer
 
         task_analyzer = TaskAnalyzer()
 

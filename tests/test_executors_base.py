@@ -8,7 +8,7 @@ import pytest
 from dataclasses import dataclass
 from typing import List, Dict
 
-from core.swarm.executors.base import (
+from core.intelligence.swarm.executors.base import (
     ExecutionStatus,
     AgentResponse,
     ExecutionContext,
@@ -17,8 +17,8 @@ from core.swarm.executors.base import (
     ExecutionError,
     COMPLETION_PATTERN,
 )
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.mode_selector import AgentAssignment
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import AgentAssignment
 
 
 class TestExecutionStatus:
@@ -267,7 +267,7 @@ class TestBackwardCompatibility:
 
     def test_import_from_mode_executors(self):
         """Should be importable from original location."""
-        from core.swarm.mode_executors import (
+        from core.intelligence.swarm.mode_executors import (
             ExecutionStatus,
             AgentResponse,
             ExecutionContext,
@@ -280,5 +280,5 @@ class TestBackwardCompatibility:
 
     def test_parallel_executor_exists(self):
         """ParallelExecutor should be importable."""
-        from core.swarm.mode_executors import ParallelExecutor
+        from core.intelligence.swarm.mode_executors import ParallelExecutor
         assert ParallelExecutor is not None

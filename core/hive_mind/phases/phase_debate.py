@@ -49,7 +49,7 @@ from ..prompts import DEBATE_SYSTEM_PROMPT, CONSENSUS_SYSTEM_PROMPT  # V12.4.1: 
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
 
@@ -916,7 +916,7 @@ Evaluate if consensus has been reached."""
 
         # V12.4: TrajectoryScorer - evaluate debate trajectory quality (arxiv:2509.11035)
         try:
-            from core.reasoning.trajectory_scorer import get_trajectory_scorer
+            from core.intelligence.reasoning.trajectory_scorer import get_trajectory_scorer
             _tscorer = get_trajectory_scorer()
             _trajectory_dicts = [
                 {

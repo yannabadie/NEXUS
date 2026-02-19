@@ -49,7 +49,7 @@ from ..user_interaction import UserInteractionHandler
 from ..prompts import DIAGNOSIS_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
 
@@ -305,7 +305,7 @@ class FailureDiagnosisPhase:
             )
             # V12.4: MetaPolicyMemory - consolidate MARS reflection into reusable rule (arxiv:2509.03990)
             try:
-                from core.reasoning.meta_policy_memory import get_meta_policy_memory
+                from core.intelligence.reasoning.meta_policy_memory import get_meta_policy_memory
                 mpm = get_meta_policy_memory()
                 mpm.consolidate(
                     mars_result=reflection,
@@ -320,7 +320,7 @@ class FailureDiagnosisPhase:
 
         # V12.4: FailureClassifier - 5-category root cause classification (arxiv:2509.25370)
         try:
-            from core.reasoning.failure_classifier import get_failure_classifier
+            from core.intelligence.reasoning.failure_classifier import get_failure_classifier
             _fclassifier = get_failure_classifier()
             _step_outputs = [r.output[:200] for r in results if r.output] if results else []
             _issues = [
@@ -342,7 +342,7 @@ class FailureDiagnosisPhase:
 
         # V12.4: FaultDetector - check if failure is due to Byzantine agent behavior (arxiv:2511.10400)
         try:
-            from core.reasoning.fault_detector import get_fault_detector
+            from core.intelligence.reasoning.fault_detector import get_fault_detector
             _fdetector = get_fault_detector()
             for agent_id in {r.agent_id for r in results if hasattr(r, 'agent_id')}:
                 _fstatus = _fdetector.check_agent(agent_id)

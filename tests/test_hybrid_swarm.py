@@ -15,7 +15,7 @@ from pathlib import Path
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.collaboration_modes import (
+from core.intelligence.swarm.collaboration_modes import (
     CollaborationMode,
     ModeCharacteristics,
     MODE_CHARACTERISTICS,
@@ -25,18 +25,18 @@ from core.swarm.collaboration_modes import (
     get_parallel_modes,
     suggest_mode_for_complexity
 )
-from core.swarm.task_analyzer import (
+from core.intelligence.swarm.task_analyzer import (
     TaskComplexity,
     TaskDomain,
     TaskAnalysis,
     TaskAnalyzer
 )
-from core.swarm.mode_selector import (
+from core.intelligence.swarm.mode_selector import (
     AgentAssignment,
     ModeProposal,
     ModeSelector
 )
-from core.swarm.negotiation_protocol import (
+from core.intelligence.swarm.negotiation_protocol import (
     NegotiationStatus,
     NegotiationProposal,
     HybridNegotiationMessage,
@@ -44,7 +44,7 @@ from core.swarm.negotiation_protocol import (
     NegotiationProtocol,
     extract_negotiate_json
 )
-from core.swarm.mode_executors import (
+from core.intelligence.swarm.mode_executors import (
     ExecutionStatus,
     AgentResponse,
     ExecutionContext,
@@ -57,12 +57,12 @@ from core.swarm.mode_executors import (
     RedBlueExecutor,
     get_executor
 )
-from core.swarm.hybrid_swarm_engine import (
+from core.intelligence.swarm.hybrid_swarm_engine import (
     SwarmPhase,
     SwarmResult,
     HybridSwarmEngine
 )
-from core.swarm.agent_metrics import AgentPool, AgentProfile
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
 
 
 class TestCollaborationModes:
@@ -576,7 +576,7 @@ class TestAuditFixFL002:
             # if they contain "will ", "going to", etc. - that's intentional
             response = AgentResponse(agent_id="test", content=content)
             # Just check that completion signal is detected (pattern match)
-            from core.swarm.mode_executors import COMPLETION_PATTERN
+            from core.intelligence.swarm.mode_executors import COMPLETION_PATTERN
             assert COMPLETION_PATTERN.search(content), f"Pattern not detected: '{content}'"
 
     def test_completion_blocked_by_ongoing_work(self):
@@ -590,7 +590,7 @@ class TestAuditFixFL002:
 
     def test_completion_pattern_case_insensitive(self):
         """Pattern should be case insensitive"""
-        from core.swarm.mode_executors import COMPLETION_PATTERN
+        from core.intelligence.swarm.mode_executors import COMPLETION_PATTERN
 
         cases = ["finished", "FINISHED", "Finished", "FiNiShEd"]
         for case in cases:
@@ -602,14 +602,14 @@ class TestAuditFixFL001:
 
     def test_blackboard_lock_imported(self):
         """Should have _blackboard_lock defined"""
-        from core.swarm.mode_executors import _blackboard_lock
+        from core.intelligence.swarm.mode_executors import _blackboard_lock
         from threading import Lock
         assert isinstance(_blackboard_lock, type(Lock()))
 
     def test_parallel_executor_thread_safe(self):
         """ParallelExecutor should use thread-safe blackboard access"""
         import inspect
-        from core.swarm.mode_executors import ModeExecutor
+        from core.intelligence.swarm.mode_executors import ModeExecutor
 
         # Read the source to verify _blackboard_lock is used
         source = inspect.getsource(ModeExecutor._invoke)

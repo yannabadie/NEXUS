@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Check if GoT is available before importing
-from core.reasoning import GOT_AVAILABLE
+from core.intelligence.reasoning import GOT_AVAILABLE
 
 if not GOT_AVAILABLE:
     # Skip entire module if GoT not implemented
@@ -25,7 +25,7 @@ if not GOT_AVAILABLE:
     )
 
 # Only import if available (pytest.skip above will prevent reaching here if not available)
-from core.reasoning.graph_of_thought import (
+from core.intelligence.reasoning.graph_of_thought import (
     ThoughtNode,
     ThoughtGraph,
     GraphOfThought,

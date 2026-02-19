@@ -18,14 +18,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from core.swarm.session_manager import (
+from core.intelligence.swarm.session_manager import (
     SwarmSessionManager,
     SessionMode,
     SessionStatus,
     TaskSession,
     AgentSession
 )
-from core.swarm.task_analyzer import TaskComplexity
+from core.intelligence.swarm.task_analyzer import TaskComplexity
 
 
 class TestSessionModeEphemeral:

@@ -23,7 +23,7 @@ import threading
 
 import pytest
 
-from core.reasoning.failure_classifier import (
+from core.intelligence.reasoning.failure_classifier import (
     ACTION_PATTERNS,
     MEMORY_PATTERNS,
     PLANNING_PATTERNS,

@@ -23,7 +23,7 @@ from typing import List, Optional
 
 import pytest
 
-from core.reasoning.meta_policy_memory import (
+from core.intelligence.reasoning.meta_policy_memory import (
     AdmissibilityResult,
     MetaPolicyMemory,
     MPMStats,
@@ -935,7 +935,7 @@ class TestSingleton:
     """Tests for get_meta_policy_memory and reset_meta_policy_memory."""
 
     def test_get_returns_instance(self):
-        import core.reasoning.meta_policy_memory as mpm_mod
+        import core.intelligence.reasoning.meta_policy_memory as mpm_mod
         mpm_mod._instance = None
 
         instance = get_meta_policy_memory()
@@ -946,7 +946,7 @@ class TestSingleton:
         mpm_mod._instance = None
 
     def test_get_returns_same_instance(self):
-        import core.reasoning.meta_policy_memory as mpm_mod
+        import core.intelligence.reasoning.meta_policy_memory as mpm_mod
         mpm_mod._instance = None
 
         inst1 = get_meta_policy_memory()
@@ -957,7 +957,7 @@ class TestSingleton:
         mpm_mod._instance = None
 
     def test_reset_clears_instance(self):
-        import core.reasoning.meta_policy_memory as mpm_mod
+        import core.intelligence.reasoning.meta_policy_memory as mpm_mod
         mpm_mod._instance = None
 
         inst1 = get_meta_policy_memory()
@@ -971,7 +971,7 @@ class TestSingleton:
         mpm_mod._instance = None
 
     def test_reset_then_get_creates_new(self):
-        import core.reasoning.meta_policy_memory as mpm_mod
+        import core.intelligence.reasoning.meta_policy_memory as mpm_mod
         mpm_mod._instance = None
 
         get_meta_policy_memory()

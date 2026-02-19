@@ -25,7 +25,7 @@ import threading
 
 import pytest
 
-from core.reasoning.fault_detector import (
+from core.intelligence.reasoning.fault_detector import (
     AgentStatus,
     DetectorStats,
     FaultDetector,

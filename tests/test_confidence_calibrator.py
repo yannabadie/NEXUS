@@ -17,7 +17,7 @@ Tests cover:
 import time
 import pytest
 
-from core.reasoning.confidence_calibrator import (
+from core.intelligence.reasoning.confidence_calibrator import (
     AgentCalibrationProfile,
     CalibrationRecord,
     CalibratedConfidence,

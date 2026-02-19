@@ -32,10 +32,10 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.task_analyzer import TaskComplexity, TaskDomain, TaskAnalysis
-from core.swarm.mode_selector import AgentAssignment, ModeProposal
-from core.swarm.negotiation_protocol import (
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskDomain, TaskAnalysis
+from core.intelligence.swarm.mode_selector import AgentAssignment, ModeProposal
+from core.intelligence.swarm.negotiation_protocol import (
     NegotiationStatus,
     NegotiationProposal,
     HybridNegotiationMessage,

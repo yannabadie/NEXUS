@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from .context_scope import ContextScope, ScopedContext, get_scope_policy
 
 if TYPE_CHECKING:
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
     from .context_manager import HiveMindContextManager
 
 logger = logging.getLogger(__name__)

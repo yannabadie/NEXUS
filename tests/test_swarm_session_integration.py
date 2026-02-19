@@ -23,8 +23,8 @@ import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.session_manager import SwarmSessionManager, generate_task_id
-from core.swarm.mode_executors import (
+from core.intelligence.swarm.session_manager import SwarmSessionManager, generate_task_id
+from core.intelligence.swarm.mode_executors import (
     ExecutionContext,
     ParallelExecutor,
     SequentialExecutor,
@@ -35,8 +35,8 @@ from core.swarm.mode_executors import (
     AgentResponse,
     ExecutionStatus,
 )
-from core.swarm.mode_selector import AgentAssignment
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.mode_selector import AgentAssignment
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 class TestExecutionContextSessionIntegration(TestCase):
@@ -285,7 +285,7 @@ class TestHybridSwarmEngineSessionIntegration(TestCase):
 
     def test_engine_initializes_session_manager(self):
         """Test that HybridSwarmEngine initializes SessionManager with workspace."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.config.swarm_auto_route = True
@@ -299,7 +299,7 @@ class TestHybridSwarmEngineSessionIntegration(TestCase):
 
     def test_engine_without_workspace_has_no_session_manager(self):
         """Test that engine without workspace_path has no SessionManager."""
-        from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+        from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.config.swarm_auto_route = True
@@ -327,7 +327,7 @@ class TestSessionLifecycleIntegration(TestCase):
 
     def test_complete_task_lifecycle(self):
         """Test complete task lifecycle: create -> sessions -> complete."""
-        from core.swarm.session_manager import SessionStatus
+        from core.intelligence.swarm.session_manager import SessionStatus
 
         # Create task
         task_id = generate_task_id(prefix="test")
@@ -351,7 +351,7 @@ class TestSessionLifecycleIntegration(TestCase):
 
     def test_failed_task_cleanup(self):
         """Test that failed tasks are properly marked."""
-        from core.swarm.session_manager import SessionStatus
+        from core.intelligence.swarm.session_manager import SessionStatus
 
         task_id = generate_task_id()
         self.session_manager.create_task(task_id, "PARALLEL")

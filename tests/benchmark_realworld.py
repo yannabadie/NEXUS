@@ -35,9 +35,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # NEXUS imports
-from core.swarm.session_manager import SwarmSessionManager
-from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.session_manager import SwarmSessionManager
+from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 # =============================================================================

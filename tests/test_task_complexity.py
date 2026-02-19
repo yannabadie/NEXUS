@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from core.reasoning.task_complexity import (
+from core.intelligence.reasoning.task_complexity import (
     TaskComplexity,
     estimate_complexity,
     should_monitor_metacognition,

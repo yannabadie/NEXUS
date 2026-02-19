@@ -21,7 +21,7 @@ from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 # Import AgentProfile from agent_metrics
-from core.swarm.agent_metrics import AgentProfile
+from core.intelligence.swarm.agent_metrics import AgentProfile
 
 
 logger = logging.getLogger(__name__)

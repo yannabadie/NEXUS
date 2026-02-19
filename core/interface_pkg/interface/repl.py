@@ -33,9 +33,9 @@ from core.interface_pkg.interface.commands import (
 )
 from core.config import load_config
 from core.fsm.states import OrchestratorState
-from core.evolution.rate_limiter import EvolutionRateLimiter
-from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
-from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
+from core.intelligence.evolution.rate_limiter import EvolutionRateLimiter
+from core.intelligence.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
+from core.intelligence.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security_pkg.security import MutationValidator
 from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
@@ -1234,7 +1234,7 @@ class InteractiveNexusV7:
 
     def show_evolve_status(self):
         """Show evolution statistics and stagnation counter (/evolve-status command)"""
-        from core.evolution.lineage import load_lineage, get_evolution_stats
+        from core.intelligence.evolution.lineage import load_lineage, get_evolution_stats
 
         try:
             lineage = load_lineage(self.workspace_path)
@@ -1298,7 +1298,7 @@ class InteractiveNexusV7:
     def _get_swarm_service(self):
         """Get or create SwarmService instance."""
         if not hasattr(self, '_swarm_service'):
-            from core.swarm import SwarmService
+            from core.intelligence.swarm import SwarmService
             self._swarm_service = SwarmService(
                 self.orchestrator,
                 self.console,

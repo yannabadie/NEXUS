@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.swarm.task_queue import (
+from core.intelligence.swarm.task_queue import (
     QueueStats,
     SwarmTask,
     SwarmTaskQueue,
@@ -422,7 +422,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             SwarmTaskQueue, SwarmTask, SwarmTaskStatus,
             QueueStats, get_task_queue, reset_task_queue,
         )
@@ -432,7 +432,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.swarm.task_queue import (
+        from core.intelligence.swarm.task_queue import (
             SwarmTaskQueue, TaskStatus, SwarmTask,
             MAX_QUEUE_SIZE,
         )

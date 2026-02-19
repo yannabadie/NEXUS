@@ -64,7 +64,7 @@ from core.foundation.async_primitives.rwlock import AsyncRWLock
 
 if TYPE_CHECKING:
     from core.hive_mind.saga_manager import SagaManager
-    from core.swarm.session_manager import SwarmSessionManager
+    from core.intelligence.swarm.session_manager import SwarmSessionManager
 
 
 logger = logging.getLogger("nexus.sync_bridge")
@@ -250,7 +250,7 @@ class OrchestratorSyncBridge:
         Returns:
             Unified task_id usable by both systems
         """
-        from core.swarm.session_manager import generate_task_id
+        from core.intelligence.swarm.session_manager import generate_task_id
 
         with self._lock:
             task_id = generate_task_id(prefix="unified")
@@ -317,7 +317,7 @@ class OrchestratorSyncBridge:
 
             # Complete in SwarmSessionManager
             if self._session:
-                from core.swarm.session_manager import SessionStatus
+                from core.intelligence.swarm.session_manager import SessionStatus
                 status = SessionStatus.COMPLETED if success else SessionStatus.FAILED
                 swarm_success = self._session.complete_task(task_id, status)
 

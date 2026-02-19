@@ -12,9 +12,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 import tempfile
 
-from core.swarm.task_analyzer import TaskComplexity, TaskAnalysis, TaskDomain
-from core.swarm.mode_executors import ExecutionContext, AgentAssignment
-from core.swarm.hybrid_swarm_engine import HybridSwarmEngine
+from core.intelligence.swarm.task_analyzer import TaskComplexity, TaskAnalysis, TaskDomain
+from core.intelligence.swarm.mode_executors import ExecutionContext, AgentAssignment
+from core.intelligence.swarm.hybrid_swarm_engine import HybridSwarmEngine
 
 
 # =============================================================================
@@ -71,7 +71,7 @@ class TestOrchestratorCoT:
     def test_complexity_stored_on_process_turn(self):
         """Test that _current_complexity is set during task analysis."""
         # This verifies the attribute exists and can be set
-        from core.swarm.task_analyzer import TaskComplexity
+        from core.intelligence.swarm.task_analyzer import TaskComplexity
 
         # Create a mock to verify the pattern
         class MockOrchestrator:

@@ -9,10 +9,10 @@ Verifies that ModeSelector applies domain-specific protocol biases:
 
 import pytest
 
-from core.swarm.mode_selector import ModeSelector, ModeProposal
-from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from core.swarm.collaboration_modes import CollaborationMode
-from core.swarm.agent_metrics import AgentProfile
+from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal
+from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.agent_metrics import AgentProfile
 
 
 def _make_agents():

@@ -10,7 +10,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.swarm.adaptive_fallback import (
+from core.intelligence.swarm.adaptive_fallback import (
     AdaptiveFallbackSelector,
     FallbackContext,
     FallbackDecision,
@@ -18,7 +18,7 @@ from core.swarm.adaptive_fallback import (
     STAGNATION_SHORTCUTS,
     get_adaptive_fallback_selector,
 )
-from core.swarm.collaboration_modes import CollaborationMode
+from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
 
 class TestFallbackContext:

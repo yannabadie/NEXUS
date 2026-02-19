@@ -121,7 +121,7 @@ class SwarmDelegateHandler(BaseHandler):
 
         try:
             # Import locally to avoid circular imports
-            from core.swarm.collaboration_modes import CollaborationMode
+            from core.intelligence.swarm.collaboration_modes import CollaborationMode
             from core.hive_mind.swarm_bridge import HivePhase
 
             # Parse mode

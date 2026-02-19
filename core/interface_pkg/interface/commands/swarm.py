@@ -15,7 +15,7 @@ def _get_swarm_service(context: CommandContext):
 
     SwarmService requires orchestrator, console, and config.
     """
-    from core.swarm import SwarmService
+    from core.intelligence.swarm import SwarmService
 
     # Try to get cached service from extras
     service = context.extras.get("swarm_service")

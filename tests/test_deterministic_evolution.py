@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.evolution.tiered_validator import TieredValidator, ValidationTier, TierResult
+from core.intelligence.evolution.tiered_validator import TieredValidator, ValidationTier, TierResult
 
 
 @pytest.fixture
@@ -121,7 +121,7 @@ class TestLineageSHA256:
 
     def test_promote_child_adds_content_hash(self, mock_child_path):
         """promote_child_to_parent should add content_hash_sha256."""
-        from core.evolution.lineage import promote_child_to_parent
+        from core.intelligence.evolution.lineage import promote_child_to_parent
 
         lineage = {
             "current_parent": {

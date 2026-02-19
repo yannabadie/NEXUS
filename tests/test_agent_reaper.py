@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from core.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
-from core.evolution.agent_reaper import (
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile, AgentInvocationResult
+from core.intelligence.evolution.agent_reaper import (
     AgentReaper,
     ReaperConfig,
     ReaperReport,
@@ -372,14 +372,14 @@ class TestModuleExports:
     """Test that reaper types are importable."""
 
     def test_from_evolution_package(self):
-        from core.evolution import AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate
+        from core.intelligence.evolution import AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate
         assert AgentReaper is not None
         assert ReaperConfig is not None
         assert ReaperReport is not None
         assert ArchivalCandidate is not None
 
     def test_from_reaper_module(self):
-        from core.evolution.agent_reaper import (
+        from core.intelligence.evolution.agent_reaper import (
             AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate, ArchivalResult,
         )
         assert all([AgentReaper, ReaperConfig, ReaperReport, ArchivalCandidate, ArchivalResult])

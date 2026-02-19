@@ -49,11 +49,11 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Core imports
-from core.swarm.collaboration_modes import CollaborationMode, get_mode_characteristics
-from core.swarm.task_analyzer import TaskAnalyzer, TaskComplexity, TaskDomain
-from core.swarm.mode_selector import ModeSelector, ModeProposal
-from core.swarm.session_manager import SwarmSessionManager
-from core.swarm.agent_metrics import AgentPool
+from core.intelligence.swarm.collaboration_modes import CollaborationMode, get_mode_characteristics
+from core.intelligence.swarm.task_analyzer import TaskAnalyzer, TaskComplexity, TaskDomain
+from core.intelligence.swarm.mode_selector import ModeSelector, ModeProposal
+from core.intelligence.swarm.session_manager import SwarmSessionManager
+from core.intelligence.swarm.agent_metrics import AgentPool
 from core.memory_pkg.memory.auto_memory import AutoMemory, get_auto_memory
 from core.utils.atomic_store import AtomicJsonStore
 

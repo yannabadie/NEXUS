@@ -10,7 +10,7 @@ import math
 import threading
 import pytest
 
-from core.reasoning.uncertainty_propagator import (
+from core.intelligence.reasoning.uncertainty_propagator import (
     UncertaintyLevel,
     PropagationSignal,
     ChainSummary,

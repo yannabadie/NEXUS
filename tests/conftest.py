@@ -411,7 +411,7 @@ def temp_workspace(tmp_path):
 @pytest.fixture
 def sample_task_analysis():
     """Provide a sample TaskAnalysis for tests."""
-    from core.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
+    from core.intelligence.swarm.task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
 
     return TaskAnalysis(
         complexity=TaskComplexity.MODERATE,

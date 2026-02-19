@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.evolution.strategy_performance_tracker import (
+from core.intelligence.evolution.strategy_performance_tracker import (
     MAX_APPLICATIONS,
     MIN_TRIALS_FOR_RECOMMENDATION,
     StrategyApplication,
@@ -359,7 +359,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_evolution_package(self):
-        from core.evolution import (
+        from core.intelligence.evolution import (
             StrategyPerformanceTracker, StrategyApplication,
             StrategyMetrics, StrategyRecommendation, TrackerStats,
             get_strategy_tracker, reset_strategy_tracker,
@@ -371,7 +371,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.evolution.strategy_performance_tracker import (
+        from core.intelligence.evolution.strategy_performance_tracker import (
             MAX_APPLICATIONS, MIN_TRIALS_FOR_RECOMMENDATION,
         )
         assert MAX_APPLICATIONS == 50000

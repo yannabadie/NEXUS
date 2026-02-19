@@ -27,7 +27,7 @@ import tiktoken
 from core.foundation.agents.unified_registry import get_registry
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
-from core.swarm import AgentInvocationResult
+from core.intelligence.swarm import AgentInvocationResult
 from core.observability.telemetry import BudgetExceededError
 
 # V13.0: Real-time telemetry for CEREBRO UI

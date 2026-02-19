@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.swarm.negotiation_tracker import (
+from core.intelligence.swarm.negotiation_tracker import (
     MAX_NEGOTIATIONS,
     NegotiationRecord,
     NegotiationStats,
@@ -313,7 +313,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_swarm_package(self):
-        from core.swarm import (
+        from core.intelligence.swarm import (
             NegotiationTracker, NegotiationTurn, NegotiationRecord,
             NegotiationStats,
             get_negotiation_tracker, reset_negotiation_tracker,
@@ -325,5 +325,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.swarm.negotiation_tracker import MAX_NEGOTIATIONS
+        from core.intelligence.swarm.negotiation_tracker import MAX_NEGOTIATIONS
         assert MAX_NEGOTIATIONS == 50000

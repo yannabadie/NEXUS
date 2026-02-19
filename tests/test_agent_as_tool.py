@@ -30,7 +30,7 @@ from core.execution.agent_tools import (
     AgentToolResult,
     AGENT_TOOL_PREFIX
 )
-from core.swarm.agent_metrics import AgentPool, AgentProfile
+from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
 
 
 # =============================================================================
