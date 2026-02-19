@@ -28,7 +28,7 @@ class TestHITLRequestModel:
 
     def test_model_fields(self):
         """Test HITLRequest has required fields."""
-        from core.audit.models import HITLRequest, HITLRequestStatus
+        from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
         request = HITLRequest(
             tenant_id=uuid4(),
@@ -44,7 +44,7 @@ class TestHITLRequestModel:
 
     def test_status_enum(self):
         """Test HITLRequestStatus enum values."""
-        from core.audit.models import HITLRequestStatus
+        from core.observability.audit.models import HITLRequestStatus
 
         assert HITLRequestStatus.PENDING == "pending"
         assert HITLRequestStatus.ANSWERED == "answered"
@@ -53,7 +53,7 @@ class TestHITLRequestModel:
 
     def test_default_status_is_pending(self):
         """Test new requests default to pending."""
-        from core.audit.models import HITLRequest, HITLRequestStatus
+        from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
         request = HITLRequest(
             tenant_id=uuid4(),

@@ -268,7 +268,7 @@ async def invite_user(
 
         # Audit log
         try:
-            from core.audit import AuditLogger, AuditAction
+            from core.observability.audit import AuditLogger, AuditAction
             await AuditLogger.log(
                 tenant_id=UUID(user.tenant_id),
                 user_id=UUID(user.user_id),
@@ -332,7 +332,7 @@ async def remove_user(
 
     # Audit log
     try:
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditLogger, AuditAction
         await AuditLogger.log(
             tenant_id=UUID(user.tenant_id),
             user_id=UUID(user.user_id),
@@ -393,7 +393,7 @@ async def change_role(
 
     # Audit log
     try:
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditLogger, AuditAction
         await AuditLogger.log(
             tenant_id=UUID(user.tenant_id),
             user_id=UUID(user.user_id),

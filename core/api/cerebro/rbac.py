@@ -174,7 +174,7 @@ async def log_permission_denial(
         request: Optional FastAPI request
     """
     try:
-        from core.audit import AuditLogger
+        from core.observability.audit import AuditLogger
 
         await AuditLogger.log_permission_denied(
             tenant_id=UUID(user.tenant_id),

@@ -97,7 +97,7 @@ async def _audit_file_access(
         request: Optional FastAPI request for IP/user-agent
     """
     try:
-        from core.audit import AuditLogger, AuditAction
+        from core.observability.audit import AuditLogger, AuditAction
 
         action_map = {
             "read": AuditAction.FILE_READ,

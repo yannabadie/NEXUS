@@ -60,7 +60,7 @@ def _insert_hitl_request(
     Called from thread pool via asyncio.to_thread().
     """
     from core.db import get_session
-    from core.audit.models import HITLRequest
+    from core.observability.audit.models import HITLRequest
 
     request = HITLRequest(
         tenant_id=tenant_id,
@@ -97,7 +97,7 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
     Called from thread pool via asyncio.to_thread().
     """
     from core.db import get_session
-    from core.audit.models import HITLRequest, HITLRequestStatus
+    from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
         statement = select(HITLRequest).where(
@@ -136,7 +136,7 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
     Called from thread pool via asyncio.to_thread().
     """
     from core.db import get_session
-    from core.audit.models import HITLRequest, HITLRequestStatus
+    from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
@@ -174,7 +174,7 @@ def _cancel_request(request_id: UUID) -> bool:
     Called from thread pool via asyncio.to_thread().
     """
     from core.db import get_session
-    from core.audit.models import HITLRequest, HITLRequestStatus
+    from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
@@ -201,7 +201,7 @@ def _cleanup_expired() -> int:
     """
     from sqlalchemy import update
     from core.db import get_engine
-    from core.audit.models import HITLRequest, HITLRequestStatus
+    from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     engine = get_engine()
     with engine.connect() as conn:
@@ -224,7 +224,7 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
     Called from thread pool via asyncio.to_thread().
     """
     from core.db import get_session
-    from core.audit.models import HITLRequest
+    from core.observability.audit.models import HITLRequest
 
     with get_session() as session:
         statement = select(HITLRequest).where(HITLRequest.id == request_id)
