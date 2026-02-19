@@ -43,7 +43,7 @@ from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
 from ...agents.unified_registry import get_registry  # V8.4.0
-from ..prompts import DEBATE_SYSTEM_PROMPT  # V12.4.1: Static prompt for caching
+from ..prompts import DEBATE_SYSTEM_PROMPT, CONSENSUS_SYSTEM_PROMPT  # V12.4.1: Static prompts for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
 from core.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak
@@ -242,30 +242,7 @@ Respond in this JSON format:
 IMPORTANT: Good debate involves concessions. If the other agent made a valid point, acknowledge it.
 """
 
-CONSENSUS_CHECK_PROMPT = """Evaluate if consensus has been reached in this debate.
-
-TASK: {task}
-
-DEBATE HISTORY:
-{debate_history}
-
-ORIGINAL DISAGREEMENT: {topic}
-- Gemini's original position: {gemini_position}
-- Claude's original position: {claude_position}
-
-Analyze and respond in JSON:
-{{
-    "consensus_reached": true or false,
-    "consensus_score": 0.0 to 1.0,
-    "resolved_points": ["point1", "point2", ...],
-    "unresolved_points": ["point1", ...],
-    "final_approach": "The agreed approach if consensus reached",
-    "final_capabilities": ["cap1", "cap2", ...],
-    "gemini_satisfaction": 0.0 to 1.0,
-    "claude_satisfaction": 0.0 to 1.0,
-    "reasoning": "Why consensus was/wasn't reached"
-}}
-"""
+# Note: CONSENSUS_CHECK_PROMPT removed in V12.4.1 - replaced by CONSENSUS_SYSTEM_PROMPT in prompts.py
 
 
 @dataclass
@@ -801,11 +778,11 @@ Evaluate if consensus has been reached."""
         try:
             from ..json_parser import parse_json_response
 
-            # V12.4.1: Use invoke() with system prompt
+            # V12.4.1: Use invoke() with consensus-specific system prompt
             response = await self.gemini.invoke(
                 user_prompt,
                 session_id=session_uuid,
-                system_prompt=DEBATE_SYSTEM_PROMPT,  # Static, cached
+                system_prompt=CONSENSUS_SYSTEM_PROMPT,  # Static, cached
                 agent_name="gemini",
                 agent_id="gemini",
             )
