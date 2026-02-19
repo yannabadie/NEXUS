@@ -93,16 +93,34 @@ ROLE_MODEL_MAPPING = {
 }
 
 # Model tier → concrete model names
+# V12.4: Added DeepSeek (98% cheaper) and Kimi (90% cheaper) for cost optimization
 MODEL_TIERS = {
-    "high": {"claude": "claude-opus-4-6", "gemini": "gemini-3-pro-preview"},
-    "medium": {"claude": "claude-sonnet-4-5-20250929", "gemini": "gemini-3-pro-preview"},
-    "low": {"claude": "claude-sonnet-4-5-20250929", "gemini": "gemini-3-pro-preview"},
+    "high": {
+        "claude": "claude-opus-4-6",
+        "gemini": "gemini-3-pro-preview",
+        "deepseek": "deepseek-chat",  # Fallback for cost-optimized
+        "kimi": "kimi-k2.5",  # Fallback for cost-optimized
+    },
+    "medium": {
+        "claude": "claude-sonnet-4-5-20250929",
+        "gemini": "gemini-3-pro-preview",
+        "deepseek": "deepseek-chat",  # 98% cheaper than Claude
+        "kimi": "kimi-k2.5",  # 90% cheaper than Claude, multimodal
+    },
+    "low": {
+        "claude": "claude-sonnet-4-5-20250929",
+        "gemini": "gemini-3-pro-preview",
+        "deepseek": "deepseek-chat",  # Best for budget-constrained scenarios
+        "kimi": "kimi-k2.5",  # Alternative low-cost option
+    },
 }
 
 # Domain affinities for role assignment
 DOMAIN_AFFINITIES = {
     "claude": {"coding", "security", "architecture", "debugging", "analysis"},
     "gemini": {"research", "web_search", "data_analysis", "planning", "creative"},
+    "deepseek": {"coding", "reasoning", "analysis", "simple_tasks"},  # V3: Strong at code, R1: Reasoning
+    "kimi": {"multimodal", "vision", "agent_swarm", "creative"},  # K2.5: Multimodal + Swarm
 }
 
 
@@ -199,6 +217,7 @@ class CascadedRouter:
         agent_ids: Optional[List[str]] = None,
         domain_affinities: Optional[Dict[str, set]] = None,
         history_size: int = 100,
+        routing_policy: str = "balanced",
     ):
         """
         Initialize the cascaded router.
@@ -207,11 +226,13 @@ class CascadedRouter:
             agent_ids: List of available agent IDs
             domain_affinities: Per-agent domain strengths
             history_size: Maximum routing history entries to keep
+            routing_policy: "balanced", "cost_optimized", or "quality_optimized"
         """
         self._agent_ids = agent_ids or ["claude", "gemini"]
         self._domain_affinities = domain_affinities or DOMAIN_AFFINITIES
         self._history: List[RoutingHistory] = []
         self._history_size = history_size
+        self._routing_policy = routing_policy
         self._lock = threading.RLock()
 
         # Performance counters
@@ -487,6 +508,8 @@ class CascadedRouter:
         """
         Select model tier for each agent based on their role.
 
+        V12.4: Cost-optimized policy uses DeepSeek/Kimi for significant savings.
+
         Args:
             roles: Agent → role mapping
             complexity: Task complexity (for cost estimation)
@@ -502,22 +525,46 @@ class CascadedRouter:
             # Determine model tier from role
             tier = ROLE_MODEL_MAPPING.get(role, "medium")
 
-            # Get concrete model name
-            model_name = MODEL_TIERS.get(tier, {}).get(
-                agent_id,
-                "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
-            )
+            # Policy-aware model selection (V12.4)
+            if self._routing_policy == "cost_optimized":
+                # Use low-cost alternatives
+                if tier == "low" or tier == "medium":
+                    # Use DeepSeek (98% cheaper) for Claude-like tasks
+                    if agent_id == "claude":
+                        model_name = MODEL_TIERS[tier].get("deepseek", "deepseek-chat")
+                    # Use Kimi (90% cheaper) for Gemini-like tasks
+                    elif agent_id == "gemini":
+                        model_name = MODEL_TIERS[tier].get("kimi", "kimi-k2.5")
+                    else:
+                        model_name = MODEL_TIERS[tier].get(agent_id, "")
+                else:
+                    # Keep high tier for quality (but still cheaper than Opus/Pro)
+                    model_name = MODEL_TIERS.get(tier, {}).get(
+                        agent_id,
+                        "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
+                    )
+            else:
+                # Balanced or quality-optimized: use original Claude/Gemini
+                model_name = MODEL_TIERS.get(tier, {}).get(
+                    agent_id,
+                    "claude-sonnet-4-5-20250929" if agent_id == "claude" else "gemini-3-pro-preview"
+                )
 
             routings[agent_id] = AgentRouting(
                 agent_id=agent_id,
                 role=role,
                 model_tier=tier,
                 model_name=model_name,
-                reasoning=f"Role '{role}' → tier '{tier}'"
+                reasoning=f"Role '{role}' → tier '{tier}' (policy={self._routing_policy})"
             )
 
-            # Cost estimation (relative)
-            tier_costs = {"high": 1.0, "medium": 0.3, "low": 0.1}
+            # Cost estimation (relative, V12.4: updated for DeepSeek/Kimi)
+            if self._routing_policy == "cost_optimized" and tier in ["low", "medium"]:
+                # DeepSeek/Kimi are 90-98% cheaper
+                tier_costs = {"high": 1.0, "medium": 0.01, "low": 0.02}
+            else:
+                tier_costs = {"high": 1.0, "medium": 0.3, "low": 0.1}
+
             total_cost += tier_costs.get(tier, 0.3)
             max_cost += 1.0  # If all agents used high tier
 
