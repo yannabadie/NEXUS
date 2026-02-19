@@ -18,8 +18,7 @@ from core.fsm.handlers.evolution import EvolutionHandler
 from core.fsm.handlers.swarm import SwarmHandler
 from core.fsm.handlers.idle_waiting import IdleWaitingHandler
 
-# Import legacy handlers temporarily for simple execution helpers
-from core.orchestration.fsm_handlers import FSMHandlers as LegacyFSMHandlers
+# V12.4: Legacy FSMHandlers import removed (modular handlers now complete)
 
 from typing import TYPE_CHECKING, Dict, Optional
 
@@ -51,9 +50,6 @@ class FSMHandlers:
         self.evolution_handler = EvolutionHandler(orchestrator)
         self.swarm_handler = SwarmHandler(orchestrator)
         self.idle_waiting_handler = IdleWaitingHandler(orchestrator)
-
-        # Temporary: Use legacy handler for simple execution helpers
-        self._legacy_handler = LegacyFSMHandlers(orchestrator)
 
     # =========================================================================
     # Public Handler Methods (FSM State Dispatch Interface)
@@ -103,11 +99,11 @@ class FSMHandlers:
         """Handle SWARM_EXECUTING state."""
         return self.swarm_handler.handle_swarm_executing()
 
-    # V8.4.4: Async handlers - delegated to orchestrator for now
+    # V8.4.4: Async handlers - always available in V12.4+
     @property
     def has_async_handlers(self) -> bool:
         """Check if async handlers are available."""
-        return self._legacy_handler.has_async_handlers
+        return True  # V12.4: Always available with SDK drivers
 
 
 __all__ = [

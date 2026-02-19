@@ -81,19 +81,7 @@ def _cleanup_processes():
     """
     global _async_factory
 
-    # Cleanup driver processes (Gemini and Claude)
-    try:
-        from core.drivers.gemini_driver_v7 import _cleanup_processes as cleanup_gemini
-        cleanup_gemini()
-    except Exception:
-        pass
-
-    try:
-        from core.drivers.claude_driver_hybrid import _cleanup_claude_processes
-        _cleanup_claude_processes()
-    except Exception:
-        pass
-
+    # V12.4: Legacy driver cleanup removed (SDK drivers handle cleanup automatically)
     # Cleanup async factory if available
     if _async_factory:
         try:

@@ -316,53 +316,14 @@ class DriverBridge:
 # ============================================================================
 
 
-def create_async_hive_mind(
-    workspace_path: Path,
-    config: Any,
-    driver_factory: "AsyncDriverFactory",
-    blackboard: Optional[AsyncBlackboard] = None,
-    **kwargs
-) -> AsyncHiveMindAdapter:
-    """
-    Create an async-enabled HiveMind.
-
-    This factory creates a TrueHiveMind with sync drivers (for backwards
-    compatibility with phases) wrapped in an AsyncHiveMindAdapter.
-
-    For full V9 performance, phases should be updated to use async
-    drivers directly.
-
-    Args:
-        workspace_path: NEXUS workspace path
-        config: NEXUS configuration
-        driver_factory: V9 async driver factory
-        blackboard: Optional async blackboard
-        **kwargs: Additional args for TrueHiveMind
-
-    Returns:
-        AsyncHiveMindAdapter wrapping TrueHiveMind
-    """
-    # Import here to avoid circular imports
-    from .orchestrator import TrueHiveMind
-    from core.drivers.protocol import BaseAsyncDriver, ClaudeDriverHybrid
-
-    # Create sync drivers for backwards compatibility
-    # TODO: Update phases to use async drivers directly
-    gemini_sync = BaseAsyncDriver(workspace_path, config)
-    claude_sync = ClaudeDriverHybrid(workspace_path, config)
-
-    # Create HiveMind with sync drivers
-    hive_mind = TrueHiveMind(
-        workspace_path=workspace_path,
-        config=config,
-        gemini_driver=gemini_sync,
-        claude_driver=claude_sync,
-        **kwargs
-    )
-
-    # Wrap with async adapter
-    return AsyncHiveMindAdapter(
-        hive_mind=hive_mind,
-        driver_factory=driver_factory,
-        blackboard=blackboard or AsyncBlackboard()
-    )
+# V12.4: create_async_hive_mind removed (dead code)
+# This function was never called and contained broken references:
+# - ClaudeDriverHybrid no longer exists (migrated to AnthropicSDKDriver)
+# - BaseAsyncDriver is an ABC and cannot be instantiated directly
+#
+# If needed, create TrueHiveMind directly with AsyncDriverFactory:
+#   factory = AsyncDriverFactory(config)
+#   gemini_driver = factory.get_driver("gemini")
+#   claude_driver = factory.get_driver("claude")
+#   hive_mind = TrueHiveMind(..., gemini_driver, claude_driver)
+#   adapter = AsyncHiveMindAdapter(hive_mind, factory)

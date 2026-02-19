@@ -34,7 +34,7 @@ from core.orchestration.context_builder import ContextBuilder
 from core.orchestration.detectors import MutationDetector, ResponseDetector, get_mutation_detector
 from core.orchestration.agent_invoker import AgentInvoker
 from core.orchestration.swarm_bridge import SwarmBridge
-from core.orchestration.fsm_handlers import FSMHandlers
+from core.fsm.handlers import FSMHandlers  # V12.4: Migrated to modular handlers
 # P5.1 Phase 1: GuardPipeline extraction
 from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
 # P5.1 Phase 2: TaskRouter extraction
