@@ -142,7 +142,7 @@ class FSMEventStore:
 
         # V12.4: Emit OTel span for FSM transition
         try:
-            from core.telemetry.otel_provider import trace_fsm_transition
+            from core.observability.telemetry.otel_provider import trace_fsm_transition
             trace_fsm_transition(
                 from_state=event.from_state,
                 to_state=event.to_state,

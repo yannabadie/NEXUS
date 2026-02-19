@@ -29,7 +29,7 @@ from datetime import datetime
 from enum import Enum
 
 if TYPE_CHECKING:
-    from core.telemetry.budget_tracker import BudgetTracker
+    from core.observability.telemetry.budget_tracker import BudgetTracker
 
 logger = logging.getLogger(__name__)
 

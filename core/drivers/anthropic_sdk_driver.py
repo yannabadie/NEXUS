@@ -51,7 +51,7 @@ from .protocol import (
     StreamChunk,
     ToolCall,
 )
-from core.telemetry.otel_provider import trace_llm_call
+from core.observability.telemetry.otel_provider import trace_llm_call
 
 logger = logging.getLogger(__name__)
 

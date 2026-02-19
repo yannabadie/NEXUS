@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.telemetry.exporter import TelemetryExporter, TelemetryEvent
+from core.observability.telemetry.exporter import TelemetryExporter, TelemetryEvent
 
 
 # =============================================================================

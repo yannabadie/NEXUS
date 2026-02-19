@@ -8,7 +8,7 @@ patterns such as recurring failures, cascading errors, and agent-specific
 issues. Designed to feed into HiveMind DIAGNOSIS phase and CEREBRO dashboards.
 
 Usage:
-    from core.telemetry.error_pattern_analyzer import get_error_analyzer
+    from core.observability.telemetry.error_pattern_analyzer import get_error_analyzer
 
     analyzer = get_error_analyzer()
     analyzer.record_error(

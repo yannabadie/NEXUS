@@ -19,7 +19,7 @@ import time
 
 import pytest
 
-from core.telemetry.performance_profiler import (
+from core.observability.telemetry.performance_profiler import (
     Bottleneck,
     PerformanceProfiler,
     ProfileReport,
@@ -538,7 +538,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_telemetry_package(self):
-        from core.telemetry import (
+        from core.observability.telemetry import (
             PerformanceProfiler, TimingRecord, TimingStats,
             Bottleneck, ProfileReport, get_profiler, reset_profiler,
         )
@@ -548,7 +548,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.telemetry.performance_profiler import (
+        from core.observability.telemetry.performance_profiler import (
             PerformanceProfiler, TimingRecord, TimingStats,
             Bottleneck, ProfileReport, get_profiler, reset_profiler,
             MAX_RECORDS,

@@ -20,7 +20,7 @@ class TestOTelFeatureFlag:
 
     def test_otel_disabled_by_default(self):
         """OTel should be disabled when flag is not set."""
-        from core.telemetry.otel_provider import _is_otel_enabled
+        from core.observability.telemetry.otel_provider import _is_otel_enabled
         with patch.dict(os.environ, {}, clear=True):
             # Remove the env var if it exists
             os.environ.pop("NEXUS_FF_OTEL_ENABLED", None)
@@ -28,13 +28,13 @@ class TestOTelFeatureFlag:
 
     def test_otel_enabled_with_flag(self):
         """OTel should be enabled when flag is true."""
-        from core.telemetry.otel_provider import _is_otel_enabled
+        from core.observability.telemetry.otel_provider import _is_otel_enabled
         with patch.dict(os.environ, {"NEXUS_FF_OTEL_ENABLED": "true"}):
             assert _is_otel_enabled() is True
 
     def test_otel_enabled_with_1(self):
         """OTel should be enabled with '1'."""
-        from core.telemetry.otel_provider import _is_otel_enabled
+        from core.observability.telemetry.otel_provider import _is_otel_enabled
         with patch.dict(os.environ, {"NEXUS_FF_OTEL_ENABLED": "1"}):
             assert _is_otel_enabled() is True
 
@@ -53,7 +53,7 @@ class TestNoOpFallbacks:
 
     def test_noop_tracer_start_span(self):
         """No-op tracer should return no-op span."""
-        from core.telemetry.otel_provider import _NoOpTracer
+        from core.observability.telemetry.otel_provider import _NoOpTracer
         tracer = _NoOpTracer()
         span = tracer.start_span("test")
         span.set_attribute("key", "value")
@@ -61,14 +61,14 @@ class TestNoOpFallbacks:
 
     def test_noop_tracer_context_manager(self):
         """No-op tracer context manager should work."""
-        from core.telemetry.otel_provider import _NoOpTracer
+        from core.observability.telemetry.otel_provider import _NoOpTracer
         tracer = _NoOpTracer()
         with tracer.start_as_current_span("test") as span:
             span.set_attribute("key", "value")
 
     def test_noop_meter(self):
         """No-op meter should create no-op instruments."""
-        from core.telemetry.otel_provider import _NoOpMeter
+        from core.observability.telemetry.otel_provider import _NoOpMeter
         meter = _NoOpMeter()
         counter = meter.create_counter("test")
         counter.add(1)
@@ -106,21 +106,21 @@ class TestTraceLLMCall:
 
     def test_trace_llm_call_as_context_manager(self):
         """trace_llm_call should work as context manager."""
-        from core.telemetry.otel_provider import trace_llm_call
+        from core.observability.telemetry.otel_provider import trace_llm_call
         with trace_llm_call("anthropic", "claude-sonnet-4-5-20250929") as span:
             span.set_attribute("gen_ai.usage.input_tokens", 100)
             span.set_attribute("gen_ai.usage.output_tokens", 50)
 
     def test_trace_llm_call_with_exception(self):
         """trace_llm_call should handle exceptions gracefully."""
-        from core.telemetry.otel_provider import trace_llm_call
+        from core.observability.telemetry.otel_provider import trace_llm_call
         with pytest.raises(ValueError):
             with trace_llm_call("anthropic", "claude-sonnet-4-5-20250929") as span:
                 raise ValueError("test error")
 
     def test_trace_llm_call_custom_operation(self):
         """trace_llm_call should accept custom operation name."""
-        from core.telemetry.otel_provider import trace_llm_call
+        from core.observability.telemetry.otel_provider import trace_llm_call
         with trace_llm_call("gcp.vertex_ai", "gemini-3-pro", operation="embeddings") as span:
             span.set_attribute("gen_ai.usage.input_tokens", 50)
 
@@ -148,21 +148,21 @@ class TestTelemetryModuleExports:
     """Test that OTel is properly exported from telemetry module."""
 
     def test_init_otel_importable(self):
-        """init_otel should be importable from core.telemetry."""
-        from core.telemetry import init_otel
+        """init_otel should be importable from core.observability.telemetry."""
+        from core.observability.telemetry import init_otel
         assert callable(init_otel)
 
     def test_get_tracer_importable(self):
-        """get_tracer should be importable from core.telemetry."""
-        from core.telemetry import get_tracer
+        """get_tracer should be importable from core.observability.telemetry."""
+        from core.observability.telemetry import get_tracer
         assert callable(get_tracer)
 
     def test_trace_llm_call_importable(self):
-        """trace_llm_call should be importable from core.telemetry."""
-        from core.telemetry import trace_llm_call
+        """trace_llm_call should be importable from core.observability.telemetry."""
+        from core.observability.telemetry import trace_llm_call
         assert callable(trace_llm_call)
 
     def test_trace_fsm_transition_importable(self):
-        """trace_fsm_transition should be importable from core.telemetry."""
-        from core.telemetry import trace_fsm_transition
+        """trace_fsm_transition should be importable from core.observability.telemetry."""
+        from core.observability.telemetry import trace_fsm_transition
         assert callable(trace_fsm_transition)

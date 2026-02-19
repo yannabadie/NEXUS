@@ -44,7 +44,7 @@ class TestBudgetService:
     @pytest.fixture
     def budget_service(self, temp_workspace, mock_console, mock_config):
         """Create a BudgetService instance."""
-        from core.telemetry.service import BudgetService
+        from core.observability.telemetry.service import BudgetService
         return BudgetService(
             workspace_path=temp_workspace,
             console=mock_console,
@@ -80,7 +80,7 @@ class TestBudgetService:
 
     def test_status_shows_warning_level(self, workspace_with_budget, mock_console, mock_config):
         """Test status shows correct warning level."""
-        from core.telemetry.service import BudgetService
+        from core.observability.telemetry.service import BudgetService
         service = BudgetService(
             workspace_path=workspace_with_budget,
             console=mock_console,
@@ -161,7 +161,7 @@ class TestBudgetService:
 
     def test_history_with_data(self, temp_workspace, mock_console, mock_config):
         """Test history with API call data."""
-        from core.telemetry.service import BudgetService
+        from core.observability.telemetry.service import BudgetService
 
         # Create telemetry file with API calls
         telemetry_file = temp_workspace / "telemetry.jsonl"
@@ -200,7 +200,7 @@ class TestGetBudgetService:
 
     def test_get_service_from_extras(self):
         """Test getting service from context extras."""
-        from core.telemetry.service import _get_budget_service
+        from core.observability.telemetry.service import _get_budget_service
 
         mock_service = MagicMock()
         mock_context = MagicMock()
@@ -211,7 +211,7 @@ class TestGetBudgetService:
 
     def test_get_service_creates_new(self):
         """Test creating new service when not in extras."""
-        from core.telemetry.service import _get_budget_service, BudgetService
+        from core.observability.telemetry.service import _get_budget_service, BudgetService
 
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_context = MagicMock()

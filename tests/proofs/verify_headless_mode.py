@@ -169,7 +169,7 @@ def test_6_budget_service_headless():
     print("=" * 60)
 
     from core.interaction import HeadlessProvider
-    from core.telemetry.service import BudgetService
+    from core.observability.telemetry.service import BudgetService
 
     # Mock console and config
     mock_console = MagicMock()

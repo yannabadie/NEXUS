@@ -25,7 +25,7 @@ from threading import Lock
 
 _logger = logging.getLogger(__name__)
 
-from core.telemetry.budget_tracker import (
+from core.observability.telemetry.budget_tracker import (
     BudgetTracker,
     BudgetExceededError,
     get_budget_tracker,

@@ -13,7 +13,7 @@ This service handles:
 - Cost history display
 
 Usage:
-    from core.telemetry.service import TelemetryService, BudgetService
+    from core.observability.telemetry.service import TelemetryService, BudgetService
 
     telemetry_service = TelemetryService(workspace_path, console)
     telemetry_service.report(days=7)
@@ -77,7 +77,7 @@ class TelemetryService:
 
     def _get_exporter(self):
         """Get TelemetryExporter instance."""
-        from core.telemetry import TelemetryExporter
+        from core.observability.telemetry import TelemetryExporter
         return TelemetryExporter(self.workspace_path)
 
     # ==================== PUBLIC API ====================
@@ -240,7 +240,7 @@ class BudgetService:
 
     def _get_tracker(self):
         """Get BudgetTracker instance."""
-        from core.telemetry import BudgetTracker
+        from core.observability.telemetry import BudgetTracker
         return BudgetTracker(self.config, self.workspace_path)
 
     # ==================== PUBLIC API ====================
@@ -424,7 +424,7 @@ class BudgetService:
         Returns:
             ServiceResult with history data
         """
-        from core.telemetry import TelemetryExporter
+        from core.observability.telemetry import TelemetryExporter
 
         exporter = TelemetryExporter(self.workspace_path)
         events = exporter.read_events(days=1)

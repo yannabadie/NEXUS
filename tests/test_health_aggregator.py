@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.telemetry.health_aggregator import (
+from core.observability.telemetry.health_aggregator import (
     HealthCheck,
     TelemetrySummary,
     HealthReport,
@@ -683,7 +683,7 @@ class TestModuleExports:
     """Test that health aggregator types are importable."""
 
     def test_from_telemetry_package(self):
-        from core.telemetry import (
+        from core.observability.telemetry import (
             HealthAggregator,
             HealthCheck,
             HealthReport,
@@ -694,7 +694,7 @@ class TestModuleExports:
                      TelemetrySummary, AggregateStatus])
 
     def test_from_module(self):
-        from core.telemetry.health_aggregator import (
+        from core.observability.telemetry.health_aggregator import (
             HealthAggregator,
             HealthCheck,
             HealthReport,

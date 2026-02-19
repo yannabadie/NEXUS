@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from core.interaction import InteractionProvider
 
 # V9.1: Import ServiceResult from telemetry (single source of truth)
-from core.telemetry.service import ServiceResult
+from core.observability.telemetry.service import ServiceResult
 
 
 class BootstrapService:

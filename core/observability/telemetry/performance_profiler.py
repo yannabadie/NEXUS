@@ -8,7 +8,7 @@ latency, LLM driver calls, and arbitrary spans. Identifies bottlenecks
 and generates timing reports.
 
 Usage:
-    from core.telemetry.performance_profiler import get_profiler
+    from core.observability.telemetry.performance_profiler import get_profiler
 
     profiler = get_profiler()
 

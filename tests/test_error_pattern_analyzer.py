@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.telemetry.error_pattern_analyzer import (
+from core.observability.telemetry.error_pattern_analyzer import (
     MAX_ERRORS,
     ERROR_CATEGORIES,
     AnalyzerStats,
@@ -325,7 +325,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_telemetry_package(self):
-        from core.telemetry import (
+        from core.observability.telemetry import (
             ErrorPatternAnalyzer, ErrorRecord, ErrorCategoryMetrics,
             ErrorPattern, ErrorAnalyzerStats,
             get_error_analyzer, reset_error_analyzer,
@@ -337,6 +337,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.telemetry.error_pattern_analyzer import MAX_ERRORS, ERROR_CATEGORIES
+        from core.observability.telemetry.error_pattern_analyzer import MAX_ERRORS, ERROR_CATEGORIES
         assert MAX_ERRORS == 50000
         assert "timeout" in ERROR_CATEGORIES

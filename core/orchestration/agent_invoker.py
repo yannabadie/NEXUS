@@ -28,7 +28,7 @@ from core.agents.unified_registry import get_registry
 from core.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.swarm import AgentInvocationResult
-from core.telemetry import BudgetExceededError
+from core.observability.telemetry import BudgetExceededError
 
 # V13.0: Real-time telemetry for CEREBRO UI
 from core.events.telemetry_bridge import get_telemetry_bridge, _resolve_tenant_workspace

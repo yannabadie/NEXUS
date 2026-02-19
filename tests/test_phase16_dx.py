@@ -258,7 +258,7 @@ class TestBudgetCommand:
 
     def test_budget_stats_structure(self):
         """Verify BudgetTracker.get_stats() structure."""
-        from core.telemetry import BudgetTracker
+        from core.observability.telemetry import BudgetTracker
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -274,7 +274,7 @@ class TestBudgetCommand:
 
     def test_budget_warning_levels(self):
         """Test warning level thresholds."""
-        from core.telemetry import BudgetTracker
+        from core.observability.telemetry import BudgetTracker
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -296,7 +296,7 @@ class TestBudgetCommand:
 
     def test_budget_reset_clears_counters(self):
         """Test reset_daily clears counters."""
-        from core.telemetry import BudgetTracker
+        from core.observability.telemetry import BudgetTracker
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -311,7 +311,7 @@ class TestBudgetCommand:
 
     def test_budget_add_credit(self):
         """Test add_credit increases limit."""
-        from core.telemetry import BudgetTracker
+        from core.observability.telemetry import BudgetTracker
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:

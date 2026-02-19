@@ -202,7 +202,7 @@ class TestRedisLogHandler:
 
     def test_handler_creation(self):
         """RedisLogHandler creates with default settings."""
-        from core.telemetry.redis_bridge import RedisLogHandler
+        from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         handler = RedisLogHandler(
             tenant_id="test_tenant",
@@ -215,7 +215,7 @@ class TestRedisLogHandler:
 
     def test_start_stop_lifecycle(self):
         """Handler starts and stops correctly."""
-        from core.telemetry.redis_bridge import RedisLogHandler
+        from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         handler = RedisLogHandler()
 
@@ -232,7 +232,7 @@ class TestRedisLogHandler:
     def test_emit_non_blocking(self):
         """Emit is non-blocking even without Redis."""
         import logging
-        from core.telemetry.redis_bridge import RedisLogHandler
+        from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         handler = RedisLogHandler()
         handler.setFormatter(logging.Formatter("%(message)s"))
@@ -258,7 +258,7 @@ class TestRedisLogHandler:
     def test_queue_overflow_drops(self):
         """Handler drops events when queue is full."""
         import logging
-        from core.telemetry.redis_bridge import RedisLogHandler
+        from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         # Small queue for testing
         handler = RedisLogHandler(queue_size=5)
@@ -284,7 +284,7 @@ class TestRedisLogHandler:
 
     def test_get_stats(self):
         """get_stats returns correct statistics."""
-        from core.telemetry.redis_bridge import RedisLogHandler
+        from core.observability.telemetry.redis_bridge import RedisLogHandler
 
         handler = RedisLogHandler()
 

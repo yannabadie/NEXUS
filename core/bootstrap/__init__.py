@@ -22,7 +22,7 @@ from .service import (
     _get_bootstrap_service,
     _get_spinoff_service,
 )
-# ServiceResult comes from core.telemetry.service (single source of truth)
+# ServiceResult comes from core.observability.telemetry.service (single source of truth)
 
 # V12.4 COGNITIVE BOOST: Startup Analytics
 from .startup_analytics import (

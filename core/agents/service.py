@@ -107,7 +107,7 @@ class AgentService:
         Returns:
             SpawnResult with success status and agent info
         """
-        from core.telemetry import BudgetExceededError
+        from core.observability.telemetry import BudgetExceededError
 
         # ========== STEP 0: PRE-FLIGHT CHECKS ==========
 

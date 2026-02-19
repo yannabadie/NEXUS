@@ -12,13 +12,13 @@ from .registry import Command, CommandContext, CommandResult, CommandStatus
 
 def _get_telemetry_service(context: CommandContext):
     """Get or create TelemetryService from context."""
-    from core.telemetry import _get_telemetry_service as get_service
+    from core.observability.telemetry import _get_telemetry_service as get_service
     return get_service(context)
 
 
 def _get_budget_service(context: CommandContext):
     """Get or create BudgetService from context."""
-    from core.telemetry import _get_budget_service as get_service
+    from core.observability.telemetry import _get_budget_service as get_service
     return get_service(context)
 
 

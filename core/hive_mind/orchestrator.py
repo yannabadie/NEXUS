@@ -68,7 +68,7 @@ from core.fsm.stagnation_detector import StagnationDetector
 if TYPE_CHECKING:
     from core.drivers.protocol import BaseAsyncDriver
     from core.swarm import AgentPool
-    from core.telemetry import BudgetTracker
+    from core.observability.telemetry import BudgetTracker
     from core.memory import ProjectMemory
 
 logger = logging.getLogger(__name__)

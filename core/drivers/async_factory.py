@@ -43,7 +43,7 @@ from .driver_health_monitor import get_health_monitor
 from .failover_manager import get_failover_manager
 from core.async_primitives.process_handle import get_process_registry
 from core.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
-from core.telemetry.budget_tracker import get_budget_tracker
+from core.observability.telemetry.budget_tracker import get_budget_tracker
 
 if TYPE_CHECKING:
     from .anthropic_sdk_driver import AnthropicSDKDriver

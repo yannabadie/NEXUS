@@ -15,7 +15,7 @@ References:
 
 import pytest
 from pathlib import Path
-from core.telemetry.budget_tracker import BudgetTracker
+from core.observability.telemetry.budget_tracker import BudgetTracker
 
 
 class TestPricingCorrectness:
@@ -360,14 +360,14 @@ class TestIntegration:
 
     def test_budget_tracker_imports_correctly(self):
         """Test that BudgetTracker can be imported."""
-        from core.telemetry.budget_tracker import BudgetTracker, PRICING
+        from core.observability.telemetry.budget_tracker import BudgetTracker, PRICING
         assert BudgetTracker is not None
         assert "claude-opus-4-6" in PRICING
         assert "cache_creation" in PRICING["claude-opus-4-6"]
 
     def test_pricing_dict_structure(self):
         """Test that PRICING dictionary has correct structure."""
-        from core.telemetry.budget_tracker import PRICING
+        from core.observability.telemetry.budget_tracker import PRICING
 
         # Claude models should have cache fields
         claude_models = [k for k in PRICING if "claude" in k]

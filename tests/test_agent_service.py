@@ -175,7 +175,7 @@ class TestAgentService:
 
     def test_spawn_budget_exceeded(self, agent_service, mock_orchestrator, mock_console):
         """Test spawn fails when budget exceeded."""
-        from core.telemetry import BudgetExceededError
+        from core.observability.telemetry import BudgetExceededError
 
         mock_telemetry = MagicMock()
         mock_telemetry.enforce_budget.side_effect = BudgetExceededError(10.0, 5.0)

@@ -34,7 +34,7 @@ from core.swarm import (
     TaskAnalyzer,  # V7 FIX: For trivial input detection
     TaskComplexity  # V7 FIX: For complexity-based routing
 )
-from core.telemetry import TelemetryCollector, BudgetExceededError
+from core.observability.telemetry import TelemetryCollector, BudgetExceededError
 from core.governance.sandbox_policy import SandboxPolicy
 from core.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes

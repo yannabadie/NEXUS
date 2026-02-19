@@ -310,7 +310,7 @@ class TestBudgetChainIntegration:
     def test_full_budget_chain(self, tmp_path):
         """Test full budget chain with real components."""
         from core.hive_mind.cost_estimator import CostEstimator
-        from core.telemetry.budget_tracker import BudgetTracker
+        from core.observability.telemetry.budget_tracker import BudgetTracker
 
         # Create real BudgetTracker
         tracker = BudgetTracker(

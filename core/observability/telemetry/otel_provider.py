@@ -10,7 +10,7 @@ Instrumentation layers:
 3. Metrics: Token usage, latency histograms, error counters
 
 Usage:
-    from core.telemetry.otel_provider import init_otel, get_tracer
+    from core.observability.telemetry.otel_provider import init_otel, get_tracer
 
     # Initialize at boot (respects feature flag)
     init_otel(service_name="nexus-backend")

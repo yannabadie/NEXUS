@@ -13,7 +13,7 @@ Data Sources:
 - Driver health checks (Gemini, Claude, Ollama availability)
 
 Usage:
-    from core.telemetry.health_aggregator import HealthAggregator
+    from core.observability.telemetry.health_aggregator import HealthAggregator
 
     aggregator = HealthAggregator()
     aggregator.record_check("gemini_driver", status="healthy", latency_ms=45.0)

@@ -102,7 +102,7 @@ class StateHandler:
             to_state: Target state
         """
         try:
-            from core.telemetry.otel_provider import get_tracer
+            from core.observability.telemetry.otel_provider import get_tracer
             tracer = get_tracer()
             if tracer:
                 with tracer.start_as_current_span("fsm.transition") as span:

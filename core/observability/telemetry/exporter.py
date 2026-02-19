@@ -4,7 +4,7 @@ Telemetry Exporter - Phase 13c
 Export telemetry data to CSV format and generate performance reports.
 
 Usage:
-    from core.telemetry.exporter import TelemetryExporter
+    from core.observability.telemetry.exporter import TelemetryExporter
 
     exporter = TelemetryExporter(workspace_path)
 
