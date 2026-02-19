@@ -23,10 +23,10 @@ from typing import Dict, List, Optional, Callable, Any, TYPE_CHECKING
 
 from ..collaboration_modes import CollaborationMode
 from ..mode_selector import AgentAssignment
-from ...utils.artifact_verifier import ArtifactVerifier
-from ...agents.unified_registry import get_registry
-from ...api.rate_limiter import get_rate_limiter, RateLimitExceeded
-from ...api.concurrency_limiter import get_concurrency_limiter
+from core.utils.artifact_verifier import ArtifactVerifier
+from core.foundation.agents.unified_registry import get_registry
+from core.api.rate_limiter import get_rate_limiter, RateLimitExceeded
+from core.api.concurrency_limiter import get_concurrency_limiter
 
 if TYPE_CHECKING:
     from ..merge_strategies import MergeStrategy, MergeResult
