@@ -52,7 +52,7 @@ def _insert_audit_log(entry: AuditLog) -> dict:
     Called from thread pool via asyncio.to_thread().
     Returns dict to avoid detached session issues.
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     with get_session() as session:
         session.add(entry)
@@ -83,7 +83,7 @@ def _query_audit_logs(
     Called from thread pool via asyncio.to_thread().
     Returns dicts to avoid detached session issues.
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     with get_session() as session:
         statement = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
@@ -138,7 +138,7 @@ def _count_audit_logs(tenant_id: UUID, filters: dict) -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import func
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     with get_session() as session:
         statement = select(func.count(AuditLog.id)).where(AuditLog.tenant_id == tenant_id)
@@ -162,7 +162,7 @@ def _cleanup_old_logs(retention_days: int) -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import delete
-    from core.db import get_session, get_engine
+    from core.infrastructure.db import get_session, get_engine
 
     cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).replace(tzinfo=None)
 

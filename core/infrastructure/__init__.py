@@ -14,7 +14,7 @@ P5.6 Phase 2: Package consolidation for reduced cognitive load.
 # Context exports
 from core.infrastructure.context import (
     SessionContext,
-    UserRole,
+    UserRole as SessionUserRole,  # Renamed to avoid conflict with db.UserRole
     current_session,
     get_current_session,
     get_current_session_or_none,
@@ -34,10 +34,36 @@ from core.infrastructure.context import (
     reset_audit_trail,
 )
 
+# Database exports
+from core.infrastructure.db import (
+    PlanTier,
+    TenantStatus,
+    Tenant,
+    User,
+    Workspace,
+    Quota,
+    DEFAULT_QUOTAS,
+    create_quota_for_plan,
+    get_engine,
+    init_db,
+    reset_engine,
+    get_session,
+    create_default_tenant,
+    get_tenant_by_slug,
+    get_tenant_quota,
+    DEFAULT_DB_PATH,
+    QueryPerformanceTracker,
+    QueryRecord,
+    TableProfile,
+    QueryPerformanceStats,
+    get_query_tracker,
+    reset_query_tracker,
+)
+
 __all__ = [
     # Context
     "SessionContext",
-    "UserRole",
+    "SessionUserRole",  # Renamed from UserRole to avoid conflict
     "current_session",
     "get_current_session",
     "get_current_session_or_none",
@@ -55,6 +81,29 @@ __all__ = [
     "AuditStats",
     "get_audit_trail",
     "reset_audit_trail",
+    # Database
+    "PlanTier",
+    "TenantStatus",
+    "Tenant",
+    "User",
+    "Workspace",
+    "Quota",
+    "DEFAULT_QUOTAS",
+    "create_quota_for_plan",
+    "get_engine",
+    "init_db",
+    "reset_engine",
+    "get_session",
+    "create_default_tenant",
+    "get_tenant_by_slug",
+    "get_tenant_quota",
+    "DEFAULT_DB_PATH",
+    "QueryPerformanceTracker",
+    "QueryRecord",
+    "TableProfile",
+    "QueryPerformanceStats",
+    "get_query_tracker",
+    "reset_query_tracker",
 ]
 
 __version__ = "12.4.0"

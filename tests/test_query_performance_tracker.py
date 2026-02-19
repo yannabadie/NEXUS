@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.db.query_performance_tracker import (
+from core.infrastructure.db.query_performance_tracker import (
     MAX_QUERIES,
     QueryPerformanceTracker,
     QueryRecord,
@@ -282,7 +282,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_db_package(self):
-        from core.db import (
+        from core.infrastructure.db import (
             QueryPerformanceTracker, QueryRecord,
             TableProfile, QueryPerformanceStats,
             get_query_tracker, reset_query_tracker,
@@ -294,5 +294,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.db.query_performance_tracker import MAX_QUERIES
+        from core.infrastructure.db.query_performance_tracker import MAX_QUERIES
         assert MAX_QUERIES == 50000

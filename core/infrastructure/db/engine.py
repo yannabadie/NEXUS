@@ -18,7 +18,7 @@ Features:
     - Session management with context manager
 
 Usage:
-    from core.db import get_session, init_db
+    from core.infrastructure.db import get_session, init_db
 
     # Initialize database (creates tables)
     init_db()

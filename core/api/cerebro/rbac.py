@@ -121,7 +121,7 @@ def get_user_role(user_id: UUID, tenant_id: UUID) -> str | None:
     """
     try:
         from sqlmodel import select
-        from core.db import get_session, User
+        from core.infrastructure.db import get_session, User
 
         with get_session() as session:
             statement = select(User).where(

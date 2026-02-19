@@ -292,7 +292,7 @@ class TestDatabaseModels:
 
     def test_tenant_creation(self):
         """Tenant model can be created."""
-        from core.db import Tenant, PlanTier
+        from core.infrastructure.db import Tenant, PlanTier
 
         tenant = Tenant(name="Acme Corp", slug="acme")
         assert tenant.name == "Acme Corp"
@@ -302,7 +302,7 @@ class TestDatabaseModels:
     def test_quota_defaults_by_plan(self):
         """Quota defaults vary by plan tier."""
         from uuid import uuid4
-        from core.db import create_quota_for_plan, PlanTier
+        from core.infrastructure.db import create_quota_for_plan, PlanTier
 
         tenant_id = uuid4()
 
@@ -322,7 +322,7 @@ class TestDatabaseModels:
     def test_quota_budget_checks(self):
         """Quota budget checking methods work."""
         from uuid import uuid4
-        from core.db import Quota
+        from core.infrastructure.db import Quota
 
         quota = Quota(
             tenant_id=uuid4(),

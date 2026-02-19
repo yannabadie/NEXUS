@@ -6,7 +6,7 @@ NEXUS V10 PRISM - SQLModel ORM
 This module provides the database layer for multi-tenant management.
 
 Quick Start:
-    from core.db import init_db, get_session, Tenant, Workspace
+    from core.infrastructure.db import init_db, get_session, Tenant, Workspace
 
     # Initialize database (creates tables)
     init_db()

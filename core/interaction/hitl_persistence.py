@@ -59,7 +59,7 @@ def _insert_hitl_request(
 
     Called from thread pool via asyncio.to_thread().
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
     from core.observability.audit.models import HITLRequest
 
     request = HITLRequest(
@@ -96,7 +96,7 @@ def _get_pending_requests(tenant_id: UUID, workspace_id: Optional[str] = None) -
 
     Called from thread pool via asyncio.to_thread().
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
     from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
@@ -135,7 +135,7 @@ def _answer_request(request_id: UUID, answer: str) -> Optional[dict]:
 
     Called from thread pool via asyncio.to_thread().
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
     from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
@@ -173,7 +173,7 @@ def _cancel_request(request_id: UUID) -> bool:
 
     Called from thread pool via asyncio.to_thread().
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
     from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     with get_session() as session:
@@ -200,7 +200,7 @@ def _cleanup_expired() -> int:
     Called from thread pool via asyncio.to_thread().
     """
     from sqlalchemy import update
-    from core.db import get_engine
+    from core.infrastructure.db import get_engine
     from core.observability.audit.models import HITLRequest, HITLRequestStatus
 
     engine = get_engine()
@@ -223,7 +223,7 @@ def _get_request_by_id(request_id: UUID) -> Optional[dict]:
 
     Called from thread pool via asyncio.to_thread().
     """
-    from core.db import get_session
+    from core.infrastructure.db import get_session
     from core.observability.audit.models import HITLRequest
 
     with get_session() as session:

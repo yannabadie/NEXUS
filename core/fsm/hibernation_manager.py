@@ -216,7 +216,7 @@ def _save_hibernation(
     ttl_hours: int = 24,
 ) -> dict:
     """Save hibernation state to database."""
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     # Deactivate any existing hibernation for this tenant/workspace
     with get_session() as session:
@@ -258,7 +258,7 @@ def _save_hibernation(
 
 def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
     """Get active hibernation state for tenant/workspace."""
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     with get_session() as session:
         statement = select(HibernationState).where(
@@ -288,7 +288,7 @@ def _get_active_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict
 
 def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
     """Deactivate hibernation and return stored state."""
-    from core.db import get_session
+    from core.infrastructure.db import get_session
 
     with get_session() as session:
         statement = select(HibernationState).where(
@@ -327,7 +327,7 @@ def _exit_hibernation(tenant_id: UUID, workspace_id: str) -> Optional[dict]:
 def _cleanup_expired() -> int:
     """Mark expired hibernations as inactive."""
     from sqlalchemy import update
-    from core.db import get_engine
+    from core.infrastructure.db import get_engine
 
     engine = get_engine()
     with engine.connect() as conn:

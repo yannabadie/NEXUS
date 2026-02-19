@@ -21,7 +21,7 @@ from uuid import UUID, uuid4
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.db.engine import init_db, get_session, reset_engine
+from core.infrastructure.db.engine import init_db, get_session, reset_engine
 
 
 class TestAuditLoggerUnit:

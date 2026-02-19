@@ -20,7 +20,7 @@ from uuid import uuid4
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.db.engine import init_db, reset_engine
+from core.infrastructure.db.engine import init_db, reset_engine
 
 
 class TestHibernateState:

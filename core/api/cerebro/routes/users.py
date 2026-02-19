@@ -73,7 +73,7 @@ class ChangeRoleRequest(BaseModel):
 def _get_users(tenant_id: UUID) -> list[dict]:
     """Get all users for a tenant (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User
+    from core.infrastructure.db import get_session, User
 
     with get_session() as session:
         statement = select(User).where(User.tenant_id == tenant_id)
@@ -102,7 +102,7 @@ def _create_user(
 ) -> dict:
     """Create a new user (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User, UserRole
+    from core.infrastructure.db import get_session, User, UserRole
     from core.security.password import hash_password
 
     with get_session() as session:
@@ -155,7 +155,7 @@ def _create_user(
 def _delete_user(tenant_id: UUID, user_id: UUID) -> bool:
     """Delete a user (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User
+    from core.infrastructure.db import get_session, User
 
     with get_session() as session:
         statement = select(User).where(
@@ -175,7 +175,7 @@ def _delete_user(tenant_id: UUID, user_id: UUID) -> bool:
 def _change_role(tenant_id: UUID, user_id: UUID, new_role: str) -> dict | None:
     """Change user role (sync, for thread pool)."""
     from sqlmodel import select
-    from core.db import get_session, User, UserRole
+    from core.infrastructure.db import get_session, User, UserRole
 
     with get_session() as session:
         statement = select(User).where(

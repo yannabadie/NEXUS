@@ -19,7 +19,7 @@ Thread-Safety:
     Uses threading.Lock for all mutations. Global singleton with double-checked locking.
 
 Usage:
-    from core.db.query_performance_tracker import get_query_tracker
+    from core.infrastructure.db.query_performance_tracker import get_query_tracker
 
     tracker = get_query_tracker()
 
