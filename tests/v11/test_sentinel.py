@@ -386,7 +386,7 @@ class TestSentinelIntegration:
 
     def test_fsm_handlers_has_sentinel_methods(self):
         """Verify FSMHandlers has all SENTINEL methods."""
-        from core.orchestration.fsm_handlers import FSMHandlers
+        from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Check F2 method exists
         assert hasattr(FSMHandlers, '_validate_artifacts_f2')

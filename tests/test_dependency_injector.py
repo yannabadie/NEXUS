@@ -16,7 +16,7 @@ Validates:
 
 import pytest
 
-from core.orchestration.dependency_injector import (
+from core.execution_pkg.orchestration.dependency_injector import (
     AgentRequirements,
     Capability,
     Conflict,
@@ -489,7 +489,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_orchestration_package(self):
-        from core.orchestration import (
+        from core.execution_pkg.orchestration import (
             DependencyInjector, Capability, AgentRequirements,
             DependencyValidationResult, Conflict, DependencyManifest,
             get_injector, reset_injector,
@@ -501,7 +501,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.orchestration.dependency_injector import (
+        from core.execution_pkg.orchestration.dependency_injector import (
             DependencyInjector, Capability, AgentRequirements,
             ValidationResult, Conflict, DependencyManifest,
             get_injector, reset_injector,

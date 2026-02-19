@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from core.execution.validation_service import ValidationService
+from core.execution_pkg.execution.validation_service import ValidationService
 
 
 @pytest.fixture

@@ -216,7 +216,7 @@ class TestHiveMindIntegrationWithFSM:
 
     def test_fsm_handlers_has_hive_mind_methods(self):
         """Test FSMHandlers has Hive Mind integration methods."""
-        from core.orchestration.fsm_handlers import FSMHandlers
+        from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Check methods exist
         assert hasattr(FSMHandlers, '_should_use_hive_mind')

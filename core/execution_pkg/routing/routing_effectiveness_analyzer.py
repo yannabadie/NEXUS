@@ -14,7 +14,7 @@ This module provides:
 - Recent decision history
 
 Usage:
-    from core.routing.routing_effectiveness_analyzer import get_routing_analyzer
+    from core.execution_pkg.routing.routing_effectiveness_analyzer import get_routing_analyzer
 
     analyzer = get_routing_analyzer()
 

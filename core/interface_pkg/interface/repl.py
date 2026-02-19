@@ -1016,7 +1016,7 @@ class InteractiveNexusV7:
         This allows changing workspace without restarting NEXUS.
         """
         from core.synapse.memory_v7 import MemoryManagerV7
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
         from prompt_toolkit.history import FileHistory
 
         # 1. Save current state to disk

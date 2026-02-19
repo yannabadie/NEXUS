@@ -268,7 +268,7 @@ class SystemHealth:
     def _check_tool_registry(self) -> ComponentHealth:
         """Check ToolRegistry."""
         try:
-            from core.execution.tool_registry import get_tool_registry
+            from core.execution_pkg.execution.tool_registry import get_tool_registry
 
             registry = get_tool_registry()
             tools = registry.list_tools()

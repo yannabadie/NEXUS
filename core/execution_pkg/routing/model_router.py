@@ -10,7 +10,7 @@ V12.4 COGNITIVE BOOST additions:
 - OTel tracing for routing decisions
 
 Usage:
-    from core.routing import ModelRouter, RoutingPolicy
+    from core.execution_pkg.routing import ModelRouter, RoutingPolicy
 
     router = ModelRouter(config, policy=RoutingPolicy.BALANCED)
 

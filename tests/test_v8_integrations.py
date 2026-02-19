@@ -229,7 +229,7 @@ class TestFsmHandlersHiveMindIntegration:
             mock_orch.config = mock_config
 
             # Import after patching
-            from core.orchestration.fsm_handlers import FSMHandlers
+            from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
             handlers = FSMHandlers(mock_orch)
 
@@ -252,7 +252,7 @@ class TestFsmHandlersHiveMindIntegration:
             mock_orch = MagicMock()
             mock_orch.config = mock_config
 
-            from core.orchestration.fsm_handlers import FSMHandlers
+            from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
             handlers = FSMHandlers(mock_orch)
 
@@ -270,7 +270,7 @@ class TestFsmHandlersHiveMindIntegration:
             mock_orch = MagicMock()
             mock_orch.config = mock_config
 
-            from core.orchestration.fsm_handlers import FSMHandlers
+            from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
             handlers = FSMHandlers(mock_orch)
 
@@ -289,7 +289,7 @@ class TestFsmHandlersHiveMindIntegration:
             mock_orch = MagicMock()
             mock_orch.config = mock_config
 
-            from core.orchestration.fsm_handlers import FSMHandlers
+            from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
             handlers = FSMHandlers(mock_orch)
 

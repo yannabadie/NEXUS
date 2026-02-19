@@ -7,7 +7,7 @@ Handles EVOLUTION_BRAINSTORM state - special debate mode for mutations.
 import time
 from typing import Dict, Optional
 from core.fsm.states import OrchestratorState
-from core.routing.model_router import TaskType
+from core.execution_pkg.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
 from core.security_pkg.governance.sandbox_policy import SandboxPolicy
 from core.fsm.handlers.base import BaseHandler

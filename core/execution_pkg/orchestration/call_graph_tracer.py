@@ -15,7 +15,7 @@ Features:
 - Global singleton via get_call_tracer() / reset_call_tracer()
 
 Usage:
-    from core.orchestration.call_graph_tracer import get_call_tracer
+    from core.execution_pkg.orchestration.call_graph_tracer import get_call_tracer
 
     tracer = get_call_tracer()
     tracer.record_call(

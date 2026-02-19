@@ -8,7 +8,7 @@ import sys
 import time
 from typing import Dict
 from core.fsm.states import OrchestratorState
-from core.routing.model_router import TaskType
+from core.execution_pkg.routing.model_router import TaskType
 from core.fsm.handlers.base import BaseHandler
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry

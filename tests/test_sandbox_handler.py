@@ -15,7 +15,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from core.execution.handlers.sandbox_handler import SandboxHandler, DEFAULT_SANDBOX_IMAGE
+from core.execution_pkg.execution.handlers.sandbox_handler import SandboxHandler, DEFAULT_SANDBOX_IMAGE
 
 
 @pytest.fixture
@@ -200,7 +200,7 @@ class TestBashHandlerSandboxDelegation:
 
     def test_bash_handler_without_sandbox(self, tmp_path):
         """BashHandler should work normally without sandbox flag."""
-        from core.execution.handlers.bash_handler import BashHandler
+        from core.execution_pkg.execution.handlers.bash_handler import BashHandler
         with patch.dict(os.environ, {"NEXUS_FF_SANDBOX_ENABLED": "false"}):
             handler = BashHandler(tmp_path)
             assert handler._sandbox is None
@@ -210,7 +210,7 @@ class TestBashHandlerSandboxDelegation:
     def test_bash_handler_with_sandbox_flag(self, mock_run, mock_which, tmp_path):
         """BashHandler should create sandbox when flag is on and Docker available."""
         mock_run.return_value = MagicMock(returncode=0)
-        from core.execution.handlers.bash_handler import BashHandler
+        from core.execution_pkg.execution.handlers.bash_handler import BashHandler
         with patch.dict(os.environ, {"NEXUS_FF_SANDBOX_ENABLED": "true"}):
             handler = BashHandler(tmp_path)
             assert handler._sandbox is not None

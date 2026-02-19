@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.routing.routing_effectiveness_analyzer import (
+from core.execution_pkg.routing.routing_effectiveness_analyzer import (
     MAX_DECISIONS,
     RoutingEffectivenessAnalyzer,
     RoutingDecisionRecord,
@@ -280,7 +280,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
-        from core.routing import (
+        from core.execution_pkg.routing import (
             RoutingEffectivenessAnalyzer, RoutingDecisionRecord,
             PolicyMetrics, RoutingAnalyzerStats,
             get_routing_analyzer, reset_routing_analyzer,
@@ -292,5 +292,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.routing.routing_effectiveness_analyzer import MAX_DECISIONS
+        from core.execution_pkg.routing.routing_effectiveness_analyzer import MAX_DECISIONS
         assert MAX_DECISIONS == 50000

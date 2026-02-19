@@ -56,7 +56,7 @@ from .phase_audit_logger import get_phase_audit_logger
 from .budget_allocator import PhaseBudgetAllocator
 
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
-from core.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
+from core.execution_pkg.orchestration.sync_bridge import get_sync_bridge, OrchestratorSyncBridge
 
 # V10 SYNAPSE: Telemetry instrumentation
 from core.observability.events.telemetry_bridge import get_telemetry_bridge
@@ -229,7 +229,7 @@ class TrueHiveMind:
         # V12.4: ResourceOptimizer - register models for cost-aware routing
         self._resource_optimizer = None
         try:
-            from core.routing.resource_optimizer import get_resource_optimizer
+            from core.execution_pkg.routing.resource_optimizer import get_resource_optimizer
             self._resource_optimizer = get_resource_optimizer()
             if not self._resource_optimizer._models:
                 self._resource_optimizer.register_model(

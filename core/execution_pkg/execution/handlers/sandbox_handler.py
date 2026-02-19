@@ -23,7 +23,7 @@ Security Properties:
 Feature Flag: NEXUS_FF_SANDBOX_ENABLED (default: false)
 
 Usage:
-    from core.execution.handlers.sandbox_handler import SandboxHandler
+    from core.execution_pkg.execution.handlers.sandbox_handler import SandboxHandler
 
     handler = SandboxHandler(workspace_path)
     result = handler.execute({"command": "python -c 'print(1+1)'"})

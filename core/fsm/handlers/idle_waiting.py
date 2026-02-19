@@ -8,7 +8,7 @@ import time
 import sys
 from typing import Dict, Optional
 from core.fsm.states import OrchestratorState
-from core.routing.model_router import TaskType
+from core.execution_pkg.routing.model_router import TaskType
 from core.intelligence.swarm import TaskComplexity
 from core.fsm.handlers.base import BaseHandler
 

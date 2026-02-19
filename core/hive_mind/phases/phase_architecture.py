@@ -338,7 +338,7 @@ class ArchitectureGenerationPhase:
 
         # V12.4: CascadedRouter pre-routing hints (arxiv:2502.11133)
         try:
-            from core.routing.cascaded_router import get_cascaded_router
+            from core.execution_pkg.routing.cascaded_router import get_cascaded_router
             _cr = get_cascaded_router()
             _complexity = getattr(debate_result, 'consensus_confidence', 0.5)
             _domains = debate_result.final_capabilities[:3] if debate_result.final_capabilities else []

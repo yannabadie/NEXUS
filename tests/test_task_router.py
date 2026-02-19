@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.orchestration.task_router import TaskRouter, RouteDecision, RouteType
+from core.execution_pkg.orchestration.task_router import TaskRouter, RouteDecision, RouteType
 from core.fsm.states import OrchestratorState
 
 

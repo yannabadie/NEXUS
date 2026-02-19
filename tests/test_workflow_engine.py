@@ -21,7 +21,7 @@ Validates:
 
 import pytest
 
-from core.execution.workflow_engine import (
+from core.execution_pkg.execution.workflow_engine import (
     WorkflowEngine,
     Workflow,
     WorkflowStep,
@@ -505,7 +505,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             WorkflowEngine,
             Workflow,
             WorkflowStep,
@@ -517,7 +517,7 @@ class TestModuleExports:
                      WorkflowStatus, StepStatus, ExecutionResult])
 
     def test_from_module(self):
-        from core.execution.workflow_engine import (
+        from core.execution_pkg.execution.workflow_engine import (
             WorkflowEngine,
             Workflow,
             WorkflowStep,

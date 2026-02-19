@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from core.security_pkg.security.execution_policy import CodeValidator, CodeValidationResult
-from core.execution.dynamic_tools import (
+from core.execution_pkg.execution.dynamic_tools import (
     DynamicToolManager,
     ToolCreationResult,
     ToolExecutionResult,

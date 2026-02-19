@@ -10,7 +10,7 @@ Modules:
 - handlers/: Individual tool handlers
 
 Usage:
-    from core.execution import ExecutionEngine, ToolResult
+    from core.execution_pkg.execution import ExecutionEngine, ToolResult
     engine = ExecutionEngine(workspace_path)
     result = engine.execute(tool_request)
 """

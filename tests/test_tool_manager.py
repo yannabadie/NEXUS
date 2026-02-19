@@ -15,7 +15,7 @@ import sys
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.execution.tool_manager import (
+from core.execution_pkg.execution.tool_manager import (
     ToolManager,
     ToolResult,
 )

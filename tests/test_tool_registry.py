@@ -5,13 +5,13 @@ Validates tool registration and discovery.
 """
 
 import pytest
-from core.execution.tool_registry import (
+from core.execution_pkg.execution.tool_registry import (
     ToolRegistry,
     ToolMetadata,
     get_tool_registry,
     reset_tool_registry,
 )
-from core.execution.handlers.base import ToolResult
+from core.execution_pkg.execution.handlers.base import ToolResult
 
 
 @pytest.fixture(autouse=True)

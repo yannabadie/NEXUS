@@ -47,7 +47,7 @@ except ImportError:
 
 # V7.8 Phase 12.5: Dynamic Tool Generation imports
 try:
-    from core.execution.dynamic_tools import DynamicToolManager
+    from core.execution_pkg.execution.dynamic_tools import DynamicToolManager
     _DYNAMIC_TOOLS_AVAILABLE = True
 except ImportError:
     _DYNAMIC_TOOLS_AVAILABLE = False

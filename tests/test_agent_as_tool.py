@@ -24,7 +24,7 @@ from dataclasses import dataclass
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.execution.agent_tools import (
+from core.execution_pkg.execution.agent_tools import (
     AgentToolRegistry,
     AgentToolDefinition,
     AgentToolResult,

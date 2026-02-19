@@ -37,7 +37,7 @@ def main():
     print("\n[TEST] Complexity Routing:")
 
     with patch('core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
-        from core.orchestration.fsm_handlers import FSMHandlers
+        from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 
         # Create mock orchestrator with real config
         mock_orch = MagicMock()

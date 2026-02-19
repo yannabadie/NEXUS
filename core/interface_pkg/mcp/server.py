@@ -65,7 +65,7 @@ def get_tool_manager():
     global _TOOL_MANAGER
     if _TOOL_MANAGER is not None:
         return _TOOL_MANAGER
-    from core.execution.tool_manager import ToolManager
+    from core.execution_pkg.execution.tool_manager import ToolManager
     from core.config import Config
     config = Config()
     # V8.5.0: ToolManager expects workspace_path, not config

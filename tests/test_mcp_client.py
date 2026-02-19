@@ -476,7 +476,7 @@ class TestToolManagerMCPIntegration:
 
     def test_mcp_tools_loaded(self, registry_workspace):
         """MCP tools are loaded into ToolManager."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         manager = ToolManager(workspace_path=registry_workspace)
 
@@ -493,7 +493,7 @@ class TestToolManagerMCPIntegration:
 
     def test_execute_mcp_tool(self, registry_workspace):
         """Can execute MCP tool via ToolManager."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
         from dataclasses import dataclass
 
         @dataclass
@@ -529,7 +529,7 @@ class TestToolManagerMCPIntegration:
 
     def test_reload_mcp_tools(self, registry_workspace):
         """Can reload MCP tools."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         manager = ToolManager(workspace_path=registry_workspace)
 

@@ -19,7 +19,7 @@ from .base import BaseHandler, ToolResult
 
 # Optional import - DynamicToolManager may not be available
 try:
-    from core.execution.dynamic_tools import DynamicToolManager
+    from core.execution_pkg.execution.dynamic_tools import DynamicToolManager
     DYNAMIC_TOOLS_AVAILABLE = True
 except ImportError:
     DynamicToolManager = None  # type: ignore

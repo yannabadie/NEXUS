@@ -7,7 +7,7 @@ Provides configurable timeouts for tool execution with deadline tracking,
 timeout history, and statistics.
 
 Usage:
-    from core.execution.timeout_manager import get_timeout_manager
+    from core.execution_pkg.execution.timeout_manager import get_timeout_manager
 
     mgr = get_timeout_manager()
 

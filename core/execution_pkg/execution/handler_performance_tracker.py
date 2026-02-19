@@ -18,7 +18,7 @@ Thread-Safety:
     Uses threading.Lock for all mutations. Global singleton with double-checked locking.
 
 Usage:
-    from core.execution.handler_performance_tracker import get_handler_tracker
+    from core.execution_pkg.execution.handler_performance_tracker import get_handler_tracker
 
     tracker = get_handler_tracker()
 

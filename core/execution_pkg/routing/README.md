@@ -107,7 +107,7 @@ All defaults are overridable via Config object.
 ### Usage Examples
 
 ```python
-from core.routing import ModelRouter, TaskType
+from core.execution_pkg.routing import ModelRouter, TaskType
 
 # Static routing
 router = ModelRouter(config)

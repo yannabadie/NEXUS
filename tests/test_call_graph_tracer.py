@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.orchestration.call_graph_tracer import (
+from core.execution_pkg.orchestration.call_graph_tracer import (
     MAX_CALLS,
     CallGraphTracer,
     CallRecord,
@@ -296,7 +296,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_orchestration_package(self):
-        from core.orchestration import (
+        from core.execution_pkg.orchestration import (
             CallGraphTracer, CallRecord, EdgeMetrics, TracerStats,
             get_call_tracer, reset_call_tracer,
         )
@@ -306,5 +306,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.orchestration.call_graph_tracer import MAX_CALLS
+        from core.execution_pkg.orchestration.call_graph_tracer import MAX_CALLS
         assert MAX_CALLS == 50000

@@ -556,7 +556,7 @@ class TestToolRegistrySchemaPassthrough:
 
     def test_register_mcp_tool_with_schema(self):
         """Schema should be stored in tool metadata."""
-        from core.execution.tool_registry import ToolRegistry
+        from core.execution_pkg.execution.tool_registry import ToolRegistry
 
         registry = ToolRegistry()
         schema = {"type": "object", "properties": {"path": {"type": "string"}}}
@@ -575,7 +575,7 @@ class TestToolRegistrySchemaPassthrough:
 
     def test_register_mcp_tool_without_schema(self):
         """Should still work without schema (backward compat)."""
-        from core.execution.tool_registry import ToolRegistry
+        from core.execution_pkg.execution.tool_registry import ToolRegistry
 
         registry = ToolRegistry()
         registry.register_mcp_tool(
@@ -590,7 +590,7 @@ class TestToolRegistrySchemaPassthrough:
 
     def test_mcp_server_tracked(self):
         """Server name should be tracked."""
-        from core.execution.tool_registry import ToolRegistry
+        from core.execution_pkg.execution.tool_registry import ToolRegistry
 
         registry = ToolRegistry()
         registry.register_mcp_tool(

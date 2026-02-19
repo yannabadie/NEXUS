@@ -292,7 +292,7 @@ class MonitoredExecutionPhase:
             # V12.4: ToolObserver - start execution span
             _span = None
             try:
-                from core.execution.tool_observer import get_tool_observer
+                from core.execution_pkg.execution.tool_observer import get_tool_observer
                 _observer = get_tool_observer()
                 _span = _observer.start_span(step.name, agent_id=step.agent_id)
             except Exception:

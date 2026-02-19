@@ -7,7 +7,7 @@ Caches model routing decisions to avoid re-computation for repeated
 task patterns, and learns from execution outcomes to improve future routing.
 
 Usage:
-    from core.routing.decision_cache import get_decision_cache
+    from core.execution_pkg.routing.decision_cache import get_decision_cache
 
     cache = get_decision_cache()
 

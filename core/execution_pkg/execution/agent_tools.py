@@ -24,7 +24,7 @@ Architecture:
     └──────────────────────────────────────────────────────────────┘
 
 Usage:
-    from core.execution.agent_tools import AgentToolRegistry
+    from core.execution_pkg.execution.agent_tools import AgentToolRegistry
 
     registry = AgentToolRegistry(workspace_path, agent_pool, invoker)
     registry.refresh()
@@ -45,7 +45,7 @@ from dataclasses import dataclass, field
 
 if TYPE_CHECKING:
     from core.intelligence.swarm.agent_metrics import AgentPool, AgentProfile
-    from core.orchestration.agent_invoker import AgentInvoker
+    from core.execution_pkg.orchestration.agent_invoker import AgentInvoker
     from core.infrastructure.bootstrap.agent_loader import SpawnedAgentLoader
 
 
@@ -382,7 +382,7 @@ class AgentToolRegistry:
             Handler function compatible with ToolManager.tools dict
         """
         # Import here to avoid circular dependency
-        from core.execution.tool_manager import ToolResult
+        from core.execution_pkg.execution.tool_manager import ToolResult
 
         def handler(args: Dict) -> ToolResult:
             result = self.execute_agent_tool(tool_name, args)

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Callable
 import tiktoken
 
 from core.foundation.agents.unified_registry import get_registry
-from core.routing.model_router import TaskType
+from core.execution_pkg.routing.model_router import TaskType
 from core.fsm.states import OrchestratorState
 from core.intelligence.swarm import AgentInvocationResult
 from core.observability.telemetry import BudgetExceededError

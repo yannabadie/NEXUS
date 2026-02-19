@@ -19,33 +19,33 @@ Usage:
     from core.orchestration_v7 import OrchestratorV7
 
     # Direct module access:
-    from core.orchestration.context_builder import ContextBuilder
-    from core.orchestration.detectors import MutationDetector
-    from core.orchestration.agent_invoker import AgentInvoker
-    from core.orchestration.swarm_bridge import SwarmBridge
-    from core.orchestration.fsm_handlers import FSMHandlers
+    from core.execution_pkg.orchestration.context_builder import ContextBuilder
+    from core.execution_pkg.orchestration.detectors import MutationDetector
+    from core.execution_pkg.orchestration.agent_invoker import AgentInvoker
+    from core.execution_pkg.orchestration.swarm_bridge import SwarmBridge
+    from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
 """
 
 # Re-export OrchestratorV7 for backwards compatibility
 # Note: OrchestratorV7 remains in core/orchestration_v7.py for now
 # It uses the extracted modules via composition
 
-from core.orchestration.context_builder import ContextBuilder
-from core.orchestration.detectors import MutationDetector, ResponseDetector, get_mutation_detector
-from core.orchestration.agent_invoker import AgentInvoker
-from core.orchestration.swarm_bridge import SwarmBridge
+from core.execution_pkg.orchestration.context_builder import ContextBuilder
+from core.execution_pkg.orchestration.detectors import MutationDetector, ResponseDetector, get_mutation_detector
+from core.execution_pkg.orchestration.agent_invoker import AgentInvoker
+from core.execution_pkg.orchestration.swarm_bridge import SwarmBridge
 from core.fsm.handlers import FSMHandlers  # V12.4: Migrated to modular handlers
 # P5.1 Phase 1: GuardPipeline extraction
-from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
+from core.execution_pkg.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
 # P5.1 Phase 2: TaskRouter extraction
-from core.orchestration.task_router import TaskRouter, RouteDecision, RouteType
+from core.execution_pkg.orchestration.task_router import TaskRouter, RouteDecision, RouteType
 # P5.1 Phase 3: ResultHandler extraction
-from core.orchestration.result_handler import ResultHandler
+from core.execution_pkg.orchestration.result_handler import ResultHandler
 # P5.1 Phase 4: StateHandler extraction
-from core.orchestration.state_handler import StateHandler
+from core.execution_pkg.orchestration.state_handler import StateHandler
 
 # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
-from core.orchestration.sync_bridge import (
+from core.execution_pkg.orchestration.sync_bridge import (
     OrchestratorSyncBridge,
     SyncEvent,
     SyncEventType,
@@ -54,7 +54,7 @@ from core.orchestration.sync_bridge import (
 )
 
 # V12.4: Dependency Injector
-from core.orchestration.dependency_injector import (
+from core.execution_pkg.orchestration.dependency_injector import (
     DependencyInjector,
     Capability,
     AgentRequirements,
@@ -66,7 +66,7 @@ from core.orchestration.dependency_injector import (
 )
 
 # V12.4: Call Graph Tracer
-from core.orchestration.call_graph_tracer import (
+from core.execution_pkg.orchestration.call_graph_tracer import (
     CallGraphTracer,
     CallRecord,
     EdgeMetrics,

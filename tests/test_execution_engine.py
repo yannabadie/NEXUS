@@ -9,13 +9,13 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 
-from core.execution.execution_engine import (
+from core.execution_pkg.execution.execution_engine import (
     ExecutionEngine,
     get_execution_engine,
     reset_execution_engine,
 )
-from core.execution.handlers.base import ToolResult
-from core.execution.tool_registry import reset_tool_registry
+from core.execution_pkg.execution.handlers.base import ToolResult
+from core.execution_pkg.execution.tool_registry import reset_tool_registry
 
 
 @dataclass

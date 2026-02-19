@@ -307,7 +307,7 @@ def handlers(mock_orch):
         registry.is_claude.side_effect = lambda x: x and x.lower() in ("claude",)
         mock_get_reg.return_value = registry
 
-        from core.orchestration.fsm_handlers import FSMHandlers
+        from core.execution_pkg.orchestration.fsm_handlers import FSMHandlers
         h = FSMHandlers(mock_orch)
         h._registry = registry
         yield h
@@ -1791,13 +1791,13 @@ class TestDelegationMethods:
         assert result == "fallback context"
 
     def test_invoke_agent_delegates_to_invoker(self, handlers):
-        from core.routing.model_router import TaskType
+        from core.execution_pkg.routing.model_router import TaskType
         handlers._invoke_agent(TaskType.BRAINSTORM, "context")
         handlers._orch.agent_invoker.invoke_agent.assert_called_with(TaskType.BRAINSTORM, "context")
 
     def test_invoke_agent_fallback(self, handlers):
         """Falls back to orchestrator if no agent_invoker."""
-        from core.routing.model_router import TaskType
+        from core.execution_pkg.routing.model_router import TaskType
         del handlers._orch.agent_invoker
         handlers._orch._invoke_agent = MagicMock(return_value={"content": "ok"})
         handlers._invoke_agent(TaskType.BRAINSTORM, "context")
@@ -1862,7 +1862,7 @@ class TestEdgeCases:
         }
         # The source has a bug: line 344 uses `logger` instead of `self._logger`.
         # Patch the module-level name to avoid NameError.
-        import core.orchestration.fsm_handlers as fh_module
+        import core.execution_pkg.orchestration.fsm_handlers as fh_module
         with patch.object(fh_module, "logger", create=True):
             result = handlers.handle_validating_cfl()
         # "tâche terminée" triggers task_finished detection

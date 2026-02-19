@@ -11,7 +11,7 @@ from datetime import datetime
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from tempfile import TemporaryDirectory
 
-from core.orchestration.sync_bridge import (
+from core.execution_pkg.orchestration.sync_bridge import (
     OrchestratorSyncBridge,
     SyncEvent,
     SyncEventType,

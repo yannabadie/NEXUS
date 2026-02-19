@@ -20,7 +20,7 @@ import time
 
 import pytest
 
-from core.execution.task_scheduler import (
+from core.execution_pkg.execution.task_scheduler import (
     TaskScheduler,
     ScheduledTask,
     Priority,
@@ -493,11 +493,11 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import TaskScheduler, ScheduledTask, Priority, TaskStatus
+        from core.execution_pkg.execution import TaskScheduler, ScheduledTask, Priority, TaskStatus
         assert all([TaskScheduler, ScheduledTask, Priority, TaskStatus])
 
     def test_from_module(self):
-        from core.execution.task_scheduler import (
+        from core.execution_pkg.execution.task_scheduler import (
             TaskScheduler,
             ScheduledTask,
             Priority,

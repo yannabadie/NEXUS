@@ -7,7 +7,7 @@ Provides configurable retry logic with exponential backoff, jitter,
 and retry predicates for determining which errors are retryable.
 
 Usage:
-    from core.execution.retry_handler import get_retry_handler
+    from core.execution_pkg.execution.retry_handler import get_retry_handler
 
     handler = get_retry_handler()
 

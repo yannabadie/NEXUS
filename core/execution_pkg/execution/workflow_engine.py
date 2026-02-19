@@ -14,7 +14,7 @@ Complements the TaskScheduler (which manages individual task priority)
 by orchestrating sequences of dependent steps as a unified pipeline.
 
 Usage:
-    from core.execution.workflow_engine import WorkflowEngine, WorkflowStep
+    from core.execution_pkg.execution.workflow_engine import WorkflowEngine, WorkflowStep
 
     engine = WorkflowEngine()
 

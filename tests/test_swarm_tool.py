@@ -79,14 +79,14 @@ class TestSwarmToolRegistration:
 
     def test_swarm_delegate_in_tools_dict(self, tmp_path):
         """swarm_delegate should be registered in tools dict."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         assert "swarm_delegate" in tm.tools
 
     def test_swarm_delegate_handler_has_execute(self, tmp_path):
         """swarm_delegate handler should have execute method."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         handler = tm.tools["swarm_delegate"]
@@ -95,14 +95,14 @@ class TestSwarmToolRegistration:
 
     def test_swarm_bridge_attribute_exists(self, tmp_path):
         """ToolManager should have swarm_bridge attribute."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         assert hasattr(tm, "swarm_bridge")
 
     def test_swarm_bridge_initially_none(self, tmp_path):
         """swarm_bridge should be None initially."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         assert tm.swarm_bridge is None
@@ -117,7 +117,7 @@ class TestSwarmToolErrorHandling:
 
     def test_missing_swarm_bridge_returns_error(self, tmp_path):
         """Should return ERROR if SwarmBridge not configured."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         result = tm.tools["swarm_delegate"].execute({"task": "test task", "mode": "parallel"})
@@ -127,7 +127,7 @@ class TestSwarmToolErrorHandling:
 
     def test_missing_task_returns_error(self, tmp_path):
         """Should return ERROR if task argument is missing."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = MagicMock()  # Mock bridge to pass first check
@@ -139,7 +139,7 @@ class TestSwarmToolErrorHandling:
 
     def test_empty_task_returns_error(self, tmp_path):
         """Should return ERROR if task is empty string."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = MagicMock()
@@ -151,7 +151,7 @@ class TestSwarmToolErrorHandling:
 
     def test_invalid_mode_returns_error(self, tmp_path):
         """Should return ERROR if mode is invalid."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = MagicMock()
@@ -195,7 +195,7 @@ class TestSwarmToolDelegation:
 
     def test_successful_delegation_returns_success(self, tmp_path, mock_swarm_bridge):
         """Successful delegation should return SUCCESS status."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
         tm.swarm_bridge = mock_swarm_bridge
@@ -234,7 +234,7 @@ class TestSwarmToolFeedbackLoop:
 
     def test_success_triggers_inject(self, tmp_path):
         """On success, inject_results_into_context should be called."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -279,7 +279,7 @@ class TestSwarmToolGuardrails:
 
     def test_phase_passed_to_delegate(self, tmp_path):
         """Phase should be passed to delegate() for validation."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -321,7 +321,7 @@ class TestSwarmToolFallbackReporting:
 
     def test_fallback_chain_in_output(self, tmp_path):
         """Fallback chain should be reported in output when multiple modes tried."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -370,7 +370,7 @@ class TestSwarmToolContextCategories:
 
     def test_context_categories_passed_to_delegate(self, tmp_path):
         """context_categories should be passed to delegate()."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -410,7 +410,7 @@ class TestSwarmToolDefaultMode:
 
     def test_default_mode_is_specialist(self, tmp_path):
         """Default mode should be 'specialist' when not specified."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -452,7 +452,7 @@ class TestSwarmToolIntegration:
 
     def test_tool_result_has_correct_tool_name(self, tmp_path):
         """ToolResult should have tool_name='swarm_delegate'."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 
@@ -462,7 +462,7 @@ class TestSwarmToolIntegration:
 
     def test_failure_diagnostics_in_error(self, tmp_path):
         """failure_diagnostics should be in error field on failure."""
-        from core.execution.tool_manager import ToolManager
+        from core.execution_pkg.execution.tool_manager import ToolManager
 
         tm = ToolManager(tmp_path)
 

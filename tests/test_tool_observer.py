@@ -21,7 +21,7 @@ Validates:
 
 import pytest
 
-from core.execution.tool_observer import (
+from core.execution_pkg.execution.tool_observer import (
     MAX_SPANS,
     SLOW_THRESHOLD_MS,
     ObservationReport,
@@ -409,7 +409,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             ToolObserver, ToolSpan, ToolMetric,
             ObservationReport, ToolObserverStats,
             get_tool_observer, reset_tool_observer,
@@ -421,6 +421,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.execution.tool_observer import MAX_SPANS, SLOW_THRESHOLD_MS
+        from core.execution_pkg.execution.tool_observer import MAX_SPANS, SLOW_THRESHOLD_MS
         assert MAX_SPANS == 50000
         assert SLOW_THRESHOLD_MS == 5000.0

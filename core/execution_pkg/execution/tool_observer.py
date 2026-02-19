@@ -8,7 +8,7 @@ and per-tool aggregated metrics.  Provides reporting on slowest tools,
 most-failing tools, and overall success rates.
 
 Usage:
-    from core.execution.tool_observer import get_tool_observer
+    from core.execution_pkg.execution.tool_observer import get_tool_observer
 
     obs = get_tool_observer()
 

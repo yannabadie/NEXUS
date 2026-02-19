@@ -11,7 +11,7 @@ This module handles format detection operations:
 Used to signal end of EVOLUTION_BRAINSTORM when agents produce final output.
 
 Usage:
-    from core.orchestration.detectors import MutationDetector
+    from core.execution_pkg.orchestration.detectors import MutationDetector
 
     detector = MutationDetector()
     if detector.detect_mutation_complete(content):

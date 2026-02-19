@@ -18,7 +18,7 @@ Validates:
 import time
 import pytest
 
-from core.execution.timeout_manager import (
+from core.execution_pkg.execution.timeout_manager import (
     DEFAULT_TIMEOUT,
     MAX_TIMEOUT,
     Deadline,
@@ -391,7 +391,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             TimeoutManager, TimeoutConfig, Deadline,
             TimeoutEvent, TimeoutStats,
             get_timeout_manager, reset_timeout_manager,
@@ -403,7 +403,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.execution.timeout_manager import (
+        from core.execution_pkg.execution.timeout_manager import (
             TimeoutManager, DEFAULT_TIMEOUT, MAX_TIMEOUT,
         )
         assert DEFAULT_TIMEOUT == 30.0

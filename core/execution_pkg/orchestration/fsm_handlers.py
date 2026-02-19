@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 from core.foundation.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
-from core.routing.model_router import TaskType
+from core.execution_pkg.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
 from core.intelligence.swarm import TaskComplexity
 from core.security_pkg.governance.sandbox_policy import SandboxPolicy
@@ -978,7 +978,7 @@ class FSMHandlers:
         Returns:
             Result dict with agent output
         """
-        from core.routing.model_router import TaskType
+        from core.execution_pkg.routing.model_router import TaskType
 
         # Select best agent based on fit scores
         if task_analysis.recommended_lead == "gemini":
@@ -1341,7 +1341,7 @@ class FSMHandlers:
         Returns:
             Tuple of (corrected_content, score, should_escalate)
         """
-        from core.routing.model_router import TaskType
+        from core.execution_pkg.routing.model_router import TaskType
 
         # Build reflection prompt
         reflection_prompt = f"""## Self-Reflection Task

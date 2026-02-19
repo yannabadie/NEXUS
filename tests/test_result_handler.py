@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.orchestration.result_handler import ResultHandler
+from core.execution_pkg.orchestration.result_handler import ResultHandler
 
 
 class TestResultHandler:

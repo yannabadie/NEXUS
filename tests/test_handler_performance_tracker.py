@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.execution.handler_performance_tracker import (
+from core.execution_pkg.execution.handler_performance_tracker import (
     MAX_EXECUTIONS,
     HandlerPerformanceTracker,
     HandlerExecution,
@@ -282,7 +282,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             HandlerPerformanceTracker, HandlerExecution,
             HandlerTypeMetrics, HandlerTrackerStats,
             get_handler_tracker, reset_handler_tracker,
@@ -294,5 +294,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.execution.handler_performance_tracker import MAX_EXECUTIONS
+        from core.execution_pkg.execution.handler_performance_tracker import MAX_EXECUTIONS
         assert MAX_EXECUTIONS == 50000

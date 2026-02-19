@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.execution.retry_handler import (
+from core.execution_pkg.execution.retry_handler import (
     DEFAULT_BACKOFF_FACTOR,
     DEFAULT_BASE_DELAY,
     DEFAULT_MAX_ATTEMPTS,
@@ -392,7 +392,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             RetryHandler, RetryPolicy, RetryResult,
             RetryAttempt, RetryStats,
             get_retry_handler, reset_retry_handler,
@@ -404,7 +404,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.execution.retry_handler import (
+        from core.execution_pkg.execution.retry_handler import (
             RetryHandler, DEFAULT_MAX_ATTEMPTS,
             DEFAULT_BASE_DELAY, DEFAULT_MAX_DELAY,
         )

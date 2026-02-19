@@ -7,7 +7,7 @@ NEXUS V12.4 Security - Comprehensive SSRF blocklist tests.
 import pytest
 from pathlib import Path
 
-from core.execution.handlers.web_handlers import WebFetchHandler, ToolResult
+from core.execution_pkg.execution.handlers.web_handlers import WebFetchHandler, ToolResult
 
 
 @pytest.fixture

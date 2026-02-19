@@ -18,11 +18,11 @@ from core.fsm.plan_health import PlanHealthMonitor
 from core.fsm.panic_system import PanicSystem
 from core.fsm.context import TaskExecutionContext
 from core.drivers.async_factory import create_driver_factory, AsyncDriverFactory
-from core.routing.model_router import ModelRouter, TaskType
+from core.execution_pkg.routing.model_router import ModelRouter, TaskType
 from core.synapse.protocol_v7 import LightMessageV7, HeavyMessageV7, ToolUse
 from core.synapse.memory_v7 import MemoryManagerV7
-from core.execution.tool_manager import ToolManager
-from core.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
+from core.execution_pkg.execution.tool_manager import ToolManager
+from core.execution_pkg.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
 from core.observability.logging import init_logger, get_logger
 from core.intelligence.swarm import AgentPool, AgentInvocationResult, create_default_pool
 from core.infrastructure.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
@@ -38,7 +38,7 @@ from core.observability.telemetry import TelemetryCollector, BudgetExceededError
 from core.security_pkg.governance.sandbox_policy import SandboxPolicy
 from core.memory_pkg.memory import get_auto_memory, ProjectMemory  # V7.5 HIVE MIND + V7.8 Phase 10c
 from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
-from core.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge  # V7.8 Phase 14c.2
+from core.execution_pkg.orchestration import ContextBuilder, MutationDetector, AgentInvoker, SwarmBridge  # V7.8 Phase 14c.2
 from core.fsm.handlers import FSMHandlers  # V12.4 P1.3: Modular handlers
 from core.hive_mind.swarm_bridge import SwarmBridge as HiveMindSwarmBridge  # V8.3.1: For swarm_delegate tool
 from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Centralized agent registry
@@ -58,7 +58,7 @@ except ImportError:
     runtime_integrity_check = None
 
 # P5.1 Phase 1: GuardPipeline extraction (replaces inline INPUT_GUARD calls)
-from core.orchestration.guard_pipeline import GuardPipeline
+from core.execution_pkg.orchestration.guard_pipeline import GuardPipeline
 
 
 class OrchestratorV7:
@@ -251,19 +251,19 @@ class OrchestratorV7:
         self.guard_pipeline = GuardPipeline()
 
         # P5.1 Phase 2: TaskRouter for routing logic
-        from core.orchestration.task_router import TaskRouter
+        from core.execution_pkg.orchestration.task_router import TaskRouter
         self.task_router = TaskRouter()
 
         # P5.1 Phase 3: ResultHandler for result creation and validation
-        from core.orchestration.result_handler import ResultHandler
+        from core.execution_pkg.orchestration.result_handler import ResultHandler
         self.result_handler = ResultHandler(self)
 
         # P5.1 Phase 4: StateHandler for FSM state management
-        from core.orchestration.state_handler import StateHandler
+        from core.execution_pkg.orchestration.state_handler import StateHandler
         self.state_handler = StateHandler(self)
 
         # V9.4 ISSUE-003: Sync bridge for HiveMind/Swarm state synchronization
-        from core.orchestration.sync_bridge import get_sync_bridge
+        from core.execution_pkg.orchestration.sync_bridge import get_sync_bridge
         self._sync_bridge = get_sync_bridge()
         self._sync_bridge._workspace = self.workspace_path
         # Wire up swarm session manager if available

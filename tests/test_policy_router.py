@@ -14,7 +14,7 @@ Validates:
 
 import pytest
 
-from core.routing.model_router import (
+from core.execution_pkg.routing.model_router import (
     ModelRouter,
     TaskType,
     RoutingDecision,
@@ -269,13 +269,13 @@ class TestModuleExports:
     """Test that new types are exported from routing module."""
 
     def test_routing_policy_importable(self):
-        from core.routing import RoutingPolicy
+        from core.execution_pkg.routing import RoutingPolicy
         assert RoutingPolicy.BALANCED is not None
 
     def test_model_tier_importable(self):
-        from core.routing import ModelTier
+        from core.execution_pkg.routing import ModelTier
         assert ModelTier.LIGHT is not None
 
     def test_routing_decision_importable(self):
-        from core.routing import RoutingDecision
+        from core.execution_pkg.routing import RoutingDecision
         assert RoutingDecision is not None

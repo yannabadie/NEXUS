@@ -14,7 +14,7 @@ Priority Scoring:
 - Dependency penalty (blocked tasks score 0)
 
 Usage:
-    from core.execution.task_scheduler import TaskScheduler, ScheduledTask, Priority
+    from core.execution_pkg.execution.task_scheduler import TaskScheduler, ScheduledTask, Priority
 
     scheduler = TaskScheduler()
     scheduler.submit("fix_bug", priority=Priority.HIGH, deadline_seconds=300)

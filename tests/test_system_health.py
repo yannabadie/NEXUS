@@ -216,7 +216,7 @@ class TestV95Integration:
         # This tests that all Sprint 1-4 components integrate
         from core.constants import CONSTANTS_VERSION
         from core.foundation.async_primitives import SafeTaskManager, EventBus
-        from core.execution import ToolRegistry, ExecutionEngine
+        from core.execution_pkg.execution import ToolRegistry, ExecutionEngine
         from core.infrastructure.resilience import CircuitBreaker, SystemHealth
 
         # All imports succeeded

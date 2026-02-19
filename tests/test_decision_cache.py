@@ -20,7 +20,7 @@ Validates:
 import time
 import pytest
 
-from core.routing.decision_cache import (
+from core.execution_pkg.routing.decision_cache import (
     DEFAULT_MAX_SIZE,
     DEFAULT_TTL,
     LEARNING_RATE,
@@ -453,7 +453,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
-        from core.routing import (
+        from core.execution_pkg.routing import (
             RoutingDecisionCache, CachedDecision,
             DecisionOutcome, DecisionCacheStats,
             get_decision_cache, reset_decision_cache,
@@ -465,7 +465,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.routing.decision_cache import (
+        from core.execution_pkg.routing.decision_cache import (
             DEFAULT_MAX_SIZE, DEFAULT_TTL, LEARNING_RATE, MAX_CACHE_SIZE,
         )
         assert DEFAULT_MAX_SIZE == 500

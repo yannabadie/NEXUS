@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
+from core.execution_pkg.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
 from core.fsm.states import OrchestratorState
 from core.security_pkg.security import ThreatLevel
 

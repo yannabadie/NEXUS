@@ -17,7 +17,7 @@ import pytest
 from core.drivers.async_factory import AsyncDriverFactory
 from core.drivers.async_claude_driver import AsyncClaudeDriver
 from core.drivers.async_gemini_driver import AsyncGeminiDriver
-from core.routing.model_router import ModelRouter, TaskType
+from core.execution_pkg.routing.model_router import ModelRouter, TaskType
 
 
 # =============================================================================

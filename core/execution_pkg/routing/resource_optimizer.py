@@ -7,7 +7,7 @@ Optimizes token budgets, latency, and cost across models dynamically.
 Tracks actual usage vs estimates and learns from patterns.
 
 Usage:
-    from core.routing.resource_optimizer import get_resource_optimizer
+    from core.execution_pkg.routing.resource_optimizer import get_resource_optimizer
 
     optimizer = get_resource_optimizer()
 

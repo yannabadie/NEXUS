@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.execution.reliability_pattern_tracker import (
+from core.execution_pkg.execution.reliability_pattern_tracker import (
     MAX_ATTEMPTS,
     ReliabilityPatternTracker,
     RetryAttempt,
@@ -296,7 +296,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_execution_package(self):
-        from core.execution import (
+        from core.execution_pkg.execution import (
             ReliabilityPatternTracker, ReliabilityRetryAttempt,
             ToolReliabilityProfile, ReliabilityStats,
             get_reliability_tracker, reset_reliability_tracker,
@@ -308,5 +308,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.execution.reliability_pattern_tracker import MAX_ATTEMPTS
+        from core.execution_pkg.execution.reliability_pattern_tracker import MAX_ATTEMPTS
         assert MAX_ATTEMPTS == 50000

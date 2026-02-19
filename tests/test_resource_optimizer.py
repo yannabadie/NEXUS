@@ -16,7 +16,7 @@ Validates:
 
 import pytest
 
-from core.routing.resource_optimizer import (
+from core.execution_pkg.routing.resource_optimizer import (
     ModelSpec,
     OptimizationDecision,
     OptimizationReport,
@@ -389,7 +389,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_routing_package(self):
-        from core.routing import (
+        from core.execution_pkg.routing import (
             ResourceOptimizer, ModelSpec, OptimizationDecision,
             OptimizationReport, UsageRecord,
             get_resource_optimizer, reset_resource_optimizer,
@@ -401,7 +401,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.routing.resource_optimizer import (
+        from core.execution_pkg.routing.resource_optimizer import (
             ResourceOptimizer, ModelSpec, OptimizationDecision,
         )
         assert all([ResourceOptimizer, ModelSpec, OptimizationDecision])

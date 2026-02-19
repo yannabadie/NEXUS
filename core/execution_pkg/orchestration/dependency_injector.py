@@ -8,7 +8,7 @@ dependencies, and detects conflicts between agents requesting exclusive
 resources.
 
 Usage:
-    from core.orchestration.dependency_injector import get_injector
+    from core.execution_pkg.orchestration.dependency_injector import get_injector
 
     injector = get_injector()
 
