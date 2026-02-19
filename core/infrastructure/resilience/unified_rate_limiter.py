@@ -11,20 +11,20 @@ Eliminates ~560 lines of duplicate code while preserving all functionality.
 
 Usage:
     # Provider-scoped limiting (Gemini, Claude, etc.)
-    from core.resilience.unified_rate_limiter import ProviderRateLimiter
+    from core.infrastructure.resilience.unified_rate_limiter import ProviderRateLimiter
     limiter = ProviderRateLimiter()
     if limiter.acquire("gemini", estimated_tokens=500):
         # make API call
 
     # Security limiting (per-user, per-IP, etc.)
-    from core.resilience.unified_rate_limiter import SecurityRateLimiter
+    from core.infrastructure.resilience.unified_rate_limiter import SecurityRateLimiter
     limiter = SecurityRateLimiter()
     limiter.configure("api", tokens_per_second=10, bucket_size=20)
     if limiter.allow("api", "user-123"):
         # allow request
 
     # API call limiting (async/sync support)
-    from core.resilience.unified_rate_limiter import APIRateLimiter
+    from core.infrastructure.resilience.unified_rate_limiter import APIRateLimiter
     limiter = APIRateLimiter(requests_per_minute=60, provider="gemini")
     await limiter.acquire_async()  # async
     limiter.acquire_sync()  # sync

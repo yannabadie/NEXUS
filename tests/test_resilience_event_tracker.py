@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.resilience.resilience_event_tracker import (
+from core.infrastructure.resilience.resilience_event_tracker import (
     MAX_EVENTS,
     EVENT_TYPES,
     ResilienceEventTracker,
@@ -297,7 +297,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
-        from core.resilience import (
+        from core.infrastructure.resilience import (
             ResilienceEventTracker, ResilienceEvent, EventTypeMetrics,
             ResilienceTrackerStats,
             get_resilience_tracker, reset_resilience_tracker,
@@ -309,6 +309,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.resilience.resilience_event_tracker import MAX_EVENTS, EVENT_TYPES
+        from core.infrastructure.resilience.resilience_event_tracker import MAX_EVENTS, EVENT_TYPES
         assert MAX_EVENTS == 50000
         assert "circuit_break" in EVENT_TYPES

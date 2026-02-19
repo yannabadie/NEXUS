@@ -9,14 +9,14 @@ Modules:
 - system_health: Unified health monitoring for V9.5 components
 """
 
-from core.resilience.circuit_breaker import (
+from core.infrastructure.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
     CircuitOpenError,
     get_circuit_breaker
 )
 
-from core.resilience.system_health import (
+from core.infrastructure.resilience.system_health import (
     SystemHealth,
     HealthStatus,
     ComponentHealth,
@@ -25,14 +25,14 @@ from core.resilience.system_health import (
     reset_system_health,
 )
 
-from core.resilience.rate_limiter import (
+from core.infrastructure.resilience.rate_limiter import (
     RateLimiter,
     ProviderLimits,
     TokenBucket,
 )
 
 # V12.4: Checkpoint Manager
-from core.resilience.checkpoint_manager import (
+from core.infrastructure.resilience.checkpoint_manager import (
     CheckpointManager,
     Checkpoint,
     CheckpointInfo,
@@ -42,7 +42,7 @@ from core.resilience.checkpoint_manager import (
 )
 
 # V12.4: Request Deduplicator
-from core.resilience.request_deduplicator import (
+from core.infrastructure.resilience.request_deduplicator import (
     RequestDeduplicator,
     DeduplicationEntry,
     CheckResult,
@@ -52,7 +52,7 @@ from core.resilience.request_deduplicator import (
 )
 
 # V12.4 COGNITIVE BOOST: Resilience Event Tracker
-from core.resilience.resilience_event_tracker import (
+from core.infrastructure.resilience.resilience_event_tracker import (
     ResilienceEventTracker,
     ResilienceEvent,
     EventTypeMetrics,
@@ -111,7 +111,7 @@ __all__ = [
 ]
 
 # V12.4 COGNITIVE BOOST: Runtime Waste Filter (arxiv:2510.26585)
-from core.resilience.runtime_waste_filter import (
+from core.infrastructure.resilience.runtime_waste_filter import (
     RuntimeWasteFilter,
     ExchangeRecord,
     Intervention,

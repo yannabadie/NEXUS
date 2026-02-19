@@ -216,13 +216,13 @@ def _patched_execute(phase, step_mock):
 def _reset_deduplicator():
     """Reset the deduplicator singleton before each test to prevent cross-test pollution."""
     try:
-        from core.resilience.request_deduplicator import reset_deduplicator
+        from core.infrastructure.resilience.request_deduplicator import reset_deduplicator
         reset_deduplicator()
     except ImportError:
         pass
     yield
     try:
-        from core.resilience.request_deduplicator import reset_deduplicator
+        from core.infrastructure.resilience.request_deduplicator import reset_deduplicator
         reset_deduplicator()
     except ImportError:
         pass

@@ -7,7 +7,7 @@ Creates checkpoints at phase boundaries for long-running tasks.
 Enables pause/resume, rewind-to-checkpoint, and replay for debugging.
 
 Usage:
-    from core.resilience.checkpoint_manager import get_checkpoint_manager
+    from core.infrastructure.resilience.checkpoint_manager import get_checkpoint_manager
 
     mgr = get_checkpoint_manager()
 

@@ -260,7 +260,7 @@ class MonitoredExecutionPhase:
 
             # V12.4: Request deduplication - skip if identical step already completed
             try:
-                from core.resilience.request_deduplicator import get_deduplicator
+                from core.infrastructure.resilience.request_deduplicator import get_deduplicator
                 _dedup = get_deduplicator()
                 dedup_check = _dedup.check("execution_step", {
                     "step_name": step.name, "agent": step.agent_id, "action": step.action[:200],

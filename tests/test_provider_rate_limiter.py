@@ -19,7 +19,7 @@ import time
 
 import pytest
 
-from core.resilience.rate_limiter import (
+from core.infrastructure.resilience.rate_limiter import (
     RateLimiter,
     ProviderLimits,
     ProviderState,
@@ -404,11 +404,11 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
-        from core.resilience import RateLimiter, ProviderLimits, TokenBucket
+        from core.infrastructure.resilience import RateLimiter, ProviderLimits, TokenBucket
         assert all([RateLimiter, ProviderLimits, TokenBucket])
 
     def test_from_module(self):
-        from core.resilience.rate_limiter import (
+        from core.infrastructure.resilience.rate_limiter import (
             RateLimiter,
             ProviderLimits,
             ProviderState,

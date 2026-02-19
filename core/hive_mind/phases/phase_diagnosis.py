@@ -383,7 +383,7 @@ class FailureDiagnosisPhase:
 
         # V12.4: SystemHealth check - enrich diagnosis with system-level context
         try:
-            from core.resilience.system_health import get_system_health
+            from core.infrastructure.resilience.system_health import get_system_health
             health = get_system_health()
             report = await health.check_all()
             if report.overall_status.value != "healthy":

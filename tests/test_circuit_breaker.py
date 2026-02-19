@@ -9,7 +9,7 @@ import asyncio
 import time
 from unittest.mock import Mock, AsyncMock
 
-from core.resilience.circuit_breaker import (
+from core.infrastructure.resilience.circuit_breaker import (
     CircuitBreaker,
     CircuitState,
     CircuitOpenError,

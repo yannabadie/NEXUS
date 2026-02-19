@@ -431,7 +431,7 @@ class TrueHiveMind:
             # V12.4: Checkpoint manager - lightweight checkpoints per phase
             _ckpt_mgr = None
             try:
-                from core.resilience.checkpoint_manager import get_checkpoint_manager
+                from core.infrastructure.resilience.checkpoint_manager import get_checkpoint_manager
                 _ckpt_mgr = get_checkpoint_manager()
             except Exception:
                 pass
@@ -439,7 +439,7 @@ class TrueHiveMind:
             # V12.4: Resilience event tracker for retry/failure observability
             _resilience = None
             try:
-                from core.resilience.resilience_event_tracker import get_resilience_tracker
+                from core.infrastructure.resilience.resilience_event_tracker import get_resilience_tracker
                 _resilience = get_resilience_tracker()
             except Exception:
                 pass

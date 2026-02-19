@@ -298,7 +298,7 @@ class SystemHealth:
     def _check_circuit_breaker(self) -> ComponentHealth:
         """Check CircuitBreaker."""
         try:
-            from core.resilience.circuit_breaker import (
+            from core.infrastructure.resilience.circuit_breaker import (
                 get_circuit_breaker,
                 CircuitState,
             )

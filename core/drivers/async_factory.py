@@ -42,7 +42,7 @@ from .response_cache import ResponseCache
 from .driver_health_monitor import get_health_monitor
 from .failover_manager import get_failover_manager
 from core.async_primitives.process_handle import get_process_registry
-from core.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
+from core.infrastructure.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
 from core.observability.telemetry.budget_tracker import get_budget_tracker
 
 if TYPE_CHECKING:
@@ -384,7 +384,7 @@ class AsyncDriverFactory:
 
         if self._driver_mode == "auto" and self._anthropic_api_key:
             # Skip SDK if circuit breaker is open for claude
-            from core.resilience.circuit_breaker import CircuitState
+            from core.infrastructure.resilience.circuit_breaker import CircuitState
             if self._circuit_breaker.get_provider_state("claude") == CircuitState.OPEN:
                 logger.warning("Claude SDK circuit open, using CLI fallback")
                 return self.get_claude_driver(model)
@@ -408,7 +408,7 @@ class AsyncDriverFactory:
 
         if self._driver_mode == "auto" and self._google_api_key:
             # Skip SDK if circuit breaker is open for gemini
-            from core.resilience.circuit_breaker import CircuitState
+            from core.infrastructure.resilience.circuit_breaker import CircuitState
             if self._circuit_breaker.get_provider_state("gemini") == CircuitState.OPEN:
                 logger.warning("Gemini SDK circuit open, using CLI fallback")
                 return self.get_gemini_driver(model)

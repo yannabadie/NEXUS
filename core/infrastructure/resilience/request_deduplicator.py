@@ -8,7 +8,7 @@ when operations are retried after failures. Uses hash-based fingerprinting
 with TTL-based expiration.
 
 Usage:
-    from core.resilience.request_deduplicator import get_deduplicator
+    from core.infrastructure.resilience.request_deduplicator import get_deduplicator
 
     dedup = get_deduplicator()
 

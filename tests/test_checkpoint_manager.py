@@ -21,7 +21,7 @@ import tempfile
 
 import pytest
 
-from core.resilience.checkpoint_manager import (
+from core.infrastructure.resilience.checkpoint_manager import (
     Checkpoint,
     CheckpointInfo,
     CheckpointManager,
@@ -504,7 +504,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
-        from core.resilience import (
+        from core.infrastructure.resilience import (
             CheckpointManager, Checkpoint, CheckpointInfo, RestoreResult,
             get_checkpoint_manager, reset_checkpoint_manager,
         )
@@ -514,7 +514,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.resilience.checkpoint_manager import (
+        from core.infrastructure.resilience.checkpoint_manager import (
             CheckpointManager, Checkpoint, CheckpointInfo, RestoreResult,
             get_checkpoint_manager, reset_checkpoint_manager,
             MAX_CHECKPOINTS_PER_SESSION,

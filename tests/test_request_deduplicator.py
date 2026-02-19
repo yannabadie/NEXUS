@@ -20,7 +20,7 @@ import time
 
 import pytest
 
-from core.resilience.request_deduplicator import (
+from core.infrastructure.resilience.request_deduplicator import (
     CheckResult,
     DeduplicationEntry,
     DeduplicationStats,
@@ -374,7 +374,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_resilience_package(self):
-        from core.resilience import (
+        from core.infrastructure.resilience import (
             RequestDeduplicator, DeduplicationEntry, CheckResult,
             DeduplicationStats, get_deduplicator, reset_deduplicator,
         )
@@ -384,7 +384,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.resilience.request_deduplicator import (
+        from core.infrastructure.resilience.request_deduplicator import (
             RequestDeduplicator, DeduplicationEntry, CheckResult,
             DeduplicationStats, DEFAULT_TTL_SECONDS, MAX_ENTRIES,
         )

@@ -29,7 +29,7 @@ import time
 
 import pytest
 
-from core.resilience.runtime_waste_filter import (
+from core.infrastructure.resilience.runtime_waste_filter import (
     COST_WARNING_THRESHOLD,
     DIVERGENCE_THRESHOLD,
     LOOP_THRESHOLD,

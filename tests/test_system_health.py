@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from pathlib import Path
 
-from core.resilience.system_health import (
+from core.infrastructure.resilience.system_health import (
     SystemHealth,
     HealthStatus,
     ComponentHealth,
@@ -217,7 +217,7 @@ class TestV95Integration:
         from core.constants import CONSTANTS_VERSION
         from core.async_primitives import SafeTaskManager, EventBus
         from core.execution import ToolRegistry, ExecutionEngine
-        from core.resilience import CircuitBreaker, SystemHealth
+        from core.infrastructure.resilience import CircuitBreaker, SystemHealth
 
         # All imports succeeded
         # V11.4: Accept any 9.x or higher version

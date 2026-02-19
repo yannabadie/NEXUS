@@ -7,12 +7,12 @@ All security rate limiting functionality has been consolidated into:
 This file re-exports SecurityRateLimiter for backward compatibility.
 
 DEPRECATED: This file will be removed in V13.0. Update imports to:
-  from core.resilience.unified_rate_limiter import SecurityRateLimiter
+  from core.infrastructure.resilience.unified_rate_limiter import SecurityRateLimiter
 
 Sprint 1 Consolidation: Eliminated 365 lines of duplicate token bucket code.
 """
 
-from core.resilience.unified_rate_limiter import (
+from core.infrastructure.resilience.unified_rate_limiter import (
     SecurityRateLimiter as RateLimiter,
     get_security_rate_limiter as get_rate_limiter,
     reset_security_rate_limiter as reset_rate_limiter,
