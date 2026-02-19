@@ -24,7 +24,7 @@ class TestEmbeddingEngineSingleton:
 
     def test_singleton_same_object(self):
         """Multiple calls to get_embedding_engine return same instance."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine,
             EmbeddingEngine
@@ -46,7 +46,7 @@ class TestEmbeddingEngineSingleton:
 
     def test_singleton_via_class(self):
         """EmbeddingEngine() also returns singleton."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             EmbeddingEngine,
             reset_embedding_engine
         )
@@ -63,7 +63,7 @@ class TestEmbeddingEngineSingleton:
 
     def test_properties_before_load(self):
         """Properties work before model is loaded."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )
@@ -85,7 +85,7 @@ class TestEmbeddingEngineEncoding:
     @pytest.fixture
     def engine(self):
         """Get a fresh engine instance."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )
@@ -142,8 +142,8 @@ class TestIsolatedStorage:
 
     def test_dense_backend_accepts_engine(self):
         """DenseBackend can accept an injected engine."""
-        from core.memory.backends.dense import DenseBackend
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.backends.dense import DenseBackend
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )
@@ -166,7 +166,7 @@ class TestIsolatedStorage:
 
     def test_different_storage_paths(self):
         """Different tenants get different storage paths."""
-        from core.memory.project_memory import ProjectMemory
+        from core.memory_pkg.memory.project_memory import ProjectMemory
         from pathlib import Path
         import tempfile
 
@@ -194,7 +194,7 @@ class TestMemorySingletonMigration:
     def test_auto_memory_has_prism_pattern(self):
         """AutoMemory.get_auto_memory includes PRISM pattern."""
         import inspect
-        from core.memory.auto_memory import get_auto_memory
+        from core.memory_pkg.memory.auto_memory import get_auto_memory
 
         source = inspect.getsource(get_auto_memory)
 
@@ -205,7 +205,7 @@ class TestMemorySingletonMigration:
     def test_success_memory_has_prism_pattern(self):
         """SuccessMemory.get_success_memory includes PRISM pattern."""
         import inspect
-        from core.memory import get_success_memory  # V2 via backward compat alias
+        from core.memory_pkg.memory import get_success_memory  # V2 via backward compat alias
 
         source = inspect.getsource(get_success_memory)
 
@@ -215,7 +215,7 @@ class TestMemorySingletonMigration:
     def test_spotlighter_has_prism_pattern(self):
         """Spotlighter.get_spotlighter includes PRISM pattern."""
         import inspect
-        from core.memory.spotlighting import get_spotlighter
+        from core.memory_pkg.memory.spotlighting import get_spotlighter
 
         source = inspect.getsource(get_spotlighter)
 
@@ -264,7 +264,7 @@ class TestServiceFactoryMemoryMethods:
     def test_embedding_engine_is_global(self):
         """EmbeddingEngine from ServiceFactory is global (not tenant-scoped)."""
         from core.factory import ServiceFactory
-        from core.memory.embedding_engine import reset_embedding_engine
+        from core.memory_pkg.memory.embedding_engine import reset_embedding_engine
 
         reset_embedding_engine()
         ServiceFactory._embedding_engine = None  # Reset factory cache too
@@ -284,7 +284,7 @@ class TestONNXFallback:
 
     def test_backend_detection(self):
         """Engine detects and uses appropriate backend."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )
@@ -300,7 +300,7 @@ class TestONNXFallback:
 
     def test_onnx_availability_check(self):
         """Engine can check ONNX availability."""
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )
@@ -321,8 +321,8 @@ class TestDenseBackendIntegration:
     @pytest.fixture
     def backend(self):
         """Create a DenseBackend with temporary storage."""
-        from core.memory.backends.dense import DenseBackend
-        from core.memory.embedding_engine import (
+        from core.memory_pkg.memory.backends.dense import DenseBackend
+        from core.memory_pkg.memory.embedding_engine import (
             get_embedding_engine,
             reset_embedding_engine
         )

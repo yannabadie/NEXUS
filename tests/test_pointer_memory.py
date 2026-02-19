@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.memory.pointer_memory import (
+from core.memory_pkg.memory.pointer_memory import (
     Pointer,
     PointerMemory,
     PointerStats,

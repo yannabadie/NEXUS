@@ -17,7 +17,7 @@ from core.evolution.models import (
     BrainstormResult,
 )
 from core.fsm.states import OrchestratorState
-from core.prompts import load_prompt
+from core.memory_pkg.prompts import load_prompt
 from core.utils.json_extractor import extract_json_safe as robust_extract_json
 from core.evolution.mutation_parser import MutationParser
 

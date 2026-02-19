@@ -72,7 +72,7 @@ from .access_control import (
 
 # V8.8: Spotlighter for RAG content datamarking (from memory module)
 try:
-    from core.memory.spotlighting import Spotlighter, get_spotlighter, SpotlightTechnique
+    from core.memory_pkg.memory.spotlighting import Spotlighter, get_spotlighter, SpotlightTechnique
     SPOTLIGHTER_AVAILABLE = True
 except ImportError:
     SPOTLIGHTER_AVAILABLE = False

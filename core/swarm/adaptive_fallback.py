@@ -47,7 +47,7 @@ except ImportError:
     PredictionLevel = None
 
 try:
-    from core.memory import SuccessMemory  # V2 via backward compat alias
+    from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
     MEMORY_AVAILABLE = True
 except ImportError:
     MEMORY_AVAILABLE = False
@@ -388,7 +388,7 @@ def get_adaptive_fallback_selector() -> AdaptiveFallbackSelector:
 
                 if MEMORY_AVAILABLE:
                     try:
-                        from core.memory import SuccessMemory  # V2 via backward compat alias
+                        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
                         from pathlib import Path
                         nexus_root = Path(__file__).parent.parent.parent
                         memory = SuccessMemory(nexus_root)

@@ -8,7 +8,7 @@ compression events, classifies utilization levels (normal/warning/critical),
 and provides aggregate statistics for capacity planning.
 
 Usage:
-    from core.memory.context_window_tracker import get_context_tracker
+    from core.memory_pkg.memory.context_window_tracker import get_context_tracker
 
     tracker = get_context_tracker()
 

@@ -385,7 +385,7 @@ class SpinoffService:
             List of mutation dictionaries
         """
         from core.fsm.states import OrchestratorState
-        from core.prompts import load_prompt
+        from core.memory_pkg.prompts import load_prompt
         from core.utils.json_extractor import extract_json_safe as robust_extract_json
 
         self.console.print("\n" + "=" * 60)

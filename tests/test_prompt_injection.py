@@ -27,7 +27,7 @@ from core.security_pkg.security.output_guard import (
     OutputValidationResult,
     get_output_guard,
 )
-from core.memory.spotlighting import (
+from core.memory_pkg.memory.spotlighting import (
     Spotlighter,
     SpotlightTechnique,
     SpotlightedContent,

@@ -43,7 +43,7 @@ from enum import Enum
 from collections import deque
 
 if TYPE_CHECKING:
-    from core.memory.project_memory import ProjectMemory
+    from core.memory_pkg.memory.project_memory import ProjectMemory
 
 # V9.2: Import scoped context types
 from .context_scope import ContextScope, ScopedContext, ContextScopePolicy, get_scope_policy
@@ -490,7 +490,7 @@ Timestamp: {insight['timestamp']}
             Dict with compression stats
         """
         try:
-            from core.memory.adaptive_focus import AdaptiveFocusManager
+            from core.memory_pkg.memory.adaptive_focus import AdaptiveFocusManager
             budget = target_budget or int(self.max_tokens * 0.6)
             afm = AdaptiveFocusManager(token_budget=budget)
 
@@ -533,7 +533,7 @@ Timestamp: {insight['timestamp']}
             Spotlighted content string
         """
         try:
-            from core.memory.spotlighting import get_spotlighter
+            from core.memory_pkg.memory.spotlighting import get_spotlighter
             spotlighter = get_spotlighter()
             return spotlighter.spotlight(content, source=source)
         except Exception:

@@ -1010,7 +1010,7 @@ class FSMHandlers:
                 if chunks:
                     # V12.4: Record access for decay scoring
                     try:
-                        from core.memory.decay_scorer import get_decay_scorer
+                        from core.memory_pkg.memory.decay_scorer import get_decay_scorer
                         for chunk in chunks:
                             get_decay_scorer().record_access(chunk.chunk_id)
                     except Exception:

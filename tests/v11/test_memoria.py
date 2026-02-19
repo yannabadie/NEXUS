@@ -67,7 +67,7 @@ class TestMemoryCoordinator:
 
     def test_import_coordinator(self):
         """Verify MemoryCoordinator can be imported."""
-        from core.memory.coordinator import (
+        from core.memory_pkg.memory.coordinator import (
             MemoryCoordinator, MemorySource, UnifiedRecommendation
         )
         assert MemoryCoordinator is not None
@@ -76,7 +76,7 @@ class TestMemoryCoordinator:
 
     def test_memory_source_enum(self):
         """Verify MemorySource enum values."""
-        from core.memory.coordinator import MemorySource
+        from core.memory_pkg.memory.coordinator import MemorySource
 
         assert MemorySource.SUCCESS.value == "success_memory"
         assert MemorySource.AUTO.value == "auto_memory"
@@ -85,7 +85,7 @@ class TestMemoryCoordinator:
 
     def test_unified_recommendation_dataclass(self):
         """Verify UnifiedRecommendation fields."""
-        from core.memory.coordinator import UnifiedRecommendation, MemorySource
+        from core.memory_pkg.memory.coordinator import UnifiedRecommendation, MemorySource
 
         rec = UnifiedRecommendation(
             mode="parallel",
@@ -105,7 +105,7 @@ class TestMemoryCoordinator:
 
     def test_coordinator_cold_start(self):
         """Verify coordinator handles cold start (no memory data)."""
-        from core.memory.coordinator import MemoryCoordinator, MemorySource
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource
 
         # Create coordinator with mock memories that return nothing
         mock_success = MagicMock()
@@ -123,7 +123,7 @@ class TestMemoryCoordinator:
 
     def test_coordinator_success_only(self):
         """Verify coordinator works with only SuccessMemory data."""
-        from core.memory.coordinator import MemoryCoordinator, MemorySource
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource
 
         mock_success = MagicMock()
         mock_success.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.7)
@@ -140,7 +140,7 @@ class TestMemoryCoordinator:
 
     def test_coordinator_auto_only(self):
         """Verify coordinator works with only AutoMemory data."""
-        from core.memory.coordinator import MemoryCoordinator, MemorySource
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource
 
         mock_success = MagicMock()
         mock_success.get_best_mode_for_similar.return_value = None
@@ -162,7 +162,7 @@ class TestMemoryCoordinator:
 
     def test_coordinator_agreement(self):
         """Verify coordinator combines scores when both agree."""
-        from core.memory.coordinator import MemoryCoordinator, MemorySource
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource
 
         mock_success = MagicMock()
         mock_success.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.6)
@@ -185,7 +185,7 @@ class TestMemoryCoordinator:
 
     def test_coordinator_conflict_resolution(self):
         """Verify coordinator resolves conflicts (semantic > categorical)."""
-        from core.memory.coordinator import MemoryCoordinator, MemorySource
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator, MemorySource
 
         mock_success = MagicMock()
         mock_success.get_best_mode_for_similar.return_value = ("parallel", "task_123", 0.9)  # High similarity
@@ -308,7 +308,7 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_method_exists(self):
         """Verify _apply_time_decay method exists."""
-        from core.memory.auto_memory import AutoMemory
+        from core.memory_pkg.memory.auto_memory import AutoMemory
 
         # Create with temp path
         import tempfile
@@ -318,7 +318,7 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_recent_entry(self):
         """Verify recent entries have minimal decay."""
-        from core.memory.auto_memory import AutoMemory
+        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -333,7 +333,7 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_old_entry(self):
         """Verify old entries have significant decay."""
-        from core.memory.auto_memory import AutoMemory
+        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -349,7 +349,7 @@ class TestTimeDecayAutoMemory:
 
     def test_time_decay_invalid_timestamp(self):
         """Verify invalid timestamp returns original score."""
-        from core.memory.auto_memory import AutoMemory
+        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -363,7 +363,7 @@ class TestTimeDecayAutoMemory:
 
     def test_suggest_mode_uses_decay(self):
         """Verify suggest_mode applies time decay."""
-        from core.memory.auto_memory import AutoMemory
+        from core.memory_pkg.memory.auto_memory import AutoMemory
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -389,14 +389,14 @@ class TestConsolidation:
 
     def test_consolidate_method_exists(self):
         """Verify consolidate method exists on coordinator."""
-        from core.memory.coordinator import MemoryCoordinator
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator
 
         coordinator = MemoryCoordinator(None, None)
         assert hasattr(coordinator, 'consolidate')
 
     def test_consolidate_no_memory(self):
         """Verify consolidate handles no SuccessMemory gracefully."""
-        from core.memory.coordinator import MemoryCoordinator
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator
 
         coordinator = MemoryCoordinator(None, MagicMock())
         result = coordinator.consolidate()
@@ -405,7 +405,7 @@ class TestConsolidation:
 
     def test_consolidate_insufficient_data(self):
         """Verify consolidate skips with <10 entries."""
-        from core.memory.coordinator import MemoryCoordinator
+        from core.memory_pkg.memory.coordinator import MemoryCoordinator
 
         mock_success = MagicMock()
         mock_success.get_all.return_value = [MagicMock() for _ in range(5)]  # Only 5 entries

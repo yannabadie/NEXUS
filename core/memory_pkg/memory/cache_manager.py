@@ -7,7 +7,7 @@ Provides a high-speed LRU cache layer for frequently-accessed memory
 data with TTL-based expiration, hit/miss tracking, and eviction.
 
 Usage:
-    from core.memory.cache_manager import get_cache_manager
+    from core.memory_pkg.memory.cache_manager import get_cache_manager
 
     cache = get_cache_manager()
 

@@ -37,7 +37,7 @@ from core.evolution.rate_limiter import EvolutionRateLimiter
 from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security_pkg.security import MutationValidator
-from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
+from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
 
 
@@ -1064,7 +1064,7 @@ class InteractiveNexusV7:
     def _get_memory_service(self):
         """Get or create MemoryService instance."""
         if not hasattr(self, '_memory_service'):
-            from core.memory import MemoryService
+            from core.memory_pkg.memory import MemoryService
             self._memory_service = MemoryService(
                 getattr(self.orchestrator, 'project_memory', None),
                 self.workspace_path,

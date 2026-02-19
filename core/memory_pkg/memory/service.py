@@ -11,7 +11,7 @@ This service handles:
 - RAG initialization and queries
 
 Usage:
-    from core.memory.service import MemoryService
+    from core.memory_pkg.memory.service import MemoryService
 
     service = MemoryService(project_memory, workspace_path, console)
     service.learn("core/")
@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, List, Optional
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from core.memory.project_memory import ProjectMemory
+    from core.memory_pkg.memory.project_memory import ProjectMemory
     from core.interface_pkg.interface.console_v7 import ConsoleV7
 
 _logger = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ class MemoryService:
         # V12.4: Check cache before running retrieval
         cache_key = f"rag:{query_str}:{limit}"
         try:
-            from core.memory.cache_manager import get_cache_manager
+            from core.memory_pkg.memory.cache_manager import get_cache_manager
             cache = get_cache_manager()
             cached = cache.get(cache_key)
             if cached is not None:
@@ -274,7 +274,7 @@ class MemoryService:
 
         # V12.4: Record access patterns for Ebbinghaus decay scoring
         try:
-            from core.memory.decay_scorer import get_decay_scorer
+            from core.memory_pkg.memory.decay_scorer import get_decay_scorer
             scorer = get_decay_scorer()
             for chunk in chunks:
                 scorer.record_access(chunk.chunk_id)

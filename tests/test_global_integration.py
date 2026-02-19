@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 sys.path.append(os.getcwd())
 
 from core.interface_pkg.interface.repl import InteractiveNexusV7
-from core.memory.auto_memory import AutoMemory
+from core.memory_pkg.memory.auto_memory import AutoMemory
 
 def test_global_integration():
     print("\n🚀 GLOBAL INTEGRATION TEST: NEXUS V7.5 HIVE MIND\n")

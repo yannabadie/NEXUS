@@ -5,7 +5,7 @@ Loads prompts and resolves <!-- #include _shared/file.md --> directives.
 Supports template variable substitution.
 
 Usage:
-    from core.prompts import load_prompt
+    from core.memory_pkg.prompts import load_prompt
 
     # Simple load
     gemini_prompt = load_prompt("system_gemini_v7")

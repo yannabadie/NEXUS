@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
 
-from core.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
+from core.memory_pkg.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
 from core.swarm.mode_selector import ModeSelector, ModeProposal
 from core.swarm.collaboration_modes import CollaborationMode
 

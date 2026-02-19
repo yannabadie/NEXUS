@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 try:
-    from core.memory.project_memory import ProjectMemory as _ProjectMemory
+    from core.memory_pkg.memory.project_memory import ProjectMemory as _ProjectMemory
 except Exception:
     _ProjectMemory = None
 

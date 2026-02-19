@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.prompts.template_optimizer import (
+from core.memory_pkg.prompts.template_optimizer import (
     ConflictResult,
     PromptAnalysis,
     PromptIssue,
@@ -419,7 +419,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_prompts_package(self):
-        from core.prompts import (
+        from core.memory_pkg.prompts import (
             PromptOptimizer, PromptAnalysis, PromptIssue,
             PromptStats, PromptOutcome, ConflictResult,
             get_optimizer, reset_optimizer,
@@ -431,7 +431,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.prompts.template_optimizer import (
+        from core.memory_pkg.prompts.template_optimizer import (
             PromptOptimizer, PromptAnalysis, PromptIssue,
             PromptStats, ConflictResult,
         )

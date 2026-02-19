@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from core.drivers.protocol import BaseAsyncDriver
     from core.swarm import AgentPool
     from core.observability.telemetry import BudgetTracker
-    from core.memory import ProjectMemory
+    from core.memory_pkg.memory import ProjectMemory
 
 logger = logging.getLogger(__name__)
 

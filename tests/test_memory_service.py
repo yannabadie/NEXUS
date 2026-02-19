@@ -48,7 +48,7 @@ class TestMemoryService:
     @pytest.fixture
     def memory_service(self, mock_project_memory, temp_workspace, mock_console):
         """Create a MemoryService instance."""
-        from core.memory.service import MemoryService
+        from core.memory_pkg.memory.service import MemoryService
         return MemoryService(
             project_memory=mock_project_memory,
             workspace_path=temp_workspace,
@@ -144,7 +144,7 @@ class TestMemoryService:
 
     def test_get_status_no_project_memory(self, temp_workspace, mock_console):
         """Test get_status when project memory is None."""
-        from core.memory.service import MemoryService
+        from core.memory_pkg.memory.service import MemoryService
         service = MemoryService(
             project_memory=None,
             workspace_path=temp_workspace,
@@ -195,7 +195,7 @@ class TestMemoryService:
 
     def test_clear_no_project_memory(self, temp_workspace, mock_console):
         """Test clear when project memory is None."""
-        from core.memory.service import MemoryService
+        from core.memory_pkg.memory.service import MemoryService
         service = MemoryService(
             project_memory=None,
             workspace_path=temp_workspace,
@@ -250,5 +250,5 @@ class TestMemoryServiceIntegration:
             )
 
             service = _get_memory_service(context)
-            from core.memory.service import MemoryService
+            from core.memory_pkg.memory.service import MemoryService
             assert isinstance(service, MemoryService)

@@ -16,7 +16,7 @@ def _get_memory_service(context: CommandContext):
     MemoryService requires project_memory, workspace_path, and console.
     These are available through the CommandContext.
     """
-    from core.memory import MemoryService
+    from core.memory_pkg.memory import MemoryService
 
     # Try to get cached service from extras
     service = context.extras.get("memory_service")

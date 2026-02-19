@@ -89,7 +89,7 @@ def _get_namespace_manager():
     """Get RAGNamespaceManager instance."""
     try:
         from core.config import Config
-        from core.memory import RAGNamespaceManager
+        from core.memory_pkg.memory import RAGNamespaceManager
 
         config = Config()
         nexus_root = Path(config.nexus_root)

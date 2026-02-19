@@ -219,7 +219,7 @@ class MonitoredExecutionPhase:
 
         # V12.4: PlanContextFilter - pre-compute step relevance for context optimization (arxiv:2512.16970)
         try:
-            from core.memory.plan_context_filter import get_plan_context_filter
+            from core.memory_pkg.memory.plan_context_filter import get_plan_context_filter
             _pcfilter = get_plan_context_filter()
             _upcoming = [s.name for s in architecture.execution_plan.steps]
             logger.debug(f"Phase 4: PlanContextFilter initialized with {len(_upcoming)} upcoming steps")
@@ -400,7 +400,7 @@ class MonitoredExecutionPhase:
 
             # V12.4: Record tool call for SkillCrystallizer
             try:
-                from core.skills.crystallizer import get_crystallizer, ToolCallRecord
+                from core.memory_pkg.skills.crystallizer import get_crystallizer, ToolCallRecord
                 crystallizer = get_crystallizer()
                 crystallizer.record(ToolCallRecord(
                     tool_name=step.name,
@@ -415,7 +415,7 @@ class MonitoredExecutionPhase:
             # V12.4: PointerMemory - store large outputs externally (arxiv:2511.22729)
             _output_for_context = result.output
             try:
-                from core.memory.pointer_memory import get_pointer_memory
+                from core.memory_pkg.memory.pointer_memory import get_pointer_memory
                 _pmem = get_pointer_memory()
                 if result.output and _pmem.should_store(result.output):
                     _pointer = _pmem.store(result.output, source=f"step:{step.name}")

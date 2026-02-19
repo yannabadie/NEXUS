@@ -19,7 +19,7 @@ Validates:
 import time
 import pytest
 
-from core.memory.cache_manager import (
+from core.memory_pkg.memory.cache_manager import (
     DEFAULT_MAX_SIZE,
     DEFAULT_TTL,
     CacheEntry,
@@ -375,7 +375,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
-        from core.memory import (
+        from core.memory_pkg.memory import (
             CacheManager, CacheEntry, CacheStats,
             get_cache_manager, reset_cache_manager,
         )
@@ -385,7 +385,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.memory.cache_manager import (
+        from core.memory_pkg.memory.cache_manager import (
             CacheManager, DEFAULT_MAX_SIZE, DEFAULT_TTL,
         )
         assert DEFAULT_MAX_SIZE == 1000

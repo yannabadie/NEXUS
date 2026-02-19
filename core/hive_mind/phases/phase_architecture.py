@@ -542,7 +542,7 @@ class ArchitectureGenerationPhase:
         # V12.4: TechniqueSelector - enhance prompt with adaptive techniques (arxiv:2510.18162)
         _selected_techniques = []
         try:
-            from core.prompts.technique_selector import get_technique_selector
+            from core.memory_pkg.prompts.technique_selector import get_technique_selector
             _tech_selector = get_technique_selector()
             _selection = _tech_selector.select(task, domains=capabilities[:3])
             _selected_techniques = _selection.techniques

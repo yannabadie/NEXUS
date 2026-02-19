@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from core.prompts.technique_selector import (
+from core.memory_pkg.prompts.technique_selector import (
     PromptTechnique,
     SelectionResult,
     TaskCluster,

@@ -747,7 +747,7 @@ class IndependentAnalysisPhase:
 
         try:
             # Import V2 memories
-            from core.memory import (
+            from core.memory_pkg.memory import (
                 SuccessMemoryV2,
                 StrategyBlacklistV2,
             )

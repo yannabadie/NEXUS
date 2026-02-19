@@ -163,7 +163,7 @@ class TestSuccessMemoryDecay:
 
     def test_decay_function_exists(self):
         """Test that _apply_time_decay method exists."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
 
@@ -173,7 +173,7 @@ class TestSuccessMemoryDecay:
 
     def test_decay_recent_entry(self):
         """Test that recent entries have minimal decay."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
 
@@ -189,7 +189,7 @@ class TestSuccessMemoryDecay:
 
     def test_decay_old_entry(self):
         """Test that old entries have significant decay."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         from datetime import timedelta
@@ -206,7 +206,7 @@ class TestSuccessMemoryDecay:
 
     def test_decay_invalid_timestamp(self):
         """Test that invalid timestamps return original score."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
 
@@ -219,7 +219,7 @@ class TestSuccessMemoryDecay:
 
     def test_get_best_mode_with_decay(self):
         """Test that get_best_mode_for_similar accepts apply_decay parameter."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         import inspect
@@ -233,7 +233,7 @@ class TestSuccessMemoryDecay:
 
     def test_exponential_decay_curve(self):
         """V8.8: Test exponential decay produces expected curve."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         from datetime import datetime, timedelta
@@ -261,7 +261,7 @@ class TestSuccessMemoryDecay:
 
     def test_domain_bonus_parameter(self):
         """V8.8: Test domain_bonus parameter in _apply_time_decay."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         from datetime import datetime
@@ -282,7 +282,7 @@ class TestSuccessMemoryDecay:
 
     def test_get_best_mode_with_query_domains(self):
         """V8.8: Test query_domains parameter in get_best_mode_for_similar."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         import inspect
@@ -297,7 +297,7 @@ class TestSuccessMemoryDecay:
 
     def test_decay_capped_at_one(self):
         """V8.8: Test that decayed score doesn't exceed 1.0."""
-        from core.memory import SuccessMemory  # V2 via backward compat alias
+        from core.memory_pkg.memory import SuccessMemory  # V2 via backward compat alias
         import tempfile
         from pathlib import Path
         from datetime import datetime

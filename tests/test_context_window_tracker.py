@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.memory.context_window_tracker import (
+from core.memory_pkg.memory.context_window_tracker import (
     MAX_USAGE_RECORDS,
     CONTEXT_WARNING_THRESHOLD,
     CONTEXT_CRITICAL_THRESHOLD,
@@ -330,7 +330,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
-        from core.memory import (
+        from core.memory_pkg.memory import (
             ContextWindowTracker, ContextUsageRecord, CompressionEvent,
             ContextTrackerStats,
             get_context_tracker, reset_context_tracker,
@@ -342,7 +342,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.memory.context_window_tracker import (
+        from core.memory_pkg.memory.context_window_tracker import (
             MAX_USAGE_RECORDS, CONTEXT_WARNING_THRESHOLD, CONTEXT_CRITICAL_THRESHOLD,
         )
         assert MAX_USAGE_RECORDS == 50000

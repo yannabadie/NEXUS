@@ -7,7 +7,7 @@ Monitors memory snapshots, eviction events, pressure trends, and
 recommends compression actions when utilization exceeds thresholds.
 
 Usage:
-    from core.memory.memory_pressure_monitor import get_pressure_monitor
+    from core.memory_pkg.memory.memory_pressure_monitor import get_pressure_monitor
 
     monitor = get_pressure_monitor()
 

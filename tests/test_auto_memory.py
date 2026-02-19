@@ -3,7 +3,7 @@
 import json
 import pytest
 from pathlib import Path
-from core.memory.auto_memory import (
+from core.memory_pkg.memory.auto_memory import (
     AutoMemory,
     MemoryEntry,
     get_auto_memory,

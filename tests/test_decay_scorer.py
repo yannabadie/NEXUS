@@ -6,14 +6,14 @@ from unittest.mock import patch
 
 import pytest
 
-from core.memory.decay_scorer import (
+from core.memory_pkg.memory.decay_scorer import (
     AccessRecord,
     DecayScorerStats,
     MemoryDecayScorer,
     get_decay_scorer,
     reset_decay_scorer,
 )
-from core.memory.types import Chunk, ScoredChunk
+from core.memory_pkg.memory.types import Chunk, ScoredChunk
 
 
 @pytest.fixture(autouse=True)

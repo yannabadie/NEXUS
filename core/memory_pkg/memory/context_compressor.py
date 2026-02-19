@@ -8,7 +8,7 @@ applying sliding window with importance weighting, and archiving
 pruned content. Preserves decision rationale while removing filler.
 
 Usage:
-    from core.memory.context_compressor import ContextCompressor
+    from core.memory_pkg.memory.context_compressor import ContextCompressor
 
     compressor = ContextCompressor(max_tokens=8000)
 

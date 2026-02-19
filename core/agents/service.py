@@ -368,7 +368,7 @@ class AgentService:
             Generated prompt string or None if failed
         """
         from core.evolution.phases.brainstorm import BrainstormPhase
-        from core.prompts import load_prompt
+        from core.memory_pkg.prompts import load_prompt
 
         def on_progress(msg: str, progress: float):
             """Progress callback for console output"""

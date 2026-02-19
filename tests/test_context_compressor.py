@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.memory.context_compressor import (
+from core.memory_pkg.memory.context_compressor import (
     CompressionResult,
     CompressTurn,
     ContextCompressor,
@@ -461,7 +461,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
-        from core.memory import (
+        from core.memory_pkg.memory import (
             ContextCompressor, CompressTurn, CompressionResult, ContextShift,
             get_compressor, reset_compressor,
         )
@@ -471,7 +471,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.memory.context_compressor import (
+        from core.memory_pkg.memory.context_compressor import (
             ContextCompressor, CompressTurn, CompressionResult, ContextShift,
             get_compressor, reset_compressor,
         )

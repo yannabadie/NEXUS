@@ -39,7 +39,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch, PropertyMock
 from typing import Dict, List, Optional
 
-from core.memory.coordinator import (
+from core.memory_pkg.memory.coordinator import (
     MemoryCoordinator,
     DomainWeights,
     UnifiedRecommendation,

@@ -16,7 +16,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
+from core.memory_pkg.memory import SuccessMemory, SuccessEntry  # V2 via backward compat alias
 from core.swarm.agent_metrics import (
     AgentPool,
     AgentProfile,

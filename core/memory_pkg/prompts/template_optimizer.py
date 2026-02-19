@@ -8,7 +8,7 @@ instructions, measures prompt efficacy, and tracks performance metrics
 per prompt template.
 
 Usage:
-    from core.prompts.template_optimizer import PromptOptimizer
+    from core.memory_pkg.prompts.template_optimizer import PromptOptimizer
 
     optimizer = PromptOptimizer()
 

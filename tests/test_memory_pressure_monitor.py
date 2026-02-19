@@ -21,7 +21,7 @@ Validates:
 
 import pytest
 
-from core.memory.memory_pressure_monitor import (
+from core.memory_pkg.memory.memory_pressure_monitor import (
     MAX_SNAPSHOTS,
     MAX_EVICTIONS,
     PRESSURE_THRESHOLD_CRITICAL,
@@ -370,7 +370,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
-        from core.memory import (
+        from core.memory_pkg.memory import (
             MemoryPressureMonitor, MemorySnapshot, EvictionEvent,
             PressureLevel, PressureStats,
             get_pressure_monitor, reset_pressure_monitor,
@@ -382,7 +382,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.memory.memory_pressure_monitor import (
+        from core.memory_pkg.memory.memory_pressure_monitor import (
             MAX_SNAPSHOTS, MAX_EVICTIONS,
             PRESSURE_THRESHOLD_WARNING, PRESSURE_THRESHOLD_CRITICAL,
         )

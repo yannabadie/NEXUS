@@ -12,7 +12,7 @@ Fills the gap between:
 - AutoMemory (stores task patterns, not message exchanges)
 
 Usage:
-    from core.memory.conversation_store import ConversationStore
+    from core.memory_pkg.memory.conversation_store import ConversationStore
 
     store = ConversationStore()
     session = store.create_session(title="Debug auth module")

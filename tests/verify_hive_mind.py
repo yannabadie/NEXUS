@@ -66,7 +66,7 @@ def verify_hive_mind():
 
         # --- TEST 3: PROMPT LOADER ---
         print("\n[TEST 3] PROMPT LOADER (V7.5)")
-        from core.prompts import load_prompt
+        from core.memory_pkg.prompts import load_prompt
 
         # Test loading with includes
         gemini = load_prompt("system_gemini_v7")
@@ -84,7 +84,7 @@ def verify_hive_mind():
 
         # --- TEST 4: AUTO-MEMORY ---
         print("\n[TEST 4] AUTO-MEMORY (V7.5)")
-        from core.memory import get_auto_memory
+        from core.memory_pkg.memory import get_auto_memory
 
         memory = get_auto_memory(workspace)
         if memory:

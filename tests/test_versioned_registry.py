@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from core.prompts.versioned_registry import (
+from core.memory_pkg.prompts.versioned_registry import (
     PromptVersion,
     PromptEntry,
     PromptRegistry,
@@ -711,13 +711,13 @@ class TestModuleExports:
     """Test that versioned registry types are importable."""
 
     def test_from_prompts_package(self):
-        from core.prompts import PromptRegistry, PromptVersion, PromptEntry
+        from core.memory_pkg.prompts import PromptRegistry, PromptVersion, PromptEntry
         assert PromptRegistry is not None
         assert PromptVersion is not None
         assert PromptEntry is not None
 
     def test_from_module(self):
-        from core.prompts.versioned_registry import (
+        from core.memory_pkg.prompts.versioned_registry import (
             PromptRegistry,
             PromptVersion,
             PromptEntry,

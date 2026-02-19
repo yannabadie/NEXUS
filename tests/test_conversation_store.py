@@ -21,7 +21,7 @@ import tempfile
 
 import pytest
 
-from core.memory.conversation_store import (
+from core.memory_pkg.memory.conversation_store import (
     ConversationStore,
     ConversationTurn,
     ConversationSession,
@@ -537,7 +537,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_memory_package(self):
-        from core.memory import (
+        from core.memory_pkg.memory import (
             ConversationStore,
             ConversationSession,
             ConversationTurn,
@@ -548,7 +548,7 @@ class TestModuleExports:
                      ConversationSummary, ConversationSearchResult])
 
     def test_from_module(self):
-        from core.memory.conversation_store import (
+        from core.memory_pkg.memory.conversation_store import (
             ConversationStore,
             ConversationSession,
             ConversationTurn,

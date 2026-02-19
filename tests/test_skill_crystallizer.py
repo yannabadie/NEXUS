@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from core.skills.crystallizer import (
+from core.memory_pkg.skills.crystallizer import (
     SkillCrystallizer,
     ToolCallRecord,
     ToolSequencePattern,
@@ -759,7 +759,7 @@ class TestModuleExports:
     """Test that skill types are importable."""
 
     def test_from_skills_package(self):
-        from core.skills import (
+        from core.memory_pkg.skills import (
             SkillCrystallizer,
             ToolCallRecord,
             ToolSequencePattern,
@@ -771,7 +771,7 @@ class TestModuleExports:
         assert CrystallizedSkill is not None
 
     def test_from_crystallizer_module(self):
-        from core.skills.crystallizer import (
+        from core.memory_pkg.skills.crystallizer import (
             SkillCrystallizer,
             ToolCallRecord,
             ToolSequencePattern,

@@ -2,7 +2,7 @@
 
 import base64
 import pytest
-from core.memory.spotlighting import (
+from core.memory_pkg.memory.spotlighting import (
     Spotlighter,
     SpotlightTechnique,
     SpotlightedContent,

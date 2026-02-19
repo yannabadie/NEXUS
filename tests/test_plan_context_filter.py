@@ -20,7 +20,7 @@ from collections import Counter
 
 import pytest
 
-from core.memory.plan_context_filter import (
+from core.memory_pkg.memory.plan_context_filter import (
     FilterResult,
     FilterStats,
     PlanContextFilter,

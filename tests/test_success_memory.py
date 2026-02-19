@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
 
-from core.memory import SuccessMemory, SuccessEntry, get_success_memory  # V2 via backward compat alias
+from core.memory_pkg.memory import SuccessMemory, SuccessEntry, get_success_memory  # V2 via backward compat alias
 
 
 # =============================================================================

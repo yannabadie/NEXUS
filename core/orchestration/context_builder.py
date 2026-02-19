@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Any
 _logger = logging.getLogger(__name__)
 
 from core.agents.unified_registry import get_registry
-from core.prompts import load_prompt
+from core.memory_pkg.prompts import load_prompt
 from core.swarm import TaskAnalysis, TaskComplexity
 
 if TYPE_CHECKING:
@@ -414,7 +414,7 @@ Execute efficiently. You are the sole agent for this task.
 
             # V12.4: Record access patterns for Ebbinghaus decay scoring
             try:
-                from core.memory.decay_scorer import get_decay_scorer
+                from core.memory_pkg.memory.decay_scorer import get_decay_scorer
                 scorer = get_decay_scorer()
                 for chunk in chunks:
                     scorer.record_access(chunk.chunk_id)

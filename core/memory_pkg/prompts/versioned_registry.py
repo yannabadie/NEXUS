@@ -7,7 +7,7 @@ Extends the prompt loader with version tracking, history, diff, and rollback.
 Each prompt template gets version metadata (version, author, timestamp, changelog).
 
 Usage:
-    from core.prompts.versioned_registry import PromptRegistry
+    from core.memory_pkg.prompts.versioned_registry import PromptRegistry
 
     registry = PromptRegistry(storage_path=Path("workspace/prompts"))
 

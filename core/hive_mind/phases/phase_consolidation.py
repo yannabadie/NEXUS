@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from core.swarm.session_manager import SwarmSessionManager
     from core.drivers.protocol import BaseAsyncDriver
     
-    from core.memory.project_memory import ProjectMemory
+    from core.memory_pkg.memory.project_memory import ProjectMemory
 
 logger = logging.getLogger(__name__)
 
@@ -330,7 +330,7 @@ class KnowledgeConsolidationPhase:
 
         # V12.4: Detect patterns and crystallize skills from execution history
         try:
-            from core.skills.crystallizer import get_crystallizer
+            from core.memory_pkg.skills.crystallizer import get_crystallizer
             crystallizer = get_crystallizer()
             patterns = crystallizer.detect_patterns()
             if patterns:
@@ -371,7 +371,7 @@ class KnowledgeConsolidationPhase:
 
         # V12.4: AutoMemory - record task outcome for future mode/lead suggestions
         try:
-            from core.memory.auto_memory import get_auto_memory
+            from core.memory_pkg.memory.auto_memory import get_auto_memory
             auto_mem = get_auto_memory()
             # Determine swarm mode from approach text
             swarm_mode = approach.split()[0] if approach else "UNKNOWN"
@@ -402,7 +402,7 @@ class KnowledgeConsolidationPhase:
         # V12.4.1 Epic 1.4: Record to V2 memories (semantic, LanceDB-backed)
         if self._workspace_path:
             try:
-                from core.memory import SuccessMemoryV2, StrategyBlacklistV2
+                from core.memory_pkg.memory import SuccessMemoryV2, StrategyBlacklistV2
 
                 if success:
                     # Record success to SuccessMemoryV2
@@ -522,7 +522,7 @@ class KnowledgeConsolidationPhase:
 
         # V12.4: AdaptiveMemoryOrganizer - store task outcome as structured note (arxiv:2502.12110)
         try:
-            from core.memory.adaptive_memory_organizer import get_adaptive_memory_organizer
+            from core.memory_pkg.memory.adaptive_memory_organizer import get_adaptive_memory_organizer
             _organizer = get_adaptive_memory_organizer()
             _note_content = (
                 f"Task: {task[:150]}\n"
@@ -539,7 +539,7 @@ class KnowledgeConsolidationPhase:
 
         # V12.4: ExperienceDistiller - distill task experience into strategic principles (arxiv:2510.16079)
         try:
-            from core.skills.experience_distiller import get_experience_distiller
+            from core.memory_pkg.skills.experience_distiller import get_experience_distiller
             _distiller = get_experience_distiller()
             _lessons = list(consolidation.learned_patterns) + [
                 f"AVOID: {ap}" for ap in consolidation.learned_antipatterns

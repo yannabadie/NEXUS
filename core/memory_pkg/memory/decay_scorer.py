@@ -17,7 +17,7 @@ This naturally prioritizes:
 - New chunks get a grace period (first access = full score)
 
 Usage:
-    from core.memory.decay_scorer import get_decay_scorer
+    from core.memory_pkg.memory.decay_scorer import get_decay_scorer
 
     scorer = get_decay_scorer()
 

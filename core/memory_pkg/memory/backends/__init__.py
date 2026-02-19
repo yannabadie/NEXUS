@@ -10,7 +10,7 @@ Available backends:
 - HybridBackend: V12.4 RRF fusion of Dense + BM25S (~+15% recall)
 
 Usage:
-    from core.memory.backends import MemoryBackend, HybridBackend, DenseBackend, Bm25Backend
+    from core.memory_pkg.memory.backends import MemoryBackend, HybridBackend, DenseBackend, Bm25Backend
 
     # V12.4: Prefer Hybrid for best results
     if HybridBackend.is_available():

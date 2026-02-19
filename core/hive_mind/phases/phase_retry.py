@@ -314,7 +314,7 @@ class AdaptiveRetryPhase:
         # V12.4: CONTEXT_LOST / MEMORY_ERROR recovery via ContextCompressor
         if arch_changes.get("compress_context") or arch_changes.get("fresh_session"):
             try:
-                from core.memory.context_compressor import get_compressor
+                from core.memory_pkg.memory.context_compressor import get_compressor
                 compressor = get_compressor()
                 if compressor.should_compress():
                     result = compressor.compress()

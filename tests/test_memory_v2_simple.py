@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Validates that the imports work
-from core.memory import (
+from core.memory_pkg.memory import (
     SuccessMemoryV2,
     get_success_memory_v2,
     reset_success_memory_v2,
@@ -23,7 +23,7 @@ from core.memory import (
     get_strategy_blacklist_v2,
     reset_strategy_blacklist_v2,
 )
-from core.memory.types import Chunk
+from core.memory_pkg.memory.types import Chunk
 
 
 class TestSuccessMemoryV2API:

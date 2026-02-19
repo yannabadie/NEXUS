@@ -19,7 +19,7 @@ from typing import List
 
 import pytest
 
-from core.skills.experience_distiller import (
+from core.memory_pkg.skills.experience_distiller import (
     BAYESIAN_ALPHA,
     BAYESIAN_BETA,
     CATEGORY_PATTERNS,
@@ -1515,7 +1515,7 @@ class TestRelevanceScoreEdges:
     ):
         """A principle whose keywords are empty should score 0."""
         # Manually inject a principle with empty keywords
-        from core.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
+        from core.memory_pkg.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
         p = StrategicPrinciple(
             principle_id="empty_kw",
             text="No keywords",
@@ -1533,7 +1533,7 @@ class TestRelevanceScoreEdges:
 
     def test_quality_boost_affects_score(self, distiller: ExperienceDistiller):
         """Higher success_rate and confidence should boost relevance."""
-        from core.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
+        from core.memory_pkg.skills.experience_distiller import StrategicPrinciple, PrincipleCategory
         p_low = StrategicPrinciple(
             principle_id="low_q",
             text="Auth token check",

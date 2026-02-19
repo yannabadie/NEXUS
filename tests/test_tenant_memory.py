@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from core.memory.tenant_memory import TenantMemoryService, DEFAULT_TENANT
-from core.memory.namespace_manager import RAGNamespaceManager
+from core.memory_pkg.memory.tenant_memory import TenantMemoryService, DEFAULT_TENANT
+from core.memory_pkg.memory.namespace_manager import RAGNamespaceManager
 
 
 @pytest.fixture
@@ -300,7 +300,7 @@ class TestModuleExports:
     """Test module-level exports."""
 
     def test_importable_from_memory_package(self):
-        """Should be importable from core.memory."""
-        from core.memory import TenantMemoryService, DEFAULT_TENANT
+        """Should be importable from core.memory_pkg.memory."""
+        from core.memory_pkg.memory import TenantMemoryService, DEFAULT_TENANT
         assert TenantMemoryService is not None
         assert DEFAULT_TENANT == "_default"

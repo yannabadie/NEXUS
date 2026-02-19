@@ -8,7 +8,7 @@ parameterized, reusable skill templates. Skills are persisted to disk
 and can be replayed with different parameters.
 
 Usage:
-    from core.skills import SkillCrystallizer, ToolCallRecord
+    from core.memory_pkg.skills import SkillCrystallizer, ToolCallRecord
 
     crystallizer = SkillCrystallizer()
 

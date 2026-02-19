@@ -2,7 +2,7 @@
 
 import time
 import pytest
-from core.memory.adaptive_focus import (
+from core.memory_pkg.memory.adaptive_focus import (
     FidelityLevel,
     FocusItem,
     FidelityAssignment,

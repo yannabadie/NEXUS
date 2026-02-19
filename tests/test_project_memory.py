@@ -18,7 +18,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from core.memory.project_memory import (
+from core.memory_pkg.memory.project_memory import (
     ProjectMemory,
     Chunk,
     IndexStats,

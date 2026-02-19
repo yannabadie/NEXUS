@@ -11,12 +11,12 @@ import shutil
 from pathlib import Path
 
 # Import availability flags
-from core.memory.backends import (
+from core.memory_pkg.memory.backends import (
     DenseBackend,
     LANCEDB_AVAILABLE,
     SENTENCE_TRANSFORMERS_AVAILABLE
 )
-from core.memory.types import Chunk
+from core.memory_pkg.memory.types import Chunk
 
 
 # Skip all tests if dependencies not available
@@ -302,7 +302,7 @@ class TestDenseBackendIntegration:
     def test_backend_selection_with_env_var(self, temp_storage, monkeypatch):
         """Test backend selection via environment variable."""
         import os
-        from core.memory import ProjectMemory
+        from core.memory_pkg.memory import ProjectMemory
 
         # Force dense backend selection
         monkeypatch.setenv("PROJECT_MEMORY_BACKEND", "dense")
