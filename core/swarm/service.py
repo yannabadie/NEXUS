@@ -287,7 +287,7 @@ class SwarmService:
 
     def _default_negotiation_callback(self, message) -> None:
         """Default callback for negotiation turns."""
-        from core.agents import get_registry
+        from core.foundation.agents import get_registry
 
         registry = get_registry()
         agent = registry.get_display_name(message.sender)
@@ -312,7 +312,7 @@ class SwarmService:
 
     def _default_execution_callback(self, round_num: int, response) -> None:
         """Default callback for execution rounds."""
-        from core.agents import get_registry
+        from core.foundation.agents import get_registry
 
         registry = get_registry()
         agent = registry.get_display_name(response.agent_id)

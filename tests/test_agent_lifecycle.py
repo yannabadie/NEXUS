@@ -20,7 +20,7 @@ Validates:
 
 import pytest
 
-from core.agents.agent_lifecycle import (
+from core.foundation.agents.agent_lifecycle import (
     DEFAULT_MAX_CONSECUTIVE_FAILURES,
     DEFAULT_MIN_QUALITY,
     DEFAULT_OBSERVATION_WINDOW,
@@ -600,7 +600,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_agents_package(self):
-        from core.agents import (
+        from core.foundation.agents import (
             AgentLifecycleManager, RetirementPolicy,
             AgentHealthSnapshot, LifecycleEvent, LifecycleStats,
             get_lifecycle_manager, reset_lifecycle_manager,
@@ -612,7 +612,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.agents.agent_lifecycle import (
+        from core.foundation.agents.agent_lifecycle import (
             DEFAULT_MIN_QUALITY, DEFAULT_MAX_CONSECUTIVE_FAILURES,
             DEFAULT_OBSERVATION_WINDOW, MAX_AGENTS,
         )

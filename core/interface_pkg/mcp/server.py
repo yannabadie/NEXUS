@@ -587,7 +587,7 @@ if MCP_AVAILABLE:
     async def get_nexus_agents() -> str:
         """Get registered agent information."""
         try:
-            from core.agents.unified_registry import get_registry
+            from core.foundation.agents.unified_registry import get_registry
             registry = get_registry()
             agents = registry.list_agents()
             import json

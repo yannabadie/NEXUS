@@ -159,7 +159,7 @@ class TestAsyncPrimitives:
     def test_cancellation_token_available(self):
         """Verify CancellationToken is available."""
         try:
-            from core.async_primitives import CancellationToken
+            from core.foundation.async_primitives import CancellationToken
             assert CancellationToken is not None
         except ImportError:
             pytest.skip("async_primitives not available")
@@ -167,7 +167,7 @@ class TestAsyncPrimitives:
     def test_async_process_handle_available(self):
         """Verify AsyncProcessHandle is available."""
         try:
-            from core.async_primitives import AsyncProcessHandle
+            from core.foundation.async_primitives import AsyncProcessHandle
             assert AsyncProcessHandle is not None
         except ImportError:
             pytest.skip("async_primitives not available")

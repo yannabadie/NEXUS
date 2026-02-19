@@ -38,7 +38,7 @@ from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
 from core.security_pkg.security import MutationValidator
 from core.memory_pkg.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
-from core.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
+from core.foundation.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
 
 
 class InteractiveNexusV7:
@@ -1325,7 +1325,7 @@ class InteractiveNexusV7:
     def _get_agent_service(self):
         """Get or create AgentService instance."""
         if not hasattr(self, '_agent_service'):
-            from core.agents import AgentService
+            from core.foundation.agents import AgentService
             self._agent_service = AgentService(
                 self.orchestrator,
                 self.workspace_path,

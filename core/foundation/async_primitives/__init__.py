@@ -13,7 +13,7 @@ Components:
 - EventBus: Lightweight async pub/sub for sync events (V9.5)
 
 Usage:
-    from core.async_primitives import (
+    from core.foundation.async_primitives import (
         CancellationToken,
         AsyncProcessHandle,
         AsyncRWLock,

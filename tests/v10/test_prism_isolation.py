@@ -401,7 +401,7 @@ class TestCriticalIsolation:
         """
         from core.infrastructure.context import use_context
         from core.factory import ServiceFactory
-        from core.agents.unified_registry import AgentDescriptor, AgentProvider
+        from core.foundation.agents.unified_registry import AgentDescriptor, AgentProvider
 
         ServiceFactory.clear_all_caches()
 

@@ -17,15 +17,15 @@ from unittest.mock import Mock, AsyncMock, patch
 # Add project root to path
 sys.path.insert(0, str(__file__).replace("\\tests\\test_async_primitives.py", "").replace("/tests/test_async_primitives.py", ""))
 
-from core.async_primitives import (
+from core.foundation.async_primitives import (
     CancellationToken,
     AsyncProcessHandle,
     AsyncRWLock,
     AsyncBlackboard,
 )
-from core.async_primitives.cancellation import CancellationTokenSource
-from core.async_primitives.process_handle import ProcessState, ProcessHandleRegistry, get_process_registry
-from core.async_primitives.rwlock import AsyncRWLockWithTimeout, InstrumentedAsyncRWLock
+from core.foundation.async_primitives.cancellation import CancellationTokenSource
+from core.foundation.async_primitives.process_handle import ProcessState, ProcessHandleRegistry, get_process_registry
+from core.foundation.async_primitives.rwlock import AsyncRWLockWithTimeout, InstrumentedAsyncRWLock
 
 
 # ============================================================================

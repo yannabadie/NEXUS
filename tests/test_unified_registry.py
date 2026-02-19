@@ -8,7 +8,7 @@ hardcoded if/else chains throughout the codebase.
 import pytest
 from pathlib import Path
 
-from core.agents.unified_registry import (
+from core.foundation.agents.unified_registry import (
     UnifiedAgentRegistry,
     AgentDescriptor,
     AgentProvider,

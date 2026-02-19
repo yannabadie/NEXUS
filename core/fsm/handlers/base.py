@@ -6,7 +6,7 @@ Provides common infrastructure for all state handlers.
 
 import logging
 from typing import TYPE_CHECKING, Dict, Optional
-from core.agents.unified_registry import get_registry
+from core.foundation.agents.unified_registry import get_registry
 from core.routing.model_router import TaskType
 
 if TYPE_CHECKING:

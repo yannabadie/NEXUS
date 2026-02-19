@@ -15,7 +15,7 @@ layer that tracks fine-grained skills, learns from outcomes, and provides
 best-match agent selection for specific task requirements.
 
 Usage:
-    from core.agents.capability_profiler import CapabilityProfiler
+    from core.foundation.agents.capability_profiler import CapabilityProfiler
 
     profiler = CapabilityProfiler()
     profiler.register_agent("gemini", capabilities=["research", "web_search", "summarization"])

@@ -32,8 +32,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 
-from core.async_primitives import CancellationToken, AsyncBlackboard
-from core.async_primitives.process_handle import get_process_registry
+from core.foundation.async_primitives import CancellationToken, AsyncBlackboard
+from core.foundation.async_primitives.process_handle import get_process_registry
 
 if TYPE_CHECKING:
     from .orchestrator import TrueHiveMind, HiveMindResult

@@ -41,7 +41,7 @@ from .async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from .response_cache import ResponseCache
 from .driver_health_monitor import get_health_monitor
 from .failover_manager import get_failover_manager
-from core.async_primitives.process_handle import get_process_registry
+from core.foundation.async_primitives.process_handle import get_process_registry
 from core.infrastructure.resilience.circuit_breaker import get_hierarchical_breaker, CircuitOpenError
 from core.observability.telemetry.budget_tracker import get_budget_tracker
 

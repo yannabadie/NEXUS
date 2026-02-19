@@ -8,7 +8,7 @@ import asyncio
 import pytest
 from unittest.mock import patch, MagicMock
 
-from core.async_primitives.safe_task_manager import (
+from core.foundation.async_primitives.safe_task_manager import (
     SafeTaskManager,
     create_safe_task,
     TaskInfo,

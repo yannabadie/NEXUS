@@ -60,7 +60,7 @@ from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 # V11 FIX F20: AsyncRWLock for async methods (prevents event loop blocking)
-from core.async_primitives.rwlock import AsyncRWLock
+from core.foundation.async_primitives.rwlock import AsyncRWLock
 
 if TYPE_CHECKING:
     from core.hive_mind.saga_manager import SagaManager

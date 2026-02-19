@@ -448,7 +448,7 @@ class TrueHiveMind:
 
             # V12.4: CapabilityProfiler - register agents for data-driven routing (arxiv:2505.16303)
             try:
-                from core.agents.capability_profiler import get_capability_profiler
+                from core.foundation.agents.capability_profiler import get_capability_profiler
                 _cap_profiler = get_capability_profiler()
                 if _cap_profiler.agent_count == 0:
                     _cap_profiler.register_agent(

@@ -23,7 +23,7 @@ import time
 import logging
 from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
-from core.agents.unified_registry import get_registry
+from core.foundation.agents.unified_registry import get_registry
 from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse

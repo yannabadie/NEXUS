@@ -8,7 +8,7 @@ across the NEXUS orchestrator.  Supports parent/child subtask tracking,
 slow-task detection, and per-type aggregate statistics.
 
 Usage:
-    from core.async_primitives.task_metrics_collector import (
+    from core.foundation.async_primitives.task_metrics_collector import (
         get_task_metrics_collector,
     )
 

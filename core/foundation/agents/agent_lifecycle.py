@@ -9,7 +9,7 @@ Tracks agent health over time and applies lifecycle policies:
 - Replacement: Suggests replacement agents based on capabilities
 
 Usage:
-    from core.agents.agent_lifecycle import get_lifecycle_manager
+    from core.foundation.agents.agent_lifecycle import get_lifecycle_manager
 
     mgr = get_lifecycle_manager()
     mgr.register("claude", capabilities=["coding", "debugging"])

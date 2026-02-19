@@ -17,7 +17,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(__file__).replace("\\tests\\test_async_hive_mind.py", "").replace("/tests/test_async_hive_mind.py", ""))
 
-from core.async_primitives import CancellationToken, AsyncBlackboard
+from core.foundation.async_primitives import CancellationToken, AsyncBlackboard
 from core.hive_mind.async_adapter import AsyncHiveMindAdapter
 
 

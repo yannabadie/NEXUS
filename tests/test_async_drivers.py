@@ -21,7 +21,7 @@ sys.path.insert(0, str(__file__).replace("\\tests\\test_async_drivers.py", "").r
 from core.drivers.async_claude_driver import AsyncClaudeDriver, AsyncClaudeDriverConfig
 from core.drivers.async_gemini_driver import AsyncGeminiDriver, AsyncGeminiDriverConfig
 from core.drivers.async_factory import AsyncDriverFactory
-from core.async_primitives import CancellationToken
+from core.foundation.async_primitives import CancellationToken
 
 
 # ============================================================================

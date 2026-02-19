@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Any
 
 _logger = logging.getLogger(__name__)
 
-from core.agents.unified_registry import get_registry
+from core.foundation.agents.unified_registry import get_registry
 from core.memory_pkg.prompts import load_prompt
 from core.swarm import TaskAnalysis, TaskComplexity
 

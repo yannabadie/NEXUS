@@ -42,7 +42,7 @@ class TestAgentService:
     @pytest.fixture
     def agent_service(self, mock_orchestrator, temp_workspace, mock_console):
         """Create an AgentService instance."""
-        from core.agents.service import AgentService
+        from core.foundation.agents.service import AgentService
         return AgentService(
             orchestrator=mock_orchestrator,
             workspace_path=temp_workspace,
@@ -276,5 +276,5 @@ class TestAgentServiceIntegration:
             )
 
             service = _get_agent_service(context)
-            from core.agents.service import AgentService
+            from core.foundation.agents.service import AgentService
             assert isinstance(service, AgentService)

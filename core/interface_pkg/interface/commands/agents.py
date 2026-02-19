@@ -16,7 +16,7 @@ def _get_agent_service(context: CommandContext):
     AgentService requires orchestrator, workspace_path, and console.
     These are available through the CommandContext.
     """
-    from core.agents import AgentService
+    from core.foundation.agents import AgentService
 
     # Try to get cached service from extras
     service = context.extras.get("agent_service")

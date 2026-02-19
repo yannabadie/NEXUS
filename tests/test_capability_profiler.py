@@ -19,7 +19,7 @@ import time
 
 import pytest
 
-from core.agents.capability_profiler import (
+from core.foundation.agents.capability_profiler import (
     CapabilityProfiler,
     AgentProfile,
     CapabilityRecord,
@@ -643,7 +643,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_agents_package(self):
-        from core.agents import (
+        from core.foundation.agents import (
             CapabilityProfiler,
             AgentProfile,
             CapabilityRecord,
@@ -654,7 +654,7 @@ class TestModuleExports:
                      MatchResult, KNOWN_CAPABILITIES])
 
     def test_from_module(self):
-        from core.agents.capability_profiler import (
+        from core.foundation.agents.capability_profiler import (
             CapabilityProfiler,
             AgentProfile,
             CapabilityRecord,

@@ -10,7 +10,7 @@ This service handles:
 - Agent pool statistics
 
 Usage:
-    from core.agents.service import AgentService
+    from core.foundation.agents.service import AgentService
 
     service = AgentService(orchestrator, workspace_path, console)
     service.spawn("SQL Expert")
@@ -446,7 +446,7 @@ Provide ONLY the final System Prompt. Start with '# {role}'.
         Returns:
             Dict with provider, model, reasoning or None if not found
         """
-        from core.agents import get_registry
+        from core.foundation.agents import get_registry
 
         # Look for the Inference Configuration section
         inference_pattern = (

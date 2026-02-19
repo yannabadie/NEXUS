@@ -14,7 +14,7 @@ from rich.markdown import Markdown
 from typing import Dict, Optional
 import os
 
-from core.agents.unified_registry import get_registry  # V8.4.0
+from core.foundation.agents.unified_registry import get_registry  # V8.4.0
 
 
 class ConsoleV7:

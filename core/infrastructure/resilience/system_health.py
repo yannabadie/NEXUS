@@ -195,7 +195,7 @@ class SystemHealth:
     def _check_safe_task_manager(self) -> ComponentHealth:
         """Check SafeTaskManager."""
         try:
-            from core.async_primitives.safe_task_manager import (
+            from core.foundation.async_primitives.safe_task_manager import (
                 SafeTaskManager,
                 create_safe_task,
             )
@@ -229,7 +229,7 @@ class SystemHealth:
     async def _check_event_bus(self) -> ComponentHealth:
         """Check EventBus."""
         try:
-            from core.async_primitives.event_bus import (
+            from core.foundation.async_primitives.event_bus import (
                 get_event_bus,
                 SyncEvent,
             )

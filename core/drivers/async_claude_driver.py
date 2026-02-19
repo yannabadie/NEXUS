@@ -41,9 +41,9 @@ from datetime import datetime
 from typing import AsyncIterator, Optional, Dict, Any, Callable
 from dataclasses import dataclass, field
 
-from core.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
-from core.async_primitives.process_handle import get_process_registry
-from core.agents.unified_registry import get_registry
+from core.foundation.async_primitives import CancellationToken, AsyncProcessHandle, create_safe_task
+from core.foundation.async_primitives.process_handle import get_process_registry
+from core.foundation.agents.unified_registry import get_registry
 
 
 @dataclass

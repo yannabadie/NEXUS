@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.async_primitives.task_metrics_collector import (
+from core.foundation.async_primitives.task_metrics_collector import (
     MAX_TASK_RECORDS,
     SLOW_TASK_THRESHOLD_MS,
     CollectorStats,
@@ -400,7 +400,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_async_primitives_package(self):
-        from core.async_primitives import (
+        from core.foundation.async_primitives import (
             TaskMetricsCollector, TaskRecord, TaskTypeMetrics,
             CollectorStats,
             get_task_metrics_collector, reset_task_metrics_collector,
@@ -412,7 +412,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.async_primitives.task_metrics_collector import (
+        from core.foundation.async_primitives.task_metrics_collector import (
             MAX_TASK_RECORDS, SLOW_TASK_THRESHOLD_MS,
         )
         assert MAX_TASK_RECORDS == 50000

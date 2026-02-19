@@ -204,7 +204,7 @@ def create_safe_task(
     Convenience wrapper for SafeTaskManager.create_task().
 
     Usage:
-        from core.async_primitives.safe_task_manager import create_safe_task
+        from core.foundation.async_primitives.safe_task_manager import create_safe_task
 
         task = create_safe_task(my_coroutine(), name="my_task")
     """
