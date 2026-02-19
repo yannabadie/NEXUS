@@ -138,7 +138,7 @@ def test_5_bootstrap_service_headless():
     print("=" * 60)
 
     from core.interaction import HeadlessProvider
-    from core.bootstrap.service import BootstrapService
+    from core.infrastructure.bootstrap.service import BootstrapService
 
     # Mock console
     mock_console = MagicMock()
@@ -250,7 +250,7 @@ def test_8_spinoff_service_no_input():
     print("=" * 60)
 
     import inspect
-    from core.bootstrap.service import SpinoffService
+    from core.infrastructure.bootstrap.service import SpinoffService
 
     # Get source code
     source = inspect.getsource(SpinoffService)

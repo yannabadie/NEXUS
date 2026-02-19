@@ -12,13 +12,13 @@ from .registry import Command, CommandContext, CommandResult, CommandStatus
 
 def _get_bootstrap_service(context: CommandContext):
     """Get or create BootstrapService from context."""
-    from core.bootstrap import _get_bootstrap_service as get_service
+    from core.infrastructure.bootstrap import _get_bootstrap_service as get_service
     return get_service(context)
 
 
 def _get_spinoff_service(context: CommandContext):
     """Get or create SpinoffService from context."""
-    from core.bootstrap import _get_spinoff_service as get_service
+    from core.infrastructure.bootstrap import _get_spinoff_service as get_service
     return get_service(context)
 
 

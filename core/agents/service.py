@@ -659,7 +659,7 @@ Creator: Yann Abadie
         Args:
             role_slug: Agent identifier
         """
-        from core.bootstrap import discover_and_register_spawned_agents
+        from core.infrastructure.bootstrap import discover_and_register_spawned_agents
 
         if self.orchestrator.agent_pool:
             discover_and_register_spawned_agents(

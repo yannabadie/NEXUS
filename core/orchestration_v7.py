@@ -25,7 +25,7 @@ from core.execution.tool_manager import ToolManager
 from core.execution.agent_tools import AgentToolRegistry  # V7.8 Phase 15: Agent-as-Tool
 from core.observability.logging import init_logger, get_logger
 from core.swarm import AgentPool, AgentInvocationResult, create_default_pool
-from core.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
+from core.infrastructure.bootstrap import discover_and_register_spawned_agents, SpawnedAgentLoader
 from core.swarm import (
     HybridSwarmEngine,
     SwarmPhase,

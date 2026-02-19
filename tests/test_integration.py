@@ -19,7 +19,7 @@ import sys
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.bootstrap import AutoBootstrap
+from core.infrastructure.bootstrap import AutoBootstrap
 # V7.8.1: GoT imports removed (Phase 14c cleanup)
 from core.swarm import HybridSwarmEngine
 from core.swarm.task_analyzer import TaskComplexity, TaskDomain
@@ -198,7 +198,7 @@ class TestModuleImports:
 
     def test_import_bootstrap(self):
         """AutoBootstrap should be importable."""
-        from core.bootstrap import AutoBootstrap
+        from core.infrastructure.bootstrap import AutoBootstrap
         assert AutoBootstrap is not None
 
     # V7.8.1: test_import_reasoning removed (GoT removed in Phase 14c)

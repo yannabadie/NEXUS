@@ -5,7 +5,7 @@ Discovers and loads spawned agents from workspace/agents/ at startup.
 Integrates them into the AgentPool for use by Hybrid Swarm Engine.
 
 Usage:
-    from core.bootstrap.agent_loader import SpawnedAgentLoader
+    from core.infrastructure.bootstrap.agent_loader import SpawnedAgentLoader
 
     loader = SpawnedAgentLoader(workspace_path)
     agents = loader.discover_spawned_agents()

@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 if TYPE_CHECKING:
     from core.swarm.agent_metrics import AgentPool, AgentProfile
     from core.orchestration.agent_invoker import AgentInvoker
-    from core.bootstrap.agent_loader import SpawnedAgentLoader
+    from core.infrastructure.bootstrap.agent_loader import SpawnedAgentLoader
 
 
 # =============================================================================

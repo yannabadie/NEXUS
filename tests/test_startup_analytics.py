@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.bootstrap.startup_analytics import (
+from core.infrastructure.bootstrap.startup_analytics import (
     MAX_BOOT_RECORDS,
     StartupAnalytics,
     BootStepRecord,
@@ -279,7 +279,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_bootstrap_package(self):
-        from core.bootstrap import (
+        from core.infrastructure.bootstrap import (
             StartupAnalytics, BootStepRecord,
             ComponentProfile, StartupStats,
             get_startup_analytics, reset_startup_analytics,
@@ -291,5 +291,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.bootstrap.startup_analytics import MAX_BOOT_RECORDS
+        from core.infrastructure.bootstrap.startup_analytics import MAX_BOOT_RECORDS
         assert MAX_BOOT_RECORDS == 50000

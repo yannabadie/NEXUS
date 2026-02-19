@@ -10,7 +10,7 @@ Tracks bootstrap and startup performance:
 - Total boot time aggregation
 
 Usage:
-    from core.bootstrap.startup_analytics import get_startup_analytics
+    from core.infrastructure.bootstrap.startup_analytics import get_startup_analytics
 
     analytics = get_startup_analytics()
     analytics.record_step("orchestrator", duration_ms=120.5, order=1)

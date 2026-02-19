@@ -60,6 +60,25 @@ from core.infrastructure.db import (
     reset_query_tracker,
 )
 
+# Bootstrap exports
+from core.infrastructure.bootstrap import (
+    AutoBootstrap,
+    ProjectAnalysis,
+    SpawnedAgentLoader,
+    SpawnedAgentConfig,
+    discover_and_register_spawned_agents,
+    BootstrapService,
+    SpinoffService,
+    _get_bootstrap_service,
+    _get_spinoff_service,
+    StartupAnalytics,
+    BootStepRecord,
+    ComponentProfile,
+    StartupStats,
+    get_startup_analytics,
+    reset_startup_analytics,
+)
+
 __all__ = [
     # Context
     "SessionContext",
@@ -104,6 +123,22 @@ __all__ = [
     "QueryPerformanceStats",
     "get_query_tracker",
     "reset_query_tracker",
+    # Bootstrap
+    "AutoBootstrap",
+    "ProjectAnalysis",
+    "SpawnedAgentLoader",
+    "SpawnedAgentConfig",
+    "discover_and_register_spawned_agents",
+    "BootstrapService",
+    "SpinoffService",
+    "_get_bootstrap_service",
+    "_get_spinoff_service",
+    "StartupAnalytics",
+    "BootStepRecord",
+    "ComponentProfile",
+    "StartupStats",
+    "get_startup_analytics",
+    "reset_startup_analytics",
 ]
 
 __version__ = "12.4.0"

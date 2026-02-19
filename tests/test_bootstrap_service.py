@@ -36,7 +36,7 @@ class TestBootstrapService:
     @pytest.fixture
     def bootstrap_service(self, mock_console):
         """Create a BootstrapService instance."""
-        from core.bootstrap.service import BootstrapService
+        from core.infrastructure.bootstrap.service import BootstrapService
         return BootstrapService(console=mock_console)
 
     # ==================== bootstrap() tests ====================
@@ -188,7 +188,7 @@ class TestGetBootstrapService:
 
     def test_get_service_from_extras(self):
         """Test getting service from context extras."""
-        from core.bootstrap.service import _get_bootstrap_service
+        from core.infrastructure.bootstrap.service import _get_bootstrap_service
 
         mock_service = MagicMock()
         mock_context = MagicMock()
@@ -199,7 +199,7 @@ class TestGetBootstrapService:
 
     def test_get_service_creates_new(self):
         """Test creating new service when not in extras."""
-        from core.bootstrap.service import _get_bootstrap_service, BootstrapService
+        from core.infrastructure.bootstrap.service import _get_bootstrap_service, BootstrapService
 
         mock_context = MagicMock()
         mock_context.extras = {}

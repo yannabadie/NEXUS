@@ -80,7 +80,7 @@ class TestSpinoffService:
     @pytest.fixture
     def spinoff_service(self, mock_orchestrator, mock_console, temp_workspace, temp_nexus_root):
         """Create a SpinoffService instance."""
-        from core.bootstrap.service import SpinoffService
+        from core.infrastructure.bootstrap.service import SpinoffService
         return SpinoffService(
             orchestrator=mock_orchestrator,
             console=mock_console,
@@ -209,7 +209,7 @@ class TestGetSpinoffService:
 
     def test_get_service_from_extras(self):
         """Test getting service from context extras."""
-        from core.bootstrap.service import _get_spinoff_service
+        from core.infrastructure.bootstrap.service import _get_spinoff_service
 
         mock_service = MagicMock()
         mock_context = MagicMock()
@@ -220,7 +220,7 @@ class TestGetSpinoffService:
 
     def test_get_service_requires_repl(self):
         """Test creating service requires REPL in context."""
-        from core.bootstrap.service import _get_spinoff_service
+        from core.infrastructure.bootstrap.service import _get_spinoff_service
 
         mock_context = MagicMock()
         mock_context.extras = {}  # No repl
@@ -232,7 +232,7 @@ class TestGetSpinoffService:
 
     def test_get_service_creates_from_repl(self):
         """Test creating service from REPL in context."""
-        from core.bootstrap.service import _get_spinoff_service, SpinoffService
+        from core.infrastructure.bootstrap.service import _get_spinoff_service, SpinoffService
 
         mock_repl = MagicMock()
         mock_repl.workspace_path = Path("/tmp/workspace")

@@ -14,7 +14,7 @@ import sys
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.bootstrap.auto_bootstrap import AutoBootstrap, ProjectAnalysis, bootstrap_project
+from core.infrastructure.bootstrap.auto_bootstrap import AutoBootstrap, ProjectAnalysis, bootstrap_project
 
 
 # ============================================================================

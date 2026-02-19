@@ -9,7 +9,7 @@ This service handles:
 - Specialized agent creation via collaborative brainstorming (SpinoffService)
 
 Usage:
-    from core.bootstrap.service import BootstrapService, SpinoffService
+    from core.infrastructure.bootstrap.service import BootstrapService, SpinoffService
 
     bootstrap_service = BootstrapService(console)
     bootstrap_service.bootstrap(project_path)
@@ -74,7 +74,7 @@ class BootstrapService:
         Returns:
             ServiceResult with bootstrap outcome
         """
-        from core.bootstrap import AutoBootstrap
+        from core.infrastructure.bootstrap import AutoBootstrap
 
         # Default to current directory
         if project_path is None:
