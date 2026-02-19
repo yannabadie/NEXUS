@@ -9,7 +9,7 @@ Persists Human-in-the-Loop requests to database for:
 The HITLRequest model is defined in core/audit/models.py.
 
 Usage:
-    from core.interaction.hitl_persistence import HITLPersistence
+    from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
     # Create a request
     request = await HITLPersistence.create_request(

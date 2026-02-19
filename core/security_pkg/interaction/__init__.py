@@ -13,7 +13,7 @@ Configuration:
     - "strict": Headless but raises on missing defaults
 
 Usage:
-    from core.interaction import get_interaction_provider
+    from core.security_pkg.interaction import get_interaction_provider
 
     async def my_function():
         provider = get_interaction_provider()

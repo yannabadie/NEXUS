@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.governance.ethics import (
+from core.security_pkg.governance.ethics import (
     AlignmentVerifier,
     AlignmentConfig,
     AlignmentResult,
@@ -584,7 +584,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_governance_package(self):
-        from core.governance import (
+        from core.security_pkg.governance import (
             AlignmentVerifier,
             AlignmentConfig,
             AlignmentResult,
@@ -596,7 +596,7 @@ class TestModuleExports:
                      AlignmentViolation, AlignmentPrinciple, ViolationSeverity])
 
     def test_from_module(self):
-        from core.governance.ethics import (
+        from core.security_pkg.governance.ethics import (
             AlignmentVerifier,
             AlignmentConfig,
             AlignmentResult,

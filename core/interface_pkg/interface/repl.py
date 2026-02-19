@@ -36,7 +36,7 @@ from core.fsm.states import OrchestratorState
 from core.evolution.rate_limiter import EvolutionRateLimiter
 from core.evolution import ChildValidator, SafetyGate, AutoPromotionDecision
 from core.evolution.manager import EvolutionManager  # V7.5 Phase 0a: Central evolution orchestrator
-from core.security import MutationValidator
+from core.security_pkg.security import MutationValidator
 from core.prompts import load_prompt  # V7.5 HIVE MIND: Prompt loader with includes
 from core.agents.unified_registry import get_registry  # V8.4.0: Unified agent registry
 

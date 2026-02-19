@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.governance.decision_logger import (
+from core.security_pkg.governance.decision_logger import (
     DECISION_TYPES,
     MAX_ENTRIES,
     DecisionLogStats,
@@ -358,7 +358,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_governance_package(self):
-        from core.governance import (
+        from core.security_pkg.governance import (
             GovernanceDecisionLog, GovernanceDecision,
             DecisionPattern, DecisionLogStats,
             get_decision_logger, reset_decision_logger,
@@ -370,6 +370,6 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.governance.decision_logger import MAX_ENTRIES, DECISION_TYPES
+        from core.security_pkg.governance.decision_logger import MAX_ENTRIES, DECISION_TYPES
         assert MAX_ENTRIES == 50000
         assert "mode_choice" in DECISION_TYPES

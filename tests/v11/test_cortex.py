@@ -32,7 +32,7 @@ class TestHeadlessProviderInteractive:
 
     def test_default_non_interactive(self):
         """HeadlessProvider should default to non-interactive (backward compat)."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider()
 
@@ -42,7 +42,7 @@ class TestHeadlessProviderInteractive:
 
     def test_interactive_mode_enabled(self):
         """HeadlessProvider can be created in interactive mode."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(interactive=True, interaction_timeout=60.0)
 
@@ -51,7 +51,7 @@ class TestHeadlessProviderInteractive:
 
     def test_get_pending_requests_empty(self):
         """get_pending_requests returns empty list initially."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(interactive=True)
 
@@ -61,7 +61,7 @@ class TestHeadlessProviderInteractive:
 
     def test_resolve_interaction_not_found(self):
         """resolve_interaction returns False for unknown request_id."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(interactive=True)
 
@@ -285,7 +285,7 @@ class TestBackwardCompatibility:
 
     def test_headless_provider_sync_methods_unchanged(self):
         """HeadlessProvider sync behavior should be unchanged."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         # Non-interactive mode (default) - legacy behavior
         provider = HeadlessProvider(strict=False)
@@ -299,7 +299,7 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_ask_returns_default_non_interactive(self):
         """In non-interactive mode, ask() should return default immediately."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(strict=False, publish_events=False)
 
@@ -310,7 +310,7 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_confirm_returns_default_non_interactive(self):
         """In non-interactive mode, confirm() should return default immediately."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(strict=False, publish_events=False)
 

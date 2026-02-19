@@ -10,7 +10,7 @@ Records all governance-level decisions:
 - Phase routing decisions
 
 Usage:
-    from core.governance.decision_logger import get_decision_logger
+    from core.security_pkg.governance.decision_logger import get_decision_logger
 
     logger = get_decision_logger()
     logger.record_mode_choice(

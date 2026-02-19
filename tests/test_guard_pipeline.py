@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.orchestration.guard_pipeline import GuardPipeline, GuardValidationResult
 from core.fsm.states import OrchestratorState
-from core.security import ThreatLevel
+from core.security_pkg.security import ThreatLevel
 
 
 class TestGuardValidationResult:

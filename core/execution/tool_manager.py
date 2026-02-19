@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional, Callable
 
 # Security imports
-from core.security import PathGuardian
-from core.security.execution_policy import ExecutionPolicy
+from core.security_pkg.security import PathGuardian
+from core.security_pkg.security.execution_policy import ExecutionPolicy
 
 # Handler imports - V9.6 refactored
 from .handlers import ToolResult, create_all_handlers

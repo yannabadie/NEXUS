@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.security.rate_limiter import (
+from core.security_pkg.security.rate_limiter import (
     DEFAULT_BUCKET_SIZE,
     DEFAULT_TOKENS_PER_SECOND,
     LimiterStats,
@@ -385,7 +385,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_security_package(self):
-        from core.security import (
+        from core.security_pkg.security import (
             RateLimiter, RateLimitConfig, RateLimitResult,
             LimiterStats, get_rate_limiter, reset_rate_limiter,
         )
@@ -395,7 +395,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.security.rate_limiter import (
+        from core.security_pkg.security.rate_limiter import (
             RateLimiter, DEFAULT_TOKENS_PER_SECOND,
             DEFAULT_BUCKET_SIZE, MAX_LIMITS,
         )

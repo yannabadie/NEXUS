@@ -19,7 +19,7 @@ Validates:
 
 import pytest
 
-from core.security.security_event_journal import (
+from core.security_pkg.security.security_event_journal import (
     EVENT_TYPES,
     MAX_EVENTS,
     SEVERITY_LEVELS,
@@ -372,7 +372,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_security_package(self):
-        from core.security import (
+        from core.security_pkg.security import (
             SecurityEventJournal, SecurityEvent,
             ThreatPattern, SecurityJournalStats,
             get_security_journal, reset_security_journal,
@@ -384,7 +384,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.security.security_event_journal import (
+        from core.security_pkg.security.security_event_journal import (
             MAX_EVENTS, SEVERITY_LEVELS, EVENT_TYPES,
         )
         assert MAX_EVENTS == 100000

@@ -7,7 +7,7 @@ Manages permissions for agents to use specific tools, access resources,
 and perform operations. Supports role-based and per-agent grants/denials.
 
 Usage:
-    from core.security.access_control import get_access_controller
+    from core.security_pkg.security.access_control import get_access_controller
 
     ac = get_access_controller()
 

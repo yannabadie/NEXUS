@@ -67,7 +67,7 @@ def _get_guardian():
     """
     try:
         from core.config import Config
-        from core.security.path_guardian import PathGuardian
+        from core.security_pkg.security.path_guardian import PathGuardian
 
         config = Config()
         workspace = Path(config.workspace_path).resolve()

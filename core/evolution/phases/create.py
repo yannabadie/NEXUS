@@ -20,7 +20,7 @@ from core.evolution.models import (
     MutationProposal,
     ChildCreationResult,
 )
-from core.security import MutationValidator
+from core.security_pkg.security import MutationValidator
 
 
 # Type alias for progress callback

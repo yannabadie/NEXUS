@@ -5,7 +5,7 @@ Tests static analysis of generated prompts for dangerous patterns.
 """
 
 import pytest
-from core.governance.red_team.prompt_validator import (
+from core.security_pkg.governance.red_team.prompt_validator import (
     SpawnPromptValidator,
     ValidationResult,
     RiskLevel,

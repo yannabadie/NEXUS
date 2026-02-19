@@ -21,7 +21,7 @@ Validates:
 
 import pytest
 
-from core.governance.alignment_journal import (
+from core.security_pkg.governance.alignment_journal import (
     DEFAULT_TRUST_SCORE,
     MAX_ENTRIES,
     TRUST_DECAY_PER_VIOLATION,
@@ -485,7 +485,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_governance_package(self):
-        from core.governance import (
+        from core.security_pkg.governance import (
             AlignmentJournal, VerificationEntry, ViolationEntry,
             TrustScore, JournalStats,
             get_alignment_journal, reset_alignment_journal,
@@ -497,7 +497,7 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.governance.alignment_journal import (
+        from core.security_pkg.governance.alignment_journal import (
             MAX_ENTRIES, DEFAULT_TRUST_SCORE,
             TRUST_DECAY_PER_VIOLATION, TRUST_RECOVERY_PER_PASS,
         )

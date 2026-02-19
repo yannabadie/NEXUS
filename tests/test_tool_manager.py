@@ -19,7 +19,7 @@ from core.execution.tool_manager import (
     ToolManager,
     ToolResult,
 )
-from core.security.execution_policy import ExecutionPolicy
+from core.security_pkg.security.execution_policy import ExecutionPolicy
 
 
 # ============================================================================

@@ -37,7 +37,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from core.security.execution_policy import CodeValidator, CodeValidationResult
+from core.security_pkg.security.execution_policy import CodeValidator, CodeValidationResult
 
 
 # =============================================================================

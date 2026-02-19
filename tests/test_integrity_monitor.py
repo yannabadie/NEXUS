@@ -24,7 +24,7 @@ from pathlib import Path
 from datetime import datetime
 import pytest
 
-from core.security.integrity_monitor import IntegrityMonitor
+from core.security_pkg.security.integrity_monitor import IntegrityMonitor
 
 
 # ============================================================================

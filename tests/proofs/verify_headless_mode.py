@@ -37,7 +37,7 @@ def test_1_interaction_provider_headless():
     print("=" * 60)
 
     # Reset provider to pick up env var
-    from core.interaction import reset_interaction_provider, get_interaction_provider
+    from core.security_pkg.interaction import reset_interaction_provider, get_interaction_provider
     reset_interaction_provider()
 
     provider = get_interaction_provider()
@@ -57,7 +57,7 @@ def test_2_headless_confirm_no_block():
     print("TEST 2: HeadlessProvider.confirm() Non-Blocking")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
 
     provider = HeadlessProvider(strict=False)
 
@@ -86,7 +86,7 @@ def test_3_headless_ask_no_block():
     print("TEST 3: HeadlessProvider.ask() Non-Blocking")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
 
     provider = HeadlessProvider(strict=False)
 
@@ -114,7 +114,7 @@ def test_4_headless_strict_raises():
     print("TEST 4: HeadlessProvider Strict Mode")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider, InteractionRequiredError
+    from core.security_pkg.interaction import HeadlessProvider, InteractionRequiredError
 
     provider = HeadlessProvider(strict=True)
 
@@ -137,7 +137,7 @@ def test_5_bootstrap_service_headless():
     print("TEST 5: BootstrapService Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
     from core.infrastructure.bootstrap.service import BootstrapService
 
     # Mock console
@@ -168,7 +168,7 @@ def test_6_budget_service_headless():
     print("TEST 6: BudgetService Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
     from core.observability.telemetry.service import BudgetService
 
     # Mock console and config
@@ -206,7 +206,7 @@ def test_7_user_interaction_headless():
     print("TEST 7: UserInteractionHandler Headless Compatibility")
     print("=" * 60)
 
-    from core.interaction import HeadlessProvider
+    from core.security_pkg.interaction import HeadlessProvider
     from core.hive_mind.user_interaction import UserInteractionHandler
     from core.hive_mind.types import UserBreakpoint, BreakpointOption
 

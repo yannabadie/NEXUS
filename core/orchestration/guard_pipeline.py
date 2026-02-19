@@ -22,7 +22,7 @@ from typing import Optional
 import logging
 
 from core.fsm.states import OrchestratorState
-from core.security import get_input_guard, ThreatLevel
+from core.security_pkg.security import get_input_guard, ThreatLevel
 
 
 @dataclass

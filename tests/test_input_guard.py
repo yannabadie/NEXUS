@@ -18,7 +18,7 @@ Target: 140+ tests
 """
 
 import pytest
-from core.security.input_guard import (
+from core.security_pkg.security.input_guard import (
     InputGuard,
     get_input_guard,
     ThreatLevel,

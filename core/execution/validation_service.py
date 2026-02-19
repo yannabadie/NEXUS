@@ -25,8 +25,8 @@ import logging
 from pathlib import Path
 from typing import Optional, Literal
 
-from core.security import PathGuardian
-from core.security.execution_policy import ExecutionPolicy
+from core.security_pkg.security import PathGuardian
+from core.security_pkg.security.execution_policy import ExecutionPolicy
 
 logger = logging.getLogger(__name__)
 

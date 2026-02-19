@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.interaction.interaction_quality_tracker import (
+from core.security_pkg.interaction.interaction_quality_tracker import (
     MAX_INTERACTIONS,
     InteractionQualityTracker,
     InteractionRecord,
@@ -263,7 +263,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_interaction_package(self):
-        from core.interaction import (
+        from core.security_pkg.interaction import (
             InteractionQualityTracker, InteractionRecord,
             InteractionTypeProfile, InteractionQualityStats,
             get_interaction_tracker, reset_interaction_tracker,
@@ -275,5 +275,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.interaction.interaction_quality_tracker import MAX_INTERACTIONS
+        from core.security_pkg.interaction.interaction_quality_tracker import MAX_INTERACTIONS
         assert MAX_INTERACTIONS == 50000

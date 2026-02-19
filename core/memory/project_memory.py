@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 # V8.8: Spotlighter for RAG content protection (OWASP LLM01:2025)
 try:
-    from core.security import get_spotlighter
+    from core.security_pkg.security import get_spotlighter
     SPOTLIGHTER_AVAILABLE = True
 except ImportError:
     SPOTLIGHTER_AVAILABLE = False

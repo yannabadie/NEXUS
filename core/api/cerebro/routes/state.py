@@ -180,7 +180,7 @@ async def _get_snapshot_from_redis(bus, tenant_id: str, workspace_id: str) -> di
 def _get_pending_interactions() -> list[dict[str, Any]]:
     """Get pending interactions from HeadlessProvider."""
     try:
-        from core.interaction import get_interaction_provider
+        from core.security_pkg.interaction import get_interaction_provider
         provider = get_interaction_provider()
         if hasattr(provider, 'get_pending_requests'):
             return provider.get_pending_requests()

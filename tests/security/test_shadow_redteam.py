@@ -14,8 +14,8 @@ import asyncio
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 
-from core.security.shadow_tester import ShadowRedTeam, AttackResult, SecurityMetrics
-from core.security.input_guard import InputGuard, ThreatLevel
+from core.security_pkg.security.shadow_tester import ShadowRedTeam, AttackResult, SecurityMetrics
+from core.security_pkg.security.input_guard import InputGuard, ThreatLevel
 
 
 class TestShadowRedTeamAttacks:

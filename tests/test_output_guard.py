@@ -20,7 +20,7 @@ Target: 140+ tests
 """
 
 import pytest
-from core.security.output_guard import (
+from core.security_pkg.security.output_guard import (
     OutputGuard,
     LeakType,
     LeakSeverity,

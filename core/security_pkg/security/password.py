@@ -11,7 +11,7 @@ Follows OWASP recommendations and RFC 9106:
 - Parallelism: 1
 
 Usage:
-    from core.security.password import hash_password, verify_password
+    from core.security_pkg.security.password import hash_password, verify_password
 
     hashed = hash_password("mypassword")
     if verify_password("mypassword", hashed):

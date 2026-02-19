@@ -7,7 +7,7 @@ Provides append-only security event journaling for threat analysis,
 compliance auditing, and pattern detection.
 
 Usage:
-    from core.security.security_event_journal import get_security_journal
+    from core.security_pkg.security.security_event_journal import get_security_journal
 
     journal = get_security_journal()
     journal.record_event("auth_attempt", actor="claude", result="allowed")

@@ -64,7 +64,7 @@ def authenticate_user_db(username: str, password: str) -> tuple[bool, dict | Non
     try:
         from sqlmodel import select
         from core.infrastructure.db import get_session, User
-        from core.security.password import verify_password
+        from core.security_pkg.security.password import verify_password
 
         with get_session() as session:
             statement = select(User).where(

@@ -6,7 +6,7 @@ Tests command injection prevention, path traversal, and dangerous command blocki
 
 import pytest
 from pathlib import Path
-from core.security.execution_policy import (
+from core.security_pkg.security.execution_policy import (
     ExecutionPolicy,
     CommandType,
     CommandAnalysis,

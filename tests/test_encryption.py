@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core.security.encryption import (
+from core.security_pkg.security.encryption import (
     FileEncryptor,
     EncryptionConfig,
     derive_key,
@@ -384,13 +384,13 @@ class TestModuleExports:
     """Test that encryption types are importable."""
 
     def test_from_security_package(self):
-        from core.security import FileEncryptor, EncryptionConfig, derive_key
+        from core.security_pkg.security import FileEncryptor, EncryptionConfig, derive_key
         assert FileEncryptor is not None
         assert EncryptionConfig is not None
         assert derive_key is not None
 
     def test_from_module(self):
-        from core.security.encryption import (
+        from core.security_pkg.security.encryption import (
             FileEncryptor,
             EncryptionConfig,
             derive_key,

@@ -30,7 +30,7 @@ governance/
 ## Usage
 
 ```python
-from core.governance.red_team import RedTeamValidator
+from core.security_pkg.governance.red_team import RedTeamValidator
 
 validator = RedTeamValidator(child_path, child_id)
 results = validator.run_alignment_tests()

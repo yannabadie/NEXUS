@@ -512,7 +512,7 @@ except Exception as e:
         try:
             # Red Team is now in core/governance/red_team
             try:
-                from core.governance.red_team import RedTeamValidator
+                from core.security_pkg.governance.red_team import RedTeamValidator
             except ImportError:
                 return ValidationResult(
                     stage="REDTEAM",

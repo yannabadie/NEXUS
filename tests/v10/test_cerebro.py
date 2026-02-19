@@ -372,7 +372,7 @@ class TestHeadlessProviderIntegration:
     @pytest.mark.asyncio
     async def test_ask_publishes_event(self):
         """HeadlessProvider.ask() publishes CEREBRO event."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
         from core.observability.events.redis_bus import get_redis_bus
 
         provider = HeadlessProvider(publish_events=True)
@@ -389,7 +389,7 @@ class TestHeadlessProviderIntegration:
     @pytest.mark.asyncio
     async def test_confirm_publishes_event(self):
         """HeadlessProvider.confirm() publishes CEREBRO event."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
 
         provider = HeadlessProvider(publish_events=True)
 
@@ -400,7 +400,7 @@ class TestHeadlessProviderIntegration:
     @pytest.mark.asyncio
     async def test_publish_events_disabled(self):
         """HeadlessProvider respects publish_events=False."""
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
         from core.observability.events.redis_bus import get_redis_bus
 
         provider = HeadlessProvider(publish_events=False)

@@ -524,7 +524,7 @@ except Exception as e:
         try:
             # Import Red Team validator from governance module
             try:
-                from core.governance.red_team.validator import RedTeamValidator
+                from core.security_pkg.governance.red_team.validator import RedTeamValidator
             except ImportError as e:
                 # SECURITY FIX V7: FAIL if Red Team unavailable
                 return TierResult(

@@ -58,7 +58,7 @@ async def reply_to_interaction(
         404: Request not found or already expired
     """
     try:
-        from core.interaction import get_interaction_provider
+        from core.security_pkg.interaction import get_interaction_provider
         provider = get_interaction_provider()
     except Exception as e:
         logger.error(f"Failed to get interaction provider: {e}")
@@ -106,7 +106,7 @@ async def list_pending_interactions(
         401: Not authenticated
     """
     try:
-        from core.interaction import get_interaction_provider
+        from core.security_pkg.interaction import get_interaction_provider
         provider = get_interaction_provider()
     except Exception as e:
         logger.warning(f"Failed to get interaction provider: {e}")

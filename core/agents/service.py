@@ -592,7 +592,7 @@ Creator: Yann Abadie
             True if passed, False if blocked
         """
         try:
-            from core.governance.red_team.prompt_validator import SpawnPromptValidator
+            from core.security_pkg.governance.red_team.prompt_validator import SpawnPromptValidator
             validator = SpawnPromptValidator()
             validation_result = validator.validate(prompt)
 

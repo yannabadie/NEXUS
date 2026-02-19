@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 if TYPE_CHECKING:
     from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.orchestration_v7 import OrchestratorV7
-    from core.interaction import InteractionProvider
+    from core.security_pkg.interaction import InteractionProvider
 
 # V9.1: Import ServiceResult from telemetry (single source of truth)
 from core.observability.telemetry.service import ServiceResult
@@ -188,7 +188,7 @@ class BootstrapService:
                 )
         else:
             # Fallback: Use provider from factory
-            from core.interaction import get_interaction_provider
+            from core.security_pkg.interaction import get_interaction_provider
             provider = get_interaction_provider()
 
             if provider.is_interactive:

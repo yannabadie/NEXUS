@@ -30,8 +30,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.security.input_guard import InputGuard, ThreatLevel
-from core.security.output_guard import OutputGuard
+from core.security_pkg.security.input_guard import InputGuard, ThreatLevel
+from core.security_pkg.security.output_guard import OutputGuard
 
 logger = logging.getLogger(__name__)
 

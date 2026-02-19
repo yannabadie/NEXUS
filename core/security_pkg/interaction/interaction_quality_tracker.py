@@ -19,7 +19,7 @@ Thread-Safety:
     Uses threading.Lock for all mutations. Global singleton with double-checked locking.
 
 Usage:
-    from core.interaction.interaction_quality_tracker import get_interaction_tracker
+    from core.security_pkg.interaction.interaction_quality_tracker import get_interaction_tracker
 
     tracker = get_interaction_tracker()
 

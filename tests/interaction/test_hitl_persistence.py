@@ -81,7 +81,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_create_request(self):
         """Test creating a HITL request."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -100,7 +100,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_create_request_with_options(self):
         """Test creating a request with choice options."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         result = await HITLPersistence.create_request(
             tenant_id=uuid4(),
@@ -116,7 +116,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_get_pending_requests(self):
         """Test getting pending requests for a workspace."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -151,7 +151,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_answer_request(self):
         """Test answering a pending request."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -176,7 +176,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_answered_request_not_in_pending(self):
         """Test that answered requests are not in pending list."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -202,7 +202,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_answer_nonexistent_returns_none(self):
         """Test answering nonexistent request returns None."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         result = await HITLPersistence.answer_request(
             request_id=uuid4(),
@@ -214,7 +214,7 @@ class TestHITLPersistence:
     @pytest.mark.asyncio
     async def test_get_request_by_id(self):
         """Test getting a specific request by ID."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -246,7 +246,7 @@ class TestHITLWorkspaceIsolation:
     @pytest.mark.asyncio
     async def test_different_workspaces_independent(self):
         """Test that workspaces have independent pending lists."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_id = uuid4()
 
@@ -275,7 +275,7 @@ class TestHITLWorkspaceIsolation:
     @pytest.mark.asyncio
     async def test_different_tenants_independent(self):
         """Test that tenants have independent pending lists."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         tenant_a = uuid4()
         tenant_b = uuid4()
@@ -316,7 +316,7 @@ class TestHITLRequestTypes:
     @pytest.mark.asyncio
     async def test_ask_request(self):
         """Test creating an 'ask' type request."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         result = await HITLPersistence.create_request(
             tenant_id=uuid4(),
@@ -330,7 +330,7 @@ class TestHITLRequestTypes:
     @pytest.mark.asyncio
     async def test_confirm_request(self):
         """Test creating a 'confirm' type request."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         result = await HITLPersistence.create_request(
             tenant_id=uuid4(),
@@ -344,7 +344,7 @@ class TestHITLRequestTypes:
     @pytest.mark.asyncio
     async def test_choose_request(self):
         """Test creating a 'choose' type request with options."""
-        from core.interaction.hitl_persistence import HITLPersistence
+        from core.security_pkg.interaction.hitl_persistence import HITLPersistence
 
         result = await HITLPersistence.create_request(
             tenant_id=uuid4(),

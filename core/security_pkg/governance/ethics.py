@@ -15,7 +15,7 @@ Key Principles Verified:
 5. Mission fidelity - Agent stays focused on NEXUS mission
 
 Usage:
-    from core.governance.ethics import AlignmentVerifier, AlignmentConfig
+    from core.security_pkg.governance.ethics import AlignmentVerifier, AlignmentConfig
 
     verifier = AlignmentVerifier()
     result = verifier.verify_prompt("You are an AI assistant...")

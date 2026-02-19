@@ -10,7 +10,7 @@ Provides persistent journaling of alignment checks:
 - Track alignment trends
 
 Usage:
-    from core.governance.alignment_journal import get_alignment_journal
+    from core.security_pkg.governance.alignment_journal import get_alignment_journal
 
     journal = get_alignment_journal()
     journal.record_verification("claude", principle="safety", passed=True, score=0.95)

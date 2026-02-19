@@ -28,7 +28,7 @@ from core.fsm.states import OrchestratorState
 from core.routing.model_router import TaskType
 from core.synapse.protocol_v7 import ToolUse
 from core.swarm import TaskComplexity
-from core.governance.sandbox_policy import SandboxPolicy
+from core.security_pkg.governance.sandbox_policy import SandboxPolicy
 
 # V13.0 CEREBRO LIVE: Agent exchange telemetry
 from core.observability.events.telemetry_bridge import emit_agent_exchange, emit_agent_speak

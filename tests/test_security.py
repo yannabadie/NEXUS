@@ -14,8 +14,8 @@ import os
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.security.path_guardian import PathGuardian
-from core.security.mutation_validator import MutationValidator
+from core.security_pkg.security.path_guardian import PathGuardian
+from core.security_pkg.security.mutation_validator import MutationValidator
 
 
 # ============================================================================

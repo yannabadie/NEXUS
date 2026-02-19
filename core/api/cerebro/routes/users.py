@@ -103,7 +103,7 @@ def _create_user(
     """Create a new user (sync, for thread pool)."""
     from sqlmodel import select
     from core.infrastructure.db import get_session, User, UserRole
-    from core.security.password import hash_password
+    from core.security_pkg.security.password import hash_password
 
     with get_session() as session:
         # Check if username already exists in tenant

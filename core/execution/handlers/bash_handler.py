@@ -19,7 +19,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from core.security.execution_policy import ExecutionPolicy, CommandType
+from core.security_pkg.security.execution_policy import ExecutionPolicy, CommandType
 from core.constants import TIMEOUTS
 from .base import BaseHandler, ToolResult
 

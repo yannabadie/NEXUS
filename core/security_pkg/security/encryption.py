@@ -10,7 +10,7 @@ Uses AES-256-GCM (authenticated encryption) with PBKDF2 key derivation
 from the NEXUS_ENCRYPTION_KEY environment variable.
 
 Usage:
-    from core.security.encryption import FileEncryptor, EncryptionConfig
+    from core.security_pkg.security.encryption import FileEncryptor, EncryptionConfig
 
     encryptor = FileEncryptor()  # Uses NEXUS_ENCRYPTION_KEY env var
     encryptor.encrypt_file(Path("workspace/.nexus/blackboard.json"))

@@ -210,7 +210,7 @@ class TestModuleImports:
 
     def test_import_security(self):
         """Security modules should be importable."""
-        from core.security import PathGuardian, MutationValidator
+        from core.security_pkg.security import PathGuardian, MutationValidator
         assert PathGuardian is not None
         assert MutationValidator is not None
 

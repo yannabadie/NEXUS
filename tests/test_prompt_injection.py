@@ -13,14 +13,14 @@ import sys
 # Add project root to path
 sys.path.insert(0, str(__file__).replace("\\tests\\test_prompt_injection.py", "").replace("/tests/test_prompt_injection.py", ""))
 
-from core.security.input_guard import (
+from core.security_pkg.security.input_guard import (
     InputGuard,
     ThreatLevel,
     ThreatType,
     InputValidationResult,
     get_input_guard,
 )
-from core.security.output_guard import (
+from core.security_pkg.security.output_guard import (
     OutputGuard,
     LeakType,
     LeakSeverity,

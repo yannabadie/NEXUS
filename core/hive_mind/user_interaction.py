@@ -38,7 +38,7 @@ from datetime import datetime
 from enum import Enum
 
 if TYPE_CHECKING:
-    from core.interaction import InteractionProvider
+    from core.security_pkg.interaction import InteractionProvider
 
 # Try to import rich for better UI, fallback to basic input
 try:

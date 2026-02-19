@@ -381,7 +381,7 @@ def run_red_team_test(
 
     # Check if Red Team module is available
     try:
-        from core.governance.red_team import RedTeamValidator
+        from core.security_pkg.governance.red_team import RedTeamValidator
     except ImportError as e:
         print(f"[RED TEAM] Module not available: {e}")
         print("[RED TEAM] Skipping test (governance.red_team module not found)")

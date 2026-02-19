@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.security.access_control import (
+from core.security_pkg.security.access_control import (
     ADMIN_ROLE,
     AccessCheckResult,
     AccessControlManager,
@@ -499,7 +499,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_security_package(self):
-        from core.security import (
+        from core.security_pkg.security import (
             AccessControlManager, Role, AgentAccess,
             AccessCheckResult, AccessStats,
             get_access_controller, reset_access_controller,
@@ -511,7 +511,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.security.access_control import (
+        from core.security_pkg.security.access_control import (
             AccessControlManager, ADMIN_ROLE,
             DEFAULT_ROLE, MAX_ROLES, MAX_AGENTS,
         )

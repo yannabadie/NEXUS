@@ -37,7 +37,7 @@ from pathlib import Path
 if TYPE_CHECKING:
     from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.config import Config
-    from core.interaction import InteractionProvider
+    from core.security_pkg.interaction import InteractionProvider
 
 
 @dataclass
@@ -362,7 +362,7 @@ class BudgetService:
                 )
         else:
             # Fallback: Use provider from factory
-            from core.interaction import get_interaction_provider
+            from core.security_pkg.interaction import get_interaction_provider
             provider = get_interaction_provider()
 
             if provider.is_interactive:
