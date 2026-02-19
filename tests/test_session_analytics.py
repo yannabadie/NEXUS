@@ -22,7 +22,7 @@ Validates:
 
 import pytest
 
-from core.session.session_analytics import (
+from core.infrastructure.session.session_analytics import (
     MAX_SESSIONS,
     AgentAction,
     AnalyticsStats,
@@ -348,7 +348,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
-        from core.session import (
+        from core.infrastructure.session import (
             SessionAnalytics, PhaseMetric, AgentAction,
             SessionMetrics, AnalyticsStats,
             get_session_analytics, reset_session_analytics,
@@ -360,5 +360,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.session.session_analytics import MAX_SESSIONS
+        from core.infrastructure.session.session_analytics import MAX_SESSIONS
         assert MAX_SESSIONS == 5000

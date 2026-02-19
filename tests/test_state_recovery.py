@@ -23,7 +23,7 @@ import time
 
 import pytest
 
-from core.session.state_recovery import (
+from core.infrastructure.session.state_recovery import (
     RecoveryResult,
     RecoveryStats,
     SnapshotReason,
@@ -574,7 +574,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
-        from core.session import (
+        from core.infrastructure.session import (
             StateRecoveryManager, StateSnapshot, RecoveryResult,
             RecoveryStats, SnapshotReason,
             get_recovery_manager, reset_recovery_manager,
@@ -586,7 +586,7 @@ class TestModuleExports:
         ])
 
     def test_from_module(self):
-        from core.session.state_recovery import (
+        from core.infrastructure.session.state_recovery import (
             StateRecoveryManager, StateSnapshot, RecoveryResult,
             SnapshotReason, MAX_SNAPSHOTS_PER_SESSION,
         )

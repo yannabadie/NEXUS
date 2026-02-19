@@ -51,7 +51,7 @@ class IsolationPhysicsProof:
         def get_subprocess_home(session_id: str) -> dict:
             """Spawn subprocess with isolated env, capture its HOME."""
             try:
-                from core.session.home_isolator import HomeIsolator
+                from core.infrastructure.session.home_isolator import HomeIsolator
 
                 isolator = HomeIsolator(self.workspace)
                 isolated_env = isolator.get_isolated_env(session_id)
@@ -141,7 +141,7 @@ print(json.dumps(result))
         test_name = "CWD_PRESERVATION"
 
         try:
-            from core.session.home_isolator import HomeIsolator
+            from core.infrastructure.session.home_isolator import HomeIsolator
 
             isolator = HomeIsolator(self.workspace)
             isolated_env = isolator.get_isolated_env("cwd_proof_test")
@@ -186,7 +186,7 @@ print(json.dumps(result))
         test_name = "ENV_LEAK_PREVENTION"
 
         try:
-            from core.session.home_isolator import HomeIsolator
+            from core.infrastructure.session.home_isolator import HomeIsolator
 
             isolator = HomeIsolator(self.workspace)
 
@@ -239,7 +239,7 @@ print(json.dumps(result))
         test_name = "CONCURRENT_ISOLATION"
 
         try:
-            from core.session.home_isolator import HomeIsolator
+            from core.infrastructure.session.home_isolator import HomeIsolator
 
             isolator = HomeIsolator(self.workspace)
 
@@ -298,7 +298,7 @@ print(home)
         test_name = "CLEANUP_VERIFICATION"
 
         try:
-            from core.session.home_isolator import HomeIsolator
+            from core.infrastructure.session.home_isolator import HomeIsolator
 
             isolator = HomeIsolator(self.workspace)
 

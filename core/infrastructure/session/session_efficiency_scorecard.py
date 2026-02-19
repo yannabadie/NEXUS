@@ -18,7 +18,7 @@ Storage:
     - Global singleton via get_session_scorecard()
 
 Usage:
-    from core.session.session_efficiency_scorecard import get_session_scorecard
+    from core.infrastructure.session.session_efficiency_scorecard import get_session_scorecard
 
     scorecard = get_session_scorecard()
     record = scorecard.record_session(

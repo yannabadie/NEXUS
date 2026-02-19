@@ -79,6 +79,35 @@ from core.infrastructure.bootstrap import (
     reset_startup_analytics,
 )
 
+# Session exports
+from core.infrastructure.session import (
+    SessionWorkspaceManager,
+    get_workspace_manager,
+    reset_workspace_manager,
+    HomeIsolator,
+    StateRecoveryManager,
+    StateSnapshot,
+    RecoveryResult,
+    RecoveryStats,
+    SnapshotReason,
+    get_recovery_manager,
+    reset_recovery_manager,
+    SessionAnalytics,
+    PhaseMetric,
+    AgentAction,
+    SessionMetrics,
+    AnalyticsStats,
+    get_session_analytics,
+    reset_session_analytics,
+    SessionRecord,
+    SessionProfile,
+    ScorecardStats,
+    SessionEfficiencyScorecard,
+    get_session_scorecard,
+    reset_session_scorecard,
+    MAX_SESSION_RECORDS,
+)
+
 __all__ = [
     # Context
     "SessionContext",
@@ -139,6 +168,32 @@ __all__ = [
     "StartupStats",
     "get_startup_analytics",
     "reset_startup_analytics",
+    # Session
+    "SessionWorkspaceManager",
+    "get_workspace_manager",
+    "reset_workspace_manager",
+    "HomeIsolator",
+    "StateRecoveryManager",
+    "StateSnapshot",
+    "RecoveryResult",
+    "RecoveryStats",
+    "SnapshotReason",
+    "get_recovery_manager",
+    "reset_recovery_manager",
+    "SessionAnalytics",
+    "PhaseMetric",
+    "AgentAction",
+    "SessionMetrics",
+    "AnalyticsStats",
+    "get_session_analytics",
+    "reset_session_analytics",
+    "SessionRecord",
+    "SessionProfile",
+    "ScorecardStats",
+    "SessionEfficiencyScorecard",
+    "get_session_scorecard",
+    "reset_session_scorecard",
+    "MAX_SESSION_RECORDS",
 ]
 
 __version__ = "12.4.0"

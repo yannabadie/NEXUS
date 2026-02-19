@@ -192,7 +192,7 @@ class SwarmSessionManager:
         self._tasks: Dict[str, TaskSession] = {}
 
         # V9.7: Workspace isolation for context bleeding fix
-        from core.session import SessionWorkspaceManager
+        from core.infrastructure.session import SessionWorkspaceManager
         self._workspace_manager = SessionWorkspaceManager(workspace_path)
 
         # Load existing registry

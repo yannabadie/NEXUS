@@ -17,7 +17,7 @@ V9.7.1 HOME Spoofing (replaces V9.7 CWD Isolation):
 - Different HOME = Different session storage = Isolation without ghost files
 
 Usage:
-    from core.session import SessionWorkspaceManager, HomeIsolator
+    from core.infrastructure.session import SessionWorkspaceManager, HomeIsolator
 
     # Create managers
     manager = SessionWorkspaceManager(workspace_path)

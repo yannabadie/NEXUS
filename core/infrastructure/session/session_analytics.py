@@ -10,7 +10,7 @@ Tracks per-session metrics:
 - Cross-session pattern detection
 
 Usage:
-    from core.session.session_analytics import get_session_analytics
+    from core.infrastructure.session.session_analytics import get_session_analytics
 
     analytics = get_session_analytics()
     analytics.record_phase("sess_1", phase="ANALYSIS", duration_ms=500, tokens=1200)

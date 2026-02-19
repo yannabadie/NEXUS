@@ -17,7 +17,7 @@ Validates:
 
 import pytest
 
-from core.session.session_efficiency_scorecard import (
+from core.infrastructure.session.session_efficiency_scorecard import (
     MAX_SESSION_RECORDS,
     SessionEfficiencyScorecard,
     SessionProfile,
@@ -308,7 +308,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_session_package(self):
-        from core.session import (
+        from core.infrastructure.session import (
             SessionEfficiencyScorecard, SessionRecord, SessionProfile,
             ScorecardStats, get_session_scorecard, reset_session_scorecard,
         )
@@ -318,5 +318,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.session.session_efficiency_scorecard import MAX_SESSION_RECORDS
+        from core.infrastructure.session.session_efficiency_scorecard import MAX_SESSION_RECORDS
         assert MAX_SESSION_RECORDS == 50000

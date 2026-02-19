@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from threading import Thread, Barrier
 from unittest.mock import patch, MagicMock
 
-from core.session.home_isolator import HomeIsolator
+from core.infrastructure.session.home_isolator import HomeIsolator
 
 
 # ============================================================================

@@ -7,7 +7,7 @@ Captures session state snapshots and enables recovery from failures.
 Supports automatic snapshots, manual savepoints, and rollback.
 
 Usage:
-    from core.session.state_recovery import get_recovery_manager
+    from core.infrastructure.session.state_recovery import get_recovery_manager
 
     manager = get_recovery_manager()
 

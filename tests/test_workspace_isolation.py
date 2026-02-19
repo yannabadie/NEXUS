@@ -24,8 +24,8 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.session import SessionWorkspaceManager, get_workspace_manager, reset_workspace_manager
-from core.session.home_isolator import HomeIsolator
+from core.infrastructure.session import SessionWorkspaceManager, get_workspace_manager, reset_workspace_manager
+from core.infrastructure.session.home_isolator import HomeIsolator
 
 
 class TestHomeIsolator:
