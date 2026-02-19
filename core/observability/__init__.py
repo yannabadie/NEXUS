@@ -15,7 +15,6 @@ from core.observability.audit import (
     AuditLogger,
     AuditLog,
     HITLRequest,
-    get_audit_logger,
 )
 
 # Logging exports
@@ -96,7 +95,6 @@ __all__ = [
     "AuditLogger",
     "AuditLog",
     "HITLRequest",
-    "get_audit_logger",
     # Logging
     "NexusLogger",
     "LogLevel",

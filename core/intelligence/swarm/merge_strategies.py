@@ -20,7 +20,7 @@ from enum import Enum
 import re
 import os
 
-from ..agents.unified_registry import get_registry  # V8.4.0
+from core.foundation.agents.unified_registry import get_registry  # V8.4.0
 
 if TYPE_CHECKING:
     from .mode_executors import AgentResponse
