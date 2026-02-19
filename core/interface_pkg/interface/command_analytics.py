@@ -10,7 +10,7 @@ Tracks command invocation patterns:
 - Overall analytics statistics
 
 Usage:
-    from core.interface.command_analytics import get_command_analytics
+    from core.interface_pkg.interface.command_analytics import get_command_analytics
 
     analytics = get_command_analytics()
     analytics.record_invocation("/evolve", args="--strategy=creative", duration_ms=1200.0)

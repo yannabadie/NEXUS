@@ -17,8 +17,8 @@ from .base import BaseHandler, ToolResult
 
 # Optional import - MCP module may not be available
 try:
-    from core.mcp import MCPRegistry
-    from core.mcp.client import MCPClientError, MCPServerError
+    from core.interface_pkg.interface_pkg.mcp import MCPRegistry
+    from core.interface_pkg.interface_pkg.mcp.client import MCPClientError, MCPServerError
     MCP_AVAILABLE = True
 except ImportError:
     MCPRegistry = None  # type: ignore

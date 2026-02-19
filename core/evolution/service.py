@@ -26,7 +26,7 @@ from pathlib import Path
 
 if TYPE_CHECKING:
     from core.evolution.manager import EvolutionManager
-    from core.interface.console_v7 import ConsoleV7
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.config import Config
 
 

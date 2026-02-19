@@ -6,14 +6,14 @@ This module provides:
 2. Strategy Pattern-based command dispatch system (V9)
 
 Usage (V9 - New):
-    from core.interface.commands import get_initialized_registry, CommandContext
+    from core.interface_pkg.interface.commands import get_initialized_registry, CommandContext
 
     registry = get_initialized_registry()
     context = CommandContext(orchestrator, console, config, extras={"repl": repl})
     result = registry.dispatch("/status", context)
 
 Usage (Legacy):
-    from core.interface.commands import is_slash_command, parse_command
+    from core.interface_pkg.interface.commands import is_slash_command, parse_command
 """
 
 # V9: Strategy Pattern command dispatch
@@ -37,7 +37,7 @@ from .memory import register_memory_commands
 from .misc import register_misc_commands
 
 # Legacy: Re-export from slash_commands.py for backward compatibility
-from core.interface.slash_commands import (
+from core.interface_pkg.interface.slash_commands import (
     is_slash_command,
     is_exit_command,
     parse_command,

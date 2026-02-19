@@ -28,7 +28,7 @@ def _get_workspace_manager(context: CommandContext):
 
     WorkspaceManager requires nexus_root path.
     """
-    from core.workspace import WorkspaceManager
+    from core.interface_pkg.interface_pkg.workspace import WorkspaceManager
 
     # Try to get cached manager from extras
     manager = context.extras.get("workspace_manager")
@@ -176,7 +176,7 @@ class WorkspaceCommand(Command):
 
     def execute(self, args: str, context: CommandContext) -> CommandResult:
         """Execute workspace command using WorkspaceManager."""
-        from core.workspace import (
+        from core.interface_pkg.interface_pkg.workspace import (
             WorkspaceError,
             WorkspaceNotFoundError,
             WorkspaceExistsError

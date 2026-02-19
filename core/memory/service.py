@@ -29,7 +29,7 @@ from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from core.memory.project_memory import ProjectMemory
-    from core.interface.console_v7 import ConsoleV7
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
 
 _logger = logging.getLogger(__name__)
 

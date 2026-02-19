@@ -100,24 +100,24 @@ class TestMCPServerModule:
 
     def test_server_module_exists(self):
         """Test that server module can be imported."""
-        from core.mcp import server
+        from core.interface_pkg.interface_pkg.mcp import server
         assert hasattr(server, 'MCP_AVAILABLE')
 
     def test_mcp_availability_flag(self):
         """Test MCP_AVAILABLE flag is set correctly."""
-        from core.mcp import server
+        from core.interface_pkg.interface_pkg.mcp import server
         # MCP_AVAILABLE depends on mcp package being installed
         assert isinstance(server.MCP_AVAILABLE, bool)
 
     def test_main_function_exists(self):
         """Test main entry point exists."""
-        from core.mcp import server
+        from core.interface_pkg.interface_pkg.mcp import server
         assert hasattr(server, 'main')
         assert callable(server.main)
 
     def test_lazy_loaders_exist(self):
         """Test lazy loader functions exist."""
-        from core.mcp import server
+        from core.interface_pkg.interface_pkg.mcp import server
         assert hasattr(server, 'get_tool_manager')
         assert hasattr(server, 'get_orchestrator')
 
@@ -131,7 +131,7 @@ class TestLazyLoaders:
 
     def test_get_tool_manager_returns_instance(self):
         """Test get_tool_manager returns ToolManager instance."""
-        from core.mcp.server import get_tool_manager
+        from core.interface_pkg.interface_pkg.mcp.server import get_tool_manager
         tm = get_tool_manager()
         assert tm is not None
         # ToolManager should have execute method
@@ -139,7 +139,7 @@ class TestLazyLoaders:
 
     def test_get_orchestrator_returns_instance(self):
         """Test get_orchestrator returns OrchestratorV7 instance."""
-        from core.mcp.server import get_orchestrator
+        from core.interface_pkg.interface_pkg.mcp.server import get_orchestrator
         orch = get_orchestrator()
         assert orch is not None
         # OrchestratorV7 should have process_turn method
@@ -181,7 +181,7 @@ class TestMCPTools:
     async def test_nexus_read_success(self, mock_execute_tool):
         """Test nexus_read returns file contents."""
         with patch('core.mcp.server.execute_tool', mock_execute_tool):
-            from core.mcp.server import nexus_read
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_read
             result = await nexus_read("/path/to/file.py", offset=0, limit=100)
 
             assert "Mock content" in result
@@ -192,7 +192,7 @@ class TestMCPTools:
     async def test_nexus_glob_success(self, mock_execute_tool):
         """Test nexus_glob returns matching files."""
         with patch('core.mcp.server.execute_tool', mock_execute_tool):
-            from core.mcp.server import nexus_glob
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_glob
             result = await nexus_glob("**/*.py", path=".")
 
             assert "file1.py" in result
@@ -203,7 +203,7 @@ class TestMCPTools:
     async def test_nexus_grep_success(self, mock_execute_tool):
         """Test nexus_grep returns matching lines."""
         with patch('core.mcp.server.execute_tool', mock_execute_tool):
-            from core.mcp.server import nexus_grep
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_grep
             result = await nexus_grep("pattern", path=".", file_type="py")
 
             assert "pattern found" in result
@@ -214,7 +214,7 @@ class TestMCPTools:
     async def test_nexus_bash_success(self, mock_execute_tool):
         """Test nexus_bash executes command."""
         with patch('core.mcp.server.execute_tool', mock_execute_tool):
-            from core.mcp.server import nexus_bash
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_bash
             result = await nexus_bash("echo hello", timeout=10)
 
             assert "successfully" in result
@@ -225,7 +225,7 @@ class TestMCPTools:
     async def test_nexus_bash_timeout_cap(self, mock_execute_tool):
         """Test nexus_bash caps timeout at 120s."""
         with patch('core.mcp.server.execute_tool', mock_execute_tool):
-            from core.mcp.server import nexus_bash
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_bash
             result = await nexus_bash("echo hello", timeout=999)
 
             # Should have capped timeout to 120s (120000ms)
@@ -249,7 +249,7 @@ class TestMCPAnalysis:
     async def test_nexus_analyze_success(self, mock_orchestrator):
         """Test nexus_analyze returns analysis."""
         with patch('core.mcp.server.get_orchestrator', return_value=mock_orchestrator):
-            from core.mcp.server import nexus_analyze
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_analyze
             result = await nexus_analyze("Analyze this code")
 
             assert "Analysis of" in result
@@ -260,7 +260,7 @@ class TestMCPAnalysis:
         """Test nexus_status returns valid JSON."""
         import json
         with patch('core.mcp.server.get_orchestrator', return_value=mock_orchestrator):
-            from core.mcp.server import nexus_status
+            from core.interface_pkg.interface_pkg.mcp.server import nexus_status
             result = await nexus_status()
 
             # Should be valid JSON
@@ -284,7 +284,7 @@ class TestMCPErrorHandling:
 
         with patch('core.mcp.server.get_tool_manager', side_effect=raise_error):
             try:
-                from core.mcp.server import nexus_read
+                from core.interface_pkg.interface_pkg.mcp.server import nexus_read
                 result = await nexus_read("/nonexistent/file.py")
                 assert "Error" in result
             except ImportError:
@@ -298,7 +298,7 @@ class TestMCPErrorHandling:
 
         with patch('core.mcp.server.get_orchestrator', side_effect=raise_error):
             try:
-                from core.mcp.server import nexus_analyze
+                from core.interface_pkg.interface_pkg.mcp.server import nexus_analyze
                 result = await nexus_analyze("test task")
                 assert "Error" in result
             except ImportError:
@@ -319,7 +319,7 @@ class TestMCPResources:
     @pytest.mark.asyncio
     async def test_get_nexus_config_resource(self):
         """Test nexus://config resource returns config."""
-        from core.mcp.server import get_nexus_config
+        from core.interface_pkg.interface_pkg.mcp.server import get_nexus_config
         result = await get_nexus_config()
 
         # Should return string (config summary or error)
@@ -328,7 +328,7 @@ class TestMCPResources:
     @pytest.mark.asyncio
     async def test_get_nexus_agents_resource(self):
         """Test nexus://agents resource returns agent list."""
-        from core.mcp.server import get_nexus_agents
+        from core.interface_pkg.interface_pkg.mcp.server import get_nexus_agents
         result = await get_nexus_agents()
 
         # Should return string (JSON or error)
@@ -348,13 +348,13 @@ class TestMCPIntegration:
 
     def test_fastmcp_server_creation(self):
         """Test FastMCP server is created correctly."""
-        from core.mcp.server import mcp
+        from core.interface_pkg.interface_pkg.mcp.server import mcp
         assert mcp is not None
         assert mcp.name == "nexus"
 
     def test_tools_registered(self):
         """Test all expected tools are registered."""
-        from core.mcp.server import mcp
+        from core.interface_pkg.interface_pkg.mcp.server import mcp
         # FastMCP stores tools internally
         # This test validates the server object exists and is configured
         assert hasattr(mcp, 'run')
@@ -370,7 +370,7 @@ class TestServerStartup:
     def test_main_exits_if_mcp_unavailable(self):
         """Test main() raises MCPNotAvailableError if MCP not installed."""
         with patch('core.mcp.server.MCP_AVAILABLE', False):
-            from core.mcp import server
+            from core.interface_pkg.interface_pkg.mcp import server
             # Reload to pick up the patched value
             with pytest.raises(server.MCPNotAvailableError):
                 server.main()

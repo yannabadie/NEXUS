@@ -8,7 +8,7 @@ import json
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from core.interface.repl import InteractiveNexusV7
+from core.interface_pkg.interface.repl import InteractiveNexusV7
 from core.swarm.collaboration_modes import CollaborationMode
 
 def test_hive_mind_execution_v2():

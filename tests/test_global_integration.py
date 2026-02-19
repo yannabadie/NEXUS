@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from core.interface.repl import InteractiveNexusV7
+from core.interface_pkg.interface.repl import InteractiveNexusV7
 from core.memory.auto_memory import AutoMemory
 
 def test_global_integration():

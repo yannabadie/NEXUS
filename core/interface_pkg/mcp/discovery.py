@@ -9,7 +9,7 @@ Provides:
 - MCPToolDiscovery: Discovers and validates tools across all configured servers
 
 Usage:
-    from core.mcp.discovery import MCPToolDiscovery
+    from core.interface_pkg.interface_pkg.mcp.discovery import MCPToolDiscovery
 
     discovery = MCPToolDiscovery(registry)
     result = discovery.discover_all()
@@ -244,8 +244,8 @@ class MCPToolDiscovery:
     Discovers and validates tools across all configured MCP servers.
 
     Usage:
-        from core.mcp.registry import MCPRegistry
-        from core.mcp.discovery import MCPToolDiscovery
+        from core.interface_pkg.interface_pkg.mcp.registry import MCPRegistry
+        from core.interface_pkg.interface_pkg.mcp.discovery import MCPToolDiscovery
 
         registry = MCPRegistry(workspace_path)
         discovery = MCPToolDiscovery(registry)

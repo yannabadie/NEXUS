@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.interface.command_analytics import (
+from core.interface_pkg.interface.command_analytics import (
     MAX_INVOCATIONS,
     AnalyticsStats,
     CommandAnalytics,
@@ -359,7 +359,7 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_interface_package(self):
-        from core.interface import (
+        from core.interface_pkg.interface import (
             CommandAnalytics, CommandInvocation, CommandMetrics,
             UsagePattern, AnalyticsStats,
             get_command_analytics, reset_command_analytics,
@@ -371,5 +371,5 @@ class TestModuleExports:
         ])
 
     def test_constants(self):
-        from core.interface.command_analytics import MAX_INVOCATIONS
+        from core.interface_pkg.interface.command_analytics import MAX_INVOCATIONS
         assert MAX_INVOCATIONS == 50000

@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from core.interface.console_v7 import ConsoleV7
+    from core.interface_pkg.interface.console_v7 import ConsoleV7
     from core.orchestration_v7 import OrchestratorV7
     from core.interaction import InteractionProvider
 

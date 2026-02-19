@@ -261,8 +261,8 @@ class TestAgentServiceIntegration:
 
     def test_command_uses_service(self):
         """Test that AgentCommand uses AgentService."""
-        from core.interface.commands.agents import SpawnCommand, _get_agent_service
-        from core.interface.commands.registry import CommandContext
+        from core.interface_pkg.interface.commands.agents import SpawnCommand, _get_agent_service
+        from core.interface_pkg.interface.commands.registry import CommandContext
 
         mock_orchestrator = MagicMock()
         mock_console = MagicMock()

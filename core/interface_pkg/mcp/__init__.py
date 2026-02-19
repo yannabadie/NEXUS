@@ -10,7 +10,7 @@ Components:
 - server.py: V9.0 - NEXUS as MCP Server (for Claude Desktop, etc.)
 
 Usage (Client - consume external servers):
-    from core.mcp import MCPClient, MCPRegistry
+    from core.interface_pkg.interface_pkg.mcp import MCPClient, MCPRegistry
 
     registry = MCPRegistry(workspace_path)
     client = MCPClient(command=["npx", "-y", "@modelcontextprotocol/server-filesystem"])

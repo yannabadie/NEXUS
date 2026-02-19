@@ -20,7 +20,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from contextlib import nullcontext
 from core.orchestration_v7 import OrchestratorV7
 from core.ui.console_v7 import ConsoleV7
-from core.interface.commands import (
+from core.interface_pkg.interface.commands import (
     is_slash_command,
     is_exit_command,
     parse_command,
@@ -544,8 +544,8 @@ class InteractiveNexusV7:
 
     def run_review(self):
         """Run interactive review of pending children (/review command)"""
-        from core.notifications import check_pending_review
-        from core.notifications.file_notifier import delete_pending_review
+        from core.interface_pkg.interface_pkg.notifications import check_pending_review
+        from core.interface_pkg.interface_pkg.notifications.file_notifier import delete_pending_review
 
         # Check if there's a pending review
         pending_metadata = check_pending_review(self.workspace_path)
@@ -782,7 +782,7 @@ class InteractiveNexusV7:
             /workspace list      - List all workspaces
             /workspace switch <name> - Switch to another workspace
         """
-        from core.workspace import (
+        from core.interface_pkg.interface_pkg.workspace import (
             WorkspaceManager, WorkspaceError,
             WorkspaceNotFoundError, WorkspaceExistsError
         )
@@ -1049,7 +1049,7 @@ class InteractiveNexusV7:
 
         # 8. Update workspace manager reference
         if hasattr(self, 'workspace_manager'):
-            from core.workspace import WorkspaceManager
+            from core.interface_pkg.interface_pkg.workspace import WorkspaceManager
             self.workspace_manager = WorkspaceManager(self.nexus_root)
 
     # ==================== END WORKSPACE MANAGEMENT ====================
@@ -1090,14 +1090,14 @@ class InteractiveNexusV7:
 
     def run_tutorial(self):
         """Run interactive tutorial (/tutorial command)."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         tutorial.run(self.console.console.print)
 
     def show_quickstart(self):
         """Show quick start guide (/quickstart command)."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         self.console.console.print(tutorial.get_quick_start())

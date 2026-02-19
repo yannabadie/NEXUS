@@ -23,7 +23,7 @@ class TestCommandCategories:
 
     def test_command_categories_exist(self):
         """Verify COMMAND_CATEGORIES structure."""
-        from core.interface.commands import COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import COMMAND_CATEGORIES
 
         assert isinstance(COMMAND_CATEGORIES, dict)
         assert len(COMMAND_CATEGORIES) == 6  # V7.8: Added Memory category
@@ -43,7 +43,7 @@ class TestCommandCategories:
 
     def test_budget_commands_in_monitoring(self):
         """Verify /budget commands are in Monitoring category."""
-        from core.interface.commands import COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import COMMAND_CATEGORIES
 
         monitoring = COMMAND_CATEGORIES.get("📊 Monitoring", {})
 
@@ -54,7 +54,7 @@ class TestCommandCategories:
 
     def test_tutorial_commands_in_system(self):
         """Verify tutorial commands are in System category."""
-        from core.interface.commands import COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import COMMAND_CATEGORIES
 
         system = COMMAND_CATEGORIES.get("⚙️ System", {})
 
@@ -64,7 +64,7 @@ class TestCommandCategories:
 
     def test_slash_commands_backwards_compat(self):
         """Verify flat SLASH_COMMANDS is populated."""
-        from core.interface.commands import SLASH_COMMANDS, COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import SLASH_COMMANDS, COMMAND_CATEGORIES
 
         # Should contain all commands from all categories
         total_commands = sum(len(cmds) for cmds in COMMAND_CATEGORIES.values())
@@ -72,7 +72,7 @@ class TestCommandCategories:
 
     def test_get_help_message_formatted(self):
         """Verify help message is well-formatted."""
-        from core.interface.commands import get_help_message
+        from core.interface_pkg.interface.commands import get_help_message
 
         help_text = get_help_message()
 
@@ -84,7 +84,7 @@ class TestCommandCategories:
 
     def test_get_category_for_command(self):
         """Test command-to-category lookup."""
-        from core.interface.commands import get_category_for_command
+        from core.interface_pkg.interface.commands import get_category_for_command
 
         assert "Monitoring" in get_category_for_command("/budget")
         assert "Monitoring" in get_category_for_command("/telemetry")
@@ -101,7 +101,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_steps_defined(self):
         """Verify tutorial steps are properly defined."""
-        from core.interface.tutorial import TUTORIAL_STEPS, TutorialStep
+        from core.interface_pkg.interface.tutorial import TUTORIAL_STEPS, TutorialStep
 
         assert len(TUTORIAL_STEPS) == 6
 
@@ -112,7 +112,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_step_structure(self):
         """Verify TutorialStep dataclass."""
-        from core.interface.tutorial import TutorialStep
+        from core.interface_pkg.interface.tutorial import TutorialStep
 
         step = TutorialStep(
             title="Test Step",
@@ -128,7 +128,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_format_step(self):
         """Verify step formatting."""
-        from core.interface.tutorial import InteractiveTutorial, TutorialStep
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial, TutorialStep
 
         tutorial = InteractiveTutorial()
         step = TutorialStep(
@@ -148,7 +148,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_get_step(self):
         """Test get_step method."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
 
@@ -160,7 +160,7 @@ class TestInteractiveTutorial:
 
     def test_quickstart_content(self):
         """Verify quickstart guide content."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         quickstart = tutorial.get_quick_start()
@@ -173,7 +173,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_run_complete(self):
         """Test tutorial run completing all steps."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         output = []
@@ -191,7 +191,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_run_quit(self):
         """Test tutorial run with quit."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         output = []
@@ -209,7 +209,7 @@ class TestInteractiveTutorial:
 
     def test_tutorial_run_skip(self):
         """Test tutorial run with skip."""
-        from core.interface.tutorial import InteractiveTutorial
+        from core.interface_pkg.interface.tutorial import InteractiveTutorial
 
         tutorial = InteractiveTutorial()
         output = []
@@ -324,7 +324,7 @@ class TestBudgetCommand:
 
     def test_parse_command_budget(self):
         """Test parsing /budget commands."""
-        from core.interface.commands import parse_command
+        from core.interface_pkg.interface.commands import parse_command
 
         cmd, args = parse_command("/budget")
         assert cmd == "/budget"
@@ -348,8 +348,8 @@ class TestPhase16Integration:
 
     def test_commands_tutorial_consistency(self):
         """Verify tutorial references valid commands."""
-        from core.interface.tutorial import TUTORIAL_STEPS
-        from core.interface.commands import SLASH_COMMANDS
+        from core.interface_pkg.interface.tutorial import TUTORIAL_STEPS
+        from core.interface_pkg.interface.commands import SLASH_COMMANDS
 
         for step in TUTORIAL_STEPS:
             if step.suggested_command:
@@ -362,7 +362,7 @@ class TestPhase16Integration:
 
     def test_help_references_all_categories(self):
         """Verify help message includes all categories."""
-        from core.interface.commands import get_help_message, COMMAND_CATEGORIES
+        from core.interface_pkg.interface.commands import get_help_message, COMMAND_CATEGORIES
 
         help_text = get_help_message()
 

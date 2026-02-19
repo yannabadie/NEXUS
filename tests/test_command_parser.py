@@ -18,7 +18,7 @@ Validates:
 
 import pytest
 
-from core.interface.command_parser import (
+from core.interface_pkg.interface.command_parser import (
     Arg,
     ArgType,
     CommandDef,
@@ -636,14 +636,14 @@ class TestModuleExports:
     """Test module imports."""
 
     def test_from_interface_package(self):
-        from core.interface import (
+        from core.interface_pkg.interface import (
             Arg, ArgType, CommandDef, CommandParser,
             ParsedCommand, Suggestion,
         )
         assert all([Arg, ArgType, CommandDef, CommandParser, ParsedCommand, Suggestion])
 
     def test_from_module(self):
-        from core.interface.command_parser import (
+        from core.interface_pkg.interface.command_parser import (
             Arg, ArgType, CommandDef, CommandParser,
             ParsedCommand, Suggestion,
         )

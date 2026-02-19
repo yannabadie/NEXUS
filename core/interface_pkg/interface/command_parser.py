@@ -7,7 +7,7 @@ Parses slash commands with typed arguments, validates input,
 and provides suggestions for autocomplete.
 
 Usage:
-    from core.interface.command_parser import CommandParser
+    from core.interface_pkg.interface.command_parser import CommandParser
 
     parser = CommandParser()
 

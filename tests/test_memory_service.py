@@ -232,8 +232,8 @@ class TestMemoryServiceIntegration:
 
     def test_command_uses_service(self):
         """Test that MemoryCommand uses MemoryService."""
-        from core.interface.commands.memory import LearnCommand, _get_memory_service
-        from core.interface.commands.registry import CommandContext
+        from core.interface_pkg.interface.commands.memory import LearnCommand, _get_memory_service
+        from core.interface_pkg.interface.commands.registry import CommandContext
 
         mock_orchestrator = MagicMock()
         mock_orchestrator.project_memory = MagicMock()

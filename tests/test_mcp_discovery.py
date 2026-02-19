@@ -16,14 +16,14 @@ from datetime import datetime, timezone
 
 import pytest
 
-from core.mcp.discovery import (
+from core.interface_pkg.interface_pkg.mcp.discovery import (
     DiscoveredTool,
     ToolDiscoveryResult,
     ServerDiscoveryStatus,
     MCPToolDiscovery,
     validate_input_schema,
 )
-from core.mcp.protocol import MCPTool, MCPToolInputSchema
+from core.interface_pkg.interface_pkg.mcp.protocol import MCPTool, MCPToolInputSchema
 
 
 # =============================================================================
@@ -523,17 +523,17 @@ class TestRegistryDiscovery:
 
     def test_discover_all_tools_method_exists(self):
         """Registry should have discover_all_tools method."""
-        from core.mcp.registry import MCPRegistry
+        from core.interface_pkg.interface_pkg.mcp.registry import MCPRegistry
         assert hasattr(MCPRegistry, "discover_all_tools")
 
     def test_discover_server_tools_method_exists(self):
         """Registry should have discover_server_tools method."""
-        from core.mcp.registry import MCPRegistry
+        from core.interface_pkg.interface_pkg.mcp.registry import MCPRegistry
         assert hasattr(MCPRegistry, "discover_server_tools")
 
     def test_discover_all_tools_returns_result(self, tmp_path):
         """Should return ToolDiscoveryResult."""
-        from core.mcp.registry import MCPRegistry
+        from core.interface_pkg.interface_pkg.mcp.registry import MCPRegistry
         registry = MCPRegistry(tmp_path)
         result = registry.discover_all_tools()
         assert isinstance(result, ToolDiscoveryResult)
@@ -541,7 +541,7 @@ class TestRegistryDiscovery:
 
     def test_discover_server_tools_returns_list(self, tmp_path):
         """Should return list."""
-        from core.mcp.registry import MCPRegistry
+        from core.interface_pkg.interface_pkg.mcp.registry import MCPRegistry
         registry = MCPRegistry(tmp_path)
         tools = registry.discover_server_tools("nonexistent")
         assert isinstance(tools, list)
@@ -609,23 +609,23 @@ class TestModuleExports:
     """Test that new types are importable."""
 
     def test_discovery_from_mcp_package(self):
-        from core.mcp import MCPToolDiscovery
+        from core.interface_pkg.interface_pkg.mcp import MCPToolDiscovery
         assert MCPToolDiscovery is not None
 
     def test_discovered_tool_from_mcp_package(self):
-        from core.mcp import DiscoveredTool
+        from core.interface_pkg.interface_pkg.mcp import DiscoveredTool
         assert DiscoveredTool is not None
 
     def test_discovery_result_from_mcp_package(self):
-        from core.mcp import ToolDiscoveryResult
+        from core.interface_pkg.interface_pkg.mcp import ToolDiscoveryResult
         assert ToolDiscoveryResult is not None
 
     def test_validate_input_schema_from_mcp_package(self):
-        from core.mcp import validate_input_schema
+        from core.interface_pkg.interface_pkg.mcp import validate_input_schema
         assert callable(validate_input_schema)
 
     def test_discovery_from_discovery_module(self):
-        from core.mcp.discovery import (
+        from core.interface_pkg.interface_pkg.mcp.discovery import (
             MCPToolDiscovery,
             DiscoveredTool,
             ToolDiscoveryResult,

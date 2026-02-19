@@ -35,19 +35,19 @@ class TestCyborgREPL:
 
     def test_run_async_method_exists(self):
         """Verify run_async method exists on REPL class."""
-        from core.interface.repl import InteractiveNexusV7
+        from core.interface_pkg.interface.repl import InteractiveNexusV7
         assert hasattr(InteractiveNexusV7, 'run_async')
         assert asyncio.iscoroutinefunction(InteractiveNexusV7.run_async)
 
     def test_process_turn_async_helper_exists(self):
         """Verify _process_turn_async helper exists."""
-        from core.interface.repl import InteractiveNexusV7
+        from core.interface_pkg.interface.repl import InteractiveNexusV7
         assert hasattr(InteractiveNexusV7, '_process_turn_async')
         assert asyncio.iscoroutinefunction(InteractiveNexusV7._process_turn_async)
 
     def test_patch_stdout_import(self):
         """Verify patch_stdout is imported for streaming."""
-        from core.interface import repl
+        from core.interface_pkg.interface import repl
         assert 'patch_stdout' in dir(repl) or hasattr(repl, 'patch_stdout')
 
 
@@ -178,7 +178,7 @@ class TestDualModeCompatibility:
 
     def test_sync_run_still_exists(self):
         """Sync run() method must still exist."""
-        from core.interface.repl import InteractiveNexusV7
+        from core.interface_pkg.interface.repl import InteractiveNexusV7
         assert hasattr(InteractiveNexusV7, 'run')
         # run() should NOT be async
         assert not asyncio.iscoroutinefunction(InteractiveNexusV7.run)
