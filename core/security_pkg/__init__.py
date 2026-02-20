@@ -34,8 +34,8 @@ from core.security_pkg.security import (
     verify_password,
     needs_rehash,
     FileEncryptor,
-    get_file_encryptor,
-    reset_file_encryptor,
+    EncryptionConfig,
+    derive_key,
 )
 
 # Governance exports
@@ -105,8 +105,8 @@ __all__ = [
     "verify_password",
     "needs_rehash",
     "FileEncryptor",
-    "get_file_encryptor",
-    "reset_file_encryptor",
+    "EncryptionConfig",
+    "derive_key",
     # Governance
     "AlignmentVerifier",
     "AlignmentConfig",

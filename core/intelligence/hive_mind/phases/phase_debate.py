@@ -42,7 +42,7 @@ from ..context_manager import HiveMindContextManager
 from ..context_scope import ContextScope
 from ..session_integration import HiveMindSessionIntegration, generate_hivemind_task_id
 from ..adaptive_debate import AdaptiveDebateConfig, DebateParams, TaskComplexity
-from ...agents.unified_registry import get_registry  # V8.4.0
+from core.foundation.agents.unified_registry import get_registry  # V8.4.0
 from ..prompts import DEBATE_SYSTEM_PROMPT, CONSENSUS_SYSTEM_PROMPT  # V12.4.1: Static prompts for caching
 
 # V13.0 CEREBRO LIVE: Telemetry for agent exchanges
