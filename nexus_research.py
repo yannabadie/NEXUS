@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from core.config import Config
-from core.memory.project_memory import ProjectMemory
+from core.memory_pkg.memory.project_memory import ProjectMemory
 
 
 def _utc_now() -> datetime:

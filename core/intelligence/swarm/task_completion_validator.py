@@ -27,7 +27,7 @@ from pathlib import Path
 import re
 
 from .task_analyzer import TaskAnalysis, TaskComplexity, TaskDomain
-from ..utils.artifact_verifier import ArtifactVerifier
+from core.utils.artifact_verifier import ArtifactVerifier
 
 
 @dataclass

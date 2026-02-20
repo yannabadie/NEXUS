@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from core.interface_pkg.interface_pkg.mcp import server as mcp_server
+from core.interface_pkg.mcp import server as mcp_server
 
 
 def _write_sample_doc(root: Path) -> Path:

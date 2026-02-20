@@ -37,7 +37,6 @@ from core.intelligence.hive_mind.phases.phase_debate import (
     StrategicDebatePhase,
     DEBATE_OPENER_PROMPT,
     DEBATE_RESPONSE_PROMPT,
-    CONSENSUS_CHECK_PROMPT,
 )
 from core.intelligence.hive_mind.types import (
     AnalysisComparison,

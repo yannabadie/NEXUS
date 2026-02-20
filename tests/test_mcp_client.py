@@ -20,7 +20,7 @@ from typing import Dict, Any
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.interface_pkg.interface_pkg.mcp.protocol import (
+from core.interface_pkg.mcp.protocol import (
     MCPRequest,
     MCPResponse,
     MCPError,
@@ -32,14 +32,14 @@ from core.interface_pkg.interface_pkg.mcp.protocol import (
     MCPMethod,
     MCPErrorCode,
 )
-from core.interface_pkg.interface_pkg.mcp.client import (
+from core.interface_pkg.mcp.client import (
     MCPClient,
     MCPClientError,
     MCPConnectionError,
     MCPTimeoutError,
     MCPServerError,
 )
-from core.interface_pkg.interface_pkg.mcp.registry import (
+from core.interface_pkg.mcp.registry import (
     MCPRegistry,
     MCPServerConfig,
     create_default_config,
@@ -217,7 +217,7 @@ class TestMCPTool:
 
     def test_to_dict(self):
         """Serialize tool definition."""
-        from core.interface_pkg.interface_pkg.mcp.protocol import MCPToolInputSchema
+        from core.interface_pkg.mcp.protocol import MCPToolInputSchema
         tool = MCPTool(
             name="echo",
             description="Echo message",

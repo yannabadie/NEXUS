@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.interface_pkg.interface_pkg.workspace import (
+from core.interface_pkg.workspace import (
     WorkspaceManager,
     WorkspaceInfo,
     WorkspaceMetrics,
