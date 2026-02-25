@@ -64,7 +64,7 @@ class TestBootstrapService:
         with patch.object(Path, 'cwd', return_value=Path(tempfile.gettempdir())):
             with patch.object(Path, 'exists', return_value=True):
                 with patch.object(Path, 'is_dir', return_value=True):
-                    with patch('core.bootstrap.AutoBootstrap') as mock_auto:
+                    with patch('core.infrastructure.bootstrap.AutoBootstrap') as mock_auto:
                         mock_analysis = MagicMock()
                         mock_analysis.project_name = "test"
                         mock_analysis.languages = ["python"]
@@ -87,7 +87,7 @@ class TestBootstrapService:
 
     def test_bootstrap_success_new_project(self, bootstrap_service, mock_console, temp_project):
         """Test successful bootstrap on new project."""
-        with patch('core.bootstrap.AutoBootstrap') as mock_auto:
+        with patch('core.infrastructure.bootstrap.AutoBootstrap') as mock_auto:
             mock_analysis = MagicMock()
             mock_analysis.project_name = "TestProject"
             mock_analysis.languages = ["python"]
@@ -118,7 +118,7 @@ class TestBootstrapService:
         nexus_md = temp_project / "NEXUS.md"
         nexus_md.write_text("# Existing NEXUS.md\n" * 100)
 
-        with patch('core.bootstrap.AutoBootstrap') as mock_auto:
+        with patch('core.infrastructure.bootstrap.AutoBootstrap') as mock_auto:
             mock_analysis = MagicMock()
             mock_analysis.project_name = "Test"
             mock_analysis.languages = []
@@ -147,7 +147,7 @@ class TestBootstrapService:
         nexus_md = temp_project / "NEXUS.md"
         nexus_md.write_text("# Existing NEXUS.md")
 
-        with patch('core.bootstrap.AutoBootstrap') as mock_auto:
+        with patch('core.infrastructure.bootstrap.AutoBootstrap') as mock_auto:
             mock_analysis = MagicMock()
             mock_analysis.project_name = "Test"
             mock_analysis.languages = []
@@ -173,7 +173,7 @@ class TestBootstrapService:
 
     def test_bootstrap_exception_handling(self, bootstrap_service, mock_console, temp_project):
         """Test bootstrap handles exceptions gracefully."""
-        with patch('core.bootstrap.AutoBootstrap') as mock_auto:
+        with patch('core.infrastructure.bootstrap.AutoBootstrap') as mock_auto:
             mock_auto.side_effect = Exception("Analysis failed")
 
             result = bootstrap_service.bootstrap(temp_project)

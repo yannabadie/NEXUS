@@ -305,16 +305,23 @@ async def learn_path(
     manager = _get_namespace_manager()
     rag = _get_rag_for_namespace(manager, body.namespace)
 
+    # Security: Validate path with PathGuardian (prevents path traversal)
+    from core.config import Config
+    from core.security_pkg.security.path_guardian import PathGuardian
+
+    config = Config()
+    nexus_root = Path(config.nexus_root).resolve()
+    guardian = PathGuardian(Path(config.workspace_path).resolve(), nexus_root)
+
     path = Path(body.path)
     if not path.is_absolute():
-        # Resolve relative to nexus root
-        try:
-            from core.config import Config
-            config = Config()
-            path = Path(config.nexus_root) / path
-        except Exception:
-            pass
+        path = nexus_root / path
 
+    is_valid, resolved_path, message = guardian.validate_read(str(path))
+    if not is_valid:
+        raise HTTPException(403, f"Path access denied: {message}")
+
+    path = Path(resolved_path)
     if not path.exists():
         raise HTTPException(404, f"Path not found: {body.path}")
 
@@ -353,15 +360,23 @@ async def forget_path(
     manager = _get_namespace_manager()
     rag = _get_rag_for_namespace(manager, body.namespace)
 
+    # Security: Validate path with PathGuardian (prevents path traversal)
+    from core.config import Config
+    from core.security_pkg.security.path_guardian import PathGuardian
+
+    config = Config()
+    nexus_root = Path(config.nexus_root).resolve()
+    guardian = PathGuardian(Path(config.workspace_path).resolve(), nexus_root)
+
     path = Path(body.path)
     if not path.is_absolute():
-        try:
-            from core.config import Config
-            config = Config()
-            path = Path(config.nexus_root) / path
-        except Exception:
-            pass
+        path = nexus_root / path
 
+    is_valid, resolved_path, message = guardian.validate_read(str(path))
+    if not is_valid:
+        raise HTTPException(403, f"Path access denied: {message}")
+
+    path = Path(resolved_path)
     chunks_removed = rag.forget(path)
 
     logger.info(f"[MEMORIA] Forgot {body.path}: {chunks_removed} chunks by user={user.user_id}")

@@ -30,21 +30,21 @@ sys.path.insert(0, str(project_root))
 
 from sqlmodel import select
 
-from core.db import (
+from core.infrastructure.db import (
     init_db,
     get_session,
     Tenant,
     User,
     Workspace,
     Quota,
-    UserRole,
     PlanTier,
     TenantStatus,
     create_quota_for_plan,
 )
+from core.infrastructure.db.models import UserRole
 
 # V12.4: Use centralized password module (argon2-cffi)
-from core.security.password import hash_password, verify_password
+from core.security_pkg.security.password import hash_password, verify_password
 
 
 # =============================================================================

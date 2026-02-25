@@ -240,7 +240,7 @@ provider: gemini
 model: gemini-2.0-flash
 reasoning: Fast for simple tasks
 """
-        with patch('core.agents.get_registry') as mock_registry:
+        with patch('core.foundation.agents.get_registry') as mock_registry:
             mock_registry.return_value.get.return_value = MagicMock()  # Provider exists
             config = agent_service._extract_inference_config(prompt)
 

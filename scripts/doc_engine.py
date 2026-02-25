@@ -823,7 +823,7 @@ class StructureExtractor:
 
         try:
             # Try to import CollaborationMode and extract from fallback_mode property
-            from core.swarm.collaboration_modes import CollaborationMode
+            from core.intelligence.swarm.collaboration_modes import CollaborationMode
 
             for mode in CollaborationMode:
                 fallback = mode.fallback_mode
@@ -851,7 +851,7 @@ class StructureExtractor:
         characteristics = {}
 
         try:
-            from core.swarm.collaboration_modes import MODE_CHARACTERISTICS
+            from core.intelligence.swarm.collaboration_modes import MODE_CHARACTERISTICS
 
             for mode, char in MODE_CHARACTERISTICS.items():
                 characteristics[mode.value] = {

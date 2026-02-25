@@ -120,7 +120,7 @@ class TestErrorHandling:
         async def failing():
             raise RuntimeError("Test exception")
 
-        with patch("core.async_primitives.safe_task_manager.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.safe_task_manager.logger") as mock_logger:
             task = SafeTaskManager.create_task(failing(), name="failing_task")
 
             # Wait for task to complete
@@ -161,7 +161,7 @@ class TestErrorHandling:
         async def wait():
             await event.wait()
 
-        with patch("core.async_primitives.safe_task_manager.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.safe_task_manager.logger") as mock_logger:
             task = SafeTaskManager.create_task(wait(), name="cancel_test")
             task.cancel()
 

@@ -46,7 +46,7 @@ def workspace_path(tmp_path):
 @pytest.fixture
 def engine(workspace_path):
     """Create ExecutionEngine with mocked security."""
-    with patch("core.execution.execution_engine.ValidationService") as mock_vs:
+    with patch("core.execution_pkg.execution.execution_engine.ValidationService") as mock_vs:
         mock_vs_instance = MagicMock()
         mock_vs_instance.validate_path.return_value = True
         mock_vs.return_value = mock_vs_instance
@@ -61,7 +61,7 @@ class TestExecutionEngineInit:
 
     def test_creates_with_workspace(self, workspace_path):
         """Should create engine with workspace path."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine = ExecutionEngine(workspace_path)
             assert engine.workspace_path == workspace_path
 
@@ -239,7 +239,7 @@ class TestGlobalEngine:
 
     def test_singleton_instance(self, workspace_path):
         """get_execution_engine should return same instance."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine1 = get_execution_engine(workspace_path)
             engine2 = get_execution_engine()
             assert engine1 is engine2
@@ -251,7 +251,7 @@ class TestGlobalEngine:
 
     def test_reset_creates_new(self, workspace_path):
         """reset_execution_engine should clear instance."""
-        with patch("core.execution.execution_engine.ValidationService"):
+        with patch("core.execution_pkg.execution.execution_engine.ValidationService"):
             engine1 = get_execution_engine(workspace_path)
             reset_execution_engine()
             engine2 = get_execution_engine(workspace_path)

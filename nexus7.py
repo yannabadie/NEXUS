@@ -443,11 +443,11 @@ async def async_main(
     """
     global _async_factory
 
-    from core.interface.repl import InteractiveNexusV7
+    from core.interface_pkg.interface.repl import InteractiveNexusV7
 
     # V12.4: Initialize OpenTelemetry (if enabled)
     try:
-        from core.telemetry.otel_provider import init_otel
+        from core.observability.telemetry.otel_provider import init_otel
         init_otel(service_name="nexus-backend", service_version=NEXUS_VERSION)
     except Exception:
         pass  # OTel is optional

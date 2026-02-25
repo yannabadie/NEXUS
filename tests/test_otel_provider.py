@@ -40,7 +40,7 @@ class TestOTelFeatureFlag:
 
     def test_init_returns_false_when_disabled(self):
         """init_otel should return False when flag is off."""
-        import core.telemetry.otel_provider as otel_mod
+        import core.observability.telemetry.otel_provider as otel_mod
         # Reset state
         otel_mod._initialized = False
         with patch.dict(os.environ, {"NEXUS_FF_OTEL_ENABLED": "false"}):
@@ -77,7 +77,7 @@ class TestNoOpFallbacks:
 
     def test_get_tracer_returns_noop_when_not_initialized(self):
         """get_tracer should return working tracer even without OTel."""
-        import core.telemetry.otel_provider as otel_mod
+        import core.observability.telemetry.otel_provider as otel_mod
         old_tracer = otel_mod._tracer
         otel_mod._tracer = None
         try:
@@ -90,7 +90,7 @@ class TestNoOpFallbacks:
 
     def test_get_meter_returns_noop_when_not_initialized(self):
         """get_meter should return working meter even without OTel."""
-        import core.telemetry.otel_provider as otel_mod
+        import core.observability.telemetry.otel_provider as otel_mod
         old_meter = otel_mod._meter
         otel_mod._meter = None
         try:
@@ -130,7 +130,7 @@ class TestTraceFSMTransition:
 
     def test_trace_fsm_transition_when_not_initialized(self):
         """trace_fsm_transition should not raise when OTel is off."""
-        import core.telemetry.otel_provider as otel_mod
+        import core.observability.telemetry.otel_provider as otel_mod
         old_init = otel_mod._initialized
         otel_mod._initialized = False
         try:

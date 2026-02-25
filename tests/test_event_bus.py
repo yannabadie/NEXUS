@@ -318,7 +318,7 @@ class TestEventBusErrorHandling:
 
         bus.subscribe("fail_test", failing_handler)
 
-        with patch("core.async_primitives.event_bus.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.event_bus.logger") as mock_logger:
             await bus.publish(SyncEvent(event_type="fail_test", source="t", task_id="1", payload={}))
             mock_logger.error.assert_called()
 
@@ -332,7 +332,7 @@ class TestEventBusErrorHandling:
 
         bus.subscribe("slow_test", slow_handler)
 
-        with patch("core.async_primitives.event_bus.logger") as mock_logger:
+        with patch("core.foundation.async_primitives.event_bus.logger") as mock_logger:
             await bus.publish(SyncEvent(event_type="slow_test", source="t", task_id="1", payload={}))
             # Should have logged timeout error
             mock_logger.error.assert_called()

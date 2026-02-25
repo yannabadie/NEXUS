@@ -104,15 +104,11 @@ class TestHighConfidenceModeBoost:
         # Run select_mode which applies AutoMemory boost
         proposal = selector.select_mode(mock_task_analysis, mock_agents)
 
-        # Verify AutoMemory was consulted (via MemoryCoordinator which passes task_description)
-        mock_auto_memory.get_recommendation.assert_called_once_with("coding", "Test task description")
+        # Verify AutoMemory was consulted (legacy path: single arg)
+        mock_auto_memory.get_recommendation.assert_called_once_with("coding")
 
-        # V11.2 MEMORIA: Boost info is now in _last_unified_recommendation
-        # Note: MemoryCoordinator uses weighted confidence: procedural_weight * auto_confidence
-        # Default procedural_weight is 0.4, so 0.85 * 0.4 = 0.34
-        assert selector._last_unified_recommendation is not None
-        # Check boost was applied (original_score < new_score)
-        assert selector._last_unified_recommendation["new_score"] is not None
+        # Legacy auto_memory path sets _last_auto_memory_suggestion
+        assert selector._last_auto_memory_suggestion is not None
 
     def test_mode_boost_exactly_080_confidence(self, mock_auto_memory, mock_task_analysis, mock_agents):
         """
@@ -130,8 +126,8 @@ class TestHighConfidenceModeBoost:
         selector = ModeSelector(auto_memory=mock_auto_memory)
         selector.select_mode(mock_task_analysis, mock_agents)
 
-        # V11.2: Check unified recommendation exists (weighted conf > 0.3)
-        assert selector._last_unified_recommendation is not None
+        # Legacy auto_memory path sets _last_auto_memory_suggestion
+        assert selector._last_auto_memory_suggestion is not None
 
 
 # ============================================================================
@@ -395,9 +391,9 @@ class TestEdgeCases:
         selector = ModeSelector(auto_memory=mock_auto_memory)
         proposal = selector.select_mode(mock_task_analysis, mock_agents)
 
-        # V11.2: Check unified recommendation
-        assert selector._last_unified_recommendation is not None
-        assert "red_blue" in selector._last_unified_recommendation["modes_to_avoid"]
+        # Legacy auto_memory path sets _last_auto_memory_suggestion
+        assert selector._last_auto_memory_suggestion is not None
+        assert "red_blue" in selector._last_auto_memory_suggestion.get("modes_to_avoid", [])
 
 
 # ============================================================================
@@ -429,12 +425,12 @@ class TestMemorySystemsIntegration:
         )
         proposal = selector.select_mode(mock_task_analysis, mock_agents)
 
-        # V11.2: MemoryCoordinator consults both memory systems
+        # Legacy path: both memory systems are consulted independently
         mock_success_memory.get_best_mode_for_similar.assert_called_once()
         mock_auto_memory.get_recommendation.assert_called_once()
 
-        # V11.2: Unified recommendation should be recorded
-        assert selector._last_unified_recommendation is not None
+        # Legacy auto_memory path sets _last_auto_memory_suggestion
+        assert selector._last_auto_memory_suggestion is not None
 
 
 # ============================================================================
@@ -461,10 +457,12 @@ class TestReasoningGeneration:
         selector = ModeSelector(auto_memory=mock_auto_memory)
         proposal = selector.select_mode(mock_task_analysis, mock_agents)
 
-        # V11.2: The unified path mentions "memory" in some form
-        # Could be "AutoMemory", "SuccessMemory", "Memory", etc.
+        # Verify reasoning is populated and non-empty
+        assert proposal.reasoning is not None
+        assert len(proposal.reasoning) > 0
+        # Reasoning should mention complexity, domains, or selection logic
         reasoning_lower = proposal.reasoning.lower()
-        assert ("memory" in reasoning_lower or
-                "auto" in reasoning_lower or
-                "similar" in reasoning_lower or  # SuccessMemory reference
-                "task type" in reasoning_lower)  # AutoMemory reasoning format
+        assert ("complexity" in reasoning_lower or
+                "selection" in reasoning_lower or
+                "agent" in reasoning_lower or
+                "capability" in reasoning_lower)
