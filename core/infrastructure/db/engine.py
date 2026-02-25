@@ -35,9 +35,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Optional
 
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-from sqlmodel import Session, SQLModel, create_engine
+try:
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+    from sqlmodel import Session, SQLModel, create_engine
+except ImportError:
+    raise ImportError(
+        "Database features require SQLModel. Install with: pip install nexus-swarm-os[db]"
+    )
 
 from .models import Tenant, User, Workspace, Quota  # Import all models
 

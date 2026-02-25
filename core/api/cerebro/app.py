@@ -26,8 +26,14 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+try:
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+except ImportError:
+    raise ImportError(
+        "CEREBRO API requires FastAPI. Install with: pip install nexus-swarm-os[api]"
+    )
+
 
 from core.observability.events.redis_bus import get_redis_bus
 
