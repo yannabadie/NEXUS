@@ -53,7 +53,7 @@ console = ConsoleV7(verbose=True)
 # Print startup banner
 console.print_banner(
     gemini_model="gemini-3-pro-preview",
-    claude_model="claude-opus-4-5-20251101",
+    claude_model="claude-opus-4-6-20250116",
     version="V12.4",
     codename="COGNITIVE BOOST"
 )

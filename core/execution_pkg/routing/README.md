@@ -91,8 +91,8 @@ The Routing module provides intelligent model selection for NEXUS, routing tasks
 ### Configuration
 
 Default Model IDs:
-- **Claude Opus**: `claude-opus-4-5-20251101`
-- **Claude Sonnet**: `claude-sonnet-4-5-20250929`
+- **Claude Opus**: `claude-opus-4-6-20250116`
+- **Claude Sonnet**: `claude-sonnet-4-6-20250929`
 - **Gemini Pro**: `gemini-3-pro-preview`
 - **Gemini Flash**: `gemini-3-pro-preview` (V7: uses Pro for all)
 
@@ -114,10 +114,10 @@ router = ModelRouter(config)
 
 # Claude model selection
 model = router.select_claude_model(TaskType.BRAINSTORM)
-# Returns: "claude-opus-4-5-20251101"
+# Returns: "claude-opus-4-6-20250116"
 
 model = router.select_claude_model(TaskType.TOOL)
-# Returns: "claude-sonnet-4-5-20250929"
+# Returns: "claude-sonnet-4-6-20250929"
 
 # Gemini model selection
 model = router.select_gemini_model(TaskType.REASONING)
@@ -140,7 +140,7 @@ print(decision.reason)
 stats = router.get_routing_stats(pool)
 print(stats)
 # {
-#   "opus_model": "claude-opus-4-5-20251101",
+#   "opus_model": "claude-opus-4-6-20250116",
 #   "pool_agents": 2,
 #   "pool_invocations": 147,
 #   ...

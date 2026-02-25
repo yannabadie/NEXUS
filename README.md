@@ -146,8 +146,8 @@ Demo scripts: `scripts/demo_flagship.ps1`, `scripts/demo_companion.ps1`
 │                    │  │ Phase 3: ARCHITECTURE  (Plan)        │   │   │
 │                    │  │ Phase 4: EXECUTION     (SwarmBridge) │──►│   │
 │                    │  │ Phase 5: DIAGNOSIS     (On failure)  │   │   │
-│                    │  │ Phase 6: CONSOLIDATION (Merge)       │   │   │
-│                    │  │ Phase 7: COMPLETION    (Final)       │   │   │
+│                    │  │ Phase 6: RETRY         (Adaptive)    │   │   │
+│                    │  │ Phase 7: CONSOLIDATION (Merge)       │   │   │
 │                    │  └──────────────────────────────────────┘   │   │
 │                    └─────────────────────────────────────────────┘   │
 │                                                  │                   │
@@ -236,46 +236,39 @@ Agents:
 
 ```
 NEXUS/
-├── core/                        # Core orchestration
-│   ├── orchestration_v7.py      # Main FSM orchestrator
-│   ├── drivers/                 # Gemini & Claude drivers
-│   ├── execution/               # Tool execution layer
-│   ├── fsm/                     # State machine (11 states)
-│   ├── hive_mind/               # 7-phase pipeline
-│   ├── swarm/                   # 6 collaboration modes
-│   ├── memory/                  # RAG + SuccessMemory
-│   ├── security/                # 7 security layers
-│   ├── evolution/               # Agent spawning
-│   ├── synapse/                 # Message protocol & reliability
-│   ├── session/                 # Session management & analytics
-│   ├── resilience/              # Resilience & recovery patterns
-│   ├── reasoning/               # Reasoning quality & evaluation
-│   ├── governance/              # Ethics & alignment tracking
-│   ├── routing/                 # Model routing & optimization
-│   ├── telemetry/               # Metrics, OTel, profiling
-│   ├── bootstrap/               # Startup analytics
-│   ├── events/                  # Event bus & analytics
-│   ├── db/                      # Database & query tracking
-│   ├── interaction/             # HITL & quality tracking
-│   ├── mcp/                     # MCP client & discovery
-│   ├── context/                 # Tenant context & audit
-│   ├── meta/                    # System introspection
-│   ├── skills/                  # Skill crystallization
-│   └── api/                     # REST API (CEREBRO)
-├── interface/                   # User interfaces
-│   ├── ui/cerebro/              # React dashboard
-│   └── cli/                     # REPL components
-├── prompts/                     # System prompts
-├── workspace/                   # Runtime data
-│   ├── agents/                  # Spawned agents
-│   ├── logs/                    # Event logs
-│   └── .nexus/                  # RAG database
-├── tests/                       # 2500+ tests
-├── docs/                        # Documentation
-├── PRODUCTS/                    # Delivery logs + product docs
-├── nexus7.py                    # Entry point
-├── KERNEL.py                    # Immutable alignment
-└── MISSION.md                   # Project mission
+├── core/                                # Core orchestration
+│   ├── orchestration_v7.py              # Main FSM orchestrator
+│   ├── drivers/                         # Gemini & Claude drivers
+│   ├── execution_pkg/                   # Tool execution layer + routing
+│   ├── fsm/                             # State machine (12 states)
+│   ├── intelligence/
+│   │   ├── hive_mind/                   # 7-phase pipeline
+│   │   ├── swarm/                       # 6 collaboration modes
+│   │   └── evolution/                   # Agent spawning
+│   ├── memory_pkg/memory/               # RAG + SuccessMemory
+│   ├── security_pkg/security/           # 7 security layers
+│   ├── foundation/                      # Agents, async primitives
+│   ├── synapse/                         # Message protocol & reliability
+│   ├── infrastructure/                  # Bootstrap, session, events, db
+│   ├── observability/                   # Telemetry, metrics, OTel, profiling
+│   ├── interface_pkg/                   # HITL, interaction, context
+│   ├── metagraph/                       # AST-based codebase intelligence
+│   ├── meta/                            # System introspection
+│   └── ui/                              # Display components
+├── interface/                           # User interfaces
+│   ├── ui/cerebro/                      # React dashboard
+│   └── cli/                             # REPL components
+├── prompts/                             # System prompts
+├── workspace/                           # Runtime data
+│   ├── agents/                          # Spawned agents
+│   ├── logs/                            # Event logs
+│   └── .nexus/                          # RAG database
+├── tests/                               # 2500+ tests
+├── docs/                                # Documentation
+├── PRODUCTS/                            # Delivery logs + product docs
+├── nexus7.py                            # Entry point
+├── KERNEL.py                            # Immutable alignment
+└── MISSION.md                           # Project mission
 ```
 
 ---

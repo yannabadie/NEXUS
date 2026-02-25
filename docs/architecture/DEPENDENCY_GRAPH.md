@@ -85,16 +85,16 @@ graph TB
 - `fsm/` - State machine
 - `drivers/` - LLM drivers
 - `synapse/` - Protocol definitions
-- `execution/` - Tool execution
-- `swarm/` - Hybrid swarm engine
-- `hive_mind/` - 7-phase pipeline
-- `memory/` - Memory management
-- `telemetry/` - Metrics tracking
-- `security/` - KERNEL + policies
-- `bootstrap/` - Agent loading
-- `agents/` - Unified registry
-- `routing/` - Model selection
-- `events/` - Telemetry bridge
+- `execution_pkg/execution/` - Tool execution
+- `intelligence/swarm/` - Hybrid swarm engine
+- `intelligence/hive_mind/` - 7-phase pipeline
+- `memory_pkg/memory/` - Memory management
+- `observability/telemetry/` - Metrics tracking
+- `security_pkg/security/` - KERNEL + policies
+- `infrastructure/bootstrap/` - Agent loading
+- `foundation/agents/` - Unified registry
+- `execution_pkg/routing/` - Model selection
+- `observability/events/` - Telemetry bridge
 
 ### HiveMind Pipeline
 

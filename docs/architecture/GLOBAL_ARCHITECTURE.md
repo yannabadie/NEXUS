@@ -13,7 +13,7 @@
 
 NEXUS is a **deployable collaborative intelligence core** that combines multiple AI models (Gemini and Claude) to solve complex problems through structured multi-agent orchestration. Unlike traditional single-agent systems, NEXUS enables true AI-to-AI collaboration with:
 
-- **Dual-Model Intelligence**: Gemini 3 Pro + Claude Opus 4.5 working as equals
+- **Dual-Model Intelligence**: Gemini 3 Pro + Claude Opus 4.6 working as equals
 - **Adaptive Orchestration**: Automatically selects optimal collaboration patterns
 - **Persistent Learning**: Memory systems retain successful strategies across sessions
 - **Context Specialization**: Adapts to project-specific domains through evolution
@@ -752,7 +752,7 @@ sequenceDiagram
 
 ### Token Usage (Typical)
 
-| Task Complexity | Tokens/Task | Cost (Opus 4.5) |
+| Task Complexity | Tokens/Task | Cost (Opus 4.6) |
 |-----------------|-------------|-----------------|
 | TRIVIAL | 500-2000 | $0.015-$0.06 |
 | MODERATE | 5000-15000 | $0.15-$0.45 |
@@ -797,7 +797,7 @@ Register in `core/execution/handlers/__init__.py`.
 
 ### 2. Collaboration Mode
 
-Add new swarm modes in `core/swarm/mode_executors/`:
+Add new swarm modes in `core/intelligence/swarm/executors/`:
 
 ```python
 from .base import BaseExecutor, ExecutionContext, ExecutionResult
@@ -808,11 +808,11 @@ class MyModeExecutor(BaseExecutor):
         return ExecutionResult(...)
 ```
 
-Register in `core/swarm/collaboration_modes.py`.
+Register in `core/intelligence/swarm/collaboration_modes.py`.
 
 ### 3. Memory Backend
 
-Implement custom RAG backends in `core/memory/backends/`:
+Implement custom RAG backends in `core/memory_pkg/memory/backends/`:
 
 ```python
 from .base import BaseBackend
@@ -856,7 +856,7 @@ bus.subscribe("task_completed", my_handler)
 
 ### 6. HiveMind Phases
 
-Extend the 7-phase pipeline in `core/hive_mind/phases/`:
+Extend the 7-phase pipeline in `core/intelligence/hive_mind/phases/`:
 
 ```python
 from .base import BasePhase, PhaseResult
@@ -895,31 +895,35 @@ Areas identified for refactoring:
 
 ```
 core/
-├── orchestration_v7.py         [Layer 6: FSM Orchestrator - 1123 lines]
-├── hive_mind/
-│   ├── orchestrator.py         [Layer 6: HiveMind Pipeline - 916 lines]
-│   ├── phases/                 [7 phase implementations]
-│   ├── swarm_bridge.py         [HiveMind-Swarm integration]
-│   └── saga_manager.py         [Transaction rollback]
-├── swarm/
-│   ├── hybrid_swarm_engine.py  [Layer 6: Swarm Engine - 797 lines]
-│   ├── mode_executors/         [6 mode implementations]
-│   ├── task_analyzer.py        [Complexity analysis]
-│   └── mode_selector.py        [DyLAN-based selection]
-├── execution/
-│   ├── tool_manager.py         [Layer 5: Tool coordination - 650 lines]
-│   └── handlers/               [21+ tool implementations]
+├── orchestration_v7.py                 [Layer 6: FSM Orchestrator - 1123 lines]
+├── intelligence/
+│   ├── hive_mind/
+│   │   ├── orchestrator.py             [Layer 6: HiveMind Pipeline - 916 lines]
+│   │   ├── phases/                     [7 phase implementations]
+│   │   ├── swarm_bridge.py             [HiveMind-Swarm integration]
+│   │   └── saga_manager.py             [Transaction rollback]
+│   ├── swarm/
+│   │   ├── hybrid_swarm_engine.py      [Layer 6: Swarm Engine - 797 lines]
+│   │   ├── executors/                  [6 mode implementations]
+│   │   ├── task_analyzer.py            [Complexity analysis]
+│   │   └── mode_selector.py            [DyLAN-based selection]
+│   └── evolution/                      [Agent spawning & mutation]
+├── execution_pkg/
+│   ├── execution/
+│   │   ├── tool_manager.py             [Layer 5: Tool coordination - 650 lines]
+│   │   └── handlers/                   [21+ tool implementations]
+│   └── routing/                        [Model routing & optimization]
 ├── drivers/
-│   ├── gemini_driver_v7.py     [Layer 4: Gemini CLI - 800 lines]
-│   └── claude_driver_hybrid.py [Layer 4: Claude CLI - 700 lines]
-├── memory/
-│   ├── auto_memory.py          [Layer 3: Success/failure learning]
-│   ├── project_memory.py       [Layer 3: RAG memory]
-│   └── success_memory.py       [Layer 3: Pattern consolidation]
-├── security/
-│   ├── KERNEL.py               [Layer 3: Immutable alignment - ROOT]
-│   ├── path_guardian.py        [Layer 3: Path validation]
-│   └── execution_policy.py     [Layer 3: Command security]
+│   ├── gemini_driver_v7.py             [Layer 4: Gemini CLI - 800 lines]
+│   └── claude_driver_hybrid.py         [Layer 4: Claude CLI - 700 lines]
+├── memory_pkg/memory/
+│   ├── auto_memory.py                  [Layer 3: Success/failure learning]
+│   ├── project_memory.py               [Layer 3: RAG memory]
+│   └── success_memory_v2.py            [Layer 3: Pattern consolidation]
+├── security_pkg/security/
+│   ├── path_guardian.py                [Layer 3: Path validation]
+│   └── execution_policy.py            [Layer 3: Command security]
+├── KERNEL.py                           [Layer 3: Immutable alignment - ROOT]
 └── [150+ other modules]
 ```
 
@@ -969,7 +973,7 @@ Key configuration parameters in `.env`:
 ```bash
 # Model Selection
 GEMINI_MODEL=gemini-3-pro-preview
-CLAUDE_MODEL=claude-opus-4-5-20251101
+CLAUDE_MODEL=claude-opus-4-6-20250116
 
 # Orchestration
 SWARM_ENABLED=true

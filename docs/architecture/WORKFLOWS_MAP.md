@@ -142,7 +142,7 @@ stateDiagram-v2
 
 ## Layer 2: HiveMind Pipeline
 
-**Location**: `core/hive_mind/orchestrator.py`, `core/hive_mind/phases/`
+**Location**: `core/intelligence/hive_mind/orchestrator.py`, `core/intelligence/hive_mind/phases/`
 
 The HiveMind Pipeline is a high-level 7-phase collaborative execution system activated for MODERATE+ complexity tasks.
 
@@ -266,7 +266,7 @@ class HiveMindState(Enum):
 
 ## Layer 3: Swarm Engine
 
-**Location**: `core/swarm/hybrid_swarm_engine.py`, `core/swarm/collaboration_modes.py`
+**Location**: `core/intelligence/swarm/hybrid_swarm_engine.py`, `core/intelligence/swarm/collaboration_modes.py`
 
 The Swarm Engine enables dynamic collaboration where agents negotiate the optimal mode for each task.
 
@@ -375,7 +375,7 @@ User Input → FSM → HiveMind → SwarmBridge → Swarm (RED_BLUE) → Adversa
 
 ## SwarmBridge: HiveMind ↔ Swarm Integration
 
-**Location**: `core/hive_mind/swarm_bridge.py`
+**Location**: `core/intelligence/hive_mind/swarm_bridge.py`
 
 The SwarmBridge enables HiveMind Phase 4 (Execution) to delegate individual steps to Swarm modes.
 

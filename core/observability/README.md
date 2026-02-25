@@ -118,7 +118,7 @@ from core.observability import (
 
 # Track API calls
 TelemetryCollector.record_llm_call(
-    model="claude-sonnet-4-5",
+    model="claude-sonnet-4-6-20250929",
     tokens_in=150,
     tokens_out=300,
     latency_ms=1200

@@ -78,7 +78,7 @@ Spawned agents have a birth certificate containing metadata:
   "generation_method": "brainstorm",
   "inference": {
     "provider": "claude",
-    "model": "claude-sonnet-4-5-20250929",
+    "model": "claude-sonnet-4-6-20250929",
     "reasoning": "Security analysis requires deep reasoning"
   },
   "specialization": {

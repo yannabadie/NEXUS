@@ -251,7 +251,7 @@ Résumé concis (max 2000 tokens) :"""
                 # Call Haiku CLI via subprocess
                 try:
                     result = subprocess.run(
-                        ["claude", "--model", "claude-3-haiku-20240307"],
+                        ["claude", "--model", "claude-haiku-4-5-20251001"],
                         input=prompt,
                         capture_output=True,
                         text=True,

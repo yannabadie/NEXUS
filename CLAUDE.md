@@ -68,21 +68,23 @@ When adding packages, update BOTH:
 ```
 NEXUS/
 ├── core/
-│   ├── orchestration_v7.py      # Main FSM orchestrator (1074 lines, refactored)
-│   ├── hive_mind/               # 7-phase pipeline (24 states)
-│   ├── swarm/                   # 6 collaboration modes + DyLAN metrics
-│   ├── drivers/                 # Gemini + Claude SDK (AsyncDriverFactory)
-│   ├── memory/                  # RAG (LanceDB) + SuccessMemory
-│   ├── security/                # KERNEL, InputGuard, OutputGuard
-│   ├── evolution/               # Agent spawning & mutation
-│   ├── fsm/                     # State machine (12 states)
-│   └── [30+ other modules]      # See docs/MODULE_MAP.md
-├── tests/                       # 2500+ tests (200+ files)
-├── workspace/                   # Runtime data (agents, logs, sessions)
-├── KERNEL.py                    # Immutable alignment (NEVER modify)
-└── .claude/                     # Claude Code config
-    ├── skills/                  # test-strategy, commit-format, swarm-modes, debug-ci
-    └── settings.json            # Hooks & permissions
+│   ├── orchestration_v7.py              # Main FSM orchestrator (1074 lines, refactored)
+│   ├── intelligence/
+│   │   ├── hive_mind/                   # 7-phase pipeline (24 states)
+│   │   ├── swarm/                       # 6 collaboration modes + DyLAN metrics
+│   │   └── evolution/                   # Agent spawning & mutation
+│   ├── drivers/                         # Gemini + Claude SDK (AsyncDriverFactory)
+│   ├── memory_pkg/memory/               # RAG (LanceDB) + SuccessMemory
+│   ├── security_pkg/security/           # InputGuard, OutputGuard, PathGuardian
+│   ├── foundation/                      # Agents, async primitives
+│   ├── fsm/                             # State machine (12 states)
+│   └── [30+ other modules]              # See docs/MODULE_MAP.md
+├── tests/                               # 2500+ tests (200+ files)
+├── workspace/                           # Runtime data (agents, logs, sessions)
+├── KERNEL.py                            # Immutable alignment (NEVER modify)
+└── .claude/                             # Claude Code config
+    ├── skills/                          # test-strategy, commit-format, swarm-modes, debug-ci
+    └── settings.json                    # Hooks & permissions
 ```
 
 ---

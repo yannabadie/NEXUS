@@ -93,35 +93,35 @@ Quick navigation to all NEXUS documentation.
 |--------|--------|
 | core/ | [README](../core/README.md) |
 | core/adapters/ | [README](../core/adapters/README.md) |
-| core/agents/ | [README](../core/agents/README.md) |
+| core/foundation/agents/ | [README](../core/foundation/agents/README.md) |
 | core/api/ | [README](../core/api/README.md) |
-| core/async_primitives/ | [README](../core/async_primitives/README.md) |
-| core/bootstrap/ | [README](../core/bootstrap/README.md) |
+| core/foundation/async_primitives/ | [README](../core/foundation/async_primitives/README.md) |
+| core/infrastructure/bootstrap/ | [README](../core/infrastructure/bootstrap/README.md) |
 | core/drivers/ | [README](../core/drivers/README.md) |
-| core/evolution/ | [README](../core/evolution/README.md) |
-| core/execution/ | [README](../core/execution/README.md) |
+| core/intelligence/evolution/ | [README](../core/intelligence/evolution/README.md) |
+| core/execution_pkg/execution/ | [README](../core/execution_pkg/execution/README.md) |
 | core/fsm/ | [README](../core/fsm/README.md) |
-| core/governance/ | [README](../core/governance/README.md) |
-| core/hive_mind/ | [README](../core/hive_mind/README.md) |
-| core/interaction/ | [README](../core/interaction/README.md) |
-| core/interface/ | [README](../core/interface/README.md) |
-| core/logging/ | [README](../core/logging/README.md) |
-| core/mcp/ | [README](../core/mcp/README.md) |
-| core/memory/ | [README](../core/memory/README.md) |
+| core/security_pkg/governance/ | [README](../core/security_pkg/governance/README.md) |
+| core/intelligence/hive_mind/ | [README](../core/intelligence/hive_mind/README.md) |
+| core/security_pkg/interaction/ | [README](../core/security_pkg/interaction/README.md) |
+| core/interface_pkg/interface/ | [README](../core/interface_pkg/interface/README.md) |
+| core/observability/logging/ | [README](../core/observability/logging/README.md) |
+| core/interface_pkg/mcp/ | [README](../core/interface_pkg/mcp/README.md) |
+| core/memory_pkg/memory/ | [README](../core/memory_pkg/memory/README.md) |
 | core/meta/ | [README](../core/meta/README.md) |
-| core/notifications/ | [README](../core/notifications/README.md) |
-| core/orchestration/ | [README](../core/orchestration/README.md) |
-| core/prompts/ | [README](../core/prompts/README.md) |
-| core/reasoning/ | [README](../core/reasoning/README.md) |
-| core/resilience/ | [README](../core/resilience/README.md) |
-| core/routing/ | [README](../core/routing/README.md) |
-| core/security/ | [README](../core/security/README.md) |
-| core/swarm/ | [README](../core/swarm/README.md) |
+| core/interface_pkg/notifications/ | [README](../core/interface_pkg/notifications/README.md) |
+| core/execution_pkg/orchestration/ | [README](../core/execution_pkg/orchestration/README.md) |
+| core/memory_pkg/prompts/ | [README](../core/memory_pkg/prompts/README.md) |
+| core/intelligence/reasoning/ | [README](../core/intelligence/reasoning/README.md) |
+| core/infrastructure/resilience/ | [README](../core/infrastructure/resilience/README.md) |
+| core/execution_pkg/routing/ | [README](../core/execution_pkg/routing/README.md) |
+| core/security_pkg/security/ | [README](../core/security_pkg/security/README.md) |
+| core/intelligence/swarm/ | [README](../core/intelligence/swarm/README.md) |
 | core/synapse/ | [README](../core/synapse/README.md) |
-| core/telemetry/ | [README](../core/telemetry/README.md) |
+| core/observability/telemetry/ | [README](../core/observability/telemetry/README.md) |
 | core/ui/ | [README](../core/ui/README.md) |
 | core/utils/ | [README](../core/utils/README.md) |
-| core/workspace/ | [README](../core/workspace/README.md) |
+| core/interface_pkg/workspace/ | [README](../core/interface_pkg/workspace/README.md) |
 
 </details>
 

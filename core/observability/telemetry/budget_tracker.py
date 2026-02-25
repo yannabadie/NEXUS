@@ -39,6 +39,7 @@ from dataclasses import dataclass, asdict
 # Cost per 1 MILLION tokens (USD)
 # Official pricing as of Feb 2026 - Sources: Anthropic & Google AI pricing pages
 # Note: Anthropic models support prompt caching (cache_creation/cache_read)
+# Last verified: 2026-02-25
 PRICING = {
     # Claude models (Opus 4.6, Sonnet 4.5, Haiku 4.5) - WITH PROMPT CACHING
     "claude-opus-4-6-20250116": {

@@ -165,7 +165,7 @@ collector = TelemetryCollector(
 # Record API call with automatic cost tracking
 collector.record_api_call(
     provider="anthropic",
-    model="claude-opus-4-5-20251101",
+    model="claude-opus-4-6-20250116",
     tokens_in=1500,
     tokens_out=800,
     latency_seconds=2.5,
