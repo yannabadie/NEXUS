@@ -218,7 +218,7 @@ class TestFsmHandlersHiveMindIntegration:
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
         # Mock the fsm_handlers module
-        with patch('core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
             # Create mock config
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
@@ -244,7 +244,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test MODERATE routes to Hive Mind when setting enabled."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
             mock_config.hive_mind_moderate = True  # Include MODERATE
@@ -263,7 +263,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test Hive Mind disabled falls back to Swarm."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
+        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', True):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = False  # Disabled
 
@@ -282,7 +282,7 @@ class TestFsmHandlersHiveMindIntegration:
         """Test graceful handling when Hive Mind module not available."""
         from core.intelligence.swarm.task_analyzer import TaskComplexity
 
-        with patch('core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', False):
+        with patch('core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE', False):
             mock_config = MagicMock()
             mock_config.hive_mind_enabled = True
 

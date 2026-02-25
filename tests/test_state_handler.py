@@ -79,7 +79,7 @@ class TestStateHandler:
         assert "IDLE" in captured.out
         assert "EXECUTING_TOOL" in captured.out
 
-    @patch('core.orchestration.state_handler.get_tracer')
+    @patch('core.execution_pkg.orchestration.state_handler.get_tracer')
     def test_transition_to_otel_span(self, mock_get_tracer, handler, mock_orch):
         """transition_to should create OTel span if tracer available."""
         mock_span = MagicMock()
@@ -92,7 +92,7 @@ class TestStateHandler:
         mock_span.set_attribute.assert_any_call("nexus.from_state", "IDLE")
         mock_span.set_attribute.assert_any_call("nexus.to_state", "BRAINSTORMING")
 
-    @patch('core.orchestration.state_handler.record_transition')
+    @patch('core.execution_pkg.orchestration.state_handler.record_transition')
     def test_transition_to_event_sourcing(self, mock_record, handler, mock_orch):
         """transition_to should record transition event."""
         handler.transition_to(OrchestratorState.VALIDATING_CFL)
@@ -107,12 +107,12 @@ class TestStateHandler:
         """transition_to should increment event counter."""
         initial_count = mock_orch._event_count
 
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.BRAINSTORMING)
 
         assert mock_orch._event_count == initial_count + 1
 
-    @patch('core.orchestration.state_handler.record_transition')
+    @patch('core.execution_pkg.orchestration.state_handler.record_transition')
     def test_transition_to_creates_snapshot(self, mock_record, handler, mock_orch):
         """transition_to should create snapshot periodically."""
         mock_orch._snapshot_manager.should_snapshot.return_value = True
@@ -128,7 +128,7 @@ class TestStateHandler:
 
     def test_transition_to_panic_creates_backup(self, handler, mock_orch):
         """transition_to PANIC should create memory backup."""
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.PANIC)
 
         mock_orch.memory.create_backup.assert_called_once_with(
@@ -137,7 +137,7 @@ class TestStateHandler:
 
     def test_transition_to_error_creates_backup(self, handler, mock_orch):
         """transition_to ERROR should create memory backup."""
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.ERROR)
 
         mock_orch.memory.create_backup.assert_called_once_with(
@@ -146,7 +146,7 @@ class TestStateHandler:
 
     def test_transition_to_evolution_mode_enabled(self, handler, mock_orch):
         """transition_to EVOLUTION_BRAINSTORM should enable evolution mode."""
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
 
         assert mock_orch.tool_manager.evolution_mode is True
@@ -154,13 +154,13 @@ class TestStateHandler:
     def test_transition_to_evolution_mode_disabled(self, handler, mock_orch):
         """leaving EVOLUTION_BRAINSTORM should disable evolution mode."""
         # First enter evolution mode
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.EVOLUTION_BRAINSTORM)
 
         assert mock_orch.tool_manager.evolution_mode is True
 
         # Then leave it
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.transition_to(OrchestratorState.IDLE)
 
         assert mock_orch.tool_manager.evolution_mode is False
@@ -173,7 +173,7 @@ class TestStateHandler:
         """reset_to_idle should transition to IDLE."""
         mock_orch.state = OrchestratorState.ERROR
 
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.reset_to_idle()
 
         assert mock_orch.state == OrchestratorState.IDLE
@@ -184,7 +184,7 @@ class TestStateHandler:
         mock_orch.pending_tool_result = {"some": "result"}
         mock_orch.json_parse_failures = 3
 
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.reset_to_idle()
 
         mock_orch.stagnation_detector.reset.assert_called_once()
@@ -202,7 +202,7 @@ class TestStateHandler:
             "recent_history": ["msg1", "msg2"]
         }
 
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.reset_to_idle(clear_task=True)
 
         assert mock_orch.blackboard["objective"] == ""
@@ -218,7 +218,7 @@ class TestStateHandler:
             "recent_history": ["msg1"]
         }
 
-        with patch('core.orchestration.state_handler.record_transition'):
+        with patch('core.execution_pkg.orchestration.state_handler.record_transition'):
             handler.reset_to_idle(clear_task=False)
 
         # Blackboard should not be modified
@@ -229,7 +229,7 @@ class TestStateHandler:
     # can_transition() tests
     # =========================================================================
 
-    @patch('core.orchestration.state_handler.TRANSITION_MATRIX', {
+    @patch('core.execution_pkg.orchestration.state_handler.TRANSITION_MATRIX', {
         OrchestratorState.IDLE: {OrchestratorState.BRAINSTORMING, OrchestratorState.WAITING_USER},
         OrchestratorState.BRAINSTORMING: {OrchestratorState.EXECUTING_TOOL, OrchestratorState.VALIDATING_CFL}
     })
@@ -240,7 +240,7 @@ class TestStateHandler:
             OrchestratorState.BRAINSTORMING
         )
 
-    @patch('core.orchestration.state_handler.TRANSITION_MATRIX', {
+    @patch('core.execution_pkg.orchestration.state_handler.TRANSITION_MATRIX', {
         OrchestratorState.IDLE: {OrchestratorState.BRAINSTORMING}
     })
     def test_can_transition_not_allowed(self, handler):
@@ -252,7 +252,7 @@ class TestStateHandler:
 
     def test_can_transition_fallback(self, handler):
         """can_transition should allow all if TRANSITION_MATRIX missing."""
-        with patch('core.orchestration.state_handler.TRANSITION_MATRIX', side_effect=ImportError):
+        with patch('core.execution_pkg.orchestration.state_handler.TRANSITION_MATRIX', side_effect=ImportError):
             # Should allow any transition as fallback
             result = handler.can_transition(
                 OrchestratorState.IDLE,

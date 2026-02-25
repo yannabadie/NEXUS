@@ -344,7 +344,7 @@ async def headless_main(
 
     try:
         # Use HeadlessProvider (no TTY)
-        from core.interaction.headless_provider import HeadlessProvider
+        from core.security_pkg.interaction.headless_provider import HeadlessProvider
         provider = HeadlessProvider(strict=False, publish_events=False)
 
         if task is None:

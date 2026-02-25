@@ -297,9 +297,9 @@ def mock_orch(tmp_path):
 def handlers(mock_orch):
     """Provide FSMHandlers instance with mocked orchestrator."""
     # Patch get_registry to return a mock
-    with patch("core.orchestration.fsm_handlers.get_registry") as mock_get_reg, \
-         patch("core.orchestration.fsm_handlers.emit_agent_exchange"), \
-         patch("core.orchestration.fsm_handlers.emit_agent_speak"):
+    with patch("core.execution_pkg.orchestration.fsm_handlers.get_registry") as mock_get_reg, \
+         patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_exchange"), \
+         patch("core.execution_pkg.orchestration.fsm_handlers.emit_agent_speak"):
         registry = MagicMock()
         registry.get_alternate.return_value = "claude"
         registry.get_display_name.side_effect = lambda x: x.title() if x else "Unknown"
@@ -660,7 +660,7 @@ class TestHandleExecutingTool:
 
     def test_executing_tool_creates_tool_request(self, handlers):
         """Tool execution creates ToolUse from last message."""
-        with patch("core.orchestration.fsm_handlers.ToolUse") as MockToolUse:
+        with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse") as MockToolUse:
             mock_tool_use = MagicMock()
             MockToolUse.return_value = mock_tool_use
             handlers.handle_executing_tool()
@@ -668,13 +668,13 @@ class TestHandleExecutingTool:
 
     def test_executing_tool_executes_via_tool_manager(self, handlers):
         """Tool execution calls tool_manager.execute."""
-        with patch("core.orchestration.fsm_handlers.ToolUse"):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse"):
             handlers.handle_executing_tool()
             handlers._orch.tool_manager.execute.assert_called_once()
 
     def test_executing_tool_transitions_to_cfl(self, handlers):
         """After tool execution, transitions to VALIDATING_CFL."""
-        with patch("core.orchestration.fsm_handlers.ToolUse"):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse"):
             result = handlers.handle_executing_tool()
             assert result["state"] == "VALIDATING_CFL"
             handlers._orch._transition_to.assert_called_with(OrchestratorState.VALIDATING_CFL)
@@ -682,14 +682,14 @@ class TestHandleExecutingTool:
     def test_executing_tool_alternates_agent(self, handlers):
         """After execution, agent alternates for CFL validation."""
         handlers._orch.active_agent = "gemini"
-        with patch("core.orchestration.fsm_handlers.ToolUse"):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse"):
             handlers.handle_executing_tool()
             # Registry's get_alternate returns "claude"
             assert handlers._orch.active_agent == "claude"
 
     def test_executing_tool_stores_pending_result(self, handlers):
         """Tool result is stored as pending_tool_result."""
-        with patch("core.orchestration.fsm_handlers.ToolUse"):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse"):
             handlers.handle_executing_tool()
             assert handlers._orch.pending_tool_result is not None
 
@@ -763,7 +763,7 @@ class TestHandleValidatingCfl:
             "content": "The result is interesting.",  # No success/error markers
             "status": "CONTINUE",
         }
-        with patch("core.orchestration.fsm_handlers.logger", create=True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.logger", create=True):
             result = handlers.handle_validating_cfl()
         assert result["state"] == "BRAINSTORMING"
 
@@ -792,7 +792,7 @@ class TestHandleValidatingCfl:
             "status": "CONTINUE",
         }
         handlers._orch.panic_system.check_stalemate.return_value = True
-        with patch("core.orchestration.fsm_handlers.logger", create=True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.logger", create=True):
             result = handlers.handle_validating_cfl()
         assert result["state"] == "PANIC"
 
@@ -967,9 +967,9 @@ class TestHandleEvolutionBrainstorm:
             "tool_use": {"tool_name": "read", "arguments": {"file_path": "test.py"}},
             "status": "CONTINUE",
         }
-        with patch("core.orchestration.fsm_handlers.SandboxPolicy") as MockPolicy:
+        with patch("core.execution_pkg.orchestration.fsm_handlers.SandboxPolicy") as MockPolicy:
             MockPolicy.is_tool_blocked.return_value = False
-            with patch("core.orchestration.fsm_handlers.ToolUse"):
+            with patch("core.execution_pkg.orchestration.fsm_handlers.ToolUse"):
                 result = handlers.handle_evolution_brainstorm()
         assert result["state"] == "EVOLUTION_BRAINSTORM"
 
@@ -982,7 +982,7 @@ class TestHandleEvolutionBrainstorm:
             "tool_use": {"tool_name": "bash", "arguments": {"command": "rm -rf /"}},
             "status": "CONTINUE",
         }
-        with patch("core.orchestration.fsm_handlers.SandboxPolicy") as MockPolicy:
+        with patch("core.execution_pkg.orchestration.fsm_handlers.SandboxPolicy") as MockPolicy:
             MockPolicy.is_tool_blocked.return_value = True
             MockPolicy.get_blocked_reason.return_value = "Dangerous command"
             result = handlers.handle_evolution_brainstorm()
@@ -1548,28 +1548,28 @@ class TestShouldUseHiveMind:
 
     def test_hive_mind_unavailable(self, handlers):
         """If HIVE_MIND_AVAILABLE is False, returns False."""
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", False):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", False):
             result = handlers._should_use_hive_mind(TaskComplexity.COMPLEX)
             assert result is False
 
     def test_hive_mind_disabled_in_config(self, handlers):
         """Config hive_mind_enabled=False returns False."""
         handlers._orch.config.hive_mind_enabled = False
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.COMPLEX)
             assert result is False
 
     def test_complex_always_uses_hive_mind(self, handlers):
         """COMPLEX tasks always use Hive Mind when available."""
         handlers._orch.config.hive_mind_enabled = True
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.COMPLEX)
             assert result is True
 
     def test_expert_always_uses_hive_mind(self, handlers):
         """EXPERT tasks always use Hive Mind when available."""
         handlers._orch.config.hive_mind_enabled = True
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.EXPERT)
             assert result is True
 
@@ -1577,7 +1577,7 @@ class TestShouldUseHiveMind:
         """MODERATE tasks use Hive Mind when hive_mind_moderate=True."""
         handlers._orch.config.hive_mind_enabled = True
         handlers._orch.config.hive_mind_moderate = True
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.MODERATE)
             assert result is True
 
@@ -1585,21 +1585,21 @@ class TestShouldUseHiveMind:
         """MODERATE tasks skip Hive Mind when hive_mind_moderate=False."""
         handlers._orch.config.hive_mind_enabled = True
         handlers._orch.config.hive_mind_moderate = False
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.MODERATE)
             assert result is False
 
     def test_trivial_never_uses_hive_mind(self, handlers):
         """TRIVIAL tasks never use Hive Mind."""
         handlers._orch.config.hive_mind_enabled = True
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.TRIVIAL)
             assert result is False
 
     def test_simple_never_uses_hive_mind(self, handlers):
         """SIMPLE tasks never use Hive Mind."""
         handlers._orch.config.hive_mind_enabled = True
-        with patch("core.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
+        with patch("core.execution_pkg.orchestration.fsm_handlers.HIVE_MIND_AVAILABLE", True):
             result = handlers._should_use_hive_mind(TaskComplexity.SIMPLE)
             assert result is False
 

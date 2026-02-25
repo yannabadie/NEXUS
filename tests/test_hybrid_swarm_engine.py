@@ -153,12 +153,12 @@ def mock_telemetry():
     mock_bridge = MagicMock()
     mock_bridge.emit_sync = MagicMock()
     with patch(
-        "core.swarm.hybrid_swarm_engine.get_telemetry_bridge",
+        "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
         return_value=mock_bridge,
     ), patch(
-        "core.swarm.hybrid_swarm_engine.emit_agent_exchange",
+        "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
     ), patch(
-        "core.swarm.hybrid_swarm_engine.emit_agent_speak",
+        "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
     ):
         yield mock_bridge
 
@@ -389,7 +389,7 @@ class TestProcessTaskFullFlow:
 
         return engine, analysis, proposal, exec_result
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_successful_pipeline(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
 
@@ -403,7 +403,7 @@ class TestProcessTaskFullFlow:
         assert result.final_output == "Task completed successfully."
         assert engine.current_phase == SwarmPhase.COMPLETED
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_task_analyzer_called(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -411,7 +411,7 @@ class TestProcessTaskFullFlow:
         engine.process_task("Do something")
         engine.task_analyzer.analyze.assert_called_once_with("Do something")
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_mode_selector_called(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -419,7 +419,7 @@ class TestProcessTaskFullFlow:
         engine.process_task("Do something")
         engine.mode_selector.select_mode.assert_called_once_with(analysis)
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_negotiation_called_when_enabled(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -429,7 +429,7 @@ class TestProcessTaskFullFlow:
         result = engine.process_task("Do something")
         engine.negotiation.run_negotiation.assert_called_once()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_negotiation_skipped_when_disabled(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -437,7 +437,7 @@ class TestProcessTaskFullFlow:
         result = engine.process_task("Do something", skip_negotiation=True)
         engine.negotiation.run_negotiation.assert_not_called()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_negotiation_skipped_with_force_mode(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -447,7 +447,7 @@ class TestProcessTaskFullFlow:
         )
         engine.negotiation.run_negotiation.assert_not_called()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_blackboard_populated(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_executor = MagicMock()
@@ -463,7 +463,7 @@ class TestProcessTaskFullFlow:
         assert "task_analysis" in ctx.blackboard
         assert "key" in ctx.blackboard
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_result_includes_all_fields(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -475,7 +475,7 @@ class TestProcessTaskFullFlow:
         assert result.execution_result is not None
         assert result.total_time_seconds >= 0
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_processing_history_recorded(self, mock_get_exec):
         engine, analysis, proposal, exec_result = self._build_engine_with_mocks()
         mock_get_exec.return_value.execute_with_fallback.return_value = exec_result
@@ -497,7 +497,7 @@ class TestProcessTaskFullFlow:
 class TestPhaseTransitions:
     """Tests that phases progress correctly through the pipeline."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_phases_progress_through_pipeline(self, mock_get_exec):
         """Verify engine traverses ANALYZING -> SELECTING -> NEGOTIATING -> EXECUTING -> COMPLETED."""
         phases_seen = []
@@ -524,12 +524,12 @@ class TestPhaseTransitions:
         mock_bridge.emit_sync = emit_sync_tracker
 
         with patch(
-            "core.swarm.hybrid_swarm_engine.get_telemetry_bridge",
+            "core.intelligence.swarm.hybrid_swarm_engine.get_telemetry_bridge",
             return_value=mock_bridge,
         ), patch(
-            "core.swarm.hybrid_swarm_engine.emit_agent_exchange",
+            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_exchange",
         ), patch(
-            "core.swarm.hybrid_swarm_engine.emit_agent_speak",
+            "core.intelligence.swarm.hybrid_swarm_engine.emit_agent_speak",
         ):
             engine.process_task("Test task")
 
@@ -581,7 +581,7 @@ class TestPhaseTransitions:
         engine = HybridSwarmEngine()
         engine._current_proposal = _make_proposal()
 
-        with patch("core.swarm.hybrid_swarm_engine.get_executor") as mock_get:
+        with patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor") as mock_get:
             mock_get.return_value.execute.return_value = _make_execution_result()
             engine.execute_turn("test")
 
@@ -596,7 +596,7 @@ class TestPhaseTransitions:
 class TestAutoRouting:
     """Tests for auto-routing (swarm vs skip) and forced mode."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_force_mode_uses_specified_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -614,7 +614,7 @@ class TestAutoRouting:
         )
         assert result.selected_mode == CollaborationMode.SPECIALIST
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_forced_proposal_overrides_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -635,7 +635,7 @@ class TestAutoRouting:
         assert result.mode_proposal.confidence == 1.0
         assert result.mode_proposal.reasoning == "User forced mode"
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_consensus_mode_overrides_proposal(self, mock_get_exec):
         """When negotiation reaches consensus, use negotiated mode."""
         engine = HybridSwarmEngine()
@@ -667,7 +667,7 @@ class TestAutoRouting:
 class TestNegotiationFallback:
     """Tests for mode fallback when negotiation fails or times out."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_timeout_falls_back_to_proposal_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -692,7 +692,7 @@ class TestNegotiationFallback:
         # On timeout, the engine uses proposal.mode (not negotiation result mode)
         assert result.selected_mode == CollaborationMode.SEQUENTIAL
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_non_consensus_uses_proposal_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -725,7 +725,7 @@ class TestNegotiationFallback:
 class TestExecutionDelegation:
     """Tests for executor selection and invocation."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_get_executor_called_with_final_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -748,7 +748,7 @@ class TestExecutionDelegation:
             CollaborationMode.SPECIALIST, workspace_path=None
         )
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_self_healing_enabled_uses_execute_with_fallback(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -766,7 +766,7 @@ class TestExecutionDelegation:
         engine.process_task("Do something")
         mock_executor.execute_with_fallback.assert_called_once()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_self_healing_disabled_uses_execute(self, mock_get_exec):
         config = MagicMock()
         config.swarm_self_healing = False
@@ -793,7 +793,7 @@ class TestExecutionDelegation:
         mock_executor.execute.assert_called_once()
         mock_executor.execute_with_fallback.assert_not_called()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_execution_context_has_correct_task_input(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -821,7 +821,7 @@ class TestExecutionDelegation:
 class TestErrorHandling:
     """Tests for error handling and recovery paths."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_exception_during_analysis_returns_failed(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -831,7 +831,7 @@ class TestErrorHandling:
         assert result.status == SwarmPhase.FAILED
         assert "Analyzer broke" in result.final_output
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_exception_during_execution_returns_failed(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -848,7 +848,7 @@ class TestErrorHandling:
         assert "Exec failed" in result.final_output
         assert engine.current_phase == SwarmPhase.FAILED
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_failed_result_has_fallback_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -857,7 +857,7 @@ class TestErrorHandling:
         result = engine.process_task("Do something")
         assert result.selected_mode == CollaborationMode.PING_PONG
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_failed_result_has_error_execution_result(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -867,7 +867,7 @@ class TestErrorHandling:
         assert result.execution_result.status == ExecutionStatus.FAILED
         assert "boom" in result.execution_result.final_output
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_failed_with_force_mode_preserves_mode(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -878,7 +878,7 @@ class TestErrorHandling:
         )
         assert result.selected_mode == CollaborationMode.RED_BLUE
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_exception_in_negotiation_returns_failed(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -901,7 +901,7 @@ class TestErrorHandling:
 class TestSessionTracking:
     """Tests for session creation and tracking in process_task."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_task_id_generated_without_session_manager(self, mock_get_exec):
         """Without a session_manager the task_id is set but NOT cleared by the finally block."""
         engine = HybridSwarmEngine()
@@ -920,7 +920,7 @@ class TestSessionTracking:
         assert engine._current_task_id is not None
         assert engine._current_task_id.startswith("swarm_")
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_task_id_cleared_with_session_manager(self, mock_get_exec, tmp_path):
         """With a session_manager the task_id is cleared in the finally block."""
         engine = HybridSwarmEngine(workspace_path=tmp_path)
@@ -942,7 +942,7 @@ class TestSessionTracking:
         # finally block executed and cleared the task_id
         assert engine._current_task_id is None
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_session_manager_create_called(self, mock_get_exec, tmp_path):
         engine = HybridSwarmEngine(workspace_path=tmp_path)
         engine.task_analyzer = MagicMock()
@@ -961,7 +961,7 @@ class TestSessionTracking:
         engine.process_task("Do something")
         engine.session_manager.create_task.assert_called_once()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_session_ephemeral_for_trivial(self, mock_get_exec, tmp_path):
         engine = HybridSwarmEngine(workspace_path=tmp_path)
         engine.task_analyzer = MagicMock()
@@ -994,7 +994,7 @@ class TestSessionTracking:
 class TestDyLANMetricsUpdate:
     """Tests for DyLAN metrics updates after execution."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_metrics_recorded_for_successful_agents(self, mock_get_exec):
         pool = create_default_pool()
         engine = HybridSwarmEngine(agent_pool=pool)
@@ -1018,7 +1018,7 @@ class TestDyLANMetricsUpdate:
         assert len(pool.agents["gemini_primary"].invocation_history) > gemini_initial
         assert len(pool.agents["claude_opus"].invocation_history) > claude_initial
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_error_agent_gets_zero_quality(self, mock_get_exec):
         pool = create_default_pool()
         engine = HybridSwarmEngine(agent_pool=pool)
@@ -1050,7 +1050,7 @@ class TestDyLANMetricsUpdate:
         assert claude_last.quality_score == 0.0
         assert claude_last.success is False
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_no_metrics_update_without_pool(self, mock_get_exec):
         engine = HybridSwarmEngine(agent_pool=None)
         engine.task_analyzer = MagicMock()
@@ -1076,7 +1076,7 @@ class TestDyLANMetricsUpdate:
 class TestEdgeCases:
     """Tests for edge cases: empty input, all agents fail, etc."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_empty_task_input(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1092,7 +1092,7 @@ class TestEdgeCases:
         result = engine.process_task("")
         assert result.status == SwarmPhase.COMPLETED
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_all_agents_fail_execution(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1121,7 +1121,7 @@ class TestEdgeCases:
         assert result.status == SwarmPhase.COMPLETED
         assert result.execution_result.status == ExecutionStatus.FAILED
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_very_long_task_input(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1138,7 +1138,7 @@ class TestEdgeCases:
         result = engine.process_task(long_input)
         assert result.status == SwarmPhase.COMPLETED
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_none_blackboard_defaults_to_empty(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1157,7 +1157,7 @@ class TestEdgeCases:
         ctx = mock_executor.execute_with_fallback.call_args[0][0]
         assert isinstance(ctx.blackboard, dict)
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_multiple_tasks_accumulate_history(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1175,7 +1175,7 @@ class TestEdgeCases:
 
         assert len(engine.processing_history) == 5
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_history_capped_at_100(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1556,7 +1556,7 @@ class TestFSMIntegrationAPI:
         engine = HybridSwarmEngine()
         engine._current_proposal = _make_proposal(mode=CollaborationMode.SEQUENTIAL)
 
-        with patch("core.swarm.hybrid_swarm_engine.get_executor") as mock_get:
+        with patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor") as mock_get:
             mock_get.return_value.execute.return_value = _make_execution_result()
             engine.execute_turn("task")
             mock_get.assert_called_with(CollaborationMode.SEQUENTIAL)
@@ -1569,7 +1569,7 @@ class TestFSMIntegrationAPI:
             mode=CollaborationMode.RED_BLUE,
         )
 
-        with patch("core.swarm.hybrid_swarm_engine.get_executor") as mock_get:
+        with patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor") as mock_get:
             mock_get.return_value.execute.return_value = _make_execution_result()
             engine.execute_turn("task")
             mock_get.assert_called_with(CollaborationMode.RED_BLUE)
@@ -1579,7 +1579,7 @@ class TestFSMIntegrationAPI:
         engine._current_analysis = _make_analysis(complexity=TaskComplexity.EXPERT)
         engine._current_proposal = _make_proposal()
 
-        with patch("core.swarm.hybrid_swarm_engine.get_executor") as mock_get:
+        with patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor") as mock_get:
             mock_get.return_value.execute.return_value = _make_execution_result()
             engine.execute_turn("task")
             ctx = mock_get.return_value.execute.call_args[0][0]
@@ -1594,7 +1594,7 @@ class TestFSMIntegrationAPI:
 class TestCallbacks:
     """Tests for on_negotiation_turn and on_execution_round callbacks."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_on_execution_round_passed_to_context(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1615,7 +1615,7 @@ class TestCallbacks:
         ctx = mock_executor.execute_with_fallback.call_args[0][0]
         assert ctx.on_round is callback
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_on_negotiation_turn_passed_to_negotiation(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1645,7 +1645,7 @@ class TestCallbacks:
 class TestSuccessMemoryIntegration:
     """Tests for SuccessMemory recording after task completion."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_success_memory_record_called_on_completed(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1664,7 +1664,7 @@ class TestSuccessMemoryIntegration:
         engine.process_task("Do something")
         mock_memory.record_success.assert_called_once()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_success_memory_not_called_on_failed(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1683,7 +1683,7 @@ class TestSuccessMemoryIntegration:
         engine.process_task("Do something")
         mock_memory.record_success.assert_not_called()
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_success_memory_error_swallowed(self, mock_get_exec):
         """SuccessMemory errors should be logged but not crash the pipeline."""
         engine = HybridSwarmEngine()
@@ -1713,8 +1713,8 @@ class TestSuccessMemoryIntegration:
 class TestAdaptiveMaxRounds:
     """Tests that adaptive max_rounds scales with task complexity."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
-    @patch("core.swarm.hybrid_swarm_engine.get_adaptive_max_rounds")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_adaptive_max_rounds")
     def test_adaptive_rounds_called_when_no_config(self, mock_adaptive, mock_get_exec):
         mock_adaptive.return_value = 10
 
@@ -1739,7 +1739,7 @@ class TestAdaptiveMaxRounds:
         ctx = mock_executor.execute_with_fallback.call_args[0][0]
         assert ctx.max_rounds == 10
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_config_max_rounds_overrides_adaptive(self, mock_get_exec):
         config = MagicMock()
         config.swarm_max_rounds = 3
@@ -1775,7 +1775,7 @@ class TestAdaptiveMaxRounds:
 class TestSpawningSuggestionInResult:
     """Tests that spawning suggestion is attached to result metadata."""
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_spawning_suggestion_added_to_metadata(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()
@@ -1793,7 +1793,7 @@ class TestSpawningSuggestionInResult:
         result = engine.process_task("Complex coding task")
         assert "spawning_suggestion" in result.execution_result.metadata
 
-    @patch("core.swarm.hybrid_swarm_engine.get_executor")
+    @patch("core.intelligence.swarm.hybrid_swarm_engine.get_executor")
     def test_no_spawning_suggestion_for_simple(self, mock_get_exec):
         engine = HybridSwarmEngine()
         engine.task_analyzer = MagicMock()

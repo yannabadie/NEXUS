@@ -73,7 +73,7 @@ class TestGuardPipeline:
 
         assert result.is_safe
 
-    @patch('core.orchestration.guard_pipeline.get_input_guard')
+    @patch('core.execution_pkg.orchestration.guard_pipeline.get_input_guard')
     def test_validate_input_threat_detected(self, mock_get_guard, pipeline):
         """Threat detection should return unsafe result."""
         # Mock input guard to detect threat

@@ -22,9 +22,9 @@ def test_hive_mind_execution_v2():
     # Setup Mocks (V12.4: Use AsyncDriverFactory pattern)
     with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as MockGetGemini, \
          patch('core.drivers.async_factory.AsyncDriverFactory.get_best_claude') as MockGetClaude, \
-         patch('core.interface.repl.load_config') as MockConfig, \
-         patch('core.evolution.lineage.load_lineage') as MockLineage, \
-         patch('core.evolution.lineage.get_current_parent') as MockGetParent:
+         patch('core.interface_pkg.interface.repl.load_config') as MockConfig, \
+         patch('core.intelligence.evolution.lineage.load_lineage') as MockLineage, \
+         patch('core.intelligence.evolution.lineage.get_current_parent') as MockGetParent:
 
         # 1. Config Mock
         mock_config = MagicMock()

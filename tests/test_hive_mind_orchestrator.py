@@ -340,9 +340,9 @@ def hive_mind(tmp_workspace, mock_config, mock_gemini, mock_claude):
     reaching out to real singletons.
     """
     with (
-        patch("core.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
-        patch("core.hive_mind.orchestrator.get_telemetry_bridge") as mock_telem,
-        patch("core.hive_mind.orchestrator.StagnationDetector") as mock_stag_cls,
+        patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
+        patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge") as mock_telem,
+        patch("core.intelligence.hive_mind.orchestrator.StagnationDetector") as mock_stag_cls,
     ):
         mock_sync_inst = MagicMock()
         mock_sync.return_value = mock_sync_inst
@@ -438,7 +438,7 @@ def _wire_happy_path(hm: TrueHiveMind) -> Dict[str, MagicMock]:
     })
 
     # Mock phase audit logger
-    with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_audit:
+    with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_audit:
         audit_inst = MagicMock()
         audit_inst.detect_patterns.return_value = []
         mock_audit.return_value = audit_inst
@@ -583,9 +583,9 @@ class TestTrueHiveMindInit:
 
     def test_auto_breakpoints_default_true(self, tmp_workspace, mock_config, mock_gemini, mock_claude):
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge"),
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge"),
-            patch("core.hive_mind.orchestrator.StagnationDetector"),
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector"),
         ):
             hm = TrueHiveMind(
                 workspace_path=tmp_workspace,
@@ -606,9 +606,9 @@ class TestTrueHiveMindInit:
         mock_swarm = MagicMock()
         mock_swarm.session_manager = MagicMock()
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge"),
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge"),
-            patch("core.hive_mind.orchestrator.StagnationDetector"),
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector"),
         ):
             hm = TrueHiveMind(
                 workspace_path=tmp_workspace,
@@ -623,9 +623,9 @@ class TestTrueHiveMindInit:
     def test_on_state_change_callback_stored(self, tmp_workspace, mock_config, mock_gemini, mock_claude):
         cb = MagicMock()
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge"),
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge"),
-            patch("core.hive_mind.orchestrator.StagnationDetector"),
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector"),
         ):
             hm = TrueHiveMind(
                 workspace_path=tmp_workspace,
@@ -860,7 +860,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_returns_success(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             audit_inst = MagicMock()
             audit_inst.detect_patterns.return_value = []
             mock_pal.return_value = audit_inst
@@ -873,7 +873,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_phases_completed(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Build API")
@@ -887,7 +887,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_calls_analysis_phase(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -897,7 +897,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_skips_debate(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -907,7 +907,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_calls_architecture(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -917,7 +917,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_calls_execution(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -927,7 +927,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_calls_consolidation(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -937,7 +937,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_resets_retry_count(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -947,7 +947,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_agents_used(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Build API")
@@ -958,7 +958,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_total_tokens_populated(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Build API")
@@ -968,7 +968,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_artifacts_from_execution(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Build API")
@@ -978,7 +978,7 @@ class TestProcessTaskHappyPath:
     @pytest.mark.asyncio
     async def test_happy_path_final_state_is_success(self, hive_mind):
         _wire_happy_path(hive_mind)
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Build API")
@@ -1008,7 +1008,7 @@ class TestProcessTaskWithDebate:
         # Disable breakpoints to avoid user interaction
         hive_mind.auto_breakpoints = False
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Complex task")
@@ -1040,7 +1040,7 @@ class TestProcessTaskWithDebate:
         cancel_response.chosen_option = "cancel"
         hive_mind.user_handler.after_debate = MagicMock(return_value=cancel_response)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Complex task")
@@ -1081,7 +1081,7 @@ class TestProcessTaskRetryLoop:
         retry = _make_retry_phase_result(action="RETRY", modified_arch=_make_architecture())
         hive_mind.phase_retry.execute = MagicMock(return_value=retry)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Failing task")
@@ -1105,7 +1105,7 @@ class TestProcessTaskRetryLoop:
         hive_mind.phase_diagnosis = MagicMock()
         hive_mind.phase_diagnosis.execute = AsyncMock(return_value=diagnosis)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Task with abort")
@@ -1127,7 +1127,7 @@ class TestProcessTaskRetryLoop:
         hive_mind.phase_diagnosis = MagicMock()
         hive_mind.phase_diagnosis.execute = AsyncMock(return_value=diagnosis)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Task with escalate")
@@ -1155,7 +1155,7 @@ class TestProcessTaskRetryLoop:
         retry = _make_retry_phase_result(action="STOP")
         hive_mind.phase_retry.execute = MagicMock(return_value=retry)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Failing task")
@@ -1173,7 +1173,7 @@ class TestProcessTaskRetryLoop:
         )
         hive_mind.phase_execution.execute = AsyncMock(return_value=fail_exec)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Task without diagnosis")
@@ -1201,7 +1201,7 @@ class TestProcessTaskRetryLoop:
         retry = _make_retry_phase_result(action="RETRY", modified_arch=_make_architecture())
         hive_mind.phase_retry.execute = MagicMock(return_value=retry)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Persistent failure")
@@ -1226,7 +1226,7 @@ class TestProcessTaskExceptionHandling:
             side_effect=RuntimeError("Analysis exploded")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Boom")
@@ -1242,7 +1242,7 @@ class TestProcessTaskExceptionHandling:
             side_effect=ValueError("Execution crashed")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Crash test")
@@ -1257,7 +1257,7 @@ class TestProcessTaskExceptionHandling:
             side_effect=Exception("Consolidation error")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Crash in consolidation")
@@ -1272,7 +1272,7 @@ class TestProcessTaskExceptionHandling:
             side_effect=Exception("Boom")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Error task")
@@ -1288,7 +1288,7 @@ class TestProcessTaskExceptionHandling:
             side_effect=RuntimeError("Arch failed")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Partial failure")
@@ -1321,7 +1321,7 @@ class TestConfidenceAbort:
             )
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Low confidence task")
@@ -1337,7 +1337,7 @@ class TestConfidenceAbort:
         """Normal flow continues when confidence is sufficient."""
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Good confidence task")
@@ -1348,7 +1348,7 @@ class TestConfidenceAbort:
     async def test_confidence_recorded_for_analysis(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Task")
@@ -1370,7 +1370,7 @@ class TestBudgetTracking:
     async def test_budget_allocator_reset_and_allocate(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Budget test")
@@ -1382,7 +1382,7 @@ class TestBudgetTracking:
     async def test_budget_allocator_report_actual_called(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Budget test")
@@ -1396,7 +1396,7 @@ class TestBudgetTracking:
     async def test_cost_estimator_start_task_called(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Budget test")
@@ -1410,7 +1410,7 @@ class TestBudgetTracking:
         hive_mind.budget_tracker = MagicMock()
         hive_mind.cost_estimator.check_usd_budget = MagicMock(return_value=False)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             # Should still proceed (warning only, not blocking)
@@ -1439,7 +1439,7 @@ class TestPhaseOrdering:
 
         hive_mind._set_state = track_state
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Track states")
@@ -1470,7 +1470,7 @@ class TestPhaseOrdering:
 
         hive_mind._set_state = track_state
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Debate needed")
@@ -1489,9 +1489,9 @@ class TestProcessTaskSaga:
     async def test_saga_enabled_creates_checkpoints(self, tmp_workspace, mock_config, mock_gemini, mock_claude):
         """When saga is enabled, checkpoint_phase is called after each phase."""
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge") as mock_telem,
-            patch("core.hive_mind.orchestrator.StagnationDetector") as mock_stag_cls,
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge") as mock_telem,
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector") as mock_stag_cls,
         ):
             mock_sync_inst = MagicMock()
             mock_sync_inst.sync_checkpoint = AsyncMock()
@@ -1529,8 +1529,8 @@ class TestProcessTaskSaga:
             mock_saga.task_id = "hive_test"
 
             with (
-                patch("core.hive_mind.orchestrator.SagaManager") as saga_cls,
-                patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
+                patch("core.intelligence.hive_mind.orchestrator.SagaManager") as saga_cls,
+                patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
                 patch("core.swarm.generate_task_id", return_value="hive_test"),
             ):
                 saga_cls.resume_from = AsyncMock(return_value=None)
@@ -1555,9 +1555,9 @@ class TestSwarmBridgeDelegation:
         mock_swarm = MagicMock()
         mock_swarm.session_manager = MagicMock()
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge"),
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge"),
-            patch("core.hive_mind.orchestrator.StagnationDetector"),
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector"),
         ):
             hm = TrueHiveMind(
                 workspace_path=tmp_workspace,
@@ -1574,9 +1574,9 @@ class TestSwarmBridgeDelegation:
         mock_swarm = MagicMock()
         mock_swarm.session_manager = MagicMock()
         with (
-            patch("core.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
-            patch("core.hive_mind.orchestrator.get_telemetry_bridge"),
-            patch("core.hive_mind.orchestrator.StagnationDetector"),
+            patch("core.intelligence.hive_mind.orchestrator.get_sync_bridge") as mock_sync,
+            patch("core.intelligence.hive_mind.orchestrator.get_telemetry_bridge"),
+            patch("core.intelligence.hive_mind.orchestrator.StagnationDetector"),
         ):
             mock_sync_inst = MagicMock()
             mock_sync.return_value = mock_sync_inst
@@ -1610,8 +1610,8 @@ class TestSuccessMemoryRecording:
         hive_mind.success_memory = mock_success_mem
 
         with (
-            patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
-            patch("core.hive_mind.orchestrator.create_hive_mind_adapters",
+            patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
+            patch("core.intelligence.hive_mind.orchestrator.create_hive_mind_adapters",
                   create=True, return_value=(MagicMock(), MagicMock())),
         ):
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
@@ -1633,7 +1633,7 @@ class TestSuccessMemoryRecording:
         mock_success_mem = MagicMock()
         hive_mind.success_memory = mock_success_mem
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Failed task")
@@ -1655,7 +1655,7 @@ class TestProjectMemoryArchival:
         mock_pmem = MagicMock()
         hive_mind.project_memory = mock_pmem
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Archive test")
@@ -1667,7 +1667,7 @@ class TestProjectMemoryArchival:
         _wire_happy_path(hive_mind)
         hive_mind.project_memory = None
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("No archive test")
@@ -1686,7 +1686,7 @@ class TestComplexityParameter:
     async def test_default_complexity_is_moderate(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Default complexity")
@@ -1699,7 +1699,7 @@ class TestComplexityParameter:
     async def test_expert_complexity_passed_through(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Expert task", complexity=TaskComplexity.EXPERT)
@@ -1745,7 +1745,7 @@ class TestHotSwapDuringRetry:
             "reason": "Stagnation detected",
         }
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Swap lead task")
@@ -1766,7 +1766,7 @@ class TestEdgeCases:
         """An empty task should still go through the pipeline."""
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("")
@@ -1781,7 +1781,7 @@ class TestEdgeCases:
 
         long_task = "A" * 100000
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task(long_task)
@@ -1796,7 +1796,7 @@ class TestEdgeCases:
         arch = _make_arch_phase_result(agents_spawned=["specialist_x", "specialist_y"])
         hive_mind.phase_architecture.execute = AsyncMock(return_value=arch)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Spawn test")
@@ -1811,7 +1811,7 @@ class TestEdgeCases:
         consol = _make_consolidation_phase_result(archived=7)
         hive_mind.phase_consolidation.execute = AsyncMock(return_value=consol)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             result = await hive_mind.process_task("Knowledge test")
@@ -1823,7 +1823,7 @@ class TestEdgeCases:
         """Running process_task twice resets state properly."""
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             r1 = await hive_mind.process_task("Task 1")
@@ -1832,7 +1832,7 @@ class TestEdgeCases:
             # Re-wire for second run
             _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             r2 = await hive_mind.process_task("Task 2")
@@ -1910,7 +1910,7 @@ class TestContextManagerInteractions:
     async def test_context_cleared_at_start(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Clear test")
@@ -1921,7 +1921,7 @@ class TestContextManagerInteractions:
     async def test_confidence_monitor_reset_at_start(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Reset test")
@@ -1940,7 +1940,7 @@ class TestTelemetryEmissions:
     async def test_telemetry_trace_started(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Telemetry test")
@@ -1951,7 +1951,7 @@ class TestTelemetryEmissions:
     async def test_telemetry_trace_ended_on_success(self, hive_mind):
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Telemetry test")
@@ -1965,7 +1965,7 @@ class TestTelemetryEmissions:
             side_effect=RuntimeError("Boom")
         )
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Fail telemetry")
@@ -1977,7 +1977,7 @@ class TestTelemetryEmissions:
         """Multiple telemetry events are emitted during process_task."""
         _wire_happy_path(hive_mind)
 
-        with patch("core.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
+        with patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal:
             mock_pal.return_value = MagicMock(detect_patterns=MagicMock(return_value=[]))
 
             await hive_mind.process_task("Multi emit test")

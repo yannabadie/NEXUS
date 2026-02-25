@@ -22,9 +22,9 @@ def test_hive_mind_execution():
     # Mock Drivers (V12.4: Use AsyncDriverFactory pattern)
     with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as MockGetGemini, \
          patch('core.drivers.async_factory.AsyncDriverFactory.get_best_claude') as MockGetClaude, \
-         patch('core.swarm.task_analyzer.TaskAnalyzer.analyze') as MockAnalyze, \
-         patch('core.swarm.mode_selector.ModeSelector.select_mode') as MockSelect, \
-         patch('core.swarm.mode_executors.get_executor') as MockGetExecutor:
+         patch('core.intelligence.swarm.task_analyzer.TaskAnalyzer.analyze') as MockAnalyze, \
+         patch('core.intelligence.swarm.mode_selector.ModeSelector.select_mode') as MockSelect, \
+         patch('core.intelligence.swarm.mode_executors.get_executor') as MockGetExecutor:
         
         # Setup Mocks for Swarm
         mock_analysis = MagicMock()
@@ -55,7 +55,7 @@ def test_hive_mind_execution():
         (workspace_path / ".nexus").mkdir(exist_ok=True)
         
         # Mock Config
-        with patch('core.interface.repl.load_config') as MockConfig:
+        with patch('core.interface_pkg.interface.repl.load_config') as MockConfig:
             mock_config = MagicMock()
             mock_config.workspace_path = workspace_path
             mock_config.log_level = "INFO"

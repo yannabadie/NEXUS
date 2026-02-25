@@ -234,7 +234,7 @@ def orchestrator_with_mocks(tmp_path):
 
     # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
     with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
-         patch('core.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
+         patch('core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
 
         mock_get_gemini.return_value = mock_gemini
         mock_get_claude.return_value = mock_claude
@@ -292,7 +292,7 @@ def orchestrator_with_swarm(tmp_path):
 
     # V12.4: Drivers are created via AsyncDriverFactory, not imported directly
     with patch('core.drivers.async_factory.AsyncDriverFactory.get_best_gemini') as mock_get_gemini, \
-         patch('core.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
+         patch('core.execution_pkg.orchestration.agent_invoker.AgentInvoker.get_claude_driver') as mock_get_claude:
 
         mock_get_gemini.return_value = mock_gemini
         mock_get_claude.return_value = mock_claude
