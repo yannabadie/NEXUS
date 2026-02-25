@@ -34,31 +34,35 @@ from core.infrastructure.context import (
     reset_audit_trail,
 )
 
-# Database exports
-from core.infrastructure.db import (
-    PlanTier,
-    TenantStatus,
-    Tenant,
-    User,
-    Workspace,
-    Quota,
-    DEFAULT_QUOTAS,
-    create_quota_for_plan,
-    get_engine,
-    init_db,
-    reset_engine,
-    get_session,
-    create_default_tenant,
-    get_tenant_by_slug,
-    get_tenant_quota,
-    DEFAULT_DB_PATH,
-    QueryPerformanceTracker,
-    QueryRecord,
-    TableProfile,
-    QueryPerformanceStats,
-    get_query_tracker,
-    reset_query_tracker,
-)
+# Database exports (requires sqlmodel: pip install nexus-swarm-os[db])
+try:
+    from core.infrastructure.db import (
+        PlanTier,
+        TenantStatus,
+        Tenant,
+        User,
+        Workspace,
+        Quota,
+        DEFAULT_QUOTAS,
+        create_quota_for_plan,
+        get_engine,
+        init_db,
+        reset_engine,
+        get_session,
+        create_default_tenant,
+        get_tenant_by_slug,
+        get_tenant_quota,
+        DEFAULT_DB_PATH,
+        QueryPerformanceTracker,
+        QueryRecord,
+        TableProfile,
+        QueryPerformanceStats,
+        get_query_tracker,
+        reset_query_tracker,
+    )
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
 
 # Bootstrap exports
 from core.infrastructure.bootstrap import (

@@ -25,8 +25,26 @@ from ..collaboration_modes import CollaborationMode
 from ..mode_selector import AgentAssignment
 from core.utils.artifact_verifier import ArtifactVerifier
 from core.foundation.agents.unified_registry import get_registry
-from core.api.rate_limiter import get_rate_limiter, RateLimitExceeded
-from core.api.concurrency_limiter import get_concurrency_limiter
+# Lazy imports to avoid circular dependency: core.api → infrastructure → intelligence → core.api
+# Imported at runtime in methods that need them
+_rate_limiter_mod = None
+_concurrency_limiter_mod = None
+
+
+def _get_rate_limiter_imports():
+    global _rate_limiter_mod
+    if _rate_limiter_mod is None:
+        from core.api import rate_limiter as _mod
+        _rate_limiter_mod = _mod
+    return _rate_limiter_mod
+
+
+def _get_concurrency_limiter_imports():
+    global _concurrency_limiter_mod
+    if _concurrency_limiter_mod is None:
+        from core.api import concurrency_limiter as _mod
+        _concurrency_limiter_mod = _mod
+    return _concurrency_limiter_mod
 
 if TYPE_CHECKING:
     from ..merge_strategies import MergeStrategy, MergeResult
@@ -278,11 +296,12 @@ class ModeExecutor(ABC):
             # Apply rate limiting
             registry = get_registry()
             provider = "gemini" if registry.is_gemini(agent_id) else "claude"
-            rate_limiter = get_rate_limiter(provider)
+            _rl = _get_rate_limiter_imports()
+            rate_limiter = _rl.get_rate_limiter(provider)
 
             try:
                 rate_limiter.acquire_sync(timeout=60.0)
-            except RateLimitExceeded as e:
+            except _rl.RateLimitExceeded as e:
                 import sys
                 print(f"[RATE LIMIT] {e}", file=sys.stderr)
                 return AgentResponse(
@@ -294,7 +313,8 @@ class ModeExecutor(ABC):
                 )
 
             # V11 SYNCHROTRON: Apply concurrency limiting to prevent resource starvation
-            concurrency_limiter = get_concurrency_limiter()
+            _cl = _get_concurrency_limiter_imports()
+            concurrency_limiter = _cl.get_concurrency_limiter()
             if not concurrency_limiter.acquire_sync(timeout=60.0):
                 return AgentResponse(
                     agent_id=agent_id,
@@ -365,11 +385,12 @@ class ModeExecutor(ABC):
             # Async rate limiting
             registry = get_registry()
             provider = "gemini" if registry.is_gemini(agent_id) else "claude"
-            rate_limiter = get_rate_limiter(provider)
+            _rl = _get_rate_limiter_imports()
+            rate_limiter = _rl.get_rate_limiter(provider)
 
             try:
                 await rate_limiter.acquire(timeout=60.0)
-            except RateLimitExceeded as e:
+            except _rl.RateLimitExceeded as e:
                 return AgentResponse(
                     agent_id=agent_id,
                     content="",
@@ -379,7 +400,8 @@ class ModeExecutor(ABC):
                 )
 
             # V11 SYNCHROTRON: Apply concurrency limiting to prevent resource starvation
-            concurrency_limiter = get_concurrency_limiter()
+            _cl = _get_concurrency_limiter_imports()
+            concurrency_limiter = _cl.get_concurrency_limiter()
             async with concurrency_limiter.acquire_async(timeout=60.0):
                 # V9.7.1: Try async invoke first, fallback to sync - both pass isolated_env
                 if hasattr(context, 'invoke_agent_async') and context.invoke_agent_async:
