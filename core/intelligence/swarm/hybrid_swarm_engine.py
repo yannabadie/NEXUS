@@ -44,17 +44,13 @@ except ImportError:
     SpawnedAgentLoader = None
     discover_and_register_spawned_agents = None
 
-# V7.6 Phase 10a: Success Memory (lazy import to avoid circular deps)
-_SUCCESS_MEMORY_AVAILABLE = False
-try:
-    from ..memory.success_memory import SuccessMemory
-
-    _SUCCESS_MEMORY_AVAILABLE = True
-except ImportError:
-    SuccessMemory = None
+# V7.6 Phase 10a: Success Memory (lazy import at usage site to avoid circular deps)
+_SUCCESS_MEMORY_AVAILABLE = True  # Will attempt lazy import
+SuccessMemory = None  # Populated lazily
 # V10 SYNAPSE: Telemetry instrumentation
 from core.observability.events.telemetry_bridge import (  # noqa: E402  # after optional dependency blocks
     emit_agent_exchange,
+    emit_agent_speak,  # noqa: F401  # used by tests via mock.patch()
     get_telemetry_bridge,
 )
 from core.observability.events.types import CerebroEventType  # noqa: E402
@@ -158,11 +154,15 @@ class HybridSwarmEngine:
         else:
             self.session_manager = None
 
-        # V7.6 Phase 10a: Success Memory
-        if workspace_path and _SUCCESS_MEMORY_AVAILABLE and SuccessMemory:
-            self.success_memory = SuccessMemory(workspace_path)
-        else:
-            self.success_memory = None
+        # V7.6 Phase 10a: Success Memory (lazy import to avoid circular deps)
+        self.success_memory = None
+        if workspace_path and _SUCCESS_MEMORY_AVAILABLE:
+            try:
+                from core.memory_pkg.memory.success_memory_v2 import SuccessMemoryV2
+
+                self.success_memory = SuccessMemoryV2(workspace_path)
+            except Exception:
+                pass
 
         # V7.9: Spawned Agent Loader
         self.spawned_agent_loader = None

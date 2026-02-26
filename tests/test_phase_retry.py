@@ -765,7 +765,7 @@ class TestApplyChanges:
 class TestV124ContextCompression:
     """Tests for V12.4 compress_context and fresh_session changes."""
 
-    @patch("core.hive_mind.phases.phase_retry.AdaptiveRetryPhase._apply_changes")
+    @patch("core.intelligence.hive_mind.phases.phase_retry.AdaptiveRetryPhase._apply_changes")
     def test_compress_context_called(self, mock_apply):
         """Verify compress_context triggers ContextCompressor."""
         mock_apply.return_value = _make_architecture()
@@ -779,7 +779,7 @@ class TestV124ContextCompression:
         real_phase = _make_phase()
 
         with patch(
-            "core.hive_mind.phases.phase_retry.AdaptiveRetryPhase._apply_changes",
+            "core.intelligence.hive_mind.phases.phase_retry.AdaptiveRetryPhase._apply_changes",
             wraps=real_phase._apply_changes,
         ):
             modified = real_phase._apply_changes(arch, diag, recs)
@@ -795,7 +795,7 @@ class TestV124ContextCompression:
 
         # Even if get_compressor fails, _apply_changes should succeed
         with patch(
-            "core.hive_mind.phases.phase_retry.get_compressor",
+            "core.intelligence.hive_mind.phases.phase_retry.get_compressor",
             side_effect=ImportError("no module"),
             create=True,
         ):

@@ -391,15 +391,15 @@ class TestSyncBridgeTelemetry:
     def test_sync_bridge_has_setup_telemetry(self):
         """SyncBridge has _setup_telemetry method."""
         # Import directly to avoid circular dependency
+        import ast
         import importlib.util
 
-        spec = importlib.util.spec_from_file_location("sync_bridge", "core/orchestration/sync_bridge.py")
+        sync_bridge_path = "core/execution_pkg/orchestration/sync_bridge.py"
+        spec = importlib.util.spec_from_file_location("sync_bridge", sync_bridge_path)
         importlib.util.module_from_spec(spec)
 
         # Check if the method exists in the source
-        import ast
-
-        with open("core/orchestration/sync_bridge.py", encoding="utf-8") as f:
+        with open(sync_bridge_path, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source)
@@ -410,7 +410,8 @@ class TestSyncBridgeTelemetry:
     def test_sync_bridge_setup_telemetry_in_init(self):
         """SyncBridge.__init__ calls _setup_telemetry."""
         # Check that __init__ contains the call
-        with open("core/orchestration/sync_bridge.py", encoding="utf-8") as f:
+        sync_bridge_path = "core/execution_pkg/orchestration/sync_bridge.py"
+        with open(sync_bridge_path, encoding="utf-8") as f:
             source = f.read()
 
         # Verify the call exists in the file

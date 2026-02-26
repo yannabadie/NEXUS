@@ -265,6 +265,7 @@ class SuccessMemoryV2:
             # Store metadata in chunk for retrieval
             metadata={
                 "task_id": entry.task_id,
+                "description": entry.description,
                 "swarm_mode": entry.swarm_mode,
                 "quality_score": entry.quality_score,
                 "complexity": entry.complexity,
@@ -353,9 +354,13 @@ class SuccessMemoryV2:
             quality_score = self._estimate_quality(result)
 
         # Create entry
+        import hashlib
+
+        task_hash = hashlib.sha256(description[:500].encode()).hexdigest()[:16]
+
         entry = SuccessEntry(
             task_id=task_id,
-            task_hash="",  # Not used in V2
+            task_hash=task_hash,
             description=description[:500],
             swarm_mode=swarm_mode,
             agents_used=agents_used,
@@ -476,7 +481,7 @@ class SuccessMemoryV2:
             entry = SuccessEntry(
                 task_id=chunk.metadata.get("task_id", ""),
                 task_hash="",
-                description=chunk.content.split("\n")[0].replace("Task: ", ""),
+                description=chunk.metadata.get("description", chunk.content.split("\n")[0].replace("Task: ", "")),
                 swarm_mode=chunk.metadata.get("swarm_mode", "UNKNOWN"),
                 agents_used=chunk.metadata.get("agents_used", []),
                 duration_seconds=chunk.metadata.get("duration_seconds", 0.0),
@@ -577,7 +582,7 @@ class SuccessMemoryV2:
             entry = SuccessEntry(
                 task_id=chunk.metadata.get("task_id", ""),
                 task_hash="",
-                description=chunk.content.split("\n")[0].replace("Task: ", ""),
+                description=chunk.metadata.get("description", chunk.content.split("\n")[0].replace("Task: ", "")),
                 swarm_mode=chunk.metadata.get("swarm_mode", "UNKNOWN"),
                 agents_used=chunk.metadata.get("agents_used", []),
                 duration_seconds=chunk.metadata.get("duration_seconds", 0.0),
@@ -648,6 +653,338 @@ class SuccessMemoryV2:
         self.project_memory.save()
 
         return count
+
+    # =========================================================================
+    # V1 Backward Compatibility Methods (DEPRECATED - remove in V13.0)
+    # =========================================================================
+
+    @property
+    def filepath(self) -> Path:
+        """V1 compat: Return the filepath where successes would be stored."""
+        return self.workspace_path / "memory" / "successes.json"
+
+    def get_recent(self, limit: int = 5) -> list[SuccessEntry]:
+        """
+        V1 compat: Get the most recent entries.
+
+        Args:
+            limit: Maximum number of entries to return.
+
+        Returns:
+            List of SuccessEntry, most recent first.
+        """
+        entries = self.get_all()
+        # Return most recent first
+        return list(reversed(entries[-limit:]))
+
+    def get_by_mode(self, mode: str) -> list[SuccessEntry]:
+        """
+        V1 compat: Filter entries by swarm mode.
+
+        Args:
+            mode: Swarm mode string to filter by.
+
+        Returns:
+            List of matching SuccessEntry objects.
+        """
+        return [e for e in self.get_all() if e.swarm_mode == mode]
+
+    def get_by_domain(self, domain: str) -> list[SuccessEntry]:
+        """
+        V1 compat: Filter entries by domain.
+
+        Args:
+            domain: Domain string to filter by.
+
+        Returns:
+            List of matching SuccessEntry objects.
+        """
+        return [e for e in self.get_all() if domain in e.domains]
+
+    def _append_entry(self, entry: SuccessEntry) -> None:
+        """
+        V1 compat: Directly append a SuccessEntry.
+
+        Indexes the entry into ProjectMemory storage.
+
+        Args:
+            entry: SuccessEntry to append.
+        """
+        # Compute task_hash if empty
+        if not entry.task_hash and entry.description:
+            import hashlib
+
+            entry.task_hash = hashlib.sha256(entry.description.encode()).hexdigest()[:16]
+
+        self._index_success_entry(entry)
+        self.project_memory._backend_dirty = True
+        self.project_memory.save()
+
+    def _tokenize(self, text: str) -> set[str]:
+        """
+        V1 compat: Tokenize text for similarity matching.
+
+        Splits text into lowercase tokens, removes stop words and short tokens.
+
+        Args:
+            text: Text to tokenize.
+
+        Returns:
+            Set of cleaned tokens.
+        """
+        import re
+
+        stop_words = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "out",
+            "off",
+            "over",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "every",
+            "both",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "because",
+            "but",
+            "and",
+            "or",
+            "if",
+            "while",
+            "about",
+            "it",
+            "its",
+            "this",
+            "that",
+            "these",
+            "those",
+            "my",
+            "your",
+            "his",
+            "her",
+            "their",
+            "our",
+            "me",
+            "him",
+            "them",
+            "us",
+            "who",
+            "whom",
+            "which",
+            "what",
+            # French stop words
+            "le",
+            "la",
+            "les",
+            "un",
+            "une",
+            "des",
+            "du",
+            "de",
+            "et",
+            "est",
+            "dans",
+            "en",
+            "au",
+            "aux",
+            "sur",
+            "par",
+            "pour",
+            "avec",
+            "ce",
+            "cette",
+            "ces",
+            "mon",
+            "ton",
+            "son",
+            "notre",
+            "votre",
+            "leur",
+            "que",
+            "qui",
+            "dont",
+            "ou",
+            "ne",
+            "pas",
+        }
+
+        # Split on non-alphanumeric, lowercase
+        words = re.split(r"[^a-zA-Z0-9]+", text.lower())
+        # Filter short words and stop words
+        return {w for w in words if len(w) > 2 and w not in stop_words}
+
+    @staticmethod
+    def _jaccard_similarity(set1: set, set2: set) -> float:
+        """
+        V1 compat: Calculate Jaccard similarity between two sets.
+
+        Args:
+            set1: First set of tokens.
+            set2: Second set of tokens.
+
+        Returns:
+            Jaccard similarity coefficient (0.0-1.0).
+        """
+        if not set1 or not set2:
+            return 0.0
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+        return intersection / union if union > 0 else 0.0
+
+    def get_agent_success_rate(self, agent_id: str, domain: str | None = None) -> tuple[float, int]:
+        """
+        V1 compat: Calculate success rate for a specific agent.
+
+        Args:
+            agent_id: Agent identifier.
+            domain: Optional domain filter.
+
+        Returns:
+            Tuple of (success_rate, session_count).
+            Returns (0.5, count) if fewer than 3 sessions.
+        """
+        entries = self.get_all()
+
+        # Filter by agent participation
+        agent_entries = [e for e in entries if agent_id in e.agents_used]
+
+        # Filter by domain if specified
+        if domain:
+            agent_entries = [e for e in agent_entries if domain in e.domains]
+
+        count = len(agent_entries)
+
+        # Insufficient data
+        if count < 3:
+            return (0.5, count)
+
+        # Count high quality sessions (quality > 0.6)
+        high_quality = sum(1 for e in agent_entries if e.quality_score > 0.6)
+        rate = high_quality / count
+
+        return (rate, count)
+
+    def get_agent_session_stats(self, agent_id: str) -> dict[str, Any]:
+        """
+        V1 compat: Get comprehensive session statistics for an agent.
+
+        Args:
+            agent_id: Agent identifier.
+
+        Returns:
+            Dictionary with session statistics.
+        """
+        entries = self.get_all()
+        agent_entries = [e for e in entries if agent_id in e.agents_used]
+
+        count = len(agent_entries)
+
+        if count == 0:
+            return {
+                "total_sessions": 0,
+                "global_success_rate": 0.5,
+                "domain_success_rates": {},
+                "modes_participated": [],
+            }
+
+        # Global success rate
+        high_quality = sum(1 for e in agent_entries if e.quality_score > 0.6)
+        global_rate = high_quality / count if count >= 3 else 0.5
+
+        # Domain breakdown
+        domain_entries: dict[str, list[SuccessEntry]] = {}
+        for e in agent_entries:
+            for d in e.domains:
+                if d not in domain_entries:
+                    domain_entries[d] = []
+                domain_entries[d].append(e)
+
+        domain_rates = {}
+        for d, d_entries in domain_entries.items():
+            d_count = len(d_entries)
+            if d_count >= 3:
+                d_high = sum(1 for e in d_entries if e.quality_score > 0.6)
+                domain_rates[d] = d_high / d_count
+            else:
+                domain_rates[d] = 0.5
+
+        # Modes participated in
+        modes = list({e.swarm_mode for e in agent_entries})
+
+        return {
+            "total_sessions": count,
+            "global_success_rate": global_rate,
+            "domain_success_rates": domain_rates,
+            "modes_participated": modes,
+        }
 
 
 # =============================================================================

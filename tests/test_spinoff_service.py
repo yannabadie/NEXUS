@@ -96,8 +96,8 @@ class TestSpinoffService:
 
         with (
             patch.object(spinoff_service, "_brainstorm_spinoff", return_value=mutations),
-            patch("core.evolution.lineage.load_lineage") as mock_lineage,
-            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+            patch("core.intelligence.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.intelligence.evolution.lineage.get_current_parent") as mock_parent,
         ):
             mock_lineage.return_value = {"generations": []}
             mock_parent.return_value = {"id": "NEXUS_ROOT"}
@@ -113,8 +113,8 @@ class TestSpinoffService:
         """Test specialization fails when no mutations generated."""
         with (
             patch.object(spinoff_service, "_brainstorm_spinoff", return_value=[]),
-            patch("core.evolution.lineage.load_lineage") as mock_lineage,
-            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+            patch("core.intelligence.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.intelligence.evolution.lineage.get_current_parent") as mock_parent,
         ):
             mock_lineage.return_value = {"generations": []}
             mock_parent.return_value = {"id": "NEXUS_ROOT"}
@@ -126,7 +126,7 @@ class TestSpinoffService:
 
     def test_specialize_exception_handling(self, spinoff_service, mock_console):
         """Test specialization handles exceptions gracefully."""
-        with patch("core.evolution.lineage.load_lineage") as mock_lineage:
+        with patch("core.intelligence.evolution.lineage.load_lineage") as mock_lineage:
             mock_lineage.side_effect = Exception("Lineage file not found")
 
             result = spinoff_service.specialize("Test Mission")
@@ -140,8 +140,8 @@ class TestSpinoffService:
 
         with (
             patch.object(spinoff_service, "_brainstorm_spinoff", return_value=mutations),
-            patch("core.evolution.lineage.load_lineage") as mock_lineage,
-            patch("core.evolution.lineage.get_current_parent") as mock_parent,
+            patch("core.intelligence.evolution.lineage.load_lineage") as mock_lineage,
+            patch("core.intelligence.evolution.lineage.get_current_parent") as mock_parent,
         ):
             mock_lineage.return_value = {"generations": []}
             mock_parent.return_value = {"id": "NEXUS_ROOT"}
@@ -160,7 +160,7 @@ class TestSpinoffService:
     def test_brainstorm_spinoff_success(self, spinoff_service, mock_orchestrator, mock_console, temp_nexus_root):
         """Test successful brainstorming."""
         # Mock prompt loading
-        with patch("core.prompts.load_prompt") as mock_load:
+        with patch("core.memory_pkg.prompts.load_prompt") as mock_load:
             mock_load.return_value = "Brainstorm prompt"
 
             # Mock JSON extraction
@@ -177,7 +177,7 @@ class TestSpinoffService:
 
     def test_brainstorm_spinoff_prompt_not_found(self, spinoff_service, mock_console, temp_nexus_root):
         """Test brainstorming fails when prompt file missing."""
-        with patch("core.prompts.load_prompt") as mock_load:
+        with patch("core.memory_pkg.prompts.load_prompt") as mock_load:
             mock_load.side_effect = FileNotFoundError("Prompt not found")
 
             result = spinoff_service._brainstorm_spinoff(
@@ -191,7 +191,7 @@ class TestSpinoffService:
         self, spinoff_service, mock_orchestrator, mock_console, temp_nexus_root
     ):
         """Test brainstorming raises when JSON extraction fails."""
-        with patch("core.prompts.load_prompt") as mock_load:
+        with patch("core.memory_pkg.prompts.load_prompt") as mock_load:
             mock_load.return_value = "Brainstorm prompt"
 
             with patch("core.utils.json_extractor.extract_json_safe") as mock_extract:

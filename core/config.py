@@ -405,3 +405,42 @@ def load_config() -> Config:
         Config instance
     """
     return Config()
+
+
+class OrchestratorConfig:
+    """
+    Lightweight orchestrator configuration for SDK driver factory.
+
+    Accepts keyword arguments to override individual settings.
+    Used primarily in tests and programmatic instantiation where
+    the full Config class is not needed.
+
+    Example:
+        config = OrchestratorConfig(driver_mode="sdk", kimi_api_key="sk-...")
+        factory = AsyncDriverFactory(config, workspace_path=Path("."))
+    """
+
+    def __init__(self, **kwargs):
+        # API keys
+        self.anthropic_api_key: str | None = kwargs.get("anthropic_api_key", os.getenv("ANTHROPIC_API_KEY"))
+        self.google_api_key: str | None = kwargs.get(
+            "google_api_key", os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        )
+        self.deepseek_api_key: str | None = kwargs.get("deepseek_api_key", os.getenv("DEEPSEEK_API_KEY"))
+        self.kimi_api_key: str | None = kwargs.get("kimi_api_key", os.getenv("KIMI_API_KEY"))
+
+        # Driver mode
+        self.driver_mode: str = kwargs.get("driver_mode", os.getenv("NEXUS_DRIVER_MODE", "auto"))
+
+        # Common settings
+        self.timeout: float = float(kwargs.get("timeout", os.getenv("TIMEOUT", "300")))
+        self.max_tokens: int = int(kwargs.get("max_tokens", 8192))
+        self.response_cache_size: int = int(kwargs.get("response_cache_size", 500))
+        self.response_cache_ttl: float = float(kwargs.get("response_cache_ttl", 300.0))
+        self.routing_policy: str = kwargs.get("routing_policy", "balanced")
+        self.workspace_path: Path = Path(kwargs.get("workspace_path", "./workspace"))
+
+        # Apply any remaining kwargs as attributes
+        for key, value in kwargs.items():
+            if not hasattr(self, key):
+                setattr(self, key, value)

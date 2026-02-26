@@ -41,8 +41,8 @@ def validator(workspace_path, tmp_path):
     gen_active = tmp_path / "GENERATION_ACTIVE"
 
     with (
-        patch("core.execution.validation_service.PathGuardian") as mock_guardian,
-        patch("core.execution.validation_service.ExecutionPolicy") as mock_policy,
+        patch("core.execution_pkg.execution.validation_service.PathGuardian") as mock_guardian,
+        patch("core.execution_pkg.execution.validation_service.ExecutionPolicy") as mock_policy,
     ):
         # Mock PathGuardian
         mock_guardian_instance = MagicMock()

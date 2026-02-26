@@ -69,7 +69,7 @@ class TestTokenization:
 
     @pytest.fixture
     def memory(self, tmp_path):
-        return SuccessMemory(workspace_path=tmp_path)
+        return SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
     def test_basic_tokenization(self, memory):
         """Basic tokenization removes stop words."""
@@ -125,7 +125,7 @@ class TestJaccardSimilarity:
 
     @pytest.fixture
     def memory(self, tmp_path):
-        return SuccessMemory(workspace_path=tmp_path)
+        return SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
     def test_identical_sets(self, memory):
         """Identical sets have similarity 1.0."""
@@ -166,9 +166,9 @@ class TestFindSimilarTasks:
     @pytest.fixture
     def memory_with_entries(self, tmp_path):
         """Create memory with some entries."""
-        memory = SuccessMemory(workspace_path=tmp_path)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
-        # Add some entries manually
+        # Add some entries via V2 API
         entries = [
             SuccessEntry(
                 task_id="task-001",
@@ -208,9 +208,9 @@ class TestFindSimilarTasks:
             ),
         ]
 
-        # Manually save entries
-        data = {"entries": [e.to_dict() for e in entries]}
-        memory._store.save(data)
+        # Add entries via backward-compat API
+        for entry in entries:
+            memory._append_entry(entry)
 
         return memory
 
@@ -260,7 +260,7 @@ class TestFindSimilarTasks:
 
     def test_empty_memory(self, tmp_path):
         """Returns empty for empty memory."""
-        memory = SuccessMemory(workspace_path=tmp_path)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
         similar = memory.find_similar_tasks("Fix bug", limit=5)
         assert len(similar) == 0
 
@@ -276,7 +276,7 @@ class TestGetBestModeForSimilar:
     @pytest.fixture
     def memory_with_mode_history(self, tmp_path):
         """Create memory with mode history for testing."""
-        memory = SuccessMemory(workspace_path=tmp_path)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
         entries = [
             # Auth-related tasks solved with PING_PONG
@@ -319,8 +319,8 @@ class TestGetBestModeForSimilar:
             ),
         ]
 
-        data = {"entries": [e.to_dict() for e in entries]}
-        memory._store.save(data)
+        for entry in entries:
+            memory._append_entry(entry)
         return memory
 
     def test_returns_best_mode(self, memory_with_mode_history):
@@ -351,7 +351,7 @@ class TestModeSelectorMemoryIntegration:
     @pytest.fixture
     def memory_with_history(self, tmp_path):
         """Create memory with task history."""
-        memory = SuccessMemory(workspace_path=tmp_path)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
         entries = [
             SuccessEntry(
@@ -368,8 +368,8 @@ class TestModeSelectorMemoryIntegration:
             ),
         ]
 
-        data = {"entries": [e.to_dict() for e in entries]}
-        memory._store.save(data)
+        for entry in entries:
+            memory._append_entry(entry)
         return memory
 
     def test_selector_accepts_memory(self, memory_with_history):
@@ -430,7 +430,7 @@ class TestEndToEndMemoryInfluence:
 
     def test_memory_influences_selection(self, tmp_path):
         """Memory can influence mode selection toward historically successful modes."""
-        memory = SuccessMemory(workspace_path=tmp_path)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
         # Store that PARALLEL worked great for "database optimization"
         entries = [
@@ -460,8 +460,8 @@ class TestEndToEndMemoryInfluence:
             ),
         ]
 
-        data = {"entries": [e.to_dict() for e in entries]}
-        memory._store.save(data)
+        for entry in entries:
+            memory._append_entry(entry)
 
         # Create selector with memory
         selector = ModeSelector(success_memory=memory)

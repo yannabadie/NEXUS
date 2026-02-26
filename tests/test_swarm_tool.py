@@ -165,12 +165,12 @@ class TestSwarmToolErrorHandling:
         with patch.dict(
             "sys.modules",
             {
-                "core.swarm.collaboration_modes": MagicMock(
+                "core.intelligence.swarm.collaboration_modes": MagicMock(
                     CollaborationMode=type(
                         "CollaborationMode", (), {"from_string": MagicMock(side_effect=ValueError("Invalid"))}
                     )
                 ),
-                "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
             },
         ):
             result = tm.tools["swarm_delegate"].execute({"task": "test", "mode": "invalid_mode"})
@@ -219,8 +219,8 @@ class TestSwarmToolDelegation:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 result = tm.tools["swarm_delegate"].execute({"task": "Run tests in parallel", "mode": "parallel"})
@@ -261,8 +261,8 @@ class TestSwarmToolFeedbackLoop:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 tm.tools["swarm_delegate"].execute({"task": "test", "mode": "parallel"})
@@ -300,8 +300,8 @@ class TestSwarmToolGuardrails:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 tm.tools["swarm_delegate"].execute({"task": "Security review", "mode": "red_blue", "phase": "debate"})
@@ -343,8 +343,8 @@ class TestSwarmToolFallbackReporting:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 result = tm.tools["swarm_delegate"].execute({"task": "Complex task", "mode": "parallel"})
@@ -383,8 +383,8 @@ class TestSwarmToolContextCategories:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 tm.tools["swarm_delegate"].execute(
@@ -425,8 +425,8 @@ class TestSwarmToolDefaultMode:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 # No mode specified - should default to specialist
@@ -483,8 +483,8 @@ class TestSwarmToolIntegration:
             with patch.dict(
                 "sys.modules",
                 {
-                    "core.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
-                    "core.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
+                    "core.intelligence.swarm.collaboration_modes": MagicMock(CollaborationMode=MockCollaborationMode),
+                    "core.intelligence.hive_mind.swarm_bridge": MagicMock(HivePhase=MockHivePhase),
                 },
             ):
                 result = tm.tools["swarm_delegate"].execute({"task": "test", "mode": "parallel"})

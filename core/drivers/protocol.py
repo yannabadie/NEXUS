@@ -67,6 +67,7 @@ class DriverResponseStatus(Enum):
     TIMEOUT = auto()
     CANCELLED = auto()
     RATE_LIMITED = auto()
+    AUTHENTICATION_ERROR = auto()
 
 
 @dataclass
@@ -118,6 +119,10 @@ class DriverResponse:
     error_message: str | None = None
     error_code: str | None = None
 
+    # Extended fields (populated by SDK drivers)
+    finish_reason: str | None = None
+    cost_usd: float = 0.0
+
     # Raw response (for debugging)
     raw: dict[str, Any] | None = None
 
@@ -164,6 +169,10 @@ class StreamChunk:
     latency_ms: float = 0.0
     input_tokens: int = 0
     output_tokens: int = 0
+
+    # Extended fields (populated by SDK drivers)
+    finish_reason: str | None = None
+    error: str | None = None
 
 
 # =============================================================================

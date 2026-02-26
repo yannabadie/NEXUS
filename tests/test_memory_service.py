@@ -57,8 +57,8 @@ class TestMemoryService:
 
         # Mock path exists
         with (
-            patch("core.memory.service.Path.exists", return_value=True),
-            patch("core.memory.service.Path.is_file", return_value=False),
+            patch("core.memory_pkg.memory.service.Path.exists", return_value=True),
+            patch("core.memory_pkg.memory.service.Path.is_file", return_value=False),
         ):
             memory_service.learn("")
 

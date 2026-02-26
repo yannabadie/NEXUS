@@ -28,6 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from core.drivers.protocol import DriverResponse, DriverResponseStatus
 from core.intelligence.hive_mind.adaptive_debate import (
     AdaptiveDebateConfig,
     DebateParams,
@@ -52,6 +53,33 @@ from core.intelligence.hive_mind.types import (
 # =============================================================================
 # Helper factories
 # =============================================================================
+
+
+def _make_driver_response(content: str, input_tokens: int = 100, output_tokens: int = 50) -> DriverResponse:
+    """Create a DriverResponse as returned by invoke() for debate tests."""
+    return DriverResponse(
+        content=content,
+        status=DriverResponseStatus.SUCCESS,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
+def _make_smart_gemini_invoke(
+    argument_json: str | None = None,
+    consensus_json: str | None = None,
+) -> AsyncMock:
+    """Create a smart invoke() mock that returns argument or consensus JSON based on prompt content."""
+    _arg_json = argument_json or _make_argument_json(position="SUPPORT", argument="agree")
+    _cons_json = consensus_json or _make_consensus_json(consensus_reached=True, consensus_score=0.95)
+
+    async def _side_effect(*args, **kwargs):
+        prompt = args[0] if args else kwargs.get("prompt", "")
+        if "Evaluate if consensus" in str(prompt) or "consensus" in str(prompt).lower()[:50]:
+            return _make_driver_response(_cons_json)
+        return _make_driver_response(_arg_json)
+
+    return AsyncMock(side_effect=_side_effect)
 
 
 def _make_argument_json(
@@ -179,16 +207,18 @@ def _make_debate_argument(
 @pytest.fixture
 def mock_gemini():
     driver = MagicMock()
-    driver.send_message_async = AsyncMock(return_value=_make_argument_json(position="OPPOSE"))
+    _gemini_arg_json = _make_argument_json(position="OPPOSE")
+    driver.send_message_async = AsyncMock(return_value=_gemini_arg_json)
+    driver.invoke = AsyncMock(return_value=_make_driver_response(_gemini_arg_json))
     return driver
 
 
 @pytest.fixture
 def mock_claude():
     driver = MagicMock()
-    driver.send_message_async = AsyncMock(
-        return_value=_make_argument_json(position="SUPPORT", concession="I concede the point")
-    )
+    _claude_arg_json = _make_argument_json(position="SUPPORT", concession="I concede the point")
+    driver.send_message_async = AsyncMock(return_value=_claude_arg_json)
+    driver.invoke = AsyncMock(return_value=_make_driver_response(_claude_arg_json))
     return driver
 
 
@@ -584,7 +614,7 @@ class TestGetPrimaryDisagreement:
 class TestFormatDebateHistory:
     """Tests for StrategicDebatePhase._format_debate_history."""
 
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     def test_formats_recent_turns(self, mock_get_reg, phase):
         reg = MagicMock()
         reg.get_display_name = MagicMock(side_effect=lambda x: x.title())
@@ -600,7 +630,7 @@ class TestFormatDebateHistory:
         assert "GEMINI" in result
         assert "CLAUDE" in result
 
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     def test_includes_concessions(self, mock_get_reg, phase):
         reg = MagicMock()
         reg.get_display_name = MagicMock(return_value="Gemini")
@@ -613,7 +643,7 @@ class TestFormatDebateHistory:
         assert "CONCESSION:" in result
         assert "You were right" in result
 
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     def test_limits_to_last_5_turns(self, mock_get_reg, phase):
         reg = MagicMock()
         reg.get_display_name = MagicMock(return_value="Agent")
@@ -827,7 +857,7 @@ class TestCreateResult:
         assert result.misalignment_flags is not None
         assert len(result.misalignment_flags) >= 1
 
-    @patch("core.reasoning.trajectory_scorer.get_trajectory_scorer")
+    @patch("core.intelligence.reasoning.trajectory_scorer.get_trajectory_scorer")
     def test_trajectory_scorer_called(self, mock_get_scorer, phase):
         """V12.4: TrajectoryScorer is called within _create_result."""
         mock_scorer = MagicMock()
@@ -860,7 +890,7 @@ class TestCreateResult:
         assert call_args[0]["agent_id"] == "gemini"
         assert call_args[1]["agent_id"] == "claude"
 
-    @patch("core.reasoning.trajectory_scorer.get_trajectory_scorer", side_effect=ImportError("no module"))
+    @patch("core.intelligence.reasoning.trajectory_scorer.get_trajectory_scorer", side_effect=ImportError("no module"))
     def test_trajectory_scorer_graceful_degradation(self, mock_get_scorer, phase):
         """V12.4: _create_result works even if TrajectoryScorer fails."""
         result = phase._create_result(
@@ -925,7 +955,7 @@ class TestExecuteSkippedDebate:
     """Tests for execute() when debate is skipped."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_skips_on_high_agreement(self, mock_get_reg, phase):
         mock_get_reg.return_value = MagicMock()
         comparison = _make_comparison(agreement_score=0.95, needs_debate=False)
@@ -934,13 +964,13 @@ class TestExecuteSkippedDebate:
         assert result.debate_result.status == "IMMEDIATE_CONSENSUS"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_skipped_does_not_call_drivers(self, mock_get_reg, phase, mock_gemini, mock_claude):
         mock_get_reg.return_value = MagicMock()
         comparison = _make_comparison(agreement_score=0.95, needs_debate=False)
         await phase.execute("test task", comparison)
-        mock_gemini.send_message_async.assert_not_called()
-        mock_claude.send_message_async.assert_not_called()
+        mock_gemini.invoke.assert_not_called()
+        mock_claude.invoke.assert_not_called()
 
 
 # =============================================================================
@@ -952,9 +982,9 @@ class TestExecuteFullDebate:
     """Tests for full execute() flow with actual debate turns."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_consensus_reached_after_min_turns(
         self,
         mock_get_reg,
@@ -973,21 +1003,23 @@ class TestExecuteFullDebate:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        # Gemini opposes, Claude supports
-        mock_gemini.send_message_async = AsyncMock(
+        # Gemini opposes, Claude supports (source uses invoke())
+        _gemini_oppose = _make_argument_json(position="OPPOSE", argument="Gemini argues")
+        _gemini_consensus1 = _make_consensus_json(consensus_reached=True, consensus_score=0.92)
+        _gemini_consensus2 = _make_consensus_json(consensus_reached=True, consensus_score=0.95)
+        _claude_support = _make_argument_json(
+            position="SUPPORT", argument="Claude agrees", concession="I concede the point"
+        )
+        mock_gemini.send_message_async = AsyncMock(side_effect=[_gemini_oppose, _gemini_consensus1, _gemini_consensus2])
+        mock_gemini.invoke = AsyncMock(
             side_effect=[
-                _make_argument_json(position="OPPOSE", argument="Gemini argues"),
-                # Consensus check returns reached
-                _make_consensus_json(consensus_reached=True, consensus_score=0.92),
-                # Second consensus check if needed
-                _make_consensus_json(consensus_reached=True, consensus_score=0.95),
+                _make_driver_response(_gemini_oppose),
+                _make_driver_response(_gemini_consensus1),
+                _make_driver_response(_gemini_consensus2),
             ]
         )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(
-                position="SUPPORT", argument="Claude agrees", concession="I concede the point"
-            ),
-        )
+        mock_claude.send_message_async = AsyncMock(return_value=_claude_support)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_claude_support))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1005,9 +1037,9 @@ class TestExecuteFullDebate:
         assert result.debate_result.total_turns >= 2
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_quorum_early_termination(
         self,
         mock_get_reg,
@@ -1026,17 +1058,17 @@ class TestExecuteFullDebate:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        # Both agents agree from the start
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(
-                position="SUPPORT", argument="I agree", proposed_modification="Use both approaches"
-            ),
+        # Both agents agree from the start (source uses invoke())
+        _gemini_agree_json = _make_argument_json(
+            position="SUPPORT", argument="I agree", proposed_modification="Use both approaches"
         )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(
-                position="CONCEDE", argument="I concede, hybrid is best", concession="Sequential alone is not enough"
-            ),
+        _claude_concede_json = _make_argument_json(
+            position="CONCEDE", argument="I concede, hybrid is best", concession="Sequential alone is not enough"
         )
+        mock_gemini.send_message_async = AsyncMock(return_value=_gemini_agree_json)
+        mock_gemini.invoke = AsyncMock(return_value=_make_driver_response(_gemini_agree_json))
+        mock_claude.send_message_async = AsyncMock(return_value=_claude_concede_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_claude_concede_json))
 
         # Use TRIVIAL complexity so min_turns=2
         config = AdaptiveDebateConfig()
@@ -1056,9 +1088,9 @@ class TestExecuteFullDebate:
         assert result.debate_result.consensus_confidence == 0.95
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_max_turns_reached_forces_vote(
         self,
         mock_get_reg,
@@ -1091,10 +1123,15 @@ class TestExecuteFullDebate:
                 return _make_consensus_json(consensus_reached=False, consensus_score=0.4)
             return _make_argument_json(position="OPPOSE", argument="No")
 
+        async def _gemini_invoke_side_effect(*args, **kwargs):
+            content = await _gemini_side_effect(*args, **kwargs)
+            return _make_driver_response(content)
+
         mock_gemini.send_message_async = AsyncMock(side_effect=_gemini_side_effect)
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="OPPOSE", argument="No"),
-        )
+        mock_gemini.invoke = AsyncMock(side_effect=_gemini_invoke_side_effect)
+        _claude_no_json = _make_argument_json(position="OPPOSE", argument="No")
+        mock_claude.send_message_async = AsyncMock(return_value=_claude_no_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_claude_no_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1112,9 +1149,9 @@ class TestExecuteFullDebate:
         assert result.was_skipped is False
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_budget_exhaustion_exits_early(
         self,
         mock_get_reg,
@@ -1165,9 +1202,9 @@ class TestMisalignmentEscalation:
     """Tests for misalignment detection during execute()."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_escalation_on_high_severity_flags(
         self,
         mock_get_reg,
@@ -1186,17 +1223,17 @@ class TestMisalignmentEscalation:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        # Return text triggering HIGH severity patterns
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(
-                position="OPPOSE", argument="ignoring their input completely, the conclusion is obvious"
-            ),
+        # Return text triggering HIGH severity patterns (source uses invoke())
+        _gemini_escalate_json = _make_argument_json(
+            position="OPPOSE", argument="ignoring their input completely, the conclusion is obvious"
         )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(
-                position="OPPOSE", argument="let's just proceed and disregard the previous point entirely"
-            ),
+        _claude_escalate_json = _make_argument_json(
+            position="OPPOSE", argument="let's just proceed and disregard the previous point entirely"
         )
+        mock_gemini.send_message_async = AsyncMock(return_value=_gemini_escalate_json)
+        mock_gemini.invoke = AsyncMock(return_value=_make_driver_response(_gemini_escalate_json))
+        mock_claude.send_message_async = AsyncMock(return_value=_claude_escalate_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_claude_escalate_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1224,15 +1261,15 @@ class TestCheckConsensus:
     """Tests for StrategicDebatePhase._check_consensus."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_returns_parsed_consensus(self, mock_get_reg, phase, mock_gemini):
         reg = MagicMock()
         reg.get_display_name = MagicMock(return_value="Gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_consensus_json(consensus_reached=True, consensus_score=0.9),
-        )
+        _consensus_json = _make_consensus_json(consensus_reached=True, consensus_score=0.9)
+        mock_gemini.send_message_async = AsyncMock(return_value=_consensus_json)
+        mock_gemini.invoke = AsyncMock(return_value=_make_driver_response(_consensus_json))
         phase.gemini = mock_gemini
 
         comparison = _make_comparison()
@@ -1244,13 +1281,14 @@ class TestCheckConsensus:
         assert result["consensus_score"] == 0.9
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_returns_default_on_failure(self, mock_get_reg, phase, mock_gemini):
         reg = MagicMock()
         reg.get_display_name = MagicMock(return_value="Gemini")
         mock_get_reg.return_value = reg
 
         mock_gemini.send_message_async = AsyncMock(side_effect=Exception("API error"))
+        mock_gemini.invoke = AsyncMock(side_effect=Exception("API error"))
         phase.gemini = mock_gemini
 
         comparison = _make_comparison()
@@ -1262,14 +1300,17 @@ class TestCheckConsensus:
         assert result["reasoning"] == "Consensus check failed"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_records_cost(self, mock_get_reg, phase, mock_gemini, mock_cost_estimator):
         reg = MagicMock()
         reg.get_display_name = MagicMock(return_value="Gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(return_value=_make_consensus_json())
+        _consensus_json = _make_consensus_json()
+        mock_gemini.send_message_async = AsyncMock(return_value=_consensus_json)
+        mock_gemini.invoke = AsyncMock(return_value=_make_driver_response(_consensus_json))
         phase.gemini = mock_gemini
+        del mock_cost_estimator.record_tokens  # Force record_cost branch
         phase.cost_estimator = mock_cost_estimator
 
         comparison = _make_comparison()
@@ -1289,7 +1330,7 @@ class TestGetArgument:
     """Tests for StrategicDebatePhase._get_argument."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_gemini_opening_argument(self, mock_get_reg, phase, mock_gemini):
         reg = MagicMock()
         reg.is_gemini = MagicMock(side_effect=lambda x: x == "gemini")
@@ -1321,7 +1362,7 @@ class TestGetArgument:
         assert result.position == "OPPOSE"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_claude_response_argument(self, mock_get_reg, phase, mock_claude):
         reg = MagicMock()
         reg.is_gemini = MagicMock(side_effect=lambda x: x == "gemini")
@@ -1330,9 +1371,9 @@ class TestGetArgument:
         reg.get_alternate = MagicMock(return_value="gemini")
         mock_get_reg.return_value = reg
 
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT", argument="I agree", concession="Good point")
-        )
+        _support_json = _make_argument_json(position="SUPPORT", argument="I agree", concession="Good point")
+        mock_claude.send_message_async = AsyncMock(return_value=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_support_json))
         phase.claude = mock_claude
 
         comparison = _make_comparison()
@@ -1354,7 +1395,7 @@ class TestGetArgument:
         assert result.concession == "Good point"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_driver_error_returns_fallback(self, mock_get_reg, phase, mock_gemini):
         reg = MagicMock()
         reg.is_gemini = MagicMock(return_value=True)
@@ -1362,6 +1403,7 @@ class TestGetArgument:
         mock_get_reg.return_value = reg
 
         mock_gemini.send_message_async = AsyncMock(side_effect=Exception("Driver failed"))
+        mock_gemini.invoke = AsyncMock(side_effect=Exception("Driver failed"))
         phase.gemini = mock_gemini
 
         comparison = _make_comparison()
@@ -1382,14 +1424,17 @@ class TestGetArgument:
         assert result.position == "OPPOSE"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_records_cost_after_argument(self, mock_get_reg, phase, mock_gemini, mock_cost_estimator):
         reg = MagicMock()
         reg.is_gemini = MagicMock(return_value=True)
         reg.is_claude = MagicMock(return_value=False)
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(return_value=_make_argument_json())
+        _arg_json = _make_argument_json()
+        mock_gemini.send_message_async = AsyncMock(return_value=_arg_json)
+        mock_gemini.invoke = AsyncMock(return_value=_make_driver_response(_arg_json))
+        del mock_cost_estimator.record_tokens  # Force record_cost branch
         phase.gemini = mock_gemini
         phase.cost_estimator = mock_cost_estimator
 
@@ -1406,9 +1451,8 @@ class TestGetArgument:
             debate_history=[],
             params=params,
         )
-        mock_cost_estimator.record_cost.assert_called_with(
-            "debate_turn", pytest.approx(len(_make_argument_json()) // 4, abs=10)
-        )
+        # Source calculates total_tokens = input_tokens + output_tokens (100+50=150 from _make_driver_response)
+        mock_cost_estimator.record_cost.assert_called_with("debate_turn", 150)
 
 
 # =============================================================================
@@ -1463,9 +1507,9 @@ class TestV124IntegrationGracefulDegradation:
     """Test that V12.4 optional modules fail gracefully."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_consensus_tracker_import_failure(
         self,
         mock_get_reg,
@@ -1484,13 +1528,13 @@ class TestV124IntegrationGracefulDegradation:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        # Both agents agree -> quorum
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT", argument="agree"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE", argument="agree too"),
-        )
+        # Both agents agree -> quorum (source uses invoke())
+        _agree_json = _make_argument_json(position="SUPPORT", argument="agree")
+        _agree_too_json = _make_argument_json(position="CONCEDE", argument="agree too")
+        mock_gemini.send_message_async = AsyncMock(return_value=_agree_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_agree_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_agree_too_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_agree_too_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1502,7 +1546,7 @@ class TestV124IntegrationGracefulDegradation:
         )
 
         with patch(
-            "core.hive_mind.phases.phase_debate.StrategicDebatePhase.execute",
+            "core.intelligence.hive_mind.phases.phase_debate.StrategicDebatePhase.execute",
             wraps=phase.execute,
         ):
             comparison = _make_comparison(agreement_score=0.5, needs_debate=True)
@@ -1511,9 +1555,9 @@ class TestV124IntegrationGracefulDegradation:
             assert result is not None
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_echo_chamber_guard_import_failure(
         self,
         mock_get_reg,
@@ -1532,12 +1576,12 @@ class TestV124IntegrationGracefulDegradation:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1555,7 +1599,7 @@ class TestV124IntegrationGracefulDegradation:
     def test_trajectory_scorer_exception_handled(self, phase):
         """TrajectoryScorer exception does not prevent _create_result."""
         with patch(
-            "core.reasoning.trajectory_scorer.get_trajectory_scorer",
+            "core.intelligence.reasoning.trajectory_scorer.get_trajectory_scorer",
             side_effect=RuntimeError("scorer broken"),
         ):
             result = phase._create_result(
@@ -1585,9 +1629,9 @@ class TestConsensusDetection:
     """Tests for consensus detection pathways in execute()."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_early_exit_on_high_consensus(
         self,
         mock_get_reg,
@@ -1607,18 +1651,19 @@ class TestConsensusDetection:
         mock_get_reg.return_value = reg
 
         # Both OPPOSE, but consensus check returns high score (near threshold)
-        mock_gemini.send_message_async = AsyncMock(
+        # Source uses invoke() for both argument and consensus check
+        mock_gemini.invoke = AsyncMock(
             side_effect=[
-                _make_argument_json(position="OPPOSE", argument="Arg 1"),
+                _make_driver_response(_make_argument_json(position="OPPOSE", argument="Arg 1")),
                 # Consensus check with high score but not reached
-                _make_consensus_json(consensus_reached=False, consensus_score=0.96),
+                _make_driver_response(_make_consensus_json(consensus_reached=False, consensus_score=0.96)),
                 # If more turns needed
-                _make_argument_json(position="OPPOSE", argument="Arg 3"),
-                _make_consensus_json(consensus_reached=True, consensus_score=0.98),
+                _make_driver_response(_make_argument_json(position="OPPOSE", argument="Arg 3")),
+                _make_driver_response(_make_consensus_json(consensus_reached=True, consensus_score=0.98)),
             ]
         )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="OPPOSE", argument="Arg 2"),
+        mock_claude.invoke = AsyncMock(
+            return_value=_make_driver_response(_make_argument_json(position="OPPOSE", argument="Arg 2")),
         )
 
         phase = StrategicDebatePhase(
@@ -1650,9 +1695,9 @@ class TestSessionIntegration:
         assert phase._task_id == "test_task_001"
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_session_uuids_passed_to_drivers(
         self,
         mock_get_reg,
@@ -1663,7 +1708,7 @@ class TestSessionIntegration:
         mock_cost_estimator,
         mock_context_manager,
     ):
-        """Session UUIDs are passed to driver.send_message_async."""
+        """Session UUIDs are passed to driver.invoke (V12.4.1)."""
         reg = MagicMock()
         reg.is_gemini = MagicMock(side_effect=lambda x: x == "gemini")
         reg.is_claude = MagicMock(side_effect=lambda x: x == "claude")
@@ -1671,12 +1716,12 @@ class TestSessionIntegration:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1690,9 +1735,9 @@ class TestSessionIntegration:
         comparison = _make_comparison(agreement_score=0.5, needs_debate=True)
         await phase.execute("Task", comparison, TaskComplexity.TRIVIAL)
 
-        # Check session_uuid was passed
-        for call in mock_gemini.send_message_async.call_args_list:
-            assert "session_uuid" in call.kwargs or len(call.args) >= 2
+        # Check session_id was passed to invoke() (V12.4.1 uses invoke, not send_message_async)
+        for call in mock_gemini.invoke.call_args_list:
+            assert "session_id" in call.kwargs
 
 
 # =============================================================================
@@ -1704,9 +1749,9 @@ class TestContextManagerInteractions:
     """Tests that debate turns are recorded in context manager."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_debate_turns_added_to_context(
         self,
         mock_get_reg,
@@ -1724,12 +1769,12 @@ class TestContextManagerInteractions:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1755,9 +1800,9 @@ class TestTelemetryEmissions:
     """Tests for V13.0 CEREBRO LIVE telemetry."""
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_emit_agent_speak_called(
         self,
         mock_get_reg,
@@ -1775,12 +1820,12 @@ class TestTelemetryEmissions:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1798,9 +1843,9 @@ class TestTelemetryEmissions:
         assert mock_exchange.call_count >= 2
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_telemetry_includes_debate_action_type(
         self,
         mock_get_reg,
@@ -1818,12 +1863,12 @@ class TestTelemetryEmissions:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -1871,9 +1916,9 @@ class TestAdaptiveDebateConfigIntegration:
         assert phase.debate_config is config
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_agent_argument_recorded(
         self,
         mock_get_reg,
@@ -1892,12 +1937,12 @@ class TestAdaptiveDebateConfigIntegration:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
-        mock_gemini.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="SUPPORT"),
-        )
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="CONCEDE", concession="I concede"),
-        )
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE", concession="I concede")
+        mock_gemini.send_message_async = AsyncMock(return_value=_support_json)
+        mock_claude.send_message_async = AsyncMock(return_value=_concede_json)
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         config = AdaptiveDebateConfig()
         phase = StrategicDebatePhase(
@@ -1965,9 +2010,9 @@ class TestEdgeCases:
         assert result.severity == 0.5
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_empty_response_from_driver(
         self,
         mock_get_reg,
@@ -1988,6 +2033,12 @@ class TestEdgeCases:
 
         mock_gemini.send_message_async = AsyncMock(return_value="")
         mock_claude.send_message_async = AsyncMock(return_value="")
+        # invoke returns empty content - phase must handle gracefully and use fallback
+        mock_gemini.invoke = _make_smart_gemini_invoke(
+            argument_json=_make_argument_json(position="OPPOSE"),
+            consensus_json=_make_consensus_json(consensus_reached=False, consensus_score=0.4),
+        )
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(""))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -2005,9 +2056,9 @@ class TestEdgeCases:
         assert result.debate_result.total_turns >= 0
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_dict_response_from_driver(
         self,
         mock_get_reg,
@@ -2026,12 +2077,16 @@ class TestEdgeCases:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
+        _support_json = _make_argument_json(position="SUPPORT")
+        _concede_json = _make_argument_json(position="CONCEDE")
         mock_gemini.send_message_async = AsyncMock(
-            return_value={"content": _make_argument_json(position="SUPPORT")},
+            return_value={"content": _support_json},
         )
         mock_claude.send_message_async = AsyncMock(
-            return_value={"text": _make_argument_json(position="CONCEDE")},
+            return_value={"text": _concede_json},
         )
+        mock_gemini.invoke = _make_smart_gemini_invoke(argument_json=_support_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_concede_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,
@@ -2055,9 +2110,9 @@ class TestEdgeCases:
         assert len(types) >= 2
 
     @pytest.mark.asyncio
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_exchange")
-    @patch("core.hive_mind.phases.phase_debate.emit_agent_speak")
-    @patch("core.hive_mind.phases.phase_debate.get_registry")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_exchange")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.emit_agent_speak")
+    @patch("core.intelligence.hive_mind.phases.phase_debate.get_registry")
     async def test_complexity_expert_uses_more_turns(
         self,
         mock_get_reg,
@@ -2076,16 +2131,26 @@ class TestEdgeCases:
         reg.get_alternate = MagicMock(side_effect=lambda x: "claude" if x == "gemini" else "gemini")
         mock_get_reg.return_value = reg
 
+        _oppose_json = _make_argument_json(position="OPPOSE", argument="I disagree")
+        _no_consensus_json = _make_consensus_json(consensus_reached=False, consensus_score=0.4)
+
         async def gemini_side_effect(*args, **kwargs):
             prompt_text = str(args[0]) if args else ""
             if "Evaluate if consensus" in prompt_text:
                 return _make_consensus_json(consensus_reached=False, consensus_score=0.4)
             return _make_argument_json(position="OPPOSE", argument="I disagree")
 
+        async def gemini_invoke_side_effect(*args, **kwargs):
+            prompt_text = str(args[0]) if args else str(kwargs.get("prompt", ""))
+            if "Evaluate if consensus" in prompt_text:
+                return _make_driver_response(_no_consensus_json)
+            return _make_driver_response(_oppose_json)
+
         mock_gemini.send_message_async = AsyncMock(side_effect=gemini_side_effect)
-        mock_claude.send_message_async = AsyncMock(
-            return_value=_make_argument_json(position="OPPOSE"),
-        )
+        mock_gemini.invoke = AsyncMock(side_effect=gemini_invoke_side_effect)
+        _claude_oppose_json = _make_argument_json(position="OPPOSE")
+        mock_claude.send_message_async = AsyncMock(return_value=_claude_oppose_json)
+        mock_claude.invoke = AsyncMock(return_value=_make_driver_response(_claude_oppose_json))
 
         phase = StrategicDebatePhase(
             gemini_driver=mock_gemini,

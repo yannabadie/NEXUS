@@ -1574,7 +1574,7 @@ class TestProcessTaskSaga:
             with (
                 patch("core.intelligence.hive_mind.orchestrator.SagaManager") as saga_cls,
                 patch("core.intelligence.hive_mind.orchestrator.get_phase_audit_logger") as mock_pal,
-                patch("core.swarm.generate_task_id", return_value="hive_test"),
+                patch("core.intelligence.swarm.generate_task_id", return_value="hive_test"),
             ):
                 saga_cls.resume_from = AsyncMock(return_value=None)
                 saga_cls.return_value = mock_saga

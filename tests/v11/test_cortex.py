@@ -130,7 +130,7 @@ class TestStateSnapshot:
         from core.api.cerebro.routes import state
 
         # Mock Redis bus
-        with patch("core.events.redis_bus.get_redis_bus") as mock_get_bus:
+        with patch("core.observability.events.redis_bus.get_redis_bus") as mock_get_bus:
             mock_bus = MagicMock()
             mock_bus.is_connected.return_value = True
 
@@ -143,7 +143,7 @@ class TestStateSnapshot:
             mock_get_bus.return_value = mock_bus
 
             # Mock interaction provider
-            with patch("core.interaction.get_interaction_provider") as mock_provider:
+            with patch("core.security_pkg.interaction.get_interaction_provider") as mock_provider:
                 mock_provider.return_value.get_pending_requests.return_value = [
                     {"request_id": "abc123", "type": "confirm", "prompt": "Continue?"}
                 ]
@@ -174,7 +174,7 @@ class TestInteractionEndpoint:
         from core.api.cerebro.routes import interactions
 
         # Mock provider
-        with patch("core.interaction.get_interaction_provider") as mock_get:
+        with patch("core.security_pkg.interaction.get_interaction_provider") as mock_get:
             mock_provider = MagicMock()
             mock_provider.get_pending_requests.return_value = []
             mock_get.return_value = mock_provider

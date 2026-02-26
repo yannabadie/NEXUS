@@ -12,6 +12,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+def _make_driver_response(content: str, is_success: bool = True):
+    """Create a mock DriverResponse for use in driver.invoke() mocks."""
+    response = MagicMock()
+    response.is_success = is_success
+    response.content = content
+    response.error_message = None if is_success else "Error"
+    response.input_tokens = 100
+    response.output_tokens = 50
+    return response
+
+
 # Helper to build a DebateResult with current fields
 def make_debate_result(final_approach="Test approach", final_capabilities=None):
     from core.intelligence.hive_mind.types import DebateResult
@@ -67,9 +78,47 @@ class TestCollaborativeArchitecture:
     def mock_claude_driver(self):
         """Mock Claude driver."""
         driver = MagicMock()
-        driver.send_message_async = AsyncMock(
-            return_value=json.dumps(
-                {
+        claude_content = json.dumps(
+            {
+                "agents_to_use": ["claude", "gemini"],
+                "agents_to_spawn": [],
+                "execution_strategy": "sequential",
+                "execution_steps": [
+                    {
+                        "name": "analyze",
+                        "agent_id": "claude",
+                        "action": "Analyze the task",
+                        "expected_duration": 30,
+                        "depends_on": [],
+                        "verification_required": True,
+                    },
+                    {
+                        "name": "execute",
+                        "agent_id": "gemini",
+                        "action": "Execute the plan",
+                        "expected_duration": 60,
+                        "depends_on": ["analyze"],
+                        "verification_required": False,
+                    },
+                ],
+                "rag_config": {"enabled": True, "depth": "standard", "sources": ["codebase"], "max_chunks": 10},
+                "reasoning": "Claude designed this architecture",
+            }
+        )
+        driver.invoke = AsyncMock(return_value=_make_driver_response(claude_content))
+        # Keep send_message_async as a tracked mock for backward compat assertions
+        driver.send_message_async = driver.invoke
+        return driver
+
+    @pytest.fixture
+    def mock_gemini_driver(self):
+        """Mock Gemini driver."""
+        driver = MagicMock()
+        gemini_content = json.dumps(
+            {
+                "validation": "APPROVED",
+                "optimizations": ["Added verification to second step"],
+                "architecture": {
                     "agents_to_use": ["claude", "gemini"],
                     "agents_to_spawn": [],
                     "execution_strategy": "sequential",
@@ -88,53 +137,17 @@ class TestCollaborativeArchitecture:
                             "action": "Execute the plan",
                             "expected_duration": 60,
                             "depends_on": ["analyze"],
-                            "verification_required": False,
+                            "verification_required": True,  # Gemini added this
                         },
                     ],
                     "rag_config": {"enabled": True, "depth": "standard", "sources": ["codebase"], "max_chunks": 10},
-                    "reasoning": "Claude designed this architecture",
-                }
-            )
+                    "reasoning": "Optimized by Gemini",
+                },
+            }
         )
-        return driver
-
-    @pytest.fixture
-    def mock_gemini_driver(self):
-        """Mock Gemini driver."""
-        driver = MagicMock()
-        driver.send_message_async = AsyncMock(
-            return_value=json.dumps(
-                {
-                    "validation": "APPROVED",
-                    "optimizations": ["Added verification to second step"],
-                    "architecture": {
-                        "agents_to_use": ["claude", "gemini"],
-                        "agents_to_spawn": [],
-                        "execution_strategy": "sequential",
-                        "execution_steps": [
-                            {
-                                "name": "analyze",
-                                "agent_id": "claude",
-                                "action": "Analyze the task",
-                                "expected_duration": 30,
-                                "depends_on": [],
-                                "verification_required": True,
-                            },
-                            {
-                                "name": "execute",
-                                "agent_id": "gemini",
-                                "action": "Execute the plan",
-                                "expected_duration": 60,
-                                "depends_on": ["analyze"],
-                                "verification_required": True,  # Gemini added this
-                            },
-                        ],
-                        "rag_config": {"enabled": True, "depth": "standard", "sources": ["codebase"], "max_chunks": 10},
-                        "reasoning": "Optimized by Gemini",
-                    },
-                }
-            )
-        )
+        driver.invoke = AsyncMock(return_value=_make_driver_response(gemini_content))
+        # Keep send_message_async as a tracked mock for backward compat assertions
+        driver.send_message_async = driver.invoke
         return driver
 
     @pytest.fixture
@@ -256,7 +269,8 @@ class TestCollaborativeArchitecture:
         from core.intelligence.hive_mind.phases.phase_architecture import ArchitectureGenerationPhase
 
         # Make Gemini fail
-        mock_gemini_driver.send_message_async = AsyncMock(side_effect=Exception("Gemini error"))
+        mock_gemini_driver.invoke = AsyncMock(side_effect=Exception("Gemini error"))
+        mock_gemini_driver.send_message_async = mock_gemini_driver.invoke
 
         phase = ArchitectureGenerationPhase(
             gemini_driver=mock_gemini_driver,
@@ -287,27 +301,27 @@ class TestLegacyArchitecture:
     def mock_gemini_driver(self):
         """Mock Gemini driver."""
         driver = MagicMock()
-        driver.send_message_async = AsyncMock(
-            return_value=json.dumps(
-                {
-                    "agents_to_use": ["gemini"],
-                    "agents_to_spawn": [],
-                    "execution_strategy": "sequential",
-                    "execution_steps": [
-                        {
-                            "name": "execute",
-                            "agent_id": "gemini",
-                            "action": "Do the task",
-                            "expected_duration": 60,
-                            "depends_on": [],
-                            "verification_required": False,
-                        }
-                    ],
-                    "rag_config": {"enabled": True, "depth": "shallow", "sources": ["codebase"], "max_chunks": 5},
-                    "reasoning": "Gemini solo architecture",
-                }
-            )
+        gemini_content = json.dumps(
+            {
+                "agents_to_use": ["gemini"],
+                "agents_to_spawn": [],
+                "execution_strategy": "sequential",
+                "execution_steps": [
+                    {
+                        "name": "execute",
+                        "agent_id": "gemini",
+                        "action": "Do the task",
+                        "expected_duration": 60,
+                        "depends_on": [],
+                        "verification_required": False,
+                    }
+                ],
+                "rag_config": {"enabled": True, "depth": "shallow", "sources": ["codebase"], "max_chunks": 5},
+                "reasoning": "Gemini solo architecture",
+            }
         )
+        driver.invoke = AsyncMock(return_value=_make_driver_response(gemini_content))
+        driver.send_message_async = driver.invoke
         return driver
 
     @pytest.mark.asyncio
@@ -325,7 +339,8 @@ class TestLegacyArchitecture:
             importlib.reload(phase_architecture)
 
             mock_claude_driver = MagicMock()
-            mock_claude_driver.send_message_async = AsyncMock()
+            mock_claude_driver.invoke = AsyncMock()
+            mock_claude_driver.send_message_async = mock_claude_driver.invoke
             mock_cost_estimator = MagicMock()
             mock_cost_estimator.can_afford_multiple = MagicMock(return_value=True)
             mock_cost_estimator.record_cost = MagicMock()
@@ -347,7 +362,7 @@ class TestLegacyArchitecture:
 
             await phase.execute(task="Test", debate_result=debate_result)
 
-            # Only Gemini should be called
+            # Only Gemini should be called (via invoke, aliased to send_message_async)
             mock_gemini_driver.send_message_async.assert_called_once()
             mock_claude_driver.send_message_async.assert_not_called()
 

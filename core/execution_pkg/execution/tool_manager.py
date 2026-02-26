@@ -37,8 +37,8 @@ from .handlers import ToolResult, create_all_handlers
 
 # V7.6 Phase 12.3: MCP Client imports (optional)
 try:
-    from core.interface_pkg.interface_pkg.mcp import MCPRegistry
-    from core.interface_pkg.interface_pkg.mcp.client import MCPClientError, MCPServerError
+    from core.interface_pkg.mcp import MCPRegistry
+    from core.interface_pkg.mcp.client import MCPClientError, MCPServerError
 
     _MCP_AVAILABLE = True
 except ImportError:

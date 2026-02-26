@@ -539,8 +539,8 @@ class TestExtractNegotiateJson:
 
 
 class TestSkipTrivial:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_trivial_task_skips_negotiation(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(skip_trivial=True)
         analysis = _make_task_analysis(complexity=TaskComplexity.TRIVIAL)
@@ -555,8 +555,8 @@ class TestSkipTrivial:
         assert result.negotiation_history == []
         invoke.assert_not_called()
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_trivial_task_does_not_skip_when_disabled(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(skip_trivial=False, max_turns=1)
         analysis = _make_task_analysis(complexity=TaskComplexity.TRIVIAL)
@@ -569,8 +569,8 @@ class TestSkipTrivial:
         invoke.assert_called()
         assert result.total_turns >= 1
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_non_trivial_never_skips(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(skip_trivial=True, max_turns=1)
         analysis = _make_task_analysis(complexity=TaskComplexity.MODERATE)
@@ -580,8 +580,8 @@ class TestSkipTrivial:
         proto.run_negotiation(analysis, proposal, invoke)
         invoke.assert_called()
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_skip_returns_initial_assignments(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(skip_trivial=True)
         analysis = _make_task_analysis(complexity=TaskComplexity.TRIVIAL)
@@ -599,8 +599,8 @@ class TestSkipTrivial:
 
 
 class TestSingleTurnNegotiation:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_immediate_consensus_on_first_turn(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=False)
         analysis = _make_task_analysis(complexity=TaskComplexity.MODERATE)
@@ -615,8 +615,8 @@ class TestSingleTurnNegotiation:
         assert len(result.negotiation_history) == 1
         assert result.negotiation_history[0].sender == "gemini"
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_consensus_confidence_calculated(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -626,8 +626,8 @@ class TestSingleTurnNegotiation:
         result = proto.run_negotiation(analysis, proposal, invoke)
         assert result.consensus_confidence > 0.0
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_on_turn_callback_called(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -647,8 +647,8 @@ class TestSingleTurnNegotiation:
 
 
 class TestMultiTurnNegotiation:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_two_turn_negotiation(self, mock_speak, mock_exchange):
         """Turn 0 (gemini): counter-propose. Turn 1 (claude): agree."""
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=False)
@@ -670,8 +670,8 @@ class TestMultiTurnNegotiation:
         assert result.negotiation_history[0].sender == "gemini"
         assert result.negotiation_history[1].sender == "claude"
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_three_turn_with_counter_proposals(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -689,8 +689,8 @@ class TestMultiTurnNegotiation:
         assert result.selected_mode == CollaborationMode.PING_PONG
         assert result.total_turns == 3
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_agent_alternation_pattern(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=6, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -716,8 +716,8 @@ class TestMultiTurnNegotiation:
 
 
 class TestMaxTurnsEnforcement:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_max_turns_timeout(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=3, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -733,8 +733,8 @@ class TestMaxTurnsEnforcement:
         # Falls back to initial proposal
         assert result.selected_mode == CollaborationMode.PARALLEL
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_max_turns_exactly_reached(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=2, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -746,8 +746,8 @@ class TestMaxTurnsEnforcement:
         assert result.total_turns == 2
         assert invoke.call_count == 2
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_adaptive_turns_trivial(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=True, skip_trivial=False)
         analysis = _make_task_analysis(complexity=TaskComplexity.TRIVIAL)
@@ -758,8 +758,8 @@ class TestMaxTurnsEnforcement:
         # TRIVIAL complexity => ADAPTIVE_MAX_TURNS[1] = 2
         assert result.total_turns == 2
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_adaptive_turns_expert(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=True)
         analysis = _make_task_analysis(complexity=TaskComplexity.EXPERT)
@@ -770,8 +770,8 @@ class TestMaxTurnsEnforcement:
         # EXPERT complexity => ADAPTIVE_MAX_TURNS[5] = 8
         assert result.total_turns == 8
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_adaptive_turns_moderate(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=4, adaptive_turns=True)
         analysis = _make_task_analysis(complexity=TaskComplexity.MODERATE)
@@ -782,8 +782,8 @@ class TestMaxTurnsEnforcement:
         # MODERATE complexity => ADAPTIVE_MAX_TURNS[3] = 4
         assert result.total_turns == 4
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_adaptive_turns_disabled_uses_base(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=3, adaptive_turns=False)
         analysis = _make_task_analysis(complexity=TaskComplexity.EXPERT)
@@ -812,9 +812,9 @@ class TestMaxTurnsEnforcement:
 
 
 class TestTimeoutHandling:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
-    @patch("core.swarm.negotiation_protocol.time")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.time")
     def test_time_based_timeout(self, mock_time, mock_speak, mock_exchange):
         """Simulate time exceeding timeout_seconds mid-negotiation."""
         proto = NegotiationProtocol(
@@ -835,9 +835,9 @@ class TestTimeoutHandling:
         # Should have completed turns before the timeout check at 6.0
         assert result.total_turns <= 3
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
-    @patch("core.swarm.negotiation_protocol.time")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.time")
     def test_no_timeout_when_none(self, mock_time, mock_speak, mock_exchange):
         """timeout_seconds=None means no time limit."""
         proto = NegotiationProtocol(
@@ -854,9 +854,9 @@ class TestTimeoutHandling:
         # Should run all turns without time-based abort
         assert result.total_turns == 2
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
-    @patch("core.swarm.negotiation_protocol.time")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.time")
     def test_timeout_returns_current_proposal(self, mock_time, mock_speak, mock_exchange):
         proto = NegotiationProtocol(
             max_turns=10,
@@ -937,7 +937,7 @@ class TestParseResponse:
 
 
 class TestFinalizeAssignments:
-    @patch("core.swarm.negotiation_protocol.get_registry")
+    @patch("core.intelligence.swarm.negotiation_protocol.get_registry")
     def test_assignments_from_subtasks(self, mock_get_registry):
         mock_registry = MagicMock()
         mock_registry.is_gemini.side_effect = lambda x: "gemini" in x.lower()
@@ -1007,7 +1007,7 @@ class TestFinalizeAssignments:
         )
         assert assignments == defaults
 
-    @patch("core.swarm.negotiation_protocol.get_registry")
+    @patch("core.intelligence.swarm.negotiation_protocol.get_registry")
     def test_equal_roles_when_no_lead(self, mock_get_registry):
         mock_registry = MagicMock()
         mock_registry.is_gemini.return_value = True
@@ -1158,8 +1158,8 @@ class TestUpdateProposal:
 
 
 class TestEdgeCases:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_invoke_returns_empty_string(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=2, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -1171,8 +1171,8 @@ class TestEdgeCases:
         assert result.status == NegotiationStatus.TIMEOUT
         assert result.total_turns == 2
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_invoke_raises_exception(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=2, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -1182,8 +1182,8 @@ class TestEdgeCases:
         with pytest.raises(RuntimeError, match="Driver failure"):
             proto.run_negotiation(analysis, proposal, invoke)
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_all_no_tag_responses(self, mock_speak, mock_exchange):
         """Agents that never include <negotiate> tags => timeout."""
         proto = NegotiationProtocol(max_turns=3, adaptive_turns=False)
@@ -1344,7 +1344,7 @@ class TestCreateNegotiationPrompt:
 
 
 class TestForceMode:
-    @patch("core.swarm.mode_selector.ModeSelector.select_mode")
+    @patch("core.intelligence.swarm.mode_selector.ModeSelector.select_mode")
     def test_force_mode_returns_forced_status(self, mock_select_mode):
         mock_select_mode.return_value = _make_mode_proposal(
             mode=CollaborationMode.PARALLEL,
@@ -1361,7 +1361,7 @@ class TestForceMode:
         assert result.consensus_confidence == 1.0
         assert result.negotiation_history == []
 
-    @patch("core.swarm.mode_selector.ModeSelector.select_mode")
+    @patch("core.intelligence.swarm.mode_selector.ModeSelector.select_mode")
     def test_force_mode_uses_selector_assignments(self, mock_select_mode):
         assignments = [AgentAssignment(agent_id="claude_opus", role="specialist")]
         mock_proposal = ModeProposal(
@@ -1385,9 +1385,9 @@ class TestForceMode:
 
 
 class TestNegotiationSubtasks:
-    @patch("core.swarm.negotiation_protocol.get_registry")
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.get_registry")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_consensus_with_subtasks(self, mock_speak, mock_exchange, mock_get_registry):
         mock_registry = MagicMock()
         mock_registry.is_gemini.side_effect = lambda x: "gemini" in x.lower()
@@ -1418,8 +1418,8 @@ class TestNegotiationSubtasks:
 
 
 class TestTelemetryEmission:
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_telemetry_emitted_each_turn(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=2, adaptive_turns=False)
         analysis = _make_task_analysis()
@@ -1431,8 +1431,8 @@ class TestTelemetryEmission:
         assert mock_speak.call_count == 2
         assert mock_exchange.call_count == 2
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_telemetry_not_emitted_on_skip(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(skip_trivial=True)
         analysis = _make_task_analysis(complexity=TaskComplexity.TRIVIAL)
@@ -1444,8 +1444,8 @@ class TestTelemetryEmission:
         mock_speak.assert_not_called()
         mock_exchange.assert_not_called()
 
-    @patch("core.swarm.negotiation_protocol.emit_agent_exchange")
-    @patch("core.swarm.negotiation_protocol.emit_agent_speak")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_exchange")
+    @patch("core.intelligence.swarm.negotiation_protocol.emit_agent_speak")
     def test_telemetry_speak_args(self, mock_speak, mock_exchange):
         proto = NegotiationProtocol(max_turns=1, adaptive_turns=False)
         analysis = _make_task_analysis()

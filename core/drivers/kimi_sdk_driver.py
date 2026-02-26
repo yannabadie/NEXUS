@@ -73,6 +73,12 @@ from .protocol import (
 
 logger = logging.getLogger(__name__)
 
+# Module-level import for mock.patch() support in tests
+try:
+    from openai import AsyncOpenAI  # noqa: F401  # used by tests via mock.patch()
+except ImportError:
+    AsyncOpenAI = None  # noqa: F841
+
 
 class KimiSDKDriver(BaseAsyncDriver):
     """
@@ -125,11 +131,9 @@ class KimiSDKDriver(BaseAsyncDriver):
         self._budget_tracker = None
         self._health_monitor = None  # Injected by factory
 
-        # Lazy import to avoid hard dependency
-        try:
-            from openai import AsyncOpenAI
-        except ImportError:
-            raise ImportError("openai package required. Install with: pip install openai") from None
+        # Check that openai package is available (imported at module level)
+        if AsyncOpenAI is None:
+            raise ImportError("openai package required. Install with: pip install openai")
 
         # Get API key from param or environment
         resolved_key = api_key or os.getenv("KIMI_API_KEY")
@@ -269,15 +273,17 @@ class KimiSDKDriver(BaseAsyncDriver):
             cost_output = (output_tokens / 1_000_000) * 2.50
             cost_total = cost_input + cost_output
 
+            latency_ms = (time.monotonic() - start_time) * 1000
+
             # Track budget if available
             if self._budget_tracker:
-                self._budget_tracker.track_cost(
-                    self._model,
+                self._budget_tracker.record_cost(
+                    provider=self._provider,
+                    model=self._model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
+                    cost_usd=round(cost_total, 6),
                 )
-
-            latency_ms = (time.monotonic() - start_time) * 1000
 
             # Handle tool calls if present
             tool_calls = []
@@ -300,6 +306,8 @@ class KimiSDKDriver(BaseAsyncDriver):
                 latency_ms=latency_ms,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                finish_reason=finish_reason,
+                cost_usd=round(cost_total, 6),
                 tool_calls=tool_calls if tool_calls else [],
                 raw={
                     "response_id": response.id,
@@ -372,7 +380,7 @@ class KimiSDKDriver(BaseAsyncDriver):
                 status = DriverResponseStatus.AUTHENTICATION_ERROR
 
             if self._health_monitor:
-                self._health_monitor.record_failure(
+                self._health_monitor.record_error(
                     f"{self._provider}/{self._model}",
                     error=error_msg,
                     latency_ms=latency_ms,
@@ -448,7 +456,7 @@ class KimiSDKDriver(BaseAsyncDriver):
             logger.debug(f"Kimi streaming: model={self._model}")
 
             # Stream response chunks
-            async with trace_llm_call(
+            with trace_llm_call(
                 provider=self._provider,
                 model=self._model,
                 operation="chat.completions.create.stream",

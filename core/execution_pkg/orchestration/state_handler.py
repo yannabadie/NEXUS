@@ -17,7 +17,21 @@ Phase 4 extraction (medium-high risk, core FSM logic with side effects).
 import logging
 import time
 
-from core.fsm.states import OrchestratorState
+from core.fsm.states import (  # noqa: F401  # TRANSITION_MATRIX used by tests via mock.patch()
+    TRANSITION_MATRIX,
+    OrchestratorState,
+)
+
+# Module-level imports for mock.patch() support in tests
+try:
+    from core.fsm.event_sourcing import record_transition  # noqa: F401  # used by tests via mock.patch()
+except ImportError:
+    record_transition = None  # type: ignore[assignment]  # noqa: F841
+
+try:
+    from core.observability.telemetry.otel_provider import get_tracer  # noqa: F401  # used by tests via mock.patch()
+except ImportError:
+    get_tracer = None  # type: ignore[assignment]  # noqa: F841
 
 
 class StateHandler:
@@ -102,9 +116,7 @@ class StateHandler:
             to_state: Target state
         """
         try:
-            from core.observability.telemetry.otel_provider import get_tracer
-
-            tracer = get_tracer()
+            tracer = get_tracer() if get_tracer is not None else None
             if tracer:
                 with tracer.start_as_current_span("fsm.transition") as span:
                     span.set_attribute("nexus.from_state", from_state.name)
@@ -122,8 +134,8 @@ class StateHandler:
             to_state: Target state
         """
         try:
-            from core.fsm.event_sourcing import record_transition
-
+            if record_transition is None:
+                raise ImportError("record_transition not available")
             # Record transition event
             record_transition(
                 from_state=from_state.name,
@@ -218,13 +230,11 @@ class StateHandler:
             >>> handler = StateHandler(orch)
             >>> can_go = handler.can_transition(OrchestratorState.IDLE, OrchestratorState.BRAINSTORMING)
         """
-        # Import transition matrix
+        # Use module-level TRANSITION_MATRIX
         try:
-            from core.fsm.states import TRANSITION_MATRIX
-
             allowed_transitions = TRANSITION_MATRIX.get(from_state, set())
             return to_state in allowed_transitions
-        except ImportError:
+        except (TypeError, AttributeError):
             # Fallback: allow all transitions if matrix not available
             self.logger.warning("TRANSITION_MATRIX not found, allowing all transitions")
             return True

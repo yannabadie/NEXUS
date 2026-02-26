@@ -49,7 +49,7 @@ import threading
 from pathlib import Path
 from typing import Any, TypeVar
 
-from .context import (
+from .infrastructure.context import (
     DEFAULT_TENANT_ID,
     SessionContext,
     get_current_session_or_none,
@@ -170,7 +170,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .agents.unified_registry import UnifiedAgentRegistry
+            from .foundation.agents.unified_registry import UnifiedAgentRegistry
 
             return UnifiedAgentRegistry()
 
@@ -186,7 +186,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .session.workspace_manager import SessionWorkspaceManager
+            from .infrastructure.session.workspace_manager import SessionWorkspaceManager
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SessionWorkspaceManager(workspace_path)
@@ -203,7 +203,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .execution.tool_registry import ToolRegistry
+            from .execution_pkg.execution.tool_registry import ToolRegistry
 
             return ToolRegistry()
 
@@ -243,7 +243,7 @@ class ServiceFactory:
         def factory(ctx: SessionContext | None):
             import os
 
-            from .interaction import CLIProvider, HeadlessProvider
+            from .security_pkg.interaction import CLIProvider, HeadlessProvider
 
             mode = os.environ.get("NEXUS_INTERACTION_MODE", "cli").lower()
 
@@ -266,7 +266,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .execution.execution_engine import ExecutionEngine
+            from .execution_pkg.execution.execution_engine import ExecutionEngine
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return ExecutionEngine(workspace_path)
@@ -283,7 +283,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .resilience.system_health import SystemHealth
+            from .infrastructure.resilience.system_health import SystemHealth
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SystemHealth(workspace_path)
@@ -300,7 +300,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .telemetry.budget_tracker import BudgetTracker
+            from .observability.telemetry.budget_tracker import BudgetTracker
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return BudgetTracker(workspace_path)
@@ -319,7 +319,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .security.path_guardian import PathGuardian
+            from .security_pkg.security.path_guardian import PathGuardian
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             nexus_root = cls.get_nexus_root()
@@ -380,7 +380,7 @@ class ServiceFactory:
         """
         with cls._embedding_engine_lock:
             if cls._embedding_engine is None:
-                from .memory.embedding_engine import EmbeddingEngine
+                from .memory_pkg.memory.embedding_engine import EmbeddingEngine
 
                 cls._embedding_engine = EmbeddingEngine()
             return cls._embedding_engine
@@ -398,7 +398,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .memory.project_memory import ProjectMemory
+            from .memory_pkg.memory.project_memory import ProjectMemory
 
             nexus_root = cls.get_nexus_root()
 
@@ -422,7 +422,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .memory.auto_memory import AutoMemory
+            from .memory_pkg.memory.auto_memory import AutoMemory
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return AutoMemory(workspace_path)
@@ -442,7 +442,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .memory.success_memory import SuccessMemory
+            from .memory_pkg.memory.success_memory_v2 import SuccessMemoryV2 as SuccessMemory
 
             workspace_path = cls.get_tenant_workspace_path(ctx)
             return SuccessMemory(workspace_path)
@@ -462,7 +462,7 @@ class ServiceFactory:
         """
 
         def factory(ctx: SessionContext | None):
-            from .memory.spotlighting import Spotlighter
+            from .memory_pkg.memory.spotlighting import Spotlighter
 
             return Spotlighter()
 

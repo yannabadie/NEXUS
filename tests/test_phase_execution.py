@@ -38,6 +38,7 @@ from unittest.mock import (
 
 import pytest
 
+from core.drivers.protocol import DriverResponse, DriverResponseStatus
 from core.intelligence.hive_mind.phases.phase_execution import (
     EXECUTION_PROMPT,
     ExecutionPhaseResult,
@@ -52,6 +53,21 @@ from core.intelligence.hive_mind.types import (
     MonitoredStepResult,
     RAGConfig,
 )
+
+
+def _make_driver_response(
+    content: str = '{"status":"success","output":"OK","artifacts_created":[],"issues":[]}',
+    input_tokens: int = 100,
+    output_tokens: int = 50,
+) -> DriverResponse:
+    """Create a successful DriverResponse for testing."""
+    return DriverResponse(
+        content=content,
+        status=DriverResponseStatus.SUCCESS,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
 
 # =============================================================================
 # Helpers
@@ -144,15 +160,15 @@ def _make_phase(
     swarm_engine: object = None,
 ) -> MonitoredExecutionPhase:
     """Create a MonitoredExecutionPhase with fully mocked dependencies."""
+    _default_content = '{"status":"success","output":"OK","artifacts_created":[],"issues":[]}'
+
     gemini = MagicMock()
-    gemini.send_message_async = AsyncMock(
-        return_value='{"status":"success","output":"OK","artifacts_created":[],"issues":[]}'
-    )
+    gemini.send_message_async = AsyncMock(return_value=_default_content)
+    gemini.invoke = AsyncMock(return_value=_make_driver_response(_default_content))
 
     claude = MagicMock()
-    claude.send_message_async = AsyncMock(
-        return_value='{"status":"success","output":"OK","artifacts_created":[],"issues":[]}'
-    )
+    claude.send_message_async = AsyncMock(return_value=_default_content)
+    claude.invoke = AsyncMock(return_value=_make_driver_response(_default_content))
 
     cost_estimator = MagicMock()
     cost_estimator.can_afford.return_value = can_afford
@@ -189,14 +205,14 @@ def _patched_execute(phase, step_mock):
 
     # Stack all patches
     dedup_patch = patch(
-        "core.resilience.request_deduplicator.get_deduplicator",
+        "core.infrastructure.resilience.request_deduplicator.get_deduplicator",
         return_value=_dedup_mock,
     )
 
     with (
         patch.object(phase, "_execute_step", new=step_mock),
-        patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-        patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+        patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+        patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
     ):
         with contextlib.suppress(Exception):
             dedup_patch.start()
@@ -344,7 +360,7 @@ class TestMonitoredExecutionPhaseInit:
 
     def test_with_swarm_engine(self):
         swarm = MagicMock()
-        with patch("core.hive_mind.phases.phase_execution.SwarmBridge") as MockBridge:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.SwarmBridge") as MockBridge:
             phase = MonitoredExecutionPhase(
                 gemini_driver=MagicMock(),
                 claude_driver=MagicMock(),
@@ -854,7 +870,7 @@ class TestScoreExecutionQuality:
         arch = _make_architecture(steps=steps)
         results = [_make_step_result(status="success", artifacts_verified=True)]
         with patch(
-            "core.hive_mind.phases.phase_execution.MonitoredExecutionPhase._score_execution_quality",
+            "core.intelligence.hive_mind.phases.phase_execution.MonitoredExecutionPhase._score_execution_quality",
             wraps=phase._score_execution_quality,
         ):
             # This should not raise even if the scorer import fails
@@ -981,15 +997,15 @@ class TestExecuteStep:
 
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
 
             await phase._execute_step("task", step, [])
-            # Claude driver should have been called
-            phase.claude.send_message_async.assert_awaited_once()
-            phase.gemini.send_message_async.assert_not_awaited()
+            # Claude driver should have been called via invoke()
+            phase.claude.invoke.assert_awaited_once()
+            phase.gemini.invoke.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_selects_gemini_driver(self):
@@ -999,13 +1015,13 @@ class TestExecuteStep:
 
         step = _make_step(agent_id="gemini")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = False
             mock_reg.return_value = registry
 
             await phase._execute_step("task", step, [])
-            phase.gemini.send_message_async.assert_awaited_once()
+            phase.gemini.invoke.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_success_result_construction(self):
@@ -1013,12 +1029,14 @@ class TestExecuteStep:
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
-        phase.claude.send_message_async = AsyncMock(
-            return_value='{"status":"success","output":"All good","artifacts_created":[],"issues":[]}'
+        phase.claude.invoke = AsyncMock(
+            return_value=_make_driver_response(
+                '{"status":"success","output":"All good","artifacts_created":[],"issues":[]}'
+            )
         )
         step = _make_step(agent_id="claude", expected_duration=60.0)
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1037,10 +1055,10 @@ class TestExecuteStep:
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
-        phase.claude.send_message_async = AsyncMock(side_effect=TimeoutError())
+        phase.claude.invoke = AsyncMock(side_effect=TimeoutError())
         step = _make_step(agent_id="claude", expected_duration=0.001)
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1058,10 +1076,10 @@ class TestExecuteStep:
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
-        phase.claude.send_message_async = AsyncMock(side_effect=RuntimeError("API down"))
+        phase.claude.invoke = AsyncMock(side_effect=RuntimeError("API down"))
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1084,12 +1102,12 @@ class TestExecuteStep:
         # Using larger values to avoid Windows timer resolution issues
         async def slow_response(*args, **kwargs):
             await asyncio.sleep(0.15)
-            return '{"status":"success","output":"Slow","artifacts_created":[],"issues":[]}'
+            return _make_driver_response('{"status":"success","output":"Slow","artifacts_created":[],"issues":[]}')
 
-        phase.claude.send_message_async = AsyncMock(side_effect=slow_response)
+        phase.claude.invoke = AsyncMock(side_effect=slow_response)
         step = _make_step(agent_id="claude", expected_duration=0.1)
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1105,10 +1123,10 @@ class TestExecuteStep:
         phase._session_integration.get_agent_session.return_value = None
 
         # "file not found" is a lowercase pattern, so it will match
-        phase.claude.send_message_async = AsyncMock(return_value="file not found at /tmp/missing.py")
+        phase.claude.invoke = AsyncMock(return_value=_make_driver_response("file not found at /tmp/missing.py"))
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1122,12 +1140,14 @@ class TestExecuteStep:
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
-        phase.claude.send_message_async = AsyncMock(
-            return_value='{"status":"success","output":"traceback found in logs","artifacts_created":[],"issues":[]}'
+        phase.claude.invoke = AsyncMock(
+            return_value=_make_driver_response(
+                '{"status":"success","output":"traceback found in logs","artifacts_created":[],"issues":[]}'
+            )
         )
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1148,7 +1168,7 @@ class TestExecuteStep:
         expected_result = _make_step_result()
         phase._execute_via_swarm = AsyncMock(return_value=expected_result)
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1163,12 +1183,14 @@ class TestExecuteStep:
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
-        phase.claude.send_message_async = AsyncMock(
-            return_value='{"status":"success","output":"Created files","artifacts_created":["nonexistent.py"],"issues":[]}'
+        phase.claude.invoke = AsyncMock(
+            return_value=_make_driver_response(
+                '{"status":"success","output":"Created files","artifacts_created":["nonexistent.py"],"issues":[]}'
+            )
         )
         step = _make_step(agent_id="claude", verification_required=True)
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1189,13 +1211,13 @@ class TestExecuteStep:
             expected_duration=60.0,
         )
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
 
             await phase._execute_step("Build app", step, [])
-            call_args = phase.claude.send_message_async.call_args
+            call_args = phase.claude.invoke.call_args
             prompt = call_args[0][0]
             assert "Build app" in prompt
             assert "deploy" in prompt
@@ -1218,9 +1240,9 @@ class TestExecuteFlow:
         arch = _make_architecture(steps=[step])
 
         with (
-            patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             registry = MagicMock()
             registry.is_claude.return_value = True
@@ -1241,9 +1263,9 @@ class TestExecuteFlow:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             registry = MagicMock()
             registry.is_claude.return_value = True
@@ -1260,8 +1282,8 @@ class TestExecuteFlow:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             result = await phase.execute("task", arch)
 
@@ -1279,8 +1301,8 @@ class TestExecuteFlow:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             result = await phase.execute("task", arch)
 
@@ -1315,8 +1337,8 @@ class TestExecuteFlow:
 
         with (
             patch.object(phase, "_execute_step", new=AsyncMock(return_value=critical_result)),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             result = await phase.execute("task", arch)
 
@@ -1342,8 +1364,8 @@ class TestExecuteFlow:
 
         with (
             patch.object(phase, "_execute_step", new=AsyncMock(side_effect=[error_result, success_result])),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             result = await phase.execute("task", arch)
 
@@ -1414,9 +1436,9 @@ class TestV124IntegrationBlocks:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             registry = MagicMock()
             registry.is_claude.return_value = True
@@ -1434,9 +1456,9 @@ class TestV124IntegrationBlocks:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             registry = MagicMock()
             registry.is_claude.return_value = True
@@ -1454,20 +1476,20 @@ class TestV124IntegrationBlocks:
 
         # Patch all V12.4 singletons to raise
         patches = [
-            "core.reasoning.meta_policy_memory.get_meta_policy_memory",
-            "core.memory.plan_context_filter.get_plan_context_filter",
-            "core.resilience.request_deduplicator.get_deduplicator",
-            "core.execution.tool_observer.get_tool_observer",
-            "core.reasoning.uncertainty_propagator.get_uncertainty_propagator",
-            "core.reasoning.metacognitive_monitor.get_metacognitive_monitor",
-            "core.reasoning.inspector_guard.get_inspector_guard",
-            "core.skills.crystallizer.get_crystallizer",
-            "core.memory.pointer_memory.get_pointer_memory",
-            "core.reasoning.consensus_verifier.get_consensus_verifier",
-            "core.reasoning.cognitive_degradation.get_degradation_detector",
-            "core.reasoning.confidence_calibrator.get_confidence_calibrator",
-            "core.reasoning.fault_detector.get_fault_detector",
-            "core.reasoning.reasoning_quality_scorer.get_quality_scorer",
+            "core.intelligence.reasoning.meta_policy_memory.get_meta_policy_memory",
+            "core.memory_pkg.memory.plan_context_filter.get_plan_context_filter",
+            "core.infrastructure.resilience.request_deduplicator.get_deduplicator",
+            "core.execution_pkg.execution.tool_observer.get_tool_observer",
+            "core.intelligence.reasoning.uncertainty_propagator.get_uncertainty_propagator",
+            "core.intelligence.reasoning.metacognitive_monitor.get_metacognitive_monitor",
+            "core.intelligence.reasoning.inspector_guard.get_inspector_guard",
+            "core.memory_pkg.skills.crystallizer.get_crystallizer",
+            "core.memory_pkg.memory.pointer_memory.get_pointer_memory",
+            "core.intelligence.reasoning.consensus_verifier.get_consensus_verifier",
+            "core.intelligence.reasoning.cognitive_degradation.get_degradation_detector",
+            "core.intelligence.reasoning.confidence_calibrator.get_confidence_calibrator",
+            "core.intelligence.reasoning.fault_detector.get_fault_detector",
+            "core.intelligence.reasoning.reasoning_quality_scorer.get_quality_scorer",
         ]
 
         active_patches = []
@@ -1481,9 +1503,9 @@ class TestV124IntegrationBlocks:
 
         try:
             with (
-                patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-                patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-                patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+                patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+                patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+                patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
             ):
                 registry = MagicMock()
                 registry.is_claude.return_value = True
@@ -1515,7 +1537,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.consensus_verifier.get_consensus_verifier",
+                "core.intelligence.reasoning.consensus_verifier.get_consensus_verifier",
                 return_value=mock_verifier,
             ),
         ):
@@ -1543,7 +1565,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.cognitive_degradation.get_degradation_detector",
+                "core.intelligence.reasoning.cognitive_degradation.get_degradation_detector",
                 return_value=mock_detector,
             ),
         ):
@@ -1567,11 +1589,11 @@ class TestV124IntegrationBlocks:
         arch = _make_architecture(steps=steps)
 
         with (
-            patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg,
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg,
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
             patch(
-                "core.resilience.request_deduplicator.get_deduplicator",
+                "core.infrastructure.resilience.request_deduplicator.get_deduplicator",
                 return_value=mock_dedup,
             ),
         ):
@@ -1584,7 +1606,7 @@ class TestV124IntegrationBlocks:
         assert len(result.step_results) == 1
         assert result.step_results[0].output == "Cached output"
         # Driver should not have been called
-        phase.claude.send_message_async.assert_not_awaited()
+        phase.claude.invoke.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_hac_blocked_step_adds_issue(self):
@@ -1608,7 +1630,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.meta_policy_memory.get_meta_policy_memory",
+                "core.intelligence.reasoning.meta_policy_memory.get_meta_policy_memory",
                 return_value=mock_mpm,
             ),
         ):
@@ -1635,7 +1657,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.uncertainty_propagator.get_uncertainty_propagator",
+                "core.intelligence.reasoning.uncertainty_propagator.get_uncertainty_propagator",
                 return_value=mock_uprop,
             ),
         ):
@@ -1661,8 +1683,12 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.metacognitive_monitor.get_metacognitive_monitor",
+                "core.intelligence.reasoning.metacognitive_monitor.get_metacognitive_monitor",
                 return_value=mock_monitor,
+            ),
+            patch(
+                "core.intelligence.reasoning.task_complexity.should_monitor_metacognition",
+                return_value=True,
             ),
         ):
             result = await phase.execute("task", arch)
@@ -1688,7 +1714,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.reasoning.inspector_guard.get_inspector_guard",
+                "core.intelligence.reasoning.inspector_guard.get_inspector_guard",
                 return_value=mock_inspector,
             ),
         ):
@@ -1714,7 +1740,7 @@ class TestV124IntegrationBlocks:
         with (
             _patched_execute(phase, AsyncMock(return_value=r)),
             patch(
-                "core.memory.pointer_memory.get_pointer_memory",
+                "core.memory_pkg.memory.pointer_memory.get_pointer_memory",
                 return_value=mock_pmem,
             ),
         ):
@@ -1778,7 +1804,7 @@ class TestExecuteViaSwarm:
         phase.swarm_bridge = MagicMock()
 
         with patch(
-            "core.swarm.collaboration_modes.CollaborationMode.from_string",
+            "core.intelligence.swarm.collaboration_modes.CollaborationMode.from_string",
             side_effect=ValueError("Invalid mode"),
         ):
             step = _make_step(swarm_mode="invalid_mode")
@@ -1794,7 +1820,7 @@ class TestExecuteViaSwarm:
         phase.swarm_bridge = MagicMock()
 
         with patch(
-            "core.swarm.collaboration_modes.CollaborationMode.from_string",
+            "core.intelligence.swarm.collaboration_modes.CollaborationMode.from_string",
             side_effect=RuntimeError("Swarm engine crashed"),
         ):
             step = _make_step(swarm_mode="parallel")
@@ -1875,8 +1901,8 @@ class TestNeedsDiagnosis:
         arch = _make_architecture(steps=[])
 
         with (
-            patch("core.hive_mind.phases.phase_execution.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_execution.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_execution.emit_agent_exchange"),
         ):
             result = await phase.execute("task", arch)
 
@@ -1918,12 +1944,14 @@ class TestIssueSeverityHandling:
         phase._session_integration.get_agent_session.return_value = None
 
         # Return a response with a critical issue
-        phase.claude.send_message_async = AsyncMock(
-            return_value='{"status":"success","output":"OK","artifacts_created":[],"issues":[{"type":"security","severity":"critical","details":"Vulnerable"}]}'
+        phase.claude.invoke = AsyncMock(
+            return_value=_make_driver_response(
+                '{"status":"success","output":"OK","artifacts_created":[],"issues":[{"type":"security","severity":"critical","details":"Vulnerable"}]}'
+            )
         )
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry
@@ -1938,10 +1966,10 @@ class TestIssueSeverityHandling:
         phase._session_integration.get_agent_session.return_value = None
 
         # Use "file not found" (all-lowercase pattern) to trigger hallucination warning
-        phase.claude.send_message_async = AsyncMock(return_value="file not found at the given path")
+        phase.claude.invoke = AsyncMock(return_value=_make_driver_response("file not found at the given path"))
         step = _make_step(agent_id="claude")
 
-        with patch("core.hive_mind.phases.phase_execution.get_registry") as mock_reg:
+        with patch("core.intelligence.hive_mind.phases.phase_execution.get_registry") as mock_reg:
             registry = MagicMock()
             registry.is_claude.return_value = True
             mock_reg.return_value = registry

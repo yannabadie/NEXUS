@@ -53,6 +53,11 @@ def _get_concurrency_limiter_imports():
     return _concurrency_limiter_mod
 
 
+def get_concurrency_limiter():
+    """Public accessor for the concurrency limiter singleton. Used in tests."""
+    return _get_concurrency_limiter_imports().get_concurrency_limiter()
+
+
 if TYPE_CHECKING:
     pass
 

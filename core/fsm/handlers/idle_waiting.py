@@ -150,6 +150,23 @@ class IdleWaitingHandler(BaseHandler):
         response = greeting_responses.get(input_lower, f"Acknowledged: '{user_input}'. What would you like to do?")
         return self._make_result("WAITING_USER", response, None, True)
 
+    def _execute_simple_task(self, user_input: str, task_analysis) -> dict:
+        """
+        Handle SIMPLE complexity tasks - single agent mode.
+
+        Delegates to _handle_moderate_plus without Hive Mind routing,
+        as SIMPLE tasks don't require full multi-agent collaboration.
+
+        Args:
+            user_input: User task input
+            task_analysis: TaskAnalysis object with routing recommendation
+
+        Returns:
+            Result dict
+        """
+        # SIMPLE tasks skip Hive Mind, go directly to Swarm or Brainstorm
+        return self._handle_moderate_plus(user_input, task_analysis)
+
     def _handle_moderate_plus(self, user_input: str, task_analysis) -> dict:
         """Handle MODERATE/COMPLEX/EXPERT tasks."""
         complexity = task_analysis.complexity

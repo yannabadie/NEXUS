@@ -158,7 +158,13 @@ class DenseBackend(MemoryBackend):
 
     def _get_table_names(self) -> list:
         """Get table names from LanceDB, handling API changes."""
-        result = self._db.list_tables()
+        # lancedb >= 0.5 uses table_names(), older versions used list_tables()
+        if hasattr(self._db, "table_names"):
+            result = self._db.table_names()
+        elif hasattr(self._db, "list_tables"):
+            result = self._db.list_tables()
+        else:
+            return []
         if isinstance(result, list):
             return result
         return getattr(result, "tables", [])

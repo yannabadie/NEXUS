@@ -25,6 +25,7 @@ from unittest.mock import (
 
 import pytest
 
+from core.drivers.protocol import DriverResponse, DriverResponseStatus
 from core.intelligence.hive_mind.phases.phase_diagnosis import (
     DIAGNOSIS_PROMPT,
     SYNTHESIS_PROMPT,
@@ -120,6 +121,16 @@ def _make_breakpoint_response(
     )
 
 
+def _make_driver_response(content: str, input_tokens: int = 100, output_tokens: int = 50) -> DriverResponse:
+    """Create a DriverResponse as returned by invoke() for diagnosis tests."""
+    return DriverResponse(
+        content=content,
+        status=DriverResponseStatus.SUCCESS,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
 def _make_phase(
     gemini_response: str = '{"failure_type":"tool_error","root_cause":"API down","contributing_factors":[],"evidence":[],"recommended_changes":["Retry"],"confidence":0.7}',
     claude_response: str = '{"failure_type":"tool_error","root_cause":"API timeout","contributing_factors":[],"evidence":[],"recommended_changes":["Increase timeout"],"confidence":0.6}',
@@ -130,10 +141,18 @@ def _make_phase(
 ) -> FailureDiagnosisPhase:
     """Create a FailureDiagnosisPhase with mocked dependencies."""
     gemini_driver = MagicMock()
+    # gemini.invoke() is called twice: once for diagnosis, once for synthesis
     gemini_driver.send_message_async = AsyncMock(side_effect=[gemini_response, synthesis_response])
+    gemini_driver.invoke = AsyncMock(
+        side_effect=[
+            _make_driver_response(gemini_response),
+            _make_driver_response(synthesis_response),
+        ]
+    )
 
     claude_driver = MagicMock()
     claude_driver.send_message_async = AsyncMock(return_value=claude_response)
+    claude_driver.invoke = AsyncMock(return_value=_make_driver_response(claude_response))
 
     cost_estimator = MagicMock()
     cost_estimator.can_afford_multiple.return_value = can_afford
@@ -411,7 +430,7 @@ class TestParseDiagnosisResponse:
     def setup_method(self):
         self.phase = _make_phase()
 
-    @patch("core.hive_mind.phases.phase_diagnosis.FailureDiagnosisPhase._parse_diagnosis_response")
+    @patch("core.intelligence.hive_mind.phases.phase_diagnosis.FailureDiagnosisPhase._parse_diagnosis_response")
     def test_parse_valid_json(self, mock_parse):
         """Verify the method is called during synthesis (integration tested elsewhere)."""
         mock_parse.return_value = _make_diagnosis()
@@ -430,7 +449,7 @@ class TestParseDiagnosisResponse:
                 "missing_capability": None,
             }
         )
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = json.loads(response)
             diag = self.phase._parse_diagnosis_response(response, "g", "c")
             assert diag.failure_type == FailureType.TIMEOUT
@@ -438,7 +457,7 @@ class TestParseDiagnosisResponse:
             assert diag.confidence == 0.9
 
     def test_parse_with_unknown_failure_type(self):
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = {
                 "failure_type": "some_random_type",
                 "root_cause": "Unknown issue",
@@ -447,14 +466,14 @@ class TestParseDiagnosisResponse:
             assert diag.failure_type == FailureType.UNKNOWN
 
     def test_parse_with_none_response(self):
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = None
             diag = self.phase._parse_diagnosis_response("bad", "g", "c")
             assert diag.failure_type == FailureType.UNKNOWN
             assert diag.confidence == 0.3
 
     def test_parse_with_missing_fields_uses_defaults(self):
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = {"failure_type": "hallucination"}
             diag = self.phase._parse_diagnosis_response("resp", "g", "c")
             assert diag.failure_type == FailureType.HALLUCINATION
@@ -463,14 +482,14 @@ class TestParseDiagnosisResponse:
             assert diag.confidence == 0.5
 
     def test_parse_stores_raw_diagnoses(self):
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = {"failure_type": "timeout"}
             diag = self.phase._parse_diagnosis_response("resp", "gemini raw", "claude raw")
             assert diag.gemini_diagnosis == "gemini raw"
             assert diag.claude_diagnosis == "claude raw"
 
     def test_parse_exception_returns_fallback(self):
-        with patch("core.hive_mind.json_parser.parse_json_response") as mock_parser:
+        with patch("core.intelligence.hive_mind.json_parser.parse_json_response") as mock_parser:
             mock_parser.return_value = {"confidence": "not_a_number"}
             diag = self.phase._parse_diagnosis_response("resp", "g", "c")
             # Should fallback due to float() failure on "not_a_number"
@@ -499,8 +518,8 @@ class TestSynthesizeDiagnoses:
             }
         )
         phase = _make_phase()
-        # Override gemini driver to return synthesis_json directly (no side_effect list)
-        phase.gemini.send_message_async = AsyncMock(return_value=synthesis_json)
+        # Override gemini driver to return synthesis_json directly (source uses invoke())
+        phase.gemini.invoke = AsyncMock(return_value=_make_driver_response(synthesis_json))
         # Initialize session integration so _synthesize_diagnoses can use it
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = "synth-session-uuid"
@@ -516,7 +535,7 @@ class TestSynthesizeDiagnoses:
     @pytest.mark.asyncio
     async def test_synthesis_falls_back_on_driver_error(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(side_effect=RuntimeError("LLM down"))
+        phase.gemini.invoke = AsyncMock(side_effect=RuntimeError("LLM down"))
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = "uuid"
 
@@ -539,7 +558,10 @@ class TestSynthesizeDiagnoses:
         phase._session_integration.get_agent_session.return_value = "uuid"
 
         await phase._synthesize_diagnoses("task", "g", "c")
-        phase.cost_estimator.record_cost.assert_called()
+        # Source uses record_tokens() if available (MagicMock has it auto-created), else record_cost()
+        assert phase.cost_estimator.record_tokens.called or phase.cost_estimator.record_cost.called, (
+            "Expected either record_tokens or record_cost to be called"
+        )
 
     @pytest.mark.asyncio
     async def test_synthesis_without_session_integration(self):
@@ -551,8 +573,8 @@ class TestSynthesizeDiagnoses:
             }
         )
         phase = _make_phase()
-        # Override gemini driver to return synthesis_json directly
-        phase.gemini.send_message_async = AsyncMock(return_value=synthesis_json)
+        # Override gemini driver to return synthesis_json directly (source uses invoke())
+        phase.gemini.invoke = AsyncMock(return_value=_make_driver_response(synthesis_json))
         phase._session_integration = None
 
         diag = await phase._synthesize_diagnoses("task", "g", "c")
@@ -597,10 +619,10 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_execute_handles_gemini_exception(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(
+        phase.gemini.invoke = AsyncMock(
             side_effect=[
                 RuntimeError("Gemini exploded"),
-                '{"failure_type":"unknown","root_cause":"fallback","confidence":0.3}',
+                _make_driver_response('{"failure_type":"unknown","root_cause":"fallback","confidence":0.3}'),
             ]
         )
 
@@ -624,7 +646,7 @@ class TestExecuteFlow:
             }
         )
         phase = _make_phase(synthesis_response=synthesis_json)
-        phase.claude.send_message_async = AsyncMock(side_effect=RuntimeError("Claude down"))
+        phase.claude.invoke = AsyncMock(side_effect=RuntimeError("Claude down"))
 
         result = await phase.execute(
             task="Deploy",
@@ -638,13 +660,13 @@ class TestExecuteFlow:
     @pytest.mark.asyncio
     async def test_execute_handles_both_exceptions(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(
+        phase.gemini.invoke = AsyncMock(
             side_effect=[
                 RuntimeError("G down"),
-                '{"failure_type":"unknown","root_cause":"both failed","confidence":0.2}',
+                _make_driver_response('{"failure_type":"unknown","root_cause":"both failed","confidence":0.2}'),
             ]
         )
-        phase.claude.send_message_async = AsyncMock(side_effect=RuntimeError("C down"))
+        phase.claude.invoke = AsyncMock(side_effect=RuntimeError("C down"))
 
         result = await phase.execute(
             task="Complex task",
@@ -806,7 +828,7 @@ class TestV124IntegrationsDegradation:
         phase = _make_phase(synthesis_response=synthesis_json)
 
         with patch(
-            "core.hive_mind.phases.phase_diagnosis.FailureDiagnosisPhase.execute",
+            "core.intelligence.hive_mind.phases.phase_diagnosis.FailureDiagnosisPhase.execute",
             wraps=phase.execute,
         ):
             # The actual import of persona_diagnosis will likely fail in test env
@@ -948,21 +970,21 @@ class TestV124IntegrationsDegradation:
 
         with (
             patch(
-                "core.hive_mind.phases.phase_diagnosis.get_persona_diagnoser",
+                "core.intelligence.hive_mind.phases.phase_diagnosis.get_persona_diagnoser",
                 side_effect=ImportError("no persona"),
                 create=True,
             ),
             patch.dict(
                 "sys.modules",
                 {
-                    "core.hive_mind.failure_taxonomy": MagicMock(
+                    "core.intelligence.hive_mind.failure_taxonomy": MagicMock(
                         get_mast_classifier=MagicMock(return_value=mock_mast),
                         get_triple_reflector=MagicMock(return_value=mock_reflector),
                     ),
                 },
             ),
             patch(
-                "core.reasoning.meta_policy_memory.get_meta_policy_memory",
+                "core.intelligence.reasoning.meta_policy_memory.get_meta_policy_memory",
                 side_effect=RuntimeError("MPM broken"),
                 create=True,
             ),
@@ -1225,8 +1247,8 @@ class TestDriverDiagnosis:
     @pytest.mark.asyncio
     async def test_gemini_diagnosis_returns_response(self):
         phase = _make_phase(gemini_response="gemini output")
-        # Reset the side_effect to just return a single value
-        phase.gemini.send_message_async = AsyncMock(return_value="gemini output")
+        # Reset invoke to return a single value (source uses invoke(), not send_message_async)
+        phase.gemini.invoke = AsyncMock(return_value=_make_driver_response("gemini output"))
         result = await phase._diagnose_with_gemini("prompt")
         assert result == "gemini output"
 
@@ -1239,45 +1261,51 @@ class TestDriverDiagnosis:
     @pytest.mark.asyncio
     async def test_gemini_diagnosis_records_cost(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(return_value="response text here")
+        phase.gemini.invoke = AsyncMock(return_value=_make_driver_response("response text here"))
+        # Remove record_tokens from mock so record_cost branch is taken
+        del phase.cost_estimator.record_tokens
         await phase._diagnose_with_gemini("prompt")
         phase.cost_estimator.record_cost.assert_called_with(
             "failure_diagnosis_gemini",
-            len("response text here") // 4,
+            (100 + 50),  # input_tokens + output_tokens from _make_driver_response default
         )
 
     @pytest.mark.asyncio
     async def test_claude_diagnosis_records_cost(self):
         phase = _make_phase()
+        # Source uses record_tokens() if available; remove it to force record_cost()
+        del phase.cost_estimator.record_tokens
         await phase._diagnose_with_claude("prompt")
         phase.cost_estimator.record_cost.assert_called()
 
     @pytest.mark.asyncio
     async def test_gemini_diagnosis_raises_on_error(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(side_effect=ConnectionError("offline"))
+        phase.gemini.invoke = AsyncMock(side_effect=ConnectionError("offline"))
         with pytest.raises(ConnectionError, match="offline"):
             await phase._diagnose_with_gemini("prompt")
 
     @pytest.mark.asyncio
     async def test_claude_diagnosis_raises_on_error(self):
         phase = _make_phase()
-        phase.claude.send_message_async = AsyncMock(side_effect=TimeoutError("too slow"))
+        phase.claude.invoke = AsyncMock(side_effect=TimeoutError("too slow"))
         with pytest.raises(TimeoutError, match="too slow"):
             await phase._diagnose_with_claude("prompt")
 
     @pytest.mark.asyncio
     async def test_gemini_diagnosis_with_session_uuid(self):
         phase = _make_phase()
-        phase.gemini.send_message_async = AsyncMock(return_value="ok")
+        phase.gemini.invoke = AsyncMock(return_value=_make_driver_response("ok"))
         await phase._diagnose_with_gemini("prompt", session_uuid="sess-123")
-        phase.gemini.send_message_async.assert_called_with("prompt", session_uuid="sess-123")
+        call_kwargs = phase.gemini.invoke.call_args[1]
+        assert call_kwargs.get("session_id") == "sess-123"
 
     @pytest.mark.asyncio
     async def test_claude_diagnosis_with_session_uuid(self):
         phase = _make_phase()
         await phase._diagnose_with_claude("prompt", session_uuid="sess-456")
-        phase.claude.send_message_async.assert_called_with("prompt", session_uuid="sess-456")
+        call_kwargs = phase.claude.invoke.call_args[1]
+        assert call_kwargs.get("session_id") == "sess-456"
 
 
 # =============================================================================

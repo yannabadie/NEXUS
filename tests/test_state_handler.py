@@ -83,7 +83,7 @@ class TestStateHandler:
     def test_transition_to_otel_span(self, mock_get_tracer, handler, mock_orch):
         """transition_to should create OTel span if tracer available."""
         mock_span = MagicMock()
-        mock_tracer = Mock()
+        mock_tracer = MagicMock()
         mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
         mock_get_tracer.return_value = mock_tracer
 
@@ -244,8 +244,8 @@ class TestStateHandler:
         )
 
     def test_can_transition_fallback(self, handler):
-        """can_transition should allow all if TRANSITION_MATRIX missing."""
-        with patch("core.execution_pkg.orchestration.state_handler.TRANSITION_MATRIX", side_effect=ImportError):
+        """can_transition should allow all if TRANSITION_MATRIX unavailable."""
+        with patch("core.execution_pkg.orchestration.state_handler.TRANSITION_MATRIX", None):
             # Should allow any transition as fallback
             result = handler.can_transition(OrchestratorState.IDLE, OrchestratorState.PANIC)
             assert result is True

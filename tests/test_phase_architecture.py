@@ -32,6 +32,7 @@ import pytest
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.drivers.protocol import DriverResponse, DriverResponseStatus
 from core.intelligence.hive_mind.agent_registry import AgentRegistry
 from core.intelligence.hive_mind.context_manager import HiveMindContextManager
 from core.intelligence.hive_mind.cost_estimator import CostEstimator
@@ -50,6 +51,17 @@ from core.intelligence.hive_mind.types import (
     ExecutionStep,
     RAGConfig,
 )
+
+
+def _make_driver_response(content: str, input_tokens: int = 100, output_tokens: int = 50) -> DriverResponse:
+    """Create a successful DriverResponse for testing."""
+    return DriverResponse(
+        content=content,
+        status=DriverResponseStatus.SUCCESS,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
 
 # =============================================================================
 # Helper factories
@@ -175,7 +187,13 @@ def _make_phase(
 ) -> ArchitectureGenerationPhase:
     """Create an ArchitectureGenerationPhase with mocked drivers and deps."""
     gemini = AsyncMock()
+    gemini.invoke = AsyncMock(return_value=_make_driver_response(_valid_architecture_json()))
+    gemini.send_message_async = AsyncMock(return_value=_valid_architecture_json())
+
     claude = AsyncMock()
+    claude.invoke = AsyncMock(return_value=_make_driver_response(_valid_architecture_json()))
+    claude.send_message_async = AsyncMock(return_value=_valid_architecture_json())
+
     cost_estimator = CostEstimator(budget_limit=budget)
     context_manager = HiveMindContextManager(max_tokens=50000)
 
@@ -609,7 +627,7 @@ class TestTechniqueSelectorIntegration:
     async def test_technique_selector_applied(self):
         """TechniqueSelector is invoked when available."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
         # Initialize session integration
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = "session-uuid-1"
@@ -622,7 +640,7 @@ class TestTechniqueSelectorIntegration:
         mock_selector.compose_prompt.return_value = "Enhanced prompt"
 
         with patch(
-            "core.hive_mind.phases.phase_architecture.get_technique_selector",
+            "core.intelligence.hive_mind.phases.phase_architecture.get_technique_selector",
             create=True,
         ) as mock_get:
             mock_get.return_value = mock_selector
@@ -636,7 +654,7 @@ class TestTechniqueSelectorIntegration:
     async def test_technique_selector_failure_graceful(self):
         """TechniqueSelector failure does not break architecture generation."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -740,7 +758,7 @@ class TestCostEstimation:
     async def test_cost_recorded_after_claude_generation(self):
         """Cost is recorded after Claude generates architecture."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -755,7 +773,7 @@ class TestCostEstimation:
         """Cost is recorded after Gemini validates architecture."""
         phase = _make_phase()
         claude_arch = phase._parse_architecture_response(_valid_architecture_json(), ["coding"])
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -794,7 +812,7 @@ class TestCostEstimation:
     async def test_skip_gemini_validation_when_budget_insufficient(self):
         """When budget is insufficient for validation, use Claude arch directly."""
         phase = _make_phase(budget=1500)
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -802,14 +820,14 @@ class TestCostEstimation:
         phase.cost_estimator.spent = 1400
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             arch = await phase._generate_collaborative("Build API", "Use FastAPI", ["coding"], "No agents")
         # Should still get a valid architecture (from Claude only)
         assert arch is not None
         # Gemini should NOT have been called
-        phase.gemini.send_message_async.assert_not_called()
+        phase.gemini.invoke.assert_not_called()
 
 
 # =============================================================================
@@ -824,14 +842,14 @@ class TestExecuteFlow:
     async def test_execute_collaborative_no_spawns(self):
         """Full collaborative flow without any spawning needed."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         debate = _make_debate_result()
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Build a REST API", debate)
 
@@ -846,30 +864,30 @@ class TestExecuteFlow:
     async def test_execute_legacy_mode(self):
         """Legacy flow (Gemini only) when collaborative flag is off."""
         phase = _make_phase()
-        phase.gemini.send_message_async.return_value = _valid_architecture_json()
+        phase.gemini.invoke.return_value = _make_driver_response(_valid_architecture_json())
         debate = _make_debate_result()
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", False),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", False),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Build a REST API", debate)
 
         assert result is not None, "execute() returned None"
         # Use type name check to avoid dual-import isinstance failures in full suite
         assert type(result).__name__ == "ArchitecturePhaseResult", f"Got {type(result).__name__}: {result}"
-        phase.gemini.send_message_async.assert_called_once()
+        phase.gemini.invoke.assert_called_once()
         # Claude driver should NOT have been called in legacy mode
-        phase.claude.send_message_async.assert_not_called()
+        phase.claude.invoke.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_execute_with_spawn_approved(self):
         """Flow where spawning is needed and user approves."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _architecture_with_spawns_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(
-            architecture=json.loads(_architecture_with_spawns_json())
+        phase.claude.invoke.return_value = _make_driver_response(_architecture_with_spawns_json())
+        phase.gemini.invoke.return_value = _make_driver_response(
+            _gemini_validation_json(architecture=json.loads(_architecture_with_spawns_json()))
         )
         debate = _make_debate_result()
 
@@ -879,9 +897,9 @@ class TestExecuteFlow:
         phase.user_handler.before_spawn.return_value = mock_response
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Audit codebase", debate)
 
@@ -892,9 +910,9 @@ class TestExecuteFlow:
     async def test_execute_with_spawn_skipped(self):
         """Flow where user skips spawning."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _architecture_with_spawns_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(
-            architecture=json.loads(_architecture_with_spawns_json())
+        phase.claude.invoke.return_value = _make_driver_response(_architecture_with_spawns_json())
+        phase.gemini.invoke.return_value = _make_driver_response(
+            _gemini_validation_json(architecture=json.loads(_architecture_with_spawns_json()))
         )
         debate = _make_debate_result()
 
@@ -903,9 +921,9 @@ class TestExecuteFlow:
         phase.user_handler.before_spawn.return_value = mock_response
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Audit codebase", debate)
 
@@ -917,9 +935,9 @@ class TestExecuteFlow:
     async def test_execute_with_spawn_cancelled(self):
         """Flow where user cancels spawning."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _architecture_with_spawns_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(
-            architecture=json.loads(_architecture_with_spawns_json())
+        phase.claude.invoke.return_value = _make_driver_response(_architecture_with_spawns_json())
+        phase.gemini.invoke.return_value = _make_driver_response(
+            _gemini_validation_json(architecture=json.loads(_architecture_with_spawns_json()))
         )
         debate = _make_debate_result()
 
@@ -928,9 +946,9 @@ class TestExecuteFlow:
         phase.user_handler.before_spawn.return_value = mock_response
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Audit codebase", debate)
 
@@ -941,9 +959,9 @@ class TestExecuteFlow:
     async def test_execute_selective_spawn(self):
         """Flow where user selects specific agents to spawn."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _architecture_with_spawns_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(
-            architecture=json.loads(_architecture_with_spawns_json())
+        phase.claude.invoke.return_value = _make_driver_response(_architecture_with_spawns_json())
+        phase.gemini.invoke.return_value = _make_driver_response(
+            _gemini_validation_json(architecture=json.loads(_architecture_with_spawns_json()))
         )
         debate = _make_debate_result()
 
@@ -952,9 +970,9 @@ class TestExecuteFlow:
         phase.user_handler.before_spawn.return_value = mock_response
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Audit codebase", debate)
 
@@ -974,7 +992,7 @@ class TestGeminiValidation:
         """Gemini approves architecture without changes."""
         phase = _make_phase()
         claude_arch = phase._parse_architecture_response(_valid_architecture_json(), ["coding"])
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(validation="APPROVED")
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json(validation="APPROVED"))
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -990,10 +1008,12 @@ class TestGeminiValidation:
         optimized_arch = json.loads(
             _valid_architecture_json(execution_strategy="parallel", reasoning="Parallelized for speed")
         )
-        phase.gemini.send_message_async.return_value = _gemini_validation_json(
-            validation="OPTIMIZED",
-            optimizations=["Parallelized steps", "Removed redundant check"],
-            architecture=optimized_arch,
+        phase.gemini.invoke.return_value = _make_driver_response(
+            _gemini_validation_json(
+                validation="OPTIMIZED",
+                optimizations=["Parallelized steps", "Removed redundant check"],
+                architecture=optimized_arch,
+            )
         )
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
@@ -1006,7 +1026,7 @@ class TestGeminiValidation:
         """If Gemini response is unparseable, Claude architecture is used."""
         phase = _make_phase()
         claude_arch = phase._parse_architecture_response(_valid_architecture_json(), ["coding"])
-        phase.gemini.send_message_async.return_value = "This is not JSON"
+        phase.gemini.invoke.return_value = _make_driver_response("This is not JSON")
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -1018,14 +1038,14 @@ class TestGeminiValidation:
     async def test_gemini_driver_error_falls_back(self):
         """If Gemini driver throws, collaborative flow falls back to Claude."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.side_effect = RuntimeError("Gemini down")
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.side_effect = RuntimeError("Gemini down")
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             arch = await phase._generate_collaborative("Build API", "Use FastAPI", ["coding"], "No agents")
         # Should succeed with Claude-only architecture
@@ -1045,7 +1065,7 @@ class TestV124GracefulDegradation:
     async def test_claude_driver_failure_returns_fallback(self):
         """If Claude driver fails, fallback architecture is returned."""
         phase = _make_phase()
-        phase.claude.send_message_async.side_effect = Exception("Claude error")
+        phase.claude.invoke.side_effect = Exception("Claude error")
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -1056,7 +1076,7 @@ class TestV124GracefulDegradation:
     async def test_legacy_driver_failure_returns_fallback(self):
         """If Gemini driver fails in legacy mode, fallback architecture is used."""
         phase = _make_phase()
-        phase.gemini.send_message_async.side_effect = Exception("Gemini error")
+        phase.gemini.invoke.side_effect = Exception("Gemini error")
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
@@ -1080,7 +1100,7 @@ class TestV124GracefulDegradation:
         )
         # If GraphOfThought module is missing, annotation silently fails
         with patch(
-            "core.hive_mind.phases.phase_architecture.ThoughtGraph",
+            "core.intelligence.hive_mind.phases.phase_architecture.ThoughtGraph",
             side_effect=ImportError("No module"),
             create=True,
         ):
@@ -1273,14 +1293,14 @@ class TestEdgeCases:
     async def test_execute_with_empty_approach(self):
         """Execute works with empty debate approach."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         debate = _make_debate_result(final_approach="", final_capabilities=[])
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             result = await phase.execute("Build API", debate)
 
@@ -1536,14 +1556,14 @@ class TestSessionIntegration:
     async def test_session_integration_initialized(self):
         """Session integration is created during execute."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         debate = _make_debate_result()
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             await phase.execute("Build API", debate)
 
@@ -1552,26 +1572,26 @@ class TestSessionIntegration:
 
     @pytest.mark.asyncio
     async def test_session_uuid_passed_to_claude(self):
-        """Session UUID is passed to Claude driver."""
+        """Session UUID is passed to Claude driver via invoke()."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = "test-session-uuid"
 
         await phase._generate_with_claude("Build API", "Use FastAPI", ["coding"], "No agents")
 
-        # Claude driver should have received the session_uuid
-        call_kwargs = phase.claude.send_message_async.call_args
-        assert call_kwargs[1].get("session_uuid") == "test-session-uuid" or (
-            len(call_kwargs[0]) > 1 and call_kwargs[0][1] == "test-session-uuid"
-        )
+        # Claude driver should have been called via invoke() with session_id
+        call_kwargs = phase.claude.invoke.call_args
+        assert call_kwargs is not None
+        # session_id is passed as a keyword argument
+        assert call_kwargs[1].get("session_id") == "test-session-uuid"
 
     @pytest.mark.asyncio
     async def test_no_session_integration_still_works(self):
         """Architecture generation works without session integration."""
         phase = _make_phase()
         phase._session_integration = None
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
 
         arch = await phase._generate_with_claude("Build API", "Use FastAPI", ["coding"], "No agents")
         assert arch is not None
@@ -1589,51 +1609,51 @@ class TestModeSwitch:
     async def test_collaborative_calls_both_drivers(self):
         """Collaborative mode calls both Claude and Gemini."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             await phase._generate_collaborative("Build API", "Use FastAPI", ["coding"], "No agents")
 
-        phase.claude.send_message_async.assert_called_once()
-        phase.gemini.send_message_async.assert_called_once()
+        phase.claude.invoke.assert_called_once()
+        phase.gemini.invoke.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_legacy_calls_only_gemini(self):
         """Legacy mode calls only Gemini."""
         phase = _make_phase()
-        phase.gemini.send_message_async.return_value = _valid_architecture_json()
+        phase.gemini.invoke.return_value = _make_driver_response(_valid_architecture_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         await phase._generate_legacy("Build API", "Use FastAPI", ["coding"], "No agents")
 
-        phase.gemini.send_message_async.assert_called_once()
-        phase.claude.send_message_async.assert_not_called()
+        phase.gemini.invoke.assert_called_once()
+        phase.claude.invoke.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_generate_architecture_routes_correctly(self):
         """_generate_architecture routes to collaborative or legacy based on flag."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.COLLABORATIVE_ARCHITECTURE", True),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             arch = await phase._generate_architecture("Build API", "Use FastAPI", ["coding"], "No agents")
         assert arch is not None
         # Both drivers called in collaborative mode
-        phase.claude.send_message_async.assert_called_once()
+        phase.claude.invoke.assert_called_once()
 
 
 # =============================================================================
@@ -1648,14 +1668,14 @@ class TestTelemetryEmission:
     async def test_emit_agent_speak_called_for_claude(self):
         """emit_agent_speak is called after Claude generates architecture."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak") as mock_speak,
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak") as mock_speak,
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange"),
         ):
             await phase._generate_collaborative("Build API", "Use FastAPI", ["coding"], "No agents")
 
@@ -1668,14 +1688,14 @@ class TestTelemetryEmission:
     async def test_emit_agent_exchange_called(self):
         """emit_agent_exchange is called for architecture exchange."""
         phase = _make_phase()
-        phase.claude.send_message_async.return_value = _valid_architecture_json()
-        phase.gemini.send_message_async.return_value = _gemini_validation_json()
+        phase.claude.invoke.return_value = _make_driver_response(_valid_architecture_json())
+        phase.gemini.invoke.return_value = _make_driver_response(_gemini_validation_json())
         phase._session_integration = MagicMock()
         phase._session_integration.get_agent_session.return_value = None
 
         with (
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_speak"),
-            patch("core.hive_mind.phases.phase_architecture.emit_agent_exchange") as mock_exchange,
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_speak"),
+            patch("core.intelligence.hive_mind.phases.phase_architecture.emit_agent_exchange") as mock_exchange,
         ):
             await phase._generate_collaborative("Build API", "Use FastAPI", ["coding"], "No agents")
 

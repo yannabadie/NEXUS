@@ -300,7 +300,7 @@ class TestSingleton:
     def test_get_execution_policy_requires_path_first_time(self):
         """First call requires workspace_path."""
         # Reset singleton for test
-        import core.security.execution_policy as module
+        import core.security_pkg.security.execution_policy as module
 
         module._policy = None
 
@@ -309,7 +309,7 @@ class TestSingleton:
 
     def test_get_execution_policy_returns_same_instance(self, tmp_path):
         """Subsequent calls return same instance."""
-        import core.security.execution_policy as module
+        import core.security_pkg.security.execution_policy as module
 
         module._policy = None
 

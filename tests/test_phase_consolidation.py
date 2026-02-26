@@ -24,6 +24,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from core.drivers.protocol import DriverResponse, DriverResponseStatus
 from core.intelligence.hive_mind.phases.phase_consolidation import (
     CONSOLIDATION_DEBATE_PROMPT,
     REFLECTION_PROMPT,
@@ -77,22 +78,30 @@ def _make_user_response(chosen="accept_all"):
     )
 
 
+def _make_driver_response(content: str, input_tokens: int = 100, output_tokens: int = 50) -> DriverResponse:
+    """Create a DriverResponse as returned by invoke() for consolidation tests."""
+    return DriverResponse(
+        content=content,
+        status=DriverResponseStatus.SUCCESS,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
 @pytest.fixture
 def mock_gemini():
     driver = MagicMock()
     driver.send_message_async = AsyncMock(return_value=_make_reflection_json())
+    driver.invoke = AsyncMock(return_value=_make_driver_response(_make_reflection_json()))
     return driver
 
 
 @pytest.fixture
 def mock_claude():
     driver = MagicMock()
-    driver.send_message_async = AsyncMock(
-        return_value=_make_reflection_json(
-            patterns=["use caching"],
-            satisfaction=0.9,
-        )
-    )
+    _claude_json = _make_reflection_json(patterns=["use caching"], satisfaction=0.9)
+    driver.send_message_async = AsyncMock(return_value=_claude_json)
+    driver.invoke = AsyncMock(return_value=_make_driver_response(_claude_json))
     return driver
 
 
@@ -714,15 +723,15 @@ class TestExecuteFlow:
     async def test_execute_success_path(self, phase):
         """Full success path: reflect, debate, consolidate, archive."""
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
-            patch("core.skills.crystallizer.get_crystallizer", side_effect=ImportError),
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.memory_pkg.skills.crystallizer.get_crystallizer", side_effect=ImportError),
             patch.dict(
                 "sys.modules",
                 {
-                    "core.skills.crystallizer": None,
-                    "core.memory.auto_memory": None,
-                    "core.reasoning.uncertainty_propagator": None,
-                    "core.skills.experience_distiller": None,
+                    "core.memory_pkg.skills.crystallizer": None,
+                    "core.memory_pkg.memory.auto_memory": None,
+                    "core.intelligence.reasoning.uncertainty_propagator": None,
+                    "core.memory_pkg.skills.experience_distiller": None,
                 },
             ),
         ):
@@ -741,38 +750,43 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_calls_both_drivers(self, phase, mock_gemini, mock_claude):
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
 
             await phase.execute(**SAMPLE_EXECUTE_KWARGS)
 
-            mock_gemini.send_message_async.assert_called_once()
-            mock_claude.send_message_async.assert_called_once()
+            mock_gemini.invoke.assert_called_once()
+            mock_claude.invoke.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_execute_records_costs(self, phase, mock_cost_estimator):
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
 
             await phase.execute(**SAMPLE_EXECUTE_KWARGS)
 
-            # Should record reflection costs + decide_retention + consolidate
-            cost_calls = [c[0] for c in mock_cost_estimator.record_cost.call_args_list]
-            operations = [c[0] for c in cost_calls]
-            assert "reflection_gemini" in operations
-            assert "reflection_claude" in operations
-            assert "decide_retention" in operations
-            assert "consolidate" in operations
+            # Source uses record_tokens() if available (MagicMock has it), else record_cost()
+            # Collect operation names from whichever method was actually called
+            token_calls = [c[0][0] for c in mock_cost_estimator.record_tokens.call_args_list]
+            cost_calls_list = [c[0][0] for c in mock_cost_estimator.record_cost.call_args_list]
+            all_operations = token_calls + cost_calls_list
+            # Reflection costs recorded via record_tokens or record_cost
+            has_gemini_reflection = "reflection_gemini" in all_operations
+            has_claude_reflection = "reflection_claude" in all_operations
+            assert has_gemini_reflection, f"Expected reflection_gemini in {all_operations}"
+            assert has_claude_reflection, f"Expected reflection_claude in {all_operations}"
+            assert "decide_retention" in cost_calls_list
+            assert "consolidate" in cost_calls_list
 
     @pytest.mark.asyncio
     async def test_execute_budget_limited_returns_minimal(self, phase, mock_cost_estimator):
         mock_cost_estimator.can_afford_multiple.return_value = False
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -784,9 +798,9 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_gemini_failure_handled(self, phase, mock_gemini):
-        mock_gemini.send_message_async = AsyncMock(side_effect=RuntimeError("Gemini down"))
+        mock_gemini.invoke = AsyncMock(side_effect=RuntimeError("Gemini down"))
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -798,9 +812,9 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_claude_failure_handled(self, phase, mock_claude):
-        mock_claude.send_message_async = AsyncMock(side_effect=RuntimeError("Claude down"))
+        mock_claude.invoke = AsyncMock(side_effect=RuntimeError("Claude down"))
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -811,10 +825,10 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_both_drivers_fail(self, phase, mock_gemini, mock_claude):
-        mock_gemini.send_message_async = AsyncMock(side_effect=RuntimeError("G fail"))
-        mock_claude.send_message_async = AsyncMock(side_effect=RuntimeError("C fail"))
+        mock_gemini.invoke = AsyncMock(side_effect=RuntimeError("G fail"))
+        mock_claude.invoke = AsyncMock(side_effect=RuntimeError("C fail"))
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -828,7 +842,7 @@ class TestExecuteFlow:
     async def test_execute_user_rejects_consolidation(self, phase, mock_user_handler):
         mock_user_handler.knowledge_consolidation.return_value = _make_user_response("reject")
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -843,7 +857,7 @@ class TestExecuteFlow:
     async def test_execute_user_selective_option(self, phase, mock_user_handler):
         mock_user_handler.knowledge_consolidation.return_value = _make_user_response("selective")
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -855,7 +869,7 @@ class TestExecuteFlow:
 
     @pytest.mark.asyncio
     async def test_execute_patterns_added_to_context_manager(self, phase, mock_context_manager):
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -875,7 +889,7 @@ class TestExecuteFlow:
     async def test_execute_with_no_agents_spawned(self, phase):
         kwargs = {**SAMPLE_EXECUTE_KWARGS, "agents_spawned": []}
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -888,7 +902,7 @@ class TestExecuteFlow:
     async def test_execute_failed_task(self, phase):
         kwargs = {**SAMPLE_EXECUTE_KWARGS, "success": False}
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -1021,7 +1035,7 @@ class TestV124SkillCrystallizer:
     @pytest.mark.asyncio
     async def test_crystallizer_import_error_swallowed(self, phase):
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch.dict("sys.modules", {"core.skills.crystallizer": None}),
         ):
             mock_si = MagicMock()
@@ -1038,9 +1052,9 @@ class TestV124SkillCrystallizer:
         mock_crystallizer.detect_patterns.side_effect = RuntimeError("boom")
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.skills.crystallizer.get_crystallizer",
+                "core.memory_pkg.skills.crystallizer.get_crystallizer",
                 return_value=mock_crystallizer,
             ),
         ):
@@ -1063,9 +1077,9 @@ class TestV124PrincipleLibrary:
     @pytest.mark.asyncio
     async def test_principle_library_import_error_swallowed(self, phase):
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.hive_mind.principle_library.get_principle_library",
+                "core.intelligence.hive_mind.principle_library.get_principle_library",
                 side_effect=ImportError("no module"),
             ),
         ):
@@ -1082,9 +1096,9 @@ class TestV124PrincipleLibrary:
         mock_lib.add_principle.side_effect = ValueError("bad principle")
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.hive_mind.principle_library.get_principle_library",
+                "core.intelligence.hive_mind.principle_library.get_principle_library",
                 return_value=mock_lib,
             ),
         ):
@@ -1107,7 +1121,7 @@ class TestV124AutoMemory:
     @pytest.mark.asyncio
     async def test_auto_memory_import_error_swallowed(self, phase):
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch.dict("sys.modules", {"core.memory.auto_memory": None}),
         ):
             mock_si = MagicMock()
@@ -1123,9 +1137,9 @@ class TestV124AutoMemory:
         mock_mem.record_success.side_effect = RuntimeError("storage fail")
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.memory.auto_memory.get_auto_memory",
+                "core.memory_pkg.memory.auto_memory.get_auto_memory",
                 return_value=mock_mem,
             ),
         ):
@@ -1141,9 +1155,9 @@ class TestV124AutoMemory:
         mock_mem = MagicMock()
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.memory.auto_memory.get_auto_memory",
+                "core.memory_pkg.memory.auto_memory.get_auto_memory",
                 return_value=mock_mem,
             ),
         ):
@@ -1169,8 +1183,8 @@ class TestV124UncertaintyPropagator:
     @pytest.mark.asyncio
     async def test_uncertainty_propagator_import_error_swallowed(self, phase):
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
-            patch.dict("sys.modules", {"core.reasoning.uncertainty_propagator": None}),
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch.dict("sys.modules", {"core.intelligence.reasoning.uncertainty_propagator": None}),
         ):
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
@@ -1185,9 +1199,9 @@ class TestV124UncertaintyPropagator:
         mock_prop.reset_chain.side_effect = RuntimeError("reset fail")
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.reasoning.uncertainty_propagator.get_uncertainty_propagator",
+                "core.intelligence.reasoning.uncertainty_propagator.get_uncertainty_propagator",
                 return_value=mock_prop,
             ),
         ):
@@ -1210,7 +1224,7 @@ class TestV124ExperienceDistiller:
     @pytest.mark.asyncio
     async def test_experience_distiller_import_error_swallowed(self, phase):
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch.dict("sys.modules", {"core.skills.experience_distiller": None}),
         ):
             mock_si = MagicMock()
@@ -1226,9 +1240,9 @@ class TestV124ExperienceDistiller:
         mock_dist.distill.side_effect = RuntimeError("distill fail")
 
         with (
-            patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
+            patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI,
             patch(
-                "core.skills.experience_distiller.get_experience_distiller",
+                "core.memory_pkg.skills.experience_distiller.get_experience_distiller",
                 return_value=mock_dist,
             ),
         ):
@@ -1251,22 +1265,27 @@ class TestReflectWithDrivers:
     @pytest.mark.asyncio
     async def test_reflect_with_gemini_returns_response(self, phase, mock_gemini):
         response = await phase._reflect_with_gemini("prompt", "session-123")
-        assert response == mock_gemini.send_message_async.return_value
+        # Source uses invoke() which returns DriverResponse; method returns response.content
+        assert response == mock_gemini.invoke.return_value.content
 
     @pytest.mark.asyncio
     async def test_reflect_with_claude_returns_response(self, phase, mock_claude):
         response = await phase._reflect_with_claude("prompt", "session-456")
-        assert response == mock_claude.send_message_async.return_value
+        assert response == mock_claude.invoke.return_value.content
 
     @pytest.mark.asyncio
-    async def test_reflect_with_gemini_records_cost(self, phase, mock_cost_estimator):
+    async def test_reflect_with_gemini_records_cost(self, phase, mock_gemini, mock_cost_estimator):
+        # Ensure record_tokens is not on mock so record_cost branch is taken
+        del mock_cost_estimator.record_tokens
         await phase._reflect_with_gemini("prompt", None)
         mock_cost_estimator.record_cost.assert_called()
         call_args = mock_cost_estimator.record_cost.call_args
         assert call_args[0][0] == "reflection_gemini"
 
     @pytest.mark.asyncio
-    async def test_reflect_with_claude_records_cost(self, phase, mock_cost_estimator):
+    async def test_reflect_with_claude_records_cost(self, phase, mock_claude, mock_cost_estimator):
+        # Ensure record_tokens is not on mock so record_cost branch is taken
+        del mock_cost_estimator.record_tokens
         await phase._reflect_with_claude("prompt", None)
         mock_cost_estimator.record_cost.assert_called()
         call_args = mock_cost_estimator.record_cost.call_args
@@ -1274,25 +1293,27 @@ class TestReflectWithDrivers:
 
     @pytest.mark.asyncio
     async def test_reflect_with_gemini_raises_on_error(self, phase, mock_gemini):
-        mock_gemini.send_message_async = AsyncMock(side_effect=ConnectionError("offline"))
+        mock_gemini.invoke = AsyncMock(side_effect=ConnectionError("offline"))
         with pytest.raises(ConnectionError):
             await phase._reflect_with_gemini("prompt", None)
 
     @pytest.mark.asyncio
     async def test_reflect_with_claude_raises_on_error(self, phase, mock_claude):
-        mock_claude.send_message_async = AsyncMock(side_effect=TimeoutError("timeout"))
+        mock_claude.invoke = AsyncMock(side_effect=TimeoutError("timeout"))
         with pytest.raises(TimeoutError):
             await phase._reflect_with_claude("prompt", None)
 
     @pytest.mark.asyncio
     async def test_reflect_passes_session_uuid(self, phase, mock_gemini):
         await phase._reflect_with_gemini("prompt", "my-session")
-        mock_gemini.send_message_async.assert_called_once_with("prompt", session_uuid="my-session")
+        call_kwargs = mock_gemini.invoke.call_args[1]
+        assert call_kwargs.get("session_id") == "my-session"
 
     @pytest.mark.asyncio
     async def test_reflect_with_none_session(self, phase, mock_claude):
         await phase._reflect_with_claude("prompt", None)
-        mock_claude.send_message_async.assert_called_once_with("prompt", session_uuid=None)
+        call_kwargs = mock_claude.invoke.call_args[1]
+        assert call_kwargs.get("session_id") is None
 
 
 # =============================================================================
@@ -1390,7 +1411,7 @@ class TestEdgeCases:
     async def test_execute_with_empty_approach(self, phase):
         kwargs = {**SAMPLE_EXECUTE_KWARGS, "approach": ""}
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si
@@ -1403,7 +1424,7 @@ class TestEdgeCases:
     async def test_execute_with_empty_agents_used(self, phase):
         kwargs = {**SAMPLE_EXECUTE_KWARGS, "agents_used": []}
 
-        with patch("core.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
+        with patch("core.intelligence.hive_mind.phases.phase_consolidation.HiveMindSessionIntegration") as MockSI:
             mock_si = MagicMock()
             mock_si.get_parallel_sessions.return_value = {"gemini": "g", "claude": "c"}
             MockSI.return_value = mock_si

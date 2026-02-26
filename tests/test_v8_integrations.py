@@ -329,7 +329,15 @@ class TestConfigHiveMindSettings:
 
     def test_mock_config_has_hive_mind_settings(self):
         """Test MockConfig in conftest also has hive_mind settings."""
-        from tests.conftest import MockConfig
+        import importlib.util
+        from pathlib import Path
+
+        # Load conftest directly since tests/ has no __init__.py
+        conftest_path = Path(__file__).parent / "conftest.py"
+        spec = importlib.util.spec_from_file_location("conftest", conftest_path)
+        conftest_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(conftest_mod)
+        MockConfig = conftest_mod.MockConfig
 
         config = MockConfig()
 

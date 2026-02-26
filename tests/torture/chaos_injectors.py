@@ -66,7 +66,7 @@ class CrashInjector:
         async def crashing_persist(*args, **kwargs):
             raise RuntimeError("CrashInjector: Crash during persist")
 
-        with patch("core.hive_mind.saga_manager.SagaManager._persist", crashing_persist):
+        with patch("core.intelligence.hive_mind.saga_manager.SagaManager._persist", crashing_persist):
             yield
 
     @contextmanager

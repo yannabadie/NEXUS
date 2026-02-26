@@ -120,15 +120,34 @@ class TaskRouter:
         if not user_input:
             return False
 
-        input_lower = user_input.strip().lower()
+        import re
 
-        # Check instant commands
-        if any(cmd in input_lower for cmd in self._instant_patterns):
+        input_stripped = user_input.strip()
+        input_lower = input_stripped.lower()
+
+        # Check slash-commands (always instant regardless of length)
+        slash_commands = [cmd for cmd in self._instant_patterns if cmd.startswith("/")]
+        if any(cmd in input_lower for cmd in slash_commands):
+            return True
+
+        # Check word-based instant commands only when input is short and standalone
+        # (prevents "help" matching inside "I need help implementing something complex")
+        word_commands = [cmd for cmd in self._instant_patterns if not cmd.startswith("/")]
+        if len(input_lower) < 30 and any(
+            re.search(r"^\s*" + re.escape(cmd) + r"\s*$", input_lower) for cmd in word_commands
+        ):
             return True
 
         # Check conversational trivial (simple greetings/acknowledgments)
-        # Only fast path if input is ONLY the trivial pattern (no complex query)
-        return any(pattern in input_lower for pattern in self._trivial_patterns) and len(input_lower) < 50
+        # Only fast path if input is short AND trivial pattern appears as whole word
+        # Use whole-word match to avoid false positives (e.g. "hi" in "this")
+        if len(input_lower) >= 50:
+            return False
+
+        trivial_match = any(
+            re.search(r"\b" + re.escape(pattern) + r"\b", input_lower) for pattern in self._trivial_patterns
+        )
+        return trivial_match
 
     def handle_fast_path(self, user_input: str) -> str:
         """

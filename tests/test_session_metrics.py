@@ -37,9 +37,11 @@ def workspace_path(tmp_path):
 
 
 @pytest.fixture
-def success_memory(workspace_path):
-    """Create a SuccessMemory instance."""
-    return SuccessMemory(workspace_path)
+def success_memory(tmp_path):
+    """Create a SuccessMemory instance with isolated storage."""
+    ws = tmp_path / "workspace"
+    ws.mkdir(exist_ok=True)
+    return SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
 
 @pytest.fixture
@@ -49,14 +51,16 @@ def agent_pool():
 
 
 @pytest.fixture
-def populated_success_memory(workspace_path):
+def populated_success_memory(tmp_path):
     """
     Create SuccessMemory with pre-populated session data.
 
     - gemini_primary: 5 sessions, 4 high quality (80% success)
     - claude_opus: 5 sessions, 2 high quality (40% success)
     """
-    memory = SuccessMemory(workspace_path)
+    ws = tmp_path / "workspace"
+    ws.mkdir(exist_ok=True)
+    memory = SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
     # Gemini sessions - mostly successful
     for i in range(4):
@@ -414,11 +418,13 @@ class TestModeSelectorSessionAware:
 class TestSessionHistoryInfluence:
     """End-to-end tests verifying session history influences agent selection."""
 
-    def test_agent_with_high_session_success_favored(self, workspace_path):
+    def test_agent_with_high_session_success_favored(self, tmp_path):
         """Agent with high session success rate is favored over one with low rate."""
         # Create fresh pool and memory
         pool = create_default_pool()
-        memory = SuccessMemory(workspace_path)
+        ws = tmp_path / "workspace"
+        ws.mkdir(exist_ok=True)
+        memory = SuccessMemory(workspace_path=ws, nexus_root=tmp_path)
 
         # Add session history: Agent A has 100% success, Agent B has 0%
         for i in range(5):

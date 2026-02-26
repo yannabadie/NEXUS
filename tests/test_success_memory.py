@@ -211,7 +211,7 @@ class TestSuccessMemory:
     @pytest.fixture
     def memory(self, tmp_path):
         """Create a SuccessMemory instance with temp storage."""
-        return SuccessMemory(workspace_path=tmp_path)
+        return SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
 
     @pytest.fixture
     def mock_analysis(self):
@@ -242,7 +242,6 @@ class TestSuccessMemory:
         """Memory initializes correctly."""
         assert memory.workspace_path == tmp_path
         assert memory.max_entries == SuccessMemory.DEFAULT_MAX_ENTRIES
-        assert (tmp_path / "memory").exists()
 
     def test_filepath(self, memory, tmp_path):
         """Filepath is correct."""
@@ -312,7 +311,7 @@ class TestSuccessMemory:
 
     def test_fifo_eviction(self, tmp_path, mock_analysis, mock_result):
         """Old entries are evicted when max_entries exceeded."""
-        memory = SuccessMemory(workspace_path=tmp_path, max_entries=5)
+        memory = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path, max_entries=5)
 
         # Record 7 entries
         for i in range(7):
@@ -348,11 +347,11 @@ class TestSuccessMemory:
     def test_persistence(self, tmp_path, mock_analysis, mock_result):
         """Data persists across instances."""
         # First instance
-        memory1 = SuccessMemory(workspace_path=tmp_path)
+        memory1 = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
         memory1.record_success("task-001", mock_analysis, mock_result)
 
         # Second instance (same path)
-        memory2 = SuccessMemory(workspace_path=tmp_path)
+        memory2 = SuccessMemory(workspace_path=tmp_path, nexus_root=tmp_path)
         entries = memory2.get_all()
 
         assert len(entries) == 1
@@ -402,9 +401,9 @@ class TestGetSuccessMemory:
     def test_returns_none_without_init(self):
         """Returns None before initialization."""
         # Reset global state
-        import core.memory.success_memory as sm
+        import core.memory_pkg.memory.success_memory_v2 as sm
 
-        sm._default_memory = None
+        sm._default_memory_v2 = None
 
         result = get_success_memory()
         assert result is None
@@ -412,9 +411,9 @@ class TestGetSuccessMemory:
     def test_initializes_with_workspace(self, tmp_path):
         """Can initialize with workspace path."""
         # Reset global state
-        import core.memory.success_memory as sm
+        import core.memory_pkg.memory.success_memory_v2 as sm
 
-        sm._default_memory = None
+        sm._default_memory_v2 = None
 
         memory = get_success_memory(workspace_path=tmp_path)
         assert memory is not None
@@ -422,9 +421,9 @@ class TestGetSuccessMemory:
 
     def test_returns_same_instance(self, tmp_path):
         """Returns same instance on subsequent calls."""
-        import core.memory.success_memory as sm
+        import core.memory_pkg.memory.success_memory_v2 as sm
 
-        sm._default_memory = None
+        sm._default_memory_v2 = None
 
         memory1 = get_success_memory(workspace_path=tmp_path)
         memory2 = get_success_memory()

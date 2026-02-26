@@ -63,15 +63,17 @@ class AsyncDriverFactory:
     Singleton pattern ensures only one driver per type exists.
     """
 
-    def __init__(self, config: Any, workspace_path: Path):
+    def __init__(self, config: Any, workspace_path: Path | None = None):
         """
         Initialize factory.
 
         Args:
             config: NEXUS config object (or mock with required attributes)
-            workspace_path: Workspace path for file I/O
+            workspace_path: Workspace path for file I/O (defaults to config.workspace_path or "./workspace")
         """
         self.config = config
+        if workspace_path is None:
+            workspace_path = getattr(config, "workspace_path", Path("./workspace"))
         self.workspace_path = Path(workspace_path)
         self._registry = get_process_registry()
 
